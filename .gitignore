@@ -1,0 +1,15 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.sqlite3
+.env
+
+# Node
+node_modules/
+.next/
+.env.local
+
+# General
+.DS_Store
+*.log
