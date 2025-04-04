@@ -7,7 +7,6 @@ from django.contrib.auth import authenticate
 from .models import Restaurant
 from .serializers import RestaurantSerializer
 
-
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register(request):
