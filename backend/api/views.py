@@ -1,73 +1,54 @@
 from django.contrib.auth.models import User
+from rest_framework import status
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
 from django.contrib.auth import authenticate
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
-from django.urls import path
 from .models import Restaurant
-import json
+from .serializers import RestaurantSerializer
 
-@csrf_exempt
-@require_http_methods(["POST"])
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
 def register(request):
-    data = json.loads(request.body)
-    username = data.get('username')
-    password = data.get('password')
+    username = request.data.get("username")
+    password = request.data.get("password")
 
     if User.objects.filter(username=username).exists():
-        return JsonResponse({'error': 'Utilisateur déjà existant'}, status=400)
+        return Response({"error": "Utilisateur déjà existant"}, status=status.HTTP_400_BAD_REQUEST)
 
     user = User.objects.create_user(username=username, password=password)
-    return JsonResponse({'user': {'username': user.username}}, status=201)
+    return Response({"user": {"username": user.username}}, status=status.HTTP_201_CREATED)
 
-@csrf_exempt
-@require_http_methods(["POST"])
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
 def login(request):
-    data = json.loads(request.body)
-    username = data.get('username')
-    password = data.get('password')
+    username = request.data.get("username")
+    password = request.data.get("password")
 
     user = authenticate(username=username, password=password)
     if user is not None:
-        return JsonResponse({'user': {'username': user.username}}, status=200)
+        return Response({"user": {"username": user.username}}, status=status.HTTP_200_OK)
     else:
-        return JsonResponse({'error': 'Identifiants invalides'}, status=400)
+        return Response({"error": "Identifiants invalides"}, status=status.HTTP_400_BAD_REQUEST)
 
-@csrf_exempt
-@require_http_methods(["GET"])
-def list_restaurants(request):
-    restaurants = Restaurant.objects.all()
-    data = [
-        {
-            'id': r.id,
-            'name': r.name,
-            'description': r.description,
-            'owner': r.owner.username
-        }
-        for r in restaurants
-    ]
-    return JsonResponse(data, safe=False)
 
-@csrf_exempt
-@require_http_methods(["POST"])
-def create_restaurant(request):
-    data = json.loads(request.body)
-    name = data.get('name')
-    description = data.get('description', '')
-    username = data.get('username')
+@api_view(['GET', 'POST'])
+def restaurant_list_create(request):
+    if request.method == 'GET':
+        restaurants = Restaurant.objects.all()
+        serializer = RestaurantSerializer(restaurants, many=True)
+        return Response(serializer.data)
 
-    try:
-        owner = User.objects.get(username=username)
-        restaurant = Restaurant.objects.create(
-            name=name,
-            description=description,
-            owner=owner
-        )
-        return JsonResponse({
-            'id': restaurant.id,
-            'name': restaurant.name,
-            'description': restaurant.description,
-            'owner': restaurant.owner.username
-        }, status=201)
-    except User.DoesNotExist:
-        return JsonResponse({'error': 'Utilisateur non trouvé'}, status=404)
+    if request.method == 'POST':
+        serializer = RestaurantSerializer(data=request.data)
+        if serializer.is_valid():
+            try:
+                user = User.objects.get(username=request.data.get('username'))
+            except User.DoesNotExist:
+                return Response({"error": "Utilisateur non trouvé"}, status=status.HTTP_404_NOT_FOUND)
+
+            serializer.save(owner=user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

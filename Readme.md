@@ -1,4 +1,4 @@
-# 🍽️ Restaurant App
+# 🍽️ Payquick
 
 Une application web complète pour la gestion de restaurants, construite avec **Next.js** côté frontend et **Django** côté backend.
 
