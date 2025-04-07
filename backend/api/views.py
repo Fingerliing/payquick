@@ -57,14 +57,51 @@ def restaurant_list_create(request):
         return Response(serializer.data)
 
     if request.method == 'POST':
-        serializer = RestaurantSerializer(data=request.data)
-        if serializer.is_valid():
+        username = request.data.get('username')
+        name = request.data.get('name')
+        city = request.data.get('city')
+        description = request.data.get('description')
+
+        if not city:
+            return Response({"error": "La ville est requise"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if request.user.is_authenticated:
+            if request.user.username != username:
+                return Response({"error": "Non autorisé à créer un restaurant pour un autre utilisateur."}, status=status.HTTP_403_FORBIDDEN)
+        else:
             try:
-                user = User.objects.get(username=request.data.get('username'))
+                user = User.objects.get(username=username)
             except User.DoesNotExist:
                 return Response({"error": "Utilisateur non trouvé"}, status=status.HTTP_404_NOT_FOUND)
 
-            serializer.save(owner=user)
+        # Requête OpenStreetMap Nominatim avec nom + ville
+        try:
+            osm_url = "https://nominatim.openstreetmap.org/search"
+            params = {
+                'q': f"{name}, {city}",
+                'format': 'json',
+                'limit': 1
+            }
+            osm_response = requests.get(osm_url, params=params, headers={"User-Agent": "resto-app/1.0"})
+            osm_data = osm_response.json()
+            if not osm_data:
+                return Response({"error": "Établissement non reconnu via OpenStreetMap"}, status=404)
+
+            lat = osm_data[0].get("lat")
+            lon = osm_data[0].get("lon")
+        except Exception as e:
+            return Response({"error": f"Erreur OpenStreetMap : {str(e)}"}, status=500)
+
+        data = {
+            "name": name,
+            "description": description,
+            "latitude": lat,
+            "longitude": lon
+        }
+        serializer = RestaurantSerializer(data=data)
+        if serializer.is_valid():
+            owner = request.user if request.user.is_authenticated else user
+            serializer.save(owner=owner)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
