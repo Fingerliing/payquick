@@ -152,7 +152,7 @@ def client_login(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 @parser_classes([MultiPartParser, FormParser])
-def register(request):
+def restaurateur_register(request):
     username = request.data.get("username")
     password = request.data.get("password")
     email = request.data.get("email")
@@ -187,3 +187,22 @@ def register(request):
     )
 
     return Response({"user": {"username": user.username}}, status=201)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def restaurateur_login(request):
+    username = request.data.get("username")
+    password = request.data.get("password")
+
+    user = authenticate(username=username, password=password)
+    if not user:
+        return Response({"error": "Identifiants invalides"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        profile = user.restaurateur_profile
+        if not profile.is_validated:
+            return Response({"error": "Votre compte est en cours de validation."}, status=status.HTTP_403_FORBIDDEN)
+    except RestaurateurProfile.DoesNotExist:
+        return Response({"error": "Aucun profil restaurateur trouvé pour cet utilisateur."}, status=status.HTTP_404_NOT_FOUND)
+
+    return Response({"user": {"username": user.username}}, status=status.HTTP_200_OK)
