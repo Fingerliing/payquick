@@ -16,7 +16,7 @@ class ClientProfile(models.Model):
     phone = models.CharField(max_length=10)
 
     def __str__(self):
-        return self.user.username
+        return f"{self.user.username} - {self.phone}"
     
 class RestaurateurProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="restaurateur_profile")

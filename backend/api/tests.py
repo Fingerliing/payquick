@@ -1,11 +1,20 @@
 from django.test import TestCase, Client
 from django.contrib.auth.models import User
-from .models import Restaurant, RestaurateurProfile
+from .models import Restaurant, RestaurateurProfile, ClientProfile
 import json
 from django.core.files.uploadedfile import SimpleUploadedFile
 from unittest.mock import patch
+import requests
+from unittest.mock import MagicMock
 
 class BaseTest(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        # Stocker le contenu une seule fois
+        cls.id_card_content = b"fake-id-content"
+        cls.kbis_content = b"fake-kbis-content"
+
     def setUp(self):
         self.client = Client()
         self.user_data = {
@@ -17,6 +26,26 @@ class BaseTest(TestCase):
             **self.user_data,
             'recaptcha_response': 'test-captcha'
         }
+
+        # Recréation des fichiers à chaque test
+        self.id_card = SimpleUploadedFile("id.jpg", self.__class__.id_card_content, content_type="image/jpeg")
+        self.kbis = SimpleUploadedFile("kbis.pdf", self.__class__.kbis_content, content_type="application/pdf")
+
+        self.register_data = {
+            'username': self.user_data['username'],
+            'password': self.user_data['password'],
+            'email': self.user_data['email'],
+            'siret': '12345678901234',
+            'id_card': self.id_card,
+            'kbis': self.kbis
+        }
+
+    def tearDown(self):
+        # Fermer proprement les fichiers
+        self.id_card.close()
+        self.kbis.close()
+        super().tearDown()
+
 
 class RestaurantModelTests(BaseTest):
     def setUp(self):
@@ -181,17 +210,66 @@ class RestaurantAPITests(BaseTest):
         )
         self.assertEqual(response.status_code, 400)
 
+    @patch('requests.get')
+    def test_create_restaurant_osm_error(self, mock_get):
+        """Test la création d'un restaurant avec une erreur OpenStreetMap"""
+        # Mock de l'erreur OpenStreetMap
+        mock_get.side_effect = requests.exceptions.RequestException("Erreur de connexion")
+        
+        self.client.force_login(self.user)
+        response = self.client.post(
+            '/api/restaurants',
+            data=json.dumps(self.restaurant_data),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 500)
+        self.assertIn('error', response.json())
+
+    @patch('requests.get')
+    def test_create_restaurant_osm_not_found(self, mock_get):
+        """Test la création d'un restaurant avec un établissement non trouvé"""
+        # Mock de la réponse OpenStreetMap
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = []
+        
+        self.client.force_login(self.user)
+        response = self.client.post(
+            '/api/restaurants',
+            data=json.dumps(self.restaurant_data),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertIn('error', response.json())
+
 class RestaurateurTests(BaseTest):
     def setUp(self):
         super().setUp()
-        self.register_data = {
-            'username': self.user_data['username'],
-            'password': self.user_data['password'],
-            'email': self.user_data['email'],
-            'siret': '12345678901234',
-            'id_card': SimpleUploadedFile("id.jpg", b"fake-id-content", content_type="image/jpeg"),
-            'kbis': SimpleUploadedFile("kbis.pdf", b"fake-kbis-content", content_type="application/pdf")
-        }
+
+    @patch('requests.get')
+    def test_restaurateur_registration_sirene_error(self, mock_get):
+        """Test l'inscription d'un restaurateur avec une erreur de l'API Sirene"""
+        # Mock de l'erreur de l'API Sirene
+        mock_get.side_effect = requests.exceptions.ConnectionError("Erreur de connexion")
+        
+        # Désactiver temporairement le mode test pour ce test
+        
+    @patch('requests.get')
+
+    def test_restaurateur_registration_sirene_api_error(self, mock_get):
+        """Test l'inscription d'un restaurateur avec une erreur de l'API Sirene"""
+        # Mock de l'erreur de l'API Sirene
+        mock_get.return_value.status_code = 500
+        mock_get.return_value.json.return_value = {}
+        
+        # Désactiver temporairement le mode test pour ce test
+        with patch('django.conf.settings.TESTING', False):
+            response = self.client.post(
+                '/api/restaurateur/register',
+                self.register_data,
+                format='multipart'
+            )
+            self.assertEqual(response.status_code, 400)
+            self.assertIn('Erreur lors de la vérification du SIRET', response.json()['error'])
 
     @patch('requests.get')
     def test_restaurateur_registration(self, mock_get):
@@ -202,7 +280,7 @@ class RestaurateurTests(BaseTest):
         
         response = self.client.post(
             '/api/restaurateur/register',
-            data=self.register_data,
+            self.register_data,
             format='multipart'
         )
         self.assertEqual(response.status_code, 201)
@@ -228,7 +306,7 @@ class RestaurateurTests(BaseTest):
         User.objects.create_user(**self.user_data)
         response = self.client.post(
             '/api/restaurateur/register',
-            data=self.register_data,
+            self.register_data,
             format='multipart'
         )
         self.assertEqual(response.status_code, 400)
@@ -244,7 +322,7 @@ class RestaurateurTests(BaseTest):
         with patch('django.conf.settings.TESTING', False):
             response = self.client.post(
                 '/api/restaurateur/register',
-                data=self.register_data,
+                self.register_data,
                 format='multipart'
             )
             self.assertEqual(response.status_code, 400)
@@ -256,8 +334,8 @@ class RestaurateurTests(BaseTest):
         profile = RestaurateurProfile.objects.create(
             user=user,
             siret=self.register_data['siret'],
-            id_card=self.register_data['id_card'],
-            kbis=self.register_data['kbis'],
+            id_card=self.id_card,
+            kbis=self.kbis,
             is_validated=False
         )
 
@@ -284,3 +362,168 @@ class RestaurateurTests(BaseTest):
             content_type='application/json'
         )
         self.assertEqual(response.status_code, 200)
+
+class ClientProfileTests(BaseTest):
+    def setUp(self):
+        super().setUp()
+        self.user = User.objects.create_user(**self.user_data)
+        self.client_profile = ClientProfile.objects.create(
+            user=self.user,
+            phone='0123456789'
+        )
+
+    def test_client_profile_creation(self):
+        """Vérifie la création d'un profil client"""
+        self.assertEqual(str(self.client_profile), 'testuser - 0123456789')
+        self.assertEqual(self.client_profile.user, self.user)
+
+class RestaurateurProfileTests(BaseTest):
+    def setUp(self):
+        super().setUp()
+        self.user = User.objects.create_user(**self.user_data)
+        self.restaurateur_profile = RestaurateurProfile.objects.create(
+            user=self.user,
+            siret='12345678901234',
+            id_card=self.id_card,
+            kbis=self.kbis
+        )
+
+    def test_restaurateur_profile_creation(self):
+        """Vérifie la création d'un profil restaurateur"""
+        self.assertEqual(str(self.restaurateur_profile), 'testuser - 12345678901234')
+        self.assertEqual(self.restaurateur_profile.user, self.user)
+
+class ClientTests(BaseTest):
+    def setUp(self):
+        super().setUp()
+        self.register_data = {
+            'username': self.user_data['username'],
+            'password': self.user_data['password'],
+            'email': self.user_data['email'],
+            'phone': '0123456789',
+            'recaptcha': 'test-captcha'
+        }
+
+    def test_client_registration(self):
+        """Test l'inscription d'un client"""
+        response = self.client.post(
+            '/api/client/register',
+            data=json.dumps(self.register_data),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(ClientProfile.objects.filter(user__username=self.user_data['username']).exists())
+
+    def test_client_registration_missing_fields(self):
+        """Test l'inscription d'un client avec des champs manquants"""
+        incomplete_data = {
+            'username': self.user_data['username'],
+            'password': self.user_data['password']
+        }
+        response = self.client.post(
+            '/api/client/register',
+            data=json.dumps(incomplete_data),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('error', response.json())
+
+    def test_client_login(self):
+        """Test la connexion d'un client"""
+        User.objects.create_user(**self.user_data)
+        ClientProfile.objects.create(
+            user=User.objects.get(username=self.user_data['username']),
+            phone='0123456789'
+        )
+        response = self.client.post(
+            '/api/client/login',
+            data=json.dumps({
+                'username': self.user_data['username'],
+                'password': self.user_data['password']
+            }),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('user', response.json())
+
+    def test_client_login_failure(self):
+        """Test l'échec de la connexion d'un client"""
+        response = self.client.post(
+            '/api/client/login',
+            data=json.dumps({
+                'username': 'wrong',
+                'password': 'wrong'
+            }),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('error', response.json())
+
+class RestaurateurLoginTests(BaseTest):
+    def setUp(self):
+        super().setUp()
+        self.user = User.objects.create_user(**self.user_data)
+        self.profile = RestaurateurProfile.objects.create(
+            user=self.user,
+            siret='12345678901234',
+            id_card=self.id_card,
+            kbis=self.kbis
+        )
+
+    def test_restaurateur_login_success(self):
+        """Test la connexion réussie d'un restaurateur validé"""
+        self.profile.is_validated = True
+        self.profile.save()
+        response = self.client.post('/api/restaurateur/login', {
+            'username': self.user_data['username'],
+            'password': self.user_data['password']
+        })
+        self.assertEqual(response.status_code, 200)
+
+    def test_restaurateur_login_not_validated(self):
+        """Test la connexion d'un restaurateur non validé"""
+        response = self.client.post('/api/restaurateur/login', {
+            'username': self.user_data['username'],
+            'password': self.user_data['password']
+        })
+        self.assertEqual(response.status_code, 403)
+        self.assertIn('en cours de validation', response.json()['error'])
+
+    def test_restaurateur_login_no_profile(self):
+        """Test la connexion avec un utilisateur sans profil restaurateur"""
+        user = User.objects.create_user(username='norestau', password='testpass')
+        response = self.client.post('/api/restaurateur/login', {
+            'username': 'norestau',
+            'password': 'testpass'
+        })
+        self.assertEqual(response.status_code, 404)
+        self.assertIn('Aucun profil restaurateur', response.json()['error'])
+
+    def test_restaurateur_login_invalid_credentials(self):
+        """Test la connexion avec des identifiants invalides"""
+        response = self.client.post('/api/restaurateur/login', {
+            'username': self.user_data['username'],
+            'password': 'wrongpass'
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('Identifiants invalides', response.json()['error'])
+
+class RestaurateurRegisterErrorTests(BaseTest):
+    def setUp(self):
+        super().setUp()
+
+    def test_restaurateur_register_profile_creation_error(self):
+        """Test l'erreur lors de la création du profil restaurateur"""
+        with patch('api.models.RestaurateurProfile.objects.create') as mock_create:
+            mock_create.side_effect = Exception('Erreur test')
+            response = self.client.post('/api/restaurateur/register', self.register_data)
+            self.assertEqual(response.status_code, 500)
+            self.assertIn('Erreur lors de la création du profil', response.json()['error'])
+
+    def test_restaurateur_register_user_creation_error(self):
+        """Test l'erreur lors de la création de l'utilisateur"""
+        with patch('django.contrib.auth.models.User.objects.create_user') as mock_create:
+            mock_create.side_effect = Exception('Erreur test')
+            response = self.client.post('/api/restaurateur/register', self.register_data)
+            self.assertEqual(response.status_code, 500)
+            self.assertIn('Erreur lors de la création de l\'utilisateur', response.json()['error'])

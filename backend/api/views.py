@@ -117,16 +117,18 @@ def client_register(request):
     if not recaptcha_response:
         return Response({"error": "Captcha manquant"}, status=400)
 
-    verify_url = "https://www.google.com/recaptcha/api/siteverify"
-    payload = {
-        "secret": settings.RECAPTCHA_SECRET_KEY,
-        "response": recaptcha_response
-    }
-    r = requests.post(verify_url, data=payload)
-    result = r.json()
+    # Vérification du captcha (sauf en test)
+    if not getattr(settings, 'TESTING', False):
+        verify_url = "https://www.google.com/recaptcha/api/siteverify"
+        payload = {
+            "secret": settings.RECAPTCHA_SECRET_KEY,
+            "response": recaptcha_response
+        }
+        r = requests.post(verify_url, data=payload)
+        result = r.json()
 
-    if not result.get("success"):
-        return Response({"error": "Captcha invalide"}, status=400)
+        if not result.get("success"):
+            return Response({"error": "Captcha invalide"}, status=400)
 
     if User.objects.filter(username=username).exists():
         return Response({"error": "Utilisateur déjà existant"}, status=400)
@@ -184,7 +186,12 @@ def restaurateur_register(request):
         try:
             sirene_token = settings.SIRENE_API_TOKEN
             headers = {"Authorization": f"Bearer {sirene_token}"}
-            response = requests.get(f"https://api.insee.fr/entreprises/sirene/V3/siret/{siret}", headers=headers)
+            try:
+                response = requests.get(f"https://api.insee.fr/entreprises/sirene/V3/siret/{siret}", headers=headers)
+            except requests.exceptions.RequestException:
+                return Response({"error": "Erreur de connexion à l'API Sirene"}, status=400)
+            except requests.exceptions.RequestException:
+                return Response({"error": "Erreur lors de la vérification du SIRET."}, status=400)
             
             if response.status_code == 404:
                 return Response({"error": "Numéro SIRET introuvable."}, status=400)
@@ -192,8 +199,6 @@ def restaurateur_register(request):
                 return Response({"error": "Erreur lors de la vérification du SIRET."}, status=400)
                 
             data = response.json()
-        except requests.exceptions.RequestException as e:
-            return Response({"error": "Erreur de connexion à l'API Sirene."}, status=400)
         except Exception as e:
             return Response({"error": f"Erreur lors de la vérification du SIRET : {str(e)}"}, status=400)
 
