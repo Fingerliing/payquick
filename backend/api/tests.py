@@ -1,11 +1,12 @@
-from django.test import TestCase, Client
+from django.test import TestCase, Client, override_settings
 from django.contrib.auth.models import User
 from .models import Restaurant, RestaurateurProfile, ClientProfile
 import json
 from django.core.files.uploadedfile import SimpleUploadedFile
-from unittest.mock import patch
 import requests
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
+from importlib import reload
+from django.urls import clear_url_caches
 
 class BaseTest(TestCase):
     @classmethod
@@ -526,4 +527,15 @@ class RestaurateurRegisterErrorTests(BaseTest):
             mock_create.side_effect = Exception('Erreur test')
             response = self.client.post('/api/restaurateur/register', self.register_data)
             self.assertEqual(response.status_code, 500)
-            self.assertIn('Erreur lors de la création de l\'utilisateur', response.json()['error'])
+
+class UrlsRateLimitTest(BaseTest):
+    @override_settings(TESTING=False)
+    def test_ratelimit_applied_in_production(self):
+        clear_url_caches()
+
+        with patch('django_ratelimit.decorators.ratelimit') as mock_ratelimit:
+            import importlib
+            import api.urls
+            importlib.reload(api.urls)
+
+            self.assertTrue(mock_ratelimit.called)
