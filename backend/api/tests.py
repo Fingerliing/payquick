@@ -547,5 +547,84 @@ class UrlsRateLimitTest(BaseTest):
             import importlib
             import api.urls
             importlib.reload(api.urls)
-            
+
             self.assertFalse(mock_ratelimit.called)
+
+class RegisterCaptchaTests(BaseTest):
+    @override_settings(TESTING=False)
+    @patch('requests.post')
+    def test_register_with_valid_captcha(self, mock_post):
+        mock_post.return_value.json.return_value = {"success": True}
+        mock_post.return_value.status_code = 200
+
+        response = self.client.post(
+            '/api/register',
+            data={
+                'username': 'userprod',
+                'password': 'pass123',
+                'recaptcha_response': 'valid-captcha'
+            },
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 201)
+
+class RestaurantAuthTests(BaseTest):
+    def test_create_restaurant_unauthenticated(self):
+        data = {
+            "name": "NoAuth",
+            "city": "Paris",
+            "description": "Sans login",
+            "username": "someone"
+        }
+        response = self.client.post(
+            '/api/restaurants',
+            data=json.dumps(data),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 401)
+        self.assertIn("Authentification requise", response.json()["error"])
+
+class RestaurantOSMNotFoundTests(BaseTest):
+    @patch('requests.get')
+    def test_create_restaurant_osm_empty(self, mock_get):
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = []
+
+        self.user = User.objects.create_user(**self.user_data)
+        self.client.force_login(self.user)
+
+        data = {
+            "name": "Ghost Restaurant",
+            "city": "Nowhere",
+            "description": "Invisible",
+            "username": self.user.username
+        }
+        response = self.client.post(
+            '/api/restaurants',
+            data=json.dumps(data),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertIn("OpenStreetMap", response.json()["error"])
+
+class RestaurateurErrorTests(BaseTest):
+    @patch('django.contrib.auth.models.User.objects.create_user', side_effect=Exception("Simulated error"))
+    def test_restaurateur_user_creation_exception(self, mock_create_user):
+        response = self.client.post(
+            '/api/restaurateur/register',
+            data=self.register_data,
+            format='multipart'
+        )
+        self.assertEqual(response.status_code, 500)
+        self.assertIn("Erreur lors de la création de l'utilisateur", response.json()["error"])
+
+class RestaurateurErrorTests(BaseTest):
+    @patch('django.contrib.auth.models.UserManager.create_user', side_effect=Exception("Simulated error"))
+    def test_restaurateur_user_creation_exception(self, mock_create_user):
+        response = self.client.post(
+            '/api/restaurateur/register',
+            data=self.register_data,
+            format='multipart'
+        )
+        self.assertEqual(response.status_code, 500)
+        self.assertIn("Erreur lors de la création de l'utilisateur", response.json()["error"])
