@@ -539,3 +539,13 @@ class UrlsRateLimitTest(BaseTest):
             importlib.reload(api.urls)
 
             self.assertTrue(mock_ratelimit.called)
+
+    @override_settings(TESTING=True)
+    def test_ratelimit_not_applied_in_testing(self):
+        clear_url_caches()
+        with patch('django_ratelimit.decorators.ratelimit') as mock_ratelimit:
+            import importlib
+            import api.urls
+            importlib.reload(api.urls)
+            
+            self.assertFalse(mock_ratelimit.called)
