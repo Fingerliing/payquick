@@ -185,6 +185,7 @@ class RestaurantAPITests(BaseTest):
             content_type='application/json'
         )
         self.assertEqual(response.status_code, 401)
+        self.assertIn('Authentification requise', response.json()['error'])
 
     def test_create_restaurant_wrong_user(self):
         """Test la création d'un restaurant pour un autre utilisateur"""
@@ -196,6 +197,7 @@ class RestaurantAPITests(BaseTest):
             content_type='application/json'
         )
         self.assertEqual(response.status_code, 403)
+        self.assertIn('Non autorisé', response.json()['error'])
 
     def test_create_restaurant_missing_fields(self):
         """Test la création d'un restaurant avec des champs manquants"""
@@ -210,11 +212,11 @@ class RestaurantAPITests(BaseTest):
             content_type='application/json'
         )
         self.assertEqual(response.status_code, 400)
+        self.assertIn('Tous les champs sont requis', response.json()['error'])
 
     @patch('requests.get')
     def test_create_restaurant_osm_error(self, mock_get):
         """Test la création d'un restaurant avec une erreur OpenStreetMap"""
-        # Mock de l'erreur OpenStreetMap
         mock_get.side_effect = requests.exceptions.RequestException("Erreur de connexion")
         
         self.client.force_login(self.user)
@@ -224,12 +226,11 @@ class RestaurantAPITests(BaseTest):
             content_type='application/json'
         )
         self.assertEqual(response.status_code, 500)
-        self.assertIn('error', response.json())
+        self.assertIn('Erreur OpenStreetMap', response.json()['error'])
 
     @patch('requests.get')
     def test_create_restaurant_osm_not_found(self, mock_get):
         """Test la création d'un restaurant avec un établissement non trouvé"""
-        # Mock de la réponse OpenStreetMap
         mock_get.return_value.status_code = 200
         mock_get.return_value.json.return_value = []
         
@@ -240,7 +241,7 @@ class RestaurantAPITests(BaseTest):
             content_type='application/json'
         )
         self.assertEqual(response.status_code, 404)
-        self.assertIn('error', response.json())
+        self.assertIn('Établissement non reconnu', response.json()['error'])
 
 class RestaurateurTests(BaseTest):
     def setUp(self):
@@ -460,6 +461,20 @@ class ClientTests(BaseTest):
         self.assertEqual(response.status_code, 400)
         self.assertIn('error', response.json())
 
+    def test_client_login_no_profile(self):
+        """Test la connexion avec un utilisateur sans profil client"""
+        user = User.objects.create_user(username='noclient', password='testpass')
+        response = self.client.post(
+            '/api/client/login',
+            data=json.dumps({
+                'username': 'noclient',
+                'password': 'testpass'
+            }),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['user']['username'], 'noclient')
+
 class RestaurateurLoginTests(BaseTest):
     def setUp(self):
         super().setUp()
@@ -470,42 +485,70 @@ class RestaurateurLoginTests(BaseTest):
             id_card=self.id_card,
             kbis=self.kbis
         )
+        self.login_data = {
+            'username': self.user_data['username'],
+            'password': self.user_data['password']
+        }
 
     def test_restaurateur_login_success(self):
         """Test la connexion réussie d'un restaurateur validé"""
         self.profile.is_validated = True
         self.profile.save()
-        response = self.client.post('/api/restaurateur/login', {
-            'username': self.user_data['username'],
-            'password': self.user_data['password']
-        })
+        response = self.client.post(
+            '/api/restaurateur/login',
+            data=json.dumps(self.login_data),
+            content_type='application/json'
+        )
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['user']['username'], self.user_data['username'])
 
     def test_restaurateur_login_not_validated(self):
         """Test la connexion d'un restaurateur non validé"""
-        response = self.client.post('/api/restaurateur/login', {
-            'username': self.user_data['username'],
-            'password': self.user_data['password']
-        })
+        response = self.client.post(
+            '/api/restaurateur/login',
+            data=json.dumps(self.login_data),
+            content_type='application/json'
+        )
         self.assertEqual(response.status_code, 403)
         self.assertIn('en cours de validation', response.json()['error'])
 
     def test_restaurateur_login_no_profile(self):
         """Test la connexion avec un utilisateur sans profil restaurateur"""
         user = User.objects.create_user(username='norestau', password='testpass')
-        response = self.client.post('/api/restaurateur/login', {
-            'username': 'norestau',
-            'password': 'testpass'
-        })
+        response = self.client.post(
+            '/api/restaurateur/login',
+            data=json.dumps({
+                'username': 'norestau',
+                'password': 'testpass'
+            }),
+            content_type='application/json'
+        )
         self.assertEqual(response.status_code, 404)
         self.assertIn('Aucun profil restaurateur', response.json()['error'])
 
     def test_restaurateur_login_invalid_credentials(self):
         """Test la connexion avec des identifiants invalides"""
-        response = self.client.post('/api/restaurateur/login', {
-            'username': self.user_data['username'],
-            'password': 'wrongpass'
-        })
+        response = self.client.post(
+            '/api/restaurateur/login',
+            data=json.dumps({
+                'username': self.user_data['username'],
+                'password': 'wrongpass'
+            }),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('Identifiants invalides', response.json()['error'])
+
+    def test_restaurateur_login_missing_fields(self):
+        """Test la connexion avec des champs manquants"""
+        data = {
+            'username': self.user_data['username']
+        }
+        response = self.client.post(
+            '/api/restaurateur/login',
+            data=json.dumps(data),
+            content_type='application/json'
+        )
         self.assertEqual(response.status_code, 400)
         self.assertIn('Identifiants invalides', response.json()['error'])
 
@@ -618,3 +661,449 @@ class RegisterCaptchaTests(BaseTest):
         )
         self.assertEqual(response.status_code, 400)
         self.assertIn("Captcha invalide", response.json()["error"])
+
+class RegisterTests(BaseTest):
+    def setUp(self):
+        super().setUp()
+        self.register_data = {
+            'username': self.user_data['username'],
+            'password': self.user_data['password'],
+            'recaptcha_response': 'test-captcha'
+        }
+
+    def test_register_success(self):
+        """Test l'inscription réussie d'un utilisateur"""
+        response = self.client.post(
+            '/api/register',
+            data=json.dumps(self.register_data),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(User.objects.filter(username=self.user_data['username']).exists())
+
+    def test_register_missing_captcha(self):
+        """Test l'inscription sans captcha"""
+        data = {
+            'username': self.user_data['username'],
+            'password': self.user_data['password']
+        }
+        response = self.client.post(
+            '/api/register',
+            data=json.dumps(data),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('Captcha manquant', response.json()['error'])
+
+    def test_register_duplicate_username(self):
+        """Test l'inscription avec un nom d'utilisateur existant"""
+        User.objects.create_user(**self.user_data)
+        response = self.client.post(
+            '/api/register',
+            data=json.dumps(self.register_data),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('Utilisateur déjà existant', response.json()['error'])
+
+    @patch('requests.post')
+    def test_register_invalid_captcha(self, mock_post):
+        """Test l'inscription avec un captcha invalide"""
+        mock_post.return_value.json.return_value = {'success': False}
+        mock_post.return_value.status_code = 200
+
+        with patch('django.conf.settings.TESTING', False):
+            response = self.client.post(
+                '/api/register',
+                data=json.dumps(self.register_data),
+                content_type='application/json'
+            )
+            self.assertEqual(response.status_code, 400)
+            self.assertIn('Captcha invalide', response.json()['error'])
+
+class LoginTests(BaseTest):
+    def setUp(self):
+        super().setUp()
+        self.user = User.objects.create_user(**self.user_data)
+        self.login_data = {
+            'username': self.user_data['username'],
+            'password': self.user_data['password']
+        }
+
+    def test_login_success(self):
+        """Test la connexion réussie"""
+        response = self.client.post(
+            '/api/login',
+            data=json.dumps(self.login_data),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['user']['username'], self.user_data['username'])
+
+    def test_login_invalid_credentials(self):
+        """Test la connexion avec des identifiants invalides"""
+        data = {
+            'username': self.user_data['username'],
+            'password': 'wrongpassword'
+        }
+        response = self.client.post(
+            '/api/login',
+            data=json.dumps(data),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('Identifiants invalides', response.json()['error'])
+
+    def test_login_missing_fields(self):
+        """Test la connexion avec des champs manquants"""
+        data = {
+            'username': self.user_data['username']
+        }
+        response = self.client.post(
+            '/api/login',
+            data=json.dumps(data),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('Identifiants invalides', response.json()['error'])
+
+class ClientRegisterTests(BaseTest):
+    def setUp(self):
+        super().setUp()
+        self.register_data = {
+            'username': self.user_data['username'],
+            'password': self.user_data['password'],
+            'email': self.user_data['email'],
+            'phone': '0123456789',
+            'recaptcha': 'test-captcha'
+        }
+
+    def test_client_register_success(self):
+        """Test l'inscription réussie d'un client"""
+        response = self.client.post(
+            '/api/client/register',
+            data=json.dumps(self.register_data),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(User.objects.filter(username=self.user_data['username']).exists())
+        self.assertTrue(ClientProfile.objects.filter(user__username=self.user_data['username']).exists())
+
+    def test_client_register_missing_captcha(self):
+        """Test l'inscription d'un client sans captcha"""
+        data = {
+            'username': self.user_data['username'],
+            'password': self.user_data['password'],
+            'email': self.user_data['email'],
+            'phone': '0123456789'
+        }
+        response = self.client.post(
+            '/api/client/register',
+            data=json.dumps(data),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('Captcha manquant', response.json()['error'])
+
+    def test_client_register_duplicate_username(self):
+        """Test l'inscription d'un client avec un nom d'utilisateur existant"""
+        User.objects.create_user(**self.user_data)
+        response = self.client.post(
+            '/api/client/register',
+            data=json.dumps(self.register_data),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('Utilisateur déjà existant', response.json()['error'])
+
+    @patch('requests.post')
+    def test_client_register_invalid_captcha(self, mock_post):
+        """Test l'inscription d'un client avec un captcha invalide"""
+        mock_post.return_value.json.return_value = {'success': False}
+        mock_post.return_value.status_code = 200
+
+        with patch('django.conf.settings.TESTING', False):
+            response = self.client.post(
+                '/api/client/register',
+                data=json.dumps(self.register_data),
+                content_type='application/json'
+            )
+            self.assertEqual(response.status_code, 400)
+            self.assertIn('Captcha invalide', response.json()['error'])
+
+    def test_client_register_missing_fields(self):
+        """Test l'inscription d'un client avec des champs manquants"""
+        data = {
+            'username': self.user_data['username'],
+            'password': self.user_data['password']
+        }
+        response = self.client.post(
+            '/api/client/register',
+            data=json.dumps(data),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('error', response.json())
+
+class ClientLoginTests(BaseTest):
+    def setUp(self):
+        super().setUp()
+        self.user = User.objects.create_user(**self.user_data)
+        self.client_profile = ClientProfile.objects.create(
+            user=self.user,
+            phone='0123456789'
+        )
+        self.login_data = {
+            'username': self.user_data['username'],
+            'password': self.user_data['password']
+        }
+
+    def test_client_login_success(self):
+        """Test la connexion réussie d'un client"""
+        response = self.client.post(
+            '/api/client/login',
+            data=json.dumps(self.login_data),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['user']['username'], self.user_data['username'])
+
+    def test_client_login_invalid_credentials(self):
+        """Test la connexion avec des identifiants invalides"""
+        data = {
+            'username': self.user_data['username'],
+            'password': 'wrongpassword'
+        }
+        response = self.client.post(
+            '/api/client/login',
+            data=json.dumps(data),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('Identifiants invalides', response.json()['error'])
+
+    def test_client_login_missing_fields(self):
+        """Test la connexion avec des champs manquants"""
+        data = {
+            'username': self.user_data['username']
+        }
+        response = self.client.post(
+            '/api/client/login',
+            data=json.dumps(data),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('Identifiants invalides', response.json()['error'])
+
+    def test_client_login_no_profile(self):
+        """Test la connexion avec un utilisateur sans profil client"""
+        user = User.objects.create_user(username='noclient', password='testpass')
+        response = self.client.post(
+            '/api/client/login',
+            data=json.dumps({
+                'username': 'noclient',
+                'password': 'testpass'
+            }),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['user']['username'], 'noclient')
+
+class RestaurateurRegisterTests(BaseTest):
+    def setUp(self):
+        super().setUp()
+        self.register_data = {
+            'username': self.user_data['username'],
+            'password': self.user_data['password'],
+            'email': self.user_data['email'],
+            'siret': '12345678901234',
+            'id_card': self.id_card,
+            'kbis': self.kbis
+        }
+
+    @patch('requests.get')
+    def test_restaurateur_register_success(self, mock_get):
+        """Test l'inscription réussie d'un restaurateur"""
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = {"etablissement": {"siret": self.register_data['siret']}}
+        
+        response = self.client.post(
+            '/api/restaurateur/register',
+            self.register_data,
+            format='multipart'
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(User.objects.filter(username=self.user_data['username']).exists())
+        self.assertTrue(RestaurateurProfile.objects.filter(user__username=self.user_data['username']).exists())
+
+    def test_restaurateur_register_missing_fields(self):
+        """Test l'inscription d'un restaurateur avec des champs manquants"""
+        data = {
+            'username': self.user_data['username'],
+            'password': self.user_data['password'],
+            'siret': '12345678901234'
+        }
+        response = self.client.post(
+            '/api/restaurateur/register',
+            data=data,
+            format='multipart'
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('Champs manquants', response.json()['error'])
+
+    def test_restaurateur_register_duplicate_username(self):
+        """Test l'inscription d'un restaurateur avec un nom d'utilisateur existant"""
+        User.objects.create_user(**self.user_data)
+        response = self.client.post(
+            '/api/restaurateur/register',
+            self.register_data,
+            format='multipart'
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('Ce nom d\'utilisateur est déjà utilisé', response.json()['error'])
+
+    @patch('requests.get')
+    def test_restaurateur_register_sirene_404(self, mock_get):
+        """Test l'inscription d'un restaurateur avec un SIRET introuvable"""
+        mock_get.return_value.status_code = 404
+        
+        with patch('django.conf.settings.TESTING', False), \
+             patch('django.conf.settings.SIRENE_API_TOKEN', 'test-token'):
+            response = self.client.post(
+                '/api/restaurateur/register',
+                self.register_data,
+                format='multipart'
+            )
+            self.assertEqual(response.status_code, 400)
+            self.assertIn('Numéro SIRET introuvable', response.json()['error'])
+
+    @patch('requests.get')
+    def test_restaurateur_register_sirene_api_error(self, mock_get):
+        """Test l'inscription d'un restaurateur avec une erreur de l'API Sirene"""
+        mock_get.return_value.status_code = 500
+        mock_get.return_value.json.return_value = {}
+        
+        with patch('django.conf.settings.TESTING', False):
+            response = self.client.post(
+                '/api/restaurateur/register',
+                self.register_data,
+                format='multipart'
+            )
+            self.assertEqual(response.status_code, 400)
+            self.assertIn('Erreur lors de la vérification du SIRET', response.json()['error'])
+
+    @patch('requests.get')
+    def test_restaurateur_register_sirene_error(self, mock_get):
+        """Test l'inscription d'un restaurateur avec une erreur de l'API Sirene"""
+        mock_get.side_effect = requests.exceptions.ConnectionError("Erreur de connexion")
+        
+        with patch('django.conf.settings.TESTING', False), \
+             patch('django.conf.settings.SIRENE_API_TOKEN', 'test-token'):
+            response = self.client.post(
+                '/api/restaurateur/register',
+                self.register_data,
+                format='multipart'
+            )
+            self.assertEqual(response.status_code, 400)
+            self.assertIn('Erreur de connexion à l\'API Sirene', response.json()['error'])
+
+class RestaurantListCreateTests(BaseTest):
+    def setUp(self):
+        super().setUp()
+        self.user = User.objects.create_user(**self.user_data)
+        self.restaurant_data = {
+            'name': 'Test Restaurant',
+            'city': 'Paris',
+            'description': 'A test restaurant',
+            'username': self.user.username
+        }
+
+    def test_list_restaurants(self):
+        """Test la liste des restaurants"""
+        Restaurant.objects.create(
+            name='List Test',
+            description='For listing',
+            owner=self.user,
+            latitude=48.8566,
+            longitude=2.3522
+        )
+        response = self.client.get('/api/restaurants')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()), 1)
+
+    def test_create_restaurant_success(self):
+        """Test la création réussie d'un restaurant"""
+        self.client.force_login(self.user)
+        response = self.client.post(
+            '/api/restaurants',
+            data=json.dumps(self.restaurant_data),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(Restaurant.objects.filter(name='Test Restaurant').exists())
+
+    def test_create_restaurant_unauthorized(self):
+        """Test la création d'un restaurant sans authentification"""
+        response = self.client.post(
+            '/api/restaurants',
+            data=json.dumps(self.restaurant_data),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 401)
+        self.assertIn('Authentification requise', response.json()['error'])
+
+    def test_create_restaurant_wrong_user(self):
+        """Test la création d'un restaurant pour un autre utilisateur"""
+        other_user = User.objects.create_user(username='other', password='otherpass')
+        self.client.force_login(other_user)
+        response = self.client.post(
+            '/api/restaurants',
+            data=json.dumps(self.restaurant_data),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertIn('Non autorisé', response.json()['error'])
+
+    def test_create_restaurant_missing_fields(self):
+        """Test la création d'un restaurant avec des champs manquants"""
+        self.client.force_login(self.user)
+        incomplete_data = {
+            'name': 'Incomplete Restaurant',
+            'city': 'Paris'
+        }
+        response = self.client.post(
+            '/api/restaurants',
+            data=json.dumps(incomplete_data),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('Tous les champs sont requis', response.json()['error'])
+
+    @patch('requests.get')
+    def test_create_restaurant_osm_error(self, mock_get):
+        """Test la création d'un restaurant avec une erreur OpenStreetMap"""
+        mock_get.side_effect = requests.exceptions.RequestException("Erreur de connexion")
+        
+        self.client.force_login(self.user)
+        response = self.client.post(
+            '/api/restaurants',
+            data=json.dumps(self.restaurant_data),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 500)
+        self.assertIn('Erreur OpenStreetMap', response.json()['error'])
+
+    @patch('requests.get')
+    def test_create_restaurant_osm_not_found(self, mock_get):
+        """Test la création d'un restaurant avec un établissement non trouvé"""
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = []
+        
+        self.client.force_login(self.user)
+        response = self.client.post(
+            '/api/restaurants',
+            data=json.dumps(self.restaurant_data),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertIn('Établissement non reconnu', response.json()['error'])
