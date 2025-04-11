@@ -243,6 +243,26 @@ class RestaurantAPITests(BaseTest):
         self.assertEqual(response.status_code, 404)
         self.assertIn('Établissement non reconnu', response.json()['error'])
 
+    def test_create_restaurant_serializer_errors(self):
+        """Test la création d'un restaurant avec des données invalides"""
+        self.client.force_login(self.user)
+        invalid_data = {
+            'name': '',  # Nom vide
+            'description': '',  # Description vide
+            'latitude': 'invalid',  # Latitude invalide
+            'longitude': 'invalid',  # Longitude invalide
+            'city': '',  # Ville vide
+            'username': self.user.username
+        }
+        response = self.client.post(
+            '/api/restaurants',
+            data=json.dumps(invalid_data),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('error', response.json())
+        self.assertEqual(response.json()['error'], 'Tous les champs sont requis')
+
 class RestaurateurTests(BaseTest):
     def setUp(self):
         super().setUp()
@@ -250,20 +270,39 @@ class RestaurateurTests(BaseTest):
     @patch('requests.get')
     def test_restaurateur_registration_sirene_error(self, mock_get):
         """Test l'inscription d'un restaurateur avec une erreur de l'API Sirene"""
-        # Mock de l'erreur de l'API Sirene
         mock_get.side_effect = requests.exceptions.ConnectionError("Erreur de connexion")
         
-        # Désactiver temporairement le mode test pour ce test
-        
-    @patch('requests.get')
+        with patch('django.conf.settings.TESTING', False), \
+             patch('django.conf.settings.SIRENE_API_TOKEN', 'test-token'):
+            response = self.client.post(
+                '/api/restaurateur/register',
+                self.register_data,
+                format='multipart'
+            )
+            self.assertEqual(response.status_code, 400)
+            self.assertIn('Erreur de connexion à l\'API Sirene', response.json()['error'])
 
+    @patch('requests.get')
+    def test_restaurateur_registration_sirene_request_exception(self, mock_get):
+        """Test l'inscription d'un restaurateur avec une RequestException lors de la vérification du SIRET"""
+        mock_get.side_effect = requests.exceptions.RequestException("Erreur lors de la vérification du SIRET")
+        
+        with patch('django.conf.settings.TESTING', False), \
+             patch('django.conf.settings.SIRENE_API_TOKEN', 'test-token'):
+            response = self.client.post(
+                '/api/restaurateur/register',
+                self.register_data,
+                format='multipart'
+            )
+            self.assertEqual(response.status_code, 400)
+            self.assertIn('Erreur de connexion à l\'API Sirene', response.json()['error'])
+
+    @patch('requests.get')
     def test_restaurateur_registration_sirene_api_error(self, mock_get):
         """Test l'inscription d'un restaurateur avec une erreur de l'API Sirene"""
-        # Mock de l'erreur de l'API Sirene
         mock_get.return_value.status_code = 500
         mock_get.return_value.json.return_value = {}
         
-        # Désactiver temporairement le mode test pour ce test
         with patch('django.conf.settings.TESTING', False):
             response = self.client.post(
                 '/api/restaurateur/register',
@@ -364,6 +403,41 @@ class RestaurateurTests(BaseTest):
             content_type='application/json'
         )
         self.assertEqual(response.status_code, 200)
+
+    @patch('requests.get')
+    def test_restaurateur_registration_sirene_request_exception_specific(self, mock_get):
+        """Test l'inscription d'un restaurateur avec une RequestException spécifique lors de la deuxième tentative"""
+        mock_get.side_effect = [
+            requests.exceptions.ConnectionError("Première erreur"),
+            requests.exceptions.RequestException("Deuxième erreur")
+        ]
+        
+        with patch('django.conf.settings.TESTING', False), \
+             patch('django.conf.settings.SIRENE_API_TOKEN', 'test-token'):
+            response = self.client.post(
+                '/api/restaurateur/register',
+                self.register_data,
+                format='multipart'
+            )
+            self.assertEqual(response.status_code, 400)
+            self.assertIn('Erreur de connexion à l\'API Sirene', response.json()['error'])
+
+    @patch('requests.get')
+    def test_restaurateur_registration_sirene_status_500(self, mock_get):
+        """Test l'inscription d'un restaurateur avec un code de statut 500 de l'API Sirene"""
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_get.return_value = mock_response
+        
+        with patch('django.conf.settings.TESTING', False), \
+             patch('django.conf.settings.SIRENE_API_TOKEN', 'test-token'):
+            response = self.client.post(
+                '/api/restaurateur/register',
+                self.register_data,
+                format='multipart'
+            )
+            self.assertEqual(response.status_code, 400)
+            self.assertIn('Erreur lors de la vérification du SIRET', response.json()['error'])
 
 class ClientProfileTests(BaseTest):
     def setUp(self):
@@ -951,6 +1025,57 @@ class RestaurateurRegisterTests(BaseTest):
         self.assertEqual(response.status_code, 400)
         self.assertIn('Champs manquants', response.json()['error'])
 
+    def test_restaurateur_register_missing_username(self):
+        """Test l'inscription d'un restaurateur sans username"""
+        data = {
+            'password': self.user_data['password'],
+            'email': self.user_data['email'],
+            'siret': '12345678901234',
+            'id_card': self.id_card,
+            'kbis': self.kbis
+        }
+        response = self.client.post(
+            '/api/restaurateur/register',
+            data=data,
+            format='multipart'
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('username', response.json()['error'])
+
+    def test_restaurateur_register_missing_password(self):
+        """Test l'inscription d'un restaurateur sans password"""
+        data = {
+            'username': self.user_data['username'],
+            'email': self.user_data['email'],
+            'siret': '12345678901234',
+            'id_card': self.id_card,
+            'kbis': self.kbis
+        }
+        response = self.client.post(
+            '/api/restaurateur/register',
+            data=data,
+            format='multipart'
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('password', response.json()['error'])
+
+    def test_restaurateur_register_missing_siret(self):
+        """Test l'inscription d'un restaurateur sans siret"""
+        data = {
+            'username': self.user_data['username'],
+            'password': self.user_data['password'],
+            'email': self.user_data['email'],
+            'id_card': self.id_card,
+            'kbis': self.kbis
+        }
+        response = self.client.post(
+            '/api/restaurateur/register',
+            data=data,
+            format='multipart'
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('siret', response.json()['error'])
+
     def test_restaurateur_register_duplicate_username(self):
         """Test l'inscription d'un restaurateur avec un nom d'utilisateur existant"""
         User.objects.create_user(**self.user_data)
@@ -991,21 +1116,6 @@ class RestaurateurRegisterTests(BaseTest):
             )
             self.assertEqual(response.status_code, 400)
             self.assertIn('Erreur lors de la vérification du SIRET', response.json()['error'])
-
-    @patch('requests.get')
-    def test_restaurateur_register_sirene_error(self, mock_get):
-        """Test l'inscription d'un restaurateur avec une erreur de l'API Sirene"""
-        mock_get.side_effect = requests.exceptions.ConnectionError("Erreur de connexion")
-        
-        with patch('django.conf.settings.TESTING', False), \
-             patch('django.conf.settings.SIRENE_API_TOKEN', 'test-token'):
-            response = self.client.post(
-                '/api/restaurateur/register',
-                self.register_data,
-                format='multipart'
-            )
-            self.assertEqual(response.status_code, 400)
-            self.assertIn('Erreur de connexion à l\'API Sirene', response.json()['error'])
 
 class RestaurantListCreateTests(BaseTest):
     def setUp(self):
@@ -1115,3 +1225,20 @@ class RestaurantListCreateTests(BaseTest):
         )
         self.assertEqual(response.status_code, 404)
         self.assertIn('Établissement non reconnu', response.json()['error'])
+
+    def test_create_restaurant_empty_fields(self):
+        """Test la création d'un restaurant avec des champs vides"""
+        self.client.force_login(self.user)
+        data = {
+            'name': '',
+            'city': '',
+            'description': '',
+            'username': self.user.username
+        }
+        response = self.client.post(
+            '/api/restaurants',
+            data=json.dumps(data),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('Tous les champs sont requis', response.json()['error'])
