@@ -1031,13 +1031,21 @@ class RestaurantListCreateTests(BaseTest):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.json()), 1)
 
-    def test_create_restaurant_success(self):
+    @patch('requests.get')
+    def test_create_restaurant_success(self, mock_get):
         """Test la création réussie d'un restaurant"""
+        # Mock de la réponse OpenStreetMap
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = [{
+            "lat": "48.8566",
+            "lon": "2.3522"
+        }]
+
         self.client.force_login(self.user)
         response = self.client.post(
             '/api/restaurants',
-            data=json.dumps(self.restaurant_data),
-            content_type='application/json'
+            data=self.restaurant_data,
+            format='multipart'
         )
         self.assertEqual(response.status_code, 201)
         self.assertTrue(Restaurant.objects.filter(name='Test Restaurant').exists())
