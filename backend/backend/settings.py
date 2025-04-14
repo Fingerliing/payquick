@@ -33,7 +33,11 @@ SIRENE_API_TOKEN = config('SIRENE_API_TOKEN', default='test-token')
 DEBUG = True
 
 # Paramètre pour les tests
-TESTING = True
+TESTING = False
+
+# Configuration des emails pour le développement
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+DEFAULT_FROM_EMAIL = 'noreply@payquick.com'
 
 ALLOWED_HOSTS = []
 
