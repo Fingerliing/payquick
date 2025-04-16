@@ -55,7 +55,7 @@ export default function RestaurateurDashboard() {
             Créer un menu
           </button>
 
-          {showMenuForm && <RestaurantMenu />}
+          {showMenuForm && <RestaurantMenu restaurantId={0} />}
         </div>
         <button
           onClick={() => {
