@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Restaurant, Menu, MenuItem
+from .models import Restaurant, Menu, MenuItem, ClientProfile
 
 class RestaurantSerializer(serializers.ModelSerializer):
     owner = serializers.StringRelatedField(read_only=True)
@@ -19,3 +19,8 @@ class MenuSerializer(serializers.ModelSerializer):
     class Meta:
         model = Menu
         fields = ["id", "restaurant", "items", "created_at", "updated_at"]
+
+class ClientProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ClientProfile
+        fields = '__all__'

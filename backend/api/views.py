@@ -1,6 +1,6 @@
 from rest_framework import viewsets
-from .models import Restaurant, ClientProfile, DeliveryProfile, Menu, MenuItem
-from .serializers import RestaurantSerializer, ClientProfileSerializer, DeliveryProfileSerializer, MenuSerializer, MenuItemSerializer
+from .models import Restaurant, ClientProfile, Menu, MenuItem
+from .serializers import RestaurantSerializer, ClientProfileSerializer, MenuSerializer, MenuItemSerializer
 from rest_framework.permissions import IsAuthenticated
 
 class RestaurantViewSet(viewsets.ModelViewSet):
