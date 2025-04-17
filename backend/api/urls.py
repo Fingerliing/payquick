@@ -4,7 +4,8 @@ from .views import (
     RestaurantViewSet,
     ClientProfileViewSet,
     MenuViewSet,
-    MenuItemViewSet
+    MenuItemViewSet,
+    MeView
 )
 
 router = DefaultRouter()
@@ -15,4 +16,5 @@ router.register(r'menu-items', MenuItemViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('me/', MeView.as_view(), name='me'),
 ]
