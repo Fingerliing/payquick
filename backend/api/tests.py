@@ -116,3 +116,62 @@ class PermissionTests(TestCase):
         request = type('Request', (), {'user': self.client_user})()
         perm = IsClient(groups=["client"])
         self.assertTrue(perm.has_permission(request, None))
+
+class ModelTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="testuser", password="pass")
+        self.card = SimpleUploadedFile("id.jpg", b"fake", content_type="image/jpeg")
+        self.kbis = SimpleUploadedFile("kbis.pdf", b"fake", content_type="application/pdf")
+
+    def test_restaurant_str(self):
+        resto = Restaurant.objects.create(
+            name="Le Bon Resto",
+            description="Excellent",
+            owner=self.user,
+            latitude=48.0,
+            longitude=2.0
+        )
+        self.assertEqual(str(resto), "Le Bon Resto (testuser)")
+
+    def test_menu_str(self):
+        resto = Restaurant.objects.create(
+            name="Chez Nous",
+            description="Cuisine maison",
+            owner=self.user,
+            latitude=50.0,
+            longitude=3.0
+        )
+        menu = Menu.objects.create(restaurant=resto)
+        self.assertEqual(str(menu), "Menu de Chez Nous")
+
+    def test_menu_item_str(self):
+        resto = Restaurant.objects.create(
+            name="Chez Vous",
+            description="Top resto",
+            owner=self.user,
+            latitude=47.0,
+            longitude=4.0
+        )
+        menu = Menu.objects.create(restaurant=resto)
+        item = MenuItem.objects.create(
+            menu=menu,
+            name="Lasagnes",
+            description="Lasagnes maison",
+            price=12.5,
+            category="Plat",
+            is_available=True
+        )
+        self.assertEqual(str(item), "Lasagnes - 12.5€")
+
+    def test_client_profile_str(self):
+        profile = ClientProfile.objects.create(user=self.user, phone="0102030405")
+        self.assertEqual(str(profile), "testuser - 0102030405")
+
+    def test_restaurateur_profile_str(self):
+        profile = RestaurateurProfile.objects.create(
+            user=self.user,
+            siret="12345678901234",
+            id_card=self.card,
+            kbis=self.kbis
+        )
+        self.assertEqual(str(profile), "testuser - 12345678901234")
