@@ -1,94 +1,29 @@
-"use client";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
-import { useAuthStore } from "../../../store/authStore";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import RestaurantMenu from "../../components/RestaurantMenu";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
-interface Restaurant {
-  id: number;
-  name: string;
-  description: string;
-  owner: string;
-}
-
-export default function RestaurateurDashboard() {
-  const user = useAuthStore((state) => state.user);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const logout = useAuthStore((state) => state.logout);
-  const router = useRouter();
-  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
-  const [selectedRestaurant, setSelectedRestaurant] = useState<number | null>(null);
-  const [showMenuForm, setShowMenuForm] = useState(false);
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      router.push("/restaurants/login");
-    } else {
-      fetchRestaurants();
-    }
-  }, [isAuthenticated, router]);
-
-  const fetchRestaurants = async () => {
-    try {
-      const res = await fetch(`${API_URL}/api/restaurants`);
-      if (res.ok) {
-        const data = await res.json();
-        setRestaurants(data.filter((r: Restaurant) => r.owner === user));
-      }
-    } catch (err) {
-      console.error("Erreur lors du chargement des restaurants:", err);
-    }
-  };
-
+export default function RestaurateurDashboardPage() {
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold">Espace restaurateur</h1>
-        <div className="max-w-2xl mx-auto p-4">
-          <button
-            onClick={() => setShowMenuForm(true)}
-            className="mb-4 bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
-          >
-            Créer un menu
-          </button>
+    <main className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4">
+      <h1 className="text-4xl font-bold text-gray-800 mb-8">Dashboard Restaurateur</h1>
 
-          {showMenuForm && <RestaurantMenu restaurantId={0} />}
-        </div>
-        <button
-          onClick={() => {
-            logout();
-            router.push("/restaurants/login");
-          }}
-          className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
-        >
-          Se déconnecter
-        </button>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl">
+        <Link href="/restaurant/create" className="bg-white border rounded-xl p-6 shadow hover:shadow-lg transition">
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">Créer un restaurant</h2>
+          <p className="text-gray-600">Ajoutez votre établissement à l'application.</p>
+        </Link>
+
+        <Link href="/restaurant/menu" className="bg-white border rounded-xl p-6 shadow hover:shadow-lg transition">
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">Créer / Modifier le menu</h2>
+          <p className="text-gray-600">Ajoutez ou modifiez vos plats et boissons.</p>
+        </Link>
+
+        <Link href="/restaurant/qrcode" className="bg-white border rounded-xl p-6 shadow hover:shadow-lg transition">
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">Générer des QR codes</h2>
+          <p className="text-gray-600">Créez les QR à placer sur les tables de votre restaurant.</p>
+        </Link>
       </div>
 
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-4">Mes restaurants</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {restaurants.map((restaurant) => (
-            <div
-              key={restaurant.id}
-              className="border rounded-lg p-4 cursor-pointer hover:bg-gray-50"
-              onClick={() => setSelectedRestaurant(restaurant.id)}
-            >
-              <h3 className="font-medium">{restaurant.name}</h3>
-              <p className="text-gray-600">{restaurant.description}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {selectedRestaurant && (
-        <div className="mt-8">
-          <RestaurantMenu restaurantId={selectedRestaurant} />
-        </div>
-      )}
-    </div>
+      <footer className="mt-20 text-gray-500 text-sm">© 2025 Eat & Go. Tous droits réservés.</footer>
+    </main>
   );
 }

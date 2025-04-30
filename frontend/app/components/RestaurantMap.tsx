@@ -7,7 +7,6 @@ import L from "leaflet";
 import icon from "leaflet/dist/images/marker-icon.png";
 import iconShadow from "leaflet/dist/images/marker-shadow.png";
 import { toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
 
 interface Restaurant {
   id: number;
