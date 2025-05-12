@@ -34,9 +34,18 @@ class MeView(APIView):
 
     def get(self, request):
         user = request.user
+        # Détection du rôle
+        if ClientProfile.objects.filter(user=user).exists():
+            role = "client"
+        elif Restaurant.objects.filter(owner=user).exists():
+            role = "restaurateur"
+        else:
+            role = "unknown"
+
         return Response({
             "username": user.username,
             "email": user.email,
+            "role": role,
             "groups": [g.name for g in user.groups.all()],
             "is_staff": user.is_staff,
             "is_superuser": user.is_superuser,
