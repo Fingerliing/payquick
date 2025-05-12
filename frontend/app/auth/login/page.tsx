@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -19,7 +20,7 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      const res = await fetch("/api/login/", {
+      const res = await fetch("/api/token/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: email, password }),
@@ -28,11 +29,9 @@ export default function LoginPage() {
       if (!res.ok) throw new Error("Email ou mot de passe invalide");
 
       const data = await res.json();
-      const token = data.token;
+      const token = data.access;
 
-      // Optionnel : enregistrer le token dans localStorage
       localStorage.setItem("token", token);
-
       await fetchUser(token);
     } catch (err: any) {
       setError(err.message);
@@ -67,6 +66,10 @@ export default function LoginPage() {
 
           <Button type="submit" className="w-full">Se connecter</Button>
         </form>
+
+        <p className="text-sm text-gray-600 text-center mt-6">
+          Pas encore de compte ? <Link href="/auth/register" className="text-primary hover:underline">Créer un compte</Link>
+        </p>
       </div>
     </main>
   );
