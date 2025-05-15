@@ -1,38 +1,52 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
+import { api } from "@/lib/api";
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const router = useRouter();
   const fetchUser = useAuthStore((state) => state.fetchUser);
-  const setUser = useAuthStore((state) => state.setUser);
-
+  const [role, setRole] = useState<string>("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [debug, setDebug] = useState<any>(null);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setDebug(null);
 
     try {
-      const res = await fetch("/api/token/", {
+      const res = await fetch(api.login, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: email, password }),
       });
 
-      if (!res.ok) throw new Error("Email ou mot de passe invalide");
+      const raw = await res.clone().text();
+      const json = await res.json().catch(() => ({}));
+      setDebug({ status: res.status, response: raw });
 
-      const data = await res.json();
-      const token = data.access;
+      if (!res.ok) throw new Error(json.detail || "Email ou mot de passe invalide");
 
+      const token = json.access;
       localStorage.setItem("token", token);
+
       await fetchUser(token);
+
+      const user = useAuthStore.getState().user;
+      if (user?.role === "restaurateur") {
+        router.push("/restaurants/dashboard");
+      } else if (user?.role === "client") {
+        router.push("/clients/dashboard");
+      } else {
+        router.push("/");
+      }
     } catch (err: any) {
       setError(err.message);
     }
@@ -63,9 +77,15 @@ export default function LoginPage() {
           />
 
           {error && <p className="text-sm text-red-500 text-center">{error}</p>}
-
           <Button type="submit" className="w-full">Se connecter</Button>
         </form>
+
+        {debug && (
+          <div className="mt-6 p-4 border border-gray-300 rounded bg-gray-100 text-sm text-gray-800">
+            <p className="mb-1 font-semibold">Réponse brute :</p>
+            <pre className="whitespace-pre-wrap break-words">{debug.response}</pre>
+          </div>
+        )}
 
         <p className="text-sm text-gray-600 text-center mt-6">
           Pas encore de compte ? <Link href="/auth/register" className="text-primary hover:underline">Créer un compte</Link>

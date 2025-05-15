@@ -1,10 +1,11 @@
 from rest_framework import viewsets
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .models import Restaurant, ClientProfile, Menu, MenuItem
-from .serializers import RestaurantSerializer, ClientProfileSerializer, MenuSerializer, MenuItemSerializer
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from .models import Restaurant, ClientProfile, Menu, MenuItem, RestaurateurProfile
+from .serializers import RestaurantSerializer, ClientProfileSerializer, MenuSerializer, MenuItemSerializer, RestaurateurProfileSerializer
 from rest_framework.permissions import IsAuthenticated
-from .permissions import IsRestaurateur, IsClient
+from .permissions import IsRestaurateur, IsClient, IsAdmin
 
 class RestaurantViewSet(viewsets.ModelViewSet):
     queryset = Restaurant.objects.all()
@@ -30,14 +31,15 @@ class MenuItemViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
 class MeView(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         user = request.user
-        # Détection du rôle
+
         if ClientProfile.objects.filter(user=user).exists():
             role = "client"
-        elif Restaurant.objects.filter(owner=user).exists():
+        elif RestaurateurProfile.objects.filter(user=user).exists():
             role = "restaurateur"
         else:
             role = "unknown"
@@ -46,7 +48,9 @@ class MeView(APIView):
             "username": user.username,
             "email": user.email,
             "role": role,
-            "groups": [g.name for g in user.groups.all()],
-            "is_staff": user.is_staff,
-            "is_superuser": user.is_superuser,
         })
+    
+class RestaurateurProfileViewSet(viewsets.ModelViewSet):
+    queryset = RestaurateurProfile.objects.all()
+    serializer_class = RestaurateurProfileSerializer
+    permission_classes = [IsAuthenticated, IsRestaurateur]

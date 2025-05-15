@@ -8,17 +8,17 @@ export default function RestaurateurDashboardPage() {
         <h1 className="text-4xl font-bold text-gray-800 mb-8">Dashboard Restaurateur</h1>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl">
-          <Link href="/restaurant/create" className="bg-white border rounded-xl p-6 shadow hover:shadow-lg transition">
-            <h2 className="text-xl font-semibold text-gray-800 mb-2">Créer un restaurant</h2>
+          <Link href="/restaurants/create" className="bg-white border rounded-xl p-6 shadow hover:shadow-lg transition">
+            <h2 className="text-xl font-semibold text-gray-800 mb-2">Ajouter un restaurant</h2>
             <p className="text-gray-600">Ajoutez votre établissement à l'application.</p>
           </Link>
 
-          <Link href="/restaurant/menu" className="bg-white border rounded-xl p-6 shadow hover:shadow-lg transition">
+          <Link href="/restaurants/menu" className="bg-white border rounded-xl p-6 shadow hover:shadow-lg transition">
             <h2 className="text-xl font-semibold text-gray-800 mb-2">Créer / Modifier le menu</h2>
             <p className="text-gray-600">Ajoutez ou modifiez vos plats et boissons.</p>
           </Link>
 
-          <Link href="/restaurant/qrcode" className="bg-white border rounded-xl p-6 shadow hover:shadow-lg transition">
+          <Link href="/restaurants/qrcode" className="bg-white border rounded-xl p-6 shadow hover:shadow-lg transition">
             <h2 className="text-xl font-semibold text-gray-800 mb-2">Générer des QR codes</h2>
             <p className="text-gray-600">Créez les QR à placer sur les tables de votre restaurant.</p>
           </Link>

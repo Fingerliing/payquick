@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { api } from "@/lib/api";
 
 interface User {
   username: string;
@@ -24,16 +25,20 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   fetchUser: async (token) => {
     try {
-      const res = await fetch("/api/me", {
+      const res = await fetch(api.me, {
         headers: {
           Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
       });
 
-      if (!res.ok) throw new Error("Échec de récupération de l'utilisateur");
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error("/api/me échoué:", res.status, errorText);
+        throw new Error("Échec de récupération de l'utilisateur");
+      }
 
       const data = await res.json();
-
       set({
         user: {
           username: data.username,
