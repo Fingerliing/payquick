@@ -36,6 +36,7 @@ export default function RegisterPage() {
 
       const token = json.access;
       localStorage.setItem("token", token);
+      localStorage.setItem("refresh", json.refresh);
 
       await fetchUser(token);
 

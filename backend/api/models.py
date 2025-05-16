@@ -1,17 +1,30 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
+
+def validate_siret(value):
+    if not value.isdigit():
+        raise ValidationError("Le SIRET doit contenir uniquement des chiffres.")
+    if len(value) != 14:
+        raise ValidationError("Le SIRET doit contenir exactement 14 chiffres.")
 
 class Restaurant(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField()
     owner = models.ForeignKey(User, on_delete=models.CASCADE)
-    latitude = models.FloatField()
-    longitude = models.FloatField()
+    address = models.CharField(max_length=255, default='Adresse temporaire')
+    siret = models.CharField(
+        max_length=14,
+        validators=[validate_siret],
+        unique=True,
+        help_text="Numéro SIRET à 14 chiffres",
+    )
 
     def __str__(self):
         return f"{self.name} ({self.owner.username})"
 
 class Menu(models.Model):
+    name = models.CharField(max_length=100)
     restaurant = models.OneToOneField(Restaurant, on_delete=models.CASCADE, related_name='menu')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

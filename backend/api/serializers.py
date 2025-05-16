@@ -6,19 +6,19 @@ class RestaurantSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Restaurant
-        fields = ["id", "name", "description", "latitude", "longitude", "owner"]
+        fields = ["id", "name", "description", "address", "owner"]
 
 class MenuItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = MenuItem
-        fields = ["id", "name", "description", "price", "category", "is_available"]
+        fields = ["id", "name", "description", "price", "category", "is_available", "menu"]
 
 class MenuSerializer(serializers.ModelSerializer):
     items = MenuItemSerializer(many=True, read_only=True)
 
     class Meta:
         model = Menu
-        fields = ["id", "restaurant", "items", "created_at", "updated_at"]
+        fields = ["id", "name", "restaurant", "items", "created_at", "updated_at"]
 
 class ClientProfileSerializer(serializers.ModelSerializer):
     class Meta:

@@ -5,4 +5,7 @@ export const api = {
   me: `${API_BASE}/api/me/`,
   register: `${API_BASE}/api/register/`,
   restaurateurs: `${API_BASE}/api/restaurateurs/`,
+  restaurants: `${API_BASE}/api/restaurants/`,
+  menu: `${API_BASE}/api/menus/`,
+  menuItems: `${API_BASE}/api/menu-items/`,
 };
