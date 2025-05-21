@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Resthome } from "@/components/ui/resthome";
@@ -96,6 +97,7 @@ export default function RestaurantMenusPage() {
           <div key={menu.id} className="bg-white border rounded-xl p-4 shadow hover:shadow-lg transition flex items-center justify-between">
             <div>
               <h2 className="text-lg font-semibold text-gray-800">{menu.name}</h2>
+              <Link href={`/restaurants/menus/${menu.id}`} className="text-lg font-semibold text-primary hover:underline">{menu.name}</Link>
             </div>
             <Button onClick={() => router.push(`/restaurants/menu?menuId=${menu.id}`)}>
               Ajouter des items
