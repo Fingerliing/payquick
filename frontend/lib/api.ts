@@ -7,7 +7,7 @@ export const api = {
   restaurateurs: `${API_BASE}/api/restaurateurs/`,
   restaurants: `${API_BASE}/api/restaurants/`,
   menu: `${API_BASE}/api/menus/`,
-  menuDetails: (menuId: string) => `${API_BASE}/menus/${menuId}/`,
+  menuDetails: (menuId: string) => `${API_BASE}/api/menus/${menuId}/`,
   menuItems: `${API_BASE}/api/menu-items/`,
-  menuItemsDetails: (menuId: string) => `${API_BASE}/menu-items/?menu=${menuId}/`,
+  menuItemsDetails: (menuId: string) => `${API_BASE}/api/menu-items/?menu=${menuId}/`,
 };
