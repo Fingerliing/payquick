@@ -8,6 +8,7 @@ export default function QRCodePage() {
   const [qrCodes, setQrCodes] = useState<string[]>([])
   const searchParams = useSearchParams();
   const restaurantId = searchParams.get("restaurantId");
+  const [size, setSize] = useState<'small' | 'medium' | 'large'>('medium')
 
   const generate = async () => {
     const res = await fetch('/api/qrcodes', {
@@ -19,46 +20,79 @@ export default function QRCodePage() {
     setQrCodes(data.qrCodes)
   }
 
+  const getQRSizeClass = () => {
+    switch (size) {
+      case 'small':
+        return 'w-24'; // ~6cm
+      case 'medium':
+        return 'w-40'; // ~10cm
+      case 'large':
+        return 'w-60'; // ~15cm
+    }
+  }
+
   return (
-    <div className="max-w-4xl mx-auto py-10 px-4">
-      <h1 className="text-3xl font-bold text-center mb-8">
+    <div className="max-w-6xl mx-auto py-10 px-4 print:bg-white print:p-0">
+      {/* Titre */}
+      <h1 className="text-3xl font-bold text-center mb-8 print:hidden">
         Générer les QR Codes des tables
       </h1>
 
-      <div className="flex flex-col md:flex-row items-center justify-center gap-4 mb-8">
-        <label htmlFor="tableCount" className="text-lg font-medium">
-          Nombre de tables :
-        </label>
+      {/* Formulaire de configuration */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-8 justify-center print:hidden">
+        <label className="font-medium text-lg">Nombre de tables :</label>
         <input
-          id="tableCount"
           type="number"
           min={1}
           value={tableCount}
           onChange={(e) => setTableCount(parseInt(e.target.value))}
-          className="border border-gray-300 rounded px-4 py-2 w-32 text-center"
+          className="border px-4 py-2 rounded w-24 text-center"
         />
+
+        <label className="font-medium text-lg">Taille :</label>
+        <select
+          value={size}
+          onChange={(e) => setSize(e.target.value as 'small' | 'medium' | 'large')}
+          className="border px-4 py-2 rounded"
+        >
+          <option value="small">Petite</option>
+          <option value="medium">Moyenne</option>
+          <option value="large">Grande</option>
+        </select>
+
         <button
           onClick={generate}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded transition duration-200"
+          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded transition"
         >
           Générer
         </button>
       </div>
 
+      {/* Bouton imprimer */}
       {qrCodes.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6">
+        <button
+          onClick={() => window.print()}
+          className="mb-6 bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-2 rounded transition print:hidden"
+        >
+          Imprimer les QR Codes
+        </button>
+      )}
+
+      {/* Grille des QR codes */}
+      {qrCodes.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 print:grid-cols-3">
           {qrCodes.map((qr, index) => (
             <div
               key={index}
-              className="border rounded shadow-sm p-3 flex flex-col items-center bg-white"
+              className="border border-gray-300 rounded-lg p-4 bg-white flex flex-col items-center print:shadow-none print:border print:border-gray-400"
             >
-              <p className="mb-2 font-semibold text-sm text-gray-700">
+              <p className="mb-2 font-semibold text-sm text-gray-700 print:text-black">
                 Table {index + 1}
               </p>
               <img
                 src={qr}
                 alt={`QR Table ${index + 1}`}
-                className="w-full aspect-square object-contain"
+                className={`${getQRSizeClass()} aspect-square object-contain`}
               />
             </div>
           ))}
