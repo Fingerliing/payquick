@@ -76,7 +76,7 @@ export default function RestaurateurDashboardPage() {
             </Link>
 
             <Link
-              href={`/restaurants/${selectedRestaurant.id}/qrcode`}
+              href={`/restaurants/qrcode?restaurantId=${selectedRestaurant.id}`}
               className="bg-white border rounded-xl p-6 shadow hover:shadow-lg transition"
             >
               <h2 className="text-xl font-semibold text-gray-800 mb-2">Générer des QR codes</h2>

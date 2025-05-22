@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Resthome } from "@/components/ui/resthome";
 import { Button } from "@/components/ui/button";
-import { ToggleAvailabilityButton } from "@/components/ui/ToggleAvailabilityButton";
 import { DeleteItemButton } from "@/components/ui/DeleteItemButton";
 import { api } from "@/lib/api";
 
