@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Resthome } from "@/components/ui/resthome";
 import { Button } from "@/components/ui/button";
+import { ToggleAvailabilityButton } from "@/components/ui/ToggleAvailabilityButton";
+import { DeleteItemButton } from "@/components/ui/DeleteItemButton";
 import { api } from "@/lib/api";
 
 export default function RestaurantMenusPage() {
@@ -95,12 +97,22 @@ export default function RestaurantMenusPage() {
       <div className="w-full max-w-xl space-y-4">
         {menus.map((menu) => (
           <div key={menu.id} className="bg-white border rounded-xl p-4 shadow hover:shadow-lg transition flex items-center justify-between">
-            <div>
-              <Link href={`/restaurants/menus/${menu.id}`} className="text-lg font-semibold text-primary hover:underline">{menu.name}</Link>
+            <div className="flex flex-col">
+              <Link href={`/restaurants/menus/${menu.id}`} className="text-lg font-semibold text-primary hover:underline">
+                {menu.name}
+              </Link>
+              <div className="mt-2 flex gap-2">
+                <Button onClick={() => router.push(`/restaurants/menu?menuId=${menu.id}`)}>
+                  Ajouter au menu
+                </Button>
+                <DeleteItemButton
+                  itemId={menu.id}
+                  onDelete={() => {
+                    setMenus((prev) => prev.filter((m) => m.id !== menu.id));
+                  }}
+                />
+              </div>
             </div>
-            <Button onClick={() => router.push(`/restaurants/menu?menuId=${menu.id}`)}>
-              Modifier le menu
-            </Button>
           </div>
         ))}
       </div>

@@ -68,7 +68,7 @@ export default function RestaurantMenuPage() {
   return (
     <main className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4">
       <Resthome/>
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">Créer / Modifier le menu</h1>
+      <h1 className="text-3xl font-bold text-gray-800 mb-6">Ajouter au menu</h1>
 
       <form onSubmit={handleSubmit} className="w-full max-w-xl space-y-4 bg-white p-6 rounded-xl shadow">
         <input
