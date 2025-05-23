@@ -10,7 +10,8 @@ from .views import (
     MenuViewSet,
     MenuItemViewSet,
     MeView,
-    RestaurateurProfileViewSet
+    RestaurateurProfileViewSet,
+    OrderViewSet
 )
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
@@ -33,6 +34,7 @@ router.register(r'clients', ClientProfileViewSet)
 router.register(r'menus', MenuViewSet)
 router.register(r'menu-items', MenuItemViewSet)
 router.register(r"restaurateurs", RestaurateurProfileViewSet)
+router.register(r'orders', OrderViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),

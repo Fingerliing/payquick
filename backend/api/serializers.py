@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Restaurant, Menu, MenuItem, ClientProfile, RestaurateurProfile
+from .models import Restaurant, Menu, MenuItem, ClientProfile, RestaurateurProfile, Order
 
 class RestaurantSerializer(serializers.ModelSerializer):
     owner = serializers.StringRelatedField(read_only=True)
@@ -29,3 +29,17 @@ class RestaurateurProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = RestaurateurProfile
         fields = "__all__"
+
+class OrderSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Order
+        fields = [
+            "id",
+            "restaurateur",
+            "table_number",
+            "items",
+            "status",
+            "is_paid",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
