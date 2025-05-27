@@ -11,7 +11,10 @@ from .views import (
     MenuItemViewSet,
     MeView,
     RestaurateurProfileViewSet,
-    OrderViewSet
+    OrderViewSet,
+    MenuByRestaurantView,
+    CreateCheckoutSessionView,
+    stripe_webhook
 )
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
@@ -41,4 +44,7 @@ urlpatterns = [
     path('me/', MeView.as_view(), name='me'),
     path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('stripe/webhook/', stripe_webhook, name='stripe_webhook'),
+    path("menus/by_restaurant/<int:restaurant_id>/", MenuByRestaurantView.as_view(), name="menu-by-restaurant"),
+    path("orders/<uuid:order_id>/create-checkout-session/", CreateCheckoutSessionView.as_view(), name="create-checkout-session"),
 ]

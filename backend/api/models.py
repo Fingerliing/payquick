@@ -59,6 +59,7 @@ class RestaurateurProfile(models.Model):
     kbis = models.FileField(upload_to="documents/kbis/")
     is_validated = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    stripe_account_id = models.CharField(max_length=255, blank=True, null=True)
 
     def __str__(self):
         return f"{self.user.username} - {self.siret}"
