@@ -1,129 +1,162 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Resthome } from "@/components/ui/resthome";
-import { Button } from "@/components/ui/button";
-import { DeleteItemButton } from "@/components/ui/DeleteItemButton";
-import { api } from "@/lib/api";
+import useSWR from 'swr';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { api, API_BASE } from '@/lib/api';
+import { toast } from 'react-toastify';
 
-export default function RestaurantMenusPage() {
-  const router = useRouter();
+const fetcherWithToken = (url: string) => {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  return fetch(url, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {}
+  }).then(res => {
+    if (!res.ok) throw new Error('Erreur API');
+    return res.json();
+  });
+};
+
+export default function MenusListPage() {
   const searchParams = useSearchParams();
-  const restaurantId = searchParams.get("restaurantId");
+  const restaurantId = searchParams.get('restaurantId');
+  const { data: menus, error, mutate } = useSWR(
+    restaurantId ? `${api.menu}?restaurant_id=${restaurantId}` : null,
+    fetcherWithToken
+  );
 
-  const [menus, setMenus] = useState<any[]>([]);
-  const [newMenuName, setNewMenuName] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [debug, setDebug] = useState<any>(null);
+  const [menuName, setMenuName] = useState('');
+  const [editing, setEditing] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
 
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
-  const fetchMenus = async () => {
-    if (!restaurantId || !token) return;
-    try {
-      const res = await fetch(api.menu, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await res.json();
-      setMenus(data);
-    } catch (err) {
-      console.error("Erreur lors du chargement des menus");
+  const createMenu = async () => {
+    if (!restaurantId || !menuName || !token) return;
+    const res = await fetch(api.menu, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ name: menuName, restaurant: restaurantId })
+    });
+    if (res.ok) {
+      setMenuName('');
+      mutate();
+      toast.success('Menu créé');
+    } else {
+      toast.error("Erreur lors de la création");
     }
   };
 
-  useEffect(() => {
-    fetchMenus();
-  }, [restaurantId]);
-
-  const handleCreateMenu = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setDebug(null);
-
-    if (!restaurantId || !token) {
-      setError("Token ou restaurant manquant");
-      return;
-    }
-
-    try {
-      const res = await fetch(api.menu, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          name: newMenuName,
-          restaurant: restaurantId,
-        }),
-      });
-
-      const raw = await res.clone().text();
-      const json = await res.json().catch(() => ({}));
-      setDebug({ status: res.status, response: raw });
-
-      if (!res.ok) throw new Error(json.detail || "Erreur lors de la création du menu");
-
-      setNewMenuName("");
-      fetchMenus();
-    } catch (err: any) {
-      setError(err.message);
-    }
+  const deleteMenu = async (id: string) => {
+    if (!token || !confirm('Supprimer ce menu ?')) return;
+    const res = await fetch(`${api.menu}${id}/`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) toast.success('Menu supprimé');
+    else toast.error('Erreur lors de la suppression');
+    mutate();
   };
+
+  const updateMenu = async (id: string) => {
+    if (!token || !editValue) return;
+    const res = await fetch(`${api.menu}${id}/`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ name: editValue })
+    });
+    if (res.ok) toast.success('Menu mis à jour');
+    else toast.error('Erreur lors de la mise à jour');
+    setEditing(null);
+    setEditValue('');
+    mutate();
+  };
+
+  if (!restaurantId) {
+    return <p className="text-red-600 text-center mt-10">Aucun restaurant sélectionné.</p>;
+  }
+
+  if (error) {
+    return <p className="text-red-600 text-center mt-10">Erreur de chargement des menus.</p>;
+  }
 
   return (
-    <main className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4">
-      <Resthome/>
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">Menus du restaurant</h1>
+    <div className="max-w-3xl mx-auto py-10">
+      <h1 className="text-3xl font-bold mb-6">Vos menus</h1>
 
-      <form onSubmit={handleCreateMenu} className="w-full max-w-xl space-y-4 bg-white p-6 rounded-xl shadow mb-8">
+      <div className="mb-8">
         <input
-          type="text"
+          value={menuName}
+          onChange={e => setMenuName(e.target.value)}
           placeholder="Nom du menu"
-          value={newMenuName}
-          onChange={(e) => setNewMenuName(e.target.value)}
-          className="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-          required
+          className="border px-3 py-2 rounded mr-2"
         />
-        {error && <p className="text-sm text-red-500 text-center">{error}</p>}
-        <Button type="submit" className="w-full">Créer le menu</Button>
-      </form>
-
-      <div className="w-full max-w-xl space-y-4">
-        {menus.map((menu) => (
-          <div key={menu.id} className="bg-white border rounded-xl p-4 shadow hover:shadow-lg transition flex items-center justify-between">
-            <div className="flex flex-col">
-              <Link href={`/restaurants/menus/${menu.id}`} className="text-lg font-semibold text-primary hover:underline">
-                {menu.name}
-              </Link>
-              <div className="mt-2 flex gap-2">
-                <Button onClick={() => router.push(`/restaurants/menu?menuId=${menu.id}`)}>
-                  Ajouter au menu
-                </Button>
-                <DeleteItemButton
-                  itemId={menu.id}
-                  onDelete={() => {
-                    setMenus((prev) => prev.filter((m) => m.id !== menu.id));
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        ))}
+        <button
+          onClick={createMenu}
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        >
+          Créer un menu
+        </button>
       </div>
 
-      {debug && (
-        <div className="mt-6 p-4 border border-gray-300 rounded bg-gray-100 text-sm text-gray-800 max-w-xl w-full">
-          <p className="mb-1 font-semibold">Réponse brute :</p>
-          <pre className="whitespace-pre-wrap break-words">{debug.response}</pre>
-        </div>
-      )}
+      <div className="space-y-4">
+        {menus?.map((menu: any) => (
+          <div key={menu.id} className="p-4 border rounded bg-white">
+            {editing === menu.id ? (
+              <div className="flex items-center gap-2 mb-2">
+                <input
+                  value={editValue}
+                  onChange={e => setEditValue(e.target.value)}
+                  className="border px-2 py-1 rounded"
+                />
+                <button
+                  onClick={() => updateMenu(menu.id)}
+                  className="bg-green-600 text-white px-3 py-1 rounded"
+                >
+                  Enregistrer
+                </button>
+                <button
+                  onClick={() => setEditing(null)}
+                  className="text-gray-600 px-2"
+                >
+                  Annuler
+                </button>
+              </div>
+            ) : (
+              <div className="flex justify-between items-center">
+                <Link href={`/restaurants/menus/${menu.id}`} className="text-xl font-semibold hover:underline">
+                  {menu.name}
+                </Link>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setEditing(menu.id);
+                      setEditValue(menu.name);
+                    }}
+                    className="text-sm text-yellow-600 hover:underline"
+                  >
+                    Renommer
+                  </button>
+                  <button
+                    onClick={() => deleteMenu(menu.id)}
+                    className="text-sm text-red-600 hover:underline"
+                  >
+                    Supprimer
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
 
-      <footer className="mt-20 text-gray-500 text-sm">© 2025 Eat & Go. Tous droits réservés.</footer>
-    </main>
+        {menus?.length === 0 && <p className="text-gray-500">Aucun menu trouvé.</p>}
+      </div>
+    </div>
   );
 }

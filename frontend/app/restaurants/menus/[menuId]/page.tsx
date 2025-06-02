@@ -1,127 +1,138 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import { api } from "@/lib/api";
-import { Resthome } from "@/components/ui/resthome";
-import { ToggleAvailabilityButton } from "@/components/ui/ToggleAvailabilityButton";
-import { DeleteItemButton } from "@/components/ui/DeleteItemButton";
-import { MenuItem } from "@/types/menu";
+import { useEffect, useState } from 'react';
+import useSWR from 'swr';
+import { useParams } from 'next/navigation';
+import { MenuItem } from '@/types/menu';
+import { toast } from 'react-toastify';
 
-export default function MenuDetailPage() {
-  const { menuId } = useParams();
-  const [items, setItems] = useState<MenuItem[]>([]);
-  const [menuName, setMenuName] = useState<string>("");
-  const [error, setError] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
+const fetcher = (url: string) => fetch(url).then(res => res.json());
 
-  useEffect(() => {
-    if (toast) {
-      const timeout = setTimeout(() => setToast(null), 3000);
-      return () => clearTimeout(timeout);
-    }
-  }, [toast]);
+const CATEGORIES = ['Entrée', 'Plat', 'Dessert', 'Boisson', 'Menu'];
 
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token || typeof menuId !== "string") return;
+export default function RestaurantMenuManager() {
+  const params = useParams();
+  const menuId = params?.menuId as string;
+  const { data: menuItems, mutate } = useSWR<MenuItem[]>(
+    menuId ? `/api/menu-items/?menu_id=${menuId}` : null,
+    fetcher
+  );
 
-    const fetchMenuItems = async () => {
-      try {
-        const resItems = await fetch(api.menuItemsDetails(menuId), {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const itemsData = await resItems.json();
-        setItems(itemsData);
+  const [newItem, setNewItem] = useState({ name: '', price: '', category: 'Plat', description: '' });
+  const [editItem, setEditItem] = useState<MenuItem | null>(null);
 
-        const resMenu = await fetch(api.menuDetails(menuId), {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const menuData = await resMenu.json();
-        setMenuName(menuData.name);
-      } catch (err) {
-        setError("Erreur lors du chargement du menu.");
-      }
-    };
+  const addMenuItem = async () => {
+    if (!newItem.name || !newItem.price || !menuId) return;
+    await fetch(`/api/menu-items/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...newItem, price: parseFloat(newItem.price), menu_id: menuId })
+    });
+    setNewItem({ name: '', price: '', category: 'Plat', description: '' });
+    mutate();
+    toast.success('Élément ajouté');
+  };
 
-    fetchMenuItems();
-  }, [menuId]);
+  const updateMenuItem = async () => {
+    if (!editItem) return;
+    await fetch(`/api/menu-items/${editItem.id}/`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(editItem)
+    });
+    setEditItem(null);
+    mutate();
+    toast.success('Élément modifié');
+  };
+
+  const toggleAvailability = async (itemId: number) => {
+    await fetch(`/api/menu-items/${itemId}/toggle/`, { method: 'POST' });
+    mutate();
+  };
+
+  const deleteItem = async (itemId: number) => {
+    const res = await fetch(`/api/menu-items/${itemId}/`, { method: 'DELETE' });
+    if (res.ok) toast.success('Item supprimé avec succès.');
+    else toast.error("Échec de la suppression.");
+    mutate();
+  };
+
+  const groupedItems = CATEGORIES.reduce((acc, category) => {
+    acc[category] = menuItems?.filter((item: MenuItem) => item.category === category) || [];
+    return acc;
+  }, {} as Record<string, MenuItem[]>);
+
+  if (!menuId) {
+    return <p className="text-red-600 text-center mt-10">Aucun menu sélectionné.</p>;
+  }
 
   return (
-    <main className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4">
-      <style jsx global>{`
-        @keyframes slide-in {
-          0% { transform: translateX(100%); opacity: 0; }
-          100% { transform: translateX(0); opacity: 1; }
-        }
-
-        @keyframes fade-in {
-          0% { opacity: 0; }
-          100% { opacity: 1; }
-        }
-
-        .animate-slide-in {
-          animation: slide-in 0.4s ease-out;
-        }
-
-        .animate-fade-in {
-          animation: fade-in 0.3s ease-out;
-        }
-      `}</style>
-
-      {toast && (
-        <div className="fixed top-6 right-6 z-50 px-5 py-3 rounded-xl shadow-lg bg-gradient-to-br from-green-500 to-emerald-600 text-white text-sm font-medium animate-slide-in">
-          {toast}
+    <div className="max-w-4xl mx-auto py-8">
+      <h1 className="text-3xl font-bold mb-6">Gérer le menu</h1>
+      <div className="bg-white p-4 rounded shadow mb-6">
+        <h2 className="text-xl font-semibold mb-4">Ajouter un élément</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <input
+            type="text"
+            placeholder="Nom"
+            value={newItem.name}
+            onChange={e => setNewItem({ ...newItem, name: e.target.value })}
+            className="border px-3 py-2 rounded"
+          />
+          <input
+            type="text"
+            placeholder="Prix (€)"
+            value={newItem.price}
+            onChange={e => setNewItem({ ...newItem, price: e.target.value })}
+            className="border px-3 py-2 rounded"
+          />
+          <select
+            value={newItem.category}
+            onChange={e => setNewItem({ ...newItem, category: e.target.value })}
+            className="border px-3 py-2 rounded"
+          >
+            {CATEGORIES.map(cat => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
+          <input
+            type="text"
+            placeholder="Description"
+            value={newItem.description}
+            onChange={e => setNewItem({ ...newItem, description: e.target.value })}
+            className="border px-3 py-2 rounded"
+          />
         </div>
-      )}
-
-      <Resthome />
-
-      <h1 className="text-3xl font-bold text-gray-800 mb-4">Menu : {menuName}</h1>
-
-      {error && <p className="text-red-500 mb-4">{error}</p>}
-
-      <div className="w-full max-w-3xl space-y-4">
-        {items.map((item) => (
-          <div key={item.id} className="bg-white p-4 rounded-xl shadow border flex flex-col gap-2">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-800">{item.name}</h2>
-              <p className="text-gray-600 text-sm mb-1">{item.description}</p>
-              <p className="text-gray-700 font-medium">
-                {item.category} — {item.price} €
-              </p>
-              {!item.is_available && (
-                <p className="text-sm text-red-500">Indisponible</p>
-              )}
-            </div>
-            <div className="flex gap-2 mt-2">
-              <ToggleAvailabilityButton
-                item={item}
-                onUpdate={(updated) => {
-                  setItems((prev) =>
-                    prev.map((i) => (i.id === updated.id ? updated : i))
-                  );
-                  setToast(
-                    updated.is_available
-                      ? "Élément marqué comme disponible"
-                      : "Élément marqué comme indisponible"
-                  );
-                }}
-              />
-              <DeleteItemButton
-                itemId={item.id}
-                onDelete={() => {
-                  setItems((prev) => prev.filter((i) => i.id !== item.id));
-                  setToast("Élément supprimé avec succès");
-                }}
-              />
-            </div>
-          </div>
-        ))}
-        {items.length === 0 && (
-          <p className="text-gray-500 text-center">Ce menu ne contient encore aucun élément.</p>
-        )}
+        <button
+          onClick={addMenuItem}
+          className="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        >
+          Ajouter
+        </button>
       </div>
-    </main>
+
+      {CATEGORIES.map(category => (
+        <div key={category} className="mb-8">
+          <h2 className="text-2xl font-semibold mb-4">{category}s</h2>
+          <ul className="space-y-2">
+            {groupedItems[category].map(item => (
+              <li key={item.id} className="flex justify-between items-center p-3 border rounded bg-white">
+                <div>
+                  <p className="font-medium">{item.name} - {item.price.toFixed(2)}€</p>
+                  <p className="text-sm text-gray-600">{item.description}</p>
+                </div>
+                <button
+                  onClick={() => toggleAvailability(item.id)}
+                  className={`text-sm px-3 py-1 rounded ${item.is_available ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}
+                >
+                  {item.is_available ? 'Disponible' : 'Indisponible'}
+                </button>
+              </li>
+            ))}
+            {groupedItems[category].length === 0 && <p className="text-gray-500">Aucun item.</p>}
+          </ul>
+        </div>
+      ))}
+    </div>
   );
 }

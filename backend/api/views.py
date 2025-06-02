@@ -38,6 +38,16 @@ class MenuItemViewSet(viewsets.ModelViewSet):
     serializer_class = MenuItemSerializer
     permission_classes = [IsAuthenticated]
 
+    @action(detail=True, methods=["post"], url_path="toggle")
+    def toggle_availability(self, request, pk=None):
+        try:
+            item = self.get_object()
+            item.is_available = not item.is_available
+            item.save()
+            return Response({"id": item.id, "is_available": item.is_available}, status=status.HTTP_200_OK)
+        except MenuItem.DoesNotExist:
+            return Response({"error": "MenuItem not found"}, status=status.HTTP_404_NOT_FOUND)
+
 class MeView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
