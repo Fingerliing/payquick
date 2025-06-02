@@ -82,6 +82,14 @@ export default function RestaurateurDashboardPage() {
               <h2 className="text-xl font-semibold text-gray-800 mb-2">Générer des QR codes</h2>
               <p className="text-gray-600">Créez les QR codes pour les tables de {selectedRestaurant.name}.</p>
             </Link>
+
+            <Link
+              href={`/restaurants/orders?restaurantId=${selectedRestaurant.id}`}
+              className="bg-white border rounded-xl p-6 shadow hover:shadow-lg transition"
+            >
+              <h2 className="text-xl font-semibold text-gray-800 mb-2">Voir les commandes</h2>
+              <p className="text-gray-600">Consultez les commandes en temps réel pour {selectedRestaurant.name}.</p>
+            </Link>
           </div>
         )}
       </main>

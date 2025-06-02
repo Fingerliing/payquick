@@ -16,6 +16,7 @@ from .views import (
     CreateCheckoutSessionView,
     stripe_webhook,
     RegisterView,
+    OrdersByRestaurantView,
 )
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view

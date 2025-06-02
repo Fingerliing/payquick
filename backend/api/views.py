@@ -89,7 +89,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         order.is_paid = True
         order.save()
         return Response({"status": "paid"}, status=status.HTTP_200_OK)
-
+    
     @action(detail=True, methods=["post"])
     def mark_served(self, request, pk=None):
         order = self.get_object()
