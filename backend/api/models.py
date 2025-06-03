@@ -84,3 +84,32 @@ class Order(models.Model):
 
     def __str__(self):
         return f"Table {self.table_number} - {self.get_status_display()} - {'Payée' if self.is_paid else 'Non payée'}"
+    
+class OrderItem(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='order_items')
+    plat = models.ForeignKey('Plat', on_delete=models.CASCADE)
+    quantite = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        unique_together = ('order', 'plat')
+
+    def __str__(self):
+        return f"{self.quantite}x {self.plat.nom} (Commande #{self.order.id})"
+
+class Table(models.Model):
+    restaurant = models.ForeignKey('Restaurant', on_delete=models.CASCADE)
+    identifiant = models.CharField(max_length=50, unique=True)
+
+class Plat(models.Model):
+    menu = models.ForeignKey('Menu', on_delete=models.CASCADE, related_name='plats')
+    nom = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+    prix = models.DecimalField(max_digits=6, decimal_places=2)
+
+def menu_save(self, *args, **kwargs):
+    if self.disponible:
+        Menu.objects.filter(restaurant=self.restaurant).update(disponible=False)
+    super(Menu, self).save(*args, **kwargs)
+
+Menu.add_to_class('disponible', models.BooleanField(default=False))
+Menu.add_to_class('save', menu_save)

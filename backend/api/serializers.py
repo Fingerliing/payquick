@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Restaurant, Menu, MenuItem, ClientProfile, RestaurateurProfile, Order
+from .models import Restaurant, Menu, MenuItem, ClientProfile, RestaurateurProfile, Order, OrderItem
 from django.contrib.auth.models import User
 
 class RegisterSerializer(serializers.Serializer):
@@ -64,16 +64,25 @@ class RestaurateurProfileSerializer(serializers.ModelSerializer):
         model = RestaurateurProfile
         fields = "__all__"
 
+class OrderItemSerializer(serializers.ModelSerializer):
+    plat_nom = serializers.CharField(source='plat.nom', read_only=True)
+    prix = serializers.DecimalField(source='plat.prix', max_digits=6, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = OrderItem
+        fields = ['plat', 'plat_nom', 'prix', 'quantite']
+
 class OrderSerializer(serializers.ModelSerializer):
+    items = OrderItemSerializer(source='order_items', many=True, read_only=True)
+    table_number = serializers.CharField(source='table.identifiant', read_only=True)
+
     class Meta:
         model = Order
         fields = [
             "id",
-            "restaurateur",
             "table_number",
             "items",
             "status",
-            "is_paid",
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]

@@ -5,7 +5,7 @@ export default function ClientScanPage() {
     <main className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-6">
       <h1 className="text-3xl font-bold text-gray-800 mb-6">Scanner un QR Code</h1>
       <p className="text-gray-600 mb-8 text-center max-w-md">
-        Entrez l'identifiant du restaurant figurant dans le QR code pour accéder à son menu.
+        Scannez le QR code ou entrez l'identifiant du restaurant figurant dans le QR code pour accéder à son menu.
       </p>
       <form action="/client/restaurant" method="GET" className="w-full max-w-sm flex flex-col gap-4">
         <input
