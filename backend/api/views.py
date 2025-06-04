@@ -53,6 +53,13 @@ class MenuItemViewSet(viewsets.ModelViewSet):
             return Response({"id": item.id, "is_available": item.is_available}, status=status.HTTP_200_OK)
         except MenuItem.DoesNotExist:
             return Response({"error": "MenuItem not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+    def get_queryset(self):
+        queryset = MenuItem.objects.all()
+        menu_id = self.request.query_params.get("menu_id")
+        if menu_id:
+            queryset = queryset.filter(menu__id=menu_id)
+        return queryset
 
 class MeView(APIView):
     authentication_classes = [JWTAuthentication]

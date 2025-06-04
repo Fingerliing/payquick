@@ -9,6 +9,6 @@ export const api = {
   menu: `${API_BASE}/api/menus/`,
   menuDetails: (menuId: number) => `${API_BASE}/api/menus/${menuId}/`,
   menuItems: `${API_BASE}/api/menu-items/`,
-  menuItemsDetails: (menuId: number) => `${API_BASE}/api/menu-items/?menu=${menuId}/`,
+  menuItemsDetails: (menuId: number) => `${API_BASE}/api/menu-items/${menuId}/`,
   qrCodes: `${API_BASE}/api/qr-codes/`,
 };
