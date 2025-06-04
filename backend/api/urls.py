@@ -16,7 +16,8 @@ from .views import (
     CreateCheckoutSessionView,
     stripe_webhook,
     RegisterView,
-    CommandeTableAPIView
+    CommandeTableAPIView,
+    GenerateQRCodesAPIView
 )
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
@@ -51,4 +52,5 @@ urlpatterns = [
     path("orders/<uuid:order_id>/create-checkout-session/", CreateCheckoutSessionView.as_view(), name="create-checkout-session"),
     path("register/", RegisterView.as_view(), name="register"),
     path('commande/table/<str:table_id>/', CommandeTableAPIView.as_view(), name='commande-par-table'),
+    path('qr-codes/', GenerateQRCodesAPIView.as_view(), name='generate-qr-codes'),
 ]

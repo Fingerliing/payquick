@@ -5,6 +5,7 @@ import useSWR from 'swr';
 import { useParams } from 'next/navigation';
 import { MenuItem } from '@/types/menu';
 import { toast } from 'react-toastify';
+import { api } from '@/lib/api';
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
 
@@ -23,7 +24,7 @@ export default function RestaurantMenuManager() {
 
   const addMenuItem = async () => {
     if (!newItem.name || !newItem.price || !menuId) return;
-    await fetch(`/api/menu-items/`, {
+    await fetch(api.menuItems, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...newItem, price: parseFloat(newItem.price), menu_id: menuId })
@@ -35,7 +36,7 @@ export default function RestaurantMenuManager() {
 
   const updateMenuItem = async () => {
     if (!editItem) return;
-    await fetch(`/api/menu-items/${editItem.id}/`, {
+    await fetch(api.menuItemsDetails(editItem.id), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(editItem)
@@ -46,12 +47,12 @@ export default function RestaurantMenuManager() {
   };
 
   const toggleAvailability = async (itemId: number) => {
-    await fetch(`/api/menu-items/${itemId}/toggle/`, { method: 'POST' });
+    await fetch(api.menuItemsDetails(itemId), { method: 'POST' });
     mutate();
   };
 
   const deleteItem = async (itemId: number) => {
-    const res = await fetch(`/api/menu-items/${itemId}/`, { method: 'DELETE' });
+    const res = await fetch(api.menuItemsDetails(itemId), { method: 'DELETE' });
     if (res.ok) toast.success('Item supprimé avec succès.');
     else toast.error("Échec de la suppression.");
     mutate();
@@ -116,17 +117,67 @@ export default function RestaurantMenuManager() {
           <h2 className="text-2xl font-semibold mb-4">{category}s</h2>
           <ul className="space-y-2">
             {groupedItems[category].map(item => (
-              <li key={item.id} className="flex justify-between items-center p-3 border rounded bg-white">
-                <div>
-                  <p className="font-medium">{item.name} - {item.price.toFixed(2)}€</p>
-                  <p className="text-sm text-gray-600">{item.description}</p>
-                </div>
-                <button
-                  onClick={() => toggleAvailability(item.id)}
-                  className={`text-sm px-3 py-1 rounded ${item.is_available ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}
-                >
-                  {item.is_available ? 'Disponible' : 'Indisponible'}
-                </button>
+              <li key={item.id} className="flex flex-col md:flex-row justify-between items-start md:items-center p-3 border rounded bg-white">
+                {editItem?.id === item.id ? (
+                  <div className="flex flex-col gap-2 w-full">
+                    <input
+                      value={editItem.name}
+                      onChange={e => setEditItem({ ...editItem, name: e.target.value })}
+                      className="border px-2 py-1 rounded"
+                    />
+                    <input
+                      value={editItem.price}
+                      type="number"
+                      onChange={e => setEditItem({ ...editItem, price: parseFloat(e.target.value) })}
+                      className="border px-2 py-1 rounded"
+                    />
+                    <input
+                      value={editItem.description}
+                      onChange={e => setEditItem({ ...editItem, description: e.target.value })}
+                      className="border px-2 py-1 rounded"
+                    />
+                    <select
+                      value={editItem.category}
+                      onChange={e => setEditItem({ ...editItem, category: e.target.value })}
+                      className="border px-2 py-1 rounded"
+                    >
+                      {CATEGORIES.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                    <div className="flex gap-2">
+                      <button onClick={updateMenuItem} className="bg-blue-600 text-white px-3 py-1 rounded">Enregistrer</button>
+                      <button onClick={() => setEditItem(null)} className="bg-gray-400 text-white px-3 py-1 rounded">Annuler</button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <p className="font-medium">{item.name} - {item.price.toFixed(2)}€</p>
+                      <p className="text-sm text-gray-600">{item.description}</p>
+                    </div>
+                    <div className="flex flex-col gap-1 md:flex-row md:gap-2 mt-2 md:mt-0">
+                      <button
+                        onClick={() => toggleAvailability(item.id)}
+                        className={`text-sm px-3 py-1 rounded ${item.is_available ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}
+                      >
+                        {item.is_available ? 'Disponible' : 'Indisponible'}
+                      </button>
+                      <button
+                        onClick={() => setEditItem(item)}
+                        className="text-sm text-blue-600 underline"
+                      >
+                        Modifier
+                      </button>
+                      <button
+                        onClick={() => deleteItem(item.id)}
+                        className="text-sm text-red-600 underline"
+                      >
+                        Supprimer
+                      </button>
+                    </div>
+                  </>
+                )}
               </li>
             ))}
             {groupedItems[category].length === 0 && <p className="text-gray-500">Aucun item.</p>}

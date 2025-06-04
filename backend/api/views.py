@@ -16,6 +16,10 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework_simplejwt.tokens import RefreshToken
 import requests
 from .utils import notify_order_updated
+from io import BytesIO
+import base64
+import qrcode
+
 
 class RestaurantViewSet(viewsets.ModelViewSet):
     queryset = Restaurant.objects.all()
@@ -91,6 +95,15 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save()
+
+    @action(detail=False, methods=["post"], url_path="create")
+    def create_order(self, request):
+        from .serializers import OrderCreateSerializer
+
+        serializer = OrderCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        order = serializer.save()
+        return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"])
     def mark_paid(self, request, pk=None):
@@ -296,3 +309,28 @@ class CommandeTableAPIView(APIView):
             )
         except requests.RequestException:
             pass  # éviter les crashs en cas de souci réseau
+
+class GenerateQRCodesAPIView(APIView):
+    def post(self, request):
+        qr_data = request.data.get("qrData", [])
+        result = []
+
+        for entry in qr_data:
+            url = entry.get("url")
+            table_id = entry.get("tableId")
+            if not url or not table_id:
+                print("[SKIP] entrée incomplète:", entry)
+                continue
+
+            qr = qrcode.make(url)
+            buffer = BytesIO()
+            qr.save(buffer, format="PNG")
+            img_str = base64.b64encode(buffer.getvalue()).decode("utf-8")
+            qr_code_url = f"data:image/png;base64,{img_str}"
+
+            result.append({
+                "tableId": table_id,
+                "qrCodeUrl": qr_code_url
+            })
+
+        return Response({"qrCodes": result}, status=status.HTTP_200_OK)

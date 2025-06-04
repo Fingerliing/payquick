@@ -7,7 +7,8 @@ export const api = {
   restaurateurs: `${API_BASE}/api/restaurateurs/`,
   restaurants: `${API_BASE}/api/restaurants/`,
   menu: `${API_BASE}/api/menus/`,
-  menuDetails: (menuId: string) => `${API_BASE}/api/menus/${menuId}/`,
+  menuDetails: (menuId: number) => `${API_BASE}/api/menus/${menuId}/`,
   menuItems: `${API_BASE}/api/menu-items/`,
-  menuItemsDetails: (menuId: string) => `${API_BASE}/api/menu-items/?menu=${menuId}/`,
+  menuItemsDetails: (menuId: number) => `${API_BASE}/api/menu-items/?menu=${menuId}/`,
+  qrCodes: `${API_BASE}/api/qr-codes/`,
 };

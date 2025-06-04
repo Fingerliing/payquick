@@ -86,3 +86,43 @@ class OrderSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
+
+class OrderCreateSerializer(serializers.Serializer):
+    restaurant = serializers.PrimaryKeyRelatedField(queryset=Restaurant.objects.all())
+    table_identifiant = serializers.CharField()
+    items = serializers.ListField(
+        child=serializers.DictField(child=serializers.IntegerField()),
+        allow_empty=False
+    )
+
+    def validate_items(self, value):
+        for item in value:
+            if "menu_item" not in item or "quantity" not in item:
+                raise serializers.ValidationError("Chaque item doit contenir 'menu_item' et 'quantity'")
+        return value
+
+    def create(self, validated_data):
+        from .models import OrderItem, Table
+
+        restaurant = validated_data["restaurant"]
+        table_id = validated_data["table_identifiant"]
+        items_data = validated_data["items"]
+
+        try:
+            table = Table.objects.get(identifiant=table_id, restaurant=restaurant)
+        except Table.DoesNotExist:
+            raise serializers.ValidationError("Table introuvable pour ce restaurant.")
+
+        order = Order.objects.create(restaurant=restaurant, table=table)
+
+        for item in items_data:
+            menu_item_id = item["menu_item"]
+            quantity = item["quantity"]
+
+            OrderItem.objects.create(
+                order=order,
+                menu_item_id=menu_item_id,
+                quantity=quantity
+            )
+
+        return order
