@@ -14,12 +14,13 @@ io.on('connection', (socket) => {
   });
 });
 
-// Exemple de notification automatique (à supprimer en production)
-setInterval(() => {
+function emitOrderUpdated(order) {
   console.log('📢 Événement order_updated émis');
-  io.emit('order_updated');
-}, 10000);
+  io.emit('order_updated', order); // envoie la commande mise à jour à tous les clients
+}
 
 server.listen(4000, () => {
   console.log('✅ Serveur WebSocket sur ws://localhost:4000');
 });
+
+module.exports = { server, emitOrderUpdated };

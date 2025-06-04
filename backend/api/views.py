@@ -14,6 +14,8 @@ from django.conf import settings
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework_simplejwt.tokens import RefreshToken
+import requests
+from .utils import notify_order_updated
 
 class RestaurantViewSet(viewsets.ModelViewSet):
     queryset = Restaurant.objects.all()
@@ -121,6 +123,10 @@ class OrderViewSet(viewsets.ModelViewSet):
             "status": order.status,
             "plats": contenu
         })
+    
+    def perform_update(self, serializer):
+        order = serializer.save()
+        notify_order_updated(OrderSerializer(order).data)
 
 class MenuByRestaurantView(APIView):
     def get(self, request, restaurant_id):
@@ -280,3 +286,13 @@ class CommandeTableAPIView(APIView):
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response({'message': 'Commande reçue', 'order_id': order.id}, status=status.HTTP_201_CREATED)
+    
+    def notify_order_updated(order_data):
+        try:
+            requests.post(
+                'http://localhost:4000/emit-order',  # Port du serveur Node
+                json=order_data,
+                timeout=2
+            )
+        except requests.RequestException:
+            pass  # éviter les crashs en cas de souci réseau
