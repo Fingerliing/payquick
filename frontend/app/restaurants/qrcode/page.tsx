@@ -11,6 +11,11 @@ export default function QRCodePage() {
   const searchParams = useSearchParams()
   const restaurantId = searchParams.get("restaurantId")
   const [size, setSize] = useState<'small' | 'medium' | 'large'>('medium')
+  const token = localStorage.getItem("token")
+  if (!token) {
+    alert("Utilisateur non authentifié")
+    return
+  }
 
   const generate = async () => {
     if (!restaurantId) {
@@ -18,20 +23,29 @@ export default function QRCodePage() {
       return
     }
 
-    const qrData = Array.from({ length: tableCount }).map((_, i) => {
-      const tableId = `table-${i + 1}`
-      const url = `${window.location.origin}/clients/order?restaurantId=${restaurantId}&tableId=${tableId}`
-      return { tableId, url }
-    })
+  const qrData = Array.from({ length: tableCount }).map((_, i) => {
+    const tableId = `table-${i + 1}`
+    const url = `${window.location.origin}/clients/order?restaurantId=${restaurantId}&tableId=${tableId}`
+    return { tableId, url }
+  })
 
-    const res = await fetch(api.qrCodes, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ qrData }),
-    })
+  const res = await fetch(api.qrCodes, {
+    method: 'POST',
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+    body: JSON.stringify({ qrData }),
+  })
 
-    const data = await res.json()
-    setQrCodes(data.qrCodes)
+  const data = await res.json()
+    if (Array.isArray(data.qrCodes)) {
+      setQrCodes(data.qrCodes);
+    } else {
+      console.error("QR codes manquants :", data);
+      alert("Une erreur est survenue lors de la génération des QR codes.");
+      setQrCodes([]);
+    }    
   }
 
   const getQRSizeClass = () => {
@@ -41,7 +55,7 @@ export default function QRCodePage() {
       case 'large': return 'w-60'
     }
   }
-
+  
   return (
     <div className="max-w-6xl mx-auto py-10 px-4 print:bg-white print:p-0">
       <h1 className="text-3xl font-bold text-center mb-8 print:hidden">

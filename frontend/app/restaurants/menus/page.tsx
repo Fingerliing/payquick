@@ -86,6 +86,25 @@ export default function MenusListPage() {
     return <p className="text-red-600 text-center mt-10">Erreur de chargement des menus.</p>;
   }
 
+  const toggleAvailability = async (menuId: string) => {
+    try {
+      const res = await fetch(`${api.menu}${menuId}/toggle_disponible/`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+  
+      if (!res.ok) throw new Error();
+  
+      const data = await res.json();
+      toast.success(data.disponible ? "Menu activé" : "Menu désactivé");
+      mutate();
+    } catch (err) {
+      toast.error("Erreur lors du changement de disponibilité.");
+    }
+  };
+
   return (
     <div className="max-w-3xl mx-auto py-10">
       <h1 className="text-3xl font-bold mb-6">Vos menus</h1>
@@ -131,7 +150,12 @@ export default function MenusListPage() {
             ) : (
               <div className="flex justify-between items-center">
                 <Link href={`/restaurants/menus/${menu.id}`} className="text-xl font-semibold hover:underline">
-                  {menu.name}
+                {menu.name}
+                {menu.disponible && (
+                  <span className="ml-2 px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                    actif
+                  </span>
+                )}
                 </Link>
                 <div className="flex gap-2">
                   <button
@@ -148,6 +172,12 @@ export default function MenusListPage() {
                     className="text-sm text-red-600 hover:underline"
                   >
                     Supprimer
+                  </button>
+                  <button
+                    onClick={() => toggleAvailability(menu.id)}
+                    className={`text-sm ${menu.disponible ? 'text-green-700' : 'text-blue-600'} hover:underline`}
+                  >
+                    {menu.disponible ? '✅ Actif' : 'Activer'}
                   </button>
                 </div>
               </div>

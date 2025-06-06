@@ -3,27 +3,17 @@
 import useSWR from 'swr'
 import { useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { OrderDetails } from '@/types/order';
+import { api } from '@/lib/api';
 
 const fetcher = (url: string) => fetch(url).then(res => res.json())
 
-interface Item {
-  plat: string;
-  quantite: number;
-  prix: number;
-}
-
-interface OrderData {
-  commande: number;
-  table: string;
-  status: string;
-  plats: Item[];
-}
 
 export default function OrderStatus() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get('orderId');
-  const { data, mutate } = useSWR<OrderData>(
-    orderId ? `/api/orders/${orderId}/details/` : null,
+  const { data, mutate } = useSWR<OrderDetails>(
+    orderId ? `${api.orderById(orderId)}/details/` : null,
     fetcher,
     { refreshInterval: 5000 }
   );

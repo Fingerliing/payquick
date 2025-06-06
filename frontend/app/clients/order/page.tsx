@@ -2,24 +2,36 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { MenuItem } from "@/types/menu";
+import { Meal } from "@/types/meal";
+import { api } from "@/lib/api";
 
 export default function ClientOrderPage() {
   const searchParams = useSearchParams();
-  const restaurantId = searchParams.get("restaurantId");
   const tableId = searchParams.get("tableId");
 
-  const [menu, setMenu] = useState<MenuItem[]>([]);
+  const [meals, setMeals] = useState<Meal[]>([]);
+  const [menuName, setMenuName] = useState("");
+  const [loading, setLoading] = useState(true);
   const [quantities, setQuantities] = useState<Record<number, number>>({});
 
   useEffect(() => {
-    if (!restaurantId) return;
-    fetch(`/api/menus/by_restaurant/${restaurantId}/`)
+    if (!tableId) return;
+
+    fetch(api.orderByTable(tableId))
       .then(res => res.json())
-      .then(data => setMenu(data.menu_items || data));
-  }, [restaurantId]);
+      .then(data => {
+        if (data.error) {
+          console.error("Erreur API :", data.error);
+          return;
+        }
+        setMenuName(data.menu);
+        setMeals(data.plats);
+      })
+      .catch(err => {
+        console.error("Erreur réseau :", err);
+      })
+      .finally(() => setLoading(false));
+  }, [tableId]);
 
   const updateQuantity = (id: number, delta: number) => {
     setQuantities(prev => ({
@@ -28,73 +40,84 @@ export default function ClientOrderPage() {
     }));
   };
 
-  const handleCheckout = async () => {
-    if (!restaurantId || !tableId) {
-      alert("Restaurant ou table introuvable.");
-      return;
-    }
-
-    const items = Object.entries(quantities)
-      .filter(([_, qty]) => qty > 0)
-      .map(([id, quantity]) => ({
-        menu_item: Number(id),
-        quantity,
-      }));
-
-    const orderRes = await fetch("/api/orders/create/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        restaurant: restaurantId,
-        table_identifiant: tableId,
-        items,
-      }),
-    });
-
-    const order = await orderRes.json();
-
-    const checkoutRes = await fetch(`/api/orders/${order.id}/create-checkout-session/`, {
-      method: "POST",
-    });
-
-    const { url } = await checkoutRes.json();
-    window.location.href = url;
-  };
-
-  const total = menu.reduce(
-    (sum, item) => sum + (quantities[item.id] || 0) * item.price,
+  const total = meals.reduce(
+    (sum, meal) => sum + (quantities[meal.id] || 0) * parseFloat(meal.prix),
     0
   );
 
+  const handleCheckout = async () => {
+    if (!tableId) {
+      alert("Identifiant de table introuvable.");
+      return;
+    }
+
+    const selectedMeals = Object.entries(quantities)
+      .filter(([_, qty]) => qty > 0)
+      .map(([id, quantity]) => ({
+        id: Number(id),
+        quantite: quantity,
+      }));
+
+    if (selectedMeals.length === 0) {
+      alert("Aucun plat sélectionné.");
+      return;
+    }
+
+    try {
+      const res = await fetch(api.orderByTable(tableId), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ plats: selectedMeals }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        console.error("Erreur API :", data);
+        alert("Erreur lors de la commande : " + (data?.error || "inconnue"));
+        return;
+      }
+
+      alert(`Commande enregistrée (ID ${data.order_id})`);
+      window.location.href = `/clients/order/suivi?orderId=${data.order_id}`;
+    } catch (error) {
+      console.error("Erreur réseau :", error);
+      alert("Impossible d'envoyer la commande.");
+    }
+  };
+
+  if (loading) return <div className="p-6">Chargement du menu...</div>;
+
   return (
-    <main className="min-h-screen p-6 bg-gray-50">
-      <h1 className="text-2xl font-bold mb-6">Menu</h1>
-      <div className="space-y-4">
-        {menu.map(item => (
-          <Card key={item.id}>
-            <CardContent className="flex justify-between items-center p-4">
-              <div>
-                <h3 className="text-lg font-semibold">{item.name}</h3>
-                <p className="text-sm text-gray-600">{item.price.toFixed(2)} €</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button onClick={() => updateQuantity(item.id, -1)}>-</Button>
-                <span>{quantities[item.id] || 0}</span>
-                <Button onClick={() => updateQuantity(item.id, 1)}>+</Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+    <main className="p-6">
+      <h1 className="text-2xl font-bold mb-4">Menu : {menuName}</h1>
 
-        <div className="flex justify-between text-xl font-bold mt-4">
-          <span>Total :</span>
-          <span>{total.toFixed(2)} €</span>
+      {meals.map(meal => (
+        <div key={meal.id} className="border rounded p-4 mb-2 flex justify-between items-center">
+          <div>
+            <div className="font-semibold">{meal.nom}</div>
+            <div className="text-sm text-gray-600">{meal.description}</div>
+            <div className="text-sm font-bold mt-1">{meal.prix} €</div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={() => updateQuantity(meal.id, -1)} className="px-2 py-1 bg-gray-200">-</button>
+            <span>{quantities[meal.id] || 0}</span>
+            <button onClick={() => updateQuantity(meal.id, 1)} className="px-2 py-1 bg-gray-200">+</button>
+          </div>
         </div>
+      ))}
 
-        <Button className="w-full mt-4" onClick={handleCheckout} disabled={total === 0}>
-          Payer maintenant
-        </Button>
-      </div>
+      <div className="mt-4 text-right font-bold">Total : {total.toFixed(2)} €</div>
+
+      <button
+        className="mt-6 px-4 py-2 bg-green-600 text-white rounded"
+        onClick={handleCheckout}
+        disabled={total === 0}
+      >
+        Commander
+      </button>
     </main>
   );
 }

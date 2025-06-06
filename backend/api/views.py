@@ -39,6 +39,22 @@ class MenuViewSet(viewsets.ModelViewSet):
     serializer_class = MenuSerializer
     permission_classes = [IsAuthenticated, IsRestaurateur]
 
+    @action(detail=True, methods=["post"])
+    def toggle_disponible(self, request, pk=None):
+        from .models import Menu
+
+        menu = self.get_object()
+        restaurant = menu.restaurant
+
+        # rendre tous les autres menus indisponibles
+        Menu.objects.filter(restaurant=restaurant).update(disponible=False)
+
+        # activer celui-ci
+        menu.disponible = True
+        menu.save()
+
+        return Response({"id": menu.id, "disponible": menu.disponible})
+
 class MenuItemViewSet(viewsets.ModelViewSet):
     queryset = MenuItem.objects.all()
     serializer_class = MenuItemSerializer
@@ -318,9 +334,17 @@ class CommandeTableAPIView(APIView):
             pass  # éviter les crashs en cas de souci réseau
 
 class GenerateQRCodesAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def post(self, request):
         qr_data = request.data.get("qrData", [])
         result = []
+
+        restaurateur = request.user.restaurateur_profile
+        try:
+            restaurant = Restaurant.objects.get(owner=restaurateur.user)
+        except Restaurant.DoesNotExist:
+            return Response({"error": "Restaurant introuvable"}, status=404)
 
         for entry in qr_data:
             url = entry.get("url")
@@ -328,6 +352,11 @@ class GenerateQRCodesAPIView(APIView):
             if not url or not table_id:
                 print("[SKIP] entrée incomplète:", entry)
                 continue
+
+            Table.objects.get_or_create(
+                restaurant=restaurant,
+                identifiant=table_id
+            )
 
             qr = qrcode.make(url)
             buffer = BytesIO()
@@ -339,5 +368,5 @@ class GenerateQRCodesAPIView(APIView):
                 "tableId": table_id,
                 "qrCodeUrl": qr_code_url
             })
-
+        print("[RESULT QR CODES]", result)
         return Response({"qrCodes": result}, status=status.HTTP_200_OK)

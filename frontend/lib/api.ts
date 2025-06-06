@@ -11,4 +11,8 @@ export const api = {
   menuItems: `${API_BASE}/api/menu-items/`,
   menuItemsDetails: (menuId: number) => `${API_BASE}/api/menu-items/${menuId}/`,
   qrCodes: `${API_BASE}/api/qr-codes/`,
+  menuByRestaurant: (restaurantId: number) => `${API_BASE}/api/menus/by_restaurant/${restaurantId}/`,
+  orders: `${API_BASE}/api/orders`,
+  orderById: (orderId: string) => `${API_BASE}/api/orders/${orderId}`,
+  orderByTable: (tableId: string) => `${API_BASE}/api/commande/table/${tableId}/`,
 };
