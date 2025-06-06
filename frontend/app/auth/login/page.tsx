@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
 import { api } from "@/lib/api";
 
@@ -15,6 +15,8 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [debug, setDebug] = useState<any>(null);
+  const searchParams = useSearchParams();
+  const next = searchParams.get("next") || "/";
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +43,9 @@ export default function RegisterPage() {
       await fetchUser(token);
 
       const user = useAuthStore.getState().user;
-      if (user?.role === "restaurateur") {
+      if (next !== "/") {
+        router.push(next);
+      } else if (user?.role === "restaurateur") {
         router.push("/restaurants/dashboard");
       } else if (user?.role === "client") {
         router.push("/clients/dashboard");

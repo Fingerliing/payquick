@@ -16,7 +16,6 @@ from .views import (
     CreateCheckoutSessionView,
     stripe_webhook,
     RegisterView,
-    CommandeTableAPIView,
     GenerateQRCodesAPIView
 )
 from rest_framework import permissions
@@ -51,6 +50,5 @@ urlpatterns = [
     path("menus/by_restaurant/<int:restaurant_id>/", MenuByRestaurantView.as_view(), name="menu-by-restaurant"),
     path("orders/<uuid:order_id>/create-checkout-session/", CreateCheckoutSessionView.as_view(), name="create-checkout-session"),
     path("register/", RegisterView.as_view(), name="register"),
-    path('commande/table/<str:table_id>/', CommandeTableAPIView.as_view(), name='commande-par-table'),
     path('qr-codes/', GenerateQRCodesAPIView.as_view(), name='generate-qr-codes'),
 ]

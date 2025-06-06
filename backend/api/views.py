@@ -2,7 +2,7 @@ from rest_framework import viewsets
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from .models import Restaurant, ClientProfile, Menu, MenuItem, RestaurateurProfile, Order, Table, Plat, OrderItem
+from .models import Restaurant, ClientProfile, Menu, MenuItem, RestaurateurProfile, Order, Table, OrderItem
 from .serializers import RestaurantSerializer, ClientProfileSerializer, MenuSerializer, MenuItemSerializer, RestaurateurProfileSerializer, OrderSerializer, RegisterSerializer
 from rest_framework.permissions import IsAuthenticated
 from .permissions import IsRestaurateur, IsClient, IsAdmin
@@ -19,7 +19,7 @@ from .utils import notify_order_updated
 from io import BytesIO
 import base64
 import qrcode
-
+from django.shortcuts import get_object_or_404
 
 class RestaurantViewSet(viewsets.ModelViewSet):
     queryset = Restaurant.objects.all()
@@ -160,6 +160,32 @@ class OrderViewSet(viewsets.ModelViewSet):
             "plats": contenu
         })
     
+    def get_permissions(self):
+        if self.action == "menu_by_table":
+            return []
+        return super().get_permissions()
+
+    @action(detail=False, methods=["get"], url_path="menu/table/(?P<identifiant>[^/.]+)")
+    def menu_by_table(self, request, identifiant=None):
+        table = get_object_or_404(Table, identifiant=identifiant)
+
+        menu = Menu.objects.filter(restaurant=table.restaurant, disponible=True).first()
+        if not menu:
+            return Response({"error": "Aucun menu disponible"}, status=404)
+
+        items = MenuItem.objects.filter(menu=menu, is_available=True)
+
+        data = [
+            {
+                "id": item.id,
+                "nom": item.name,
+                "description": item.description,
+                "prix": str(item.price),
+            }
+            for item in items
+        ]
+        return Response({"menu": menu.name, "plats": data})
+    
     def perform_update(self, serializer):
         order = serializer.save()
         notify_order_updated(OrderSerializer(order).data)
@@ -285,54 +311,6 @@ class RegisterView(APIView):
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-class CommandeTableAPIView(APIView):
-    authentication_classes = []
-    permission_classes = []
-
-    def get(self, request, table_id):
-        try:
-            table = Table.objects.get(identifiant=table_id)
-        except Table.DoesNotExist:
-            return Response({'error': 'Table non trouvée'}, status=status.HTTP_404_NOT_FOUND)
-
-        menu = Menu.objects.filter(restaurant=table.restaurant, disponible=True).first()
-        if not menu:
-            return Response({'error': 'Aucun menu disponible'}, status=status.HTTP_404_NOT_FOUND)
-
-        plats = Plat.objects.filter(menu=menu)
-        data = [{'id': p.id, 'nom': p.nom, 'description': p.description, 'prix': str(p.prix)} for p in plats]
-        return Response({'menu': menu.name, 'plats': data})
-
-    def post(self, request, table_id):
-        try:
-            table = Table.objects.get(identifiant=table_id)
-        except Table.DoesNotExist:
-            return Response({'error': 'Table non trouvée'}, status=status.HTTP_404_NOT_FOUND)
-
-        items = request.data.get('plats')  # Liste de { "id": plat_id, "quantite": x }
-        if not isinstance(items, list) or not items:
-            return Response({'error': 'Commande invalide'}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            order = Order.objects.create(table=table, status='non_payee')
-            for item in items:
-                plat = Plat.objects.get(id=item['id'])
-                order.plats.add(plat, through_defaults={'quantite': item.get('quantite', 1)})
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-        return Response({'message': 'Commande reçue', 'order_id': order.id}, status=status.HTTP_201_CREATED)
-    
-    def notify_order_updated(order_data):
-        try:
-            requests.post(
-                'http://localhost:4000/emit-order',  # Port du serveur Node
-                json=order_data,
-                timeout=2
-            )
-        except requests.RequestException:
-            pass  # éviter les crashs en cas de souci réseau
-
 class GenerateQRCodesAPIView(APIView):
     permission_classes = [IsAuthenticated]
 

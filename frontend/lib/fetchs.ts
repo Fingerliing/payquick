@@ -2,29 +2,25 @@ export interface FetchOptions extends RequestInit {
   requireAuth?: boolean;
 }
 
-export async function fetchWithToken<T = any>(
+export async function fetchWithToken(
   url: string,
-  options: FetchOptions = {}
-): Promise<T> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  options: RequestInit = {}
+): Promise<Response> {
+  const token = localStorage.getItem("access");
 
-  const headers: HeadersInit = {
-    ...(options.headers || {}),
-    ...(token && options.requireAuth !== false
-      ? { Authorization: `Bearer ${token}` }
-      : {}),
+  const headers = {
+    ...options.headers,
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
   };
 
-  const res = await fetch(url, {
-    ...options,
-    headers,
-  });
+  const response = await fetch(url, { ...options, headers });
 
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({}));
-    console.error(`[fetchWithToken] ${res.status} ${res.statusText}`, error);
-    throw new Error(error.detail || 'Erreur serveur');
+  if (response.status === 401) {
+    const current = window.location.pathname + window.location.search;
+    window.location.href = `/auth/login?next=${encodeURIComponent(current)}`;
+    return Promise.reject(new Error("Unauthorized"));
   }
 
-  return res.json();
+  return response;
 }

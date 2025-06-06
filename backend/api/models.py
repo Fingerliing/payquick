@@ -25,7 +25,7 @@ class Restaurant(models.Model):
 
 class Menu(models.Model):
     name = models.CharField(max_length=100)
-    restaurant = models.OneToOneField(Restaurant, on_delete=models.CASCADE, related_name='menu')
+    restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name='menu')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -87,7 +87,7 @@ class Order(models.Model):
     
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='order_items')
-    plat = models.ForeignKey('Plat', on_delete=models.CASCADE)
+    plat = models.ForeignKey('MenuItem', on_delete=models.CASCADE)
     quantite = models.PositiveIntegerField(default=1)
 
     class Meta:
@@ -99,12 +99,6 @@ class OrderItem(models.Model):
 class Table(models.Model):
     restaurant = models.ForeignKey('Restaurant', on_delete=models.CASCADE)
     identifiant = models.CharField(max_length=50, unique=True)
-
-class Plat(models.Model):
-    menu = models.ForeignKey('Menu', on_delete=models.CASCADE, related_name='plats')
-    nom = models.CharField(max_length=100)
-    description = models.TextField(blank=True)
-    prix = models.DecimalField(max_digits=6, decimal_places=2)
 
 def menu_save(self, *args, **kwargs):
     if self.disponible:

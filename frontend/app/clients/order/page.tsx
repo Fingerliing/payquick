@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Meal } from "@/types/meal";
 import { api } from "@/lib/api";
+import { fetchWithToken } from "@/lib/fetchs";
 
 export default function ClientOrderPage() {
   const searchParams = useSearchParams();
@@ -13,11 +14,22 @@ export default function ClientOrderPage() {
   const [menuName, setMenuName] = useState("");
   const [loading, setLoading] = useState(true);
   const [quantities, setQuantities] = useState<Record<number, number>>({});
+  const [isAuthorized, setIsAuthorized] = useState(false);
 
   useEffect(() => {
-    if (!tableId) return;
+    const token = localStorage.getItem("access");
+    if (!token) {
+      const current = window.location.pathname + window.location.search;
+      window.location.href = `/auth/login?next=${encodeURIComponent(current)}`;
+    } else {
+      setIsAuthorized(true);
+    }
+  }, []);
 
-    fetch(api.orderByTable(tableId))
+  useEffect(() => {
+    if (!tableId || !isAuthorized) return;
+
+    fetchWithToken(api.orderByTable(tableId))
       .then(res => res.json())
       .then(data => {
         if (data.error) {
@@ -31,7 +43,7 @@ export default function ClientOrderPage() {
         console.error("Erreur réseau :", err);
       })
       .finally(() => setLoading(false));
-  }, [tableId]);
+  }, [tableId, isAuthorized]);
 
   const updateQuantity = (id: number, delta: number) => {
     setQuantities(prev => ({
@@ -64,7 +76,7 @@ export default function ClientOrderPage() {
     }
 
     try {
-      const res = await fetch(api.orderByTable(tableId), {
+      const res = await fetchWithToken(api.orderByTable(tableId), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -88,7 +100,7 @@ export default function ClientOrderPage() {
     }
   };
 
-  if (loading) return <div className="p-6">Chargement du menu...</div>;
+  if (!isAuthorized || loading) return <div className="p-6">Chargement du menu...</div>;
 
   return (
     <main className="p-6">
