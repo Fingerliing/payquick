@@ -1,49 +1,53 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Meal } from "@/types/meal";
 import { api } from "@/lib/api";
 import { fetchWithToken } from "@/lib/fetchs";
+import { toast } from "react-toastify";
 
 export default function ClientOrderPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const tableId = searchParams.get("tableId");
 
   const [meals, setMeals] = useState<Meal[]>([]);
   const [menuName, setMenuName] = useState("");
   const [loading, setLoading] = useState(true);
   const [quantities, setQuantities] = useState<Record<number, number>>({});
-  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem("access");
+    if (typeof window === "undefined") return;
+    const token = window.localStorage.getItem("access");
+    const current = window.location.pathname + window.location.search;
+
     if (!token) {
-      const current = window.location.pathname + window.location.search;
-      window.location.href = `/auth/login?next=${encodeURIComponent(current)}`;
+      return router.replace(`/auth/login?next=${encodeURIComponent(current)}`);
     } else {
-      setIsAuthorized(true);
+      setIsAuthenticated(true);
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
-    if (!tableId || !isAuthorized) return;
+    if (!tableId || !isAuthenticated) return;
 
     fetchWithToken(api.orderByTable(tableId))
       .then(res => res.json())
       .then(data => {
         if (data.error) {
-          console.error("Erreur API :", data.error);
+          
           return;
         }
         setMenuName(data.menu);
         setMeals(data.plats);
       })
       .catch(err => {
-        console.error("Erreur réseau :", err);
+        
       })
       .finally(() => setLoading(false));
-  }, [tableId, isAuthorized]);
+  }, [tableId, isAuthenticated]);
 
   const updateQuantity = (id: number, delta: number) => {
     setQuantities(prev => ({
@@ -59,7 +63,7 @@ export default function ClientOrderPage() {
 
   const handleCheckout = async () => {
     if (!tableId) {
-      alert("Identifiant de table introuvable.");
+      toast.error("Identifiant de table introuvable.");
       return;
     }
 
@@ -71,7 +75,7 @@ export default function ClientOrderPage() {
       }));
 
     if (selectedMeals.length === 0) {
-      alert("Aucun plat sélectionné.");
+      toast.warning("Aucun plat sélectionné.");
       return;
     }
 
@@ -87,20 +91,24 @@ export default function ClientOrderPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        console.error("Erreur API :", data);
-        alert("Erreur lors de la commande : " + (data?.error || "inconnue"));
+        
+        toast.error("Erreur lors de la commande : " + (data?.error || "inconnue"));
         return;
       }
 
-      alert(`Commande enregistrée (ID ${data.order_id})`);
-      window.location.href = `/clients/order/suivi?orderId=${data.order_id}`;
+      toast.success(`Commande enregistrée (ID ${data.order_id})`);
+      router.push(`/clients/order/suivi?orderId=${data.order_id}`);
     } catch (error) {
-      console.error("Erreur réseau :", error);
-      alert("Impossible d'envoyer la commande.");
+      
+      toast.error("Impossible d'envoyer la commande.");
     }
   };
 
-  if (!isAuthorized || loading) return <div className="p-6">Chargement du menu...</div>;
+  if (!isAuthenticated) {
+    return <div className="p-6 text-gray-500">Vérification de l'authentification...</div>;
+  }
+
+  if (loading) return <div className="p-6">Chargement du menu...</div>;
 
   return (
     <main className="p-6">

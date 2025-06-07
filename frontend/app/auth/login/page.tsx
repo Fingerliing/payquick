@@ -37,7 +37,7 @@ export default function RegisterPage() {
       if (!res.ok) throw new Error(json.detail || "Email ou mot de passe invalide");
 
       const token = json.access;
-      localStorage.setItem("token", token);
+      localStorage.setItem("access", token);
       localStorage.setItem("refresh", json.refresh);
 
       await fetchUser(token);
