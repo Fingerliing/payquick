@@ -20,6 +20,7 @@ from io import BytesIO
 import base64
 import qrcode
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 
 class RestaurantViewSet(viewsets.ModelViewSet):
     queryset = Restaurant.objects.all()
@@ -159,9 +160,9 @@ class OrderViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"])
     def mark_paid(self, request, pk=None):
         order = self.get_object()
-        order.status = 'payee'
+        order.status = 'paid'
         order.save()
-        return Response({"status": "payee"}, status=status.HTTP_200_OK)
+        return Response({"status": "paid"}, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=["post"])
     def mark_served(self, request, pk=None):
@@ -192,6 +193,28 @@ class OrderViewSet(viewsets.ModelViewSet):
         if self.action == "menu_by_table":
             return []
         return super().get_permissions()
+    
+    from drf_spectacular.utils import extend_schema, OpenApiParameter
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="restaurant_id",
+                description="ID du restaurant",
+                required=True,
+                type=int,
+                location=OpenApiParameter.PATH,
+            )
+        ]
+    )
+    @action(detail=False, methods=["get"], url_path="by_restaurant/(?P<restaurant_id>[^/.]+)")
+    def by_restaurant_path(self, request, restaurant_id=None):
+        if not restaurant_id:
+            return Response({"error": "restaurant_id manquant"}, status=400)
+
+        orders = Order.objects.filter(restaurant__id=restaurant_id).order_by('-created_at')
+        serializer = OrderSerializer(orders, many=True)
+        return Response(serializer.data)
 
     @action(detail=False, methods=["get"], url_path="menu/table/(?P<identifiant>[^/.]+)")
     def menu_by_table(self, request, identifiant=None):

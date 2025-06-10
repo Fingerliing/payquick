@@ -4,47 +4,66 @@ import useSWR from 'swr'
 import { useState, useEffect } from 'react'
 import io from 'socket.io-client'
 import { useSearchParams } from 'next/navigation';
+import { fetchWithToken } from '@/lib/fetchs';
+import { api } from '@/lib/api';
+import { Order } from '@/types/order';
 
-const socket = io('http://localhost:4000')
-
-const fetcher = (url: string) => fetch(url).then(res => res.json())
+const socket = io('ws://localhost:4000');
 
 export default function OrdersPage() {
   const searchParams = useSearchParams();
   const restaurantId = searchParams.get('restaurantId');
-  const { data: orders, mutate, isValidating } = useSWR(
-    restaurantId ? `http://localhost:8000/api/orders/by_restaurant/?restaurantId=${restaurantId}` : null,
-    fetcher
-  )
-  const [filter, setFilter] = useState<'all' | 'paid' | 'unpaid' | 'served' | 'unserved'>('all')
+
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'paid' | 'unpaid' | 'served' | 'unserved'>('all');
+  const [loading, setLoading] = useState(true);
+  const [isValidating, setIsValidating] = useState(false);
+
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const token = localStorage.getItem('access');
+    if (!token) return;
+    setIsAuthenticated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!restaurantId || !isAuthenticated) return;
+
+    const fetchOrders = async () => {
+      try {
+        const res = await fetchWithToken(api.ordersByRestaurant(restaurantId));
+        const json = await res.json();
+        if (Array.isArray(json)) {
+          setOrders(json);
+        } else {
+          console.error("Réponse inattendue :", json);
+          setOrders([]);
+        }
+      } catch (error) {
+        console.error("Erreur chargement commandes :", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrders();
+
     socket.on('order_updated', () => {
-      console.log('🔄 Mise à jour reçue via WebSocket')
-      mutate()
-    })
+      fetchOrders();
+    });
 
     return () => {
-      socket.off('order_updated')
-    }
-  }, [])
+      socket.off('order_updated');
+    };
+  }, [restaurantId, isAuthenticated]);
 
-  const updateOrder = async (id: string, action: 'mark_paid' | 'mark_served') => {
-    await fetch(`/api/orders/${id}/${action}/`, { method: 'POST' })
-    mutate()
-  }
+  const updateOrder = async (id: number, action: 'mark_paid' | 'mark_served') => {
+    await fetchWithToken(`${api.orders}/${id}/${action}/`, { method: 'POST' });
+    // Pas de setOrders ici : on attend la notification WebSocket
+  };
 
-  const groupByTable = (orders: any[]) => {
-    return orders.reduce((acc: Record<number, any[]>, order) => {
-      const table = order.table_number;
-      if (!acc[table]) acc[table] = [];
-      acc[table].push(order);
-      return acc;
-    }, {});
-  }
-
-  if (!orders) return <p className="text-gray-500">Chargement des commandes...</p>
-
-  const filteredOrders = orders.filter((order: any) => {
+  const filteredOrders = orders.filter((order) => {
     switch (filter) {
       case 'paid': return order.is_paid;
       case 'unpaid': return !order.is_paid;
@@ -54,9 +73,16 @@ export default function OrdersPage() {
     }
   });
 
-  if (!restaurantId) {
-    return <p className="text-red-600">Aucun restaurant sélectionné.</p>;
-  }
+  const groupByTable = (orders: Order[]) =>
+    orders.reduce((acc: Record<string, Order[]>, order) => {
+      const table = order.table_number;
+      if (!acc[table]) acc[table] = [];
+      acc[table].push(order);
+      return acc;
+    }, {});
+
+  if (!restaurantId) return <p className="text-red-600">Aucun restaurant sélectionné.</p>;
+  if (loading) return <p className="text-gray-500">Chargement des commandes...</p>;
 
   const groupedOrders = groupByTable(filteredOrders);
 

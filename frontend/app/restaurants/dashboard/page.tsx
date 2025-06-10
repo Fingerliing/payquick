@@ -4,11 +4,8 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import RoleGuard from "@/components/auth/roleGuard";
 import { api } from "@/lib/api";
-
-type Restaurant = {
-  id: string;
-  name: string;
-};
+import { fetchWithToken } from "@/lib/fetchs";
+import { Restaurant } from "@/types/restaurant";
 
 export default function RestaurateurDashboardPage() {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
@@ -16,17 +13,13 @@ export default function RestaurateurDashboardPage() {
 
   useEffect(() => {
     const fetchRestaurants = async () => {
-      const token = localStorage.getItem("token");
-      if (!token) return;
-
-      const res = await fetch(api.restaurants, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const data = await res.json();
-      setRestaurants(data);
+      try {
+        const res = await fetchWithToken(api.restaurants);
+        const data = await res.json();
+        setRestaurants(data);
+      } catch (error) {
+        console.error("Erreur lors du chargement des restaurants :", error);
+      }
     };
 
     fetchRestaurants();
