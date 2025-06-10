@@ -3,7 +3,7 @@ export interface Order {
 }
 
 export interface OrderItem {
-  menu_item: string;
+  name: string;
   quantity: number;
   price: number;
 }

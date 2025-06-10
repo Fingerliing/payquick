@@ -114,7 +114,7 @@ export default function ClientOrderSuiviPage() {
         <ul className="mb-4">
           {data.items.map((item, idx) => (
             <li key={idx} className="text-gray-800">
-              • {item.menu_item} x{item.quantity} ({item.price} €)
+              • {item.name} x{item.quantity} ({item.price} €)
             </li>
           ))}
         </ul>

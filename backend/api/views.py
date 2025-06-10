@@ -176,7 +176,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         items = OrderItem.objects.filter(order=order)
         contenu = [
             {
-                "menu_item": item.menu_item.name,
+                "name": item.menu_item.name,
                 "quantity": item.quantity,
                 "price": float(item.menu_item.price)
             } for item in items
