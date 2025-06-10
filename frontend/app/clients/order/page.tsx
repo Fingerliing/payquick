@@ -68,27 +68,41 @@ export default function ClientOrderPage() {
     }
 
     const selectedMeals = Object.entries(quantities)
-      .filter(([_, qty]) => qty > 0)
-      .map(([id, quantity]) => ({
-        id: Number(id),
-        quantite: quantity,
-      }));
+    .filter(([_, qty]) => qty > 0)
+    .map(([id, quantity]) => ({
+      menu_item: Number(id),
+      quantity,
+    }));
 
     if (selectedMeals.length === 0) {
       toast.warning("Aucun plat sélectionné.");
       return;
     }
 
+    const payload = {
+      restaurant: Number(searchParams.get("restaurantId")),
+      table_identifiant: tableId,
+      items: selectedMeals,
+    };
+
     try {
-      const res = await fetchWithToken(api.orderByTable(tableId), {
+      const res = await fetchWithToken(api.ordersCreate, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ plats: selectedMeals }),
+        body: JSON.stringify(payload),
       });
 
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        console.error("Réponse non JSON :", text);
+        toast.error("Réponse serveur invalide.");
+        return;
+      }
 
       if (!res.ok) {
         

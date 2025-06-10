@@ -107,7 +107,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     serializer_class = OrderSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter]
-    search_fields = ['status', 'table__identifiant', 'status']
+    search_fields = ['status', 'table__identifiant']
 
     def get_queryset(self):
         user = self.request.user
@@ -119,14 +119,42 @@ class OrderViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save()
 
-    @action(detail=False, methods=["post"], url_path="create")
-    def create_order(self, request):
-        from .serializers import OrderCreateSerializer
+    @action(detail=False, methods=["post"])
+    def submit_order(self, request):
+        data = request.data
+        restaurant_id = data.get("restaurant")
+        table_id = data.get("table_identifiant")
+        items = data.get("items", [])
 
-        serializer = OrderCreateSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        order = serializer.save()
-        return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
+        if not restaurant_id or not table_id or not items:
+            return Response({"error": "Champs requis manquants."}, status=400)
+
+        try:
+            restaurant = Restaurant.objects.get(id=restaurant_id)
+            table = Table.objects.get(identifiant=table_id, restaurant=restaurant)
+            restaurateur = RestaurateurProfile.objects.get(user=restaurant.owner)
+        except Restaurant.DoesNotExist:
+            return Response({"error": "Restaurant introuvable."}, status=404)
+        except Table.DoesNotExist:
+            return Response({"error": "Table introuvable pour ce restaurant."}, status=404)
+        except RestaurateurProfile.DoesNotExist:
+            return Response({"error": "Restaurateur introuvable pour ce restaurant."}, status=404)
+
+        order = Order.objects.create(
+            restaurant=restaurant,
+            table=table,
+            restaurateur=restaurateur,
+            status="pending"
+        )
+
+        for item in items:
+            OrderItem.objects.create(
+                order=order,
+                menu_item_id=item["menu_item"],
+                quantity=item["quantity"]
+            )
+
+        return Response({"order_id": order.id}, status=201)
 
     @action(detail=True, methods=["post"])
     def mark_paid(self, request, pk=None):
@@ -148,16 +176,16 @@ class OrderViewSet(viewsets.ModelViewSet):
         items = OrderItem.objects.filter(order=order)
         contenu = [
             {
-                "plat": item.plat.nom,
-                "quantite": item.quantite,
-                "prix": float(item.plat.prix)
+                "menu_item": item.menu_item.name,
+                "quantity": item.quantity,
+                "price": float(item.menu_item.price)
             } for item in items
         ]
         return Response({
-            "commande": order.id,
+            "order": order.id,
             "table": order.table.identifiant,
             "status": order.status,
-            "plats": contenu
+            "items": contenu
         })
     
     def get_permissions(self):

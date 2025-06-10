@@ -15,4 +15,5 @@ export const api = {
   orders: `${API_BASE}/api/orders`,
   orderById: (orderId: string) => `${API_BASE}/api/orders/${orderId}`,
   orderByTable: (tableId: string) => `${API_BASE}/api/orders/menu/table/${tableId}/`,
+  ordersCreate: `${API_BASE}/api/orders/submit_order/`,
 };

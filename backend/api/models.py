@@ -64,6 +64,10 @@ class RestaurateurProfile(models.Model):
     def __str__(self):
         return f"{self.user.username} - {self.siret}"
 
+class Table(models.Model):
+    restaurant = models.ForeignKey('Restaurant', on_delete=models.CASCADE)
+    identifiant = models.CharField(max_length=50, unique=True)
+
 class Order(models.Model):
     STATUS_CHOICES = [
         ('pending', 'En attente'),
@@ -76,8 +80,15 @@ class Order(models.Model):
         on_delete=models.CASCADE,
         related_name='orders'
     )
-    table_number = models.PositiveIntegerField()
-    items = models.JSONField()  # exemple : [{"name": "Pizza", "quantity": 2}]
+    restaurant = models.ForeignKey(
+        Restaurant,
+        on_delete=models.CASCADE,
+        related_name='orders',
+        null=True,
+        blank=True
+    )
+    table = models.ForeignKey('Table', on_delete=models.CASCADE, default=1, related_name='orders')
+    # items = models.JSONField()  # exemple : [{"name": "Pizza", "quantity": 2}]
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     is_paid = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -87,18 +98,14 @@ class Order(models.Model):
     
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='order_items')
-    plat = models.ForeignKey('MenuItem', on_delete=models.CASCADE)
-    quantite = models.PositiveIntegerField(default=1)
+    menu_item = models.ForeignKey('MenuItem', on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField(default=1)
 
     class Meta:
-        unique_together = ('order', 'plat')
+        unique_together = ('order', 'menu_item')
 
     def __str__(self):
-        return f"{self.quantite}x {self.plat.nom} (Commande #{self.order.id})"
-
-class Table(models.Model):
-    restaurant = models.ForeignKey('Restaurant', on_delete=models.CASCADE)
-    identifiant = models.CharField(max_length=50, unique=True)
+        return f"{self.quantity}x {self.menu_item.name} (Commande #{self.order.id})"
 
 def menu_save(self, *args, **kwargs):
     if self.disponible:

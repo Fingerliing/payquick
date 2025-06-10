@@ -3,14 +3,14 @@ export interface Order {
 }
 
 export interface OrderItem {
-  plat: string;
-  quantite: number;
-  prix: number;
+  menu_item: string;
+  quantity: number;
+  price: number;
 }
 
 export interface OrderDetails {
-  commande: number;
+  order: number;
   table: string;
   status: "pending" | "in_progress" | "served";
-  plats: OrderItem[];
+  items: OrderItem[];
 }
