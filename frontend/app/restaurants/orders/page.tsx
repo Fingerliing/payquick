@@ -57,11 +57,15 @@ export default function OrdersPage() {
     };
   }, [restaurantId, isAuthenticated]);
 
-  const updateOrder = async (id: number, action: 'mark_paid' | 'mark_served') => {
+  const updateOrder = async (id: number, action: 'mark_paid' | 'mark_served' | 'mark_in_progress') => {
     const toastId = Toast.loading("Mise à jour en cours...");
     try {
       await fetchWithToken(`${api.orders}/${id}/${action}/`, { method: 'POST' });
-      Toast.success(action === 'mark_paid' ? '✅ Commande marquée payée' : '🍽 Commande marquée servie');
+      let message = "";
+      if (action === 'mark_paid') message = '✅ Commande marquée payée';
+      else if (action === 'mark_served') message = '🍽 Commande marquée servie';
+      else if (action === 'mark_in_progress') message = '👨‍🍳 Préparation démarrée';
+      Toast.success(message);
       await fetchOrders();
     } catch (err) {
       Toast.error("❌ Erreur lors de la mise à jour");
@@ -139,6 +143,15 @@ export default function OrdersPage() {
 
               <div className="flex items-center gap-4 text-sm">
                 <span className="text-gray-500 capitalize">Statut : {order.status}</span>
+
+                {order.status === 'pending' && (
+                  <button
+                    onClick={() => updateOrder(order.id, 'mark_in_progress')}
+                    className="text-white bg-yellow-500 px-3 py-1 rounded hover:bg-yellow-600"
+                  >
+                    Démarrer la préparation
+                  </button>
+                )}
 
                 {!order.is_paid && (
                   <button

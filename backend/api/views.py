@@ -166,6 +166,14 @@ class OrderViewSet(viewsets.ModelViewSet):
         order.save()
         notify_order_updated(OrderSerializer(order).data)
         return Response({"is_paid": True}, status=status.HTTP_200_OK)
+    
+    @action(detail=True, methods=["post"])
+    def mark_in_progress(self, request, pk=None):
+        order = self.get_object()
+        order.status = "in_progress"
+        order.save()
+        notify_order_updated(OrderSerializer(order).data)
+        return Response({"status": "in_progress"}, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=["post"])
     def mark_served(self, request, pk=None):
