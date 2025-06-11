@@ -8,10 +8,26 @@ def validate_siret(value):
     if len(value) != 14:
         raise ValidationError("Le SIRET doit contenir exactement 14 chiffres.")
 
+class RestaurateurProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="restaurateur_profile")
+    siret = models.CharField(max_length=14, unique=True)
+    id_card = models.FileField(upload_to="documents/id_cards/")
+    kbis = models.FileField(upload_to="documents/kbis/")
+    is_validated = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    stripe_account_id = models.CharField(max_length=255, blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.siret}"
+
 class Restaurant(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField()
-    owner = models.ForeignKey(User, on_delete=models.CASCADE)
+    owner = models.ForeignKey(
+        'RestaurateurProfile',
+        on_delete=models.CASCADE,
+        related_name='restaurants'
+    )
     address = models.CharField(max_length=255, default='Adresse temporaire')
     siret = models.CharField(
         max_length=14,
@@ -19,9 +35,6 @@ class Restaurant(models.Model):
         unique=True,
         help_text="Numéro SIRET à 14 chiffres",
     )
-
-    def __str__(self):
-        return f"{self.name} ({self.owner.username})"
 
 class Menu(models.Model):
     name = models.CharField(max_length=100)
@@ -51,18 +64,6 @@ class ClientProfile(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.phone}"
-    
-class RestaurateurProfile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="restaurateur_profile")
-    siret = models.CharField(max_length=14, unique=True)
-    id_card = models.FileField(upload_to="documents/id_cards/")
-    kbis = models.FileField(upload_to="documents/kbis/")
-    is_validated = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    stripe_account_id = models.CharField(max_length=255, blank=True, null=True)
-
-    def __str__(self):
-        return f"{self.user.username} - {self.siret}"
 
 class Table(models.Model):
     restaurant = models.ForeignKey('Restaurant', on_delete=models.CASCADE)

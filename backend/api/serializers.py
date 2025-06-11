@@ -26,13 +26,12 @@ class RegisterSerializer(serializers.Serializer):
                 phone=validated_data.get("telephone", "")
             )
         elif role == "restaurateur":
-            RestaurateurProfile.objects.create(
+            restaurateur = RestaurateurProfile.objects.create(
                 user=user,
                 siret=validated_data.get("siret", ""),
-                cni=validated_data.get("cni"),
+                id_card=validated_data.get("cni"),
                 kbis=validated_data.get("kbis"),
             )
-
         return user
 
 class RestaurantSerializer(serializers.ModelSerializer):

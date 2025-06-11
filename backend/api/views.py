@@ -112,7 +112,8 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        qs = Order.objects.all()
+        restaurateur = user.restaurateur_profile
+        qs = qs.filter(restaurant__owner=restaurateur)
         if hasattr(user, 'restaurateur_profile'):
             qs = qs.filter(table__restaurant=user.restaurateur_profile.restaurant)
         return qs.order_by('-created_at')
@@ -372,8 +373,9 @@ class GenerateQRCodesAPIView(APIView):
         result = []
 
         restaurateur = request.user.restaurateur_profile
+        restaurant_id = request.data.get("restaurant_id")
         try:
-            restaurant = Restaurant.objects.get(owner=restaurateur.user)
+            restaurant = Restaurant.objects.get(owner=restaurateur, id=restaurant_id)
         except Restaurant.DoesNotExist:
             return Response({"error": "Restaurant introuvable"}, status=404)
 
