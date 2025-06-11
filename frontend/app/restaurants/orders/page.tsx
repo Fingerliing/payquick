@@ -1,12 +1,12 @@
 'use client'
 
-import useSWR from 'swr'
 import { useState, useEffect } from 'react'
 import io from 'socket.io-client'
 import { useSearchParams } from 'next/navigation';
 import { fetchWithToken } from '@/lib/fetchs';
 import { api } from '@/lib/api';
 import { Order } from '@/types/order';
+import { Toast } from '@/lib/toast';
 
 const socket = io('ws://localhost:4000');
 
@@ -18,7 +18,7 @@ export default function OrdersPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [filter, setFilter] = useState<'all' | 'paid' | 'unpaid' | 'served' | 'unserved'>('all');
   const [loading, setLoading] = useState(true);
-  const [isValidating, setIsValidating] = useState(false);
+  const [isValidating] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -59,8 +59,16 @@ export default function OrdersPage() {
   }, [restaurantId, isAuthenticated]);
 
   const updateOrder = async (id: number, action: 'mark_paid' | 'mark_served') => {
-    await fetchWithToken(`${api.orders}/${id}/${action}/`, { method: 'POST' });
-    // Pas de setOrders ici : on attend la notification WebSocket
+    const toastId = Toast.loading("Mise à jour en cours...");
+    try {
+      await fetchWithToken(`${api.orders}/${id}/${action}/`, { method: 'POST' });
+      Toast.success(action === 'mark_paid' ? '✅ Commande marquée payée' : '🍽 Commande marquée servie');
+    } catch (err) {
+      Toast.error("❌ Erreur lors de la mise à jour");
+      console.error(err);
+    } finally {
+      Toast.dismiss(toastId);
+    }
   };
 
   const filteredOrders = orders.filter((order) => {

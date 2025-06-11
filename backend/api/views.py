@@ -160,15 +160,17 @@ class OrderViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"])
     def mark_paid(self, request, pk=None):
         order = self.get_object()
-        order.status = 'paid'
+        order.is_paid = True
         order.save()
-        return Response({"status": "paid"}, status=status.HTTP_200_OK)
+        notify_order_updated(OrderSerializer(order).data)
+        return Response({"is_paid": True}, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=["post"])
     def mark_served(self, request, pk=None):
         order = self.get_object()
         order.status = "served"
         order.save()
+        notify_order_updated(OrderSerializer(order).data)
         return Response({"status": "served"}, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=["get"])
