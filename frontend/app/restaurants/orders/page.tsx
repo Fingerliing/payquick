@@ -20,6 +20,24 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [isValidating] = useState(false);
 
+  const fetchOrders = async () => {
+    if (!restaurantId || !isAuthenticated) return;
+    try {
+      const res = await fetchWithToken(api.ordersByRestaurant(restaurantId));
+      const json = await res.json();
+      if (Array.isArray(json)) {
+        setOrders(json);
+      } else {
+        console.error("Réponse inattendue :", json);
+        setOrders([]);
+      }
+    } catch (error) {
+      console.error("Erreur chargement commandes :", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const token = localStorage.getItem('access');
@@ -28,25 +46,6 @@ export default function OrdersPage() {
   }, []);
 
   useEffect(() => {
-    if (!restaurantId || !isAuthenticated) return;
-
-    const fetchOrders = async () => {
-      try {
-        const res = await fetchWithToken(api.ordersByRestaurant(restaurantId));
-        const json = await res.json();
-        if (Array.isArray(json)) {
-          setOrders(json);
-        } else {
-          console.error("Réponse inattendue :", json);
-          setOrders([]);
-        }
-      } catch (error) {
-        console.error("Erreur chargement commandes :", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchOrders();
 
     socket.on('order_updated', () => {
@@ -63,6 +62,7 @@ export default function OrdersPage() {
     try {
       await fetchWithToken(`${api.orders}/${id}/${action}/`, { method: 'POST' });
       Toast.success(action === 'mark_paid' ? '✅ Commande marquée payée' : '🍽 Commande marquée servie');
+      await fetchOrders();
     } catch (err) {
       Toast.error("❌ Erreur lors de la mise à jour");
       console.error(err);
@@ -124,7 +124,7 @@ export default function OrdersPage() {
             >
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm text-gray-500">
-                  Commande #{order.id} - {new Date(order.timestamp).toLocaleString()}
+                  Commande #{order.id} - {new Date(order.created_at).toLocaleString()}
                 </span>
                 <span className={order.is_paid ? 'text-green-600' : 'text-red-500'}>
                   {order.is_paid ? 'Payée' : 'Non payée'}

@@ -10,7 +10,7 @@ export interface Order {
   items: OrderItem[];
   status: 'pending' | 'in_progress' | 'served' | 'paid'; // <- ajoute ici si tu l’utilises
   is_paid: boolean;
-  timestamp: string;
+  created_at: string;
 }
 
 export interface OrderDetails {

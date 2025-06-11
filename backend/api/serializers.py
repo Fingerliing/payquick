@@ -81,6 +81,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "id",
             "table_number",
             "items",
+            "is_paid",
             "status",
             "created_at",
         ]

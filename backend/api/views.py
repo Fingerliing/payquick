@@ -112,10 +112,11 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        restaurateur = user.restaurateur_profile
-        qs = qs.filter(restaurant__owner=restaurateur)
+        qs = Order.objects.all()
+
         if hasattr(user, 'restaurateur_profile'):
-            qs = qs.filter(table__restaurant=user.restaurateur_profile.restaurant)
+            qs = qs.filter(restaurant__owner=user.restaurateur_profile)
+
         return qs.order_by('-created_at')
 
     def perform_create(self, serializer):
