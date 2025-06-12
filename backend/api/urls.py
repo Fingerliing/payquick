@@ -5,6 +5,7 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
 from .views import (
+    AdminRestaurateurViewSet,
     RestaurantViewSet,
     ClientProfileViewSet,
     MenuViewSet,
@@ -35,6 +36,8 @@ schema_view = get_schema_view(
    permission_classes=(permissions.AllowAny,),
 )
 
+admin_router = DefaultRouter()
+admin_router.register(r'admin/restaurateurs', AdminRestaurateurViewSet, basename='admin-restaurateurs')
 router = DefaultRouter()
 router.register(r'restaurants', RestaurantViewSet)
 router.register(r'clients', ClientProfileViewSet)
@@ -44,6 +47,7 @@ router.register(r"restaurateurs", RestaurateurProfileViewSet)
 router.register(r'orders', OrderViewSet)
 
 urlpatterns = [
+    path('', include(admin_router.urls)),
     path('', include(router.urls)),
     path('me/', MeView.as_view(), name='me'),
     path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),

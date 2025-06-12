@@ -14,7 +14,9 @@ class RestaurateurProfile(models.Model):
     id_card = models.FileField(upload_to="documents/id_cards/")
     kbis = models.FileField(upload_to="documents/kbis/")
     is_validated = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    stripe_verified = models.BooleanField(default=False)
     stripe_account_id = models.CharField(max_length=255, blank=True, null=True)
 
     def __str__(self):
