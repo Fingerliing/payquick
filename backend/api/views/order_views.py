@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404
 from api.models import Restaurant, Table, Order, OrderItem, Menu, MenuItem, RestaurateurProfile
 from api.serializers.order_serializers import OrderSerializer
 from api.permissions import IsRestaurateur
-from api.utils import notify_order_updated
+from api.utils.order_utils import notify_order_updated
 
 class OrderViewSet(viewsets.ModelViewSet):
     queryset = Order.objects.all().order_by('-created_at')
