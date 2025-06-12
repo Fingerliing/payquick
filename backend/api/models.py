@@ -68,8 +68,13 @@ class ClientProfile(models.Model):
         return f"{self.user.username} - {self.phone}"
 
 class Table(models.Model):
-    restaurant = models.ForeignKey('Restaurant', on_delete=models.CASCADE)
+    restaurant = models.ForeignKey('Restaurant', on_delete=models.CASCADE, related_name='tables')
     identifiant = models.CharField(max_length=50, unique=True)
+    qr_code_file = models.FileField(upload_to='qr_codes/', null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Table {self.identifiant} ({self.restaurant.name})"
 
 class Order(models.Model):
     STATUS_CHOICES = [

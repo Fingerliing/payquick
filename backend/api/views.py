@@ -15,7 +15,7 @@ from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework_simplejwt.tokens import RefreshToken
 import requests
-from .utils import notify_order_updated
+from .utils import notify_order_updated, generate_qr_for_table
 from io import BytesIO
 import base64
 import qrcode
@@ -418,44 +418,29 @@ class RegisterView(APIView):
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-class GenerateQRCodesAPIView(APIView):
+class QRCodeFactoryView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def post(self, request):
-        qr_data = request.data.get("qrData", [])
+    def post(self, request, restaurant_id):
+        user = request.user
+
+        # Vérification d'appartenance du restaurateur
+        restaurant = Restaurant.objects.filter(id=restaurant_id, owner=user.restaurateur_profile).first()
+        if not restaurant:
+            return Response({"error": "Restaurant not found or unauthorized."}, status=403)
+
+        # Récupération des tables
+        tables = Table.objects.filter(restaurant=restaurant)
+
         result = []
-
-        restaurateur = request.user.restaurateur_profile
-        restaurant_id = request.data.get("restaurant_id")
-        try:
-            restaurant = Restaurant.objects.get(owner=restaurateur, id=restaurant_id)
-        except Restaurant.DoesNotExist:
-            return Response({"error": "Restaurant introuvable"}, status=404)
-
-        for entry in qr_data:
-            url = entry.get("url")
-            table_id = entry.get("tableId")
-            if not url or not table_id:
-                print("[SKIP] entrée incomplète:", entry)
-                continue
-
-            Table.objects.get_or_create(
-                restaurant=restaurant,
-                identifiant=table_id
-            )
-
-            qr = qrcode.make(url)
-            buffer = BytesIO()
-            qr.save(buffer, format="PNG")
-            img_str = base64.b64encode(buffer.getvalue()).decode("utf-8")
-            qr_code_url = f"data:image/png;base64,{img_str}"
-
+        for table in tables:
+            generate_qr_for_table(table)
             result.append({
-                "tableId": table_id,
-                "qrCodeUrl": qr_code_url
+                "table_id": table.identifiant,
+                "qr_code_url": table.qr_code_file.url
             })
-        print("[RESULT QR CODES]", result)
-        return Response({"qrCodes": result}, status=status.HTTP_200_OK)
+
+        return Response({"generated": result}, status=status.HTTP_200_OK)
     
 class CreateStripeAccountView(APIView):
     permission_classes = [IsAuthenticated, IsRestaurateur]
@@ -507,3 +492,38 @@ class StripeAccountStatusView(APIView):
             "payouts_enabled": account.payouts_enabled,
             "requirements": account.requirements
         })
+    
+class TableQRRouterView(APIView):
+    permission_classes = []
+
+    def get(self, request, identifiant):
+        # Recherche de la table
+        table = get_object_or_404(Table, identifiant=identifiant)
+        restaurant = table.restaurant
+
+        # Recherche du menu actif
+        menu = Menu.objects.filter(restaurant=restaurant, disponible=True).first()
+        if not menu:
+            return Response({"error": "No active menu for this restaurant."}, status=404)
+
+        # Récupération des items de menu
+        items = MenuItem.objects.filter(menu=menu, is_available=True)
+
+        data = {
+            "restaurant_name": restaurant.name,
+            "table_id": table.identifiant,
+            "menu": {
+                "menu_name": menu.name,
+                "items": [
+                    {
+                        "id": item.id,
+                        "name": item.name,
+                        "description": item.description,
+                        "price": str(item.price),
+                        "category": item.category
+                    } for item in items
+                ]
+            }
+        }
+
+        return Response(data, status=200)
