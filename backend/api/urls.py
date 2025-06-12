@@ -16,7 +16,9 @@ from .views import (
     CreateCheckoutSessionView,
     stripe_webhook,
     RegisterView,
-    GenerateQRCodesAPIView
+    GenerateQRCodesAPIView,
+    CreateStripeAccountView,
+    StripeAccountStatusView
 )
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
@@ -46,9 +48,11 @@ urlpatterns = [
     path('me/', MeView.as_view(), name='me'),
     path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('stripe/webhook/', stripe_webhook, name='stripe_webhook'),
     path("menus/by_restaurant/<int:restaurant_id>/", MenuByRestaurantView.as_view(), name="menu-by-restaurant"),
-    path("orders/<uuid:order_id>/create-checkout-session/", CreateCheckoutSessionView.as_view(), name="create-checkout-session"),
     path("register/", RegisterView.as_view(), name="register"),
     path('qr-codes/', GenerateQRCodesAPIView.as_view(), name='generate-qr-codes'),
+    path('payment/webhook/', stripe_webhook, name='stripe_webhook'),
+    path('payment/create_checkout_session/<int:order_id>/', CreateCheckoutSessionView.as_view(), name='create_checkout_session'),
+    path('stripe/create_account/', CreateStripeAccountView.as_view(), name='create_stripe_account'),
+    path('stripe/account_status/', StripeAccountStatusView.as_view(), name='stripe_account_status'),
 ]

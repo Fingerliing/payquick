@@ -22,6 +22,8 @@ import qrcode
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 
+stripe.api_key = settings.STRIPE_SECRET_KEY
+
 class RestaurantViewSet(viewsets.ModelViewSet):
     queryset = Restaurant.objects.all()
     serializer_class = RestaurantSerializer
@@ -265,29 +267,33 @@ class MenuByRestaurantView(APIView):
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 class CreateCheckoutSessionView(APIView):
+    permission_classes = []  # volontairement ouvert, à sécuriser via token à terme
+
     def post(self, request, order_id):
+        from decimal import Decimal
+
         try:
             order = Order.objects.get(id=order_id)
             if order.is_paid:
-                return Response({"error": "Déjà payé."}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"error": "Order already paid."}, status=status.HTTP_400_BAD_REQUEST)
 
-            line_items = [
-                {
+            # On reconstruit les items à partir des OrderItem
+            line_items = []
+            for item in order.order_items.all():
+                line_items.append({
                     "price_data": {
                         "currency": "eur",
                         "product_data": {
-                            "name": item["name"],
+                            "name": item.menu_item.name,
                         },
-                        "unit_amount": int(item.get("price", 0) * 100),
+                        "unit_amount": int(Decimal(item.menu_item.price) * 100),
                     },
-                    "quantity": item["quantity"],
-                }
-                for item in order.items
-            ]
+                    "quantity": item.quantity,
+                })
 
             restaurateur = order.restaurateur
             if not restaurateur.stripe_account_id:
-                return Response({"error": "Le restaurateur n'a pas de compte Stripe."}, status=400)
+                return Response({"error": "The restaurateur has no Stripe account."}, status=400)
            
             session = stripe.checkout.Session.create(
                 payment_method_types=["card"],
@@ -297,7 +303,7 @@ class CreateCheckoutSessionView(APIView):
                 cancel_url=f"{settings.DOMAIN}/clients/order/confirmation?order={order_id}",
                 metadata={"order_id": str(order_id)},
                 payment_intent_data={
-                    "application_fee_amount": 0,  # ou un montant si tu prends une commission
+                    "application_fee_amount": 0,  # commissions à activer plus tard
                     "transfer_data": {
                         "destination": restaurateur.stripe_account_id,
                     }
@@ -311,6 +317,8 @@ class CreateCheckoutSessionView(APIView):
         
 @csrf_exempt
 def stripe_webhook(request):
+    import json
+
     payload = request.body
     sig_header = request.META.get("HTTP_STRIPE_SIGNATURE")
 
@@ -327,11 +335,12 @@ def stripe_webhook(request):
         if order_id:
             try:
                 order = Order.objects.get(id=order_id)
-                order.is_paid = True
-                order.save()
-                print(f"[✓] Paiement confirmé pour commande {order_id}")
+                if not order.is_paid:
+                    order.is_paid = True
+                    order.save()
+                    print(f"[✓] Payment confirmed for order {order_id}")
             except Order.DoesNotExist:
-                print(f"[✗] Commande {order_id} introuvable")
+                print(f"[✗] Order {order_id} not found")
 
     return HttpResponse(status=200)
 
@@ -412,3 +421,54 @@ class GenerateQRCodesAPIView(APIView):
             })
         print("[RESULT QR CODES]", result)
         return Response({"qrCodes": result}, status=status.HTTP_200_OK)
+    
+class CreateStripeAccountView(APIView):
+    permission_classes = [IsAuthenticated, IsRestaurateur]
+
+    def post(self, request):
+        user = request.user
+        restaurateur = RestaurateurProfile.objects.get(user=user)
+
+        # Si un compte Stripe existe déjà
+        if restaurateur.stripe_account_id:
+            return Response({"error": "Stripe account already exists."}, status=400)
+
+        # Création du compte Stripe Connect
+        account = stripe.Account.create(
+            type="standard",
+            email=user.email,
+            business_type="individual",
+        )
+
+        # Sauvegarde du compte Stripe dans la base
+        restaurateur.stripe_account_id = account.id
+        restaurateur.save()
+
+        # Générer un onboarding link
+        account_link = stripe.AccountLink.create(
+            account=account.id,
+            refresh_url=f"{settings.DOMAIN}/onboarding/refresh",  # à prévoir dans ton frontend
+            return_url=f"{settings.DOMAIN}/onboarding/success",
+            type="account_onboarding",
+        )
+
+        return Response({"onboarding_url": account_link.url})
+    
+class StripeAccountStatusView(APIView):
+    permission_classes = [IsAuthenticated, IsRestaurateur]
+
+    def get(self, request):
+        user = request.user
+        restaurateur = RestaurateurProfile.objects.get(user=user)
+
+        if not restaurateur.stripe_account_id:
+            return Response({"error": "No Stripe account."}, status=400)
+
+        account = stripe.Account.retrieve(restaurateur.stripe_account_id)
+
+        return Response({
+            "charges_enabled": account.charges_enabled,
+            "details_submitted": account.details_submitted,
+            "payouts_enabled": account.payouts_enabled,
+            "requirements": account.requirements
+        })

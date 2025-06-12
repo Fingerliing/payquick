@@ -8,7 +8,7 @@ export interface Order {
   id: number;
   table_number: string;
   items: OrderItem[];
-  status: 'pending' | 'in_progress' | 'served' | 'paid'; // <- ajoute ici si tu l’utilises
+  status: 'pending' | 'in_progress' | 'served' | 'paid';
   is_paid: boolean;
   created_at: string;
 }
