@@ -58,7 +58,7 @@ class MenuItem(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.name} - {self.price}€"
+        return f"{self.name} - {self.price:.2f}€"
 
 class ClientProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)

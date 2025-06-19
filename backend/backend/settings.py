@@ -120,3 +120,7 @@ CORS_ALLOWED_ORIGINS = config("CORS_ALLOWED_ORIGINS", default="", cast=Csv())
 CSRF_TRUSTED_ORIGINS = config("CSRF_TRUSTED_ORIGINS", default="", cast=Csv())
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+#SWAGGER
+SWAGGER_USE_COMPAT_RENDERERS = False
+

@@ -25,6 +25,7 @@ yarn-error.log*
 # Django
 *.log
 local_settings.py
+payquick_db/
 db.sqlite3
 db.sqlite3-journal
 migrations/
@@ -44,3 +45,7 @@ static/
 # OS
 .DS_Store
 Thumbs.db
+
+# Docker
+*.log
+*.pid

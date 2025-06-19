@@ -9,7 +9,12 @@ class IsInGroup(BasePermission):
         return request.user and request.user.groups.filter(name__in=self.groups).exists()
 
     def __init__(self, groups=None):
-        self.groups = groups if groups else []
+        if groups is not None:
+            self.groups = groups
+        elif hasattr(self, 'required_groups'):
+            self.groups = self.required_groups
+        else:
+            self.groups = []
 
 class IsRestaurateur(IsInGroup):
     def has_permission(self, request, view):

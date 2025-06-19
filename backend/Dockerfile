@@ -1,33 +1,23 @@
-# Étape 1 : build avec image officielle python
-FROM python:3.11-slim
+# Dockerfile
 
-# Variables d’environnement de base
+FROM python:3.12-slim
+
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
-# Création du dossier app
 WORKDIR /app
 
-# Installation des dépendances système minimales
-RUN apt-get update && apt-get install -y \
-    libpq-dev gcc netcat-openbsd && \
-    apt-get clean
+# Dépendances système minimales
+RUN apt-get update && apt-get install -y gcc libpq-dev && apt-get clean
 
-# Copier les fichiers de requirements
-COPY requirements.txt /app/
+# Install requirements
+COPY requirements.txt .
+RUN pip install --upgrade pip && pip install -r requirements.txt
 
-# Installer les requirements Python
-RUN pip install --upgrade pip
-RUN pip install -r requirements.txt
+# Copie du projet
+COPY . .
 
-# Copier tout le code projet
-COPY . /app/
+# Collect static si nécessaire (optionnel)
+# RUN python manage.py collectstatic --noinput
 
-# Collectstatic (important en prod)
-RUN python manage.py collectstatic --noinput
-
-# Exposer le port par défaut
-EXPOSE 8000
-
-# Lancement via Gunicorn (WSGI)
 CMD ["gunicorn", "backend.wsgi:application", "--bind", "0.0.0.0:8000"]
