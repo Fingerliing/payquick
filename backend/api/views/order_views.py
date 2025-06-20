@@ -2,6 +2,7 @@ from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
 from api.models import Restaurant, Table, Order, OrderItem, Menu, MenuItem, RestaurateurProfile
 from api.serializers.order_serializers import OrderSerializer
@@ -23,8 +24,15 @@ class OrderViewSet(viewsets.ModelViewSet):
         return qs.order_by('-created_at')
 
     def perform_create(self, serializer):
-        serializer.save()
-
+        user = self.request.user
+        data = self.request.data
+        restaurant = get_object_or_404(Restaurant, id=data.get("restaurant"))
+        table = get_object_or_404(Table, id=data.get("table"))
+        serializer.save(
+            restaurateur=user.restaurateur_profile,
+            restaurant=restaurant,
+            table=table
+        )
     @action(detail=False, methods=["post"])
     def submit_order(self, request):
         data = request.data
@@ -38,7 +46,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         try:
             restaurant = Restaurant.objects.get(id=restaurant_id)
             table = Table.objects.get(identifiant=table_id, restaurant=restaurant)
-            restaurateur = RestaurateurProfile.objects.get(user=restaurant.owner)
+            restaurateur = restaurant.owner
         except Restaurant.DoesNotExist:
             return Response({"error": "Restaurant not found."}, status=404)
         except Table.DoesNotExist:
@@ -56,7 +64,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         for item in items:
             OrderItem.objects.create(
                 order=order,
-                menu_item_id=item["menu_item"],
+                menu_item_id=item["menu_item_id"],
                 quantity=item["quantity"]
             )
 

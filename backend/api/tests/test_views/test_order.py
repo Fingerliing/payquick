@@ -28,7 +28,6 @@ def auth_restaurateur_client(db):
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {token.access_token}")
     return client, user, profile
 
-
 @pytest.mark.django_db
 def test_create_order(auth_restaurateur_client):
     client, _, profile = auth_restaurateur_client
@@ -37,14 +36,12 @@ def test_create_order(auth_restaurateur_client):
     table = Table.objects.create(restaurant=restaurant, identifiant="X1")
 
     response = client.post("/api/v1/orders/", {
-        "restaurateur": profile.id,
         "restaurant": restaurant.id,
         "table": table.id,
-    })
+    }, format="json")
 
     assert response.status_code == status.HTTP_201_CREATED
-    assert response.data["restaurant"] == restaurant.id
-
+    assert response.data["table_number"] == "X1"
 
 @pytest.mark.django_db
 def test_list_orders_only_owned(auth_restaurateur_client):

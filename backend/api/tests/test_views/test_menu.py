@@ -78,7 +78,7 @@ def test_toggle_menuitem_availability(auth_client_restaurateur):
     )
 
     assert item.is_available is True
-    response = client.post(f"/api/v1/menu/items/{item.id}/toggle/")
+    response = client.post(f"/api/v1/menus/items/{item.id}/toggle/")
     assert response.status_code == 200
 
     item.refresh_from_db()

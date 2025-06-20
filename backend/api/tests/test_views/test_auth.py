@@ -13,8 +13,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 def test_register_view_success():
     client = APIClient()
     data = {
-        "username": "newuser",
-        "email": "newuser@example.com",
+        "username": "newuser@example.com",
         "password": "StrongPassword123",
         "nom": "Test User",
         "role": "client",
