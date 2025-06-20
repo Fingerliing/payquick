@@ -1,7 +1,3 @@
-# ---------------------------------------------------------------------
-# Tests for RestaurantViewSet
-# ---------------------------------------------------------------------
-
 import pytest
 from rest_framework.test import APIClient
 from rest_framework import status
@@ -28,7 +24,7 @@ def restaurateur_client():
 
 @pytest.mark.django_db
 def test_create_restaurant(restaurateur_client):
-    client, user, _ = restaurateur_client
+    client, user, profile = restaurateur_client
 
     response = client.post("/api/v1/restaurants/", {
         "name": "Le Coin",
@@ -39,7 +35,7 @@ def test_create_restaurant(restaurateur_client):
 
     assert response.status_code == 201
     restaurant = Restaurant.objects.get(name="Le Coin")
-    assert restaurant.owner == user.restaurateur_profile
+    assert restaurant.owner == profile
 
 
 @pytest.mark.django_db

@@ -10,4 +10,4 @@ class RestaurantViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsRestaurateur]
 
     def perform_create(self, serializer):
-        serializer.save(owner=self.request.user)
+        serializer.save(owner=self.request.user.restaurateur_profile)

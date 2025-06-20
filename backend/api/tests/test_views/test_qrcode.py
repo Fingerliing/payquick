@@ -1,7 +1,3 @@
-# ---------------------------------------------------------------------
-# Tests for QRCodeFactoryView
-# ---------------------------------------------------------------------
-
 import pytest
 from rest_framework.test import APIClient
 from rest_framework import status
@@ -32,8 +28,8 @@ def restaurateur_client():
 def test_generate_qr_code_success(mock_generate, restaurateur_client):
     client, _, profile = restaurateur_client
     restaurant = Restaurant.objects.create(name="QR Bistro", description="Scan & Go", owner=profile, siret="56565656565656")
-    table1 = Table.objects.create(restaurant=restaurant, identifiant="T1")
-    table2 = Table.objects.create(restaurant=restaurant, identifiant="T2")
+    table1 = Table.objects.create(restaurant=restaurant, identifiant="T1", qr_code_file=SimpleUploadedFile("t1.png", b"file"))
+    table2 = Table.objects.create(restaurant=restaurant, identifiant="T2", qr_code_file=SimpleUploadedFile("t2.png", b"file"))
 
     url = f"/api/v1/qrcode/factory/{restaurant.id}/"
     response = client.post(url)
@@ -48,9 +44,14 @@ def test_generate_qr_code_success(mock_generate, restaurateur_client):
 def test_generate_qr_code_forbidden_if_not_owner(restaurateur_client):
     client, _, _ = restaurateur_client
 
-    # Restaurant sans lien avec l'utilisateur authentifié
     other_user = User.objects.create_user(username="intrus", password="test")
-    restaurant = Restaurant.objects.create(name="Not Yours", description="Hackable", owner=None, siret="99999999999999")
+    group, _ = Group.objects.get_or_create(name="restaurateur")
+    other_user.groups.add(group)
+    id_card = SimpleUploadedFile("id.pdf", b"doc", content_type="application/pdf")
+    kbis = SimpleUploadedFile("kbis.pdf", b"doc", content_type="application/pdf")
+    profile = RestaurateurProfile.objects.create(user=other_user, siret="99999999999999", id_card=id_card, kbis=kbis)
+
+    restaurant = Restaurant.objects.create(name="Not Yours", description="Hackable", owner=profile, siret="88888888888888")
 
     url = f"/api/v1/qrcode/factory/{restaurant.id}/"
     response = client.post(url)
@@ -62,5 +63,6 @@ def test_generate_qr_code_forbidden_if_not_owner(restaurateur_client):
 @pytest.mark.django_db
 def test_generate_qr_code_unauthenticated():
     client = APIClient()
-    response = client.post("/api/v1/qrcode/1/")
+    url = "/api/v1/qrcode/factory/1/"
+    response = client.post(url)
     assert response.status_code == 401
