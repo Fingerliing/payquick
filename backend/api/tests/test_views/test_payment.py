@@ -1,7 +1,3 @@
-# ---------------------------------------------------------------------
-# Tests for CreateCheckoutSessionView (Stripe Checkout integration)
-# ---------------------------------------------------------------------
-
 import pytest
 from rest_framework.test import APIClient
 from rest_framework import status
@@ -13,7 +9,6 @@ from api.models import (
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.files.uploadedfile import SimpleUploadedFile
 from unittest.mock import patch
-
 
 @pytest.fixture
 def auth_restaurateur_client(db):
@@ -49,13 +44,13 @@ def test_checkout_session_success(mock_create, auth_restaurateur_client, order_w
     profile.stripe_account_id = "acct_test_123"
     profile.save()
 
-    mock_create.return_value = {"url": "https://checkout.stripe.test/session"}
+    mock_create.return_value = type("Session", (), {"url": "https://checkout.stripe.test/session"})()
 
-    url = f"/api/v1/payment/create_checkout_session/{order.id}/"
+    url = f"/api/v1/payments/create_checkout_session/{order.id}/"
     response = client.post(url)
 
     assert response.status_code == 200
-    assert "url" in response.data
+    assert "checkout_url" in response.data
 
 
 @pytest.mark.django_db
@@ -65,7 +60,7 @@ def test_checkout_order_already_paid(auth_restaurateur_client, order_with_item):
     order.is_paid = True
     order.save()
 
-    url = f"/api/v1/payment/create_checkout_session/{order.id}/"
+    url = f"/api/v1/payments/create_checkout_session/{order.id}/"
     response = client.post(url)
 
     assert response.status_code == 400
@@ -75,7 +70,7 @@ def test_checkout_order_already_paid(auth_restaurateur_client, order_with_item):
 @pytest.mark.django_db
 def test_checkout_no_stripe_account(auth_restaurateur_client, order_with_item):
     client, _ = auth_restaurateur_client
-    url = f"/api/v1/payment/{order_with_item.id}/checkout/"
+    url = f"/api/v1/payments/create_checkout_session/{order_with_item.id}/"
     response = client.post(url)
 
     assert response.status_code == 400
