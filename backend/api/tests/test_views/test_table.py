@@ -1,16 +1,21 @@
-# ---------------------------------------------------------------------
-# Tests for TableQRRouterView
-# ---------------------------------------------------------------------
-
 import pytest
 from rest_framework.test import APIClient
 from rest_framework import status
-from api.models import Restaurant, Table, Menu, MenuItem
+from api.models import Restaurant, Table, Menu, MenuItem, RestaurateurProfile
+from django.contrib.auth.models import User, Group
+from django.core.files.uploadedfile import SimpleUploadedFile
 
 
 @pytest.fixture
 def setup_table_and_menu(db):
-    restaurant = Restaurant.objects.create(name="PublicResto", description="Sans login", owner=None, siret="12345678999999")
+    group, _ = Group.objects.get_or_create(name="restaurateur")
+    user = User.objects.create_user(username="owner_user", password="test")
+    user.groups.add(group)
+    id_card = SimpleUploadedFile("id.pdf", b"x", content_type="application/pdf")
+    kbis = SimpleUploadedFile("kbis.pdf", b"x", content_type="application/pdf")
+    profile = RestaurateurProfile.objects.create(user=user, siret="12345678999999", id_card=id_card, kbis=kbis)
+
+    restaurant = Restaurant.objects.create(name="PublicResto", description="Sans login", owner=profile, siret="12345678999998")
     table = Table.objects.create(restaurant=restaurant, identifiant="T-QR")
     menu = Menu.objects.create(name="Menu Public", restaurant=restaurant)
     item = MenuItem.objects.create(
