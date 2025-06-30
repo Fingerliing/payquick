@@ -14,6 +14,10 @@ stripe.api_key = settings.STRIPE_SECRET_KEY
 
 # ---------- 1. Création de la session Stripe Checkout ----------
 class CreateCheckoutSessionView(APIView):
+    """
+    Crée une session Stripe Checkout pour une commande non payée.
+    Retourne l'URL sécurisée vers Stripe Checkout.
+    """
     def post(self, request, order_id):
         try:
             order = Order.objects.get(id=order_id)
@@ -92,6 +96,10 @@ class StripeWebhookView(APIView):
 
 # ---------- 3. Création du compte Stripe Connect ----------
 class CreateStripeAccountView(APIView):
+    """
+    Crée un compte Stripe Connect pour un restaurateur et retourne un lien d'onboarding.
+    Nécessite l'authentification.
+    """
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -121,6 +129,10 @@ class CreateStripeAccountView(APIView):
 
 # ---------- 4. Vérification du compte Stripe ----------
 class StripeAccountStatusView(APIView):
+    """
+    Retourne l'état de vérification Stripe d'un restaurateur (charges, virements, etc.).
+    Nécessite l'authentification.
+    """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):

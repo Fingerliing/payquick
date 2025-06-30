@@ -6,6 +6,10 @@ from api.models import Restaurant, Table
 from api.utils.qrcode_utils import generate_qr_for_table
 
 class QRCodeFactoryView(APIView):
+    """
+    Génère les QR codes de toutes les tables d'un restaurant appartenant au restaurateur connecté.
+    Nécessite une authentification. Renvoie les URL des QR codes générés.
+    """
     permission_classes = [IsAuthenticated]
 
     def post(self, request, restaurant_id):

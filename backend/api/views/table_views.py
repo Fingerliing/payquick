@@ -5,6 +5,10 @@ from django.shortcuts import get_object_or_404
 from api.models import Table, Menu, MenuItem
 
 class TableQRRouterView(APIView):
+    """
+    Endpoint public : accessible via un QR code sans authentification.
+    Permet de récupérer le menu actif associé à une table.
+    """
     permission_classes = []
 
     def get(self, request, identifiant):

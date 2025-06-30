@@ -10,6 +10,11 @@ from api.permissions import IsRestaurateur
 from api.utils.order_utils import notify_order_updated
 
 class OrderViewSet(viewsets.ModelViewSet):
+    """
+    Gère les commandes dans un restaurant.
+    Filtrées automatiquement selon le restaurateur connecté.
+    Inclut des actions pour : payer, changer de statut, soumettre une commande, etc.
+    """
     queryset = Order.objects.all().order_by('-created_at')
     serializer_class = OrderSerializer
     permission_classes = [IsAuthenticated]
@@ -31,6 +36,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         )
     @action(detail=False, methods=["post"])
     def submit_order(self, request):
+        """Crée une nouvelle commande avec une liste d’items pour une table donnée."""
         data = request.data
         restaurant_id = data.get("restaurant")
         table_id = data.get("table_identifiant")
@@ -68,6 +74,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"])
     def mark_paid(self, request, pk=None):
+        """Marque la commande comme payée."""
         order = self.get_object()
         order.is_paid = True
         order.save()
@@ -76,6 +83,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"])
     def mark_in_progress(self, request, pk=None):
+        """Passe la commande au statut "en cours de préparation"."""
         order = self.get_object()
         order.status = "in_progress"
         order.save()
@@ -84,6 +92,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"])
     def mark_served(self, request, pk=None):
+        """Marque la commande comme servie."""
         order = self.get_object()
         order.status = "served"
         order.save()
@@ -92,6 +101,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["get"])
     def details(self, request, pk=None):
+        """Retourne les détails d’une commande (items, quantités, prix)."""
         order = self.get_object()
         items = OrderItem.objects.filter(order=order)
         contenu = [
@@ -110,6 +120,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="by_restaurant/(?P<restaurant_id>[^/.]+)")
     def by_restaurant_path(self, request, restaurant_id=None):
+        """Retourne les commandes associées à un restaurant donné (admin/staff)."""
         if not restaurant_id:
             return Response({"error": "Missing restaurant_id"}, status=400)
 
@@ -119,6 +130,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="menu/table/(?P<identifiant>[^/.]+)")
     def menu_by_table(self, request, identifiant=None):
+        """Retourne le menu actif (et ses items) d’une table identifiée via QR code."""
         table = get_object_or_404(Table, identifiant=identifiant)
         menu = Menu.objects.filter(restaurant=table.restaurant, disponible=True).first()
         if not menu:

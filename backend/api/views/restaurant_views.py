@@ -5,6 +5,10 @@ from api.serializers import RestaurantSerializer
 from api.permissions import IsRestaurateur, IsOwnerOrReadOnly
 
 class RestaurantViewSet(viewsets.ModelViewSet):
+    """
+    Gère les restaurateurs : création, consultation, modification, suppression.
+    Filtrage automatique par restaurateur propriétaire.
+    """
     queryset = Restaurant.objects.all()
     serializer_class = RestaurantSerializer
     permission_classes = [IsAuthenticated, IsRestaurateur, IsOwnerOrReadOnly]

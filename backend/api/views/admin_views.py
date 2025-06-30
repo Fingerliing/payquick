@@ -11,6 +11,10 @@ from django.conf import settings
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
 class AdminRestaurateurViewSet(viewsets.ModelViewSet):
+    """
+    Accès réservé aux administrateurs.
+    Permet de valider, activer ou interroger les comptes Stripe des restaurateurs.
+    """
     queryset = RestaurateurProfile.objects.all().order_by('-created_at')
     serializer_class = RestaurateurProfileSerializer
     permission_classes = [IsAdminUser]
