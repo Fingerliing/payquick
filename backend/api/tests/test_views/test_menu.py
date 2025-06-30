@@ -5,6 +5,7 @@
 import pytest
 from rest_framework.test import APIClient
 from rest_framework import status
+from django.urls import reverse
 from django.contrib.auth.models import User, Group
 from api.models import RestaurateurProfile, Restaurant, Menu, MenuItem
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -83,3 +84,21 @@ def test_toggle_menuitem_availability(auth_client_restaurateur):
 
     item.refresh_from_db()
     assert item.is_available is False
+
+@pytest.mark.django_db
+def test_restaurateur_sees_only_own_menus(restaurateur_user_factory, menu_factory):
+    user1 = restaurateur_user_factory()
+    user2 = restaurateur_user_factory()
+
+    menu_factory(restaurant__owner=user1.restaurateur_profile)
+    menu_factory(restaurant__owner=user2.restaurateur_profile)
+
+    client = APIClient()
+    client.force_authenticate(user=user1)
+
+    url = reverse('menu-list')
+    response = client.get(url)
+
+    assert response.status_code == 200
+    for item in response.json():
+        assert item["restaurant_owner_id"] == user1.restaurateur_profile.id
