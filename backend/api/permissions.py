@@ -1,4 +1,4 @@
-from rest_framework.permissions import BasePermission
+from rest_framework.permissions import BasePermission, SAFE_METHODS
 
 class IsInGroup(BasePermission):
     """
@@ -27,3 +27,12 @@ class IsAdmin(IsInGroup):
 
 class IsClient(IsInGroup):
     required_groups = ["client"]
+
+
+class IsOwnerOrReadOnly(BasePermission):
+    def has_object_permission(self, request, view, obj):
+        # Lecture autorisée pour tout utilisateur authentifié
+        if request.method in SAFE_METHODS:
+            return True
+        # Écriture autorisée uniquement pour le propriétaire
+        return obj.restaurant.owner == request.user.restaurateur_profile

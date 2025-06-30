@@ -5,11 +5,11 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from api.models import Menu, MenuItem
 from api.serializers import MenuSerializer, MenuItemSerializer
-from api.permissions import IsRestaurateur
+from api.permissions import IsRestaurateur, IsOwnerOrReadOnly
 
 class MenuViewSet(viewsets.ModelViewSet):
     serializer_class = MenuSerializer
-    permission_classes = [IsAuthenticated, IsRestaurateur]
+    permission_classes = [IsAuthenticated, IsRestaurateur, IsOwnerOrReadOnly]
 
     def get_queryset(self):
         return Menu.objects.filter(restaurant__owner=self.request.user.restaurateur_profile)
