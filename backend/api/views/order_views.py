@@ -15,13 +15,9 @@ class OrderViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter]
     search_fields = ['status', 'table__identifiant']
-
+    
     def get_queryset(self):
-        user = self.request.user
-        qs = Order.objects.all()
-        if hasattr(user, 'restaurateur_profile'):
-            qs = qs.filter(restaurant__owner=user.restaurateur_profile)
-        return qs.order_by('-created_at')
+        return Order.objects.filter(restaurant__owner=self.request.user.restaurateur_profile)
 
     def perform_create(self, serializer):
         user = self.request.user

@@ -11,3 +11,6 @@ class RestaurantViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user.restaurateur_profile)
+
+    def get_queryset(self):
+        return Restaurant.objects.filter(owner=self.request.user.restaurateur_profile)

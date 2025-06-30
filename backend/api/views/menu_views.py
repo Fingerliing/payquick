@@ -8,9 +8,11 @@ from api.serializers import MenuSerializer, MenuItemSerializer
 from api.permissions import IsRestaurateur
 
 class MenuViewSet(viewsets.ModelViewSet):
-    queryset = Menu.objects.all()
     serializer_class = MenuSerializer
     permission_classes = [IsAuthenticated, IsRestaurateur]
+
+    def get_queryset(self):
+        return Menu.objects.filter(restaurant__owner=self.request.user.restaurateur_profile)
 
     @action(detail=True, methods=["post"])
     def toggle_disponible(self, request, pk=None):
@@ -22,9 +24,11 @@ class MenuViewSet(viewsets.ModelViewSet):
         return Response({"id": menu.id, "disponible": menu.disponible})
 
 class MenuItemViewSet(viewsets.ModelViewSet):
-    queryset = MenuItem.objects.all()
     serializer_class = MenuItemSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return MenuItem.objects.filter(menu__restaurant__owner=self.request.user.restaurateur_profile)
 
     @action(detail=True, methods=["post"], url_path="toggle")
     def toggle_availability(self, request, pk=None):
