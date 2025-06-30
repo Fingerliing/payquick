@@ -6,12 +6,14 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from api.models import ClientProfile, RestaurateurProfile
 from api.serializers import RegisterSerializer
+from api.throttles import RegisterThrottle
 
 class RegisterView(APIView):
     """
     Crée un nouvel utilisateur (client ou restaurateur) et retourne les tokens JWT.
     Accessible sans authentification.
     """
+    throttle_classes = [RegisterThrottle]
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():

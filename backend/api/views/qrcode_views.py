@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from api.models import Restaurant, Table
+from api.throttles import QRCodeThrottle
 from api.utils.qrcode_utils import generate_qr_for_table
 
 class QRCodeFactoryView(APIView):
@@ -11,6 +12,7 @@ class QRCodeFactoryView(APIView):
     Nécessite une authentification. Renvoie les URL des QR codes générés.
     """
     permission_classes = [IsAuthenticated]
+    throttle_classes = [QRCodeThrottle]
 
     def post(self, request, restaurant_id):
         restaurant = Restaurant.objects.filter(id=restaurant_id, owner=request.user.restaurateur_profile).first()

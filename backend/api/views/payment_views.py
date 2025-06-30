@@ -7,6 +7,7 @@ from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from api.models import Order, RestaurateurProfile
+from api.throttles import StripeCheckoutThrottle
 import stripe
 
 # Initialise ta clé Stripe globale
@@ -18,6 +19,7 @@ class CreateCheckoutSessionView(APIView):
     Crée une session Stripe Checkout pour une commande non payée.
     Retourne l'URL sécurisée vers Stripe Checkout.
     """
+    throttle_classes = [StripeCheckoutThrottle]
     def post(self, request, order_id):
         try:
             order = Order.objects.get(id=order_id)

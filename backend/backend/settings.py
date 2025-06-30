@@ -91,6 +91,18 @@ REST_FRAMEWORK = {
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.UserRateThrottle",
+        "rest_framework.throttling.AnonRateThrottle",
+        "api.throttles.QRCodeThrottle",
+        "api.throttles.RegisterThrottle",
+        "api.throttles.StripeCheckoutThrottle"
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "user": "1000/day",
+        "anon": "50/hour",
+    },
 }
 
 SIMPLE_JWT = {
