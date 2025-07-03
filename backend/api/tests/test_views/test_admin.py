@@ -25,13 +25,9 @@ def admin_client(db):
 @pytest.fixture
 def restaurateur_profile():
     user = User.objects.create_user(username="resto", password="pass")
-    id_card = SimpleUploadedFile("id.pdf", b"doc", content_type="application/pdf")
-    kbis = SimpleUploadedFile("kbis.pdf", b"doc", content_type="application/pdf")
     return RestaurateurProfile.objects.create(
         user=user,
         siret="12345678901234",
-        id_card=id_card,
-        kbis=kbis
     )
 
 

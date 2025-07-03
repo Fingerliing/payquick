@@ -9,8 +9,6 @@ class RegisterSerializer(serializers.Serializer):
     role = serializers.ChoiceField(choices=["client", "restaurateur"])
     telephone = serializers.CharField(required=False, allow_blank=True)
     siret = serializers.CharField(required=False, allow_blank=True)
-    cni = serializers.FileField(required=False)
-    kbis = serializers.FileField(required=False)
 
     def create(self, validated_data):
         role = validated_data["role"]
@@ -29,7 +27,5 @@ class RegisterSerializer(serializers.Serializer):
             RestaurateurProfile.objects.create(
                 user=user,
                 siret=validated_data.get("siret", ""),
-                id_card=validated_data.get("cni"),
-                kbis=validated_data.get("kbis"),
             )
         return user

@@ -93,6 +93,18 @@ class StripeWebhookView(APIView):
                     print(f"[✓] Payment confirmed for order {order_id}")
             except Order.DoesNotExist:
                 print(f"[✗] Order {order_id} not found")
+        elif event["type"] == "identity.verification_session.verified":
+            session = event["data"]["object"]
+            rest_id = session["metadata"].get("restaurateur_id")
+            if rest_id:
+                try:
+                    restaurateur = RestaurateurProfile.objects.get(id=rest_id)
+                    restaurateur.stripe_verified = True
+                    restaurateur.save()
+                    print(f"[✓] Restaurateur #{rest_id} vérifié via Stripe Identity.")
+                except RestaurateurProfile.DoesNotExist:
+                    print(f"[✗] Restaurateur #{rest_id} introuvable pour vérification Stripe.")
+
 
         return HttpResponse(status=200)
 
@@ -151,3 +163,25 @@ class StripeAccountStatusView(APIView):
             "payouts_enabled": account.payouts_enabled,
             "requirements": account.requirements
         })
+
+class StripeIdentitySessionView(APIView):
+    """
+    Crée une session Stripe Identity pour le restaurateur connecté.
+    Nécessite une authentification. Renvoie l'URL sécurisée vers Stripe Identity.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            restaurateur = request.user.restaurateur_profile
+
+            session = stripe.identity.VerificationSession.create(
+                type="document",
+                metadata={"restaurateur_id": str(restaurateur.id)},
+                return_url=f"{settings.DOMAIN}/dashboard?verified=true"
+            )
+
+            return Response({"verification_url": session.url}, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

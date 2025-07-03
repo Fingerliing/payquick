@@ -8,7 +8,6 @@ from rest_framework import status
 from django.urls import reverse
 from django.contrib.auth.models import User, Group
 from api.models import RestaurateurProfile, Restaurant, Menu, MenuItem
-from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework_simplejwt.tokens import RefreshToken
 
 
@@ -18,10 +17,8 @@ def auth_client_restaurateur(db):
     user = User.objects.create_user(username="chef", password="secret123")
     user.groups.add(group)
 
-    id_card = SimpleUploadedFile("id.pdf", b"file", content_type="application/pdf")
-    kbis = SimpleUploadedFile("kbis.pdf", b"file", content_type="application/pdf")
     profile = RestaurateurProfile.objects.create(
-        user=user, siret="12345678901234", id_card=id_card, kbis=kbis
+        user=user, siret="12345678901234"
     )
 
     token = RefreshToken.for_user(user)

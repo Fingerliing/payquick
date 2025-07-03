@@ -16,17 +16,13 @@ from api.tests.factories import (
     MenuItemFactory, MenuFactory
 )
 from rest_framework_simplejwt.tokens import RefreshToken
-from django.core.files.uploadedfile import SimpleUploadedFile
-
 
 @pytest.fixture
 def auth_restaurateur_client(db):
     group, _ = Group.objects.get_or_create(name="restaurateur")
     user = User.objects.create_user(username="owner", password="strongpass")
     user.groups.add(group)
-    id_card = SimpleUploadedFile("id.pdf", b"x", content_type="application/pdf")
-    kbis = SimpleUploadedFile("kbis.pdf", b"x", content_type="application/pdf")
-    profile = RestaurateurProfile.objects.create(user=user, siret="10101010101010", id_card=id_card, kbis=kbis)
+    profile = RestaurateurProfile.objects.create(user=user, siret="10101010101010")
     token = RefreshToken.for_user(user)
 
     client = APIClient()

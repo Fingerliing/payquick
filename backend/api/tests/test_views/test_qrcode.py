@@ -13,9 +13,7 @@ def restaurateur_client():
     group, _ = Group.objects.get_or_create(name="restaurateur")
     user = User.objects.create_user(username="qruser", password="strongpass")
     user.groups.add(group)
-    id_card = SimpleUploadedFile("id.pdf", b"doc", content_type="application/pdf")
-    kbis = SimpleUploadedFile("kbis.pdf", b"doc", content_type="application/pdf")
-    profile = RestaurateurProfile.objects.create(user=user, siret="81818181818181", id_card=id_card, kbis=kbis)
+    profile = RestaurateurProfile.objects.create(user=user, siret="81818181818181")
     token = RefreshToken.for_user(user)
 
     client = APIClient()
@@ -47,9 +45,7 @@ def test_generate_qr_code_forbidden_if_not_owner(restaurateur_client):
     other_user = User.objects.create_user(username="intrus", password="test")
     group, _ = Group.objects.get_or_create(name="restaurateur")
     other_user.groups.add(group)
-    id_card = SimpleUploadedFile("id.pdf", b"doc", content_type="application/pdf")
-    kbis = SimpleUploadedFile("kbis.pdf", b"doc", content_type="application/pdf")
-    profile = RestaurateurProfile.objects.create(user=other_user, siret="99999999999999", id_card=id_card, kbis=kbis)
+    profile = RestaurateurProfile.objects.create(user=other_user, siret="99999999999999")
 
     restaurant = Restaurant.objects.create(name="Not Yours", description="Hackable", owner=profile, siret="88888888888888")
 

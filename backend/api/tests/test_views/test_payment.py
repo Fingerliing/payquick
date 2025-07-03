@@ -7,7 +7,6 @@ from api.models import (
     Order, Menu, MenuItem, OrderItem
 )
 from rest_framework_simplejwt.tokens import RefreshToken
-from django.core.files.uploadedfile import SimpleUploadedFile
 from unittest.mock import patch
 
 @pytest.fixture
@@ -15,9 +14,7 @@ def auth_restaurateur_client(db):
     group, _ = Group.objects.get_or_create(name="restaurateur")
     user = User.objects.create_user(username="stripechef", password="pass123")
     user.groups.add(group)
-    id_card = SimpleUploadedFile("id.pdf", b"x", content_type="application/pdf")
-    kbis = SimpleUploadedFile("kbis.pdf", b"x", content_type="application/pdf")
-    profile = RestaurateurProfile.objects.create(user=user, siret="90909090909090", id_card=id_card, kbis=kbis)
+    profile = RestaurateurProfile.objects.create(user=user, siret="90909090909090")
     token = RefreshToken.for_user(user)
     client = APIClient()
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {token.access_token}")
@@ -201,3 +198,71 @@ def test_stripe_webhook_order_does_not_exist(mock_get_order, mock_construct_even
     response = client.post("/api/v1/payments/webhook/", data={}, format="json",
                            HTTP_STRIPE_SIGNATURE="dummy")
     assert response.status_code == 200  # Webhook handled despite missing order
+
+@patch("api.views.payment_views.stripe.identity.VerificationSession.create")
+@pytest.mark.django_db
+def test_stripe_identity_session_success(mock_create, auth_restaurateur_client):
+    client, _ = auth_restaurateur_client
+
+    mock_create.return_value = type("Session", (), {"url": "https://stripe.test/identity/session"})()
+
+    response = client.post("/api/v1/payments/stripe/identity/")
+
+    assert response.status_code == 201
+    assert "verification_url" in response.data
+    assert response.data["verification_url"].startswith("https://stripe.test")
+
+@patch("api.views.payment_views.stripe.identity.VerificationSession.create", side_effect=Exception("Stripe down"))
+@pytest.mark.django_db
+def test_stripe_identity_session_failure(mock_create, auth_restaurateur_client):
+    client, _ = auth_restaurateur_client
+
+    response = client.post("/api/v1/payments/stripe/identity/")
+
+    assert response.status_code == 500
+    assert "error" in response.data
+
+@patch("api.views.payment_views.stripe.Webhook.construct_event")
+@pytest.mark.django_db
+def test_stripe_webhook_identity_verified(mock_construct_event, auth_restaurateur_client):
+    _, profile = auth_restaurateur_client
+    rest_id = profile.id
+
+    mock_construct_event.return_value = {
+        "type": "identity.verification_session.verified",
+        "data": {
+            "object": {
+                "metadata": {
+                    "restaurateur_id": str(rest_id)
+                }
+            }
+        }
+    }
+
+    client = APIClient()
+    response = client.post("/api/v1/payments/webhook/", data={}, format='json',
+                           HTTP_STRIPE_SIGNATURE="dummy")
+
+    profile.refresh_from_db()
+    assert response.status_code == 200
+    assert profile.stripe_verified is True
+
+@patch("api.views.payment_views.stripe.Webhook.construct_event")
+@pytest.mark.django_db
+def test_stripe_webhook_identity_unknown_restaurateur(mock_construct_event):
+    mock_construct_event.return_value = {
+        "type": "identity.verification_session.verified",
+        "data": {
+            "object": {
+                "metadata": {
+                    "restaurateur_id": "99999"
+                }
+            }
+        }
+    }
+
+    client = APIClient()
+    response = client.post("/api/v1/payments/webhook/", data={}, format='json',
+                           HTTP_STRIPE_SIGNATURE="dummy")
+
+    assert response.status_code == 200  # Webhook handled even if restaurateur not found

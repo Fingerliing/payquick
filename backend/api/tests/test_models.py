@@ -44,13 +44,9 @@ def user():
 
 @pytest.fixture
 def restaurateur(user):
-    fake_id_card = SimpleUploadedFile("test_id.pdf", b"dummy content", content_type="application/pdf")
-    fake_kbis = SimpleUploadedFile("test_kbis.pdf", b"dummy content", content_type="application/pdf")
     return RestaurateurProfile.objects.create(
         user=user,
         siret="12345678901234",
-        id_card=fake_id_card,
-        kbis=fake_kbis,
         is_validated=True,
         is_active=True,
         stripe_verified=True,
@@ -101,13 +97,9 @@ def test_menu_item_model(restaurateur):
 
 @pytest.mark.django_db
 def test_restaurateurprofile_default_fields(user):
-    fake_id_card = SimpleUploadedFile("id.pdf", b"data", content_type="application/pdf")
-    fake_kbis = SimpleUploadedFile("kbis.pdf", b"data", content_type="application/pdf")
     profile = RestaurateurProfile.objects.create(
         user=user,
         siret="12345678901234",
-        id_card=fake_id_card,
-        kbis=fake_kbis
     )
 
     assert profile.is_validated is False
@@ -125,13 +117,9 @@ def restaurateur_user():
 
 @pytest.fixture
 def restaurateur_profile(restaurateur_user):
-    fake_id_card = SimpleUploadedFile("id.pdf", b"123", content_type="application/pdf")
-    fake_kbis = SimpleUploadedFile("kbis.pdf", b"456", content_type="application/pdf")
     return RestaurateurProfile.objects.create(
         user=restaurateur_user,
         siret="11111111111111",
-        id_card=fake_id_card,
-        kbis=fake_kbis
     )
 
 @pytest.mark.django_db

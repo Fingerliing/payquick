@@ -4,17 +4,13 @@ from rest_framework import status
 from django.contrib.auth.models import User, Group
 from api.models import RestaurateurProfile, Restaurant
 from rest_framework_simplejwt.tokens import RefreshToken
-from django.core.files.uploadedfile import SimpleUploadedFile
-
 
 @pytest.fixture
 def restaurateur_client():
     group, _ = Group.objects.get_or_create(name="restaurateur")
     user = User.objects.create_user(username="resto_user", password="safePass")
     user.groups.add(group)
-    id_card = SimpleUploadedFile("id.pdf", b"doc", content_type="application/pdf")
-    kbis = SimpleUploadedFile("kbis.pdf", b"doc", content_type="application/pdf")
-    profile = RestaurateurProfile.objects.create(user=user, siret="77777777777777", id_card=id_card, kbis=kbis)
+    profile = RestaurateurProfile.objects.create(user=user, siret="77777777777777")
     token = RefreshToken.for_user(user)
 
     client = APIClient()
