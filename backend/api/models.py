@@ -102,7 +102,7 @@ class Order(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Table {self.table_number} - {self.get_status_display()} - {'Payée' if self.is_paid else 'Non payée'}"
+        return f"Table {self.table.identifiant} - {self.get_status_display()} - {'Payée' if self.is_paid else 'Non payée'}"
     
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='order_items')

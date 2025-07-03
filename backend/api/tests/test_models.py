@@ -10,6 +10,7 @@ from api.models import (
     MenuItem,
     validate_siret
 )
+from .factories import RestaurantFactory, OrderFactory, TableFactory
 
 # ---------------------------------------------------------------------
 # Tests for the RestaurateurProfile model

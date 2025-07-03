@@ -8,7 +8,11 @@ class MenuItemSerializer(serializers.ModelSerializer):
 
 class MenuSerializer(serializers.ModelSerializer):
     items = MenuItemSerializer(many=True, read_only=True)
+    restaurant_owner_id = serializers.SerializerMethodField()
 
     class Meta:
         model = Menu
-        fields = ['id', 'name', 'restaurant', 'items', 'created_at', 'updated_at']
+        fields = ['id', 'name', 'restaurant', 'items', 'created_at', 'updated_at', 'restaurant_owner_id']
+
+    def get_restaurant_owner_id(self, obj):
+        return obj.restaurant.owner.id

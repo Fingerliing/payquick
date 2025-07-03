@@ -96,7 +96,7 @@ def test_restaurateur_sees_only_own_menus(restaurateur_user_factory, menu_factor
     client = APIClient()
     client.force_authenticate(user=user1)
 
-    url = reverse('menu-list')
+    url = reverse('menus-list')
     response = client.get(url)
 
     assert response.status_code == 200

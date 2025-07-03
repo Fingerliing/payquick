@@ -7,6 +7,7 @@ from django.contrib.auth.models import User, Group
 from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory
 from api.permissions import IsInGroup, IsRestaurateur, IsAdmin, IsClient
+from .factories import UserFactory
 
 
 @pytest.fixture
@@ -60,3 +61,12 @@ def test_is_client_permission(user_with_groups):
 
     permission = IsInGroup(groups=["client"])
     assert permission.has_permission(request, None) is True
+
+@pytest.mark.django_db
+def test_is_restaurateur_permission_rejects_user_without_group():
+    user = UserFactory()
+    factory = APIRequestFactory()
+    request = factory.get("/")
+    request.user = user
+    perm = IsRestaurateur()
+    assert not perm.has_permission(request, None)
