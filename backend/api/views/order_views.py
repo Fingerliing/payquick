@@ -2,11 +2,9 @@ from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
-from api.models import Restaurant, Table, Order, OrderItem, Menu, MenuItem, RestaurateurProfile
+from api.models import Restaurant, Table, Order, OrderItem, Menu, MenuItem
 from api.serializers.order_serializers import OrderSerializer
-from api.permissions import IsRestaurateur
 from api.utils.order_utils import notify_order_updated
 
 class OrderViewSet(viewsets.ModelViewSet):
@@ -53,8 +51,6 @@ class OrderViewSet(viewsets.ModelViewSet):
             return Response({"error": "Restaurant not found."}, status=404)
         except Table.DoesNotExist:
             return Response({"error": "Table not found."}, status=404)
-        except RestaurateurProfile.DoesNotExist:
-            return Response({"error": "Restaurateur not found."}, status=404)
 
         order = Order.objects.create(
             restaurant=restaurant,
@@ -118,8 +114,9 @@ class OrderViewSet(viewsets.ModelViewSet):
             "items": contenu
         })
 
-    @action(detail=False, methods=["get"], url_path="by_restaurant/(?P<restaurant_id>[^/.]+)")
-    def by_restaurant_path(self, request, restaurant_id=None):
+    @action(detail=False, methods=["get"], url_path="by_restaurant", url_name="by-restaurant")
+    def by_restaurant_path(self, request):
+        restaurant_id = request.query_params.get("restaurant_id")
         """Retourne les commandes associées à un restaurant donné (admin/staff)."""
         if not restaurant_id:
             return Response({"error": "Missing restaurant_id"}, status=400)

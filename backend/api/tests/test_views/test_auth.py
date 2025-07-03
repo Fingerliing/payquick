@@ -4,6 +4,7 @@
 
 import pytest
 from django.contrib.auth.models import User
+from api.models import ClientProfile, RestaurateurProfile
 from rest_framework.test import APIClient
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -57,3 +58,29 @@ def test_me_view_unauthenticated():
     response = client.get("/api/v1/auth/me/")
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+@pytest.mark.django_db
+def test_me_view_with_client_profile():
+    user = User.objects.create_user(username="clientuser", password="secret")
+    ClientProfile.objects.create(user=user)
+
+    token = RefreshToken.for_user(user)
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {str(token.access_token)}")
+
+    response = client.get("/api/v1/auth/me/")
+    assert response.status_code == 200
+    assert response.data["role"] == "client"
+
+@pytest.mark.django_db
+def test_me_view_with_restaurateur_profile():
+    user = User.objects.create_user(username="restouser", password="secret")
+    RestaurateurProfile.objects.create(user=user, siret="12345678901234")
+
+    token = RefreshToken.for_user(user)
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {str(token.access_token)}")
+
+    response = client.get("/api/v1/auth/me/")
+    assert response.status_code == 200
+    assert response.data["role"] == "restaurateur"

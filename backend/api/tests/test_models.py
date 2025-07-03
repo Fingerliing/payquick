@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import pytest
+from rest_framework.test import APIClient
 from django.core.exceptions import ValidationError
+from django.urls import reverse
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from api.models import (
@@ -10,7 +12,13 @@ from api.models import (
     MenuItem,
     validate_siret
 )
-from .factories import RestaurantFactory, OrderFactory, TableFactory
+from .factories import (
+    RestaurantFactory,
+    OrderFactory,
+    TableFactory,
+    MenuFactory,
+    RestaurateurProfileFactory
+)
 
 # ---------------------------------------------------------------------
 # Tests for the RestaurateurProfile model
@@ -344,8 +352,7 @@ def test_order_str_method(restaurateur_profile):
     )
 
     expected = f"Table {table.identifiant} - Servie - Payée"
-    actual = f"Table {order.table.identifiant} - {order.get_status_display()} - {'Payée' if order.is_paid else 'Non payée'}"
-    assert actual == expected
+    assert str(order) == expected
 
 # ---------------------------------------------------------------------
 # Tests for the OrderItem model
@@ -422,3 +429,30 @@ def test_order_item_str(restaurateur_profile):
     )
 
     assert str(order_item) == f"2x {item.name} (Commande #{order.id})"
+
+# ---------------------------------------------------------------------
+# Tests for the menu_save
+# ---------------------------------------------------------------------
+
+@pytest.mark.django_db
+def test_toggle_disponible_disables_other_menus():
+    profile = RestaurateurProfileFactory()
+    client = APIClient()
+    client.force_authenticate(user=profile.user)
+
+    # Crée 3 menus pour le même restaurant
+    menu1 = MenuFactory(restaurant__owner=profile)
+    menu2 = MenuFactory(restaurant=menu1.restaurant)
+    menu3 = MenuFactory(restaurant=menu1.restaurant)
+
+    url = reverse("menus-toggle-disponible", kwargs={"pk": menu2.id})
+    response = client.post(url)
+
+    assert response.status_code == 200
+    menu1.refresh_from_db()
+    menu2.refresh_from_db()
+    menu3.refresh_from_db()
+
+    assert menu2.disponible is True
+    assert not menu1.disponible
+    assert not menu3.disponible
