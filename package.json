@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@stripe/stripe-react-native": "^0.49.0",
     "@types/react-toastify": "^4.0.2",
     "leaflet": "^1.9.4",
     "react-leaflet": "^5.0.0",
