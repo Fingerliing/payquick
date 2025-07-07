@@ -1,75 +1,211 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  RefreshControl,
+  ViewStyle,
+  TextStyle,
+} from 'react-native';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRestaurant } from '@/contexts/RestaurantContext';
+import { useOrder } from '@/contexts/OrderContext';
+import { Header } from '@/components/ui/Header';
+import { Card } from '@/components/ui/Card';
+import { Loading } from '@/components/ui/Loading';
+import { RestaurantCard } from '@/components/restaurant/RestaurantCard';
+import { router } from 'expo-router';
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+export default function DashboardScreen() {
+  const { user } = useAuth();
+  const { restaurants, loadRestaurants, isLoading: restaurantsLoading } = useRestaurant();
+  const { orders, loadOrders, isLoading: ordersLoading } = useOrder();
+  const [refreshing, setRefreshing] = useState(false);
 
-export default function HomeScreen() {
+  useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  const loadInitialData = async () => {
+    try {
+      await Promise.all([
+        loadRestaurants(),
+        loadOrders({ limit: 5 }),
+      ]);
+    } catch (error) {
+      console.error('Erreur lors du chargement des données:', error);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadInitialData();
+    setRefreshing(false);
+  };
+
+  const containerStyle: ViewStyle = {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+  };
+
+  const greetingStyle: TextStyle = {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 4,
+  };
+
+  const subtitleStyle: TextStyle = {
+    fontSize: 16,
+    color: '#6B7280',
+    marginBottom: 24,
+  };
+
+  const sectionTitleStyle: TextStyle = {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 12,
+    paddingHorizontal: 16,
+  };
+
+  const statsRowStyle: ViewStyle = {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    marginBottom: 24,
+  };
+
+  const statCardStyle: ViewStyle = {
+    flex: 1,
+    marginHorizontal: 4,
+  };
+
+  const statValueStyle: TextStyle = {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#3B82F6',
+    textAlign: 'center',
+  };
+
+  const statLabelStyle: TextStyle = {
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginTop: 4,
+  };
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Bonjour';
+    if (hour < 18) return 'Bon après-midi';
+    return 'Bonsoir';
+  };
+
+  if (restaurantsLoading && restaurants.length === 0) {
+    return (
+      <View style={containerStyle}>
+        <Header title="PayQuick" />
+        <Loading fullScreen text="Chargement du tableau de bord..." />
+      </View>
+    );
+  }
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    <View style={containerStyle}>
+      <Header 
+        title="PayQuick" 
+        rightIcon="notifications-outline"
+        onRightPress={() => {/* Gérer les notifications */}}
+      />
+      
+      <ScrollView
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        <View style={{ padding: 16 }}>
+          <Text style={greetingStyle}>
+            {getGreeting()}, {user?.firstName} !
+          </Text>
+          <Text style={subtitleStyle}>
+            Voici un aperçu de votre activité
+          </Text>
+        </View>
+
+        {/* Statistiques rapides */}
+        <View style={statsRowStyle}>
+          <Card style={statCardStyle}>
+            <Text style={statValueStyle}>{restaurants.length}</Text>
+            <Text style={statLabelStyle}>Restaurants</Text>
+          </Card>
+          
+          <Card style={statCardStyle}>
+            <Text style={statValueStyle}>{orders.length}</Text>
+            <Text style={statLabelStyle}>Commandes</Text>
+          </Card>
+          
+          <Card style={statCardStyle}>
+            <Text style={statValueStyle}>
+              {restaurants.filter(r => r.isActive).length}
+            </Text>
+            <Text style={statLabelStyle}>Actifs</Text>
+          </Card>
+        </View>
+
+        {/* Restaurants récents */}
+        <Text style={sectionTitleStyle}>Vos restaurants</Text>
+        {restaurants.slice(0, 3).map((restaurant) => (
+          <RestaurantCard
+            key={restaurant.id}
+            restaurant={restaurant}
+            onPress={() => router.push(`/restaurant/${restaurant.id}`)}
+          />
+        ))}
+
+        {/* Commandes récentes */}
+        <Text style={sectionTitleStyle}>Commandes récentes</Text>
+        <Card style={{ marginHorizontal: 16, marginBottom: 24 }}>
+          {ordersLoading ? (
+            <Loading text="Chargement des commandes..." />
+          ) : orders.length > 0 ? (
+            orders.slice(0, 5).map((order) => (
+              <View key={order.id} style={{ 
+                flexDirection: 'row', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                paddingVertical: 12,
+                borderBottomWidth: 1,
+                borderBottomColor: '#E5E7EB',
+              }}>
+                <View>
+                  <Text style={{ fontSize: 14, fontWeight: '500', color: '#111827' }}>
+                    {order.restaurant.name}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: '#6B7280' }}>
+                    {new Date(order.createdAt).toLocaleDateString()}
+                  </Text>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={{ fontSize: 14, fontWeight: '500', color: '#111827' }}>
+                    {order.total.toFixed(2)} €
+                  </Text>
+                  <Text style={{ 
+                    fontSize: 12, 
+                    color: order.status === 'delivered' ? '#10B981' : '#D97706',
+                    fontWeight: '500',
+                  }}>
+                    {order.status}
+                  </Text>
+                </View>
+              </View>
+            ))
+          ) : (
+            <Text style={{ textAlign: 'center', color: '#6B7280', paddingVertical: 24 }}>
+              Aucune commande récente
+            </Text>
+          )}
+        </Card>
+      </ScrollView>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
-});

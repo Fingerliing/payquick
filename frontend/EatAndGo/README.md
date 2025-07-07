@@ -1,50 +1,205 @@
-# Welcome to your Expo app 👋
+# Eat&Go
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Application mobile de gestion de restaurants développée avec React Native et Expo.
 
-## Get started
+## 🚀 Démarrage rapide
 
-1. Install dependencies
+### Prérequis
+- Node.js 18+
+- Expo CLI
+- Un émulateur Android/iOS ou un appareil physique
 
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+### Installation
 
 ```bash
-npm run reset-project
+# Cloner le repository
+git clone <votre-repo>
+cd EatAndGo
+
+# Installer les dépendances
+npm install
+
+# Configurer les variables d'environnement
+cp .env.example .env
+# Éditer .env avec vos configurations
+
+# Démarrer l'application
+npm start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### Configuration API
 
-## Learn more
+1. Assurez-vous que le backend Django est démarré sur `http://localhost:8000`
+2. Configurez `EXPO_PUBLIC_API_URL` dans le fichier `.env`
+3. Pour les tests avec un appareil physique, remplacez `localhost` par l'IP de votre machine
 
-To learn more about developing your project with Expo, look at the following resources:
+### Structure du projet
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```
+payquick-mobile/
+├── app/                    # Routes et écrans (Expo Router)
+│   ├── (auth)/            # Écrans d'authentification
+│   ├── (tabs)/            # Navigation par onglets
+│   ├── restaurant/        # Écrans de restaurant
+│   ├── menu/              # Écrans de menu
+│   └── order/             # Écrans de commande
+├── components/            # Composants réutilisables
+│   ├── ui/               # Composants UI de base
+│   ├── restaurant/       # Composants restaurant
+│   ├── menu/             # Composants menu
+│   └── order/            # Composants commande
+├── contexts/             # Contextes React
+├── services/             # Services API
+├── types/                # Types TypeScript
+├── utils/                # Utilitaires
+└── assets/               # Images, icônes, fonts
+```
 
-## Join the community
+## 📱 Fonctionnalités
 
-Join our community of developers creating universal apps.
+### Authentification
+- [x] Connexion/Inscription
+- [x] Gestion du profil utilisateur
+- [x] Stockage sécurisé des tokens
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+### Gestion des restaurants
+- [x] Liste des restaurants
+- [x] Création/édition de restaurants
+- [x] Gestion du statut (ouvert/fermé)
+- [x] Upload d'images
+- [x] Recherche et filtres
+
+### Gestion des menus
+- [x] Création de menus par restaurant
+- [x] Gestion des catégories de produits
+- [x] Ajout/édition de produits
+- [x] Gestion des variantes et add-ons
+- [x] Informations nutritionnelles
+
+### Système de commandes
+- [x] Panier de commande
+- [x] Calcul automatique des totaux
+- [x] Gestion des adresses de livraison
+- [x] Suivi des commandes
+- [x] Historique des commandes
+
+### Interface utilisateur
+- [x] Design moderne et responsive
+- [x] Navigation intuitive
+- [x] Composants réutilisables
+- [x] Gestion des états de chargement
+- [x] Validation des formulaires
+
+## 🛠️ Technologies utilisées
+
+- **React Native** - Framework mobile
+- **Expo** - Plateforme de développement
+- **TypeScript** - Typage statique
+- **Expo Router** - Navigation
+- **Axios** - Client HTTP
+- **AsyncStorage** - Stockage local
+- **React Hook Form** - Gestion des formulaires
+- **Zod** - Validation des données
+
+## 🚀 Déploiement
+
+### Build de développement
+```bash
+# Android
+eas build --platform android --profile development
+
+# iOS
+eas build --platform ios --profile development
+```
+
+### Build de production
+```bash
+# Android
+eas build --platform android --profile production
+
+# iOS
+eas build --platform ios --profile production
+```
+
+### Publication sur les stores
+```bash
+# Google Play Store
+eas submit --platform android
+
+# Apple App Store
+eas submit --platform ios
+```
+
+## 🔧 Configuration avancée
+
+### Variables d'environnement
+
+```env
+# API
+EXPO_PUBLIC_API_URL=https://your-api.com
+EXPO_PUBLIC_API_TIMEOUT=10000
+
+# Stripe
+EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
+
+# Google Maps (optionnel)
+EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=your_key
+
+# Environnement
+EXPO_PUBLIC_ENVIRONMENT=production
+```
+
+### Personnalisation
+
+1. **Couleurs** : Modifiez `utils/constants.ts` pour changer la palette de couleurs
+2. **Logos** : Remplacez les fichiers dans `assets/`
+3. **Configurations** : Adaptez `app.json` selon vos besoins
+
+## 📚 Documentation API
+
+L'application communique avec le backend Django via une API REST. Les endpoints principaux :
+
+- `POST /auth/login/` - Connexion
+- `GET /restaurants/` - Liste des restaurants
+- `POST /restaurants/` - Création de restaurant
+- `GET /menus/{id}/` - Détails d'un menu
+- `POST /orders/` - Création de commande
+
+## 🐛 Dépannage
+
+### Problèmes courants
+
+1. **Erreur de connexion API**
+   - Vérifiez que le backend est démarré
+   - Vérifiez l'URL dans `.env`
+
+2. **Erreur de build**
+   - Nettoyez le cache : `npx expo start --clear`
+   - Réinstallez les dépendances : `rm -rf node_modules && npm install`
+
+3. **Problèmes de navigation**
+   - Vérifiez que tous les écrans sont correctement configurés dans `app/`
+
+## 🤝 Contribution
+
+1. Fork le projet
+2. Créez une branche feature (`git checkout -b feature/AmazingFeature`)
+3. Committez vos changements (`git commit -m 'Add AmazingFeature'`)
+4. Push vers la branche (`git push origin feature/AmazingFeature`)
+5. Ouvrez une Pull Request
+
+## 📄 Licence
+
+Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
+
+## 👥 Équipe
+
+- **Développeur Frontend** - Développement de l'application mobile
+- **Développeur Backend** - API Django et base de données
+- **UI/UX Designer** - Design de l'interface utilisateur
+
+## 📞 Support
+
+Pour toute question ou support, contactez-nous :
+- Email: support@payquick.com
+- Issues GitHub: [Créer un ticket](https://github.com/your-repo/issues)
