@@ -108,7 +108,7 @@ export default function RegisterScreen() {
       <ScrollView contentContainerStyle={contentStyle}>
         <Card>
           <Text style={titleStyle}>Créer un compte</Text>
-          <Text style={subtitleStyle}>Rejoignez PayQuick aujourd'hui</Text>
+          <Text style={subtitleStyle}>Rejoignez Eat&Go aujourd'hui</Text>
 
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
             <Input

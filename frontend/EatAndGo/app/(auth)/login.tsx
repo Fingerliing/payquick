@@ -79,7 +79,7 @@ export default function LoginScreen() {
     >
       <ScrollView contentContainerStyle={contentStyle}>
         <Card>
-          <Text style={titleStyle}>PayQuick</Text>
+          <Text style={titleStyle}>Eat&Go</Text>
           <Text style={subtitleStyle}>Connectez-vous à votre compte</Text>
 
           <Input
@@ -109,11 +109,11 @@ export default function LoginScreen() {
             style={{ marginTop: 8 }}
           />
 
-          <TouchableOpacity onPress={() => router.push('/(auth)/forgot-password')}>
+          <TouchableOpacity onPress={() => router.push('/(auth)/forgot-password' as any)}>
             <Text style={linkStyle}>Mot de passe oublié ?</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
+          <TouchableOpacity onPress={() => router.push('/(auth)/register' as any)}>
             <Text style={linkStyle}>Pas encore de compte ? S'inscrire</Text>
           </TouchableOpacity>
         </Card>

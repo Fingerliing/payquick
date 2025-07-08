@@ -214,7 +214,7 @@ export default function RestaurantDetailScreen() {
 
           <Button
             title="Gérer les menus"
-            onPress={() => router.push(`/menu/${currentRestaurant.id}`)}
+            onPress={() => router.push(`/menu/${currentRestaurant.id}` as any)}
             variant="outline"
             fullWidth
             style={{ marginBottom: 12 }}

@@ -3,13 +3,43 @@ from pathlib import Path
 from decouple import config, Csv
 import dj_database_url
 from datetime import timedelta
+import socket
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Fonction pour obtenir l'IP locale
+def get_local_ip():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except:
+        return '127.0.0.1'
+
+LOCAL_IP = get_local_ip()
+
+# CORS Configuration pour l'app mobile
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:19006",  # Expo web
+    f"http://{LOCAL_IP}:19006",
+    "http://localhost:8081",   # Metro bundler
+    f"http://{LOCAL_IP}:8081",
+    # Ajoutez d'autres origines si nécessaire
+]
 
 # Sécurité
 SECRET_KEY = config("SECRET_KEY")
 DEBUG = config("DEBUG", cast=bool, default=False)
-ALLOWED_HOSTS = config("ALLOWED_HOSTS", cast=Csv(), default="*")
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    LOCAL_IP,
+    '0.0.0.0',
+    '192.168.1.163',
+    # Ajoutez votre domaine en production
+]
 
 # Apps Django
 INSTALLED_APPS = [

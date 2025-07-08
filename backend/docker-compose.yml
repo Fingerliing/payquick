@@ -20,7 +20,10 @@ services:
       - .env
     depends_on:
       - db
-
+    environment:
+      - DJANGO_DEBUG=True
+      - DJANGO_ALLOWED_HOST=*
+      - DJANGO_CORS_ALLOW_ALL=True
   db:
     image: postgres:15
     volumes:
