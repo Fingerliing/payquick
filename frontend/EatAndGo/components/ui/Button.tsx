@@ -1,87 +1,94 @@
 import React from 'react';
-import { TouchableOpacity, Text, ViewStyle, TextStyle, ActivityIndicator } from 'react-native';
+import {
+  TouchableOpacity,
+  Text,
+  ActivityIndicator,
+  ViewStyle,
+  TextStyle,
+  TouchableOpacityProps,
+} from 'react-native';
+import { COLORS } from '@/constants/config';
 
-interface ButtonProps {
+interface ButtonProps extends Omit<TouchableOpacityProps, 'style'> {
   title: string;
-  onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
-  size?: 'small' | 'medium' | 'large';
-  disabled?: boolean;
   loading?: boolean;
-  style?: ViewStyle;
-  textStyle?: TextStyle;
+  variant?: 'primary' | 'secondary' | 'outline';
+  size?: 'small' | 'medium' | 'large';
   fullWidth?: boolean;
+  leftIcon?: React.ReactNode;
+  rightIcon?: React.ReactNode;
+  style?: ViewStyle;
 }
 
-export const Button: React.FC<ButtonProps> = ({
+export function Button({
   title,
-  onPress,
+  loading = false,
   variant = 'primary',
   size = 'medium',
-  disabled = false,
-  loading = false,
-  style,
-  textStyle,
   fullWidth = false,
-}) => {
+  leftIcon,
+  rightIcon,
+  style,
+  disabled,
+  ...props
+}: ButtonProps) {
+  const isDisabled = disabled || loading;
+
+  // Styles de base
   const getButtonStyle = (): ViewStyle => {
     const baseStyle: ViewStyle = {
-      borderRadius: 8,
-      justifyContent: 'center',
-      alignItems: 'center',
       flexDirection: 'row',
-      opacity: disabled ? 0.6 : 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 8,
+      paddingHorizontal: 16,
     };
 
+    // Tailles
+    switch (size) {
+      case 'small':
+        baseStyle.paddingVertical = 8;
+        break;
+      case 'large':
+        baseStyle.paddingVertical = 16;
+        break;
+      default:
+        baseStyle.paddingVertical = 12;
+    }
+
+    // Largeur
     if (fullWidth) {
       baseStyle.width = '100%';
     }
 
-    // Size styles
-    switch (size) {
-      case 'small':
-        baseStyle.paddingHorizontal = 12;
-        baseStyle.paddingVertical = 6;
-        baseStyle.minHeight = 32;
-        break;
-      case 'large':
-        baseStyle.paddingHorizontal = 24;
-        baseStyle.paddingVertical = 16;
-        baseStyle.minHeight = 56;
-        break;
-      default:
-        baseStyle.paddingHorizontal = 16;
-        baseStyle.paddingVertical = 12;
-        baseStyle.minHeight = 44;
-    }
-
-    // Variant styles
+    // Variantes
     switch (variant) {
       case 'secondary':
-        baseStyle.backgroundColor = '#6B7280';
+        baseStyle.backgroundColor = COLORS.text.secondary;
         break;
       case 'outline':
         baseStyle.backgroundColor = 'transparent';
         baseStyle.borderWidth = 1;
-        baseStyle.borderColor = '#3B82F6';
-        break;
-      case 'ghost':
-        baseStyle.backgroundColor = 'transparent';
+        baseStyle.borderColor = COLORS.primary;
         break;
       default:
-        baseStyle.backgroundColor = '#3B82F6';
+        baseStyle.backgroundColor = COLORS.primary;
     }
 
-    return { ...baseStyle, ...style };
+    // État désactivé
+    if (isDisabled) {
+      baseStyle.opacity = 0.6;
+    }
+
+    return { ...baseStyle, ...(style || {}) };
   };
 
   const getTextStyle = (): TextStyle => {
     const baseStyle: TextStyle = {
       fontWeight: '600',
-      textAlign: 'center',
     };
 
-    // Size styles
+    // Tailles de texte
     switch (size) {
       case 'small':
         baseStyle.fontSize = 14;
@@ -93,36 +100,38 @@ export const Button: React.FC<ButtonProps> = ({
         baseStyle.fontSize = 16;
     }
 
-    // Variant styles
+    // Couleurs selon la variante
     switch (variant) {
       case 'outline':
-        baseStyle.color = '#3B82F6';
-        break;
-      case 'ghost':
-        baseStyle.color = '#3B82F6';
+        baseStyle.color = COLORS.primary;
         break;
       default:
-        baseStyle.color = '#FFFFFF';
+        baseStyle.color = COLORS.surface;
     }
 
-    return { ...baseStyle, ...textStyle };
+    return baseStyle;
   };
 
   return (
     <TouchableOpacity
       style={getButtonStyle()}
-      onPress={onPress}
-      disabled={disabled || loading}
-      activeOpacity={0.7}
+      disabled={isDisabled}
+      activeOpacity={0.8}
+      {...props}
     >
-      {loading && (
-        <ActivityIndicator
-          size="small"
-          color={variant === 'outline' || variant === 'ghost' ? '#3B82F6' : '#FFFFFF'}
-          style={{ marginRight: 8 }}
+      {leftIcon && !loading && leftIcon}
+      
+      {loading ? (
+        <ActivityIndicator 
+          size="small" 
+          color={variant === 'outline' ? COLORS.primary : COLORS.surface}
         />
+      ) : (
+        <>
+          <Text style={getTextStyle()}>{title}</Text>
+          {rightIcon && rightIcon}
+        </>
       )}
-      <Text style={getTextStyle()}>{title}</Text>
     </TouchableOpacity>
   );
-};
+}

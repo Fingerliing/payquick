@@ -90,7 +90,14 @@ WSGI_APPLICATION = "backend.wsgi.application"
 
 # PostgreSQL Docker Ready
 DATABASES = {
-    'default': dj_database_url.parse(config('DATABASE_URL'))
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'eatandgo',
+        'USER': 'eatuser',
+        'PASSWORD': 'eatpass',
+        'HOST': 'db',
+        'PORT': '5432',
+    }
 }
 
 # Internationalisation

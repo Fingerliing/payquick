@@ -1,18 +1,24 @@
 export interface User {
-  id: string;
+  id: number;
+  username: string;
   email: string;
-  firstName: string;
-  lastName: string;
+  first_name: string;
+  last_name: string;
+  date_joined: string;
   phone?: string;
   avatar?: string;
-  role: 'owner' | 'manager' | 'staff';
-  createdAt: string;
-  updatedAt: string;
+  is_active: boolean;
+  is_staff: boolean;
+}
+
+export interface AuthTokens {
+  access: string;
+  refresh: string;
 }
 
 export interface AuthState {
   user: User | null;
-  token: string | null;
+  tokens: AuthTokens | null;
   isLoading: boolean;
   isAuthenticated: boolean;
 }
@@ -22,10 +28,38 @@ export interface LoginCredentials {
   password: string;
 }
 
-export interface RegisterData {
+export interface RegisterCredentials {
+  username: string;
   email: string;
   password: string;
-  firstName: string;
-  lastName: string;
+  password_confirm: string;
+  first_name: string;
+  last_name: string;
   phone?: string;
+}
+
+export interface ApiError {
+  message: string;
+  status?: number;
+  field?: string;
+  errors?: Record<string, string[]>;
+}
+
+// Types pour les formulaires
+export interface FormValidationRule {
+  required?: boolean;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: RegExp;
+  custom?: (value: string) => string | null;
+}
+
+export interface FormField {
+  value: string;
+  error: string;
+  rules: FormValidationRule[];
+}
+
+export interface FormState {
+  [key: string]: FormField;
 }

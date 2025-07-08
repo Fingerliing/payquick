@@ -1,167 +1,352 @@
-import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { User, AuthState, LoginCredentials, RegisterData } from '@/types/auth';
-import { authService } from '@/services/authService';
+import { API_BASE_URL } from '../constants/config';
 
-interface AuthContextType extends AuthState {
-  login: (credentials: LoginCredentials) => Promise<void>;
-  register: (data: RegisterData) => Promise<void>;
-  logout: () => Promise<void>;
-  updateProfile: (data: Partial<User>) => Promise<void>;
-  refreshUser: () => Promise<void>;
+// Types correspondant au backend Django
+export interface User {
+  id: number;
+  username: string; // Email qui sert de username
+  first_name: string; // Le champ "nom" du backend
+  email?: string;
+  is_active: boolean;
+  is_staff: boolean;
+  date_joined: string;
+  // Profils selon le rôle
+  profile?: ClientProfile | RestaurateurProfile;
 }
 
-type AuthAction =
-  | { type: 'SET_LOADING'; payload: boolean }
-  | { type: 'SET_USER'; payload: User }
-  | { type: 'SET_TOKEN'; payload: string }
-  | { type: 'SET_AUTHENTICATED'; payload: boolean }
-  | { type: 'CLEAR_AUTH' };
+export interface ClientProfile {
+  id: number;
+  user: number;
+  phone: string;
+  // Autres champs spécifiques aux clients
+}
 
-const initialState: AuthState = {
-  user: null,
-  token: null,
-  isLoading: true,
-  isAuthenticated: false,
+export interface RestaurateurProfile {
+  id: number;
+  user: number;
+  siret: string;
+  // Autres champs spécifiques aux restaurateurs
+}
+
+export interface AuthResponse {
+  user: User;
+  access: string;
+  refresh: string;
+  message?: string;
+}
+
+export interface RegisterData {
+  username: string; // Email
+  password: string;
+  nom: string;
+  role: 'client' | 'restaurateur';
+  telephone?: string;
+  siret?: string;
+}
+
+export interface LoginData {
+  username: string; // Email
+  password: string;
+}
+
+interface AuthContextType {
+  user: User | null;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+  userRole: 'client' | 'restaurateur' | null;
+  login: (data: LoginData) => Promise<void>;
+  register: (data: RegisterData) => Promise<void>;
+  logout: () => Promise<void>;
+  refreshTokens: () => Promise<void>;
+}
+
+// Configuration API
+const API_VERSION = 'v1';
+const API_URL = `${API_BASE_URL}/api/${API_VERSION}`;
+
+const API_ENDPOINTS = {
+  auth: {
+    register: `${API_URL}/auth/register/`,
+    login: `${API_URL}/auth/login/`,
+    logout: `${API_URL}/auth/logout/`,
+    user: `${API_URL}/auth/user/`,
+    refresh: `${API_URL}/auth/refresh/`,
+  },
 };
 
-const authReducer = (state: AuthState, action: AuthAction): AuthState => {
-  switch (action.type) {
-    case 'SET_LOADING':
-      return { ...state, isLoading: action.payload };
-    case 'SET_USER':
-      return { ...state, user: action.payload, isAuthenticated: true };
-    case 'SET_TOKEN':
-      return { ...state, token: action.payload };
-    case 'SET_AUTHENTICATED':
-      return { ...state, isAuthenticated: action.payload };
-    case 'CLEAR_AUTH':
-      return { ...initialState, isLoading: false };
-    default:
-      return state;
+// Clés pour AsyncStorage
+const STORAGE_KEYS = {
+  ACCESS_TOKEN: 'access_token',
+  REFRESH_TOKEN: 'refresh_token',
+  USER_DATA: 'user_data',
+};
+
+// Classe pour gérer les appels API
+class ApiClient {
+  private async request<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<T> {
+    const config: RequestInit = {
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+      ...options,
+    };
+
+    // Ajouter le token d'authentification si disponible
+    const token = await AsyncStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+    if (token) {
+      config.headers = {
+        ...config.headers,
+        Authorization: `Bearer ${token}`,
+      };
+    }
+
+    try {
+      const response = await fetch(endpoint, config);
+      
+      if (!response.ok) {
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch {
+          errorData = { message: `HTTP error! status: ${response.status}` };
+        }
+        
+        // Si le token a expiré, essayer de le rafraîchir
+        if (response.status === 401 && token) {
+          throw new Error('TOKEN_EXPIRED');
+        }
+        
+        // Créer une erreur avec les détails du backend
+        const error = new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        (error as any).response = { status: response.status, data: errorData };
+        throw error;
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('API request failed:', error);
+      throw error;
+    }
   }
-};
 
+  async register(data: RegisterData): Promise<AuthResponse> {
+    return this.request<AuthResponse>(API_ENDPOINTS.auth.register, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async login(data: LoginData): Promise<AuthResponse> {
+    return this.request<AuthResponse>(API_ENDPOINTS.auth.login, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async logout(refreshToken: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>(API_ENDPOINTS.auth.logout, {
+      method: 'POST',
+      body: JSON.stringify({ refresh: refreshToken }),
+    });
+  }
+
+  async getCurrentUser(): Promise<{ user: User }> {
+    return this.request<{ user: User }>(API_ENDPOINTS.auth.user);
+  }
+
+  async refreshToken(refreshToken: string): Promise<{ access: string }> {
+    return this.request<{ access: string }>(API_ENDPOINTS.auth.refresh, {
+      method: 'POST',
+      body: JSON.stringify({ refresh: refreshToken }),
+    });
+  }
+}
+
+const apiClient = new ApiClient();
+
+// Contexte d'authentification
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [state, dispatch] = useReducer(authReducer, initialState);
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    checkAuthState();
-  }, []);
+  const isAuthenticated = !!user;
+  
+  // Déterminer le rôle de l'utilisateur
+  const userRole: 'client' | 'restaurateur' | null = React.useMemo(() => {
+    if (!user?.profile) return null;
+    
+    // Déterminer le rôle en fonction du type de profil
+    if ('phone' in user.profile) return 'client';
+    if ('siret' in user.profile) return 'restaurateur';
+    
+    return null;
+  }, [user]);
 
-  const checkAuthState = async () => {
+  // Sauvegarder les tokens et les données utilisateur
+  const saveAuthData = async (authResponse: AuthResponse) => {
     try {
-      const token = await AsyncStorage.getItem('auth_token');
-      const userData = await AsyncStorage.getItem('user_data');
+      await AsyncStorage.multiSet([
+        [STORAGE_KEYS.ACCESS_TOKEN, authResponse.access],
+        [STORAGE_KEYS.REFRESH_TOKEN, authResponse.refresh],
+        [STORAGE_KEYS.USER_DATA, JSON.stringify(authResponse.user)],
+      ]);
+      setUser(authResponse.user);
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde des données d\'authentification:', error);
+      throw new Error('Erreur de sauvegarde des données');
+    }
+  };
 
-      if (token && userData) {
-        const user = JSON.parse(userData);
-        dispatch({ type: 'SET_TOKEN', payload: token });
-        dispatch({ type: 'SET_USER', payload: user });
-        
-        // Vérifier si le token est encore valide
+  // Effacer les données d'authentification
+  const clearAuthData = async () => {
+    try {
+      await AsyncStorage.multiRemove([
+        STORAGE_KEYS.ACCESS_TOKEN,
+        STORAGE_KEYS.REFRESH_TOKEN,
+        STORAGE_KEYS.USER_DATA,
+      ]);
+      setUser(null);
+    } catch (error) {
+      console.error('Erreur lors de la suppression des données d\'authentification:', error);
+    }
+  };
+
+  // Rafraîchir les tokens
+  const refreshTokens = async () => {
+    try {
+      const refreshToken = await AsyncStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+      if (!refreshToken) {
+        throw new Error('Aucun token de rafraîchissement disponible');
+      }
+
+      const response = await apiClient.refreshToken(refreshToken);
+      await AsyncStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, response.access);
+    } catch (error) {
+      console.error('Erreur lors du rafraîchissement du token:', error);
+      await clearAuthData();
+      throw error;
+    }
+  };
+
+  // Vérifier l'authentification au chargement de l'app
+  const checkAuth = async () => {
+    try {
+      const userData = await AsyncStorage.getItem(STORAGE_KEYS.USER_DATA);
+      const accessToken = await AsyncStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+
+      if (userData && accessToken) {
+        // Vérifier si le token est toujours valide
         try {
-          const currentUser = await authService.getCurrentUser();
-          dispatch({ type: 'SET_USER', payload: currentUser });
-        } catch (error) {
-          // Token invalide, nettoyer le storage
-          await clearAuthData();
+          const response = await apiClient.getCurrentUser();
+          setUser(response.user);
+        } catch (error: any) {
+          if (error.message === 'TOKEN_EXPIRED') {
+            // Essayer de rafraîchir le token
+            try {
+              await refreshTokens();
+              const response = await apiClient.getCurrentUser();
+              setUser(response.user);
+            } catch (refreshError) {
+              await clearAuthData();
+            }
+          } else {
+            await clearAuthData();
+          }
         }
       }
     } catch (error) {
-      console.error('Erreur lors de la vérification de l\'état d\'authentification:', error);
+      console.error('Erreur lors de la vérification de l\'authentification:', error);
+      await clearAuthData();
     } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
+      setIsLoading(false);
     }
   };
 
-  const clearAuthData = async () => {
-    await AsyncStorage.multiRemove(['auth_token', 'user_data']);
-    dispatch({ type: 'CLEAR_AUTH' });
-  };
-
-  const login = async (credentials: LoginCredentials) => {
-    try {
-      dispatch({ type: 'SET_LOADING', payload: true });
-      const response = await authService.login(credentials);
-      
-      await AsyncStorage.setItem('auth_token', response.token);
-      await AsyncStorage.setItem('user_data', JSON.stringify(response.user));
-      
-      dispatch({ type: 'SET_TOKEN', payload: response.token });
-      dispatch({ type: 'SET_USER', payload: response.user });
-    } catch (error) {
-      throw error;
-    } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
-    }
-  };
-
+  // Inscription
   const register = async (data: RegisterData) => {
     try {
-      dispatch({ type: 'SET_LOADING', payload: true });
-      const response = await authService.register(data);
-      
-      await AsyncStorage.setItem('auth_token', response.token);
-      await AsyncStorage.setItem('user_data', JSON.stringify(response.user));
-      
-      dispatch({ type: 'SET_TOKEN', payload: response.token });
-      dispatch({ type: 'SET_USER', payload: response.user });
-    } catch (error) {
+      setIsLoading(true);
+      const response = await apiClient.register(data);
+      await saveAuthData(response);
+    } catch (error: any) {
+      console.error('Erreur lors de l\'inscription:', error);
       throw error;
     } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
+      setIsLoading(false);
     }
   };
 
+  // Connexion
+  const login = async (data: LoginData) => {
+    try {
+      setIsLoading(true);
+      const response = await apiClient.login(data);
+      await saveAuthData(response);
+    } catch (error: any) {
+      console.error('Erreur lors de la connexion:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Déconnexion
   const logout = async () => {
     try {
-      await authService.logout();
+      const refreshToken = await AsyncStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+      if (refreshToken) {
+        try {
+          await apiClient.logout(refreshToken);
+        } catch (error) {
+          console.error('Erreur lors de la déconnexion côté serveur:', error);
+          // Continuer la déconnexion locale même si l'API échoue
+        }
+      }
     } catch (error) {
-      // Ignorer les erreurs de logout côté serveur
+      console.error('Erreur lors de la déconnexion:', error);
     } finally {
       await clearAuthData();
     }
   };
 
-  const updateProfile = async (data: Partial<User>) => {
-    try {
-      const updatedUser = await authService.updateProfile(data);
-      await AsyncStorage.setItem('user_data', JSON.stringify(updatedUser));
-      dispatch({ type: 'SET_USER', payload: updatedUser });
-    } catch (error) {
-      throw error;
-    }
-  };
-
-  const refreshUser = async () => {
-    try {
-      const user = await authService.getCurrentUser();
-      await AsyncStorage.setItem('user_data', JSON.stringify(user));
-      dispatch({ type: 'SET_USER', payload: user });
-    } catch (error) {
-      throw error;
-    }
-  };
+  // Vérifier l'authentification au montage du composant
+  useEffect(() => {
+    checkAuth();
+  }, []);
 
   const value: AuthContextType = {
-    ...state,
+    user,
+    isLoading,
+    isAuthenticated,
+    userRole,
     login,
     register,
     logout,
-    updateProfile,
-    refreshUser,
+    refreshTokens,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
 
-export const useAuth = (): AuthContextType => {
+// Hook pour utiliser le contexte d'authentification
+export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error('useAuth doit être utilisé dans un AuthProvider');
   }
   return context;
-};
+}
+
+// Export des API endpoints pour une utilisation externe si nécessaire
+export { API_ENDPOINTS, apiClient };

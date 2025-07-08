@@ -113,7 +113,8 @@ class LoginView(APIView):
     Retourne les tokens JWT s’il est valide.
     Accessible sans authentification.
     """
-
+    authentication_classes = []
+    permission_classes = []
     def post(self, request):
         username = request.data.get('username')
         password = request.data.get('password')

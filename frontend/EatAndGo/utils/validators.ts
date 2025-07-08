@@ -156,4 +156,89 @@ export class ValidationUtils {
       errors,
     };
   }
+
+  // Méthodes de validation spécifiques à PayQuick
+  static validateSiret(siret: string): boolean {
+    // Validation SIRET français (14 chiffres)
+    const siretRegex = /^\d{14}$/;
+    return siretRegex.test(siret.replace(/\s/g, ''));
+  }
+
+  static validateUserRegistration(data: {
+    username: string;
+    password: string;
+    nom: string;
+    role: 'client' | 'restaurateur';
+    telephone?: string;
+    siret?: string;
+  }): { isValid: boolean; errors: Record<string, string> } {
+    const errors: Record<string, string> = {};
+
+    // Validation nom
+    if (!this.isRequired(data.nom)) {
+      errors.nom = 'Le nom est obligatoire';
+    } else if (!this.minLength(data.nom.trim(), 2)) {
+      errors.nom = 'Le nom doit contenir au moins 2 caractères';
+    }
+
+    // Validation email (username)
+    if (!this.isRequired(data.username)) {
+      errors.username = 'L\'email est obligatoire';
+    } else if (!this.isEmail(data.username)) {
+      errors.username = 'Format d\'email invalide';
+    }
+
+    // Validation mot de passe
+    if (!this.isRequired(data.password)) {
+      errors.password = 'Le mot de passe est obligatoire';
+    } else {
+      const passwordValidation = this.isStrongPassword(data.password);
+      if (!passwordValidation.isValid) {
+        errors.password = passwordValidation.errors.join(', ');
+      }
+    }
+
+    // Validation téléphone (optionnel)
+    if (data.telephone && !this.isPhone(data.telephone)) {
+      errors.telephone = 'Format de téléphone invalide';
+    }
+
+    // Validation SIRET pour les restaurateurs
+    if (data.role === 'restaurateur') {
+      if (!this.isRequired(data.siret || '')) {
+        errors.siret = 'Le SIRET est obligatoire pour les restaurateurs';
+      } else if (data.siret && !this.validateSiret(data.siret)) {
+        errors.siret = 'Format SIRET invalide (14 chiffres)';
+      }
+    }
+
+    return {
+      isValid: Object.keys(errors).length === 0,
+      errors,
+    };
+  }
+
+  static validateUserLogin(data: {
+    username: string;
+    password: string;
+  }): { isValid: boolean; errors: Record<string, string> } {
+    const errors: Record<string, string> = {};
+
+    // Validation email
+    if (!this.isRequired(data.username)) {
+      errors.username = 'L\'email est obligatoire';
+    } else if (!this.isEmail(data.username)) {
+      errors.username = 'Format d\'email invalide';
+    }
+
+    // Validation mot de passe
+    if (!this.isRequired(data.password)) {
+      errors.password = 'Le mot de passe est obligatoire';
+    }
+
+    return {
+      isValid: Object.keys(errors).length === 0,
+      errors,
+    };
+  }
 }
