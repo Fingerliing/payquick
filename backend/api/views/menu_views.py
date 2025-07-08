@@ -6,7 +6,9 @@ from rest_framework.permissions import IsAuthenticated
 from api.models import Menu, MenuItem
 from api.serializers import MenuSerializer, MenuItemSerializer
 from api.permissions import IsRestaurateur, IsOwnerOrReadOnly
+from drf_spectacular.utils import extend_schema, OpenApiResponse
 
+@extend_schema(tags=["Menu • Menus"])
 class MenuViewSet(viewsets.ModelViewSet):
     """
     Gère les menus d'un restaurateur : création, consultation, modification, suppression.
@@ -17,7 +19,14 @@ class MenuViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return Menu.objects.filter(restaurant__owner=self.request.user.restaurateur_profile)
-
+    
+    @extend_schema(
+        summary="Activer ce menu (et désactiver les autres)",
+        description="Rend ce menu disponible et désactive tous les autres menus du même restaurant.",
+        responses={
+            200: OpenApiResponse(description="Menu activé", response=MenuSerializer)
+        }
+    )
     @action(detail=True, methods=["post"])
     def toggle_disponible(self, request, pk=None):
         """
@@ -31,6 +40,7 @@ class MenuViewSet(viewsets.ModelViewSet):
         menu.save()
         return Response({"id": menu.id, "disponible": menu.disponible})
 
+@extend_schema(tags=["Menu Items"])
 class MenuItemViewSet(viewsets.ModelViewSet):
     """
     Gère les plats (items) d'un menu : création, modification, suppression.
@@ -42,6 +52,14 @@ class MenuItemViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return MenuItem.objects.filter(menu__restaurant__owner=self.request.user.restaurateur_profile)
 
+
+    @extend_schema(
+        summary="Activer ou désactiver un item",
+        description="Change la disponibilité d'un plat sans le supprimer.",
+        responses={
+            200: OpenApiResponse(description="Disponibilité modifiée")
+        }
+    )
     @action(detail=True, methods=["post"], url_path="toggle")
     def toggle_availability(self, request, pk=None):
         """

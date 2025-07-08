@@ -5,7 +5,26 @@ from rest_framework.permissions import IsAuthenticated
 from api.models import Restaurant, Table
 from api.throttles import QRCodeThrottle
 from api.utils.qrcode_utils import generate_qr_for_table
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
 
+@extend_schema(
+    tags=["QR Code"],
+    summary="Générer les QR codes des tables",
+    description="Génère et retourne les QR codes de toutes les tables d’un restaurant appartenant au restaurateur connecté.",
+    parameters=[
+        OpenApiParameter(
+            name="restaurant_id",
+            type=int,
+            location=OpenApiParameter.PATH,
+            required=True,
+            description="ID du restaurant pour lequel générer les QR codes"
+        )
+    ],
+    responses={
+        200: OpenApiResponse(description="QR codes générés avec succès"),
+        403: OpenApiResponse(description="Non autorisé ou restaurant introuvable")
+    }
+)
 class QRCodeFactoryView(APIView):
     """
     Génère les QR codes de toutes les tables d'un restaurant appartenant au restaurateur connecté.

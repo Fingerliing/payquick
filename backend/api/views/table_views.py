@@ -3,7 +3,29 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 from api.models import Table, Menu, MenuItem
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
 
+@extend_schema(
+    tags=["Tables • Public"],
+    summary="Accès public par QR Code",
+    description=(
+        "Endpoint public sans authentification. "
+        "Permet de récupérer le menu actif d'une table scannée via QR code."
+    ),
+    parameters=[
+        OpenApiParameter(
+            name="identifiant",
+            type=str,
+            location=OpenApiParameter.PATH,
+            required=True,
+            description="Identifiant unique de la table (ex: ABC123)"
+        )
+    ],
+    responses={
+        200: OpenApiResponse(description="Menu actif et ses items"),
+        404: OpenApiResponse(description="Aucun menu actif trouvé")
+    }
+)
 class TableQRRouterView(APIView):
     """
     Endpoint public : accessible via un QR code sans authentification.

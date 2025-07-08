@@ -9,11 +9,25 @@ from django.utils.decorators import method_decorator
 from api.models import Order, RestaurateurProfile
 from api.throttles import StripeCheckoutThrottle
 import stripe
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
 
 # Initialise ta clé Stripe globale
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
 # ---------- 1. Création de la session Stripe Checkout ----------
+@extend_schema(
+    tags=["Paiement"],
+    summary="Créer une session Stripe Checkout",
+    description="Crée une session de paiement Stripe Checkout pour une commande non payée.",
+    parameters=[
+        OpenApiParameter(name='order_id', description='ID de la commande à payer', required=True, type=int, location=OpenApiParameter.PATH)
+    ],
+    responses={
+        200: OpenApiResponse(description="URL de redirection Stripe"),
+        400: OpenApiResponse(description="Commande déjà payée ou restaurateur sans compte Stripe"),
+        404: OpenApiResponse(description="Commande introuvable")
+    }
+)
 class CreateCheckoutSessionView(APIView):
     """
     Crée une session Stripe Checkout pour une commande non payée.
@@ -67,6 +81,7 @@ class CreateCheckoutSessionView(APIView):
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # ---------- 2. Webhook Stripe sécurisé ----------
+@extend_schema(exclude=True)
 @method_decorator(csrf_exempt, name='dispatch')
 class StripeWebhookView(APIView):
     permission_classes = []
@@ -109,6 +124,15 @@ class StripeWebhookView(APIView):
         return HttpResponse(status=200)
 
 # ---------- 3. Création du compte Stripe Connect ----------
+@extend_schema(
+    tags=["Stripe"],
+    summary="Créer un compte Stripe Connect",
+    description="Crée un compte Stripe pour un restaurateur et renvoie un lien d'onboarding.",
+    responses={
+        200: OpenApiResponse(description="Lien Stripe d'onboarding"),
+        400: OpenApiResponse(description="Compte déjà existant")
+    }
+)
 class CreateStripeAccountView(APIView):
     """
     Crée un compte Stripe Connect pour un restaurateur et retourne un lien d'onboarding.
@@ -142,6 +166,15 @@ class CreateStripeAccountView(APIView):
         return Response({"onboarding_url": account_link.url})
 
 # ---------- 4. Vérification du compte Stripe ----------
+@extend_schema(
+    tags=["Stripe"],
+    summary="Statut du compte Stripe",
+    description="Retourne le statut du compte Stripe du restaurateur connecté.",
+    responses={
+        200: OpenApiResponse(description="Statut Stripe"),
+        400: OpenApiResponse(description="Aucun compte Stripe lié")
+    }
+)
 class StripeAccountStatusView(APIView):
     """
     Retourne l'état de vérification Stripe d'un restaurateur (charges, virements, etc.).
@@ -164,6 +197,15 @@ class StripeAccountStatusView(APIView):
             "requirements": account.requirements
         })
 
+@extend_schema(
+    tags=["Stripe"],
+    summary="Créer une session Stripe Identity",
+    description="Crée une session de vérification d'identité Stripe pour le restaurateur connecté.",
+    responses={
+        201: OpenApiResponse(description="URL Stripe Identity"),
+        500: OpenApiResponse(description="Erreur Stripe")
+    }
+)
 class StripeIdentitySessionView(APIView):
     """
     Crée une session Stripe Identity pour le restaurateur connecté.

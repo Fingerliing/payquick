@@ -7,9 +7,14 @@ from api.models import RestaurateurProfile
 from api.serializers import RestaurateurProfileSerializer
 import stripe
 from django.conf import settings
+from drf_spectacular.utils import extend_schema, OpenApiResponse
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
+@extend_schema(
+    tags=["Admin • Restaurateurs"],
+    description="Gestion des restaurateurs par les administrateurs."
+)
 class AdminRestaurateurViewSet(viewsets.ModelViewSet):
     """
     Accès réservé aux administrateurs.
@@ -19,6 +24,11 @@ class AdminRestaurateurViewSet(viewsets.ModelViewSet):
     serializer_class = RestaurateurProfileSerializer
     permission_classes = [IsAdminUser]
 
+    @extend_schema(
+        summary="Valider les documents",
+        description="Marque le restaurateur comme validé (documents acceptés).",
+        responses={200: OpenApiResponse(description="Validation confirmée")}
+    )
     @action(detail=True, methods=['post'])
     def validate_documents(self, request, pk=None):
         restaurateur = self.get_object()
@@ -26,6 +36,11 @@ class AdminRestaurateurViewSet(viewsets.ModelViewSet):
         restaurateur.save()
         return Response({'validated': True})
 
+    @extend_schema(
+        summary="Activer le compte",
+        description="Active le compte du restaurateur (accès complet).",
+        responses={200: OpenApiResponse(description="Activation confirmée")}
+    )
     @action(detail=True, methods=['post'])
     def activate_account(self, request, pk=None):
         restaurateur = self.get_object()
@@ -33,6 +48,21 @@ class AdminRestaurateurViewSet(viewsets.ModelViewSet):
         restaurateur.save()
         return Response({'active': True})
 
+    @extend_schema(
+        summary="Consulter le statut Stripe",
+        description="Récupère l'état du compte Stripe (paiement activé, vérification, etc).",
+        responses={
+            200: {
+                'type': 'object',
+                'properties': {
+                    'charges_enabled': {'type': 'boolean'},
+                    'payouts_enabled': {'type': 'boolean'},
+                    'requirements': {'type': 'object'},
+                }
+            },
+            400: OpenApiResponse(description="Aucun compte Stripe lié")
+        }
+    )
     @action(detail=True, methods=['get'])
     def stripe_status(self, request, pk=None):
         restaurateur = self.get_object()

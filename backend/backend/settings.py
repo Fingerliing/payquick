@@ -122,17 +122,20 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 
-    "DEFAULT_THROTTLE_CLASSES": [
-        "rest_framework.throttling.UserRateThrottle",
-        "rest_framework.throttling.AnonRateThrottle",
-        "api.throttles.QRCodeThrottle",
-        "api.throttles.RegisterThrottle",
-        "api.throttles.StripeCheckoutThrottle"
-    ],
-    "DEFAULT_THROTTLE_RATES": {
-        "user": "1000/day",
-        "anon": "50/hour",
-    },
+    "DEFAULT_THROTTLE_CLASSES": [],
+    "DEFAULT_THROTTLE_RATES": {},
+
+    # "DEFAULT_THROTTLE_CLASSES": [
+    #     "rest_framework.throttling.UserRateThrottle",
+    #     "rest_framework.throttling.AnonRateThrottle",
+    #     "api.throttles.QRCodeThrottle",
+    #     "api.throttles.RegisterThrottle",
+    #     "api.throttles.StripeCheckoutThrottle"
+    # ],
+    # "DEFAULT_THROTTLE_RATES": {
+    #     "user": "1000/day",
+    #     "anon": "50/hour",#TODO: remettre la limitation
+    # },
 }
 import sys
 if 'test' in sys.argv:

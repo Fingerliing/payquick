@@ -6,7 +6,9 @@ from django.shortcuts import get_object_or_404
 from api.models import Restaurant, Table, Order, OrderItem, Menu, MenuItem
 from api.serializers.order_serializers import OrderSerializer
 from api.utils.order_utils import notify_order_updated
+from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter
 
+@extend_schema(tags=["Order • Commandes"])
 class OrderViewSet(viewsets.ModelViewSet):
     """
     Gère les commandes dans un restaurant.
@@ -32,6 +34,33 @@ class OrderViewSet(viewsets.ModelViewSet):
             restaurant=restaurant,
             table=table
         )
+
+    @extend_schema(
+        summary="Soumettre une commande",
+        description="Crée une commande avec une liste d’items pour une table donnée.",
+        request={
+            'application/json': {
+                'type': 'object',
+                'properties': {
+                    'restaurant': {'type': 'integer'},
+                    'table_identifiant': {'type': 'string'},
+                    'items': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': {
+                                'menu_item_id': {'type': 'integer'},
+                                'quantity': {'type': 'integer'}
+                            },
+                            'required': ['menu_item_id', 'quantity']
+                        }
+                    }
+                },
+                'required': ['restaurant', 'table_identifiant', 'items']
+            }
+        },
+        responses={201: OpenApiResponse(description="Commande créée")}
+    )
     @action(detail=False, methods=["post"])
     def submit_order(self, request):
         """Crée une nouvelle commande avec une liste d’items pour une table donnée."""
@@ -68,6 +97,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 
         return Response({"order_id": order.id}, status=201)
 
+    @extend_schema(summary="Marquer comme payée")
     @action(detail=True, methods=["post"])
     def mark_paid(self, request, pk=None):
         """Marque la commande comme payée."""
@@ -77,6 +107,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         notify_order_updated(OrderSerializer(order).data)
         return Response({"is_paid": True}, status=status.HTTP_200_OK)
 
+    @extend_schema(summary="Marquer comme en cours")
     @action(detail=True, methods=["post"])
     def mark_in_progress(self, request, pk=None):
         """Passe la commande au statut "en cours de préparation"."""
@@ -86,6 +117,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         notify_order_updated(OrderSerializer(order).data)
         return Response({"status": "in_progress"}, status=status.HTTP_200_OK)
 
+    @extend_schema(summary="Marquer comme servie")
     @action(detail=True, methods=["post"])
     def mark_served(self, request, pk=None):
         """Marque la commande comme servie."""
@@ -95,6 +127,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         notify_order_updated(OrderSerializer(order).data)
         return Response({"status": "served"}, status=status.HTTP_200_OK)
 
+    @extend_schema(summary="Détails d'une commande")
     @action(detail=True, methods=["get"])
     def details(self, request, pk=None):
         """Retourne les détails d’une commande (items, quantités, prix)."""
@@ -114,6 +147,13 @@ class OrderViewSet(viewsets.ModelViewSet):
             "items": contenu
         })
 
+
+    @extend_schema(
+        summary="Lister les commandes d’un restaurant",
+        parameters=[
+            OpenApiParameter(name="restaurant_id", required=True, type=int, location=OpenApiParameter.QUERY)
+        ]
+    )
     @action(detail=False, methods=["get"], url_path="by_restaurant", url_name="by-restaurant")
     def by_restaurant_path(self, request):
         restaurant_id = request.query_params.get("restaurant_id")
@@ -125,6 +165,12 @@ class OrderViewSet(viewsets.ModelViewSet):
         serializer = OrderSerializer(orders, many=True)
         return Response(serializer.data)
 
+    @extend_schema(
+        summary="Menu actif via QR code",
+        parameters=[
+            OpenApiParameter(name="identifiant", required=True, type=str, location=OpenApiParameter.PATH)
+        ]
+    )
     @action(detail=False, methods=["get"], url_path="menu/table/(?P<identifiant>[^/.]+)")
     def menu_by_table(self, request, identifiant=None):
         """Retourne le menu actif (et ses items) d’une table identifiée via QR code."""
