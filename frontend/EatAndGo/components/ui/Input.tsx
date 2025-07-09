@@ -1,9 +1,8 @@
-import React, { useState, forwardRef } from 'react';
+import React, { forwardRef } from 'react';
 import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   ViewStyle,
   TextStyle,
   TextInputProps,
@@ -11,59 +10,41 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/config';
 
-interface InputProps extends Omit<TextInputProps, 'style'> {
+interface InputProps extends TextInputProps {
   label?: string;
   error?: string;
   leftIcon?: keyof typeof Ionicons.glyphMap;
-  rightIcon?: keyof typeof Ionicons.glyphMap;
-  onRightIconPress?: () => void;
   containerStyle?: ViewStyle;
-  inputStyle?: TextStyle; // Changé de ViewStyle à TextStyle
-  labelStyle?: TextStyle;
-  errorStyle?: TextStyle;
   fullWidth?: boolean;
   required?: boolean;
   helperText?: string;
-  style?: ViewStyle; // Pour le style du container principal
 }
 
 export const Input = forwardRef<TextInput, InputProps>(({
   label,
   error,
   leftIcon,
-  rightIcon,
-  onRightIconPress,
   containerStyle,
-  inputStyle,
-  labelStyle,
-  errorStyle,
   fullWidth = true,
   required = false,
   helperText,
-  secureTextEntry,
   style,
   ...textInputProps
 }, ref) => {
-  const [isPasswordVisible, setIsPasswordVisible] = useState(!secureTextEntry);
-  const [isFocused, setIsFocused] = useState(false);
-
   const hasError = !!error;
-  const showPasswordToggle = secureTextEntry;
 
-  // Styles de base
-  const containerBaseStyle: ViewStyle = {
+  // Styles avec support des icônes
+  const containerStyle_: ViewStyle = {
     width: fullWidth ? '100%' : undefined,
     marginBottom: 16,
-    ...style, // Style du conteneur principal
-    ...containerStyle, // Style supplémentaire du conteneur
+    ...containerStyle,
   };
 
-  const labelBaseStyle: TextStyle = {
+  const labelStyle: TextStyle = {
     fontSize: 14,
     fontWeight: '500',
     color: COLORS.text.primary,
     marginBottom: 6,
-    ...labelStyle,
   };
 
   const inputContainerStyle: ViewStyle = {
@@ -74,69 +55,49 @@ export const Input = forwardRef<TextInput, InputProps>(({
     paddingHorizontal: 12,
     paddingVertical: 12,
     backgroundColor: COLORS.surface,
-    borderColor: hasError 
-      ? COLORS.error 
-      : isFocused 
-        ? COLORS.primary 
-        : '#D1D5DB',
-    shadowColor: isFocused ? COLORS.primary : 'transparent',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: isFocused ? 2 : 0,
+    borderColor: hasError ? COLORS.error : '#D1D5DB',
+    minHeight: 48,
   };
 
   const textInputStyle: TextStyle = {
     flex: 1,
     fontSize: 16,
     color: COLORS.text.primary,
-    paddingVertical: 0, // Reset padding pour Android
+    paddingVertical: 0,
     marginLeft: leftIcon ? 8 : 0,
-    marginRight: (rightIcon || showPasswordToggle) ? 8 : 0,
-    ...inputStyle,
+    ...(style as TextStyle),
   };
 
-  const errorTextStyle: TextStyle = {
+  const errorStyle: TextStyle = {
     fontSize: 12,
     color: COLORS.error,
     marginTop: 4,
-    ...errorStyle,
   };
 
-  const helperTextStyle: TextStyle = {
+  const helperStyle: TextStyle = {
     fontSize: 12,
     color: COLORS.text.secondary,
     marginTop: 4,
   };
 
-  const iconColor = hasError 
-    ? COLORS.error 
-    : isFocused 
-      ? COLORS.primary 
-      : COLORS.text.secondary;
-
-  const handlePasswordToggle = () => {
-    setIsPasswordVisible(!isPasswordVisible);
-  };
-
   return (
-    <View style={containerBaseStyle}>
+    <View style={containerStyle_}>
       {/* Label */}
       {label && (
-        <Text style={labelBaseStyle}>
+        <Text style={labelStyle}>
           {label}
           {required && <Text style={{ color: COLORS.error }}> *</Text>}
         </Text>
       )}
 
-      {/* Input Container */}
+      {/* Input Container avec icône */}
       <View style={inputContainerStyle}>
         {/* Left Icon */}
         {leftIcon && (
           <Ionicons 
             name={leftIcon} 
             size={20} 
-            color={iconColor}
+            color={hasError ? COLORS.error : COLORS.text.secondary}
           />
         )}
 
@@ -144,50 +105,21 @@ export const Input = forwardRef<TextInput, InputProps>(({
         <TextInput
           ref={ref}
           style={textInputStyle}
-          secureTextEntry={secureTextEntry && !isPasswordVisible}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          placeholderTextColor={COLORS.text.light}
+          placeholderTextColor={COLORS.text.light || '#9CA3AF'}
+          editable={true}
+          selectTextOnFocus={false}
           {...textInputProps}
         />
-
-        {/* Password Toggle */}
-        {showPasswordToggle && (
-          <TouchableOpacity 
-            onPress={handlePasswordToggle}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons 
-              name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'} 
-              size={20} 
-              color={iconColor}
-            />
-          </TouchableOpacity>
-        )}
-
-        {/* Right Icon */}
-        {rightIcon && !showPasswordToggle && (
-          <TouchableOpacity 
-            onPress={onRightIconPress}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons 
-              name={rightIcon} 
-              size={20} 
-              color={iconColor}
-            />
-          </TouchableOpacity>
-        )}
       </View>
 
-      {/* Error Message */}
+      {/* Error */}
       {hasError && (
-        <Text style={errorTextStyle}>{error}</Text>
+        <Text style={errorStyle}>{error}</Text>
       )}
 
       {/* Helper Text */}
       {!hasError && helperText && (
-        <Text style={helperTextStyle}>{helperText}</Text>
+        <Text style={helperStyle}>{helperText}</Text>
       )}
     </View>
   );

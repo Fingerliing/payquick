@@ -5,10 +5,11 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from api.models import ClientProfile, RestaurateurProfile
-from api.serializers import RegisterSerializer
+from api.serializers import RegisterSerializer, UserResponseSerializer
 from api.throttles import RegisterThrottle
 from django.contrib.auth import authenticate
 from drf_spectacular.utils import extend_schema
+from django.db import IntegrityError
 
 @extend_schema(
     tags=["Auth"],
@@ -21,6 +22,15 @@ from drf_spectacular.utils import extend_schema
             'properties': {
                 'access': {'type': 'string'},
                 'refresh': {'type': 'string'},
+                'user': {
+                    'type': 'object',
+                    'properties': {
+                        'username': {'type': 'string'},
+                        'email': {'type': 'string'},
+                        'first_name': {'type': 'string'},
+                        'role': {'type': 'string'},
+                    }
+                }
             }
         },
         400: {'description': 'Erreur de validation'}
@@ -35,13 +45,19 @@ class RegisterView(APIView):
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
-            user = serializer.save()
-            refresh = RefreshToken.for_user(user)
-            return Response({
-                "access": str(refresh.access_token),
-                "refresh": str(refresh),
-            }, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                user = serializer.save()
+            except IntegrityError:
+                return Response({'email': ['Cet email est déjà utilisé.']}, status=status.HTTP_400_BAD_REQUEST)
+        
+        refresh = RefreshToken.for_user(user)
+        user_data = UserResponseSerializer(user).data
+
+        return Response({
+            "access": str(refresh.access_token),
+            "refresh": str(refresh),
+            "user": user_data
+        }, status=status.HTTP_201_CREATED)
 
 @extend_schema(
     tags=["Auth"],

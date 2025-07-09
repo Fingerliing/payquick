@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Platform,
   ViewStyle,
   TextStyle,
+  TextInput,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
@@ -31,7 +32,8 @@ export default function LoginScreen() {
     username: '',
     password: '',
   });
-  
+  const passwordRef = useRef<TextInput>(null);
+  const usernameRef = useRef<TextInput>(null);
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
@@ -170,11 +172,12 @@ export default function LoginScreen() {
       >
         <Card>
           {/* En-tête */}
-          <Text style={titleStyle}>PayQuick</Text>
+          <Text style={titleStyle}>Eat&Go</Text>
           <Text style={subtitleStyle}>Connectez-vous à votre compte</Text>
 
           {/* Formulaire de connexion */}
           <Input
+            ref={usernameRef}
             label="Email"
             placeholder="votre@email.com"
             value={formData.username}
@@ -188,6 +191,7 @@ export default function LoginScreen() {
           />
 
           <Input
+            ref={passwordRef}
             label="Mot de passe"
             placeholder="••••••••"
             value={formData.password}

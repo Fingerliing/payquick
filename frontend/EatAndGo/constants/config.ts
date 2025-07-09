@@ -2,8 +2,12 @@ import Constants from 'expo-constants';
 
 // Configuration de l'API
 export const API_BASE_URL = __DEV__ 
-  ? 'http://localhost:8000' // Développement
+  ? process.env.EXPO_PUBLIC_API_BASE_URL || 'http://192.168.1.163:8000' // Développement
   : Constants.expoConfig?.extra?.apiUrl || 'https://your-production-api.com'; // Production
+
+if (!API_BASE_URL) {
+  console.warn('⚠️ API_BASE_URL est undefined ! Vérifie ton .env et que EXPO_PUBLIC_API_BASE_URL est bien défini.');
+}
 
 export const API_VERSION = 'v1';
 export const API_TIMEOUT = 10000; // 10 secondes

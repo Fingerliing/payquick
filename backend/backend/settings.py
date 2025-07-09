@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     "api",
     "rest_framework",
     "rest_framework_simplejwt",
+    'rest_framework.authtoken',
     "drf_spectacular",
     "corsheaders",
     "storages",  # S3
@@ -180,3 +181,29 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 #SWAGGER
 SWAGGER_USE_COMPAT_RENDERERS = False
 
+# LOGS
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {  # ← tout vers la console Docker
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',  # Tu peux mettre DEBUG pour plus de détails
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['console'],
+            'level': 'ERROR',  # Affiche les erreurs 500, etc.
+            'propagate': False,
+        },
+    },
+}

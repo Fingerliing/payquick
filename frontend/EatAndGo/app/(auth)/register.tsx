@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,28 +9,100 @@ import {
   Platform,
   ViewStyle,
   TextStyle,
+  TextInput,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
-import { RoleSelector } from '@/components/ui/RoleSelector';
 import { ValidationUtils } from '@/utils/validators';
 
 interface RegisterFormData {
-  username: string; // Email qui servira de username
+  username: string;
   password: string;
-  confirmPassword: string; // Pour validation côté client
+  confirmPassword: string;
   nom: string;
   role: 'client' | 'restaurateur';
   telephone: string;
-  siret: string; // Seulement pour les restaurateurs
+  siret: string;
 }
 
 interface FormErrors {
   [key: string]: string;
 }
+
+const styles = {
+  container: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+  } as ViewStyle,
+  
+  content: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 32,
+  } as ViewStyle,
+  
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#111827',
+    textAlign: 'center',
+    marginBottom: 8,
+  } as TextStyle,
+  
+  subtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 32,
+  } as TextStyle,
+  
+  link: {
+    color: '#3B82F6',
+    fontWeight: '500',
+    textAlign: 'center',
+    marginTop: 16,
+  } as TextStyle,
+  
+  passwordHint: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 4,
+    marginBottom: 8,
+  } as TextStyle,
+  
+  roleSelector: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    borderRadius: 8,
+    overflow: 'hidden',
+  } as ViewStyle,
+  
+  roleButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+  } as ViewStyle,
+  
+  roleButtonActive: {
+    backgroundColor: '#3B82F6',
+  } as ViewStyle,
+  
+  roleButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+  } as TextStyle,
+  
+  roleButtonTextActive: {
+    color: '#FFFFFF',
+  } as TextStyle,
+};
 
 export default function RegisterScreen() {
   const [formData, setFormData] = useState<RegisterFormData>({
@@ -46,21 +118,26 @@ export default function RegisterScreen() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
   const { register } = useAuth();
+  const usernameRef = useRef<TextInput>(null);
+  const nomRef = useRef<TextInput>(null);
+  const telephoneRef = useRef<TextInput>(null);
+  const siretRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
+  const confirmPasswordRef = useRef<TextInput>(null);
 
-  const updateField = (field: keyof RegisterFormData, value: string) => {
+  // Gestionnaire simple
+  const updateField = useCallback((field: keyof RegisterFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    // Effacer l'erreur du champ quand l'utilisateur commence à taper
     if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
     }
-  };
+  }, [errors]);
 
-  const validateSiret = (siret: string): boolean => {
-    return ValidationUtils.validateSiret(siret);
-  };
-
-  const validateForm = (): boolean => {
-    // Utiliser la méthode de validation intégrée
+  const validateForm = useCallback((): boolean => {
     const validation = ValidationUtils.validateUserRegistration({
       username: formData.username.trim().toLowerCase(),
       password: formData.password,
@@ -70,7 +147,6 @@ export default function RegisterScreen() {
       siret: formData.siret.replace(/\s/g, '')
     });
 
-    // Ajouter la validation de confirmation de mot de passe
     const newErrors = { ...validation.errors };
     if (!ValidationUtils.isRequired(formData.confirmPassword)) {
       newErrors.confirmPassword = 'Veuillez confirmer votre mot de passe';
@@ -80,9 +156,9 @@ export default function RegisterScreen() {
 
     setErrors(newErrors);
     return validation.isValid && !newErrors.confirmPassword;
-  };
+  }, [formData]);
 
-  const handleRegister = async () => {
+  const handleRegister = useCallback(async () => {
     if (!validateForm()) {
       Alert.alert('Erreur de validation', 'Veuillez corriger les erreurs dans le formulaire');
       return;
@@ -91,7 +167,6 @@ export default function RegisterScreen() {
     try {
       setIsLoading(true);
       
-      // Préparer les données selon le format attendu par le backend
       const registerData = {
         username: formData.username.trim().toLowerCase(),
         password: formData.password,
@@ -103,7 +178,6 @@ export default function RegisterScreen() {
 
       await register(registerData);
       
-      // Succès - message personnalisé selon le rôle
       const roleMessage = formData.role === 'client' 
         ? 'Votre compte client a été créé avec succès !' 
         : 'Votre compte restaurateur a été créé avec succès !';
@@ -117,7 +191,6 @@ export default function RegisterScreen() {
     } catch (error: any) {
       console.error('Erreur d\'inscription:', error);
       
-      // Gestion des erreurs spécifiques du backend
       let errorMessage = 'Une erreur est survenue lors de l\'inscription';
       
       if (error.response?.data) {
@@ -146,90 +219,50 @@ export default function RegisterScreen() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [formData, validateForm, register]);
 
-  // Styles
-  const containerStyle: ViewStyle = {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
-  };
-
-  const contentStyle: ViewStyle = {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 32,
-  };
-
-  const titleStyle: TextStyle = {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#111827',
-    textAlign: 'center',
-    marginBottom: 8,
-  };
-
-  const subtitleStyle: TextStyle = {
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-    marginBottom: 32,
-  };
-
-  const linkStyle: TextStyle = {
-    color: '#3B82F6',
-    fontWeight: '500',
-    textAlign: 'center',
-    marginTop: 16,
-  };
-
-  const passwordHintStyle: TextStyle = {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 4,
-    marginBottom: 8,
-  };
-
-  const roleDescriptionStyle: TextStyle = {
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: 8,
-    marginBottom: 16,
-    textAlign: 'center',
-    fontStyle: 'italic',
-  };
+  const buttonTitle = useMemo(() => {
+    return `S'inscrire comme ${formData.role}`;
+  }, [formData.role]);
 
   return (
     <KeyboardAvoidingView 
-      style={containerStyle} 
+      style={styles.container} 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
     >
       <ScrollView 
-        contentContainerStyle={contentStyle}
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
         <Card>
-          <Text style={titleStyle}>Créer un compte</Text>
-          <Text style={subtitleStyle}>Rejoignez PayQuick aujourd'hui</Text>
+          <Text style={styles.title}>Créer un compte</Text>
+          <Text style={styles.subtitle}>Rejoignez Eat&Go aujourd'hui</Text>
 
-          {/* Sélecteur de rôle */}
-          <RoleSelector
-            selectedRole={formData.role}
-            onRoleChange={(role) => updateField('role', role)}
-            style={{ marginBottom: 16 }}
-          />
+          {/* Sélecteur de rôle SIMPLE - inline */}
+          <View style={styles.roleSelector}>
+            <TouchableOpacity
+              style={[styles.roleButton, formData.role === 'client' && styles.roleButtonActive]}
+              onPress={() => updateField('role', 'client')}
+            >
+              <Text style={[styles.roleButtonText, formData.role === 'client' && styles.roleButtonTextActive]}>
+                Client
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.roleButton, formData.role === 'restaurateur' && styles.roleButtonActive]}
+              onPress={() => updateField('role', 'restaurateur')}
+            >
+              <Text style={[styles.roleButtonText, formData.role === 'restaurateur' && styles.roleButtonTextActive]}>
+                Restaurateur
+              </Text>
+            </TouchableOpacity>
+          </View>
 
-          <Text style={roleDescriptionStyle}>
-            {formData.role === 'client' 
-              ? 'Commandez vos plats préférés en quelques clics'
-              : 'Gérez votre restaurant et développez votre activité'
-            }
-          </Text>
-
-          {/* Nom complet */}
+          {/* INPUTS avec icônes */}
           <Input
+            ref={nomRef}
             label="Nom complet *"
             placeholder="Jean Dupont"
             value={formData.nom}
@@ -240,78 +273,78 @@ export default function RegisterScreen() {
             leftIcon="person-outline"
           />
 
-          {/* Email */}
           <Input
             label="Email *"
+            ref={usernameRef}
             placeholder="votre@email.com"
             value={formData.username}
             onChangeText={(value) => updateField('username', value)}
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
-            leftIcon="mail-outline"
             error={errors.username}
             returnKeyType="next"
+            leftIcon="mail-outline"
           />
 
-          {/* Téléphone */}
           <Input
+            ref={telephoneRef}
             label="Téléphone"
             placeholder="+33 6 12 34 56 78"
             value={formData.telephone}
             onChangeText={(value) => updateField('telephone', value)}
             keyboardType="phone-pad"
-            leftIcon="call-outline"
             error={errors.telephone}
             returnKeyType="next"
+            leftIcon="call-outline"
           />
 
-          {/* SIRET - seulement pour les restaurateurs */}
           {formData.role === 'restaurateur' && (
             <Input
+              ref={siretRef}
               label="SIRET *"
               placeholder="12345678901234"
               value={formData.siret}
               onChangeText={(value) => updateField('siret', value)}
               keyboardType="numeric"
-              leftIcon="business-outline"
               error={errors.siret}
-              returnKeyType="next"
               helperText="Numéro d'identification de votre entreprise (14 chiffres)"
+              maxLength={14}
+              returnKeyType="next"
+              leftIcon="business-outline"
             />
           )}
 
-          {/* Mot de passe */}
           <Input
+            ref={passwordRef}
             label="Mot de passe *"
             placeholder="••••••••"
             value={formData.password}
             onChangeText={(value) => updateField('password', value)}
-            secureTextEntry
-            leftIcon="lock-closed-outline"
+            secureTextEntry={true}
             error={errors.password}
             returnKeyType="next"
+            leftIcon="lock-closed-outline"
           />
-          <Text style={passwordHintStyle}>
+          <Text style={styles.passwordHint}>
             Le mot de passe doit contenir au moins 8 caractères avec majuscules, minuscules et chiffres
           </Text>
 
-          {/* Confirmation mot de passe */}
           <Input
+            ref={confirmPasswordRef}
             label="Confirmer le mot de passe *"
             placeholder="••••••••"
             value={formData.confirmPassword}
             onChangeText={(value) => updateField('confirmPassword', value)}
-            secureTextEntry
-            leftIcon="lock-closed-outline"
+            secureTextEntry={true}
             error={errors.confirmPassword}
             returnKeyType="done"
             onSubmitEditing={handleRegister}
+            leftIcon="lock-closed-outline"
           />
 
-          {/* Bouton d'inscription */}
           <Button
-            title={`S'inscrire comme ${formData.role}`}
+            title={buttonTitle}
             onPress={handleRegister}
             loading={isLoading}
             disabled={isLoading}
@@ -319,12 +352,11 @@ export default function RegisterScreen() {
             style={{ marginTop: 16 }}
           />
 
-          {/* Lien vers la connexion */}
           <TouchableOpacity 
             onPress={() => router.push('/(auth)/login')}
             disabled={isLoading}
           >
-            <Text style={linkStyle}>Déjà un compte ? Se connecter</Text>
+            <Text style={styles.link}>Déjà un compte ? Se connecter</Text>
           </TouchableOpacity>
         </Card>
       </ScrollView>

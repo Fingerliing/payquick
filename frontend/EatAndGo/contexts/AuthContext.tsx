@@ -63,7 +63,10 @@ interface AuthContextType {
 
 // Configuration API
 const API_VERSION = 'v1';
-const API_URL = `${API_BASE_URL}/api/${API_VERSION}`;
+const cleanBase = API_BASE_URL.replace(/\/+$/, '');
+console.log('API_BASE_URL =', API_BASE_URL);
+const API_URL = `${cleanBase}/api/${API_VERSION}`;
+console.log('Envoi inscription vers:', API_URL );
 
 const API_ENDPOINTS = {
   auth: {
@@ -135,6 +138,7 @@ class ApiClient {
   }
 
   async register(data: RegisterData): Promise<AuthResponse> {
+    console.log('📡 POST vers :', API_ENDPOINTS.auth.register);
     return this.request<AuthResponse>(API_ENDPOINTS.auth.register, {
       method: 'POST',
       body: JSON.stringify(data),
@@ -192,14 +196,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Sauvegarder les tokens et les données utilisateur
   const saveAuthData = async (authResponse: AuthResponse) => {
     try {
-      await AsyncStorage.multiSet([
-        [STORAGE_KEYS.ACCESS_TOKEN, authResponse.access],
-        [STORAGE_KEYS.REFRESH_TOKEN, authResponse.refresh],
-        [STORAGE_KEYS.USER_DATA, JSON.stringify(authResponse.user)],
-      ]);
-      setUser(authResponse.user);
+      const access = authResponse.access;
+      const refresh = authResponse.refresh;
+      const user = authResponse.user;
+  
+      if (!user) {
+        console.warn('⚠️ authResponse.user est undefined, stockage annulé pour user_data.');
+      }
+  
+      const itemsToStore = [
+        [STORAGE_KEYS.ACCESS_TOKEN, access],
+        [STORAGE_KEYS.REFRESH_TOKEN, refresh],
+      ];
+  
+      if (user) {
+        itemsToStore.push([STORAGE_KEYS.USER_DATA, JSON.stringify(user)]);
+      }
+  
+      await AsyncStorage.multiSet(itemsToStore as [string, string][]);
+      if (user) setUser(user);
     } catch (error) {
-      console.error('Erreur lors de la sauvegarde des données d\'authentification:', error);
+      console.error("❌ Erreur lors de la sauvegarde des données d'authentification:", error);
       throw new Error('Erreur de sauvegarde des données');
     }
   };

@@ -1,9 +1,12 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from api.models import ClientProfile, RestaurateurProfile
+from rest_framework.validators import UniqueValidator
 
 class RegisterSerializer(serializers.Serializer):
-    username = serializers.EmailField()
+    username = serializers.EmailField(
+        validators=[UniqueValidator(queryset=User.objects.all(), message="Cet email est déjà utilisé.")]
+    )
     password = serializers.CharField(write_only=True)
     nom = serializers.CharField()
     role = serializers.ChoiceField(choices=["client", "restaurateur"])
@@ -29,3 +32,21 @@ class RegisterSerializer(serializers.Serializer):
                 siret=validated_data.get("siret", ""),
             )
         return user
+
+class UserResponseSerializer(serializers.ModelSerializer):
+    role = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'first_name', 'role']
+
+    def get_role(self, obj):
+        if ClientProfile.objects.filter(user=obj).exists():
+            return "client"
+        elif RestaurateurProfile.objects.filter(user=obj).exists():
+            return "restaurateur"
+        return "unknown"
+
+class AuthRequestSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    password = serializers.CharField()
