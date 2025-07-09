@@ -30,7 +30,7 @@ export interface RestaurateurProfile {
 }
 
 export interface AuthResponse {
-  user: User;
+  user?: User; // User peut être optionnel dans la réponse de login
   access: string;
   refresh: string;
   message?: string;
@@ -63,10 +63,7 @@ interface AuthContextType {
 
 // Configuration API
 const API_VERSION = 'v1';
-const cleanBase = API_BASE_URL.replace(/\/+$/, '');
-console.log('API_BASE_URL =', API_BASE_URL);
-const API_URL = `${cleanBase}/api/${API_VERSION}`;
-console.log('Envoi inscription vers:', API_URL );
+const API_URL = `${API_BASE_URL}/api/${API_VERSION}`;
 
 const API_ENDPOINTS = {
   auth: {
@@ -109,19 +106,19 @@ class ApiClient {
     }
 
     try {
+      console.log(`🔄 API Request: ${endpoint}`, { method: config.method || 'GET', hasAuth: !!token });
+      
       const response = await fetch(endpoint, config);
+      
+      console.log(`📡 API Response: ${response.status} for ${endpoint}`);
       
       if (!response.ok) {
         let errorData;
         try {
           errorData = await response.json();
+          console.error('❌ API Error Data:', errorData);
         } catch {
           errorData = { message: `HTTP error! status: ${response.status}` };
-        }
-        
-        // Si le token a expiré, essayer de le rafraîchir
-        if (response.status === 401 && token) {
-          throw new Error('TOKEN_EXPIRED');
         }
         
         // Créer une erreur avec les détails du backend
@@ -130,15 +127,16 @@ class ApiClient {
         throw error;
       }
 
-      return await response.json();
+      const data = await response.json();
+      console.log('✅ API Success Data:', data);
+      return data;
     } catch (error) {
-      console.error('API request failed:', error);
+      console.error('💥 API request failed:', error);
       throw error;
     }
   }
 
   async register(data: RegisterData): Promise<AuthResponse> {
-    console.log('📡 POST vers :', API_ENDPOINTS.auth.register);
     return this.request<AuthResponse>(API_ENDPOINTS.auth.register, {
       method: 'POST',
       body: JSON.stringify(data),
@@ -193,45 +191,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return null;
   }, [user]);
 
-  // Sauvegarder les tokens et les données utilisateur
-  const saveAuthData = async (authResponse: AuthResponse) => {
-    try {
-      const access = authResponse.access;
-      const refresh = authResponse.refresh;
-      const user = authResponse.user;
-  
-      if (!user) {
-        console.warn('⚠️ authResponse.user est undefined, stockage annulé pour user_data.');
-      }
-  
-      const itemsToStore = [
-        [STORAGE_KEYS.ACCESS_TOKEN, access],
-        [STORAGE_KEYS.REFRESH_TOKEN, refresh],
-      ];
-  
-      if (user) {
-        itemsToStore.push([STORAGE_KEYS.USER_DATA, JSON.stringify(user)]);
-      }
-  
-      await AsyncStorage.multiSet(itemsToStore as [string, string][]);
-      if (user) setUser(user);
-    } catch (error) {
-      console.error("❌ Erreur lors de la sauvegarde des données d'authentification:", error);
-      throw new Error('Erreur de sauvegarde des données');
-    }
-  };
-
   // Effacer les données d'authentification
   const clearAuthData = async () => {
     try {
+      console.log('🗑️ Suppression des données auth');
       await AsyncStorage.multiRemove([
         STORAGE_KEYS.ACCESS_TOKEN,
         STORAGE_KEYS.REFRESH_TOKEN,
         STORAGE_KEYS.USER_DATA,
       ]);
       setUser(null);
+      console.log('✅ Données auth supprimées');
     } catch (error) {
-      console.error('Erreur lors de la suppression des données d\'authentification:', error);
+      console.error('❌ Erreur lors de la suppression des données d\'authentification:', error);
     }
   };
 
@@ -245,8 +217,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const response = await apiClient.refreshToken(refreshToken);
       await AsyncStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, response.access);
+      console.log('🔄 Token rafraîchi avec succès');
     } catch (error) {
-      console.error('Erreur lors du rafraîchissement du token:', error);
+      console.error('❌ Erreur lors du rafraîchissement du token:', error);
       await clearAuthData();
       throw error;
     }
@@ -255,31 +228,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Vérifier l'authentification au chargement de l'app
   const checkAuth = async () => {
     try {
+      console.log('🔍 Vérification de l\'authentification...');
       const userData = await AsyncStorage.getItem(STORAGE_KEYS.USER_DATA);
       const accessToken = await AsyncStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
 
       if (userData && accessToken) {
-        // Vérifier si le token est toujours valide
-        try {
-          const response = await apiClient.getCurrentUser();
-          setUser(response.user);
-        } catch (error: any) {
-          if (error.message === 'TOKEN_EXPIRED') {
-            // Essayer de rafraîchir le token
-            try {
-              await refreshTokens();
-              const response = await apiClient.getCurrentUser();
-              setUser(response.user);
-            } catch (refreshError) {
-              await clearAuthData();
-            }
-          } else {
-            await clearAuthData();
-          }
-        }
+        console.log('🔑 Données utilisateur trouvées dans le cache');
+        const parsedUser = JSON.parse(userData);
+        setUser(parsedUser);
+        console.log('✅ Authentification restaurée depuis le cache');
+      } else {
+        console.log('🔓 Aucune authentification trouvée');
       }
     } catch (error) {
-      console.error('Erreur lors de la vérification de l\'authentification:', error);
+      console.error('❌ Erreur lors de la vérification de l\'authentification:', error);
       await clearAuthData();
     } finally {
       setIsLoading(false);
@@ -290,24 +252,89 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = async (data: RegisterData) => {
     try {
       setIsLoading(true);
+      console.log('📝 Tentative d\'inscription...');
+      
       const response = await apiClient.register(data);
-      await saveAuthData(response);
+      
+      // Sauvegarder les tokens
+      await AsyncStorage.multiSet([
+        [STORAGE_KEYS.ACCESS_TOKEN, response.access],
+        [STORAGE_KEYS.REFRESH_TOKEN, response.refresh],
+      ]);
+      
+      // Si l'inscription inclut les données utilisateur, les sauvegarder
+      if (response.user) {
+        await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(response.user));
+        setUser(response.user);
+        console.log('✅ Inscription réussie avec données utilisateur');
+      } else {
+        // Créer un utilisateur basique à partir des données d'inscription
+        const basicUser: User = {
+          id: 0, // Sera mis à jour lors de la prochaine synchronisation
+          username: data.username,
+          first_name: data.nom,
+          email: data.username,
+          is_active: true,
+          is_staff: false,
+          date_joined: new Date().toISOString(),
+        };
+        
+        await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(basicUser));
+        setUser(basicUser);
+        console.log('✅ Inscription réussie avec données utilisateur basiques');
+      }
+      
     } catch (error: any) {
-      console.error('Erreur lors de l\'inscription:', error);
+      console.error('❌ Erreur lors de l\'inscription:', error);
+      await clearAuthData();
       throw error;
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Connexion
+  // Connexion simplifiée
   const login = async (data: LoginData) => {
     try {
       setIsLoading(true);
+      console.log('🔐 Tentative de connexion...');
+      
       const response = await apiClient.login(data);
-      await saveAuthData(response);
+      console.log('✅ Réponse de connexion reçue:', { 
+        hasUser: !!response.user, 
+        hasAccess: !!response.access, 
+        hasRefresh: !!response.refresh 
+      });
+      
+      // Sauvegarder les tokens
+      await AsyncStorage.multiSet([
+        [STORAGE_KEYS.ACCESS_TOKEN, response.access],
+        [STORAGE_KEYS.REFRESH_TOKEN, response.refresh],
+      ]);
+      console.log('💾 Tokens sauvegardés');
+      
+      // Créer un utilisateur basique à partir des données de connexion
+      const basicUser: User = {
+        id: 0, // Sera mis à jour lors de la prochaine synchronisation
+        username: data.username,
+        first_name: data.username.split('@')[0], // Utiliser la partie avant @ comme nom
+        email: data.username,
+        is_active: true,
+        is_staff: false,
+        date_joined: new Date().toISOString(),
+      };
+      
+      // Si la réponse contient les données utilisateur, les utiliser
+      const userToSave = response.user || basicUser;
+      
+      await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(userToSave));
+      setUser(userToSave);
+      
+      console.log('✅ Connexion réussie avec utilisateur:', userToSave.username);
+      
     } catch (error: any) {
-      console.error('Erreur lors de la connexion:', error);
+      console.error('❌ Erreur lors de la connexion:', error);
+      await clearAuthData();
       throw error;
     } finally {
       setIsLoading(false);
@@ -317,19 +344,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Déconnexion
   const logout = async () => {
     try {
+      console.log('🚪 Déconnexion...');
       const refreshToken = await AsyncStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
       if (refreshToken) {
         try {
           await apiClient.logout(refreshToken);
+          console.log('✅ Déconnexion côté serveur réussie');
         } catch (error) {
-          console.error('Erreur lors de la déconnexion côté serveur:', error);
+          console.error('⚠️ Erreur lors de la déconnexion côté serveur:', error);
           // Continuer la déconnexion locale même si l'API échoue
         }
       }
     } catch (error) {
-      console.error('Erreur lors de la déconnexion:', error);
+      console.error('❌ Erreur lors de la déconnexion:', error);
     } finally {
       await clearAuthData();
+      console.log('✅ Déconnexion locale terminée');
     }
   };
 
