@@ -104,7 +104,7 @@ export default function DashboardScreen() {
   if (restaurantsLoading && restaurants.length === 0) {
     return (
       <View style={containerStyle}>
-        <Header title="PayQuick" />
+        <Header title="Eat&Go" />
         <Loading fullScreen text="Chargement du tableau de bord..." />
       </View>
     );
@@ -113,7 +113,7 @@ export default function DashboardScreen() {
   return (
     <View style={containerStyle}>
       <Header 
-        title="PayQuick" 
+        title="Eat&Go" 
         rightIcon="notifications-outline"
         onRightPress={() => {/* Gérer les notifications */}}
       />
@@ -125,7 +125,7 @@ export default function DashboardScreen() {
       >
         <View style={{ padding: 16 }}>
           <Text style={greetingStyle}>
-            {getGreeting()}, {user?.firstName} !
+            {getGreeting()}, {user?.first_name} !
           </Text>
           <Text style={subtitleStyle}>
             Voici un aperçu de votre activité
