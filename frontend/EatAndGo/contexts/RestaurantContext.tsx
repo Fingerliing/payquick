@@ -95,6 +95,11 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
   const loadRestaurants = async (filters?: SearchFilters, page = 1) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
+      console.log('📤 Requête vers getRestaurants avec :', {
+        page,
+        limit: state.pagination.limit,
+        filters: filters || state.filters,
+      });
       const response = await restaurantService.getRestaurants({
         page,
         limit: state.pagination.limit,

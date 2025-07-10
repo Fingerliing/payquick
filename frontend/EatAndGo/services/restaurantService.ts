@@ -8,39 +8,39 @@ export class RestaurantService {
     limit?: number;
     filters?: SearchFilters;
   }): Promise<PaginatedResponse<Restaurant>> {
-    return apiClient.get('/restaurants/', params);
+    return apiClient.get('api/v1/restaurants/', params);
   }
 
   async getRestaurant(id: string): Promise<Restaurant> {
-    return apiClient.get(`/restaurants/${id}/`);
+    return apiClient.get(`api/v1/restaurants/${id}/`);
   }
 
   async createRestaurant(data: Omit<Restaurant, 'id' | 'createdAt' | 'updatedAt'>): Promise<Restaurant> {
-    return apiClient.post('/restaurants/', data);
+    return apiClient.post('api/v1/restaurants/', data);
   }
 
   async updateRestaurant(id: string, data: Partial<Restaurant>): Promise<Restaurant> {
-    return apiClient.patch(`/restaurants/${id}/`, data);
+    return apiClient.patch(`api/v1/restaurants/${id}/`, data);
   }
 
   async deleteRestaurant(id: string): Promise<void> {
-    return apiClient.delete(`/restaurants/${id}/`);
+    return apiClient.delete(`api/v1/restaurants/${id}/`);
   }
 
   async getRestaurantStats(id: string, period?: string): Promise<RestaurantStats> {
-    return apiClient.get(`/restaurants/${id}/stats/`, { period });
+    return apiClient.get(`api/v1/restaurants/${id}/stats/`, { period });
   }
 
   async uploadRestaurantImage(id: string, file: FormData): Promise<Restaurant> {
-    return apiClient.upload(`/restaurants/${id}/image/`, file);
+    return apiClient.upload(`api/v1/restaurants/${id}/image/`, file);
   }
 
   async searchRestaurants(query: string, filters?: SearchFilters): Promise<Restaurant[]> {
-    return apiClient.get('/restaurants/search/', { query, ...filters });
+    return apiClient.get('api/v1/restaurants/search/', { query, ...filters });
   }
 
   async toggleRestaurantStatus(id: string): Promise<Restaurant> {
-    return apiClient.post(`/restaurants/${id}/toggle-status/`);
+    return apiClient.post(`api/v1/restaurants/${id}/toggle-status/`);
   }
 }
 

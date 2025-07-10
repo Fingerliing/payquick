@@ -2,35 +2,99 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../constants/config';
 
-// Types correspondant au backend Django
-export interface User {
-  id: number;
-  username: string; // Email qui sert de username
-  first_name: string; // Le champ "nom" du backend
-  email?: string;
-  is_active: boolean;
-  is_staff: boolean;
-  date_joined: string;
-  // Profils selon le rôle
-  profile?: ClientProfile | RestaurateurProfile;
-}
-
 export interface ClientProfile {
   id: number;
   user: number;
   phone: string;
-  // Autres champs spécifiques aux clients
+  type: 'client';
 }
 
 export interface RestaurateurProfile {
   id: number;
   user: number;
   siret: string;
-  // Autres champs spécifiques aux restaurateurs
+  is_validated: boolean;
+  is_active: boolean;
+  created_at: string;
+  stripe_verified: boolean;
+  stripe_account_id?: string;
+  type: 'restaurateur';
+}
+
+export interface Restaurant {
+  id: number;
+  name: string;
+  description: string;
+  address: string;
+  siret: string;
+  total_orders: number;
+  pending_orders: number;
+  menus_count: number;
+}
+
+export interface UserPermissions {
+  is_staff: boolean;
+  is_superuser: boolean;
+  can_create_restaurant: boolean;
+  can_manage_orders: boolean;
+  groups: string[];
+  user_permissions: string[];
+}
+
+export interface UserRoles {
+  is_client: boolean;
+  is_restaurateur: boolean;
+  is_staff: boolean;
+  is_admin: boolean;
+  has_validated_profile: boolean;
+}
+
+export interface RestaurateurStats {
+  total_restaurants: number;
+  total_orders: number;
+  pending_orders: number;
+  active_restaurants: number;
+}
+
+export interface ClientStats {
+  favorite_restaurants: any[];
+  total_orders: number;
+}
+
+export interface RecentOrder {
+  id: number;
+  restaurant_name: string;
+  restaurant_id?: number;
+  table: string;
+  status: 'pending' | 'in_progress' | 'served';
+  is_paid: boolean;
+  created_at: string;
+  items_count: number;
+}
+
+// Interface utilisateur complète retournée par /me
+export interface User {
+  id: number;
+  username: string;
+  email: string;
+  first_name: string;
+  is_active: boolean;
+  is_staff: boolean;
+  is_superuser: boolean;
+  date_joined: string;
+  last_login?: string;
+  role: 'client' | 'restaurateur' | null;
+  profile: ClientProfile | RestaurateurProfile;
+  restaurants: Restaurant[];
+  stats: RestaurateurStats | ClientStats;
+  permissions: UserPermissions;
+  roles: UserRoles;
+  recent_orders: RecentOrder[];
+  is_authenticated: boolean;
 }
 
 export interface AuthResponse {
-  user?: User; // User peut être optionnel dans la réponse de login
+  user?: User;
   access: string;
   refresh: string;
   message?: string;
@@ -50,17 +114,6 @@ export interface LoginData {
   password: string;
 }
 
-interface AuthContextType {
-  user: User | null;
-  isLoading: boolean;
-  isAuthenticated: boolean;
-  userRole: 'client' | 'restaurateur' | null;
-  login: (data: LoginData) => Promise<void>;
-  register: (data: RegisterData) => Promise<void>;
-  logout: () => Promise<void>;
-  refreshTokens: () => Promise<void>;
-}
-
 // Configuration API
 const API_VERSION = 'v1';
 const API_URL = `${API_BASE_URL}/api/${API_VERSION}`;
@@ -70,7 +123,7 @@ const API_ENDPOINTS = {
     register: `${API_URL}/auth/register/`,
     login: `${API_URL}/auth/login/`,
     logout: `${API_URL}/auth/logout/`,
-    user: `${API_URL}/auth/user/`,
+    user: `${API_URL}/auth/me/`,
     refresh: `${API_URL}/auth/refresh/`,
   },
 };
@@ -82,7 +135,35 @@ const STORAGE_KEYS = {
   USER_DATA: 'user_data',
 };
 
-// Classe pour gérer les appels API
+interface AuthContextType {
+  user: User | null;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+  userRole: 'client' | 'restaurateur' | null;
+  login: (data: LoginData) => Promise<void>;
+  register: (data: RegisterData) => Promise<void>;
+  logout: () => Promise<void>;
+  refreshTokens: () => Promise<void>;
+  refreshUser: () => Promise<void>;
+  
+  // Utilitaires spécifiques
+  isClient: boolean;
+  isRestaurateur: boolean;
+  hasValidatedProfile: boolean;
+  canCreateRestaurant: boolean;
+  canManageOrders: boolean;
+  
+  // Données spécifiques
+  getUserRestaurants: () => Restaurant[];
+  getUserStats: () => RestaurateurStats | ClientStats | null;
+  getPendingOrdersCount: () => number;
+  
+  // Gestion des erreurs
+  lastError: string | null;
+  clearError: () => void;
+}
+
+// Classe ApiClient améliorée
 class ApiClient {
   private async request<T>(
     endpoint: string,
@@ -96,7 +177,6 @@ class ApiClient {
       ...options,
     };
 
-    // Ajouter le token d'authentification si disponible
     const token = await AsyncStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
     if (token) {
       config.headers = {
@@ -106,7 +186,11 @@ class ApiClient {
     }
 
     try {
-      console.log(`🔄 API Request: ${endpoint}`, { method: config.method || 'GET', hasAuth: !!token });
+      console.log(`🔄 API Request: ${endpoint}`, { 
+        method: config.method || 'GET', 
+        hasAuth: !!token,
+        endpoint: endpoint
+      });
       
       const response = await fetch(endpoint, config);
       
@@ -116,22 +200,58 @@ class ApiClient {
         let errorData;
         try {
           errorData = await response.json();
-          console.error('❌ API Error Data:', errorData);
         } catch {
           errorData = { message: `HTTP error! status: ${response.status}` };
         }
         
-        // Créer une erreur avec les détails du backend
-        const error = new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        console.error(`❌ API Error ${response.status}:`, errorData);
+        
+        // Créer une erreur structurée
+        const error = new Error(this.getErrorMessage(response.status, errorData));
+        (error as any).code = response.status;
         (error as any).response = { status: response.status, data: errorData };
         throw error;
       }
 
       const data = await response.json();
-      console.log('✅ API Success Data:', data);
+      console.log('✅ API Success:', { endpoint, dataKeys: Object.keys(data) });
       return data;
     } catch (error) {
       console.error('💥 API request failed:', error);
+      throw error;
+    }
+  }
+
+  private getErrorMessage(status: number, errorData: any): string {
+    switch (status) {
+      case 400:
+        return errorData.message || 'Données invalides';
+      case 401:
+        return 'Session expirée, veuillez vous reconnecter';
+      case 403:
+        return 'Accès refusé - permissions insuffisantes';
+      case 404:
+        return 'Ressource non trouvée';
+      case 500:
+        return 'Erreur serveur, veuillez réessayer';
+      default:
+        return errorData.message || `Erreur ${status}`;
+    }
+  }
+
+  // Méthode pour gérer les erreurs 403 spécifiquement
+  async requestWithFallback<T>(
+    endpoint: string,
+    options: RequestInit = {},
+    fallbackValue: T | null = null
+  ): Promise<T | null> {
+    try {
+      return await this.request<T>(endpoint, options);
+    } catch (error: any) {
+      if (error.code === 403) {
+        console.log('🚫 Accès refusé - utilisation de la valeur de fallback');
+        return fallbackValue;
+      }
       throw error;
     }
   }
@@ -157,8 +277,8 @@ class ApiClient {
     });
   }
 
-  async getCurrentUser(): Promise<{ user: User }> {
-    return this.request<{ user: User }>(API_ENDPOINTS.auth.user);
+  async getCurrentUser(): Promise<User> {
+    return this.request<User>(API_ENDPOINTS.auth.user);
   }
 
   async refreshToken(refreshToken: string): Promise<{ access: string }> {
@@ -167,31 +287,70 @@ class ApiClient {
       body: JSON.stringify({ refresh: refreshToken }),
     });
   }
+
+  // Nouvelles méthodes pour gérer les ressources avec permissions
+  async getUserRestaurants(): Promise<Restaurant[] | null> {
+    return this.requestWithFallback<Restaurant[]>(
+      `${API_URL}/restaurants/`,
+      { method: 'GET' },
+      []
+    );
+  }
+
+  async getUserOrders(): Promise<any[] | null> {
+    return this.requestWithFallback<any[]>(
+      `${API_URL}/orders/`,
+      { method: 'GET' },
+      []
+    );
+  }
 }
 
 const apiClient = new ApiClient();
 
-// Contexte d'authentification
+// Contexte d'authentification amélioré
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [lastError, setLastError] = useState<string | null>(null);
 
-  const isAuthenticated = !!user;
+  const isAuthenticated = !!user?.is_authenticated;
+  const userRole = user?.role || null;
   
-  // Déterminer le rôle de l'utilisateur
-  const userRole: 'client' | 'restaurateur' | null = React.useMemo(() => {
-    if (!user?.profile) return null;
-    
-    // Déterminer le rôle en fonction du type de profil
-    if ('phone' in user.profile) return 'client';
-    if ('siret' in user.profile) return 'restaurateur';
-    
-    return null;
-  }, [user]);
+  const isClient = user?.roles?.is_client || false;
+  const isRestaurateur = user?.roles?.is_restaurateur || false;
+  const hasValidatedProfile = user?.roles?.has_validated_profile || false;
+  const canCreateRestaurant = user?.permissions?.can_create_restaurant || false;
+  const canManageOrders = user?.permissions?.can_manage_orders || false;
 
-  // Effacer les données d'authentification
+  // Effacer les erreurs
+  const clearError = () => setLastError(null);
+
+  // Gestion des erreurs globales
+  const handleError = (error: any, context: string) => {
+    console.error(`❌ Erreur dans ${context}:`, error);
+    
+    let errorMessage = 'Une erreur inattendue s\'est produite';
+    
+    if (error.code === 403) {
+      if (userRole === 'restaurateur' && !hasValidatedProfile) {
+        errorMessage = 'Votre profil restaurateur doit être validé pour accéder à cette fonctionnalité';
+      } else {
+        errorMessage = 'Vous n\'avez pas les permissions nécessaires';
+      }
+    } else if (error.code === 401) {
+      errorMessage = 'Votre session a expiré, veuillez vous reconnecter';
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    setLastError(errorMessage);
+    return errorMessage;
+  };
+
+  // Fonctions existantes avec gestion d'erreurs améliorée
   const clearAuthData = async () => {
     try {
       console.log('🗑️ Suppression des données auth');
@@ -201,13 +360,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         STORAGE_KEYS.USER_DATA,
       ]);
       setUser(null);
+      setLastError(null);
       console.log('✅ Données auth supprimées');
     } catch (error) {
       console.error('❌ Erreur lors de la suppression des données d\'authentification:', error);
     }
   };
 
-  // Rafraîchir les tokens
   const refreshTokens = async () => {
     try {
       const refreshToken = await AsyncStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
@@ -218,14 +377,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await apiClient.refreshToken(refreshToken);
       await AsyncStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, response.access);
       console.log('🔄 Token rafraîchi avec succès');
+      clearError();
     } catch (error) {
       console.error('❌ Erreur lors du rafraîchissement du token:', error);
+      handleError(error, 'refreshTokens');
       await clearAuthData();
       throw error;
     }
   };
 
-  // Vérifier l'authentification au chargement de l'app
+  const refreshUser = async (): Promise<void> => {
+    try {
+      console.log('🔄 Rafraîchissement des données utilisateur...');
+      const currentUser = await apiClient.getCurrentUser();
+      if (currentUser) {
+        await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(currentUser));
+        setUser(currentUser);
+        console.log('✅ Données utilisateur rafraîchies');
+        clearError();
+      }
+    } catch (error) {
+      console.error('❌ Erreur lors du rafraîchissement des données utilisateur:', error);
+      handleError(error, 'refreshUser');
+      throw error;
+    }
+  };
+
   const checkAuth = async () => {
     try {
       console.log('🔍 Vérification de l\'authentification...');
@@ -237,6 +414,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const parsedUser = JSON.parse(userData);
         setUser(parsedUser);
         console.log('✅ Authentification restaurée depuis le cache');
+        
+        // Essayer de rafraîchir les données, mais ne pas échouer si 403
+        try {
+          await refreshUser();
+        } catch (error: any) {
+          if (error.code === 403) {
+            console.log('⚠️ Accès limité - profil non validé, mais connexion maintenue');
+          } else {
+            console.warn('⚠️ Impossible de rafraîchir les données depuis le serveur:', error);
+          }
+        }
       } else {
         console.log('🔓 Aucune authentification trouvée');
       }
@@ -248,100 +436,67 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Inscription
   const register = async (data: RegisterData) => {
     try {
       setIsLoading(true);
+      clearError();
       console.log('📝 Tentative d\'inscription...');
-      
+
       const response = await apiClient.register(data);
-      
-      // Sauvegarder les tokens
+
       await AsyncStorage.multiSet([
         [STORAGE_KEYS.ACCESS_TOKEN, response.access],
         [STORAGE_KEYS.REFRESH_TOKEN, response.refresh],
       ]);
-      
-      // Si l'inscription inclut les données utilisateur, les sauvegarder
-      if (response.user) {
-        await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(response.user));
-        setUser(response.user);
-        console.log('✅ Inscription réussie avec données utilisateur');
-      } else {
-        // Créer un utilisateur basique à partir des données d'inscription
-        const basicUser: User = {
-          id: 0, // Sera mis à jour lors de la prochaine synchronisation
-          username: data.username,
-          first_name: data.nom,
-          email: data.username,
-          is_active: true,
-          is_staff: false,
-          date_joined: new Date().toISOString(),
-        };
-        
-        await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(basicUser));
-        setUser(basicUser);
-        console.log('✅ Inscription réussie avec données utilisateur basiques');
-      }
-      
+      console.log('💾 Tokens enregistrés');
+
+      const currentUser = await apiClient.getCurrentUser();
+      await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(currentUser));
+      setUser(currentUser);
+
+      console.log('✅ Inscription réussie avec données utilisateur complètes');
     } catch (error: any) {
       console.error('❌ Erreur lors de l\'inscription:', error);
+      handleError(error, 'register');
       await clearAuthData();
-      throw error;
+      throw new Error(lastError || 'Erreur lors de l\'inscription');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Connexion simplifiée
   const login = async (data: LoginData) => {
     try {
       setIsLoading(true);
+      clearError();
       console.log('🔐 Tentative de connexion...');
-      
+
       const response = await apiClient.login(data);
-      console.log('✅ Réponse de connexion reçue:', { 
-        hasUser: !!response.user, 
-        hasAccess: !!response.access, 
-        hasRefresh: !!response.refresh 
-      });
-      
-      // Sauvegarder les tokens
+
       await AsyncStorage.multiSet([
         [STORAGE_KEYS.ACCESS_TOKEN, response.access],
         [STORAGE_KEYS.REFRESH_TOKEN, response.refresh],
       ]);
-      console.log('💾 Tokens sauvegardés');
-      
-      // Créer un utilisateur basique à partir des données de connexion
-      const basicUser: User = {
-        id: 0, // Sera mis à jour lors de la prochaine synchronisation
-        username: data.username,
-        first_name: data.username.split('@')[0], // Utiliser la partie avant @ comme nom
-        email: data.username,
-        is_active: true,
-        is_staff: false,
-        date_joined: new Date().toISOString(),
-      };
-      
-      // Si la réponse contient les données utilisateur, les utiliser
-      const userToSave = response.user || basicUser;
-      
-      await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(userToSave));
-      setUser(userToSave);
-      
-      console.log('✅ Connexion réussie avec utilisateur:', userToSave.username);
-      
+      console.log('💾 Tokens enregistrés');
+
+      const currentUser = await apiClient.getCurrentUser();
+      if (currentUser) {
+        await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(currentUser));
+        setUser(currentUser);
+        console.log('👤 Utilisateur récupéré depuis /auth/me/');
+      }
+
+      console.log('✅ Connexion réussie avec données utilisateur complètes');
     } catch (error: any) {
       console.error('❌ Erreur lors de la connexion:', error);
+      handleError(error, 'login');
       await clearAuthData();
-      throw error;
+      throw new Error(lastError || 'Erreur lors de la connexion');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Déconnexion
   const logout = async () => {
     try {
       console.log('🚪 Déconnexion...');
@@ -352,7 +507,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.log('✅ Déconnexion côté serveur réussie');
         } catch (error) {
           console.error('⚠️ Erreur lors de la déconnexion côté serveur:', error);
-          // Continuer la déconnexion locale même si l'API échoue
         }
       }
     } catch (error) {
@@ -363,7 +517,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Vérifier l'authentification au montage du composant
+  // Utilitaires pour accéder aux données avec gestion d'erreurs
+  const getUserRestaurants = (): Restaurant[] => {
+    return user?.restaurants || [];
+  };
+
+  const getUserStats = (): RestaurateurStats | ClientStats | null => {
+    return user?.stats || null;
+  };
+
+  const getPendingOrdersCount = (): number => {
+    if (isRestaurateur && user?.stats) {
+      return (user.stats as RestaurateurStats).pending_orders || 0;
+    }
+    return 0;
+  };
+
+  // Méthodes pour charger des données avec gestion 403
+  const loadRestaurantsWithFallback = async (): Promise<Restaurant[]> => {
+    try {
+      const restaurants = await apiClient.getUserRestaurants();
+      return restaurants || getUserRestaurants();
+    } catch (error) {
+      handleError(error, 'loadRestaurants');
+      return getUserRestaurants();
+    }
+  };
+
   useEffect(() => {
     checkAuth();
   }, []);
@@ -377,6 +557,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     register,
     logout,
     refreshTokens,
+    refreshUser,
+    
+    // Utilitaires
+    isClient,
+    isRestaurateur,
+    hasValidatedProfile,
+    canCreateRestaurant,
+    canManageOrders,
+    
+    // Données spécifiques
+    getUserRestaurants,
+    getUserStats,
+    getPendingOrdersCount,
+    
+    // Gestion des erreurs
+    lastError,
+    clearError,
   };
 
   return (
@@ -386,7 +583,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// Hook pour utiliser le contexte d'authentification
+// Hook avec gestion d'erreurs
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
   if (context === undefined) {
@@ -395,5 +592,42 @@ export function useAuth(): AuthContextType {
   return context;
 }
 
-// Export des API endpoints pour une utilisation externe si nécessaire
+// Hook pour afficher les erreurs
+export function useAuthError() {
+  const { lastError, clearError } = useAuth();
+  
+  useEffect(() => {
+    if (lastError) {
+      console.log('🔔 Erreur d\'authentification:', lastError);
+      // Vous pouvez ajouter ici une logique pour afficher un toast/alert
+    }
+  }, [lastError]);
+  
+  return { lastError, clearError };
+}
+
+// Hooks existants...
+export function useUserRestaurants() {
+  const { getUserRestaurants } = useAuth();
+  return getUserRestaurants();
+}
+
+export function useUserStats() {
+  const { getUserStats } = useAuth();
+  return getUserStats();
+}
+
+export function useRestaurateurStats(): RestaurateurStats | null {
+  const { user, isRestaurateur } = useAuth();
+  if (isRestaurateur && user?.stats) {
+    return user.stats as RestaurateurStats;
+  }
+  return null;
+}
+
+export function usePendingOrders() {
+  const { getPendingOrdersCount } = useAuth();
+  return getPendingOrdersCount();
+}
+
 export { API_ENDPOINTS, apiClient };
