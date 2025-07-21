@@ -115,10 +115,15 @@ class RegisterSerializer(serializers.Serializer):
 class UserResponseSerializer(serializers.ModelSerializer):
     role = serializers.SerializerMethodField()
     email = serializers.SerializerMethodField()
+    has_validated_profile = serializers.SerializerMethodField()
+    stripe_account_id = serializers.SerializerMethodField()
+    stripe_onboarding_completed = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'role']
+        fields = ['id', 'username', 'email', 'first_name', 'role',
+                  'has_validated_profile','stripe_account_id',
+                  'stripe_onboarding_completed']
 
     def get_email(self, obj):
         return obj.email or obj.username
@@ -134,6 +139,35 @@ class UserResponseSerializer(serializers.ModelSerializer):
         except Exception as e:
             logger.error(f"Erreur lors de la détermination du rôle: {str(e)}")
             return "unknown"
+        
+    def get_has_validated_profile(self, obj):
+        """Retourne le statut de validation Stripe"""
+        try:
+            if hasattr(obj, 'restaurateur_profile'):
+                return obj.restaurateur_profile.stripe_verified
+            elif hasattr(obj, 'clientprofile'):
+                return True  # Les clients sont toujours validés
+            return False
+        except:
+            return False
+    
+    def get_stripe_account_id(self, obj):
+        """Retourne l'ID du compte Stripe"""
+        try:
+            if hasattr(obj, 'restaurateur_profile'):
+                return obj.restaurateur_profile.stripe_account_id
+            return None
+        except:
+            return None
+    
+    def get_stripe_onboarding_completed(self, obj):
+        """Retourne le statut de l'onboarding Stripe"""
+        try:
+            if hasattr(obj, 'restaurateur_profile'):
+                return obj.restaurateur_profile.stripe_onboarding_completed
+            return False
+        except:
+            return False
 
 class AuthRequestSerializer(serializers.Serializer):
     username = serializers.CharField()
@@ -142,6 +176,7 @@ class AuthRequestSerializer(serializers.Serializer):
 class ClientProfileSerializer(serializers.ModelSerializer):
     """Serializer pour le profil client"""
     type = serializers.SerializerMethodField()
+    has_validated_profile = serializers.SerializerMethodField()
     
     class Meta:
         model = ClientProfile
@@ -150,31 +185,53 @@ class ClientProfileSerializer(serializers.ModelSerializer):
     def get_type(self, obj):
         return 'client'
 
+    def get_has_validated_profile(self, obj):
+        return True  # Les clients sont toujours validés
+
 class RestaurateurProfileSerializer(serializers.ModelSerializer):
     """Serializer pour le profil restaurateur"""
     type = serializers.SerializerMethodField()
+    has_validated_profile = serializers.SerializerMethodField()
+    nom = serializers.SerializerMethodField()
+    siret = serializers.CharField(source='siret')
+    telephone = serializers.SerializerMethodField()
     
     class Meta:
         model = RestaurateurProfile
         fields = [
             'id', 'user', 'siret', 'is_validated', 'is_active', 
-            'created_at', 'stripe_verified', 'stripe_account_id', 'type'
+            'created_at', 'stripe_verified', 'stripe_account_id', 'type',
+            'stripe_onboarding_completed', 'stripe_account_created',
+            'has_validated_profile', 'nom', 'telephone'
         ]
     
     def get_type(self, obj):
         return 'restaurateur'
+
+    def get_has_validated_profile(self, obj):
+        return obj.stripe_verified
+    
+    def get_nom(self, obj):
+        return obj.user.first_name
+    
+    def get_telephone(self, obj):
+        # Retourner le téléphone si disponible (à adapter selon votre structure)
+        return getattr(obj, 'telephone', '')
 
 class RestaurantBasicSerializer(serializers.ModelSerializer):
     """Serializer basique pour les restaurants dans /me"""
     total_orders = serializers.SerializerMethodField()
     pending_orders = serializers.SerializerMethodField()
     menus_count = serializers.SerializerMethodField()
+    can_receive_orders = serializers.SerializerMethodField()
+    owner_stripe_validated = serializers.SerializerMethodField()
     
     class Meta:
         model = Restaurant
         fields = [
             'id', 'name', 'description', 'address', 'siret',
-            'total_orders', 'pending_orders', 'menus_count'
+            'total_orders', 'pending_orders', 'menus_count',
+            'can_receive_orders', 'owner_stripe_validated', 'is_stripe_active'
         ]
     
     def get_total_orders(self, obj):
@@ -185,6 +242,12 @@ class RestaurantBasicSerializer(serializers.ModelSerializer):
     
     def get_menus_count(self, obj):
         return Menu.objects.filter(restaurant=obj).count()
+
+    def get_can_receive_orders(self, obj):
+        return obj.can_receive_orders
+    
+    def get_owner_stripe_validated(self, obj):
+        return obj.owner.stripe_verified
 
 class UserMeSerializer(serializers.ModelSerializer):
     """Serializer complet pour la vue /me"""
@@ -198,6 +261,10 @@ class UserMeSerializer(serializers.ModelSerializer):
     recent_orders = serializers.SerializerMethodField()
     is_authenticated = serializers.SerializerMethodField()
     email = serializers.SerializerMethodField()
+    nom = serializers.SerializerMethodField()
+    telephone = serializers.SerializerMethodField()
+    siret = serializers.SerializerMethodField()
+    has_validated_profile = serializers.SerializerMethodField()
     
     class Meta:
         model = User
@@ -205,9 +272,10 @@ class UserMeSerializer(serializers.ModelSerializer):
             'id', 'username', 'email', 'first_name', 'is_active', 
             'is_staff', 'is_superuser', 'date_joined', 'last_login',
             'role', 'profile', 'restaurants', 'stats', 'permissions', 
-            'roles', 'recent_orders', 'is_authenticated'
+            'roles', 'recent_orders', 'is_authenticated',
+            'nom', 'telephone', 'siret', 'has_validated_profile'
         ]
-    
+
     def get_email(self, obj):
         return obj.email or obj.username
     
@@ -218,7 +286,39 @@ class UserMeSerializer(serializers.ModelSerializer):
         elif RestaurateurProfile.objects.filter(user=obj).exists():
             return "restaurateur"
         return "unknown"
+
+    def get_nom(self, obj):
+        return obj.first_name
     
+    def get_telephone(self, obj):
+        try:
+            if hasattr(obj, 'clientprofile'):
+                return obj.clientprofile.phone
+            elif hasattr(obj, 'restaurateur_profile'):
+                # Si vous avez un champ téléphone sur RestaurateurProfile, l'utiliser
+                return getattr(obj.restaurateur_profile, 'telephone', '')
+            return ''
+        except:
+            return ''
+    
+    def get_siret(self, obj):
+        try:
+            if hasattr(obj, 'restaurateur_profile'):
+                return obj.restaurateur_profile.siret
+            return None
+        except:
+            return None
+    
+    def get_has_validated_profile(self, obj):
+        try:
+            if hasattr(obj, 'restaurateur_profile'):
+                return obj.restaurateur_profile.stripe_verified
+            elif hasattr(obj, 'clientprofile'):
+                return True  # Les clients sont toujours validés
+            return False
+        except:
+            return False
+           
     def get_profile(self, obj):
         """Récupère le profil selon le rôle"""
         try:
@@ -262,20 +362,22 @@ class UserMeSerializer(serializers.ModelSerializer):
                     status='pending'
                 ).count()
                 
+                validated_restaurants = restaurants.filter(
+                    is_stripe_active=True
+                ).count()
+                
                 return {
                     'total_restaurants': total_restaurants,
                     'total_orders': total_orders,
                     'pending_orders': pending_orders,
-                    'active_restaurants': restaurants.filter(
-                        # Si vous avez un champ is_active sur Restaurant
-                        # is_active=True
-                    ).count() if hasattr(Restaurant, 'is_active') else total_restaurants
+                    'active_restaurants': validated_restaurants,
+                    'stripe_validated': restaurateur_profile.stripe_verified,
+                    'stripe_onboarding_completed': restaurateur_profile.stripe_onboarding_completed,
                 }
             except RestaurateurProfile.DoesNotExist:
                 return {}
         
         elif role == "client":
-            # Statistiques pour les clients
             return {
                 'favorite_restaurants': [],  # À implémenter
                 'total_orders': 0,  # À implémenter si nécessaire
@@ -287,10 +389,18 @@ class UserMeSerializer(serializers.ModelSerializer):
         """Calcule les permissions de l'utilisateur"""
         role = self.get_role(obj)
         
+        can_create_restaurant = False
+        if role == "restaurateur":
+            try:
+                restaurateur_profile = RestaurateurProfile.objects.get(user=obj)
+                can_create_restaurant = restaurateur_profile.stripe_verified
+            except RestaurateurProfile.DoesNotExist:
+                pass
+        
         return {
             'is_staff': obj.is_staff,
             'is_superuser': obj.is_superuser,
-            'can_create_restaurant': role == "restaurateur",
+            'can_create_restaurant': can_create_restaurant,
             'can_manage_orders': role == "restaurateur" or obj.is_staff,
             'groups': [group.name for group in obj.groups.all()],
             'user_permissions': [perm.codename for perm in obj.user_permissions.all()],
@@ -299,17 +409,23 @@ class UserMeSerializer(serializers.ModelSerializer):
     def get_roles(self, obj):
         """Calcule les rôles de l'utilisateur"""
         role = self.get_role(obj)
-        profile_data = self.get_profile(obj)
+        
+        has_validated_profile = False
+        if role == "restaurateur":
+            try:
+                restaurateur_profile = RestaurateurProfile.objects.get(user=obj)
+                has_validated_profile = restaurateur_profile.stripe_verified
+            except RestaurateurProfile.DoesNotExist:
+                pass
+        elif role == "client":
+            has_validated_profile = True
         
         return {
             'is_client': role == "client",
             'is_restaurateur': role == "restaurateur",
             'is_staff': obj.is_staff,
             'is_admin': obj.is_superuser,
-            'has_validated_profile': (
-                role == "restaurateur" and 
-                profile_data.get('is_validated', False)
-            ) or role == "client"
+            'has_validated_profile': has_validated_profile
         }
     
     def get_recent_orders(self, obj):

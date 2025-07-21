@@ -16,9 +16,28 @@ class RestaurateurProfile(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     stripe_verified = models.BooleanField(default=False)
     stripe_account_id = models.CharField(max_length=255, blank=True, null=True)
+    stripe_onboarding_completed = models.BooleanField(default=False)
+    stripe_account_created = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.user.username} - {self.siret}"
+    
+    @property
+    def has_validated_profile(self):
+        """Alias pour stripe_verified pour compatibilité"""
+        return self.stripe_verified
+    
+    @has_validated_profile.setter
+    def has_validated_profile(self, value):
+        """Setter pour maintenir la compatibilité"""
+        self.stripe_verified = value
+
+    @property
+    def display_name(self):
+        """Retourne le nom d'affichage du restaurateur"""
+        if hasattr(self.user, 'first_name') and self.user.first_name:
+            return self.user.first_name
+        return self.user.username
 
 class Restaurant(models.Model):
     name = models.CharField(max_length=100)
@@ -35,6 +54,15 @@ class Restaurant(models.Model):
         unique=True,
         help_text="Numéro SIRET à 14 chiffres",
     )
+    is_stripe_active = models.BooleanField(default=False)
+    @property
+    def can_receive_orders(self):
+        """Vérifie si le restaurant peut recevoir des commandes"""
+        return (
+            self.owner.stripe_verified and 
+            self.owner.is_active and 
+            self.is_stripe_active
+        )
 
 class Menu(models.Model):
     name = models.CharField(max_length=100)

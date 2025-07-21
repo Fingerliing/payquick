@@ -1,4 +1,6 @@
 from rest_framework.permissions import BasePermission, SAFE_METHODS
+from api.models import RestaurateurProfile
+import rest_framework.permissions as permissions
 
 class IsInGroup(BasePermission):
     """
@@ -30,9 +32,46 @@ class IsClient(IsInGroup):
 
 
 class IsOwnerOrReadOnly(BasePermission):
-    def has_object_permission(self, request, view, obj):
-        # Lecture autorisée pour tout utilisateur authentifié
-        if request.method in SAFE_METHODS:
+    """Permission pour les propriétaires de restaurants ou lecture seule"""
+    
+    def has_permission(self, request, view):
+        if request.method in permissions.SAFE_METHODS:
             return True
-        # Écriture autorisée uniquement pour le propriétaire
-        return obj.restaurant.owner == request.user.restaurateur_profile
+        
+        if not request.user.is_authenticated:
+            return False
+        
+        try:
+            restaurateur_profile = RestaurateurProfile.objects.get(user=request.user)
+            return restaurateur_profile.stripe_verified
+        except RestaurateurProfile.DoesNotExist:
+            return False
+    
+class IsValidatedRestaurateur(permissions.BasePermission):
+    """Permission pour les restaurateurs validés Stripe"""
+    
+    def has_permission(self, request, view):
+        if not request.user.is_authenticated:
+            return False
+        
+        try:
+            restaurateur_profile = RestaurateurProfile.objects.get(user=request.user)
+            return restaurateur_profile.stripe_verified
+        except RestaurateurProfile.DoesNotExist:
+            return False
+
+class CanCreateRestaurant(permissions.BasePermission):
+    """Permission pour créer des restaurants (restaurateurs validés seulement)"""
+    
+    def has_permission(self, request, view):
+        if request.method != 'POST':
+            return True
+        
+        if not request.user.is_authenticated:
+            return False
+        
+        try:
+            restaurateur_profile = RestaurateurProfile.objects.get(user=request.user)
+            return restaurateur_profile.stripe_verified
+        except RestaurateurProfile.DoesNotExist:
+            return False

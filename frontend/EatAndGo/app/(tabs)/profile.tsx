@@ -5,18 +5,17 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  ViewStyle,
-  TextStyle,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext'; // Utilise VOTRE AuthContext
 import { Header } from '@/components/ui/Header';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import StripeAccountStatus from '@/components/stripe/StripeAccountStatus';
 
 export default function ProfileScreen() {
-  const { user, logout } = useAuth();
+  const { user, logout, isRestaurateur } = useAuth(); // Utilise vos utilitaires
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = () => {
@@ -44,123 +43,175 @@ export default function ProfileScreen() {
     );
   };
 
-  const menuItems = [
-    {
-      icon: 'person-outline',
-      title: 'Modifier le profil',
-      onPress: () => {/* Naviguer vers édition profil */},
-    },
-    {
-      icon: 'notifications-outline',
-      title: 'Notifications',
-      onPress: () => {/* Naviguer vers paramètres notifications */},
-    },
-    {
-      icon: 'card-outline',
-      title: 'Moyens de paiement',
-      onPress: () => {/* Naviguer vers moyens de paiement */},
-    },
-    {
-      icon: 'help-circle-outline',
-      title: 'Aide et support',
-      onPress: () => {/* Naviguer vers aide */},
-    },
-    {
-      icon: 'information-circle-outline',
-      title: 'À propos',
-      onPress: () => {/* Naviguer vers à propos */},
-    },
-  ];
-
-  const containerStyle: ViewStyle = {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
+  const getInitials = (name: string) => {
+    if (!name) return 'U';
+    const words = name.split(' ');
+    if (words.length >= 2) {
+      return `${words[0].charAt(0)}${words[1].charAt(0)}`.toUpperCase();
+    }
+    return name.charAt(0).toUpperCase();
   };
 
-  const profileHeaderStyle: ViewStyle = {
-    alignItems: 'center',
-    paddingVertical: 24,
+  const getPhone = () => {
+    if (user?.profile?.type === 'client') {
+      return (user.profile as any).phone;
+    }
+    if (user?.profile?.type === 'restaurateur') {
+      return (user.profile as any).telephone;
+    }
+    return null;
   };
 
-  const avatarStyle: ViewStyle = {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#3B82F6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  };
-
-  const nameStyle: TextStyle = {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 4,
-  };
-
-  const emailStyle: TextStyle = {
-    fontSize: 14,
-    color: '#6B7280',
-  };
-
-  const menuItemStyle: ViewStyle = {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  };
-
-  const menuItemTextStyle: TextStyle = {
-    fontSize: 16,
-    color: '#111827',
-    marginLeft: 12,
-    flex: 1,
-  };
-
-  const getInitials = (firstName: string, lastName: string) => {
-    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+  const getSiret = () => {
+    if (user?.profile?.type === 'restaurateur') {
+      return (user.profile as any).siret;
+    }
+    return null;
   };
 
   return (
-    <View style={containerStyle}>
+    <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
       <Header title="Profil" />
       
       <ScrollView>
+        {/* Carte profil principal */}
         <Card style={{ margin: 16 }}>
-          <View style={profileHeaderStyle}>
-            <View style={avatarStyle}>
+          <View style={{ alignItems: 'center', paddingVertical: 24 }}>
+            <View style={{
+              width: 80,
+              height: 80,
+              borderRadius: 40,
+              backgroundColor: '#3B82F6',
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginBottom: 12,
+            }}>
               <Text style={{ fontSize: 24, fontWeight: '600', color: '#FFFFFF' }}>
-                {user ? getInitials(user.firstName, user.lastName) : 'U'}
+                {getInitials(user?.first_name || 'U')}
               </Text>
             </View>
-            <Text style={nameStyle}>
-              {user ? `${user.firstName} ${user.lastName}` : 'Utilisateur'}
+            <Text style={{
+              fontSize: 20,
+              fontWeight: '600',
+              color: '#111827',
+              marginBottom: 4,
+            }}>
+              {user?.first_name || 'Utilisateur'}
             </Text>
-            <Text style={emailStyle}>{user?.email}</Text>
+            <Text style={{
+              fontSize: 14,
+              color: '#6B7280',
+              marginBottom: 4,
+            }}>{user?.email}</Text>
+            {user?.role && (
+              <Text style={{
+                fontSize: 12,
+                color: '#3B82F6',
+                fontWeight: '500',
+                backgroundColor: '#EBF8FF',
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                borderRadius: 12,
+              }}>
+                {user.role === 'restaurateur' ? '👨‍🍳 Restaurateur' : '👤 Client'}
+              </Text>
+            )}
           </View>
         </Card>
 
+        {/* Section Stripe pour les restaurateurs */}
+        {isRestaurateur && (
+          <View style={{ marginHorizontal: 16, marginBottom: 16 }}>
+            <StripeAccountStatus />
+          </View>
+        )}
+
+        {/* Informations détaillées */}
         <Card style={{ margin: 16 }}>
-          {menuItems.map((item, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[
-                menuItemStyle,
-                index === menuItems.length - 1 && { borderBottomWidth: 0 },
-              ]}
-              onPress={item.onPress}
-              activeOpacity={0.7}
-            >
-              <Ionicons name={item.icon as any} size={24} color="#6B7280" />
-              <Text style={menuItemTextStyle}>{item.title}</Text>
-              <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
-            </TouchableOpacity>
-          ))}
+          <View style={{ padding: 16 }}>
+            <Text style={{
+              fontSize: 16,
+              fontWeight: '600',
+              color: '#111827',
+              marginBottom: 12,
+            }}>
+              Informations du compte
+            </Text>
+
+            <View style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              paddingVertical: 8,
+              borderBottomWidth: 1,
+              borderBottomColor: '#F3F4F6',
+            }}>
+              <Text style={{ fontSize: 14, color: '#6B7280' }}>Email</Text>
+              <Text style={{ fontSize: 14, color: '#111827', fontWeight: '500' }}>
+                {user?.email}
+              </Text>
+            </View>
+
+            {getPhone() && (
+              <View style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                paddingVertical: 8,
+                borderBottomWidth: 1,
+                borderBottomColor: '#F3F4F6',
+              }}>
+                <Text style={{ fontSize: 14, color: '#6B7280' }}>Téléphone</Text>
+                <Text style={{ fontSize: 14, color: '#111827', fontWeight: '500' }}>
+                  {getPhone()}
+                </Text>
+              </View>
+            )}
+
+            <View style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              paddingVertical: 8,
+              borderBottomWidth: 1,
+              borderBottomColor: '#F3F4F6',
+            }}>
+              <Text style={{ fontSize: 14, color: '#6B7280' }}>Type de compte</Text>
+              <Text style={{ fontSize: 14, color: '#111827', fontWeight: '500' }}>
+                {user?.role === 'restaurateur' ? 'Restaurateur' : 'Client'}
+              </Text>
+            </View>
+
+            {getSiret() && (
+              <View style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                paddingVertical: 8,
+              }}>
+                <Text style={{ fontSize: 14, color: '#6B7280' }}>SIRET</Text>
+                <Text style={{ fontSize: 14, color: '#111827', fontWeight: '500' }}>
+                  {getSiret()}
+                </Text>
+              </View>
+            )}
+
+            {isRestaurateur && (
+              <View style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                paddingVertical: 8,
+              }}>
+                <Text style={{ fontSize: 14, color: '#6B7280' }}>Statut Stripe</Text>
+                <Text style={{
+                  fontSize: 14,
+                  fontWeight: '500',
+                  color: user?.roles?.has_validated_profile ? '#10B981' : '#F59E0B'
+                }}>
+                  {user?.roles?.has_validated_profile ? '✅ Validé' : '⚠️ En attente'}
+                </Text>
+              </View>
+            )}
+          </View>
         </Card>
 
+        {/* Bouton de déconnexion */}
         <View style={{ paddingHorizontal: 16, paddingBottom: 24 }}>
           <Button
             title="Déconnexion"

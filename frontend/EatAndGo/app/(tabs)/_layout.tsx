@@ -2,10 +2,13 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
+import { useStripeDeepLink } from '@/app/hooks/useStripeDeepLink';
 import { Redirect } from 'expo-router';
 
 export default function TabLayout() {
   const { isAuthenticated, isLoading } = useAuth();
+  
+  useStripeDeepLink();
 
   if (isLoading) {
     return null; // Ou un écran de chargement

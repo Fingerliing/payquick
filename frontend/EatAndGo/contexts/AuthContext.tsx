@@ -7,6 +7,7 @@ export interface ClientProfile {
   user: number;
   phone: string;
   type: 'client';
+  has_validated_profile?: boolean;
 }
 
 export interface RestaurateurProfile {
@@ -19,6 +20,11 @@ export interface RestaurateurProfile {
   stripe_verified: boolean;
   stripe_account_id?: string;
   type: 'restaurateur';
+  stripe_onboarding_completed?: boolean;
+  stripe_account_created?: string | null;
+  has_validated_profile?: boolean;
+  nom?: string;
+  telephone?: string;
 }
 
 export interface Restaurant {
@@ -30,6 +36,9 @@ export interface Restaurant {
   total_orders: number;
   pending_orders: number;
   menus_count: number;
+  can_receive_orders?: boolean;
+  owner_stripe_validated?: boolean;
+  is_stripe_active?: boolean;
 }
 
 export interface UserPermissions {
@@ -49,16 +58,17 @@ export interface UserRoles {
   has_validated_profile: boolean;
 }
 
-export interface RestaurateurStats {
-  total_restaurants: number;
-  total_orders: number;
-  pending_orders: number;
-  active_restaurants: number;
-}
-
-export interface ClientStats {
-  favorite_restaurants: any[];
-  total_orders: number;
+export interface UserStats {
+  // Pour les restaurateurs
+  total_restaurants?: number;
+  total_orders?: number;
+  pending_orders?: number;
+  active_restaurants?: number;
+  stripe_validated?: boolean;
+  stripe_onboarding_completed?: boolean;
+  
+  // Pour les clients  
+  favorite_restaurants?: any[];
 }
 
 export interface RecentOrder {
@@ -72,7 +82,6 @@ export interface RecentOrder {
   items_count: number;
 }
 
-// Interface utilisateur complète retournée par /me
 export interface User {
   id: number;
   username: string;
@@ -82,11 +91,11 @@ export interface User {
   is_staff: boolean;
   is_superuser: boolean;
   date_joined: string;
-  last_login?: string;
-  role: 'client' | 'restaurateur' | null;
+  last_login: string | null;
+  role: 'client' | 'restaurateur';
   profile: ClientProfile | RestaurateurProfile;
   restaurants: Restaurant[];
-  stats: RestaurateurStats | ClientStats;
+  stats: UserStats;
   permissions: UserPermissions;
   roles: UserRoles;
   recent_orders: RecentOrder[];
@@ -155,8 +164,13 @@ interface AuthContextType {
   
   // Données spécifiques
   getUserRestaurants: () => Restaurant[];
-  getUserStats: () => RestaurateurStats | ClientStats | null;
+  getUserStats: () => UserStats | null;
   getPendingOrdersCount: () => number;
+
+  //Stripe
+  createStripeAccount: () => Promise<{ account_id: string; onboarding_url: string; message: string }>;
+  getStripeAccountStatus: () => Promise<any>;
+  createStripeOnboardingLink: () => Promise<{ onboarding_url: string }>;
   
   // Gestion des erreurs
   lastError: string | null;
@@ -165,6 +179,24 @@ interface AuthContextType {
 
 // Classe ApiClient améliorée
 class ApiClient {
+  async createStripeAccount(): Promise<{ account_id: string; onboarding_url: string; message: string }> {
+    return this.request(`${API_URL}/stripe/create-account/`, {
+      method: 'POST',
+    });
+  }
+
+  async getStripeAccountStatus(): Promise<any> {
+    return this.request(`${API_URL}/stripe/account-status/`, {
+      method: 'GET',
+    });
+  }
+
+  async createStripeOnboardingLink(): Promise<{ onboarding_url: string }> {
+    return this.request(`${API_URL}/stripe/onboarding-link/`, {
+      method: 'POST',
+    });
+  }
+
   private async request<T>(
     endpoint: string,
     options: RequestInit = {}
@@ -517,18 +549,70 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const createStripeAccount = async () => {
+    try {
+      clearError();
+      console.log('💳 Création du compte Stripe...');
+      const result = await apiClient.createStripeAccount();
+      console.log('✅ Compte Stripe créé');
+      
+      // Rafraîchir les données utilisateur après création
+      try {
+        await refreshUser();
+      } catch (error: any) {
+        if (error.code !== 403) {
+          console.warn('⚠️ Impossible de rafraîchir après création Stripe:', error);
+        }
+      }
+      
+      return result;
+    } catch (error: any) {
+      console.error('❌ Erreur création compte Stripe:', error);
+      handleError(error, 'createStripeAccount');
+      throw error;
+    }
+  };
+
+  const getStripeAccountStatus = async () => {
+    try {
+      clearError();
+      console.log('🔍 Vérification statut Stripe...');
+      const result = await apiClient.getStripeAccountStatus();
+      console.log('✅ Statut Stripe récupéré');
+      return result;
+    } catch (error: any) {
+      console.error('❌ Erreur statut Stripe:', error);
+      handleError(error, 'getStripeAccountStatus');
+      throw error;
+    }
+  };
+
+  const createStripeOnboardingLink = async () => {
+    try {
+      clearError();
+      console.log('🔗 Création lien onboarding Stripe...');
+      const result = await apiClient.createStripeOnboardingLink();
+      console.log('✅ Lien onboarding Stripe créé');
+      return result;
+    } catch (error: any) {
+      console.error('❌ Erreur lien onboarding Stripe:', error);
+      handleError(error, 'createStripeOnboardingLink');
+      throw error;
+    }
+  };
+
   // Utilitaires pour accéder aux données avec gestion d'erreurs
   const getUserRestaurants = (): Restaurant[] => {
     return user?.restaurants || [];
   };
 
-  const getUserStats = (): RestaurateurStats | ClientStats | null => {
+  const getUserStats = (): UserStats | null => {
     return user?.stats || null;
   };
 
   const getPendingOrdersCount = (): number => {
     if (isRestaurateur && user?.stats) {
-      return (user.stats as RestaurateurStats).pending_orders || 0;
+      return (user.stats as UserStats).pending_orders || 0;
     }
     return 0;
   };
@@ -574,6 +658,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Gestion des erreurs
     lastError,
     clearError,
+
+    //Stripe
+    createStripeAccount,
+    getStripeAccountStatus,
+    createStripeOnboardingLink,
   };
 
   return (
@@ -606,6 +695,56 @@ export function useAuthError() {
   return { lastError, clearError };
 }
 
+//Hooks Stripe
+export function useStripe() {
+  const { 
+    createStripeAccount, 
+    getStripeAccountStatus, 
+    createStripeOnboardingLink,
+    user,
+    isRestaurateur,
+    hasValidatedProfile 
+  } = useAuth();
+  
+  const getStripeValidationStatus = () => {
+    if (!user || !isRestaurateur) return false;
+    
+    // Vérifier dans user.roles d'abord
+    if (user.roles?.has_validated_profile !== undefined) {
+      return user.roles.has_validated_profile;
+    }
+    
+    // Puis dans le profil restaurateur
+    if (user.profile?.type === 'restaurateur') {
+      const profile = user.profile as RestaurateurProfile;
+      return profile.stripe_verified || profile.has_validated_profile || false;
+    }
+    
+    return false;
+  };
+
+  const getStripeAccountId = () => {
+    if (!user || !isRestaurateur) return null;
+    
+    if (user.profile?.type === 'restaurateur') {
+      const profile = user.profile as RestaurateurProfile;
+      return profile.stripe_account_id || null;
+    }
+    
+    return null;
+  };
+
+  return {
+    createStripeAccount,
+    getStripeAccountStatus,
+    createStripeOnboardingLink,
+    isStripeValidated: getStripeValidationStatus(),
+    stripeAccountId: getStripeAccountId(),
+    canConfigureStripe: isRestaurateur,
+  };
+}
+
+
 // Hooks existants...
 export function useUserRestaurants() {
   const { getUserRestaurants } = useAuth();
@@ -617,10 +756,10 @@ export function useUserStats() {
   return getUserStats();
 }
 
-export function useRestaurateurStats(): RestaurateurStats | null {
+export function useRestaurateurStats(): UserStats | null {
   const { user, isRestaurateur } = useAuth();
   if (isRestaurateur && user?.stats) {
-    return user.stats as RestaurateurStats;
+    return user.stats as UserStats;
   }
   return null;
 }

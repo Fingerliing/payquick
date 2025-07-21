@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { ValidationUtils } from '@/utils/validators';
+import { stripeService } from '@/services/stripeService';
 
 interface RegisterFormData {
   username: string;
@@ -31,7 +32,44 @@ interface RegisterFormData {
 interface FormErrors {
   [key: string]: string;
 }
-
+const stripeInfoStyles = {
+  container: {
+    flexDirection: 'row',
+    backgroundColor: '#EBF8FF',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#3B82F6',
+  } as ViewStyle,
+  
+  iconContainer: {
+    marginRight: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  } as ViewStyle,
+  
+  icon: {
+    fontSize: 20,
+  } as TextStyle,
+  
+  content: {
+    flex: 1,
+  } as ViewStyle,
+  
+  title: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1E40AF',
+    marginBottom: 4,
+  } as TextStyle,
+  
+  description: {
+    fontSize: 12,
+    color: '#1E40AF',
+    lineHeight: 16,
+  } as TextStyle,
+};
 const styles = {
   container: {
     flex: 1,
@@ -163,7 +201,7 @@ export default function RegisterScreen() {
       Alert.alert('Erreur de validation', 'Veuillez corriger les erreurs dans le formulaire');
       return;
     }
-
+  
     try {
       setIsLoading(true);
       
@@ -175,18 +213,34 @@ export default function RegisterScreen() {
         telephone: formData.telephone.replace(/\s/g, ''),
         ...(formData.role === 'restaurateur' && { siret: formData.siret.replace(/\s/g, '') })
       };
-
+  
       await register(registerData);
       
-      const roleMessage = formData.role === 'client' 
-        ? 'Votre compte client a été créé avec succès !' 
-        : 'Votre compte restaurateur a été créé avec succès !';
-      
-      Alert.alert(
-        'Inscription réussie !', 
-        roleMessage,
-        [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
-      );
+      // Si c'est un restaurateur, proposer la configuration Stripe
+      if (formData.role === 'restaurateur') {
+        Alert.alert(
+          'Inscription réussie !', 
+          'Votre compte restaurateur a été créé avec succès ! 🎉\n\nSouhaitez-vous configurer votre compte Stripe maintenant pour pouvoir recevoir des paiements ?',
+          [
+            { 
+              text: 'Plus tard', 
+              style: 'cancel',
+              onPress: () => router.replace('/(tabs)') 
+            },
+            { 
+              text: 'Configurer Stripe', 
+              onPress: () => handleStripeOnboarding() 
+            }
+          ]
+        );
+      } else {
+        // Client normal
+        Alert.alert(
+          'Inscription réussie !', 
+          'Votre compte client a été créé avec succès ! Bienvenue sur Eat&Go ! 🎉',
+          [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
+        );
+      }
       
     } catch (error: any) {
       console.error('Erreur d\'inscription:', error);
@@ -220,6 +274,37 @@ export default function RegisterScreen() {
       setIsLoading(false);
     }
   }, [formData, validateForm, register]);
+  
+  const handleStripeOnboarding = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      
+      const stripeAccount = await stripeService.createAccount();
+      
+      // Ouvrir l'URL Stripe dans le navigateur
+      const opened = await stripeService.openStripeOnboarding(stripeAccount.onboarding_url);
+      
+      if (opened) {
+        // Rediriger vers un écran d'attente
+        router.replace('./stripe/onboarding');
+      } else {
+        Alert.alert(
+          'Erreur',
+          'Impossible d\'ouvrir Stripe. Vous pourrez configurer votre compte plus tard depuis votre profil.',
+          [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
+        );
+      }
+    } catch (error: any) {
+      console.error('Erreur Stripe:', error);
+      Alert.alert(
+        'Erreur Stripe',
+        'Erreur lors de la configuration du compte Stripe. Vous pourrez le configurer plus tard depuis votre profil.',
+        [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   const buttonTitle = useMemo(() => {
     return `S'inscrire comme ${formData.role}`;
@@ -299,7 +384,8 @@ export default function RegisterScreen() {
             leftIcon="call-outline"
           />
 
-          {formData.role === 'restaurateur' && (
+        {formData.role === 'restaurateur' && (
+          <>
             <Input
               ref={siretRef}
               label="SIRET *"
@@ -313,7 +399,21 @@ export default function RegisterScreen() {
               returnKeyType="next"
               leftIcon="business-outline"
             />
-          )}
+          
+            <View style={stripeInfoStyles.container}>
+              <View style={stripeInfoStyles.iconContainer}>
+                <Text style={stripeInfoStyles.icon}>💳</Text>
+              </View>
+              <View style={stripeInfoStyles.content}>
+                <Text style={stripeInfoStyles.title}>Configuration Stripe</Text>
+                <Text style={stripeInfoStyles.description}>
+                  Après votre inscription, vous pourrez configurer votre compte Stripe pour recevoir les paiements de vos clients en toute sécurité.
+                </Text>
+              </View>
+            </View>
+          </>
+        )}
+
 
           <Input
             ref={passwordRef}

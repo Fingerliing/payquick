@@ -1,32 +1,24 @@
 import type { Restaurant } from './restaurant';
-import type { User } from './auth';
+import type { User } from './user';
 import type { Product } from './restaurant';
 import type { ProductVariant } from './restaurant';
 import type { ProductAddon } from './restaurant';
 
 export interface Order {
-  id: string;
-  restaurantId: string;
-  restaurant: Pick<Restaurant, 'id' | 'name' | 'image'>;
-  customerId?: string;
-  customer?: Pick<User, 'id' | 'firstName' | 'lastName' | 'email' | 'phone'>;
-  items: OrderItem[];
-  subtotal: number;
-  tax: number;
-  deliveryFee: number;
-  discount: number;
-  total: number;
-  status: OrderStatus;
-  paymentStatus: PaymentStatus;
-  paymentMethod: PaymentMethod;
-  deliveryAddress?: DeliveryAddress;
-  customerNotes?: string;
-  estimatedDeliveryTime?: string;
-  actualDeliveryTime?: string;
-  rating?: number;
-  review?: string;
-  createdAt: string;
-  updatedAt: string;
+  id: number;
+  restaurant_name: string;
+  restaurant_id: number | null;
+  table: string;
+  status: 'pending' | 'in_progress' | 'served' | 'delivered';
+  is_paid: boolean;
+  created_at: string;
+  items_count: number;
+  restaurant?: {
+    id: number;
+    name: string;
+  };
+  total?: number;
+  createdAt?: string;
 }
 
 export interface OrderItem {

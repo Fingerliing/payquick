@@ -186,6 +186,11 @@ LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'handlers': {
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': 'stripe_logs.log',
+        },
         'console': {  # ← tout vers la console Docker
             'class': 'logging.StreamHandler',
         },
@@ -195,6 +200,11 @@ LOGGING = {
         'level': 'INFO',  # Tu peux mettre DEBUG pour plus de détails
     },
     'loggers': {
+        'api.views.stripe_connect': {
+            'handlers': ['file', 'console'],
+            'level': 'INFO',
+            'propagate': True,
+        },
         'django': {
             'handlers': ['console'],
             'level': 'INFO',
