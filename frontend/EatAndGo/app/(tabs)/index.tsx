@@ -7,7 +7,7 @@ import {
   ViewStyle,
   TextStyle,
 } from 'react-native';
-import { useAuth } from '@/contexts/AuthContext'; // Utilise VOTRE AuthContext
+import { useAuth } from '@/contexts/AuthContext';
 import { useRestaurant } from '@/contexts/RestaurantContext';
 import { useOrder } from '@/contexts/OrderContext';
 import { Header } from '@/components/ui/Header';
@@ -18,7 +18,7 @@ import StripeAccountStatus from '@/components/stripe/StripeAccountStatus';
 import { router } from 'expo-router';
 
 export default function DashboardScreen() {
-  const { user, isRestaurateur, refreshUser } = useAuth(); // Utilise vos utilitaires
+  const { user, isRestaurateur, refreshUser } = useAuth();
   const { restaurants, loadRestaurants, isLoading: restaurantsLoading } = useRestaurant();
   const { orders, loadOrders, isLoading: ordersLoading } = useOrder();
   const [refreshing, setRefreshing] = useState(false);

@@ -46,6 +46,7 @@ export default function StripeAccountStatus({ onStatusChange }: StripeAccountSta
         }
       } else {
         const response = await stripeService.createOnboardingLink();
+        console.log("Lien onboarding reçu:", response);
         const opened = await stripeService.openStripeOnboarding(response.onboarding_url);
         
         if (!opened) {

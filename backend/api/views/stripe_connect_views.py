@@ -41,7 +41,7 @@ def create_stripe_account(request):
         # Créer un compte Stripe Connect
         account = stripe.Account.create(
             type='express',
-            country='FR',  # Adapter selon votre pays
+            country='FR',
             email=user.email or user.username,
             business_profile={
                 'name': restaurateur_profile.display_name,
@@ -51,7 +51,7 @@ def create_stripe_account(request):
                 'user_id': str(user.id),
                 'user_email': user.email or user.username,
                 'siret': restaurateur_profile.siret,
-                'app': 'EatGo',
+                'app': 'Eat&Go',
                 'profile_id': str(restaurateur_profile.id),
             }
         )
@@ -64,8 +64,8 @@ def create_stripe_account(request):
         # Créer un lien d'onboarding avec des URLs adaptées à votre app
         account_link = stripe.AccountLink.create(
             account=account.id,
-            refresh_url=f"payquick://stripe/refresh",  # Votre schéma d'app
-            return_url=f"payquick://stripe/success",   # Votre schéma d'app
+            refresh_url="https://example.com/stripe/success",
+            return_url="https://example.com/stripe/success",
             type='account_onboarding',
         )
         
@@ -139,7 +139,6 @@ def get_stripe_account_status(request):
 def create_onboarding_link(request):
     """Créer un nouveau lien d'onboarding si nécessaire"""
     user = request.user
-    
     try:
         restaurateur_profile = RestaurateurProfile.objects.get(user=user)
     except RestaurateurProfile.DoesNotExist:
@@ -157,8 +156,10 @@ def create_onboarding_link(request):
     try:
         account_link = stripe.AccountLink.create(
             account=restaurateur_profile.stripe_account_id,
-            refresh_url=f"payquick://stripe/refresh",
-            return_url=f"payquick://stripe/success",
+            # refresh_url=f"eatandgo://stripe/refresh",
+            # return_url=f"eatandgo://stripe/success",
+            refresh_url="https://example.com/stripe/refresh",
+            return_url="https://example.com/stripe/success",
             type='account_onboarding',
         )
         

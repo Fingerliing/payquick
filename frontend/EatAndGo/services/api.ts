@@ -55,33 +55,49 @@ class ApiClient {
     );
   }
 
+  /**
+   * Extrait les données de la réponse de manière flexible
+   * Gère les formats : { data: T } et T directement
+   */
+  private extractData<T>(response: AxiosResponse): T {
+    const responseData = response.data;
+    
+    // Si la réponse a une structure { data: T }, extraire T
+    if (responseData && typeof responseData === 'object' && 'data' in responseData && responseData.data !== undefined) {
+      return responseData.data as T;
+    }
+    
+    // Sinon, retourner la réponse directement
+    return responseData as T;
+  }
+
   async get<T>(url: string, params?: Record<string, any>): Promise<T> {
-    const response = await this.client.get<ApiResponse<T>>(url, { params });
-    return response.data.data;
+    const response = await this.client.get(url, { params });
+    return this.extractData<T>(response);
   }
 
   async post<T>(url: string, data?: any): Promise<T> {
-    const response = await this.client.post<ApiResponse<T>>(url, data);
-    return response.data.data;
+    const response = await this.client.post(url, data);
+    return this.extractData<T>(response);
   }
 
   async put<T>(url: string, data?: any): Promise<T> {
-    const response = await this.client.put<ApiResponse<T>>(url, data);
-    return response.data.data;
+    const response = await this.client.put(url, data);
+    return this.extractData<T>(response);
   }
 
   async patch<T>(url: string, data?: any): Promise<T> {
-    const response = await this.client.patch<ApiResponse<T>>(url, data);
-    return response.data.data;
+    const response = await this.client.patch(url, data);
+    return this.extractData<T>(response);
   }
 
   async delete<T>(url: string): Promise<T> {
-    const response = await this.client.delete<ApiResponse<T>>(url);
-    return response.data.data;
+    const response = await this.client.delete(url);
+    return this.extractData<T>(response);
   }
 
   async upload<T>(url: string, formData: FormData, onProgress?: (progress: number) => void): Promise<T> {
-    const response = await this.client.post<ApiResponse<T>>(url, formData, {
+    const response = await this.client.post(url, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -92,7 +108,7 @@ class ApiClient {
         }
       },
     });
-    return response.data.data;
+    return this.extractData<T>(response);
   }
 }
 

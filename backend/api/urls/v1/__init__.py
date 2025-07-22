@@ -15,4 +15,5 @@ urlpatterns = [
     path('qrcode/', include('api.urls.v1.qrcode_urls')),
     path('table/', include('api.urls.v1.table_urls')),
     path('token/', include('api.urls.v1.token_urls')),
+    path('stripe/', include('api.urls.v1.stripe_urls'))
 ]

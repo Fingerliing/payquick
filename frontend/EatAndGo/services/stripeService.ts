@@ -18,7 +18,6 @@ export interface StripeOnboarding {
 }
 
 export interface StripeAccountStatus {
-  account_id: string;
   onboarding_url: string;
 }
 
@@ -28,7 +27,7 @@ class StripeService {
    */
   async createAccount(): Promise<StripeOnboarding> {
     try {
-      return await apiClient.post<StripeOnboarding>('/stripe/create-account/');
+      return await apiClient.post<StripeOnboarding>('/api/v1/stripe/create-account/');
     } catch (error) {
       console.error('Erreur création compte Stripe:', error);
       throw error;
@@ -40,7 +39,7 @@ class StripeService {
    */
   async getAccountStatus(): Promise<StripeAccount> {
     try {
-      return await apiClient.get<StripeAccount>('/stripe/account-status/');
+      return await apiClient.get<StripeAccount>('/api/v1/stripe/account-status/');
     } catch (error) {
       console.error('Erreur statut compte Stripe:', error);
       throw error;
@@ -52,7 +51,9 @@ class StripeService {
    */
   async createOnboardingLink(): Promise<StripeAccountStatus> {
     try {
-      return await apiClient.post<StripeAccountStatus>('/stripe/onboarding-link/');
+      const response = await apiClient.post<StripeAccountStatus>('/api/v1/stripe/onboarding-link/');
+      console.log('Lien onboarding reçu:', response);
+      return response;
     } catch (error) {
       console.error('Erreur création lien onboarding:', error);
       throw error;
