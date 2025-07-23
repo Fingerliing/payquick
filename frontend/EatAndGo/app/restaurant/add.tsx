@@ -9,8 +9,11 @@ import {
   TextStyle,
   ImageStyle,
   Text,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,6 +29,7 @@ import { Restaurant } from '@/types/restaurant';
 
 export default function AddRestaurantScreen() {
   const { createRestaurant } = useRestaurant();
+  const insets = useSafeAreaInsets();
   const [isLoading, setIsLoading] = useState(false);
   const [image, setImage] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -58,10 +62,14 @@ export default function AddRestaurantScreen() {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: 'images',
       allowsEditing: true,
       aspect: [16, 9],
       quality: 0.8,
+      selectionLimit: 1,
+      allowsMultipleSelection: false,
+      orderedSelection: false,
+      presentationStyle: ImagePicker.UIImagePickerPresentationStyle.FULL_SCREEN,
     });
 
     if (!result.canceled) {
@@ -192,15 +200,32 @@ export default function AddRestaurantScreen() {
     marginBottom: 16,
   };
 
+  // Calculer la hauteur du footer avec safe area
+  const footerHeight = 80 + insets.bottom;
+
   return (
-    <View style={containerStyle}>
+    <KeyboardAvoidingView 
+      style={containerStyle}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
       <Header 
         title="Ajouter un restaurant" 
         leftIcon="arrow-back" 
         onLeftPress={() => router.back()}
       />
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
+      <ScrollView 
+        contentContainerStyle={{ 
+          padding: 16, 
+          paddingBottom: footerHeight + 16 // Espace pour le bouton + marge
+        }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        // Propriétés importantes pour éviter que le clavier cache les champs
+        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+        contentInsetAdjustmentBehavior="automatic"
+      >
         {/* Image du restaurant */}
         <Card>
           <Text style={sectionTitleStyle}>Photo du restaurant</Text>
@@ -296,24 +321,32 @@ export default function AddRestaurantScreen() {
             error={errors.address}
           />
 
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Input
-              label="Ville *"
-              placeholder="Paris"
-              value={formData.city}
-              onChangeText={(value) => updateField('city', value)}
-              style={{ flex: 1, marginRight: 8 }}
-              error={errors.city}
-            />
-            <Input
-              label="Code postal *"
-              placeholder="75001"
-              value={formData.zipCode}
-              onChangeText={(value) => updateField('zipCode', value)}
-              style={{ flex: 1, marginLeft: 8 }}
-              keyboardType="numeric"
-              error={errors.zipCode}
-            />
+          <View style={{ 
+            flexDirection: 'row', 
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            gap: 8,
+          }}>
+            <View style={{ flex: 2 }}>
+              <Input
+                label="Ville *"
+                placeholder="Paris"
+                value={formData.city}
+                onChangeText={(value) => updateField('city', value)}
+                error={errors.city}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Input
+                label="Code postal *"
+                placeholder="75001"
+                value={formData.zipCode}
+                onChangeText={(value) => updateField('zipCode', value)}
+                keyboardType="numeric"
+                maxLength={5}
+                error={errors.zipCode}
+              />
+            </View>
           </View>
 
           <Input
@@ -360,22 +393,32 @@ export default function AddRestaurantScreen() {
             error={errors.website}
           />
         </Card>
-      </ScrollView>
 
-      {/* Bouton de validation */}
-      <View style={{ 
-        backgroundColor: '#FFFFFF', 
-        padding: 16, 
-        borderTopWidth: 1, 
-        borderTopColor: '#E5E7EB' 
-      }}>
-        <Button
-          title="Créer le restaurant"
-          onPress={handleSubmit}
-          loading={isLoading}
-          fullWidth
-        />
-      </View>
-    </View>
+        {/* Espace supplémentaire pour éviter que le dernier champ soit caché */}
+        <View style={{ height: 24 }} />
+
+        {/* Bouton de validation - Maintenant dans le ScrollView */}
+        <View style={{ 
+          backgroundColor: '#FFFFFF', 
+          paddingVertical: 16,
+          paddingHorizontal: 4, // Petit padding pour aligner avec le contenu
+          borderRadius: 12,
+          marginTop: 8,
+          // Shadow pour donner l'impression d'un bouton important
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+          elevation: 3,
+        }}>
+          <Button
+            title="Créer le restaurant"
+            onPress={handleSubmit}
+            loading={isLoading}
+            fullWidth
+          />
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
