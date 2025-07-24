@@ -107,7 +107,7 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
             
             <View style={ratingContainerStyle}>
               <Ionicons name="star" size={12} color="#D97706" />
-              <Text style={ratingStyle}>{restaurant.rating.toFixed(1)}</Text>
+              <Text style={ratingStyle}>{(restaurant.rating || 0).toFixed(1)}</Text>
             </View>
           </View>
 

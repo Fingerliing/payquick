@@ -56,7 +56,6 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "corsheaders",
     "storages",
-    'api.apps.ApiConfig',
 ]
 
 MIDDLEWARE = [

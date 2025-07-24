@@ -4,6 +4,7 @@ import {
   Text,
   ScrollView,
   RefreshControl,
+  TouchableOpacity,
   ViewStyle,
   TextStyle,
 } from 'react-native';
@@ -19,35 +20,49 @@ import { router } from 'expo-router';
 
 export default function DashboardScreen() {
   const { user, isRestaurateur, refreshUser } = useAuth();
-  const { restaurants, loadRestaurants, isLoading: restaurantsLoading } = useRestaurant();
-  const { orders, loadOrders, isLoading: ordersLoading } = useOrder();
+  const { restaurants, loadRestaurants, isLoading: restaurantsLoading, error: restaurantsError } = useRestaurant();
+  const { orders, loadOrders, isLoading: ordersLoading, error: ordersError } = useOrder();
   const [refreshing, setRefreshing] = useState(false);
+  const safeRestaurants = Array.isArray(restaurants) ? restaurants : [];
+  const safeOrders = Array.isArray(orders) ? orders : [];
+  const safeUserOrders = Array.isArray(user?.recent_orders) ? user.recent_orders : [];
+  
+  // Choisir la source de données prioritaire
+  const displayOrders = safeUserOrders.length > 0 ? safeUserOrders : safeOrders;
 
-  useEffect(() => {
-    loadInitialData();
-  }, []);
-
-  const loadInitialData = async () => {
-    try {
-      await Promise.all([
-        loadRestaurants(),
-        loadOrders({ limit: 5 }),
-      ]);
-    } catch (error) {
-      console.error('Erreur lors du chargement des données:', error);
-    }
-  };
+  // 🔍 DEBUG complet
+  console.log('=== DASHBOARD FINAL DEBUG ===');
+  console.log('🏠 Restaurants:', {
+    raw: restaurants,
+    safe: safeRestaurants.length,
+    type: typeof restaurants,
+    isArray: Array.isArray(restaurants)
+  });
+  console.log('📋 Orders:', {
+    raw: orders,
+    safe: safeOrders.length,
+    userOrders: safeUserOrders.length,
+    display: displayOrders.length,
+    type: typeof orders,
+    isArray: Array.isArray(orders)
+  });
+  console.log('🔄 States:', { restaurantsLoading, ordersLoading, refreshing });
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadInitialData();
-    // Rafraîchir aussi les données utilisateur
     try {
-      await refreshUser();
+      console.log('🔄 Dashboard: Starting refresh...');
+      await Promise.all([
+        loadRestaurants(),
+        loadOrders({ limit: 5 }),
+        refreshUser(),
+      ]);
+      console.log('✅ Dashboard: Refresh completed');
     } catch (error) {
-      console.log('Impossible de rafraîchir les données utilisateur');
+      console.error('❌ Dashboard: Refresh error:', error);
+    } finally {
+      setRefreshing(false);
     }
-    setRefreshing(false);
   };
 
   const getGreeting = () => {
@@ -57,7 +72,10 @@ export default function DashboardScreen() {
     return 'Bonsoir';
   };
 
-  if (restaurantsLoading && restaurants.length === 0) {
+  const isInitialLoading = restaurantsLoading || ordersLoading;
+  const hasData = safeRestaurants.length > 0 || safeOrders.length > 0;
+
+  if (isInitialLoading && !hasData) {
     return (
       <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
         <Header title="Eat&Go"/>
@@ -121,7 +139,9 @@ export default function DashboardScreen() {
               fontWeight: 'bold',
               color: '#3B82F6',
               textAlign: 'center',
-            }}>{user?.restaurants?.length || restaurants.length}</Text>
+            }}>
+              {safeRestaurants.length}
+            </Text>
             <Text style={{
               fontSize: 12,
               color: '#6B7280',
@@ -136,7 +156,9 @@ export default function DashboardScreen() {
               fontWeight: 'bold',
               color: '#3B82F6',
               textAlign: 'center',
-            }}>{user?.recent_orders?.length || orders.length}</Text>
+            }}>
+              {displayOrders.length}
+            </Text>
             <Text style={{
               fontSize: 12,
               color: '#6B7280',
@@ -152,7 +174,10 @@ export default function DashboardScreen() {
               color: '#3B82F6',
               textAlign: 'center',
             }}>
-              {isRestaurateur ? (user?.stats as any)?.active_restaurants || 0 : restaurants.filter(r => r.isActive).length}
+              {isRestaurateur 
+                ? (user?.stats as any)?.active_restaurants || 0 
+                : safeRestaurants.filter(r => r?.isActive).length
+              }
             </Text>
             <Text style={{
               fontSize: 12,
@@ -203,30 +228,40 @@ export default function DashboardScreen() {
           {isRestaurateur ? 'Vos restaurants' : 'Restaurants recommandés'}
         </Text>
         
-        {restaurants.slice(0, 3).map((restaurant) => (
-          <RestaurantCard
-            key={restaurant.id}
-            restaurant={restaurant}
-            onPress={() => router.push(`/restaurant/${restaurant.id}`)}
-          />
-        ))}
-
-        {/* Message si pas de restaurants pour les restaurateurs */}
-        {isRestaurateur && restaurants.length === 0 && (
-          <Card style={{ marginHorizontal: 16, marginBottom: 24 }}>
-            <Text style={{
-              textAlign: 'center',
-              color: '#6B7280',
-              paddingVertical: 24,
-              fontSize: 14,
-            }}>
-              {user?.roles?.has_validated_profile 
-                ? 'Aucun restaurant créé. Créez votre premier restaurant !'
-                : 'Validez votre compte Stripe pour créer vos restaurants.'
-              }
-            </Text>
-          </Card>
-        )}
+        <View style={{ marginBottom: 24 }}>
+          {safeRestaurants.length > 0 ? (
+            safeRestaurants.slice(0, 3).map((restaurant, index) => {
+              console.log(`🏠 Rendering restaurant ${index}:`, restaurant?.id);
+              return (
+                <RestaurantCard
+                  key={restaurant?.id || `restaurant-${index}`}
+                  restaurant={restaurant}
+                  onPress={() => router.push(`/restaurant/${restaurant?.id}`)}
+                />
+              );
+            })
+          ) : (
+            <Card style={{ marginHorizontal: 16 }}>
+              <Text style={{
+                textAlign: 'center',
+                color: '#6B7280',
+                paddingVertical: 24,
+                fontSize: 14,
+              }}>
+                {restaurantsLoading 
+                  ? 'Chargement des restaurants...'
+                  : restaurantsError
+                    ? `Erreur: ${restaurantsError}`
+                    : isRestaurateur 
+                      ? (user?.roles?.has_validated_profile 
+                        ? 'Aucun restaurant créé. Créez votre premier restaurant !'
+                        : 'Validez votre compte Stripe pour créer vos restaurants.')
+                      : 'Aucun restaurant disponible pour le moment.'
+                }
+              </Text>
+            </Card>
+          )}
+        </View>
 
         {/* Commandes récentes */}
         <Text style={{
@@ -240,45 +275,64 @@ export default function DashboardScreen() {
         </Text>
         
         <Card style={{ marginHorizontal: 16, marginBottom: 24 }}>
-          {ordersLoading ? (
+          {ordersLoading && displayOrders.length === 0 ? (
             <Loading text="Chargement des commandes..." />
-          ) : (user?.recent_orders && user.recent_orders.length > 0) || orders.length > 0 ? (
-            (user?.recent_orders || orders).slice(0, 5).map((order) => (
-              <View key={order.id} style={{ 
-                flexDirection: 'row', 
-                justifyContent: 'space-between', 
-                alignItems: 'center',
-                paddingVertical: 12,
-                borderBottomWidth: 1,
-                borderBottomColor: '#E5E7EB',
-              }}>
-                <View>
-                  <Text style={{ fontSize: 14, fontWeight: '500', color: '#111827' }}>
-                    {order.restaurant_name || 'Restaurant'}
-                  </Text>
-                  <Text style={{ fontSize: 12, color: '#6B7280' }}>
-                    {new Date(order.created_at).toLocaleDateString()}
-                  </Text>
-                </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={{ fontSize: 14, fontWeight: '500', color: '#111827' }}>
-                    {(order as any).total?.toFixed(2) || '0.00'} €
-                  </Text>
-                  <Text style={{ 
-                    fontSize: 12, 
-                    color: order.status === 'served' ? '#10B981' : '#D97706',
-                    fontWeight: '500',
-                  }}>
-                    {order.status}
-                  </Text>
-                </View>
-              </View>
-            ))
+          ) : displayOrders.length > 0 ? (
+            displayOrders.slice(0, 5).map((order, index) => {
+              console.log(`📋 Rendering order ${index}:`, order?.id);
+              return (
+                <TouchableOpacity
+                  key={order?.id || `order-${index}`}
+                  onPress={() => router.push(`/order/${order?.id}`)}
+                  style={{ 
+                    flexDirection: 'row', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    paddingVertical: 12,
+                    borderBottomWidth: index < Math.min(displayOrders.length, 5) - 1 ? 1 : 0,
+                    borderBottomColor: '#E5E7EB',
+                  }}
+                >
+                  <View>
+                    <Text style={{ fontSize: 14, fontWeight: '500', color: '#111827' }}>
+                      {order?.restaurant_name || 'Restaurant'}
+                    </Text>
+                    <Text style={{ fontSize: 12, color: '#6B7280' }}>
+                      {order?.created_at 
+                        ? new Date(order.created_at).toLocaleDateString('fr-FR') 
+                        : 'Date inconnue'
+                      }
+                    </Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={{ fontSize: 14, fontWeight: '500', color: '#111827' }}>
+                      {
+                        // Vérifie que 'total' existe (cas d'un Order) et est un nombre avant utilisation
+                        'total' in order && typeof order.total === 'number'
+                          ? order.total.toFixed(2)   // Si order est de type Order avec un total
+                          : '0.00'                   // Si order est de type RecentOrder (pas de total)
+                      } €
+                    </Text>
+                    <Text style={{ 
+                      fontSize: 12, 
+                      color: ['served', 'delivered', 'completed'].includes(order?.status) ? '#10B981' : '#D97706',
+                      fontWeight: '500',
+                    }}>
+                      {order?.status || 'Statut inconnu'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })
           ) : (
             <Text style={{ textAlign: 'center', color: '#6B7280', paddingVertical: 24 }}>
-              {isRestaurateur 
-                ? 'Aucune commande reçue'
-                : 'Aucune commande récente'
+              {ordersLoading
+                ? 'Chargement des commandes...'
+                : ordersError
+                  ? `Erreur: ${ordersError}`
+                  : isRestaurateur 
+                    ? 'Aucune commande reçue'
+                    : 'Aucune commande récente'
               }
             </Text>
           )}
@@ -300,24 +354,41 @@ export default function DashboardScreen() {
               marginBottom: 24,
               gap: 8,
             }}>
-              <Card style={{ flex: 1, alignItems: 'center', paddingVertical: 16 }}>
-                <Text style={{ fontSize: 24, marginBottom: 4 }}>🍽️</Text>
-                <Text style={{ fontSize: 12, color: '#6B7280', textAlign: 'center' }}>
-                  Créer un restaurant
-                </Text>
-              </Card>
-              <Card style={{ flex: 1, alignItems: 'center', paddingVertical: 16 }}>
-                <Text style={{ fontSize: 24, marginBottom: 4 }}>📋</Text>
-                <Text style={{ fontSize: 12, color: '#6B7280', textAlign: 'center' }}>
-                  Gérer les menus
-                </Text>
-              </Card>
-              <Card style={{ flex: 1, alignItems: 'center', paddingVertical: 16 }}>
-                <Text style={{ fontSize: 24, marginBottom: 4 }}>📊</Text>
-                <Text style={{ fontSize: 12, color: '#6B7280', textAlign: 'center' }}>
-                  Voir les stats
-                </Text>
-              </Card>
+              <TouchableOpacity
+                style={{ flex: 1 }}
+                onPress={() => router.push('/restaurant/create')}
+              >
+                <Card style={{ alignItems: 'center', paddingVertical: 16 }}>
+                  <Text style={{ fontSize: 24, marginBottom: 4 }}>🍽️</Text>
+                  <Text style={{ fontSize: 12, color: '#6B7280', textAlign: 'center' }}>
+                    Créer un restaurant
+                  </Text>
+                </Card>
+              </TouchableOpacity>
+              
+              {/* <TouchableOpacity
+                style={{ flex: 1 }}
+                onPress={() => router.push('/menu/manage')}
+              >
+                <Card style={{ alignItems: 'center', paddingVertical: 16 }}>
+                  <Text style={{ fontSize: 24, marginBottom: 4 }}>📋</Text>
+                  <Text style={{ fontSize: 12, color: '#6B7280', textAlign: 'center' }}>
+                    Gérer les menus
+                  </Text>
+                </Card>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={{ flex: 1 }}
+                onPress={() => router.push('/stats')}
+              >
+                <Card style={{ alignItems: 'center', paddingVertical: 16 }}>
+                  <Text style={{ fontSize: 24, marginBottom: 4 }}>📊</Text>
+                  <Text style={{ fontSize: 12, color: '#6B7280', textAlign: 'center' }}>
+                    Voir les stats
+                  </Text>
+                </Card>
+              </TouchableOpacity> */}
             </View>
           </>
         )}

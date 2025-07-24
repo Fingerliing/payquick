@@ -5,7 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from django.db.models import Count, Q
 from api.models import Restaurant, Table, Menu, Order, RestaurateurProfile
-from api.serializers import RestaurantSerializer
+from api.serializers.restaurant_serializers import RestaurantSerializer, RestaurantCreateSerializer
 from api.permissions import IsRestaurateur, IsOwnerOrReadOnly, IsValidatedRestaurateur
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter
 
@@ -18,7 +18,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
     """
     queryset = Restaurant.objects.all().order_by('-id')
     serializer_class = RestaurantSerializer
-    permission_classes = [IsAuthenticated, IsRestaurateur, IsOwnerOrReadOnly]
+    permission_classes = [IsAuthenticated, IsRestaurateur, IsValidatedRestaurateur]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['name', 'address', 'siret']
     ordering_fields = ['name', 'created_at', 'is_stripe_active']
@@ -28,47 +28,324 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         """Filtre les restaurants par propriétaire connecté"""
         return Restaurant.objects.filter(owner=self.request.user.restaurateur_profile)
 
+    def get_serializer_class(self):
+        """Utilise le bon sérialiseur selon l'action"""
+        if self.action == 'create':
+            return RestaurantCreateSerializer
+        return RestaurantSerializer
+
     def perform_create(self, serializer):
         """Assigne automatiquement le propriétaire lors de la création"""
         serializer.save(owner=self.request.user.restaurateur_profile)
 
     @extend_schema(
         summary="Créer un restaurant",
-        description="Crée un nouveau restaurant pour le restaurateur connecté. Seuls les restaurateurs validés Stripe peuvent créer des restaurants.",
+        description="Crée un nouveau restaurant avec toutes les informations nécessaires. Le SIRET peut être généré automatiquement si non fourni.",
         request={
             'application/json': {
                 'type': 'object',
                 'properties': {
-                    'name': {'type': 'string', 'maxLength': 100},
-                    'description': {'type': 'string'},
-                    'address': {'type': 'string', 'maxLength': 255},
-                    'siret': {'type': 'string', 'pattern': '^[0-9]{14}$', 'description': 'Numéro SIRET à 14 chiffres'}
+                    # Informations de base
+                    'name': {
+                        'type': 'string', 
+                        'maxLength': 100,
+                        'description': 'Nom du restaurant',
+                        'example': 'Le Petit Bistrot'
+                    },
+                    'description': {
+                        'type': 'string',
+                        'description': 'Description du restaurant',
+                        'example': 'Restaurant traditionnel français avec une ambiance chaleureuse'
+                    },
+                    
+                    # Adresse complète
+                    'address': {
+                        'type': 'string', 
+                        'maxLength': 255,
+                        'description': 'Adresse du restaurant',
+                        'example': '42 Avenue des Champs-Élysées'
+                    },
+                    'city': {
+                        'type': 'string',
+                        'maxLength': 100,
+                        'description': 'Ville',
+                        'example': 'Paris'
+                    },
+                    'zipCode': {
+                        'type': 'string',
+                        'pattern': '^[0-9]{5}$',
+                        'description': 'Code postal français (5 chiffres)',
+                        'example': '75008'
+                    },
+                    'country': {
+                        'type': 'string',
+                        'maxLength': 100,
+                        'default': 'France',
+                        'description': 'Pays',
+                        'example': 'France'
+                    },
+                    
+                    # Contact
+                    'phone': {
+                        'type': 'string',
+                        'pattern': '^(\+33|0)[1-9][0-9]{8}$',
+                        'description': 'Numéro de téléphone français',
+                        'example': '+33142563789'
+                    },
+                    'email': {
+                        'type': 'string',
+                        'format': 'email',
+                        'description': 'Email de contact du restaurant',
+                        'example': 'contact@petitbistrot.fr'
+                    },
+                    'website': {
+                        'type': 'string',
+                        'format': 'uri',
+                        'description': 'Site web du restaurant (optionnel)',
+                        'example': 'https://www.petitbistrot.fr'
+                    },
+                    
+                    # Informations métier
+                    'cuisine': {
+                        'type': 'string',
+                        'enum': ['french', 'italian', 'asian', 'mexican', 'indian', 'american', 'mediterranean', 'japanese', 'chinese', 'thai', 'other'],
+                        'description': 'Type de cuisine',
+                        'example': 'french'
+                    },
+                    'priceRange': {
+                        'type': 'integer',
+                        'minimum': 1,
+                        'maximum': 4,
+                        'description': 'Gamme de prix (1=€, 2=€€, 3=€€€, 4=€€€€)',
+                        'example': 2
+                    },
+                    
+                    # Géolocalisation (optionnel)
+                    'latitude': {
+                        'type': 'number',
+                        'format': 'double',
+                        'minimum': -90,
+                        'maximum': 90,
+                        'description': 'Latitude GPS',
+                        'example': 48.8566
+                    },
+                    'longitude': {
+                        'type': 'number',
+                        'format': 'double',
+                        'minimum': -180,
+                        'maximum': 180,
+                        'description': 'Longitude GPS',
+                        'example': 2.3522
+                    },
+                    
+                    # SIRET (optionnel - généré automatiquement si absent)
+                    'siret': {
+                        'type': 'string',
+                        'pattern': '^[0-9]{14}$',
+                        'description': 'Numéro SIRET à 14 chiffres (généré automatiquement si non fourni)',
+                        'example': '12345678901234'
+                    }
                 },
-                'required': ['name', 'description', 'address', 'siret']
+                'required': ['name', 'address', 'city', 'zipCode', 'phone', 'email', 'cuisine', 'priceRange'],
+                'additionalProperties': False
             }
         },
         responses={
-            201: OpenApiResponse(description="Restaurant créé avec succès"),
-            400: OpenApiResponse(description="Données invalides"),
-            403: OpenApiResponse(description="Non autorisé - Validation Stripe requise")
-        }
+            201: {
+                'description': 'Restaurant créé avec succès',
+                'content': {
+                    'application/json': {
+                        'schema': {
+                            'type': 'object',
+                            'properties': {
+                                'id': {'type': 'integer', 'example': 1},
+                                'name': {'type': 'string', 'example': 'Le Petit Bistrot'},
+                                'description': {'type': 'string'},
+                                'address': {'type': 'string'},
+                                'city': {'type': 'string'},
+                                'zipCode': {'type': 'string'},
+                                'country': {'type': 'string'},
+                                'phone': {'type': 'string'},
+                                'email': {'type': 'string'},
+                                'website': {'type': 'string'},
+                                'cuisine': {'type': 'string'},
+                                'priceRange': {'type': 'integer'},
+                                'rating': {'type': 'number', 'format': 'double'},
+                                'reviewCount': {'type': 'integer'},
+                                'isActive': {'type': 'boolean'},
+                                'canReceiveOrders': {'type': 'boolean'},
+                                'location': {
+                                    'type': 'object',
+                                    'properties': {
+                                        'latitude': {'type': 'number'},
+                                        'longitude': {'type': 'number'}
+                                    }
+                                },
+                                'createdAt': {'type': 'string', 'format': 'date-time'},
+                                'updatedAt': {'type': 'string', 'format': 'date-time'},
+                                'owner': {
+                                    'type': 'object',
+                                    'properties': {
+                                        'id': {'type': 'integer'},
+                                        'name': {'type': 'string'}
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            400: {
+                'description': 'Données invalides',
+                'content': {
+                    'application/json': {
+                        'schema': {
+                            'type': 'object',
+                            'properties': {
+                                'error': {'type': 'string', 'example': 'Données invalides'},
+                                'validation_errors': {
+                                    'type': 'object',
+                                    'additionalProperties': {
+                                        'type': 'array',
+                                        'items': {'type': 'string'}
+                                    },
+                                    'example': {
+                                        'zipCode': ['Le code postal doit contenir exactement 5 chiffres'],
+                                        'phone': ['Format de téléphone invalide']
+                                    }
+                                },
+                                'received_data': {'type': 'object'},
+                                'help': {'type': 'string', 'example': 'Vérifiez que tous les champs requis sont présents et valides'}
+                            }
+                        }
+                    }
+                }
+            },
+            403: {
+                'description': 'Non autorisé',
+                'content': {
+                    'application/json': {
+                        'schema': {
+                            'type': 'object',
+                            'properties': {
+                                'error': {'type': 'string', 'example': 'Validation Stripe requise pour créer un restaurant'},
+                                'debug': {
+                                    'type': 'object',
+                                    'properties': {
+                                        'user_authenticated': {'type': 'boolean'},
+                                        'groups': {'type': 'array', 'items': {'type': 'string'}},
+                                        'stripe_verified': {'type': 'boolean'},
+                                        'is_active': {'type': 'boolean'}
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            500: {
+                'description': 'Erreur serveur',
+                'content': {
+                    'application/json': {
+                        'schema': {
+                            'type': 'object',
+                            'properties': {
+                                'error': {'type': 'string', 'example': 'Erreur lors de la création'},
+                                'details': {'type': 'string'}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        examples=[
+            {
+                'name': 'Restaurant complet',
+                'description': 'Exemple de création d\'un restaurant avec toutes les informations',
+                'value': {
+                    'name': 'Le Petit Bistrot',
+                    'description': 'Restaurant traditionnel français avec une ambiance chaleureuse et une cuisine authentique',
+                    'address': '42 Avenue des Champs-Élysées',
+                    'city': 'Paris',
+                    'zipCode': '75008',
+                    'country': 'France',
+                    'phone': '+33142563789',
+                    'email': 'contact@petitbistrot.fr',
+                    'website': 'https://www.petitbistrot.fr',
+                    'cuisine': 'french',
+                    'priceRange': 3,
+                    'latitude': 48.8566,
+                    'longitude': 2.3522
+                }
+            },
+            {
+                'name': 'Restaurant minimal',
+                'description': 'Exemple avec les champs minimum requis',
+                'value': {
+                    'name': 'Pizza Express',
+                    'address': '15 Rue de la République',
+                    'city': 'Lyon',
+                    'zipCode': '69001',
+                    'phone': '0478123456',
+                    'email': 'contact@pizzaexpress.fr',
+                    'cuisine': 'italian',
+                    'priceRange': 2
+                }
+            }
+        ]
     )
     def create(self, request, *args, **kwargs):
-        """Crée un nouveau restaurant avec validation Stripe"""
-        try:
-            profile = request.user.restaurateur_profile
-            if not profile.stripe_verified:
-                return Response(
-                    {"error": "Validation Stripe requise pour créer un restaurant"}, 
-                    status=status.HTTP_403_FORBIDDEN
-                )
-        except RestaurateurProfile.DoesNotExist:
-            return Response(
-                {"error": "Profil restaurateur introuvable"}, 
-                status=status.HTTP_403_FORBIDDEN
-            )
+        """Crée un nouveau restaurant avec données du frontend adaptées"""
         
-        return super().create(request, *args, **kwargs)
+        # Debug des données reçues
+        print(f"📦 Données reçues du frontend: {request.data}")
+        
+        # Nettoyer et adapter les données du frontend
+        frontend_data = request.data.copy()
+        
+        # Supprimer les champs que le backend ne gère pas encore
+        fields_to_remove = [
+            'image', 'rating', 'reviewCount', 'isActive', 'openingHours', 
+            'ownerId', 'createdAt', 'updatedAt', 'location'
+        ]
+        
+        for field in fields_to_remove:
+            frontend_data.pop(field, None)
+        
+        print(f"📦 Données nettoyées: {frontend_data}")
+        
+        # Utiliser le sérialiseur de création
+        serializer = self.get_serializer(data=frontend_data)
+        
+        if serializer.is_valid():
+            try:
+                # Sauvegarder avec le propriétaire
+                restaurant = serializer.save(owner=request.user.restaurateur_profile)
+                
+                # Retourner avec le sérialiseur complet
+                response_serializer = RestaurantSerializer(
+                    restaurant, 
+                    context={'request': request}
+                )
+                
+                return Response(
+                    response_serializer.data, 
+                    status=status.HTTP_201_CREATED
+                )
+                
+            except Exception as e:
+                return Response({
+                    'error': 'Erreur lors de la création',
+                    'details': str(e)
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        else:
+            return Response({
+                'error': 'Données invalides',
+                'validation_errors': serializer.errors,
+                'received_data': frontend_data,
+                'help': 'Vérifiez que tous les champs requis sont présents et valides'
+            }, status=status.HTTP_400_BAD_REQUEST)
 
     @extend_schema(
         summary="Activer/désactiver Stripe",

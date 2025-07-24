@@ -78,4 +78,5 @@ export interface OrderSummary {
   deliveryFee: number;
   discount: number;
   total: number;
+  payload: number;
 }
