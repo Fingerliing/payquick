@@ -16,6 +16,10 @@ export interface Restaurant {
   rating: number;
   reviewCount: number;
   isActive: boolean;
+  isManuallyOverridden?: boolean;
+  manualOverrideUntil?: string | null;
+  manualOverrideReason?: string;
+  can_receive_orders: boolean;
   openingHours: OpeningHours[];
   location: {
     latitude: number;

@@ -26,12 +26,12 @@ export interface RestaurantContextType extends RestaurantState {
   searchRestaurants: (query: string, filters?: SearchFilters) => Promise<void>;
   setFilters: (filters: SearchFilters) => void;
   clearCurrentRestaurant: () => void;
-  refreshRestaurants: () => Promise<void>; // ✅ Ajout refresh
+  refreshRestaurants: () => Promise<void>;
 }
 
 type RestaurantAction =
   | { type: 'SET_LOADING'; payload: boolean }
-  | { type: 'SET_ERROR'; payload: string | null } // ✅ Ajout erreur
+  | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'SET_RESTAURANTS'; payload: Restaurant[] }
   | { type: 'SET_CURRENT_RESTAURANT'; payload: Restaurant | null }
   | { type: 'ADD_RESTAURANT'; payload: Restaurant }
@@ -63,7 +63,7 @@ const restaurantReducer = (state: RestaurantState, action: RestaurantAction): Re
     case 'SET_RESTAURANTS':
       return { 
         ...state, 
-        restaurants: Array.isArray(action.payload) ? action.payload : [], // ✅ Sécurisation
+        restaurants: Array.isArray(action.payload) ? action.payload : [],
         error: null 
       };
     case 'SET_CURRENT_RESTAURANT':
@@ -272,13 +272,11 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
     dispatch({ type: 'SET_CURRENT_RESTAURANT', payload: null });
   };
 
-  // ✅ SOLUTION: Ajout de refreshRestaurants
   const refreshRestaurants = async () => {
     console.log('🔄 RestaurantContext: Refreshing restaurants...');
     await loadRestaurants(state.filters, state.pagination.page);
   };
 
-  // ✅ SOLUTION PRINCIPALE: Chargement automatique au montage du provider
   useEffect(() => {
     console.log('🎬 RestaurantProvider mounted, loading initial data...');
     loadRestaurants();

@@ -1,8 +1,8 @@
-# backend/api/serializers/restaurant_serializers.py
-
 from rest_framework import serializers
 from api.models import Restaurant, OpeningHours
 from django.contrib.auth.models import User
+from django.core.files.uploadedfile import InMemoryUploadedFile
+import os
 
 class OpeningHoursSerializer(serializers.ModelSerializer):
     """Sérialiseur pour les horaires d'ouverture"""
@@ -26,8 +26,11 @@ class RestaurantSerializer(serializers.ModelSerializer):
     # Géolocalisation (structure attendue par le frontend)
     location = serializers.SerializerMethodField()
     
-    # Image avec URL complète
+    # Gestion des images
+    image = serializers.ImageField(required=False, allow_null=True)
     image_url = serializers.SerializerMethodField()
+    image_name = serializers.SerializerMethodField()
+    image_size = serializers.SerializerMethodField()
     
     # Champs frontend vs backend mapping
     zipCode = serializers.CharField(source='zip_code', required=False)
@@ -54,8 +57,11 @@ class RestaurantSerializer(serializers.ModelSerializer):
             # Contact
             'phone', 'email', 'website',
             
-            # Médias et évaluation
-            'image', 'image_url', 'rating', 'reviewCount', 'review_count',
+            # Images et médias
+            'image', 'image_url', 'image_name', 'image_size',
+            
+            # Évaluation
+            'rating', 'reviewCount', 'review_count',
             
             # Géolocalisation
             'latitude', 'longitude', 'location',
@@ -72,7 +78,8 @@ class RestaurantSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'id', 'owner_id', 'owner_name', 'created_at', 'updated_at', 
             'createdAt', 'updatedAt', 'can_receive_orders', 'rating', 
-            'review_count', 'reviewCount', 'full_address'
+            'review_count', 'reviewCount', 'full_address', 'image_url',
+            'image_name', 'image_size'
         ]
         extra_kwargs = {
             'siret': {'write_only': True},  # Pas exposé au frontend pour la sécurité
@@ -87,12 +94,53 @@ class RestaurantSerializer(serializers.ModelSerializer):
     
     def get_image_url(self, obj):
         """Retourne l'URL complète de l'image"""
-        if obj.image:
+        if obj.image and hasattr(obj.image, 'url'):
             request = self.context.get('request')
             if request:
                 return request.build_absolute_uri(obj.image.url)
             return obj.image.url
         return None
+    
+    def get_image_name(self, obj):
+        """Retourne le nom du fichier image"""
+        if obj.image and hasattr(obj.image, 'name'):
+            return os.path.basename(obj.image.name)
+        return None
+    
+    def get_image_size(self, obj):
+        """Retourne la taille du fichier image en bytes"""
+        if obj.image and hasattr(obj.image, 'size'):
+            return obj.image.size
+        return None
+    
+    def validate_image(self, value):
+        """Validation du fichier image"""
+        if value is None:
+            return value
+            
+        # Vérifier le type de fichier
+        allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+        if hasattr(value, 'content_type') and value.content_type not in allowed_types:
+            raise serializers.ValidationError(
+                "Format d'image non supporté. Utilisez JPEG, PNG ou WebP."
+            )
+        
+        # Vérifier la taille (max 5MB)
+        if hasattr(value, 'size') and value.size > 5 * 1024 * 1024:
+            raise serializers.ValidationError(
+                "L'image ne doit pas dépasser 5MB."
+            )
+        
+        # Vérifier l'extension
+        if hasattr(value, 'name'):
+            allowed_extensions = ['.jpg', '.jpeg', '.png', '.webp']
+            file_extension = os.path.splitext(value.name)[1].lower()
+            if file_extension not in allowed_extensions:
+                raise serializers.ValidationError(
+                    "Extension de fichier non supportée. Utilisez .jpg, .png ou .webp"
+                )
+        
+        return value
     
     def validate_phone(self, value):
         """Validation du numéro de téléphone"""
@@ -144,10 +192,23 @@ class RestaurantSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
     
     def update(self, instance, validated_data):
-        """Mise à jour avec gestion des champs spéciaux"""
+        """Mise à jour avec gestion des champs spéciaux et des images"""
         
         # Ne pas permettre la modification du SIRET après création
         validated_data.pop('siret', None)
+        
+        # Gestion spéciale pour l'image
+        new_image = validated_data.get('image')
+        if new_image is not None:
+            # Supprimer l'ancienne image si elle existe
+            if instance.image:
+                try:
+                    # Supprimer le fichier physique
+                    if os.path.isfile(instance.image.path):
+                        os.remove(instance.image.path)
+                except (ValueError, FileNotFoundError):
+                    # Ignorer si le fichier n'existe pas ou path invalide
+                    pass
         
         return super().update(instance, validated_data)
 
@@ -158,13 +219,36 @@ class RestaurantCreateSerializer(serializers.ModelSerializer):
     zipCode = serializers.CharField(source='zip_code')
     priceRange = serializers.IntegerField(source='price_range')
     
+    # Gestion de l'image
+    image = serializers.ImageField(required=False, allow_null=True)
+    
     class Meta:
         model = Restaurant
         fields = [
             'name', 'description', 'address', 'city', 'zipCode', 
             'country', 'phone', 'email', 'website', 'cuisine', 
-            'priceRange', 'latitude', 'longitude'
+            'priceRange', 'latitude', 'longitude', 'image'
         ]
+    
+    def validate_image(self, value):
+        """Validation du fichier image"""
+        if value is None:
+            return value
+            
+        # Vérifier le type de fichier
+        allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+        if hasattr(value, 'content_type') and value.content_type not in allowed_types:
+            raise serializers.ValidationError(
+                "Format d'image non supporté. Utilisez JPEG, PNG ou WebP."
+            )
+        
+        # Vérifier la taille (max 5MB)
+        if hasattr(value, 'size') and value.size > 5 * 1024 * 1024:
+            raise serializers.ValidationError(
+                "L'image ne doit pas dépasser 5MB."
+            )
+        
+        return value
     
     def create(self, validated_data):
         """Création avec génération automatique du SIRET"""
@@ -183,3 +267,81 @@ class RestaurantCreateSerializer(serializers.ModelSerializer):
         validated_data.setdefault('review_count', 0)
         
         return super().create(validated_data)
+
+class RestaurantImageSerializer(serializers.ModelSerializer):
+    """Sérialiseur spécialement pour la gestion des images"""
+    
+    image = serializers.ImageField(required=True)
+    image_url = serializers.SerializerMethodField(read_only=True)
+    
+    class Meta:
+        model = Restaurant
+        fields = ['image', 'image_url']
+    
+    def get_image_url(self, obj):
+        """Retourne l'URL complète de l'image"""
+        if obj.image and hasattr(obj.image, 'url'):
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            return obj.image.url
+        return None
+    
+    def validate_image(self, value):
+        """Validation stricte du fichier image"""
+        if not value:
+            raise serializers.ValidationError("Une image est requise.")
+        
+        # Vérifier le type de fichier
+        allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+        if hasattr(value, 'content_type') and value.content_type not in allowed_types:
+            raise serializers.ValidationError(
+                "Format d'image non supporté. Formats acceptés : JPEG, PNG, WebP."
+            )
+        
+        # Vérifier la taille (max 5MB)
+        if hasattr(value, 'size') and value.size > 5 * 1024 * 1024:
+            raise serializers.ValidationError(
+                "L'image ne doit pas dépasser 5MB."
+            )
+        
+        # Vérifier les dimensions minimales (optionnel)
+        try:
+            from PIL import Image
+            if hasattr(value, 'file'):
+                image = Image.open(value.file)
+                width, height = image.size
+                
+                # Dimensions minimales recommandées
+                if width < 200 or height < 200:
+                    raise serializers.ValidationError(
+                        "L'image doit faire au moins 200x200 pixels."
+                    )
+                
+                # Dimensions maximales
+                if width > 2000 or height > 2000:
+                    raise serializers.ValidationError(
+                        "L'image ne doit pas dépasser 2000x2000 pixels."
+                    )
+                
+        except ImportError:
+            # PIL n'est pas installé, ignorer la validation des dimensions
+            pass
+        except Exception as e:
+            raise serializers.ValidationError(f"Impossible de traiter l'image : {str(e)}")
+        
+        return value
+    
+    def update(self, instance, validated_data):
+        """Mise à jour avec suppression de l'ancienne image"""
+        
+        # Supprimer l'ancienne image si elle existe
+        if instance.image:
+            try:
+                if os.path.isfile(instance.image.path):
+                    os.remove(instance.image.path)
+            except (ValueError, FileNotFoundError):
+                # Ignorer si le fichier n'existe pas
+                pass
+        
+        return super().update(instance, validated_data)

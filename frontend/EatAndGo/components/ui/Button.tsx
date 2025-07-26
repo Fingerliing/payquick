@@ -12,7 +12,7 @@ import { COLORS } from '@/constants/config';
 interface ButtonProps extends Omit<TouchableOpacityProps, 'style'> {
   title: string;
   loading?: boolean;
-  variant?: 'primary' | 'secondary' | 'outline';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
   size?: 'small' | 'medium' | 'large';
   fullWidth?: boolean;
   leftIcon?: React.ReactNode;

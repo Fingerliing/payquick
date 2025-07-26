@@ -23,16 +23,59 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Loading } from '@/components/ui/Loading';
-import { ValidationUtils } from '@/utils/validators';
-import { CUISINE_TYPES } from '@/utils/constants';
-import { Restaurant } from '@/types/restaurant';
+import { RestaurantHoursUtils } from '@/utils/restaurantHours';
+import { OpeningHours, Restaurant } from '@/types/restaurant';
+import { OpeningHoursEditor } from '@/components/restaurant/OpeningHoursEditor';
+
+interface CreateRestaurantData {
+  // Champs de base requis
+  name: string;
+  address: string;
+  city: string;
+  zipCode: string;
+  phone: string;
+  email: string;
+  cuisine: string;
+  priceRange: 1 | 2 | 3 | 4;
+  
+  // Champs optionnels dans le formulaire mais requis dans Restaurant
+  description?: string;
+  country?: string; // Optionnel dans le formulaire, mais requis dans le modèle final
+  website?: string;
+  image?: string;
+  latitude?: number;
+  longitude?: number;
+  
+  // Horaires d'ouverture
+  openingHours: OpeningHours[];
+  
+  // Configuration des commandes
+  can_receive_orders?: boolean;
+}
+
+// Types de cuisine
+const CUISINE_CHOICES = [
+  { value: 'french', label: 'Française' },
+  { value: 'italian', label: 'Italienne' },
+  { value: 'asian', label: 'Asiatique' },
+  { value: 'mexican', label: 'Mexicaine' },
+  { value: 'indian', label: 'Indienne' },
+  { value: 'american', label: 'Américaine' },
+  { value: 'mediterranean', label: 'Méditerranéenne' },
+  { value: 'japanese', label: 'Japonaise' },
+  { value: 'chinese', label: 'Chinoise' },
+  { value: 'thai', label: 'Thaïlandaise' },
+  { value: 'other', label: 'Autre' },
+];
 
 export default function AddRestaurantScreen() {
   const { createRestaurant } = useRestaurant();
   const insets = useSafeAreaInsets();
   const [isLoading, setIsLoading] = useState(false);
   const [image, setImage] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
+  
+  // Formulaire avec horaires d'ouverture par défaut
+  const [formData, setFormData] = useState<CreateRestaurantData>({
     name: '',
     description: '',
     address: '',
@@ -44,10 +87,14 @@ export default function AddRestaurantScreen() {
     website: '',
     cuisine: '',
     priceRange: 2,
+    latitude: undefined,
+    longitude: undefined,
+    openingHours: RestaurantHoursUtils.getDefaultOpeningHours(), // Horaires par défaut
   });
+  
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const updateField = (field: string, value: string | number) => {
+  const updateField = (field: keyof CreateRestaurantData, value: string | number | OpeningHours[]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
@@ -97,6 +144,8 @@ export default function AddRestaurantScreen() {
         updateField('address', `${address.street || ''} ${address.streetNumber || ''}`.trim());
         updateField('city', address.city || '');
         updateField('zipCode', address.postalCode || '');
+        updateField('latitude', location.coords.latitude);
+        updateField('longitude', location.coords.longitude);
       }
     } catch (error) {
       Alert.alert('Erreur', 'Impossible de récupérer votre position');
@@ -105,10 +154,100 @@ export default function AddRestaurantScreen() {
     }
   };
 
-  const validateForm = () => {
-    const validation = ValidationUtils.validateRestaurant(formData);
-    setErrors(validation.errors);
-    return validation.isValid;
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    // Validation des champs existants
+    if (!formData.name.trim()) {
+      newErrors.name = 'Le nom du restaurant est requis';
+    } else if (formData.name.length > 100) {
+      newErrors.name = 'Le nom ne peut pas dépasser 100 caractères';
+    }
+
+    if (!formData.address.trim()) {
+      newErrors.address = 'L\'adresse est requise';
+    } else if (formData.address.length > 255) {
+      newErrors.address = 'L\'adresse ne peut pas dépasser 255 caractères';
+    }
+
+    if (!formData.city.trim()) {
+      newErrors.city = 'La ville est requise';
+    } else if (formData.city.length > 100) {
+      newErrors.city = 'La ville ne peut pas dépasser 100 caractères';
+    }
+
+    if (!formData.zipCode.trim()) {
+      newErrors.zipCode = 'Le code postal est requis';
+    } else if (formData.zipCode.length > 10) {
+      newErrors.zipCode = 'Le code postal ne peut pas dépasser 10 caractères';
+    }
+
+    if (formData.country && formData.country.length > 100) {
+      newErrors.country = 'Le pays ne peut pas dépasser 100 caractères';
+    }
+
+    if (!formData.phone.trim()) {
+      newErrors.phone = 'Le téléphone est requis';
+    } else if (formData.phone.length > 20) {
+      newErrors.phone = 'Le téléphone ne peut pas dépasser 20 caractères';
+    } else {
+      const phoneRegex = /^(\+33|0)[1-9](\d{8})$/;
+      const cleanPhone = formData.phone.replace(/[\s\.\-]/g, '');
+      if (!phoneRegex.test(cleanPhone)) {
+        newErrors.phone = 'Format de téléphone invalide. Utilisez +33123456789 ou 0123456789';
+      }
+    }
+
+    if (!formData.email.trim()) {
+      newErrors.email = 'L\'email est requis';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Format d\'email invalide';
+    }
+
+    if (!formData.cuisine.trim()) {
+      newErrors.cuisine = 'Le type de cuisine est requis';
+    } else {
+      const validCuisines = CUISINE_CHOICES.map(c => c.value);
+      if (!validCuisines.includes(formData.cuisine)) {
+        newErrors.cuisine = 'Type de cuisine non valide';
+      }
+    }
+
+    if (!formData.priceRange || formData.priceRange < 1 || formData.priceRange > 4) {
+      newErrors.priceRange = 'La gamme de prix doit être entre 1 et 4';
+    }
+
+    // Validation du site web (optionnel)
+    if (formData.website && formData.website.trim()) {
+      try {
+        new URL(formData.website);
+      } catch {
+        newErrors.website = 'Format d\'URL invalide';
+      }
+    }
+
+    // Validation des horaires d'ouverture
+    const hasAtLeastOneOpenDay = formData.openingHours.some(day => !day.isClosed);
+    if (!hasAtLeastOneOpenDay) {
+      newErrors.openingHours = 'Le restaurant doit être ouvert au moins un jour par semaine';
+    }
+
+    // Validation des heures pour les jours ouverts
+    formData.openingHours.forEach((day, index) => {
+      if (!day.isClosed) {
+        if (!day.openTime || !day.closeTime) {
+          newErrors.openingHours = 'Veuillez définir les heures d\'ouverture et de fermeture pour tous les jours ouverts';
+        }
+        
+        // Vérifier que l'heure de fermeture n'est pas identique à l'heure d'ouverture
+        if (day.openTime === day.closeTime) {
+          newErrors.openingHours = 'L\'heure de fermeture doit être différente de l\'heure d\'ouverture';
+        }
+      }
+    });
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async () => {
@@ -119,31 +258,181 @@ export default function AddRestaurantScreen() {
 
     setIsLoading(true);
     try {
-      const restaurantData = {
-        ...formData,
-        image,
+      // Calculer le statut automatique basé sur les horaires
+      const mockRestaurant: Restaurant = {
+        id: 'temp',
+        name: formData.name || '',
+        description: formData.description || '', // ✅ S'assurer que ce n'est jamais undefined
+        address: formData.address || '',
+        city: formData.city || '',
+        zipCode: formData.zipCode || '',
+        country: formData.country || 'France',
+        phone: formData.phone || '',
+        email: formData.email || '',
+        website: formData.website || undefined,
+        image: image || undefined,
+        coverImage: undefined,
+        cuisine: formData.cuisine || '',
+        priceRange: formData.priceRange,
         rating: 0,
         reviewCount: 0,
         isActive: true,
-        openingHours: [],
+        isManuallyOverridden: false,
+        manualOverrideUntil: null,
+        can_receive_orders: formData.can_receive_orders ?? true,
+        openingHours: formData.openingHours,
         location: {
-          latitude: 0,
-          longitude: 0,
+          latitude: formData.latitude || 0,
+          longitude: formData.longitude || 0,
         },
-        ownerId: '', // Sera défini côté serveur
+        ownerId: '',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
 
-      await createRestaurant(restaurantData as Omit<Restaurant, 'id' | 'createdAt' | 'updatedAt'>);
-      Alert.alert('Succès', 'Restaurant créé avec succès', [
-        { text: 'OK', onPress: () => router.back() }
-      ]);
+      // Calculer si le restaurant devrait être ouvert maintenant
+      const currentStatus = RestaurantHoursUtils.isRestaurantOpen(mockRestaurant);
+
+      const restaurantData = {
+        // Champs de base
+        name: formData.name.trim(),
+        description: formData.description?.trim() || '',
+        address: formData.address.trim(),
+        city: formData.city.trim(),
+        zipCode: formData.zipCode.trim(),
+        country: formData.country?.trim() || 'France',
+        phone: formData.phone.trim(),
+        email: formData.email.trim().toLowerCase(),
+        website: formData.website?.trim() || '',
+        cuisine: formData.cuisine.trim(),
+        priceRange: formData.priceRange,
+        
+        // Statut calculé automatiquement
+        rating: 0,
+        reviewCount: 0,
+        isActive: currentStatus, // Calculé en fonction des horaires
+        isManuallyOverridden: false,
+        manualOverrideUntil: null,
+        can_receive_orders: formData.can_receive_orders ?? true, // Par défaut, le restaurant peut recevoir des commandes
+        
+        // Horaires d'ouverture
+        openingHours: formData.openingHours,
+        
+        // Géolocalisation
+        location: {
+          latitude: formData.latitude || 0,
+          longitude: formData.longitude || 0,
+        },
+        
+        // Image
+        image: image || undefined,
+        
+        // Métadonnées (seront définies côté serveur)
+        ownerId: '',
+      };
+
+      console.log('📤 Envoi des données au backend avec horaires:', restaurantData);
+
+      const response = await createRestaurant(restaurantData);
+      
+      Alert.alert(
+        'Succès', 
+        `Restaurant créé avec succès !\n\nStatut actuel: ${currentStatus ? 'Ouvert' : 'Fermé'} selon vos horaires d'ouverture.`, 
+        [{ text: 'OK', onPress: () => router.back() }]
+      );
+
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Impossible de créer le restaurant');
+      console.error('❌ Erreur lors de la création:', error);
+      
+      let errorMessage = 'Impossible de créer le restaurant';
+      
+      if (error.response?.data) {
+        const backendError = error.response.data;
+        
+        if (backendError.validation_errors) {
+          const backendErrors: Record<string, string> = {};
+          Object.entries(backendError.validation_errors).forEach(([field, messages]) => {
+            if (Array.isArray(messages) && messages.length > 0) {
+              const frontendField = field === 'zip_code' ? 'zipCode' : 
+                                  field === 'price_range' ? 'priceRange' : 
+                                  field === 'opening_hours' ? 'openingHours' : field;
+              backendErrors[frontendField] = messages[0];
+            }
+          });
+          setErrors(backendErrors);
+          errorMessage = 'Veuillez corriger les erreurs de validation';
+        } else if (backendError.error) {
+          errorMessage = backendError.error;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      Alert.alert('Erreur', errorMessage);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Preview du statut actuel
+  const getStatusPreview = () => {
+    const mockRestaurant: Restaurant = {
+      id: 'temp',
+      name: formData.name || '',
+      description: formData.description || '',
+      address: formData.address || '',
+      city: formData.city || '',
+      zipCode: formData.zipCode || '',
+      country: formData.country || 'France',
+      phone: formData.phone || '',
+      email: formData.email || '',
+      website: formData.website || undefined,
+      image: image || undefined,
+      coverImage: undefined, // ✅ Propriété optionnelle explicite
+      cuisine: formData.cuisine || '',
+      priceRange: formData.priceRange,
+      rating: 0,
+      reviewCount: 0,
+      isActive: true,
+      isManuallyOverridden: false,
+      manualOverrideUntil: null,
+      can_receive_orders: formData.can_receive_orders ?? true,
+      openingHours: formData.openingHours,
+      location: { 
+        latitude: formData.latitude || 0, 
+        longitude: formData.longitude || 0 
+      },
+      ownerId: '',
+      createdAt: '',
+      updatedAt: '',
+    };
+
+    const status = RestaurantHoursUtils.getRestaurantStatus(mockRestaurant);
+    
+    return (
+      <View style={{
+        backgroundColor: status.isOpen ? '#D1FAE5' : '#FEE2E2',
+        padding: 12,
+        borderRadius: 8,
+        marginTop: 8,
+      }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Ionicons 
+            name={status.isOpen ? "checkmark-circle" : "close-circle"} 
+            size={16} 
+            color={status.isOpen ? "#065F46" : "#991B1B"} 
+          />
+          <Text style={{
+            fontSize: 12,
+            fontWeight: '500',
+            color: status.isOpen ? "#065F46" : "#991B1B",
+            marginLeft: 8,
+          }}>
+            Statut actuel: {status.status}
+          </Text>
+        </View>
+      </View>
+    );
   };
 
   const containerStyle: ViewStyle = {
@@ -159,7 +448,7 @@ export default function AddRestaurantScreen() {
     alignItems: 'center',
     marginBottom: 16,
     borderWidth: 2,
-    borderColor: '#E5E7EB',
+    borderColor: image ? '#10B981' : '#E5E7EB',
     borderStyle: 'dashed',
   };
 
@@ -168,6 +457,28 @@ export default function AddRestaurantScreen() {
     height: '100%',
     borderRadius: 12,
   };
+
+  const cuisinePickerStyle: ViewStyle = {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  };
+
+  const cuisineChipStyle = (selected: boolean): ViewStyle => ({
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: selected ? '#3B82F6' : '#E5E7EB',
+    backgroundColor: selected ? '#3B82F6' : '#FFFFFF',
+  });
+
+  const cuisineTextStyle = (selected: boolean): TextStyle => ({
+    fontSize: 12,
+    fontWeight: '500',
+    color: selected ? '#FFFFFF' : '#6B7280',
+  });
 
   const priceRangeStyle: ViewStyle = {
     flexDirection: 'row',
@@ -200,7 +511,6 @@ export default function AddRestaurantScreen() {
     marginBottom: 16,
   };
 
-  // Calculer la hauteur du footer avec safe area
   const footerHeight = 80 + insets.bottom;
 
   return (
@@ -218,11 +528,10 @@ export default function AddRestaurantScreen() {
       <ScrollView 
         contentContainerStyle={{ 
           padding: 16, 
-          paddingBottom: footerHeight + 16 // Espace pour le bouton + marge
+          paddingBottom: footerHeight + 16
         }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        // Propriétés importantes pour éviter que le clavier cache les champs
         automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
         contentInsetAdjustmentBehavior="automatic"
       >
@@ -241,6 +550,24 @@ export default function AddRestaurantScreen() {
               </View>
             )}
           </TouchableOpacity>
+          {image && (
+            <TouchableOpacity
+              onPress={() => setImage(null)}
+              style={{
+                position: 'absolute',
+                top: 8,
+                right: 8,
+                backgroundColor: '#EF4444',
+                borderRadius: 20,
+                width: 32,
+                height: 32,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+            >
+              <Ionicons name="close" size={16} color="#FFFFFF" />
+            </TouchableOpacity>
+          )}
         </Card>
 
         {/* Informations de base */}
@@ -252,12 +579,13 @@ export default function AddRestaurantScreen() {
             placeholder="Le Petit Bistrot"
             value={formData.name}
             onChangeText={(value) => updateField('name', value)}
+            maxLength={100}
             error={errors.name}
           />
 
           <Input
             label="Description"
-            placeholder="Cuisine française traditionnelle..."
+            placeholder="Cuisine française traditionnelle dans un cadre chaleureux..."
             value={formData.description}
             onChangeText={(value) => updateField('description', value)}
             multiline
@@ -265,15 +593,29 @@ export default function AddRestaurantScreen() {
             error={errors.description}
           />
 
-          <Input
-            label="Type de cuisine *"
-            placeholder="Sélectionnez un type"
-            value={formData.cuisine}
-            onChangeText={(value) => updateField('cuisine', value)}
-            error={errors.cuisine}
-          />
-
           <Text style={{ fontSize: 14, fontWeight: '500', color: '#374151', marginBottom: 8 }}>
+            Type de cuisine *
+          </Text>
+          <View style={cuisinePickerStyle}>
+            {CUISINE_CHOICES.map((cuisine) => (
+              <TouchableOpacity
+                key={cuisine.value}
+                style={cuisineChipStyle(formData.cuisine === cuisine.value)}
+                onPress={() => updateField('cuisine', cuisine.value)}
+              >
+                <Text style={cuisineTextStyle(formData.cuisine === cuisine.value)}>
+                  {cuisine.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {errors.cuisine && (
+            <Text style={{ color: '#EF4444', fontSize: 12, marginTop: 4 }}>
+              {errors.cuisine}
+            </Text>
+          )}
+
+          <Text style={{ fontSize: 14, fontWeight: '500', color: '#374151', marginBottom: 8, marginTop: 16 }}>
             Gamme de prix *
           </Text>
           <View style={priceRangeStyle}>
@@ -281,7 +623,7 @@ export default function AddRestaurantScreen() {
               <TouchableOpacity
                 key={price}
                 style={priceButtonStyle(formData.priceRange === price)}
-                onPress={() => updateField('priceRange', price)}
+                onPress={() => updateField('priceRange', price as 1 | 2 | 3 | 4)}
               >
                 <Text style={priceTextStyle(formData.priceRange === price)}>
                   {'€'.repeat(price)}
@@ -289,6 +631,21 @@ export default function AddRestaurantScreen() {
               </TouchableOpacity>
             ))}
           </View>
+          {errors.priceRange && (
+            <Text style={{ color: '#EF4444', fontSize: 12, marginTop: 4 }}>
+              {errors.priceRange}
+            </Text>
+          )}
+        </Card>
+
+        {/* Horaires d'ouverture */}
+        <Card style={{ marginTop: 16 }}>
+          <OpeningHoursEditor
+            openingHours={formData.openingHours}
+            onChange={(hours) => updateField('openingHours', hours)}
+            error={errors.openingHours}
+          />
+          {getStatusPreview()}
         </Card>
 
         {/* Adresse */}
@@ -305,6 +662,7 @@ export default function AddRestaurantScreen() {
                 paddingVertical: 6,
                 borderRadius: 6,
               }}
+              disabled={isLoading}
             >
               <Ionicons name="location-outline" size={16} color="#6B7280" />
               <Text style={{ fontSize: 12, color: '#6B7280', marginLeft: 4 }}>
@@ -318,6 +676,7 @@ export default function AddRestaurantScreen() {
             placeholder="123 Rue de la Paix"
             value={formData.address}
             onChangeText={(value) => updateField('address', value)}
+            maxLength={255}
             error={errors.address}
           />
 
@@ -333,6 +692,7 @@ export default function AddRestaurantScreen() {
                 placeholder="Paris"
                 value={formData.city}
                 onChangeText={(value) => updateField('city', value)}
+                maxLength={100}
                 error={errors.city}
               />
             </View>
@@ -342,8 +702,8 @@ export default function AddRestaurantScreen() {
                 placeholder="75001"
                 value={formData.zipCode}
                 onChangeText={(value) => updateField('zipCode', value)}
-                keyboardType="numeric"
-                maxLength={5}
+                keyboardType="default"
+                maxLength={10}
                 error={errors.zipCode}
               />
             </View>
@@ -354,6 +714,8 @@ export default function AddRestaurantScreen() {
             placeholder="France"
             value={formData.country}
             onChangeText={(value) => updateField('country', value)}
+            maxLength={100}
+            error={errors.country}
           />
         </Card>
 
@@ -363,10 +725,11 @@ export default function AddRestaurantScreen() {
           
           <Input
             label="Téléphone *"
-            placeholder="+33 1 23 45 67 89"
+            placeholder="+33 1 23 45 67 89 ou 01 23 45 67 89"
             value={formData.phone}
             onChangeText={(value) => updateField('phone', value)}
             keyboardType="phone-pad"
+            maxLength={20}
             leftIcon="call-outline"
             error={errors.phone}
           />
@@ -394,17 +757,34 @@ export default function AddRestaurantScreen() {
           />
         </Card>
 
-        {/* Espace supplémentaire pour éviter que le dernier champ soit caché */}
+        {/* Informations de géolocalisation */}
+        {(formData.latitude || formData.longitude) && (
+          <Card style={{ marginTop: 16 }}>
+            <Text style={sectionTitleStyle}>Géolocalisation</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+              <Ionicons name="location-outline" size={16} color="#6B7280" />
+              <Text style={{ fontSize: 12, color: '#6B7280', marginLeft: 4 }}>
+                Latitude: {formData.latitude?.toFixed(6) || 'Non définie'}
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="location-outline" size={16} color="#6B7280" />
+              <Text style={{ fontSize: 12, color: '#6B7280', marginLeft: 4 }}>
+                Longitude: {formData.longitude?.toFixed(6) || 'Non définie'}
+              </Text>
+            </View>
+          </Card>
+        )}
+
         <View style={{ height: 24 }} />
 
-        {/* Bouton de validation - Maintenant dans le ScrollView */}
+        {/* Bouton de validation */}
         <View style={{ 
           backgroundColor: '#FFFFFF', 
           paddingVertical: 16,
-          paddingHorizontal: 4, // Petit padding pour aligner avec le contenu
+          paddingHorizontal: 4,
           borderRadius: 12,
           marginTop: 8,
-          // Shadow pour donner l'impression d'un bouton important
           shadowColor: '#000',
           shadowOffset: { width: 0, height: 2 },
           shadowOpacity: 0.1,
@@ -416,9 +796,13 @@ export default function AddRestaurantScreen() {
             onPress={handleSubmit}
             loading={isLoading}
             fullWidth
+            disabled={isLoading}
           />
         </View>
       </ScrollView>
+
+      {/* Loading overlay */}
+      {isLoading && <Loading />}
     </KeyboardAvoidingView>
   );
 }

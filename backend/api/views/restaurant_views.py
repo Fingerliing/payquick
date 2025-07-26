@@ -2,19 +2,25 @@ from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.shortcuts import get_object_or_404
 from django.db.models import Count, Q
 from api.models import Restaurant, Table, Menu, Order, RestaurateurProfile
-from api.serializers.restaurant_serializers import RestaurantSerializer, RestaurantCreateSerializer
+from api.serializers.restaurant_serializers import (
+    RestaurantSerializer, 
+    RestaurantCreateSerializer,
+    RestaurantImageSerializer
+)
 from api.permissions import IsRestaurateur, IsOwnerOrReadOnly, IsValidatedRestaurateur
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter
+import os
 
 @extend_schema(tags=["Restaurant • Restaurants"])
 class RestaurantViewSet(viewsets.ModelViewSet):
     """
     Gère les restaurants d'un restaurateur.
     Filtrés automatiquement selon le restaurateur connecté.
-    Inclut des actions pour : activation, statistiques, gestion des tables, etc.
+    Inclut des actions pour : activation, statistiques, gestion des tables, upload d'images, etc.
     """
     queryset = Restaurant.objects.all().order_by('-id')
     serializer_class = RestaurantSerializer
@@ -23,6 +29,9 @@ class RestaurantViewSet(viewsets.ModelViewSet):
     search_fields = ['name', 'address', 'siret']
     ordering_fields = ['name', 'created_at', 'is_stripe_active']
     ordering = ['-id']
+    
+    # Support pour upload de fichiers
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_queryset(self):
         """Filtre les restaurants par propriétaire connecté"""
@@ -32,6 +41,8 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         """Utilise le bon sérialiseur selon l'action"""
         if self.action == 'create':
             return RestaurantCreateSerializer
+        elif self.action in ['upload_image', 'update_image']:
+            return RestaurantImageSerializer
         return RestaurantSerializer
 
     def perform_create(self, serializer):
@@ -40,9 +51,9 @@ class RestaurantViewSet(viewsets.ModelViewSet):
 
     @extend_schema(
         summary="Créer un restaurant",
-        description="Crée un nouveau restaurant avec toutes les informations nécessaires. Le SIRET peut être généré automatiquement si non fourni.",
+        description="Crée un nouveau restaurant avec toutes les informations nécessaires, y compris une image optionnelle. Le SIRET peut être généré automatiquement si non fourni.",
         request={
-            'application/json': {
+            'multipart/form-data': {
                 'type': 'object',
                 'properties': {
                     # Informations de base
@@ -120,6 +131,13 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                         'example': 2
                     },
                     
+                    # Image du restaurant
+                    'image': {
+                        'type': 'string',
+                        'format': 'binary',
+                        'description': 'Photo du restaurant (JPEG, PNG, WebP, max 5MB, min 200x200px)',
+                    },
+                    
                     # Géolocalisation (optionnel)
                     'latitude': {
                         'type': 'number',
@@ -174,6 +192,9 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                                 'reviewCount': {'type': 'integer'},
                                 'isActive': {'type': 'boolean'},
                                 'canReceiveOrders': {'type': 'boolean'},
+                                'image_url': {'type': 'string', 'format': 'uri'},
+                                'image_name': {'type': 'string'},
+                                'image_size': {'type': 'integer'},
                                 'location': {
                                     'type': 'object',
                                     'properties': {
@@ -211,7 +232,8 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                                     },
                                     'example': {
                                         'zipCode': ['Le code postal doit contenir exactement 5 chiffres'],
-                                        'phone': ['Format de téléphone invalide']
+                                        'phone': ['Format de téléphone invalide'],
+                                        'image': ['L\'image ne doit pas dépasser 5MB']
                                     }
                                 },
                                 'received_data': {'type': 'object'},
@@ -220,99 +242,29 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                         }
                     }
                 }
-            },
-            403: {
-                'description': 'Non autorisé',
-                'content': {
-                    'application/json': {
-                        'schema': {
-                            'type': 'object',
-                            'properties': {
-                                'error': {'type': 'string', 'example': 'Validation Stripe requise pour créer un restaurant'},
-                                'debug': {
-                                    'type': 'object',
-                                    'properties': {
-                                        'user_authenticated': {'type': 'boolean'},
-                                        'groups': {'type': 'array', 'items': {'type': 'string'}},
-                                        'stripe_verified': {'type': 'boolean'},
-                                        'is_active': {'type': 'boolean'}
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            500: {
-                'description': 'Erreur serveur',
-                'content': {
-                    'application/json': {
-                        'schema': {
-                            'type': 'object',
-                            'properties': {
-                                'error': {'type': 'string', 'example': 'Erreur lors de la création'},
-                                'details': {'type': 'string'}
-                            }
-                        }
-                    }
-                }
             }
-        },
-        examples=[
-            {
-                'name': 'Restaurant complet',
-                'description': 'Exemple de création d\'un restaurant avec toutes les informations',
-                'value': {
-                    'name': 'Le Petit Bistrot',
-                    'description': 'Restaurant traditionnel français avec une ambiance chaleureuse et une cuisine authentique',
-                    'address': '42 Avenue des Champs-Élysées',
-                    'city': 'Paris',
-                    'zipCode': '75008',
-                    'country': 'France',
-                    'phone': '+33142563789',
-                    'email': 'contact@petitbistrot.fr',
-                    'website': 'https://www.petitbistrot.fr',
-                    'cuisine': 'french',
-                    'priceRange': 3,
-                    'latitude': 48.8566,
-                    'longitude': 2.3522
-                }
-            },
-            {
-                'name': 'Restaurant minimal',
-                'description': 'Exemple avec les champs minimum requis',
-                'value': {
-                    'name': 'Pizza Express',
-                    'address': '15 Rue de la République',
-                    'city': 'Lyon',
-                    'zipCode': '69001',
-                    'phone': '0478123456',
-                    'email': 'contact@pizzaexpress.fr',
-                    'cuisine': 'italian',
-                    'priceRange': 2
-                }
-            }
-        ]
+        }
     )
     def create(self, request, *args, **kwargs):
         """Crée un nouveau restaurant avec données du frontend adaptées"""
         
         # Debug des données reçues
-        print(f"📦 Données reçues du frontend: {request.data}")
+        print(f"📦 Données reçues du frontend: {dict(request.data)}")
+        print(f"📷 Fichiers reçus: {dict(request.FILES)}")
         
         # Nettoyer et adapter les données du frontend
         frontend_data = request.data.copy()
         
-        # Supprimer les champs que le backend ne gère pas encore
+        # Supprimer les champs que le backend ne gère pas encore (sauf image maintenant)
         fields_to_remove = [
-            'image', 'rating', 'reviewCount', 'isActive', 'openingHours', 
+            'rating', 'reviewCount', 'isActive', 'openingHours', 
             'ownerId', 'createdAt', 'updatedAt', 'location'
         ]
         
         for field in fields_to_remove:
             frontend_data.pop(field, None)
         
-        print(f"📦 Données nettoyées: {frontend_data}")
+        print(f"📦 Données nettoyées: {dict(frontend_data)}")
         
         # Utiliser le sérialiseur de création
         serializer = self.get_serializer(data=frontend_data)
@@ -343,9 +295,276 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             return Response({
                 'error': 'Données invalides',
                 'validation_errors': serializer.errors,
-                'received_data': frontend_data,
+                'received_data': dict(frontend_data),
                 'help': 'Vérifiez que tous les champs requis sont présents et valides'
             }, status=status.HTTP_400_BAD_REQUEST)
+
+    @extend_schema(
+        summary="Uploader une image",
+        description="Upload ou remplace l'image d'un restaurant existant.",
+        request={
+            'multipart/form-data': {
+                'type': 'object',
+                'properties': {
+                    'image': {
+                        'type': 'string',
+                        'format': 'binary',
+                        'description': 'Fichier image (JPEG, PNG, WebP, max 5MB, min 200x200px)'
+                    }
+                },
+                'required': ['image']
+            }
+        },
+        responses={
+            200: {
+                'description': 'Image uploadée avec succès',
+                'content': {
+                    'application/json': {
+                        'schema': {
+                            'type': 'object',
+                            'properties': {
+                                'success': {'type': 'boolean', 'example': True},
+                                'message': {'type': 'string', 'example': 'Image uploadée avec succès'},
+                                'image_url': {'type': 'string', 'format': 'uri'},
+                                'image_name': {'type': 'string'},
+                                'image_size': {'type': 'integer'},
+                                'restaurant': {
+                                    'type': 'object',
+                                    'properties': {
+                                        'id': {'type': 'integer'},
+                                        'name': {'type': 'string'}
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            400: {
+                'description': 'Fichier image invalide',
+                'content': {
+                    'application/json': {
+                        'schema': {
+                            'type': 'object',
+                            'properties': {
+                                'error': {'type': 'string'},
+                                'validation_errors': {'type': 'object'},
+                                'allowed_formats': {'type': 'array', 'items': {'type': 'string'}},
+                                'max_size': {'type': 'string', 'example': '5MB'}
+                            }
+                        }
+                    }
+                }
+            },
+            404: {'description': 'Restaurant non trouvé'}
+        }
+    )
+    @action(detail=True, methods=["post"], parser_classes=[MultiPartParser, FormParser])
+    def upload_image(self, request, pk=None):
+        """Upload ou remplace l'image d'un restaurant"""
+        restaurant = self.get_object()
+        
+        if 'image' not in request.FILES:
+            return Response({
+                'error': 'Aucun fichier image fourni',
+                'help': 'Envoyez un fichier avec la clé "image"'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        serializer = RestaurantImageSerializer(
+            restaurant, 
+            data=request.data, 
+            context={'request': request},
+            partial=True
+        )
+        
+        if serializer.is_valid():
+            try:
+                updated_restaurant = serializer.save()
+                
+                return Response({
+                    'success': True,
+                    'message': 'Image uploadée avec succès',
+                    'image_url': serializer.get_image_url(updated_restaurant),
+                    'image_name': os.path.basename(updated_restaurant.image.name) if updated_restaurant.image else None,
+                    'image_size': updated_restaurant.image.size if updated_restaurant.image else None,
+                    'restaurant': {
+                        'id': updated_restaurant.id,
+                        'name': updated_restaurant.name
+                    }
+                }, status=status.HTTP_200_OK)
+                
+            except Exception as e:
+                return Response({
+                    'error': 'Erreur lors de l\'upload',
+                    'details': str(e)
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        else:
+            return Response({
+                'error': 'Fichier image invalide',
+                'validation_errors': serializer.errors,
+                'allowed_formats': ['JPEG', 'PNG', 'WebP'],
+                'max_size': '5MB',
+                'min_dimensions': '200x200px'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+    @extend_schema(
+        summary="Supprimer l'image",
+        description="Supprime l'image du restaurant.",
+        responses={
+            200: {
+                'description': 'Image supprimée avec succès',
+                'content': {
+                    'application/json': {
+                        'schema': {
+                            'type': 'object',
+                            'properties': {
+                                'success': {'type': 'boolean', 'example': True},
+                                'message': {'type': 'string', 'example': 'Image supprimée avec succès'},
+                                'restaurant': {
+                                    'type': 'object',
+                                    'properties': {
+                                        'id': {'type': 'integer'},
+                                        'name': {'type': 'string'},
+                                        'has_image': {'type': 'boolean', 'example': False}
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            404: {'description': 'Restaurant non trouvé ou aucune image à supprimer'}
+        }
+    )
+    @action(detail=True, methods=["delete"])
+    def delete_image(self, request, pk=None):
+        """Supprime l'image d'un restaurant"""
+        restaurant = self.get_object()
+        
+        if not restaurant.image:
+            return Response({
+                'error': 'Aucune image à supprimer',
+                'restaurant': {
+                    'id': restaurant.id,
+                    'name': restaurant.name,
+                    'has_image': False
+                }
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        try:
+            # Supprimer le fichier physique
+            if os.path.isfile(restaurant.image.path):
+                os.remove(restaurant.image.path)
+            
+            # Supprimer la référence en base
+            restaurant.image.delete(save=True)
+            
+            return Response({
+                'success': True,
+                'message': 'Image supprimée avec succès',
+                'restaurant': {
+                    'id': restaurant.id,
+                    'name': restaurant.name,
+                    'has_image': False
+                }
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                'error': 'Erreur lors de la suppression',
+                'details': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @extend_schema(
+        summary="Informations de l'image",
+        description="Retourne les informations détaillées de l'image du restaurant.",
+        responses={
+            200: {
+                'description': 'Informations de l\'image',
+                'content': {
+                    'application/json': {
+                        'schema': {
+                            'type': 'object',
+                            'properties': {
+                                'has_image': {'type': 'boolean'},
+                                'image_url': {'type': 'string', 'format': 'uri'},
+                                'image_name': {'type': 'string'},
+                                'image_size': {'type': 'integer'},
+                                'image_size_formatted': {'type': 'string', 'example': '1.2 MB'},
+                                'upload_date': {'type': 'string', 'format': 'date-time'},
+                                'restaurant': {
+                                    'type': 'object',
+                                    'properties': {
+                                        'id': {'type': 'integer'},
+                                        'name': {'type': 'string'}
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            404: {'description': 'Restaurant non trouvé'}
+        }
+    )
+    @action(detail=True, methods=["get"])
+    def image_info(self, request, pk=None):
+        """Retourne les informations de l'image d'un restaurant"""
+        restaurant = self.get_object()
+        
+        def format_size(size_bytes):
+            """Formate la taille en bytes vers une chaîne lisible"""
+            if size_bytes < 1024:
+                return f"{size_bytes} B"
+            elif size_bytes < 1024**2:
+                return f"{size_bytes/1024:.1f} KB"
+            elif size_bytes < 1024**3:
+                return f"{size_bytes/(1024**2):.1f} MB"
+            else:
+                return f"{size_bytes/(1024**3):.1f} GB"
+        
+        if restaurant.image:
+            try:
+                # Obtenir les informations du fichier
+                file_stat = os.stat(restaurant.image.path) if restaurant.image.path else None
+                
+                return Response({
+                    'has_image': True,
+                    'image_url': request.build_absolute_uri(restaurant.image.url),
+                    'image_name': os.path.basename(restaurant.image.name),
+                    'image_size': restaurant.image.size,
+                    'image_size_formatted': format_size(restaurant.image.size),
+                    'upload_date': restaurant.updated_at,  # Approximation
+                    'restaurant': {
+                        'id': restaurant.id,
+                        'name': restaurant.name
+                    }
+                }, status=status.HTTP_200_OK)
+                
+            except Exception as e:
+                return Response({
+                    'has_image': True,
+                    'error': 'Erreur lors de la lecture des informations',
+                    'details': str(e),
+                    'restaurant': {
+                        'id': restaurant.id,
+                        'name': restaurant.name
+                    }
+                }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                'has_image': False,
+                'image_url': None,
+                'image_name': None,
+                'image_size': None,
+                'image_size_formatted': None,
+                'upload_date': None,
+                'restaurant': {
+                    'id': restaurant.id,
+                    'name': restaurant.name
+                }
+            }, status=status.HTTP_200_OK)
 
     @extend_schema(
         summary="Activer/désactiver Stripe",
@@ -670,7 +889,9 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                 "siret": restaurant.siret,
                 "is_stripe_active": restaurant.is_stripe_active,
                 "can_receive_orders": restaurant.can_receive_orders,
-                "active_orders": active_orders
+                "active_orders": active_orders,
+                "has_image": bool(restaurant.image),
+                "image_url": request.build_absolute_uri(restaurant.image.url) if restaurant.image else None
             })
         
         if page is not None:
@@ -698,23 +919,15 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         ).count()
         total_tables = Table.objects.filter(restaurant=restaurant).count()
         
-        data = {
-            "id": restaurant.id,
-            "name": restaurant.name,
-            "description": restaurant.description,
-            "address": restaurant.address,
-            "siret": restaurant.siret,
-            "is_stripe_active": restaurant.is_stripe_active,
-            "can_receive_orders": restaurant.can_receive_orders,
-            "stats": {
-                "total_orders": total_orders,
-                "active_orders": active_orders,
-                "total_tables": total_tables
-            },
-            "owner": {
-                "stripe_verified": restaurant.owner.stripe_verified,
-                "is_active": restaurant.owner.is_active
-            }
+        # Utiliser le serializer complet pour la réponse
+        serializer = self.get_serializer(restaurant)
+        data = serializer.data
+        
+        # Ajouter les stats
+        data['stats'] = {
+            "total_orders": total_orders,
+            "active_orders": active_orders,
+            "total_tables": total_tables
         }
         
         return Response(data)

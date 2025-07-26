@@ -94,7 +94,7 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
     <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
       <Card style={containerStyle} padding={0}>
         <Image
-          source={{ uri: restaurant.image || 'https://via.placeholder.com/300x160' }}
+          source={{ uri: restaurant.image || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&h=250&fit=crop' }}
           style={imageStyle}
           resizeMode="cover"
         />
@@ -107,7 +107,9 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
             
             <View style={ratingContainerStyle}>
               <Ionicons name="star" size={12} color="#D97706" />
-              <Text style={ratingStyle}>{(restaurant.rating || 0).toFixed(1)}</Text>
+              <Text style={ratingStyle}>
+                {typeof restaurant.rating === 'number' ? restaurant.rating.toFixed(1) : '0.0'}
+              </Text>
             </View>
           </View>
 
@@ -129,7 +131,9 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
           {showDistance && distance !== undefined && (
             <View style={infoRowStyle}>
               <Ionicons name="walk-outline" size={14} color="#6B7280" />
-              <Text style={infoTextStyle}>{distance.toFixed(1)} km</Text>
+              <Text style={infoTextStyle}>
+                {typeof distance === 'number' ? distance.toFixed(1) : '0.0'} km
+              </Text>
             </View>
           )}
 
