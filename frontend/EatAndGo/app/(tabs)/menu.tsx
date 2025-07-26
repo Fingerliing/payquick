@@ -15,7 +15,7 @@ import { Loading } from '@/components/ui/Loading';
 import { Button } from '@/components/ui/Button';
 import { useRestaurant } from '@/contexts/RestaurantContext';
 import { menuService } from '@/services/menuService';
-import { Menu } from '@/types/restaurant';
+import { Menu } from '@/types/menu';
 
 export default function MenusScreen() {
   const { restaurants } = useRestaurant();
@@ -28,19 +28,13 @@ export default function MenusScreen() {
   }, []);
 
   const loadMenus = async () => {
-    if (restaurants.length === 0) return;
-
     setIsLoading(true);
     try {
-      // Charger les menus pour tous les restaurants
-      const allMenus: Menu[] = [];
-      for (const restaurant of restaurants) {
-        const restaurantMenus = await menuService.getRestaurantMenus(restaurant.id);
-        allMenus.push(...restaurantMenus);
-      }
-      setMenus(allMenus);
+      const myMenus = await menuService.getMyMenus();
+      setMenus(myMenus);
     } catch (error) {
       Alert.alert('Erreur', 'Impossible de charger les menus');
+      console.error('Erreur lors du chargement des menus:', error);
     } finally {
       setIsLoading(false);
     }
@@ -54,23 +48,57 @@ export default function MenusScreen() {
 
   const handleToggleMenu = async (menu: Menu) => {
     try {
-      const updatedMenu = await menuService.updateMenu(menu.id, {
-        isActive: !menu.isActive,
-      });
+      const result = await menuService.toggleMenuAvailability(menu.id);
       setMenus(prevMenus =>
-        prevMenus.map(m => m.id === menu.id ? updatedMenu : m)
+        prevMenus.map(m => 
+          m.id === menu.id 
+            ? { ...m, disponible: result.disponible }
+            : { ...m, disponible: false }
+        )
+      );
+      Alert.alert(
+        'Succès', 
+        result.disponible 
+          ? 'Menu activé avec succès' 
+          : 'Menu désactivé avec succès'
       );
     } catch (error) {
       Alert.alert('Erreur', 'Impossible de modifier le menu');
+      console.error('Erreur lors de la modification du menu:', error);
     }
+  };
+
+  const handleDeleteMenu = async (menu: Menu) => {
+    Alert.alert(
+      'Confirmer la suppression',
+      `Êtes-vous sûr de vouloir supprimer le menu "${menu.name}" ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await menuService.deleteMenu(menu.id);
+              setMenus(prevMenus => prevMenus.filter(m => m.id !== menu.id));
+              Alert.alert('Succès', 'Menu supprimé avec succès');
+            } catch (error) {
+              Alert.alert('Erreur', 'Impossible de supprimer le menu');
+              console.error('Erreur lors de la suppression du menu:', error);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const renderMenu = ({ item }: { item: Menu }) => (
     <MenuCard
       menu={item}
-      onPress={() => router.push(`/menu/${item.id}`)}
-      onEdit={() => router.push(`/menu/edit/${item.id}`)}
+      onPress={() => router.push(`/menu/${item.id}` as any)}
+      onEdit={() => router.push(`/menu/edit/${item.id}` as any)}
       onToggle={() => handleToggleMenu(item)}
+      onDelete={() => handleDeleteMenu(item)}
     />
   );
 
@@ -90,6 +118,7 @@ export default function MenusScreen() {
           <Button
             title="Créer un menu"
             onPress={() => router.push(`/menu/add?restaurantId=${restaurants[0].id}`)}
+            variant="primary"
             style={{ marginTop: 20 }}
           />
         )}
@@ -105,7 +134,7 @@ export default function MenusScreen() {
   return (
     <View style={containerStyle}>
       <Header 
-        title="Menus" 
+        title="Mes Menus"
         rightIcon="add-outline"
         onRightPress={() => {
           if (restaurants.length > 0) {
@@ -119,7 +148,7 @@ export default function MenusScreen() {
       <FlatList
         data={menus}
         renderItem={renderMenu}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={{ paddingTop: 16, paddingBottom: 100 }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />

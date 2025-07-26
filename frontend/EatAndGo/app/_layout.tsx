@@ -18,6 +18,7 @@ export default function RootLayout() {
               <Stack.Screen name="restaurant/add" options={{ title: 'Ajouter un restaurant' }} />
               <Stack.Screen name="restaurant/edit/[id]" options={{ title: 'Modifier le restaurant' }} />
               <Stack.Screen name="menu/[id]" options={{ title: 'Menu' }} />
+              <Stack.Screen name="menu/edit/[id]" options={{ title: 'Editer un Menu' }} />
               <Stack.Screen name="menu/add" options={{ title: 'Ajouter un menu' }} />
               <Stack.Screen name="order/[id]" options={{ title: 'Commande' }} />
               <Stack.Screen name="order/checkout" options={{ title: 'Finaliser la commande' }} />
