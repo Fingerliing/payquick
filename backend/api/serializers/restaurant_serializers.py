@@ -94,23 +94,32 @@ class RestaurantSerializer(serializers.ModelSerializer):
     
     def get_image_url(self, obj):
         """Retourne l'URL complète de l'image"""
-        if obj.image and hasattr(obj.image, 'url'):
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.image.url)
-            return obj.image.url
+        try:
+            if obj and obj.image and hasattr(obj.image, 'url'):
+                request = self.context.get('request')
+                if request:
+                    return request.build_absolute_uri(obj.image.url)
+                return obj.image.url
+        except (ValueError, AttributeError):
+            pass
         return None
     
     def get_image_name(self, obj):
         """Retourne le nom du fichier image"""
-        if obj.image and hasattr(obj.image, 'name'):
-            return os.path.basename(obj.image.name)
+        try:
+            if obj and obj.image and hasattr(obj.image, 'name') and obj.image.name:
+                return os.path.basename(obj.image.name)
+        except (ValueError, AttributeError):
+            pass
         return None
     
     def get_image_size(self, obj):
         """Retourne la taille du fichier image en bytes"""
-        if obj.image and hasattr(obj.image, 'size'):
-            return obj.image.size
+        try:
+            if obj and obj.image and hasattr(obj.image, 'size'):
+                return obj.image.size
+        except (ValueError, AttributeError):
+            pass
         return None
     
     def validate_image(self, value):
@@ -120,19 +129,21 @@ class RestaurantSerializer(serializers.ModelSerializer):
             
         # Vérifier le type de fichier
         allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
-        if hasattr(value, 'content_type') and value.content_type not in allowed_types:
-            raise serializers.ValidationError(
-                "Format d'image non supporté. Utilisez JPEG, PNG ou WebP."
-            )
+        if hasattr(value, 'content_type') and value.content_type:
+            if value.content_type not in allowed_types:
+                raise serializers.ValidationError(
+                    "Format d'image non supporté. Utilisez JPEG, PNG ou WebP."
+                )
         
         # Vérifier la taille (max 5MB)
-        if hasattr(value, 'size') and value.size > 5 * 1024 * 1024:
-            raise serializers.ValidationError(
-                "L'image ne doit pas dépasser 5MB."
-            )
+        if hasattr(value, 'size') and value.size:
+            if value.size > 5 * 1024 * 1024:
+                raise serializers.ValidationError(
+                    "L'image ne doit pas dépasser 5MB."
+                )
         
         # Vérifier l'extension
-        if hasattr(value, 'name'):
+        if hasattr(value, 'name') and value.name:
             allowed_extensions = ['.jpg', '.jpeg', '.png', '.webp']
             file_extension = os.path.splitext(value.name)[1].lower()
             if file_extension not in allowed_extensions:
@@ -144,6 +155,9 @@ class RestaurantSerializer(serializers.ModelSerializer):
     
     def validate_phone(self, value):
         """Validation du numéro de téléphone"""
+        if not value:
+            return value
+            
         import re
         # Nettoyer le numéro
         cleaned = re.sub(r'[\s\.\-]', '', value)
@@ -162,6 +176,9 @@ class RestaurantSerializer(serializers.ModelSerializer):
     
     def validate_zip_code(self, value):
         """Validation du code postal français"""
+        if not value:
+            return value
+            
         import re
         if not re.match(r'^\d{5}$', value):
             raise serializers.ValidationError(
@@ -171,7 +188,7 @@ class RestaurantSerializer(serializers.ModelSerializer):
     
     def validate_price_range(self, value):
         """Validation de la gamme de prix"""
-        if value not in [1, 2, 3, 4]:
+        if value is not None and value not in [1, 2, 3, 4]:
             raise serializers.ValidationError(
                 "La gamme de prix doit être entre 1 et 4"
             )
@@ -204,9 +221,10 @@ class RestaurantSerializer(serializers.ModelSerializer):
             if instance.image:
                 try:
                     # Supprimer le fichier physique
-                    if os.path.isfile(instance.image.path):
-                        os.remove(instance.image.path)
-                except (ValueError, FileNotFoundError):
+                    if hasattr(instance.image, 'path') and instance.image.path:
+                        if os.path.isfile(instance.image.path):
+                            os.remove(instance.image.path)
+                except (ValueError, FileNotFoundError, AttributeError):
                     # Ignorer si le fichier n'existe pas ou path invalide
                     pass
         
@@ -237,16 +255,18 @@ class RestaurantCreateSerializer(serializers.ModelSerializer):
             
         # Vérifier le type de fichier
         allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
-        if hasattr(value, 'content_type') and value.content_type not in allowed_types:
-            raise serializers.ValidationError(
-                "Format d'image non supporté. Utilisez JPEG, PNG ou WebP."
-            )
+        if hasattr(value, 'content_type') and value.content_type:
+            if value.content_type not in allowed_types:
+                raise serializers.ValidationError(
+                    "Format d'image non supporté. Utilisez JPEG, PNG ou WebP."
+                )
         
         # Vérifier la taille (max 5MB)
-        if hasattr(value, 'size') and value.size > 5 * 1024 * 1024:
-            raise serializers.ValidationError(
-                "L'image ne doit pas dépasser 5MB."
-            )
+        if hasattr(value, 'size') and value.size:
+            if value.size > 5 * 1024 * 1024:
+                raise serializers.ValidationError(
+                    "L'image ne doit pas dépasser 5MB."
+                )
         
         return value
     
@@ -280,11 +300,14 @@ class RestaurantImageSerializer(serializers.ModelSerializer):
     
     def get_image_url(self, obj):
         """Retourne l'URL complète de l'image"""
-        if obj.image and hasattr(obj.image, 'url'):
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.image.url)
-            return obj.image.url
+        try:
+            if obj and obj.image and hasattr(obj.image, 'url'):
+                request = self.context.get('request')
+                if request:
+                    return request.build_absolute_uri(obj.image.url)
+                return obj.image.url
+        except (ValueError, AttributeError):
+            pass
         return None
     
     def validate_image(self, value):
@@ -294,41 +317,51 @@ class RestaurantImageSerializer(serializers.ModelSerializer):
         
         # Vérifier le type de fichier
         allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
-        if hasattr(value, 'content_type') and value.content_type not in allowed_types:
-            raise serializers.ValidationError(
-                "Format d'image non supporté. Formats acceptés : JPEG, PNG, WebP."
-            )
+        if hasattr(value, 'content_type') and value.content_type:
+            if value.content_type not in allowed_types:
+                raise serializers.ValidationError(
+                    f"Format d'image non supporté: {value.content_type}. Formats acceptés : JPEG, PNG, WebP."
+                )
         
         # Vérifier la taille (max 5MB)
-        if hasattr(value, 'size') and value.size > 5 * 1024 * 1024:
-            raise serializers.ValidationError(
-                "L'image ne doit pas dépasser 5MB."
-            )
+        if hasattr(value, 'size') and value.size:
+            if value.size > 5 * 1024 * 1024:
+                raise serializers.ValidationError(
+                    f"L'image ne doit pas dépasser 5MB. Taille actuelle: {value.size/1024/1024:.1f}MB"
+                )
         
         # Vérifier les dimensions minimales (optionnel)
         try:
             from PIL import Image
             if hasattr(value, 'file'):
+                # Sauvegarder la position actuelle du fichier
+                current_position = value.file.tell()
+                value.file.seek(0)
+                
                 image = Image.open(value.file)
                 width, height = image.size
+                
+                # Restaurer la position du fichier
+                value.file.seek(current_position)
                 
                 # Dimensions minimales recommandées
                 if width < 200 or height < 200:
                     raise serializers.ValidationError(
-                        "L'image doit faire au moins 200x200 pixels."
+                        f"L'image doit faire au moins 200x200 pixels. Dimensions actuelles: {width}x{height}"
                     )
                 
                 # Dimensions maximales
                 if width > 2000 or height > 2000:
                     raise serializers.ValidationError(
-                        "L'image ne doit pas dépasser 2000x2000 pixels."
+                        f"L'image ne doit pas dépasser 2000x2000 pixels. Dimensions actuelles: {width}x{height}"
                     )
                 
         except ImportError:
             # PIL n'est pas installé, ignorer la validation des dimensions
             pass
         except Exception as e:
-            raise serializers.ValidationError(f"Impossible de traiter l'image : {str(e)}")
+            # En cas d'erreur, continuer sans validation des dimensions
+            print(f"Erreur lors de la validation des dimensions: {e}")
         
         return value
     
@@ -338,9 +371,10 @@ class RestaurantImageSerializer(serializers.ModelSerializer):
         # Supprimer l'ancienne image si elle existe
         if instance.image:
             try:
-                if os.path.isfile(instance.image.path):
-                    os.remove(instance.image.path)
-            except (ValueError, FileNotFoundError):
+                if hasattr(instance.image, 'path') and instance.image.path:
+                    if os.path.isfile(instance.image.path):
+                        os.remove(instance.image.path)
+            except (ValueError, FileNotFoundError, AttributeError):
                 # Ignorer si le fichier n'existe pas
                 pass
         
