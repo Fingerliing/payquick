@@ -217,3 +217,8 @@ LOGGING = {
         },
     },
 }
+
+import mimetypes
+
+# Configurer le type MIME pour WebP
+mimetypes.add_type("image/webp", ".webp")

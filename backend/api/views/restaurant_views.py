@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.shortcuts import get_object_or_404
 from django.db.models import Count, Q
+from django.utils import timezone
 from api.models import Restaurant, Table, Menu, Order, RestaurateurProfile, MenuItem
 from api.serializers.restaurant_serializers import (
     RestaurantSerializer, 
@@ -73,39 +74,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             OpenApiParameter(name="page_size", type=int, description="Nombre d'éléments par page"),
         ],
         responses={
-            200: OpenApiResponse(
-                description="Liste des restaurants",
-                response={
-                    'type': 'object',
-                    'properties': {
-                        'count': {'type': 'integer', 'example': 5},
-                        'next': {'type': 'string', 'nullable': True},
-                        'previous': {'type': 'string', 'nullable': True},
-                        'results': {
-                            'type': 'array',
-                            'items': {
-                                'type': 'object',
-                                'properties': {
-                                    'id': {'type': 'integer'},
-                                    'name': {'type': 'string'},
-                                    'description': {'type': 'string'},
-                                    'address': {'type': 'string'},
-                                    'city': {'type': 'string'},
-                                    'cuisine': {'type': 'string'},
-                                    'rating': {'type': 'number'},
-                                    'is_stripe_active': {'type': 'boolean'},
-                                    'can_receive_orders': {'type': 'boolean'},
-                                    'has_image': {'type': 'boolean'},
-                                    'image_url': {'type': 'string', 'nullable': True},
-                                    'active_orders': {'type': 'integer'},
-                                    'total_tables': {'type': 'integer'},
-                                    'created_at': {'type': 'string', 'format': 'date-time'},
-                                }
-                            }
-                        }
-                    }
-                }
-            )
+            200: OpenApiResponse(description="Liste des restaurants")
         }
     )
     def list(self, request, *args, **kwargs):
@@ -200,99 +169,20 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             'multipart/form-data': {
                 'type': 'object',
                 'properties': {
-                    # Informations de base
-                    'name': {
-                        'type': 'string', 
-                        'maxLength': 100,
-                        'description': 'Nom du restaurant',
-                        'example': 'Le Petit Bistrot'
-                    },
-                    'description': {
-                        'type': 'string',
-                        'description': 'Description du restaurant',
-                        'example': 'Restaurant traditionnel français'
-                    },
-                    
-                    # Adresse
-                    'address': {
-                        'type': 'string', 
-                        'maxLength': 255,
-                        'description': 'Adresse du restaurant',
-                        'example': '42 Avenue des Champs-Élysées'
-                    },
-                    'city': {
-                        'type': 'string',
-                        'maxLength': 100,
-                        'description': 'Ville',
-                        'example': 'Paris'
-                    },
-                    'zipCode': {
-                        'type': 'string',
-                        'pattern': '^[0-9]{5}$',
-                        'description': 'Code postal français (5 chiffres)',
-                        'example': '75008'
-                    },
-                    'country': {
-                        'type': 'string',
-                        'default': 'France',
-                        'description': 'Pays',
-                        'example': 'France'
-                    },
-                    
-                    # Contact
-                    'phone': {
-                        'type': 'string',
-                        'description': 'Numéro de téléphone français',
-                        'example': '+33142563789'
-                    },
-                    'email': {
-                        'type': 'string',
-                        'format': 'email',
-                        'description': 'Email de contact',
-                        'example': 'contact@petitbistrot.fr'
-                    },
-                    'website': {
-                        'type': 'string',
-                        'format': 'uri',
-                        'description': 'Site web (optionnel)',
-                        'example': 'https://www.petitbistrot.fr'
-                    },
-                    
-                    # Métier
-                    'cuisine': {
-                        'type': 'string',
-                        'enum': ['french', 'italian', 'asian', 'mexican', 'indian', 'american', 'mediterranean', 'japanese', 'chinese', 'thai', 'other'],
-                        'description': 'Type de cuisine',
-                        'example': 'french'
-                    },
-                    'priceRange': {
-                        'type': 'integer',
-                        'minimum': 1,
-                        'maximum': 4,
-                        'description': 'Gamme de prix (1=€, 2=€€, 3=€€€, 4=€€€€)',
-                        'example': 2
-                    },
-                    
-                    # Image
-                    'image': {
-                        'type': 'string',
-                        'format': 'binary',
-                        'description': 'Photo du restaurant (optionnel, JPEG/PNG/WebP, max 5MB)'
-                    },
-                    
-                    # Géolocalisation
-                    'latitude': {
-                        'type': 'number',
-                        'format': 'double',
-                        'description': 'Latitude GPS (optionnel)',
-                        'example': 48.8566
-                    },
-                    'longitude': {
-                        'type': 'number',
-                        'format': 'double', 
-                        'description': 'Longitude GPS (optionnel)',
-                        'example': 2.3522
-                    }
+                    'name': {'type': 'string', 'maxLength': 100},
+                    'description': {'type': 'string'},
+                    'address': {'type': 'string', 'maxLength': 255},
+                    'city': {'type': 'string', 'maxLength': 100},
+                    'zipCode': {'type': 'string', 'pattern': '^[0-9]{5}$'},
+                    'country': {'type': 'string', 'default': 'France'},
+                    'phone': {'type': 'string'},
+                    'email': {'type': 'string', 'format': 'email'},
+                    'website': {'type': 'string', 'format': 'uri'},
+                    'cuisine': {'type': 'string', 'enum': ['french', 'italian', 'asian', 'mexican', 'indian', 'american', 'mediterranean', 'japanese', 'chinese', 'thai', 'other']},
+                    'priceRange': {'type': 'integer', 'minimum': 1, 'maximum': 4},
+                    'image': {'type': 'string', 'format': 'binary'},
+                    'latitude': {'type': 'number', 'format': 'double'},
+                    'longitude': {'type': 'number', 'format': 'double'}
                 },
                 'required': ['name', 'address', 'city', 'zipCode', 'phone', 'email', 'cuisine', 'priceRange']
             }
@@ -306,9 +196,6 @@ class RestaurantViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         """Crée un nouveau restaurant avec gestion des images"""
         
-        print(f"📦 Création restaurant - Données reçues: {dict(request.data)}")
-        print(f"📷 Fichiers reçus: {dict(request.FILES)}")
-        
         # Nettoyer les données frontend
         frontend_data = request.data.copy()
         
@@ -321,8 +208,6 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         for field in fields_to_remove:
             frontend_data.pop(field, None)
         
-        print(f"📦 Données nettoyées: {dict(frontend_data)}")
-        
         # Utiliser le sérialiseur de création
         serializer = self.get_serializer(data=frontend_data)
         
@@ -330,8 +215,6 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             try:
                 # Sauvegarder avec le propriétaire
                 restaurant = serializer.save(owner=request.user.restaurateur_profile)
-                
-                print(f"✅ Restaurant créé: {restaurant.name} (ID: {restaurant.id})")
                 
                 # Retourner avec le sérialiseur complet
                 response_serializer = RestaurantSerializer(
@@ -345,15 +228,12 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                 )
                 
             except Exception as e:
-                print(f"❌ Erreur création restaurant: {e}")
-                print(traceback.format_exc())
                 return Response({
                     'error': 'Erreur lors de la création',
                     'details': str(e)
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         else:
-            print(f"❌ Données invalides: {serializer.errors}")
             return Response({
                 'error': 'Données invalides',
                 'validation_errors': serializer.errors,
@@ -371,18 +251,15 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         }
     )
     def update(self, request, *args, **kwargs):
-        """Met à jour un restaurant avec logs"""
+        """Met à jour un restaurant"""
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
-        
-        print(f"📝 Mise à jour restaurant {instance.name} - Données: {dict(request.data)}")
         
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         
         if serializer.is_valid():
             try:
                 serializer.save()
-                print(f"✅ Restaurant {instance.name} mis à jour avec succès")
                 
                 if getattr(instance, '_prefetched_objects_cache', None):
                     instance._prefetched_objects_cache = {}
@@ -390,7 +267,6 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                 return Response(serializer.data)
                 
             except Exception as e:
-                print(f"❌ Erreur mise à jour: {e}")
                 return Response({
                     'error': 'Erreur lors de la mise à jour',
                     'details': str(e)
@@ -426,18 +302,15 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                 try:
                     if os.path.isfile(instance.image.path):
                         os.remove(instance.image.path)
-                        print(f"🗑️  Image supprimée: {instance.image.path}")
-                except Exception as e:
-                    print(f"⚠️  Erreur suppression image: {e}")
+                except Exception:
+                    pass  # Continuer même si la suppression échoue
             
             # La suppression en cascade s'occupera des relations
             self.perform_destroy(instance)
-            print(f"✅ Restaurant {restaurant_name} supprimé avec succès")
             
             return Response(status=status.HTTP_204_NO_CONTENT)
             
         except Exception as e:
-            print(f"❌ Erreur suppression restaurant: {e}")
             return Response({
                 'error': 'Erreur lors de la suppression',
                 'details': str(e)
@@ -464,26 +337,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             }
         },
         responses={
-            200: OpenApiResponse(
-                description="Image uploadée avec succès",
-                response={
-                    'type': 'object',
-                    'properties': {
-                        'success': {'type': 'boolean'},
-                        'message': {'type': 'string'},
-                        'image_url': {'type': 'string', 'format': 'uri'},
-                        'image_name': {'type': 'string'},
-                        'image_size': {'type': 'integer'},
-                        'restaurant': {
-                            'type': 'object',
-                            'properties': {
-                                'id': {'type': 'integer'},
-                                'name': {'type': 'string'}
-                            }
-                        }
-                    }
-                }
-            ),
+            200: OpenApiResponse(description="Image uploadée avec succès"),
             400: OpenApiResponse(description="Fichier image invalide"),
             404: OpenApiResponse(description="Restaurant non trouvé")
         }
@@ -492,11 +346,8 @@ class RestaurantViewSet(viewsets.ModelViewSet):
     def upload_image(self, request, pk=None):
         """Upload ou remplace l'image d'un restaurant"""
         
-        print(f"📷 Upload image - Restaurant ID: {pk}")
-        
         try:
             restaurant = self.get_object()
-            print(f"📷 Restaurant: {restaurant.name}")
             
             if 'image' not in request.FILES:
                 return Response({
@@ -505,7 +356,6 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                 }, status=status.HTTP_400_BAD_REQUEST)
             
             image_file = request.FILES['image']
-            print(f"📷 Fichier: {image_file.name} ({image_file.size} bytes)")
             
             # Validation basique
             if image_file.size > 5 * 1024 * 1024:  # 5MB
@@ -525,6 +375,14 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                     'allowed_types': allowed_types
                 }, status=status.HTTP_400_BAD_REQUEST)
             
+            # Sauvegarder l'ancienne image pour suppression ultérieure
+            old_image_path = None
+            if restaurant.image:
+                try:
+                    old_image_path = restaurant.image.path
+                except:
+                    pass
+            
             # Utiliser le serializer
             serializer = RestaurantImageSerializer(
                 restaurant, 
@@ -534,51 +392,38 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             )
             
             if serializer.is_valid():
-                # Sauvegarder l'ancienne image pour suppression
-                old_image_path = None
-                if restaurant.image:
-                    try:
-                        old_image_path = restaurant.image.path
-                    except:
-                        pass
-                
                 # Sauvegarder la nouvelle image
                 updated_restaurant = serializer.save()
                 
-                # Supprimer l'ancienne image
-                if old_image_path and os.path.isfile(old_image_path):
+                # Supprimer l'ancienne image APRÈS la sauvegarde réussie
+                if old_image_path and old_image_path != updated_restaurant.image.path:
                     try:
-                        os.remove(old_image_path)
-                        print(f"🗑️  Ancienne image supprimée")
-                    except Exception as e:
-                        print(f"⚠️  Erreur suppression: {e}")
+                        if os.path.isfile(old_image_path):
+                            os.remove(old_image_path)
+                    except Exception:
+                        pass  # Continuer même si la suppression échoue
                 
                 # Construire la réponse
-                image_url = None
-                image_name = None
-                image_size = None
-                
-                if updated_restaurant.image:
-                    try:
-                        image_url = request.build_absolute_uri(updated_restaurant.image.url)
-                        image_name = os.path.basename(updated_restaurant.image.name)
-                        image_size = getattr(updated_restaurant.image, 'size', None)
-                    except Exception as e:
-                        print(f"⚠️  Erreur construction réponse: {e}")
-                
-                print(f"✅ Upload réussi: {image_url}")
-                
-                return Response({
+                response_data = {
                     'success': True,
                     'message': 'Image uploadée avec succès',
-                    'image_url': image_url,
-                    'image_name': image_name,
-                    'image_size': image_size,
                     'restaurant': {
                         'id': updated_restaurant.id,
                         'name': updated_restaurant.name
                     }
-                }, status=status.HTTP_200_OK)
+                }
+                
+                if updated_restaurant.image:
+                    try:
+                        response_data.update({
+                            'image_url': request.build_absolute_uri(updated_restaurant.image.url),
+                            'image_name': os.path.basename(updated_restaurant.image.name),
+                            'image_size': getattr(updated_restaurant.image, 'size', None)
+                        })
+                    except Exception:
+                        pass  # Continuer même si la construction de l'URL échoue
+                
+                return Response(response_data, status=status.HTTP_200_OK)
                 
             else:
                 return Response({
@@ -587,8 +432,6 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                 }, status=status.HTTP_400_BAD_REQUEST)
                 
         except Exception as e:
-            print(f"❌ Erreur upload: {e}")
-            print(traceback.format_exc())
             return Response({
                 'error': 'Erreur lors de l\'upload',
                 'details': str(e)
@@ -640,16 +483,26 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             restaurant = self.get_object()
             
             if restaurant.image:
-                return Response({
-                    'has_image': True,
-                    'image_url': request.build_absolute_uri(restaurant.image.url),
-                    'image_name': os.path.basename(restaurant.image.name),
-                    'image_size': getattr(restaurant.image, 'size', None),
-                    'restaurant': {
-                        'id': restaurant.id,
-                        'name': restaurant.name
-                    }
-                })
+                try:
+                    return Response({
+                        'has_image': True,
+                        'image_url': request.build_absolute_uri(restaurant.image.url),
+                        'image_name': os.path.basename(restaurant.image.name),
+                        'image_size': getattr(restaurant.image, 'size', None),
+                        'restaurant': {
+                            'id': restaurant.id,
+                            'name': restaurant.name
+                        }
+                    })
+                except Exception:
+                    return Response({
+                        'has_image': False,
+                        'error': 'Image référencée mais fichier inaccessible',
+                        'restaurant': {
+                            'id': restaurant.id,
+                            'name': restaurant.name
+                        }
+                    })
             else:
                 return Response({
                     'has_image': False,
@@ -673,10 +526,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             'application/json': {
                 'type': 'object',
                 'properties': {
-                    'is_stripe_active': {
-                        'type': 'boolean',
-                        'description': 'Statut d\'activation Stripe'
-                    }
+                    'is_stripe_active': {'type': 'boolean'}
                 },
                 'required': ['is_stripe_active']
             }
@@ -694,9 +544,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             }, status=status.HTTP_400_BAD_REQUEST)
         
         restaurant.is_stripe_active = is_active
-        restaurant.save()
-        
-        print(f"💳 Stripe {'activé' if is_active else 'désactivé'} pour {restaurant.name}")
+        restaurant.save(update_fields=['is_stripe_active'])
         
         return Response({
             "id": restaurant.id,
@@ -765,9 +613,13 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         active_menus = menus.filter(disponible=True).count()
         
         # Statistiques des items de menu
-        menu_items = MenuItem.objects.filter(menu__restaurant=restaurant)
-        total_items = menu_items.count()
-        available_items = menu_items.filter(is_available=True).count()
+        try:
+            menu_items = MenuItem.objects.filter(menu__restaurant=restaurant)
+            total_items = menu_items.count()
+            available_items = menu_items.filter(is_available=True).count()
+        except:
+            total_items = 0
+            available_items = 0
         
         return Response({
             "restaurant": {
@@ -894,13 +746,17 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         
         menus_data = []
         for menu in menus:
-            items_count = menu.items.count()
-            available_items = menu.items.filter(is_available=True).count()
+            try:
+                items_count = menu.items.count()
+                available_items = menu.items.filter(is_available=True).count()
+            except:
+                items_count = 0
+                available_items = 0
             
             menus_data.append({
                 "id": menu.id,
                 "name": menu.name,
-                "disponible": menu.disponible,
+                "disponible": getattr(menu, 'disponible', False),
                 "items_count": items_count,
                 "available_items": available_items,
                 "created_at": menu.created_at,
@@ -937,7 +793,10 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         
         orders_data = []
         for order in orders:
-            items_count = order.order_items.count()
+            try:
+                items_count = order.order_items.count()
+            except:
+                items_count = 0
             
             orders_data.append({
                 "id": order.id,
@@ -995,24 +854,45 @@ class RestaurantViewSet(viewsets.ModelViewSet):
     )
     @action(detail=True, methods=["get"])
     def export_data(self, request, pk=None):
-        """Export des données du restaurant"""
-        restaurant = self.get_object()
-        
-        # Données de base
-        restaurant_data = RestaurantSerializer(restaurant, context={'request': request}).data
-        
-        # Ajouter les relations
-        tables = [{"id": t.id, "identifiant": t.identifiant} for t in restaurant.tables.all()]
-        menus = [{"id": m.id, "name": m.name, "disponible": m.disponible} for m in restaurant.menu.all()]
-        orders = [{"id": o.id, "status": o.status, "created_at": o.created_at} for o in restaurant.orders.all()]
-        
-        export_data = {
-            "restaurant": restaurant_data,
-            "tables": tables,
-            "menus": menus,
-            "orders": orders,
-            "export_date": request.user.date_joined.isoformat(),
-            "exported_by": request.user.username
-        }
-        
-        return Response(export_data)
+        """Export sécurisé des données du restaurant"""
+        try:
+            restaurant = self.get_object()
+            
+            # Données de base
+            restaurant_data = RestaurantSerializer(restaurant, context={'request': request}).data
+            
+            # Vérifier l'image avant export pour éviter les erreurs
+            if restaurant.image:
+                try:
+                    # Test d'accès au fichier
+                    image_exists = os.path.isfile(restaurant.image.path)
+                    if not image_exists:
+                        # Nettoyer la référence d'image cassée
+                        restaurant_data['image_url'] = None
+                        restaurant_data['image_name'] = 'Fichier manquant'
+                        restaurant_data['has_image'] = False
+                except Exception:
+                    restaurant_data['image_url'] = None
+                    restaurant_data['image_error'] = 'Erreur d\'accès au fichier'
+            
+            # Relations sécurisées
+            tables = [{"id": t.id, "identifiant": t.identifiant} for t in restaurant.tables.all()]
+            menus = [{"id": m.id, "name": m.name, "disponible": getattr(m, 'disponible', False)} for m in restaurant.menu.all()]
+            orders = [{"id": o.id, "status": o.status, "created_at": o.created_at.isoformat()} for o in restaurant.orders.all()[:50]]  # Limiter à 50
+            
+            export_data = {
+                "restaurant": restaurant_data,
+                "tables": tables,
+                "menus": menus,
+                "recent_orders": orders,
+                "export_date": timezone.now().isoformat(),
+                "exported_by": request.user.username
+            }
+            
+            return Response(export_data)
+            
+        except Exception as e:
+            return Response({
+                'error': 'Erreur lors de l\'export',
+                'details': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

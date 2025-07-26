@@ -302,6 +302,16 @@ export default function RestaurantDetailScreen() {
       setRefreshing(false);
     }
   };
+  
+  const safeNumber = (value: any, defaultValue: number = 0): number => {
+    const num = Number(value);
+    return isNaN(num) ? defaultValue : num;
+  };
+
+  const formatRating = (rating: any): string => {
+    const num = safeNumber(rating, 0);
+    return num.toFixed(1);
+  };
 
   if (isLoading && !currentRestaurant) {
     return (
@@ -451,6 +461,9 @@ export default function RestaurantDetailScreen() {
     return '€'.repeat(Math.max(1, Math.min(4, priceRange)));
   };
 
+  console.log('Restaurant image:', currentRestaurant.image);
+  console.log('Fallback URL:', 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&h=250&fit=crop');
+
   return (
     <View style={containerStyle}>
       <Header 
@@ -470,7 +483,7 @@ export default function RestaurantDetailScreen() {
         <View style={imageContainerStyle}>
           <Image
             source={{ 
-              uri: currentRestaurant.image || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&h=250&fit=crop'
+              uri: currentRestaurant.image || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=400&h=250&q=80'
             }}
             style={imageStyle}
             resizeMode="cover"
@@ -484,10 +497,11 @@ export default function RestaurantDetailScreen() {
               <View style={ratingStyle}>
                 <Ionicons name="star" size={14} color="#D97706" />
                 <Text style={{ color: '#D97706', fontWeight: '500', marginLeft: 4, fontSize: 12 }}>
-                  {(currentRestaurant.rating || 0).toFixed(1)}
+                  {formatRating(currentRestaurant.rating)}
+
                 </Text>
                 <Text style={{ color: '#D97706', fontSize: 10, marginLeft: 2 }}>
-                  ({currentRestaurant.reviewCount || 0})
+                  ({safeNumber(currentRestaurant.reviewCount, 0)})
                 </Text>
               </View>
             </View>
