@@ -231,11 +231,76 @@ class MenuItem(models.Model):
     price = models.DecimalField(max_digits=6, decimal_places=2)
     category = models.CharField(max_length=50)  # Entrée, Plat, Dessert, etc.
     is_available = models.BooleanField(default=True)
+    allergens = models.JSONField(default=list, blank=True, help_text="Liste des allergènes présents")
+    is_vegetarian = models.BooleanField(default=False, verbose_name="Végétarien")
+    is_vegan = models.BooleanField(default=False, verbose_name="Vegan")
+    is_gluten_free = models.BooleanField(default=False, verbose_name="Sans gluten")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['category', 'name']
+        verbose_name = "Plat"
+        verbose_name_plural = "Plats"
 
     def __str__(self):
         return f"{self.name} - {self.price:.2f}€"
+
+    def clean(self):
+        """Validation personnalisée"""
+        super().clean()
+        
+        # Si vegan, alors forcément végétarien
+        if self.is_vegan and not self.is_vegetarian:
+            self.is_vegetarian = True
+        
+        # Si sans gluten, ne doit pas contenir l'allergène gluten
+        if self.is_gluten_free and 'gluten' in self.allergens:
+            raise ValidationError("Un plat sans gluten ne peut pas contenir l'allergène gluten")
+        
+        # Si vegan, ne doit pas contenir lait ou œufs
+        if self.is_vegan:
+            vegan_incompatible = {'milk', 'eggs'}
+            if any(allergen in vegan_incompatible for allergen in self.allergens):
+                raise ValidationError("Un plat vegan ne peut pas contenir de lait ou d'œufs")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    @property
+    def allergen_display(self):
+        """Retourne les noms des allergènes pour l'affichage"""
+        allergen_names = {
+            'gluten': 'Gluten',
+            'crustaceans': 'Crustacés',
+            'eggs': 'Œufs',
+            'fish': 'Poissons',
+            'peanuts': 'Arachides',
+            'soybeans': 'Soja',
+            'milk': 'Lait',
+            'nuts': 'Fruits à coque',
+            'celery': 'Céleri',
+            'mustard': 'Moutarde',
+            'sesame': 'Sésame',
+            'sulphites': 'Sulfites',
+            'lupin': 'Lupin',
+            'molluscs': 'Mollusques',
+        }
+        return [allergen_names.get(allergen, allergen) for allergen in self.allergens]
+
+    @property
+    def dietary_tags(self):
+        """Retourne les tags diététiques pour l'affichage"""
+        tags = []
+        if self.is_vegan:
+            tags.append('Vegan')
+        elif self.is_vegetarian:
+            tags.append('Végétarien')
+        if self.is_gluten_free:
+            tags.append('Sans gluten')
+        return tags
+
 
 class ClientProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
