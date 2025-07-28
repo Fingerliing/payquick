@@ -28,6 +28,9 @@ export interface Restaurant {
   ownerId: string;
   createdAt: string;
   updatedAt: string;
+  accepts_meal_vouchers: boolean;
+  meal_voucher_info?: string;
+  accepts_meal_vouchers_display: string;
 }
 
 export interface OpeningHours {

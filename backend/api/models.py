@@ -72,6 +72,18 @@ class Restaurant(models.Model):
     )
     email = models.EmailField(verbose_name="Email de contact")
     website = models.URLField(blank=True, null=True, verbose_name="Site web")
+
+    accepts_meal_vouchers = models.BooleanField(
+        default=False,
+        help_text="Indique si le restaurant accepte les titres-restaurant"
+    )
+    
+    # Informations sur les titres-restaurant acceptés
+    meal_voucher_info = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Informations supplémentaires sur les titres-restaurant acceptés (ex: types, conditions)"
+    )
     
     # Informations métier
     CUISINE_CHOICES = [

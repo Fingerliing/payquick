@@ -73,7 +73,10 @@ class RestaurantSerializer(serializers.ModelSerializer):
             'opening_hours',
             
             # Métadonnées
-            'createdAt', 'updatedAt', 'created_at', 'updated_at'
+            'createdAt', 'updatedAt', 'created_at', 'updated_at',
+
+            # Titres-restaurant
+            'accepts_meal_vouchers', 'meal_voucher_info', 'accepts_meal_vouchers_display',
         ]
         read_only_fields = [
             'id', 'owner_id', 'owner_name', 'created_at', 'updated_at', 
@@ -229,6 +232,9 @@ class RestaurantSerializer(serializers.ModelSerializer):
                     pass
         
         return super().update(instance, validated_data)
+    
+    def get_accepts_meal_vouchers_display(self, obj):
+        return "Oui" if obj.accepts_meal_vouchers else "Non"
 
 class RestaurantCreateSerializer(serializers.ModelSerializer):
     """Sérialiseur simplifié pour la création depuis le frontend"""
@@ -245,7 +251,8 @@ class RestaurantCreateSerializer(serializers.ModelSerializer):
         fields = [
             'name', 'description', 'address', 'city', 'zipCode', 
             'country', 'phone', 'email', 'website', 'cuisine', 
-            'priceRange', 'latitude', 'longitude', 'image'
+            'priceRange', 'latitude', 'longitude', 'image',
+            'accepts_meal_vouchers', 'meal_voucher_info'
         ]
     
     def validate_image(self, value):
@@ -287,6 +294,12 @@ class RestaurantCreateSerializer(serializers.ModelSerializer):
         validated_data.setdefault('review_count', 0)
         
         return super().create(validated_data)
+    
+    def validate(self, data):
+        # Si titres-restaurant acceptés, s'assurer qu'il y a des infos
+        if data.get('accepts_meal_vouchers', False) and not data.get('meal_voucher_info'):
+            data['meal_voucher_info'] = "Titres-restaurant acceptés selon les conditions légales"
+        return data
 
 class RestaurantImageSerializer(serializers.ModelSerializer):
     """Sérialiseur spécialement pour la gestion des images"""

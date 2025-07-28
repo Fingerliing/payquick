@@ -36,6 +36,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
     serializer_class = RestaurantSerializer
     permission_classes = [IsAuthenticated, IsRestaurateur, IsValidatedRestaurateur]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['accepts_meal_vouchers']
     search_fields = ['name', 'address', 'siret']
     ordering_fields = ['name', 'created_at', 'is_stripe_active', 'rating']
     ordering = ['-id']
@@ -59,6 +60,13 @@ class RestaurantViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """Assigne automatiquement le propriétaire lors de la création"""
         serializer.save(owner=self.request.user.restaurateur_profile)
+
+    @action(detail=False, methods=['get'])
+    def meal_voucher_accepted(self, request):
+        """Endpoint pour récupérer uniquement les restaurants acceptant les titres-restaurant"""
+        restaurants = self.queryset.filter(accepts_meal_vouchers=True)
+        serializer = self.get_serializer(restaurants, many=True)
+        return Response(serializer.data)
 
     # ============================================================================
     # MÉTHODES CRUD DE BASE
