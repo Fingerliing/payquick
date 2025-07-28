@@ -47,6 +47,10 @@ class IsOwnerOrReadOnly(BasePermission):
         except RestaurateurProfile.DoesNotExist:
             return False
     
+class IsOrderOwner(BasePermission):
+    def has_object_permission(self, request, view, obj):
+        return obj.client == request.user or obj.restaurant.owner.user == request.user
+
 class IsValidatedRestaurateur(permissions.BasePermission):
     """Permission pour les restaurateurs validés Stripe"""
     

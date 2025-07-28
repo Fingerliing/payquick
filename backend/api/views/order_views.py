@@ -1,192 +1,180 @@
-from rest_framework import viewsets, status, filters
+from datetime import datetime
+from django.db.models import Sum
+from rest_framework import viewsets, permissions, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from django.shortcuts import get_object_or_404
-from api.models import Restaurant, Table, Order, OrderItem, Menu, MenuItem
-from api.serializers.order_serializers import OrderSerializer
-from api.utils.order_utils import notify_order_updated
-from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
+from drf_spectacular.types import OpenApiTypes
+
+from api.models import Order
+from api.serializers.order_serializers import OrderCreateSerializer, OrderReadSerializer
+from api.permissions import IsRestaurateur
+
+###############################################################################
+# PERMISSIONS                                                                 #
+###############################################################################
+
+class IsOrderOwner(permissions.BasePermission):
+    """Autorise le client ou le restaurateur propriétaire de la commande."""
+
+    def has_object_permission(self, request, view, obj):
+        user = request.user
+        return (
+            obj.client_id == getattr(user, "id", None)
+            or getattr(getattr(obj.restaurant, "owner", None), "user", None) == user
+        )
+
+###############################################################################
+# VIEWSET                                                                     #
+###############################################################################
 
 @extend_schema(tags=["Order • Commandes"])
 class OrderViewSet(viewsets.ModelViewSet):
-    """
-    Gère les commandes dans un restaurant.
-    Filtrées automatiquement selon le restaurateur connecté.
-    Inclut des actions pour : payer, changer de statut, soumettre une commande, etc.
-    """
-    queryset = Order.objects.all().order_by('-created_at')
-    serializer_class = OrderSerializer
-    permission_classes = [IsAuthenticated]
-    filter_backends = [filters.SearchFilter]
-    search_fields = ['status', 'table__identifiant']
-    
+    """ViewSet complet pour la gestion des **commandes** côté clients & restaurateurs."""
+
+    queryset = (
+        Order.objects
+        .select_related("restaurant__owner__user", "table", "client")
+        .prefetch_related("order_items__menu_item")
+    )
+    serializer_class = OrderReadSerializer
+    permission_classes = [permissions.IsAuthenticated, IsOrderOwner]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["restaurant__name", "status"]
+    ordering_fields = ["created_at", "status", "total_price"]
+    ordering = ["-created_at"]
+
+    # ---------------------------------------------------------------------
+    # Sélection dynamique du serializer
+    # ---------------------------------------------------------------------
+    def get_serializer_class(self):
+        return OrderCreateSerializer if self.action == "create" else OrderReadSerializer
+
+    # ---------------------------------------------------------------------
+    # Queryset dynamique selon le rôle + filtres query‑params
+    # ---------------------------------------------------------------------
     def get_queryset(self):
-        return Order.objects.filter(restaurant__owner=self.request.user.restaurateur_profile)
+        user = self.request.user
+        qs = self.queryset
+
+        # Filtrage par rôle
+        if getattr(user, "is_staff", False):
+            qs = qs  # Accès complet
+        elif hasattr(user, "restaurateur_profile"):
+            qs = qs.filter(restaurant__owner=user.restaurateur_profile)
+        else:
+            qs = qs.filter(client=user)
+
+        # Filtres optionnels
+        status_param = self.request.query_params.get("status")
+        if status_param:
+            qs = qs.filter(status=status_param)
+
+        date_from = self.request.query_params.get("date_from")
+        date_to = self.request.query_params.get("date_to")
+        try:
+            if date_from:
+                qs = qs.filter(created_at__date__gte=datetime.fromisoformat(date_from))
+            if date_to:
+                qs = qs.filter(created_at__date__lte=datetime.fromisoformat(date_to))
+        except ValueError:
+            pass  # Laisser la validation OpenAPI avertir l'utilisateur
+
+        return qs
+
+    # ---------------------------------------------------------------------
+    # CRÉATION (override pour logs / headers)
+    # ---------------------------------------------------------------------
+    @extend_schema(
+        summary="Créer une commande",
+        description="Création d'une commande depuis un panier client.",
+        request=OrderCreateSerializer,
+        responses={201: OrderReadSerializer},
+    )
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     def perform_create(self, serializer):
-        user = self.request.user
-        data = self.request.data
-        restaurant = get_object_or_404(Restaurant, id=data.get("restaurant"))
-        table = get_object_or_404(Table, id=data.get("table"))
-        serializer.save(
-            restaurateur=user.restaurateur_profile,
-            restaurant=restaurant,
-            table=table
-        )
+        serializer.save()
 
+    # ---------------------------------------------------------------------
+    # ACTION : mise à jour du statut par le restaurateur
+    # ---------------------------------------------------------------------
     @extend_schema(
-        summary="Soumettre une commande",
-        description="Crée une commande avec une liste d’items pour une table donnée.",
+        summary="Mettre à jour le statut",
+        description="Permet au restaurateur de passer la commande à un nouveau statut.",
         request={
-            'application/json': {
-                'type': 'object',
-                'properties': {
-                    'restaurant': {'type': 'integer'},
-                    'table_identifiant': {'type': 'string'},
-                    'items': {
-                        'type': 'array',
-                        'items': {
-                            'type': 'object',
-                            'properties': {
-                                'menu_item_id': {'type': 'integer'},
-                                'quantity': {'type': 'integer'}
-                            },
-                            'required': ['menu_item_id', 'quantity']
-                        }
+            "application/json": {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": [s for s, _ in Order.STATUS_CHOICES],
                     }
                 },
-                'required': ['restaurant', 'table_identifiant', 'items']
+                "required": ["status"],
             }
         },
-        responses={201: OpenApiResponse(description="Commande créée")}
+        responses={
+            200: OrderReadSerializer,
+            400: OpenApiResponse(description="Statut invalide"),
+            403: OpenApiResponse(description="Action non autorisée"),
+        },
     )
-    @action(detail=False, methods=["post"])
-    def submit_order(self, request):
-        """Crée une nouvelle commande avec une liste d’items pour une table donnée."""
-        data = request.data
-        restaurant_id = data.get("restaurant")
-        table_id = data.get("table_identifiant")
-        items = data.get("items", [])
-
-        if not restaurant_id or not table_id or not items:
-            return Response({"error": "Missing required fields."}, status=400)
-
-        try:
-            restaurant = Restaurant.objects.get(id=restaurant_id)
-            table = Table.objects.get(identifiant=table_id, restaurant=restaurant)
-            restaurateur = restaurant.owner
-        except Restaurant.DoesNotExist:
-            return Response({"error": "Restaurant not found."}, status=404)
-        except Table.DoesNotExist:
-            return Response({"error": "Table not found."}, status=404)
-
-        order = Order.objects.create(
-            restaurant=restaurant,
-            table=table,
-            restaurateur=restaurateur,
-            status="pending"
-        )
-
-        for item in items:
-            OrderItem.objects.create(
-                order=order,
-                menu_item_id=item["menu_item_id"],
-                quantity=item["quantity"]
-            )
-
-        return Response({"order_id": order.id}, status=201)
-
-    @extend_schema(summary="Marquer comme payée")
-    @action(detail=True, methods=["post"])
-    def mark_paid(self, request, pk=None):
-        """Marque la commande comme payée."""
+    @action(detail=True, methods=["patch"], url_path="update_status")
+    def update_status(self, request, pk=None):
         order = self.get_object()
-        order.is_paid = True
-        order.save()
-        notify_order_updated(OrderSerializer(order).data)
-        return Response({"is_paid": True}, status=status.HTTP_200_OK)
 
-    @extend_schema(summary="Marquer comme en cours")
-    @action(detail=True, methods=["post"])
-    def mark_in_progress(self, request, pk=None):
-        """Passe la commande au statut "en cours de préparation"."""
-        order = self.get_object()
-        order.status = "in_progress"
-        order.save()
-        notify_order_updated(OrderSerializer(order).data)
-        return Response({"status": "in_progress"}, status=status.HTTP_200_OK)
+        # Vérification de l'autorisation côté restaurateur
+        if not hasattr(request.user, "restaurateur_profile") or order.restaurant.owner.user != request.user:
+            return Response({"detail": "Action réservée au restaurateur."}, status=status.HTTP_403_FORBIDDEN)
 
-    @extend_schema(summary="Marquer comme servie")
-    @action(detail=True, methods=["post"])
-    def mark_served(self, request, pk=None):
-        """Marque la commande comme servie."""
-        order = self.get_object()
-        order.status = "served"
-        order.save()
-        notify_order_updated(OrderSerializer(order).data)
-        return Response({"status": "served"}, status=status.HTTP_200_OK)
+        new_status = request.data.get("status")
+        allowed_status = dict(Order.STATUS_CHOICES).keys()
+        if new_status not in allowed_status:
+            return Response({"detail": f"Statut invalide. Possibles : {', '.join(allowed_status)}"}, status=status.HTTP_400_BAD_REQUEST)
 
-    @extend_schema(summary="Détails d'une commande")
-    @action(detail=True, methods=["get"])
-    def details(self, request, pk=None):
-        """Retourne les détails d’une commande (items, quantités, prix)."""
-        order = self.get_object()
-        items = OrderItem.objects.filter(order=order)
-        contenu = [
-            {
-                "name": item.menu_item.name,
-                "quantity": item.quantity,
-                "price": float(item.menu_item.price)
-            } for item in items
-        ]
-        return Response({
-            "order": order.id,
-            "table": order.table.identifiant,
-            "status": order.status,
-            "items": contenu
-        })
+        order.status = new_status
+        order.save(update_fields=["status", "updated_at"])
+        return Response(OrderReadSerializer(order, context=self.get_serializer_context()).data)
 
-
+    # ---------------------------------------------------------------------
+    # ACTION : statistiques rapides pour le restaurateur
+    # ---------------------------------------------------------------------
     @extend_schema(
-        summary="Lister les commandes d’un restaurant",
+        summary="Statistiques des commandes (restaurateur)",
+        description="Retourne des indicateurs clés (totaux par statut, chiffre d'affaires estimé).",
         parameters=[
-            OpenApiParameter(name="restaurant_id", required=True, type=int, location=OpenApiParameter.QUERY)
-        ]
+            OpenApiParameter(
+                name="status",
+                type=str,
+                location=OpenApiParameter.QUERY,
+                description="Filtrer uniquement un statut donné",
+            ),
+        ],
+        responses={200: OpenApiTypes.OBJECT},
     )
-    @action(detail=False, methods=["get"], url_path="by_restaurant", url_name="by-restaurant")
-    def by_restaurant_path(self, request):
-        restaurant_id = request.query_params.get("restaurant_id")
-        """Retourne les commandes associées à un restaurant donné (admin/staff)."""
-        if not restaurant_id:
-            return Response({"error": "Missing restaurant_id"}, status=400)
+    @action(detail=False, methods=["get"], permission_classes=[permissions.IsAuthenticated, IsRestaurateur])
+    def stats(self, request):
+        restaurateur = request.user.restaurateur_profile
+        qs = self.queryset.filter(restaurant__owner=restaurateur)
+        status_param = request.query_params.get("status")
+        if status_param:
+            qs = qs.filter(status=status_param)
 
-        orders = Order.objects.filter(restaurant__id=restaurant_id).order_by('-created_at')
-        serializer = OrderSerializer(orders, many=True)
-        return Response(serializer.data)
-
-    @extend_schema(
-        summary="Menu actif via QR code",
-        parameters=[
-            OpenApiParameter(name="identifiant", required=True, type=str, location=OpenApiParameter.PATH)
-        ]
-    )
-    @action(detail=False, methods=["get"], url_path="menu/table/(?P<identifiant>[^/.]+)")
-    def menu_by_table(self, request, identifiant=None):
-        """Retourne le menu actif (et ses items) d’une table identifiée via QR code."""
-        table = get_object_or_404(Table, identifiant=identifiant)
-        menu = Menu.objects.filter(restaurant=table.restaurant, disponible=True).first()
-        if not menu:
-            return Response({"error": "No active menu"}, status=404)
-
-        items = MenuItem.objects.filter(menu=menu, is_available=True)
-        data = [
-            {
-                "id": item.id,
-                "name": item.name,
-                "description": item.description,
-                "price": str(item.price),
-            }
-            for item in items
-        ]
-        return Response({"menu": menu.name, "items": data})
+        data = {
+            "total": qs.count(),
+            "pending": qs.filter(status="pending").count(),
+            "in_progress": qs.filter(status="in_progress").count(),
+            "served": qs.filter(status="served").count(),
+            "cancelled": qs.filter(status="cancelled").count(),
+            "revenue_estimated": qs.filter(status="served").aggregate(total=Sum("order_items__price_snapshot"))[
+                "total"
+            ]
+            or 0,
+        }
+        return Response(data)

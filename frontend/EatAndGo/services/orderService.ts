@@ -1,48 +1,73 @@
-import { Order, OrderSummary, OrderItem } from '@/types/order';
-import { apiClient } from './api';
+import { apiClient } from "./api";
+import { AxiosError } from "axios";
+import camelcaseKeys from "camelcase-keys";
+import snakecaseKeys from "snakecase-keys";
+import { Order } from "../types/order";
 
-export class OrderService {
-  async getOrders(params?: {
-    page?: number;
-    limit?: number;
-    status?: string;
-    restaurantId?: string;
-  }): Promise<{ data: Order[]; pagination: any }> {
-    return apiClient.get('/orders/', params);
+/* -------------------------------------------------------------------------
+ * Types payload
+ * ------------------------------------------------------------------------*/
+export interface OrderItemInput {
+  menuItemId: number;
+  quantity: number;
+  specialRequest?: string;
+}
+
+export interface CreateOrderPayload {
+  restaurant: number;
+  table: number | null;
+  items: OrderItemInput[];
+}
+
+/* -------------------------------------------------------------------------
+ * Helpers de sérialisation / erreurs
+ * ------------------------------------------------------------------------*/
+function axiosCamel<T = any>(promise: Promise<{ data: any }>): Promise<T> {
+  return promise.then(({ data }) => camelcaseKeys(data, { deep: true }));
+}
+
+function handleAxiosError(e: unknown): never {
+  if (e instanceof AxiosError && e.response) {
+    throw new Error(e.response.data?.detail || "Erreur réseau");
   }
+  throw e;
+}
 
-  async getOrder(id: string): Promise<Order> {
-    return apiClient.get(`/orders/${id}/`);
-  }
-
-  async createOrder(data: {
-    restaurantId: string;
-    items: OrderItem[];
-    deliveryAddress?: any;
-    customerNotes?: string;
-  }): Promise<Order> {
-    return apiClient.post('/orders/', data);
-  }
-
-  async updateOrderStatus(id: string, status: string): Promise<Order> {
-    return apiClient.patch(`/orders/${id}/`, { status });
-  }
-
-  async cancelOrder(id: string, reason?: string): Promise<Order> {
-    return apiClient.post(`/orders/${id}/cancel/`, { reason });
-  }
-
-  async addReview(orderId: string, data: { rating: number; review: string }): Promise<Order> {
-    return apiClient.post(`/orders/${orderId}/review/`, data);
-  }
-
-  async getOrderTracking(id: string): Promise<any> {
-    return apiClient.get(`/orders/${id}/tracking/`);
-  }
-
-  async calculateOrderTotal(items: OrderItem[], deliveryAddress?: any): Promise<OrderSummary> {
-    return apiClient.post('/orders/calculate-total/', { items, deliveryAddress });
+/* -------------------------------------------------------------------------
+ * API CRUD
+ * ------------------------------------------------------------------------*/
+export async function createOrder(payload: CreateOrderPayload): Promise<Order> {
+  try {
+    const snakePayload = snakecaseKeys(payload, { deep: true });
+    return await axiosCamel<Order>(apiClient.post("/orders/", snakePayload));
+  } catch (e) {
+    handleAxiosError(e);
   }
 }
 
-export const orderService = new OrderService();
+export async function fetchOrders(params?: { status?: string }): Promise<Order[]> {
+  try {
+    return await axiosCamel<Order[]>(apiClient.get("/orders/", { params }));
+  } catch (e) {
+    handleAxiosError(e);
+  }
+}
+
+export async function fetchOrder(id: number): Promise<Order> {
+  try {
+    return await axiosCamel<Order>(apiClient.get(`/orders/${id}/`));
+  } catch (e) {
+    handleAxiosError(e);
+  }
+}
+
+export async function updateOrderStatus(
+  id: number,
+  status: "in_progress" | "served" | "cancelled",
+): Promise<Order> {
+  try {
+    return await axiosCamel<Order>(apiClient.patch(`/orders/${id}/update_status/`, { status }));
+  } catch (e) {
+    handleAxiosError(e);
+  }
+}

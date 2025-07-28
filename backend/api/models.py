@@ -1,6 +1,8 @@
 from django.db import models
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 
 
 def validate_siret(value):
@@ -331,44 +333,80 @@ class Table(models.Model):
         return f"Table {self.identifiant} ({self.restaurant.name})"
 
 class Order(models.Model):
+    STATUS_PENDING = "pending"
+    STATUS_IN_PROGRESS = "in_progress"
+    STATUS_SERVED = "served"
+    STATUS_CANCELLED = "cancelled"
+
     STATUS_CHOICES = [
-        ('pending', 'En attente'),
-        ('in_progress', 'En cours'),
-        ('served', 'Servie'),
+        (STATUS_PENDING, "En attente"),
+        (STATUS_IN_PROGRESS, "En cours"),
+        (STATUS_SERVED, "Servie"),
+        (STATUS_CANCELLED, "Annulée"),
     ]
 
-    restaurateur = models.ForeignKey(
-        RestaurateurProfile,
-        on_delete=models.CASCADE,
-        related_name='orders'
+    client = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="orders",
     )
     restaurant = models.ForeignKey(
-        Restaurant,
-        on_delete=models.CASCADE,
-        related_name='orders',
-        null=True,
-        blank=True
+        "Restaurant",
+        on_delete=models.PROTECT,
+        related_name="orders",
     )
-    table = models.ForeignKey('Table', on_delete=models.CASCADE, default=1, related_name='orders')
-    # items = models.JSONField()  # exemple : [{"name": "Pizza", "quantity": 2}]
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    is_paid = models.BooleanField(default=False)
+    table = models.ForeignKey(
+        "Table",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="orders",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_PENDING,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def total_price(self):
+        return sum(item.line_total for item in self.order_items.all())
 
     def __str__(self):
-        return f"Table {self.table.identifiant} - {self.get_status_display()} - {'Payée' if self.is_paid else 'Non payée'}"
-    
+        return f"Order #{self.id} – {self.restaurant.name} ({self.status})"
+
+
 class OrderItem(models.Model):
-    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='order_items')
-    menu_item = models.ForeignKey('MenuItem', on_delete=models.CASCADE)
-    quantity = models.PositiveIntegerField(default=1)
+    order = models.ForeignKey(
+        Order,
+        related_name="order_items",
+        on_delete=models.CASCADE,
+    )
+    menu_item = models.ForeignKey(
+        "MenuItem",
+        on_delete=models.PROTECT,
+        related_name="order_items",
+    )
+    quantity = models.PositiveSmallIntegerField(
+        default=1,
+        validators=[MinValueValidator(1)],
+    )
+    price_snapshot = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+    )  # prix au moment de la commande
+    special_request = models.TextField(blank=True)
 
-    class Meta:
-        unique_together = ('order', 'menu_item')
+    @property
+    def line_total(self):
+        return self.price_snapshot * self.quantity
 
     def __str__(self):
-        return f"{self.quantity}x {self.menu_item.name} (Commande #{self.order.id})"
-
+        return f"{self.quantity} × {self.menu_item.name}"
 def menu_save(self, *args, **kwargs):
     if self.disponible:
         Menu.objects.filter(restaurant=self.restaurant).update(disponible=False)
