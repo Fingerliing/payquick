@@ -1,180 +1,667 @@
-from datetime import datetime
-from django.db.models import Sum
-from rest_framework import viewsets, permissions, status, filters
+from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
-from drf_spectacular.types import OpenApiTypes
-
-from api.models import Order
-from api.serializers.order_serializers import OrderCreateSerializer, OrderReadSerializer
-from api.permissions import IsRestaurateur
-
-###############################################################################
-# PERMISSIONS                                                                 #
-###############################################################################
-
-class IsOrderOwner(permissions.BasePermission):
-    """Autorise le client ou le restaurateur propriétaire de la commande."""
-
-    def has_object_permission(self, request, view, obj):
-        user = request.user
-        return (
-            obj.client_id == getattr(user, "id", None)
-            or getattr(getattr(obj.restaurant, "owner", None), "user", None) == user
-        )
-
-###############################################################################
-# VIEWSET                                                                     #
-###############################################################################
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from django.shortcuts import get_object_or_404
+from django.db.models import Count, Q, Avg, Sum
+from django.utils import timezone
+from django.db import transaction
+from api.models import Order, OrderItem, Restaurant, Table, MenuItem
+from api.serializers.order_serializers import (
+    OrderListSerializer,
+    OrderDetailSerializer, 
+    OrderCreateSerializer,
+    OrderStatusUpdateSerializer,
+    OrderPaymentSerializer,
+    OrderItemSerializer,
+    OrderStatsSerializer
+)
+from api.permissions import IsRestaurateur, IsOwnerOrReadOnly, IsValidatedRestaurateur
+from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter
+from datetime import timedelta
+import uuid
 
 @extend_schema(tags=["Order • Commandes"])
 class OrderViewSet(viewsets.ModelViewSet):
-    """ViewSet complet pour la gestion des **commandes** côté clients & restaurateurs."""
-
-    queryset = (
-        Order.objects
-        .select_related("restaurant__owner__user", "table", "client")
-        .prefetch_related("order_items__menu_item")
-    )
-    serializer_class = OrderReadSerializer
-    permission_classes = [permissions.IsAuthenticated, IsOrderOwner]
+    """
+    ViewSet complet pour la gestion des commandes sur place.
+    
+    Fonctionnalités incluses :
+    - CRUD des commandes (création, consultation, mise à jour)
+    - Gestion des statuts (pending -> preparing -> ready -> served)
+    - Paiements (cash, card, online)
+    - Génération de tickets
+    - Statistiques temps réel
+    - Interface cuisine/comptoir
+    """
+    serializer_class = OrderListSerializer
+    permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ["restaurant__name", "status"]
-    ordering_fields = ["created_at", "status", "total_price"]
-    ordering = ["-created_at"]
+    search_fields = ['order_number', 'customer_name', 'table_number']
+    filterset_fields = ['status', 'payment_status', 'order_type', 'restaurant']
+    ordering_fields = ['created_at', 'total_amount', 'status']
+    ordering = ['-created_at']
 
-    # ---------------------------------------------------------------------
-    # Sélection dynamique du serializer
-    # ---------------------------------------------------------------------
-    def get_serializer_class(self):
-        return OrderCreateSerializer if self.action == "create" else OrderReadSerializer
-
-    # ---------------------------------------------------------------------
-    # Queryset dynamique selon le rôle + filtres query‑params
-    # ---------------------------------------------------------------------
     def get_queryset(self):
+        """Filtre selon le type d'utilisateur"""
         user = self.request.user
-        qs = self.queryset
+        
+        # Si restaurateur, voir ses commandes
+        if hasattr(user, 'restaurateur_profile'):
+            return Order.objects.filter(
+                restaurant__owner=user.restaurateur_profile
+            ).select_related('restaurant', 'user').prefetch_related('items__menu_item')
+        
+        # Si client connecté, voir ses commandes
+        elif user.is_authenticated:
+            return Order.objects.filter(user=user).select_related('restaurant')
+        
+        return Order.objects.none()
 
-        # Filtrage par rôle
-        if getattr(user, "is_staff", False):
-            qs = qs  # Accès complet
-        elif hasattr(user, "restaurateur_profile"):
-            qs = qs.filter(restaurant__owner=user.restaurateur_profile)
+    def get_serializer_class(self):
+        """Utilise le bon sérialiseur selon l'action"""
+        if self.action == 'create':
+            return OrderCreateSerializer
+        elif self.action == 'retrieve':
+            return OrderDetailSerializer
+        elif self.action in ['update_status', 'mark_as_paid']:
+            return OrderStatusUpdateSerializer
+        return OrderListSerializer
+
+    def get_permissions(self):
+        """Permissions selon l'action"""
+        if self.action == 'create':
+            # Création ouverte (client ou restaurateur)
+            permission_classes = [AllowAny]
+        elif self.action in ['update_status', 'mark_as_paid', 'kitchen_view']:
+            # Actions staff uniquement
+            permission_classes = [IsAuthenticated, IsRestaurateur]
         else:
-            qs = qs.filter(client=user)
+            permission_classes = [IsAuthenticated]
+        
+        return [permission() for permission in permission_classes]
 
-        # Filtres optionnels
-        status_param = self.request.query_params.get("status")
-        if status_param:
-            qs = qs.filter(status=status_param)
+    @extend_schema(
+        summary="Lister les commandes",
+        description="Liste des commandes avec filtres par statut, restaurant, type de commande.",
+        parameters=[
+            OpenApiParameter(name="status", type=str, description="Filtrer par statut"),
+            OpenApiParameter(name="restaurant", type=int, description="Filtrer par restaurant"),
+            OpenApiParameter(name="order_type", type=str, description="dine_in ou takeaway"),
+            OpenApiParameter(name="search", type=str, description="Recherche par numéro, nom client, table"),
+        ]
+    )
+    def list(self, request, *args, **kwargs):
+        """Liste des commandes avec informations enrichies"""
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        
+        orders_data = []
+        orders = page if page is not None else queryset
+        
+        for order in orders:
+            serializer = self.get_serializer(order)
+            order_data = serializer.data
+            
+            # Enrichir avec des infos temps réel
+            order_data.update({
+                'is_urgent': self._is_order_urgent(order),
+                'items_summary': self._get_items_summary(order),
+                'next_possible_status': self._get_next_status(order.status)
+            })
+            
+            orders_data.append(order_data)
+        
+        if page is not None:
+            return self.get_paginated_response(orders_data)
+        
+        return Response(orders_data)
 
-        date_from = self.request.query_params.get("date_from")
-        date_to = self.request.query_params.get("date_to")
-        try:
-            if date_from:
-                qs = qs.filter(created_at__date__gte=datetime.fromisoformat(date_from))
-            if date_to:
-                qs = qs.filter(created_at__date__lte=datetime.fromisoformat(date_to))
-        except ValueError:
-            pass  # Laisser la validation OpenAPI avertir l'utilisateur
+    @extend_schema(
+        summary="Détails d'une commande",
+        description="Informations complètes d'une commande avec ses items et historique."
+    )
+    def retrieve(self, request, *args, **kwargs):
+        """Détails complets d'une commande"""
+        order = self.get_object()
+        serializer = self.get_serializer(order)
+        data = serializer.data
+        
+        # Ajouter des métadonnées utiles
+        data.update({
+            'is_urgent': self._is_order_urgent(order),
+            'items_summary': self._get_items_summary(order),
+            'next_possible_status': self._get_next_status(order.status),
+            'timeline': self._get_order_timeline(order),
+            'payment_info': {
+                'is_paid': order.payment_status == 'paid',
+                'can_be_paid': order.status != 'cancelled',
+                'payment_methods_available': ['cash', 'card', 'online']
+            }
+        })
+        
+        return Response(data)
 
-        return qs
-
-    # ---------------------------------------------------------------------
-    # CRÉATION (override pour logs / headers)
-    # ---------------------------------------------------------------------
     @extend_schema(
         summary="Créer une commande",
-        description="Création d'une commande depuis un panier client.",
+        description="Créer une nouvelle commande depuis le menu client ou le back-office.",
         request=OrderCreateSerializer,
-        responses={201: OrderReadSerializer},
+        responses={
+            201: OpenApiResponse(description="Commande créée avec succès"),
+            400: OpenApiResponse(description="Données invalides")
+        }
     )
     def create(self, request, *args, **kwargs):
+        """Créer une nouvelle commande"""
         serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        
+        if serializer.is_valid():
+            try:
+                order = serializer.save()
+                
+                # Générer notification en temps réel (WebSocket)
+                self._notify_new_order(order)
+                
+                # Retourner avec le sérialiseur détaillé
+                response_serializer = OrderDetailSerializer(
+                    order, 
+                    context={'request': request}
+                )
+                
+                return Response(
+                    response_serializer.data, 
+                    status=status.HTTP_201_CREATED
+                )
+                
+            except Exception as e:
+                return Response({
+                    'error': 'Erreur lors de la création de la commande',
+                    'details': str(e)
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        return Response({
+            'error': 'Données invalides',
+            'validation_errors': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
 
-    def perform_create(self, serializer):
-        serializer.save()
+    # ============================================================================
+    # GESTION DES STATUTS
+    # ============================================================================
 
-    # ---------------------------------------------------------------------
-    # ACTION : mise à jour du statut par le restaurateur
-    # ---------------------------------------------------------------------
     @extend_schema(
         summary="Mettre à jour le statut",
-        description="Permet au restaurateur de passer la commande à un nouveau statut.",
-        request={
-            "application/json": {
-                "type": "object",
-                "properties": {
-                    "status": {
-                        "type": "string",
-                        "enum": [s for s, _ in Order.STATUS_CHOICES],
-                    }
-                },
-                "required": ["status"],
-            }
-        },
-        responses={
-            200: OrderReadSerializer,
-            400: OpenApiResponse(description="Statut invalide"),
-            403: OpenApiResponse(description="Action non autorisée"),
-        },
+        description="Change le statut d'une commande (pour le personnel cuisine/comptoir).",
+        request=OrderStatusUpdateSerializer
     )
-    @action(detail=True, methods=["patch"], url_path="update_status")
+    @action(detail=True, methods=["patch"])
     def update_status(self, request, pk=None):
+        """Mise à jour du statut d'une commande"""
         order = self.get_object()
+        serializer = OrderStatusUpdateSerializer(
+            order, 
+            data=request.data, 
+            partial=True
+        )
+        
+        if serializer.is_valid():
+            try:
+                updated_order = serializer.save()
+                
+                # Notification temps réel
+                self._notify_status_change(updated_order)
+                
+                # Retourner les détails complets
+                response_serializer = OrderDetailSerializer(
+                    updated_order, 
+                    context={'request': request}
+                )
+                
+                return Response(response_serializer.data)
+                
+            except Exception as e:
+                return Response({
+                    'error': 'Erreur lors de la mise à jour du statut',
+                    'details': str(e)
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        # Vérification de l'autorisation côté restaurateur
-        if not hasattr(request.user, "restaurateur_profile") or order.restaurant.owner.user != request.user:
-            return Response({"detail": "Action réservée au restaurateur."}, status=status.HTTP_403_FORBIDDEN)
-
-        new_status = request.data.get("status")
-        allowed_status = dict(Order.STATUS_CHOICES).keys()
-        if new_status not in allowed_status:
-            return Response({"detail": f"Statut invalide. Possibles : {', '.join(allowed_status)}"}, status=status.HTTP_400_BAD_REQUEST)
-
-        order.status = new_status
-        order.save(update_fields=["status", "updated_at"])
-        return Response(OrderReadSerializer(order, context=self.get_serializer_context()).data)
-
-    # ---------------------------------------------------------------------
-    # ACTION : statistiques rapides pour le restaurateur
-    # ---------------------------------------------------------------------
     @extend_schema(
-        summary="Statistiques des commandes (restaurateur)",
-        description="Retourne des indicateurs clés (totaux par statut, chiffre d'affaires estimé).",
-        parameters=[
-            OpenApiParameter(
-                name="status",
-                type=str,
-                location=OpenApiParameter.QUERY,
-                description="Filtrer uniquement un statut donné",
-            ),
-        ],
-        responses={200: OpenApiTypes.OBJECT},
+        summary="Annuler une commande",
+        description="Annule une commande si elle peut encore l'être."
     )
-    @action(detail=False, methods=["get"], permission_classes=[permissions.IsAuthenticated, IsRestaurateur])
-    def stats(self, request):
-        restaurateur = request.user.restaurateur_profile
-        qs = self.queryset.filter(restaurant__owner=restaurateur)
-        status_param = request.query_params.get("status")
-        if status_param:
-            qs = qs.filter(status=status_param)
+    @action(detail=True, methods=["post"])
+    def cancel_order(self, request, pk=None):
+        """Annuler une commande"""
+        order = self.get_object()
+        
+        if not order.can_be_cancelled():
+            return Response({
+                'error': 'Cette commande ne peut plus être annulée',
+                'current_status': order.status
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            order.status = 'cancelled'
+            order.save(update_fields=['status', 'updated_at'])
+            
+            # Notification
+            self._notify_status_change(order)
+            
+            return Response({
+                'message': 'Commande annulée avec succès',
+                'order_number': order.order_number,
+                'status': order.status
+            })
+            
+        except Exception as e:
+            return Response({
+                'error': 'Erreur lors de l\'annulation',
+                'details': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        data = {
-            "total": qs.count(),
-            "pending": qs.filter(status="pending").count(),
-            "in_progress": qs.filter(status="in_progress").count(),
-            "served": qs.filter(status="served").count(),
-            "cancelled": qs.filter(status="cancelled").count(),
-            "revenue_estimated": qs.filter(status="served").aggregate(total=Sum("order_items__price_snapshot"))[
-                "total"
-            ]
-            or 0,
+    # ============================================================================
+    # GESTION DES PAIEMENTS
+    # ============================================================================
+
+    @extend_schema(
+        summary="Marquer comme payé",
+        description="Marque une commande comme payée avec la méthode de paiement.",
+        request=OrderPaymentSerializer
+    )
+    @action(detail=True, methods=["post"])
+    def mark_as_paid(self, request, pk=None):
+        """Marquer une commande comme payée"""
+        order = self.get_object()
+        
+        if order.payment_status == 'paid':
+            return Response({
+                'message': 'Commande déjà payée',
+                'order_number': order.order_number
+            })
+        
+        serializer = OrderPaymentSerializer(
+            order, 
+            data=request.data, 
+            partial=True
+        )
+        
+        if serializer.is_valid():
+            try:
+                updated_order = serializer.save()
+                
+                return Response({
+                    'message': 'Commande marquée comme payée',
+                    'order_number': updated_order.order_number,
+                    'payment_method': updated_order.payment_method,
+                    'payment_status': updated_order.payment_status,
+                    'total_amount': str(updated_order.total_amount)
+                })
+                
+            except Exception as e:
+                return Response({
+                    'error': 'Erreur lors du marquage du paiement',
+                    'details': str(e)
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    # ============================================================================
+    # INTERFACE CUISINE ET STATISTIQUES
+    # ============================================================================
+
+    @extend_schema(
+        summary="Vue cuisine",
+        description="Interface optimisée pour l'écran cuisine avec commandes actives.",
+        parameters=[
+            OpenApiParameter(name="restaurant", type=int, description="ID du restaurant")
+        ]
+    )
+    @action(detail=False, methods=["get"])
+    def kitchen_view(self, request):
+        """Vue spéciale pour l'écran cuisine"""
+        restaurant_id = request.query_params.get('restaurant')
+        
+        if not restaurant_id:
+            return Response({
+                'error': 'ID restaurant requis'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Commandes actives par statut
+        queryset = self.get_queryset().filter(
+            restaurant_id=restaurant_id,
+            status__in=['pending', 'confirmed', 'preparing', 'ready']
+        ).order_by('created_at')
+        
+        orders_by_status = {
+            'pending': [],
+            'confirmed': [],
+            'preparing': [],
+            'ready': []
         }
-        return Response(data)
+        
+        for order in queryset:
+            serializer = OrderListSerializer(order, context={'request': request})
+            order_data = serializer.data
+            
+            # Ajouter infos cuisine
+            order_data.update({
+                'is_urgent': self._is_order_urgent(order),
+                'items_summary': self._get_items_summary(order),
+                'special_instructions': self._get_special_instructions(order)
+            })
+            
+            orders_by_status[order.status].append(order_data)
+        
+        # Statistiques du jour
+        today = timezone.now().date()
+        daily_stats = Order.objects.filter(
+            restaurant_id=restaurant_id,
+            created_at__date=today
+        ).aggregate(
+            total=Count('id'),
+            served=Count('id', filter=Q(status='served')),
+            cancelled=Count('id', filter=Q(status='cancelled')),
+            revenue=Sum('total_amount', filter=Q(payment_status='paid'))
+        )
+        
+        return Response({
+            'restaurant_id': restaurant_id,
+            'orders_by_status': orders_by_status,
+            'daily_stats': daily_stats,
+            'last_updated': timezone.now().isoformat()
+        })
+
+    @extend_schema(
+        summary="Statistiques des commandes",
+        description="Statistiques détaillées des commandes par période.",
+        parameters=[
+            OpenApiParameter(name="restaurant", type=int, description="ID du restaurant"),
+            OpenApiParameter(name="period", type=str, description="today, week, month")
+        ]
+    )
+    @action(detail=False, methods=["get"])
+    def statistics(self, request):
+        """Statistiques complètes des commandes"""
+        restaurant_id = request.query_params.get('restaurant')
+        period = request.query_params.get('period', 'today')
+        
+        queryset = self.get_queryset()
+        if restaurant_id:
+            queryset = queryset.filter(restaurant_id=restaurant_id)
+        
+        # Filtrer par période
+        now = timezone.now()
+        if period == 'today':
+            queryset = queryset.filter(created_at__date=now.date())
+        elif period == 'week':
+            start_week = now - timedelta(days=7)
+            queryset = queryset.filter(created_at__gte=start_week)
+        elif period == 'month':
+            start_month = now - timedelta(days=30)
+            queryset = queryset.filter(created_at__gte=start_month)
+        
+        # Calculer les statistiques
+        stats = queryset.aggregate(
+            total_orders=Count('id'),
+            pending=Count('id', filter=Q(status='pending')),
+            confirmed=Count('id', filter=Q(status='confirmed')),
+            preparing=Count('id', filter=Q(status='preparing')),
+            ready=Count('id', filter=Q(status='ready')),
+            served=Count('id', filter=Q(status='served')),
+            cancelled=Count('id', filter=Q(status='cancelled')),
+            paid_orders=Count('id', filter=Q(payment_status='paid')),
+            total_revenue=Sum('total_amount', filter=Q(payment_status='paid')) or 0,
+        )
+        
+        # Calculs dérivés
+        stats['unpaid_orders'] = stats['total_orders'] - stats['paid_orders']
+        
+        if stats['paid_orders'] > 0:
+            stats['average_order_value'] = stats['total_revenue'] / stats['paid_orders']
+        else:
+            stats['average_order_value'] = 0
+        
+        # Temps de préparation moyen
+        served_orders = queryset.filter(status='served', ready_at__isnull=False)
+        if served_orders.exists():
+            avg_prep = served_orders.aggregate(
+                avg_time=Avg('ready_at') - Avg('created_at')
+            )['avg_time']
+            stats['average_preparation_time'] = int(avg_prep.total_seconds() / 60) if avg_prep else 0
+        else:
+            stats['average_preparation_time'] = 0
+        
+        serializer = OrderStatsSerializer(stats)
+        return Response({
+            'period': period,
+            'restaurant_id': restaurant_id,
+            'stats': serializer.data,
+            'generated_at': timezone.now().isoformat()
+        })
+
+    # ============================================================================
+    # ACTIONS UTILITAIRES SUR PLACE
+    # ============================================================================
+
+    @extend_schema(
+        summary="Scanner table QR",
+        description="Scanne un QR code de table pour commencer une commande."
+    )
+    @action(detail=False, methods=["get"], permission_classes=[AllowAny])
+    def scan_table(self, request, table_code):
+        """Scanner QR code d'une table"""
+        try:
+            table = get_object_or_404(Table, qr_code=table_code)
+            restaurant = table.restaurant
+            
+            # Vérifier que le restaurant peut recevoir des commandes
+            if not restaurant.can_receive_orders:
+                return Response({
+                    'error': 'Ce restaurant n\'accepte pas de commandes actuellement'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            return Response({
+                'success': True,
+                'restaurant': {
+                    'id': restaurant.id,
+                    'name': restaurant.name,
+                    'description': restaurant.description,
+                    'cuisine': restaurant.cuisine,
+                    'rating': float(restaurant.rating),
+                    'image_url': request.build_absolute_uri(restaurant.image.url) if restaurant.image else None
+                },
+                'table': {
+                    'id': table.id,
+                    'number': table.identifiant,
+                    'code': table_code
+                }
+            })
+            
+        except Exception as e:
+            return Response({
+                'error': 'Code de table invalide',
+                'details': str(e)
+            }, status=status.HTTP_404_NOT_FOUND)
+
+    @extend_schema(
+        summary="Estimer temps de préparation",
+        description="Estime le temps de préparation pour une liste d'items."
+    )
+    @action(detail=False, methods=["post"], permission_classes=[AllowAny])
+    def estimate_time(self, request):
+        """Estimer le temps de préparation"""
+        items_data = request.data.get('items', [])
+        
+        if not items_data:
+            return Response({
+                'error': 'Liste d\'items requise'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            total_minutes = 0
+            
+            for item in items_data:
+                menu_item_id = item.get('menu_item')
+                quantity = item.get('quantity', 1)
+                
+                try:
+                    menu_item = MenuItem.objects.get(id=menu_item_id)
+                    prep_time = getattr(menu_item, 'preparation_time', 5)  # 5min par défaut
+                    total_minutes += prep_time * quantity
+                except MenuItem.DoesNotExist:
+                    continue
+            
+            # Ajouter buffer et temps de base
+            base_time = 5  # 5 minutes de base
+            buffer = max(5, total_minutes * 0.2)  # 20% de buffer, minimum 5min
+            
+            estimated_minutes = int(base_time + total_minutes + buffer)
+            
+            return Response({
+                'estimated_minutes': estimated_minutes,
+                'estimated_time': f"{estimated_minutes} minutes",
+                'ready_at': (timezone.now() + timedelta(minutes=estimated_minutes)).isoformat()
+            })
+            
+        except Exception as e:
+            return Response({
+                'error': 'Erreur lors de l\'estimation',
+                'details': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @extend_schema(
+        summary="Générer ticket",
+        description="Génère un ticket PDF pour une commande."
+    )
+    @action(detail=True, methods=["post"])
+    def generate_ticket(self, request, pk=None):
+        """Générer un ticket de commande"""
+        order = self.get_object()
+        
+        try:
+            # Ici on générerait un PDF du ticket
+            # Pour l'instant, on retourne les données structurées
+            
+            ticket_data = {
+                'restaurant': {
+                    'name': order.restaurant.name,
+                    'address': order.restaurant.address,
+                    'phone': order.restaurant.phone
+                },
+                'order': {
+                    'number': order.order_number,
+                    'type': order.get_order_type_display(),
+                    'table': order.table_number,
+                    'customer': order.customer_name or 'Client',
+                    'created_at': order.created_at.strftime('%d/%m/%Y %H:%M'),
+                    'estimated_ready': order.estimated_ready_time.strftime('%H:%M') if order.estimated_ready_time else None
+                },
+                'items': [
+                    {
+                        'name': item.menu_item.name,
+                        'quantity': item.quantity,
+                        'unit_price': str(item.unit_price),
+                        'total': str(item.total_price),
+                        'notes': item.special_instructions or ''
+                    }
+                    for item in order.items.all()
+                ],
+                'totals': {
+                    'subtotal': str(order.subtotal),
+                    'tax': str(order.tax_amount),
+                    'total': str(order.total_amount)
+                }
+            }
+            
+            return Response({
+                'success': True,
+                'ticket_data': ticket_data,
+                'ticket_url': f'/api/v1/orders/{order.id}/ticket.pdf'  # URL future
+            })
+            
+        except Exception as e:
+            return Response({
+                'error': 'Erreur lors de la génération du ticket',
+                'details': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    # ============================================================================
+    # MÉTHODES UTILITAIRES PRIVÉES
+    # ============================================================================
+
+    def _is_order_urgent(self, order):
+        """Détermine si une commande est urgente"""
+        if order.status in ['served', 'cancelled']:
+            return False
+        
+        elapsed = timezone.now() - order.created_at
+        return elapsed.total_seconds() > 1800  # Plus de 30 minutes
+
+    def _get_items_summary(self, order):
+        """Résumé des items pour affichage rapide"""
+        items = order.items.all()
+        if items.count() <= 3:
+            return ', '.join([f"{item.quantity}x {item.menu_item.name}" for item in items])
+        else:
+            first_items = list(items[:2])
+            return ', '.join([f"{item.quantity}x {item.menu_item.name}" for item in first_items]) + f" +{items.count()-2} autres"
+
+    def _get_next_status(self, current_status):
+        """Retourne le prochain statut possible"""
+        transitions = {
+            'pending': 'confirmed',
+            'confirmed': 'preparing', 
+            'preparing': 'ready',
+            'ready': 'served'
+        }
+        return transitions.get(current_status)
+
+    def _get_order_timeline(self, order):
+        """Timeline des événements de la commande"""
+        timeline = [
+            {
+                'status': 'pending',
+                'timestamp': order.created_at,
+                'label': 'Commande créée'
+            }
+        ]
+        
+        if order.ready_at:
+            timeline.append({
+                'status': 'ready',
+                'timestamp': order.ready_at,
+                'label': 'Commande prête'
+            })
+        
+        if order.served_at:
+            timeline.append({
+                'status': 'served', 
+                'timestamp': order.served_at,
+                'label': 'Commande servie'
+            })
+        
+        return timeline
+
+    def _get_special_instructions(self, order):
+        """Récupère toutes les instructions spéciales"""
+        instructions = []
+        
+        if order.notes:
+            instructions.append(f"Commande: {order.notes}")
+        
+        for item in order.items.all():
+            if item.special_instructions:
+                instructions.append(f"{item.menu_item.name}: {item.special_instructions}")
+        
+        return instructions
+
+    def _notify_new_order(self, order):
+        """Notification temps réel nouvelle commande"""
+        # TODO: Implémenter WebSocket notification
+        pass
+
+    def _notify_status_change(self, order):
+        """Notification temps réel changement statut"""
+        # TODO: Implémenter WebSocket notification
+        pass
