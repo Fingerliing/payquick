@@ -1,4 +1,4 @@
-import { CreateMenuItemRequest, Menu, MenuItem } from '@/types/menu';
+import { CreateMenuItemRequest, Menu, MenuItem, Allergen } from '@/types/menu';
 import { apiClient } from './api';
 
 export class MenuService {
@@ -37,11 +37,45 @@ export class MenuService {
     return apiClient.delete(`/api/v1/menus/${id}/`);
   }
 
+    /**
+   * Récupérer les allergènes disponibles
+   */
+    async getAllergens(): Promise<Allergen[]> {
+      return apiClient.get('/api/v1/menu-items/allergens/');
+    }
+  
+    /**
+     * Récupérer les items par allergène
+     */
+    async getItemsByAllergen(allergen: string): Promise<MenuItem[]> {
+      return apiClient.get('/api/v1/menu-items/by_allergen/', { allergen });
+    }
+  
+    /**
+     * Récupérer les items par options diététiques
+     */
+    async getDietaryOptions(filters: {
+      vegetarian?: boolean;
+      vegan?: boolean;
+      gluten_free?: boolean;
+    }): Promise<MenuItem[]> {
+      return apiClient.get('/api/v1/menu-items/dietary_options/', filters);
+    }
+  
+    /**
+     * Récupérer les menus par restaurant (pour clients)
+     */
+    async getMenusByRestaurant(restaurantId: number): Promise<Menu[]> {
+      // Si l'API backend ne le support pas, filtrer côté client
+      const allMenus = await this.getMyMenus();
+      return allMenus.filter(menu => menu.restaurant === restaurantId);
+    }
+
   /**
    * Activer/Désactiver un menu (rend ce menu disponible et désactive les autres)
    */
-  async toggleMenuAvailability(id: number): Promise<{ id: number; disponible: boolean }> {
-    return apiClient.post(`/api/v1/menus/${id}/toggle_disponible/`);
+  async toggleMenuAvailability(id: number): Promise<{ id: number; is_available: boolean }> {
+    return apiClient.post(`/api/v1/menus/${id}/toggle_is_available/`);
   }
 
   /**

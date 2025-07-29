@@ -49,7 +49,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
 class OrderListSerializer(serializers.ModelSerializer):
     """Pour l'affichage liste (écran cuisine/comptoir)"""
     restaurant_name = serializers.CharField(source='restaurant.name', read_only=True)
-    table_number = serializers.CharField(source='table_number', read_only=True)
+    table_number = serializers.CharField(read_only=True)
     items_count = serializers.SerializerMethodField()
     waiting_time = serializers.SerializerMethodField()
     customer_display = serializers.SerializerMethodField()
@@ -152,7 +152,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(f"L'item {menu_item.name} n'appartient pas à ce restaurant")
             if not menu_item.is_available:
                 raise serializers.ValidationError(f"{menu_item.name} n'est plus disponible")
-            if not menu_item.menu.disponible:
+            if not menu_item.menu.is_available:
                 raise serializers.ValidationError(f"Le menu contenant {menu_item.name} n'est pas disponible")
         
         return data

@@ -10,6 +10,8 @@ export interface MenuItem {
   is_vegetarian: boolean;
   is_vegan: boolean;
   is_gluten_free: boolean;
+  allergen_display?: string[];
+  dietary_tags?: string[];
   created_at?: string;
   updated_at?: string;
 }
@@ -22,7 +24,7 @@ export interface Menu {
   created_at: string;
   updated_at: string;
   restaurant_owner_id: number;
-  disponible?: boolean;
+  is_available?: boolean;
 }
 
 // Types utilitaires pour les formulaires
@@ -40,7 +42,7 @@ export interface CreateMenuRequest {
 
 export interface UpdateMenuRequest {
   name?: string;
-  disponible?: boolean;
+  is_available?: boolean;
 }
 
 export interface CreateMenuItemRequest {
@@ -70,7 +72,7 @@ export interface UpdateMenuItemRequest {
 // Types pour les réponses API spécifiques
 export interface MenuToggleResponse {
   id: number;
-  disponible: boolean;
+  is_available: boolean;
 }
 
 export interface MenuItemToggleResponse {

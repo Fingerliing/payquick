@@ -3,6 +3,7 @@ export interface Order {
   order_number: string;
   user?: number;
   customer_name?: string;
+  customer_display?: string;
   restaurant: number;
   restaurant_name?: string;
   order_type: 'dine_in' | 'takeaway';
@@ -75,6 +76,6 @@ export interface OrderStats {
   paid_orders: number;
   unpaid_orders: number;
   total_revenue: string;
-  average_order_value: string;
+  average_order_value: string; 
   average_preparation_time: number;
 }

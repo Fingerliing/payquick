@@ -28,17 +28,13 @@ class MenuViewSet(viewsets.ModelViewSet):
         }
     )
     @action(detail=True, methods=["post"])
-    def toggle_disponible(self, request, pk=None):
-        """
-        Active ce menu et désactive tous les autres menus du même restaurant.
-        Utile pour ne rendre qu'un seul menu visible à la fois côté client.
-        """
+    def toggle_is_available(self, request, pk=None):
         menu = self.get_object()
         restaurant = menu.restaurant
-        Menu.objects.filter(restaurant=restaurant).update(disponible=False)
-        menu.disponible = True
+        Menu.objects.filter(restaurant=restaurant).update(is_available=False)
+        menu.is_available = True
         menu.save()
-        return Response({"id": menu.id, "disponible": menu.disponible})
+        return Response({"id": menu.id, "is_available": menu.is_available}) 
 
 @extend_schema(tags=["Menu Items"])
 class MenuItemViewSet(viewsets.ModelViewSet):

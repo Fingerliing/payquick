@@ -23,6 +23,8 @@ class RestaurantSerializer(serializers.ModelSerializer):
     owner_id = serializers.CharField(source='owner.id', read_only=True)
     opening_hours = OpeningHoursSerializer(many=True, read_only=True)
     
+    accepts_meal_vouchers_display = serializers.SerializerMethodField()
+
     # Géolocalisation (structure attendue par le frontend)
     location = serializers.SerializerMethodField()
     

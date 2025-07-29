@@ -9,6 +9,7 @@ interface HeaderProps {
   subtitle?: string;
   leftIcon?: string;
   rightIcon?: string;
+  rightBadge?: string;
   onLeftPress?: () => void;
   onRightPress?: () => void;
   backgroundColor?: string;

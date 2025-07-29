@@ -151,7 +151,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         served_orders = Order.objects.filter(restaurant=restaurant, status='served').count()
         total_tables = Table.objects.filter(restaurant=restaurant).count()
         total_menus = Menu.objects.filter(restaurant=restaurant).count()
-        active_menus = Menu.objects.filter(restaurant=restaurant, disponible=True).count()
+        active_menus = Menu.objects.filter(restaurant=restaurant, is_available=True).count()
         
         data['stats'] = {
             "orders": {
@@ -618,7 +618,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         # Statistiques des menus
         menus = Menu.objects.filter(restaurant=restaurant)
         total_menus = menus.count()
-        active_menus = menus.filter(disponible=True).count()
+        active_menus = menus.filter(is_available=True).count()
         
         # Statistiques des items de menu
         try:
@@ -764,7 +764,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             menus_data.append({
                 "id": menu.id,
                 "name": menu.name,
-                "disponible": getattr(menu, 'disponible', False),
+                "is_available": getattr(menu, 'disponible', False),
                 "items_count": items_count,
                 "available_items": available_items,
                 "created_at": menu.created_at,

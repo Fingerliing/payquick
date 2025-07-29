@@ -2,7 +2,8 @@ from django.db import models
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
-from django.utils import timezone, timedelta
+from django.utils import timezone
+from datetime import timedelta
 
 def validate_siret(value):
     if not value.isdigit():
@@ -231,6 +232,7 @@ class OpeningHours(models.Model):
 class Menu(models.Model):
     name = models.CharField(max_length=100)
     restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name='menu')
+    is_available = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -126,7 +126,7 @@ export class OrderService {
      * Scanner QR code table pour nouvelle commande
      */
     scanTable: (tableCode: string): Promise<{ restaurant: any; table: any }> => {
-      return apiClient.get(`/api/v1/orders/scan-table/${tableCode}/`);
+      return apiClient.get(`/api/v1/orders/scan_table/${tableCode}/`);
     },
 
     /**
