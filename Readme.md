@@ -27,7 +27,7 @@ Eat&Go révolutionne l'expérience de restauration en permettant aux clients de 
 ## 🏗️ Architecture
 
 - **Backend** : Django + Django REST Framework
-- **Frontend** : React.js (responsive mobile/desktop)
+- **Frontend** : React.js + Expo (responsive mobile/desktop)
 - **Base de données** : PostgreSQL
 - **Temps réel** : WebSocket (Node.js + Socket.io)
 - **QR Codes** : Génération automatique avec python-qrcode
