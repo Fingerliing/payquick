@@ -9,7 +9,10 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Cette application utilise la caméra pour scanner les QR codes des restaurants."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -23,6 +26,9 @@
           "data": [{ "scheme": "payquick" }],
           "category": ["BROWSABLE", "DEFAULT"]
         }
+      ],
+      "permissions": [
+        "android.permission.CAMERA"
       ]
     },
     "web": {
@@ -39,6 +45,10 @@
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
+        },
+        "expo-camera",
+        {
+          "cameraPermission": "Allow PayQuick to access camera for QR code scanning"
         }
       ]
     ],

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../constants/config';
+import { router } from 'expo-router';
 
 export interface ClientProfile {
   id: number;
@@ -161,6 +162,9 @@ interface AuthContextType {
   hasValidatedProfile: boolean;
   canCreateRestaurant: boolean;
   canManageOrders: boolean;
+
+  // Helpers de navigation
+  navigateByRole: () => void;
   
   // Données spécifiques
   getUserRestaurants: () => Restaurant[];
@@ -357,6 +361,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const canCreateRestaurant = user?.permissions?.can_create_restaurant || false;
   const canManageOrders = user?.permissions?.can_manage_orders || false;
 
+  const navigateByRole = () => {
+    if (user?.role === 'client') {
+      router.replace('/(client)');
+    } else if (user?.role === 'restaurateur') {
+      router.replace('/(restaurant)');
+    }
+  };
+
   // Effacer les erreurs
   const clearError = () => setLastError(null);
 
@@ -485,6 +497,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const currentUser = await apiClient.getCurrentUser();
       await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(currentUser));
       setUser(currentUser);
+      navigateByRole();
 
       console.log('✅ Inscription réussie avec données utilisateur complètes');
     } catch (error: any) {
@@ -516,6 +529,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(currentUser));
         setUser(currentUser);
         console.log('👤 Utilisateur récupéré depuis /auth/me/');
+        navigateByRole();
       }
 
       console.log('✅ Connexion réussie avec données utilisateur complètes');
@@ -654,6 +668,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     getUserRestaurants,
     getUserStats,
     getPendingOrdersCount,
+
+    // Helpers de navigation
+    navigateByRole,
     
     // Gestion des erreurs
     lastError,

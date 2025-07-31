@@ -1,9 +1,12 @@
 import React from 'react';
-import { Stack } from 'expo-router';
+import { SplashScreen, Stack } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { RestaurantProvider } from '@/contexts/RestaurantContext';
 import { OrderProvider } from '@/contexts/OrderContext';
+import { CartProvider } from '@/contexts/CartContext';
+
+SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   return (
@@ -13,7 +16,8 @@ export default function RootLayout() {
           <OrderProvider>
             <Stack>
               <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="(restaurant)" options={{ headerShown: false }} />
+              <Stack.Screen name="(client)" options={{ headerShown: false }} />
               <Stack.Screen name="restaurant/[id]" options={{ title: 'Restaurant' }} />
               <Stack.Screen name="restaurant/add" options={{ title: 'Ajouter un restaurant' }} />
               <Stack.Screen name="restaurant/edit/[id]" options={{ title: 'Modifier le restaurant' }} />

@@ -12,12 +12,13 @@ import { COLORS } from '@/constants/config';
 interface ButtonProps extends Omit<TouchableOpacityProps, 'style'> {
   title: string;
   loading?: boolean;
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive'; // ✅ Ajout variant destructive
   size?: 'small' | 'medium' | 'large';
   fullWidth?: boolean;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
   style?: ViewStyle;
+  textStyle?: TextStyle; // ✅ Nouvelle propriété
 }
 
 export function Button({
@@ -29,6 +30,7 @@ export function Button({
   leftIcon,
   rightIcon,
   style,
+  textStyle, // ✅ Destructuring de la nouvelle prop
   disabled,
   ...props
 }: ButtonProps) {
@@ -71,6 +73,14 @@ export function Button({
         baseStyle.borderWidth = 1;
         baseStyle.borderColor = COLORS.primary;
         break;
+      case 'destructive': // ✅ Nouveau variant destructive
+        baseStyle.backgroundColor = 'transparent';
+        baseStyle.borderWidth = 1;
+        baseStyle.borderColor = '#FF3B30';
+        break;
+      case 'ghost':
+        baseStyle.backgroundColor = 'transparent';
+        break;
       default:
         baseStyle.backgroundColor = COLORS.primary;
     }
@@ -105,11 +115,43 @@ export function Button({
       case 'outline':
         baseStyle.color = COLORS.primary;
         break;
+      case 'destructive': // ✅ Couleur pour variant destructive
+        baseStyle.color = '#FF3B30';
+        break;
+      case 'ghost':
+        baseStyle.color = COLORS.text.primary;
+        break;
+      case 'secondary':
+        baseStyle.color = COLORS.surface;
+        break;
       default:
         baseStyle.color = COLORS.surface;
     }
 
-    return baseStyle;
+    // ✅ Combiner avec le textStyle personnalisé
+    return { ...baseStyle, ...textStyle };
+  };
+
+  // ✅ Fonction pour obtenir la couleur de l'icône/loader
+  const getIconColor = (): string => {
+    // Si textStyle contient une couleur, l'utiliser en priorité
+    if (textStyle?.color) {
+      return textStyle.color as string;
+    }
+
+    // Sinon, utiliser la couleur par défaut selon le variant
+    switch (variant) {
+      case 'outline':
+        return COLORS.primary;
+      case 'destructive':
+        return '#FF3B30';
+      case 'ghost':
+        return COLORS.text.primary;
+      case 'secondary':
+        return COLORS.surface;
+      default:
+        return COLORS.surface;
+    }
   };
 
   return (
@@ -124,7 +166,7 @@ export function Button({
       {loading ? (
         <ActivityIndicator 
           size="small" 
-          color={variant === 'outline' ? COLORS.primary : COLORS.surface}
+          color={getIconColor()} // ✅ Utiliser la couleur calculée
         />
       ) : (
         <>
