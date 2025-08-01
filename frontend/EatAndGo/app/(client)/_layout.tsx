@@ -1,15 +1,15 @@
 import React from 'react';
 import { Redirect, Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../constants/Colors';
-import { useAuth } from '../../contexts/AuthContext';
+import { Colors } from '@/constants/Colors';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function ClientLayout() {
   const { user, isClient } = useAuth();
   
   // Rediriger vers l'interface restaurant si pas client
   if (user && !isClient) {
-    return <Redirect href="/(tabs)" />;
+    return <Redirect href="/(restaurant)" />;
   }
 
   return (

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { clientOrderService } from '@/services/client/clientOrderService';
+import { clientOrderService } from '@/services/clientOrderService';
 import { useAuth } from '@/contexts/AuthContext';
 
 export const useClientOrders = () => {
@@ -14,7 +14,7 @@ export const useClientOrders = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await clientOrderService.getMyOrders();
+      const response = await clientOrderService.getMyOrders() as any;
       setOrders(response.results || response);
     } catch (err: any) {
       setError(err.message || 'Erreur lors du chargement');
@@ -24,7 +24,7 @@ export const useClientOrders = () => {
     }
   };
 
-  const createOrder = async (cartItems: any[], restaurantId: number, tableNumber?: string) => {
+  const createOrder = async (cartItems: any[], restaurantId: number, tableNumber?: number) => {
     try {
       setLoading(true);
       const order = await clientOrderService.createOrderFromCart(

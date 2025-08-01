@@ -45,7 +45,9 @@
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
-        },
+        }
+      ],
+      [
         "expo-camera",
         {
           "cameraPermission": "Allow PayQuick to access camera for QR code scanning"

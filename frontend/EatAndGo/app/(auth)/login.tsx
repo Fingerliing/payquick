@@ -169,7 +169,6 @@ export default function LoginScreen() {
       
       // Succès - redirection automatique gérée par le contexte
       // Le contexte va sauvegarder les tokens et mettre à jour l'état
-      router.replace('/(tabs)');
       
     } catch (error: any) {
       console.error('Erreur de connexion:', error);

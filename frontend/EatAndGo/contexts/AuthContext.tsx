@@ -458,6 +458,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const parsedUser = JSON.parse(userData);
         setUser(parsedUser);
         console.log('✅ Authentification restaurée depuis le cache');
+
+        // Rediriger l'utilisateur vers la bonne section selon son rôle
+        if (parsedUser.role === 'client') {
+          router.replace('/(client)');
+        } else if (parsedUser.role === 'restaurateur') {
+          router.replace('/(restaurant)');
+        }
         
         // Essayer de rafraîchir les données, mais ne pas échouer si 403
         try {
