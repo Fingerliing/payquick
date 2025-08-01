@@ -567,6 +567,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       await clearAuthData();
       console.log('✅ Déconnexion locale terminée');
+      router.replace('/(auth)/login');
     }
   };
 

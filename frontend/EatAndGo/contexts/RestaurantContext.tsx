@@ -15,18 +15,28 @@ interface RestaurantState {
     total: number;
     pages: number;
   };
+  isPublicMode: boolean;
 }
 
 export interface RestaurantContextType extends RestaurantState {
+  // Méthodes publiques (pour clients)
+  loadPublicRestaurants: (filters?: SearchFilters, page?: number) => Promise<void>;
+  loadPublicRestaurant: (id: string) => Promise<void>;
+  searchPublicRestaurants: (query: string, filters?: SearchFilters) => Promise<void>;
+  
+  // Méthodes privées (pour restaurateurs)
   loadRestaurants: (filters?: SearchFilters, page?: number) => Promise<void>;
   loadRestaurant: (id: string) => Promise<void>;
   createRestaurant: (data: Omit<Restaurant, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Restaurant>;
   updateRestaurant: (id: string, data: Partial<Restaurant>) => Promise<void>;
   deleteRestaurant: (id: string) => Promise<void>;
   searchRestaurants: (query: string, filters?: SearchFilters) => Promise<void>;
+  
+  // Méthodes communes
   setFilters: (filters: SearchFilters) => void;
   clearCurrentRestaurant: () => void;
   refreshRestaurants: () => Promise<void>;
+  setPublicMode: (isPublic: boolean) => void;
 }
 
 type RestaurantAction =
@@ -38,7 +48,8 @@ type RestaurantAction =
   | { type: 'UPDATE_RESTAURANT'; payload: Restaurant }
   | { type: 'REMOVE_RESTAURANT'; payload: string }
   | { type: 'SET_FILTERS'; payload: SearchFilters }
-  | { type: 'SET_PAGINATION'; payload: any };
+  | { type: 'SET_PAGINATION'; payload: any }
+  | { type: 'SET_PUBLIC_MODE'; payload: boolean };
 
 const initialState: RestaurantState = {
   restaurants: [],
@@ -52,6 +63,7 @@ const initialState: RestaurantState = {
     total: 0,
     pages: 0,
   },
+  isPublicMode: true,
 };
 
 const restaurantReducer = (state: RestaurantState, action: RestaurantAction): RestaurantState => {
@@ -98,6 +110,8 @@ const restaurantReducer = (state: RestaurantState, action: RestaurantAction): Re
       return { ...state, filters: action.payload };
     case 'SET_PAGINATION':
       return { ...state, pagination: action.payload };
+    case 'SET_PUBLIC_MODE':
+      return { ...state, isPublicMode: action.payload };
     default:
       return state;
   }
@@ -113,53 +127,44 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
       restaurants: state.restaurants.length,
       isLoading: state.isLoading,
       error: state.error,
+      isPublicMode: state.isPublicMode,
       isArray: Array.isArray(state.restaurants)
     });
-  }, [state.restaurants, state.isLoading, state.error]);
+  }, [state.restaurants, state.isLoading, state.error, state.isPublicMode]);
 
-  const loadRestaurants = async (filters?: SearchFilters, page = 1) => {
+  // ============================================================================
+  // MÉTHODES PUBLIQUES
+  // ============================================================================
+
+  const loadPublicRestaurants = async (filters?: SearchFilters, page = 1) => {
     try {
-      console.log('🚀 RestaurantContext: Starting loadRestaurants...', { filters, page });
+      console.log('🚀 RestaurantContext: Loading public restaurants...', { filters, page });
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
       
-      console.log('📤 Requête vers getRestaurants avec :', {
+      const response = await restaurantService.getPublicRestaurants({
         page,
         limit: state.pagination.limit,
         filters: filters || state.filters,
       });
       
-      const response = await restaurantService.getRestaurants({
-        page,
-        limit: state.pagination.limit,
-        filters: filters || state.filters,
-      });
-      
-      console.log('📥 RestaurantService response:', response);
+      console.log('📥 Public restaurants response:', response);
       
       let restaurantData: Restaurant[] = [];
       let paginationData = state.pagination;
       
       if (response && typeof response === 'object') {
-        // Cas 1: Structure {data: [], pagination: {}}
         if (Array.isArray(response.data)) {
           restaurantData = response.data;
           paginationData = response.pagination || state.pagination;
-        }
-        // Cas 2: Array direct
-        else if (Array.isArray(response)) {
+        } else if (Array.isArray(response)) {
           restaurantData = response;
         }
-      }
-      // Cas 3: Response est directement un array
-      else if (Array.isArray(response)) {
+      } else if (Array.isArray(response)) {
         restaurantData = response;
       }
       
-      console.log('✅ RestaurantContext: Processed data:', {
-        restaurantCount: restaurantData.length,
-        pagination: paginationData
-      });
+      console.log('✅ Public restaurants processed:', restaurantData.length);
       
       dispatch({ type: 'SET_RESTAURANTS', payload: restaurantData });
       dispatch({ type: 'SET_PAGINATION', payload: paginationData });
@@ -169,9 +174,97 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
       }
       
     } catch (error: any) {
-      console.error('❌ RestaurantContext: Load error:', error);
+      console.error('❌ RestaurantContext: Public load error:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors du chargement des restaurants' });
-      dispatch({ type: 'SET_RESTAURANTS', payload: [] }); // ✅ Fallback sur array vide
+      dispatch({ type: 'SET_RESTAURANTS', payload: [] });
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  };
+
+  const loadPublicRestaurant = async (id: string) => {
+    try {
+      console.log('🚀 RestaurantContext: Loading public restaurant:', id);
+      dispatch({ type: 'SET_LOADING', payload: true });
+      dispatch({ type: 'SET_ERROR', payload: null });
+      
+      const restaurant = await restaurantService.getPublicRestaurant(id);
+      console.log('✅ Public restaurant loaded:', restaurant);
+      
+      dispatch({ type: 'SET_CURRENT_RESTAURANT', payload: restaurant });
+    } catch (error: any) {
+      console.error('❌ RestaurantContext: Public load single error:', error);
+      dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors du chargement du restaurant' });
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  };
+
+  const searchPublicRestaurants = async (query: string, filters?: SearchFilters) => {
+    try {
+      console.log('🚀 RestaurantContext: Searching public restaurants:', query, filters);
+      dispatch({ type: 'SET_LOADING', payload: true });
+      dispatch({ type: 'SET_ERROR', payload: null });
+      
+      const restaurants = await restaurantService.searchPublicRestaurants(query, filters);
+      console.log('✅ Public search results:', restaurants.length);
+      
+      const restaurantData = Array.isArray(restaurants) ? restaurants : [];
+      dispatch({ type: 'SET_RESTAURANTS', payload: restaurantData });
+    } catch (error: any) {
+      console.error('❌ RestaurantContext: Public search error:', error);
+      dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors de la recherche' });
+      dispatch({ type: 'SET_RESTAURANTS', payload: [] });
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  };
+
+  // ============================================================================
+  // MÉTHODES PRIVÉES
+  // ============================================================================
+
+  const loadRestaurants = async (filters?: SearchFilters, page = 1) => {
+    try {
+      console.log('🚀 RestaurantContext: Loading private restaurants...', { filters, page });
+      dispatch({ type: 'SET_LOADING', payload: true });
+      dispatch({ type: 'SET_ERROR', payload: null });
+      
+      const response = await restaurantService.getRestaurants({
+        page,
+        limit: state.pagination.limit,
+        filters: filters || state.filters,
+      });
+      
+      console.log('📥 Private restaurants response:', response);
+      
+      let restaurantData: Restaurant[] = [];
+      let paginationData = state.pagination;
+      
+      if (response && typeof response === 'object') {
+        if (Array.isArray(response.data)) {
+          restaurantData = response.data;
+          paginationData = response.pagination || state.pagination;
+        } else if (Array.isArray(response)) {
+          restaurantData = response;
+        }
+      } else if (Array.isArray(response)) {
+        restaurantData = response;
+      }
+      
+      console.log('✅ Private restaurants processed:', restaurantData.length);
+      
+      dispatch({ type: 'SET_RESTAURANTS', payload: restaurantData });
+      dispatch({ type: 'SET_PAGINATION', payload: paginationData });
+      
+      if (filters) {
+        dispatch({ type: 'SET_FILTERS', payload: filters });
+      }
+      
+    } catch (error: any) {
+      console.error('❌ RestaurantContext: Private load error:', error);
+      dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors du chargement des restaurants' });
+      dispatch({ type: 'SET_RESTAURANTS', payload: [] });
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
@@ -179,16 +272,16 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
 
   const loadRestaurant = async (id: string) => {
     try {
-      console.log('🚀 RestaurantContext: Loading single restaurant:', id);
+      console.log('🚀 RestaurantContext: Loading private restaurant:', id);
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
       
       const restaurant = await restaurantService.getRestaurant(id);
-      console.log('✅ RestaurantContext: Single restaurant loaded:', restaurant);
+      console.log('✅ Private restaurant loaded:', restaurant);
       
       dispatch({ type: 'SET_CURRENT_RESTAURANT', payload: restaurant });
     } catch (error: any) {
-      console.error('❌ RestaurantContext: Load single error:', error);
+      console.error('❌ RestaurantContext: Private load single error:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors du chargement du restaurant' });
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
@@ -246,23 +339,27 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
 
   const searchRestaurants = async (query: string, filters?: SearchFilters) => {
     try {
-      console.log('🚀 RestaurantContext: Searching restaurants:', query, filters);
+      console.log('🚀 RestaurantContext: Searching private restaurants:', query, filters);
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
       
       const restaurants = await restaurantService.searchRestaurants(query, filters);
-      console.log('✅ RestaurantContext: Search results:', restaurants.length);
+      console.log('✅ Private search results:', restaurants.length);
       
       const restaurantData = Array.isArray(restaurants) ? restaurants : [];
       dispatch({ type: 'SET_RESTAURANTS', payload: restaurantData });
     } catch (error: any) {
-      console.error('❌ RestaurantContext: Search error:', error);
+      console.error('❌ RestaurantContext: Private search error:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors de la recherche' });
       dispatch({ type: 'SET_RESTAURANTS', payload: [] });
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
   };
+
+  // ============================================================================
+  // MÉTHODES COMMUNES
+  // ============================================================================
 
   const setFilters = (filters: SearchFilters) => {
     dispatch({ type: 'SET_FILTERS', payload: filters });
@@ -272,18 +369,30 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
     dispatch({ type: 'SET_CURRENT_RESTAURANT', payload: null });
   };
 
+  const setPublicMode = (isPublic: boolean) => {
+    dispatch({ type: 'SET_PUBLIC_MODE', payload: isPublic });
+  };
+
   const refreshRestaurants = async () => {
     console.log('🔄 RestaurantContext: Refreshing restaurants...');
-    await loadRestaurants(state.filters, state.pagination.page);
+    if (state.isPublicMode) {
+      await loadPublicRestaurants(state.filters, state.pagination.page);
+    } else {
+      await loadRestaurants(state.filters, state.pagination.page);
+    }
   };
 
   useEffect(() => {
     console.log('🎬 RestaurantProvider mounted, loading initial data...');
-    loadRestaurants();
-  }, []); // Chargement initial automatique
+    // Par défaut, charger en mode public
+    loadPublicRestaurants();
+  }, []);
 
   const value: RestaurantContextType = {
     ...state,
+    loadPublicRestaurants,
+    loadPublicRestaurant,
+    searchPublicRestaurants,
     loadRestaurants,
     loadRestaurant,
     createRestaurant,
@@ -293,6 +402,7 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
     setFilters,
     clearCurrentRestaurant,
     refreshRestaurants,
+    setPublicMode,
   };
 
   return <RestaurantContext.Provider value={value}>{children}</RestaurantContext.Provider>;

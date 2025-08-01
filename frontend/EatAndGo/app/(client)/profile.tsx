@@ -35,6 +35,14 @@ export default function ClientProfileScreen() {
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <Text>Accès réservé aux clients</Text>
         </View>
+        <Button
+            title="Se connecter"
+            onPress={() => router.replace('/(auth)/login')}
+            variant="primary"
+            fullWidth
+            style={{ marginBottom: 16 }}
+            leftIcon={<Ionicons name="log-in-outline" size={16} color="white" />}
+          />
       </SafeAreaView>
     );
   }

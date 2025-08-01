@@ -225,7 +225,7 @@ export default function RegisterScreen() {
             { 
               text: 'Plus tard', 
               style: 'cancel',
-              onPress: () => router.replace('/(tabs)') 
+              onPress: () => router.replace('/(restaurant)') 
             },
             { 
               text: 'Configurer Stripe', 
@@ -238,7 +238,7 @@ export default function RegisterScreen() {
         Alert.alert(
           'Inscription réussie !', 
           'Votre compte client a été créé avec succès ! Bienvenue sur Eat&Go ! 🎉',
-          [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
+          [{ text: 'OK', onPress: () => router.replace('/(client)') }]
         );
       }
       
@@ -286,12 +286,12 @@ export default function RegisterScreen() {
       
       if (opened) {
         // Rediriger vers un écran d'attente
-        router.replace('./stripe/onboarding');
+        router.replace('./stripe');
       } else {
         Alert.alert(
           'Erreur',
           'Impossible d\'ouvrir Stripe. Vous pourrez configurer votre compte plus tard depuis votre profil.',
-          [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
+          [{ text: 'OK', onPress: () => router.replace('/(restaurant)') }]
         );
       }
     } catch (error: any) {
@@ -299,7 +299,7 @@ export default function RegisterScreen() {
       Alert.alert(
         'Erreur Stripe',
         'Erreur lors de la configuration du compte Stripe. Vous pourrez le configurer plus tard depuis votre profil.',
-        [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
+        [{ text: 'OK', onPress: () => router.replace('/(restaurant)') }]
       );
     } finally {
       setIsLoading(false);

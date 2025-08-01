@@ -1,7 +1,7 @@
 from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.shortcuts import get_object_or_404
 from django.db.models import Count, Q
@@ -904,3 +904,101 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                 'error': 'Erreur lors de l\'export',
                 'details': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+@extend_schema(tags=["Public • Restaurants"])
+class PublicRestaurantViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet public en lecture seule pour que les clients puissent
+    consulter les restaurants disponibles.
+    """
+    serializer_class = RestaurantSerializer
+    permission_classes = [AllowAny]  # Accès public
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['name', 'address', 'city', 'cuisine']
+    ordering_fields = ['name', 'rating', 'created_at']
+    ordering = ['-rating', 'name']
+    
+    def get_queryset(self):
+        """Retourne uniquement les restaurants actifs qui peuvent recevoir des commandes"""
+        return Restaurant.objects.filter(
+            is_active=True,
+            can_receive_orders=True,
+            owner__is_active=True,
+            owner__stripe_verified=True
+        ).select_related('owner').prefetch_related('opening_hours')
+    
+    @extend_schema(
+        summary="Liste des restaurants publics",
+        description="Retourne la liste des restaurants actifs disponibles pour les clients.",
+        parameters=[
+            OpenApiParameter(name="search", type=str, description="Recherche par nom, adresse, ville ou cuisine"),
+            OpenApiParameter(name="cuisine", type=str, description="Filtrer par type de cuisine"),
+            OpenApiParameter(name="city", type=str, description="Filtrer par ville"),
+            OpenApiParameter(name="accepts_meal_vouchers", type=bool, description="Restaurants acceptant les titres-restaurant"),
+        ]
+    )
+    def list(self, request, *args, **kwargs):
+        """Liste publique des restaurants avec filtres"""
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        # Filtres supplémentaires
+        cuisine = request.query_params.get('cuisine')
+        city = request.query_params.get('city')
+        accepts_meal_vouchers = request.query_params.get('accepts_meal_vouchers')
+        
+        if cuisine:
+            queryset = queryset.filter(cuisine=cuisine)
+        if city:
+            queryset = queryset.filter(city__icontains=city)
+        if accepts_meal_vouchers:
+            accepts = accepts_meal_vouchers.lower() in ['true', '1', 'yes']
+            queryset = queryset.filter(accepts_meal_vouchers=accepts)
+        
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+    
+    @extend_schema(
+        summary="Détails d'un restaurant public",
+        description="Retourne les détails complets d'un restaurant pour les clients."
+    )
+    def retrieve(self, request, *args, **kwargs):
+        """Détails publics d'un restaurant"""
+        return super().retrieve(request, *args, **kwargs)
+    
+    @action(detail=False, methods=['get'])
+    def cuisines(self, request):
+        """Retourne la liste des types de cuisine disponibles"""
+        cuisines = Restaurant.objects.filter(
+            is_active=True,
+            can_receive_orders=True
+        ).values_list('cuisine', flat=True).distinct()
+        
+        cuisine_choices = dict(Restaurant.CUISINE_CHOICES)
+        available_cuisines = [
+            {'value': cuisine, 'label': cuisine_choices.get(cuisine, cuisine)}
+            for cuisine in cuisines if cuisine
+        ]
+        
+        return Response(available_cuisines)
+    
+    @action(detail=False, methods=['get'])
+    def cities(self, request):
+        """Retourne la liste des villes avec restaurants"""
+        cities = Restaurant.objects.filter(
+            is_active=True,
+            can_receive_orders=True
+        ).values_list('city', flat=True).distinct().order_by('city')
+        
+        return Response(list(cities))
+    
+    @action(detail=False, methods=['get'])
+    def meal_voucher_restaurants(self, request):
+        """Restaurants acceptant les titres-restaurant"""
+        restaurants = self.get_queryset().filter(accepts_meal_vouchers=True)
+        serializer = self.get_serializer(restaurants, many=True)
+        return Response(serializer.data)

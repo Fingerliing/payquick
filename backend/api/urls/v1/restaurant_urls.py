@@ -1,7 +1,20 @@
 from rest_framework.routers import DefaultRouter
-from api.views.restaurant_views import RestaurantViewSet
+from django.urls import path, include
+from api.views.restaurant_views import RestaurantViewSet, PublicRestaurantViewSet
 
-router = DefaultRouter()
-router.register(r'', RestaurantViewSet, basename='restaurants')
+# Router pour les APIs privées (restaurateurs authentifiés)
+private_router = DefaultRouter()
+private_router.register(r'', RestaurantViewSet, basename='restaurants')
 
-urlpatterns = router.urls
+# Router pour les APIs publiques (clients/navigation)
+public_router = DefaultRouter()
+public_router.register(r'public', PublicRestaurantViewSet, basename='public-restaurants')
+
+# URLs combinées
+urlpatterns = [
+    # APIs privées : /api/v1/restaurants/
+    path('', include(private_router.urls)),
+    
+    # APIs publiques : /api/v1/restaurants/public/
+    path('', include(public_router.urls)),
+]
