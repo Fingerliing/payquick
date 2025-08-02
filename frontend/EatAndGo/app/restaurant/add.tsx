@@ -506,40 +506,43 @@ export default function AddRestaurantScreen() {
       const mockRestaurant = createMockRestaurant(formData, image || undefined);
       const currentStatus = RestaurantHoursUtils.isRestaurantOpen(mockRestaurant);
 
-      // Préparer les données pour le backend
-      const restaurantData = {
+      // Préparer les données selon l'interface Restaurant
+      const restaurantData: Omit<Restaurant, 'id' | 'createdAt' | 'updatedAt' | 'can_receive_orders' | 'ownerId'> = {
         // Informations de base
         name: formData.name.trim(),
         description: formData.description?.trim() || '',
         cuisine: formData.cuisine.trim(),
         priceRange: formData.priceRange,
         
-        // Localisation (pas de structure location)
+        // Localisation avec structure location
         address: formData.address.trim(),
         city: formData.city.trim(),
         zipCode: formData.zipCode.trim(),
         country: formData.country?.trim() || 'France',
-        latitude: formData.latitude || null,
-        longitude: formData.longitude || null,
+        location: {
+          latitude: formData.latitude || 0,
+          longitude: formData.longitude || 0,
+        },
         
         // Contact
         phone: formData.phone.trim(),
         email: formData.email.trim().toLowerCase(),
-        website: formData.website?.trim() || '',
+        website: formData.website?.trim() || undefined,
         
-        // Configuration (pas de champs calculés)
+        // Configuration
         rating: 0,
         reviewCount: 0,
         isActive: true,
         
-        // Horaires d'ouverture (envoyés séparément)
+        // Horaires d'ouverture
         openingHours: formData.openingHours,
         
         // Titres-restaurant
         accepts_meal_vouchers: formData.accepts_meal_vouchers,
         meal_voucher_info: formData.accepts_meal_vouchers 
           ? formData.meal_voucher_info?.trim() || 'Titres-restaurant acceptés selon les conditions légales' 
-          : '',
+          : undefined,
+        accepts_meal_vouchers_display: formData.accepts_meal_vouchers ? 'Oui' : 'Non',
         
         // Média
         image: image || undefined,
@@ -581,7 +584,6 @@ export default function AddRestaurantScreen() {
       setIsLoading(false);
     }
   };
-
   // ==========================================================================
   // PREVIEW COMPONENTS
   // ==========================================================================
