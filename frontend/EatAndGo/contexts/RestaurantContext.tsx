@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
 import { Restaurant } from '@/types/restaurant';
-import { SearchFilters } from '@/types/common';
+import { SearchFilters, PaginatedResponse } from '@/types/common';
 import { restaurantService } from '@/services/restaurantService';
 
 interface RestaurantState {
@@ -27,7 +27,7 @@ export interface RestaurantContextType extends RestaurantState {
   // Méthodes privées (pour restaurateurs)
   loadRestaurants: (filters?: SearchFilters, page?: number) => Promise<void>;
   loadRestaurant: (id: string) => Promise<void>;
-  createRestaurant: (data: Omit<Restaurant, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Restaurant>;
+  createRestaurant: (data: Omit<Restaurant, 'id' | 'createdAt' | 'updatedAt' | 'can_receive_orders' | 'ownerId'>) => Promise<Restaurant>;
   updateRestaurant: (id: string, data: Partial<Restaurant>) => Promise<void>;
   deleteRestaurant: (id: string) => Promise<void>;
   searchRestaurants: (query: string, filters?: SearchFilters) => Promise<void>;
@@ -48,7 +48,7 @@ type RestaurantAction =
   | { type: 'UPDATE_RESTAURANT'; payload: Restaurant }
   | { type: 'REMOVE_RESTAURANT'; payload: string }
   | { type: 'SET_FILTERS'; payload: SearchFilters }
-  | { type: 'SET_PAGINATION'; payload: any }
+  | { type: 'SET_PAGINATION'; payload: { page: number; limit: number; total: number; pages: number } }
   | { type: 'SET_PUBLIC_MODE'; payload: boolean };
 
 const initialState: RestaurantState = {
@@ -117,6 +117,68 @@ const restaurantReducer = (state: RestaurantState, action: RestaurantAction): Re
   }
 };
 
+// Fonction utilitaire pour normaliser les données de restaurant
+const normalizeRestaurantData = (data: any): Restaurant => {
+  return {
+    ...data,
+    id: String(data.id), // S'assurer que l'id est toujours une string
+    openingHours: data.openingHours || data.opening_hours || [],
+    // Gérer location si pas présent
+    location: data.location || {
+      latitude: data.latitude || 0,
+      longitude: data.longitude || 0,
+    },
+    // S'assurer que can_receive_orders est toujours défini
+    can_receive_orders: data.can_receive_orders ?? false,
+  };
+};
+
+// Type guards pour vérifier les types de réponse
+const isPaginatedResponse = (response: any): response is PaginatedResponse<Restaurant> => {
+  return response && 
+         typeof response === 'object' && 
+         'data' in response && 
+         Array.isArray(response.data) &&
+         'pagination' in response;
+};
+
+const isRestaurantArray = (response: any): response is Restaurant[] => {
+  return Array.isArray(response);
+};
+
+// Fonction utilitaire pour extraire les données de restaurant de manière sécurisée
+const extractRestaurantData = (response: any): { restaurants: Restaurant[], pagination?: any } => {
+  if (isPaginatedResponse(response)) {
+    return {
+      restaurants: response.data.map(normalizeRestaurantData),
+      pagination: response.pagination
+    };
+  }
+  
+  if (isRestaurantArray(response)) {
+    return {
+      restaurants: response.map(normalizeRestaurantData),
+      pagination: {
+        page: 1,
+        limit: response.length,
+        total: response.length,
+        pages: 1
+      }
+    };
+  }
+  
+  // Fallback pour les formats inattendus
+  return {
+    restaurants: [],
+    pagination: {
+      page: 1,
+      limit: 0,
+      total: 0,
+      pages: 0
+    }
+  };
+};
+
 export const RestaurantContext = createContext<RestaurantContextType | undefined>(undefined);
 
 export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -150,24 +212,12 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
       
       console.log('📥 Public restaurants response:', response);
       
-      let restaurantData: Restaurant[] = [];
-      let paginationData = state.pagination;
+      const { restaurants, pagination } = extractRestaurantData(response);
       
-      if (response && typeof response === 'object') {
-        if (Array.isArray(response.data)) {
-          restaurantData = response.data;
-          paginationData = response.pagination || state.pagination;
-        } else if (Array.isArray(response)) {
-          restaurantData = response;
-        }
-      } else if (Array.isArray(response)) {
-        restaurantData = response;
-      }
+      console.log('✅ Public restaurants processed:', restaurants.length);
       
-      console.log('✅ Public restaurants processed:', restaurantData.length);
-      
-      dispatch({ type: 'SET_RESTAURANTS', payload: restaurantData });
-      dispatch({ type: 'SET_PAGINATION', payload: paginationData });
+      dispatch({ type: 'SET_RESTAURANTS', payload: restaurants });
+      dispatch({ type: 'SET_PAGINATION', payload: pagination || state.pagination });
       
       if (filters) {
         dispatch({ type: 'SET_FILTERS', payload: filters });
@@ -191,7 +241,7 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
       const restaurant = await restaurantService.getPublicRestaurant(id);
       console.log('✅ Public restaurant loaded:', restaurant);
       
-      dispatch({ type: 'SET_CURRENT_RESTAURANT', payload: restaurant });
+      dispatch({ type: 'SET_CURRENT_RESTAURANT', payload: normalizeRestaurantData(restaurant) });
     } catch (error: any) {
       console.error('❌ RestaurantContext: Public load single error:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors du chargement du restaurant' });
@@ -209,7 +259,11 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
       const restaurants = await restaurantService.searchPublicRestaurants(query, filters);
       console.log('✅ Public search results:', restaurants.length);
       
-      const restaurantData = Array.isArray(restaurants) ? restaurants : [];
+      // searchPublicRestaurants retourne directement un Restaurant[]
+      const restaurantData = isRestaurantArray(restaurants) 
+        ? restaurants.map(normalizeRestaurantData) 
+        : [];
+        
       dispatch({ type: 'SET_RESTAURANTS', payload: restaurantData });
     } catch (error: any) {
       console.error('❌ RestaurantContext: Public search error:', error);
@@ -238,24 +292,12 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
       
       console.log('📥 Private restaurants response:', response);
       
-      let restaurantData: Restaurant[] = [];
-      let paginationData = state.pagination;
+      const { restaurants, pagination } = extractRestaurantData(response);
       
-      if (response && typeof response === 'object') {
-        if (Array.isArray(response.data)) {
-          restaurantData = response.data;
-          paginationData = response.pagination || state.pagination;
-        } else if (Array.isArray(response)) {
-          restaurantData = response;
-        }
-      } else if (Array.isArray(response)) {
-        restaurantData = response;
-      }
+      console.log('✅ Private restaurants processed:', restaurants.length);
       
-      console.log('✅ Private restaurants processed:', restaurantData.length);
-      
-      dispatch({ type: 'SET_RESTAURANTS', payload: restaurantData });
-      dispatch({ type: 'SET_PAGINATION', payload: paginationData });
+      dispatch({ type: 'SET_RESTAURANTS', payload: restaurants });
+      dispatch({ type: 'SET_PAGINATION', payload: pagination || state.pagination });
       
       if (filters) {
         dispatch({ type: 'SET_FILTERS', payload: filters });
@@ -279,7 +321,7 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
       const restaurant = await restaurantService.getRestaurant(id);
       console.log('✅ Private restaurant loaded:', restaurant);
       
-      dispatch({ type: 'SET_CURRENT_RESTAURANT', payload: restaurant });
+      dispatch({ type: 'SET_CURRENT_RESTAURANT', payload: normalizeRestaurantData(restaurant) });
     } catch (error: any) {
       console.error('❌ RestaurantContext: Private load single error:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors du chargement du restaurant' });
@@ -288,16 +330,29 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
     }
   };
 
-  const createRestaurant = async (data: Omit<Restaurant, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const createRestaurant = async (data: Omit<Restaurant, 'id' | 'createdAt' | 'updatedAt' | 'can_receive_orders' | 'ownerId'>) => {
     try {
       console.log('🚀 RestaurantContext: Creating restaurant:', data);
       dispatch({ type: 'SET_ERROR', payload: null });
       
-      const restaurant = await restaurantService.createRestaurant(data);
+      // Préparer les données pour le backend
+      const backendData: any = {
+        ...data,
+      };
+      
+      // Gérer la conversion location -> latitude/longitude
+      if (data.location) {
+        backendData.latitude = data.location.latitude;
+        backendData.longitude = data.location.longitude;
+        delete backendData.location;
+      }
+      
+      const restaurant = await restaurantService.createRestaurant(backendData);
       console.log('✅ RestaurantContext: Restaurant created:', restaurant);
       
-      dispatch({ type: 'ADD_RESTAURANT', payload: restaurant });
-      return restaurant;
+      const normalizedRestaurant = normalizeRestaurantData(restaurant);
+      dispatch({ type: 'ADD_RESTAURANT', payload: normalizedRestaurant });
+      return normalizedRestaurant;
     } catch (error: any) {
       console.error('❌ RestaurantContext: Create error:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors de la création du restaurant' });
@@ -310,10 +365,27 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
       console.log('🚀 RestaurantContext: Updating restaurant:', id, data);
       dispatch({ type: 'SET_ERROR', payload: null });
       
-      const restaurant = await restaurantService.updateRestaurant(id, data);
+      // Préparer les données pour le backend
+      const backendData: any = { ...data };
+      
+      // Gérer location si présent
+      if (data.location) {
+        backendData.latitude = data.location.latitude;
+        backendData.longitude = data.location.longitude;
+        delete backendData.location;
+      }
+      
+      // Supprimer les champs en lecture seule
+      delete backendData.id;
+      delete backendData.ownerId;
+      delete backendData.createdAt;
+      delete backendData.updatedAt;
+      delete backendData.can_receive_orders;
+      
+      const restaurant = await restaurantService.updateRestaurant(id, backendData);
       console.log('✅ RestaurantContext: Restaurant updated:', restaurant);
       
-      dispatch({ type: 'UPDATE_RESTAURANT', payload: restaurant });
+      dispatch({ type: 'UPDATE_RESTAURANT', payload: normalizeRestaurantData(restaurant) });
     } catch (error: any) {
       console.error('❌ RestaurantContext: Update error:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors de la mise à jour du restaurant' });
@@ -346,7 +418,11 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
       const restaurants = await restaurantService.searchRestaurants(query, filters);
       console.log('✅ Private search results:', restaurants.length);
       
-      const restaurantData = Array.isArray(restaurants) ? restaurants : [];
+      // searchRestaurants retourne directement un Restaurant[]
+      const restaurantData = isRestaurantArray(restaurants) 
+        ? restaurants.map(normalizeRestaurantData) 
+        : [];
+        
       dispatch({ type: 'SET_RESTAURANTS', payload: restaurantData });
     } catch (error: any) {
       console.error('❌ RestaurantContext: Private search error:', error);

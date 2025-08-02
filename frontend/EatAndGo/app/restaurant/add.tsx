@@ -60,7 +60,6 @@ interface CreateRestaurantData {
   
   // Configuration
   openingHours: OpeningHours[];
-  can_receive_orders?: boolean;
   
   // Titres-restaurant
   accepts_meal_vouchers: boolean;
@@ -216,15 +215,12 @@ const createMockRestaurant = (formData: CreateRestaurantData, image?: string): R
   email: formData.email || '',
   website: formData.website,
   image,
-  coverImage: undefined,
   cuisine: formData.cuisine || '',
   priceRange: formData.priceRange,
   rating: 0,
   reviewCount: 0,
   isActive: true,
-  isManuallyOverridden: false,
-  manualOverrideUntil: null,
-  can_receive_orders: formData.can_receive_orders ?? true,
+  can_receive_orders: true,
   accepts_meal_vouchers: formData.accepts_meal_vouchers,
   meal_voucher_info: formData.meal_voucher_info || '',
   accepts_meal_vouchers_display: formData.accepts_meal_vouchers ? 'Oui' : 'Non',
@@ -510,6 +506,7 @@ export default function AddRestaurantScreen() {
       const mockRestaurant = createMockRestaurant(formData, image || undefined);
       const currentStatus = RestaurantHoursUtils.isRestaurantOpen(mockRestaurant);
 
+      // Préparer les données pour le backend
       const restaurantData = {
         // Informations de base
         name: formData.name.trim(),
@@ -517,40 +514,35 @@ export default function AddRestaurantScreen() {
         cuisine: formData.cuisine.trim(),
         priceRange: formData.priceRange,
         
-        // Localisation
+        // Localisation (pas de structure location)
         address: formData.address.trim(),
         city: formData.city.trim(),
         zipCode: formData.zipCode.trim(),
         country: formData.country?.trim() || 'France',
-        location: {
-          latitude: formData.latitude || 0,
-          longitude: formData.longitude || 0,
-        },
+        latitude: formData.latitude || null,
+        longitude: formData.longitude || null,
         
         // Contact
         phone: formData.phone.trim(),
         email: formData.email.trim().toLowerCase(),
         website: formData.website?.trim() || '',
         
-        // Configuration
+        // Configuration (pas de champs calculés)
         rating: 0,
         reviewCount: 0,
-        isActive: currentStatus,
-        isManuallyOverridden: false,
-        manualOverrideUntil: null,
-        can_receive_orders: formData.can_receive_orders ?? true,
+        isActive: true,
+        
+        // Horaires d'ouverture (envoyés séparément)
         openingHours: formData.openingHours,
         
         // Titres-restaurant
         accepts_meal_vouchers: formData.accepts_meal_vouchers,
         meal_voucher_info: formData.accepts_meal_vouchers 
-          ? formData.meal_voucher_info?.trim() || '' 
+          ? formData.meal_voucher_info?.trim() || 'Titres-restaurant acceptés selon les conditions légales' 
           : '',
-        accepts_meal_vouchers_display: formData.accepts_meal_vouchers ? 'Oui' : 'Non',
         
         // Média
         image: image || undefined,
-        ownerId: '',
       };
 
       await createRestaurant(restaurantData);
@@ -558,7 +550,7 @@ export default function AddRestaurantScreen() {
       const mealVoucherStatus = formData.accepts_meal_vouchers ? 'acceptés' : 'non acceptés';
       Alert.alert(
         'Succès', 
-        `Restaurant créé avec succès !\n\nStatut: ${currentStatus ? 'Ouvert' : 'Fermé'}\nTitres-restaurant: ${mealVoucherStatus}`, 
+        `Restaurant créé avec succès !\n\nStatut actuel: ${currentStatus ? 'Ouvert' : 'Fermé'}\nTitres-restaurant: ${mealVoucherStatus}`, 
         [{ text: 'OK', onPress: () => router.back() }]
       );
     } catch (error: any) {
@@ -995,39 +987,6 @@ export default function AddRestaurantScreen() {
             leftIcon="globe-outline"
             error={errors.website}
           />
-        </Card>
-
-        {/* ===== CONFIGURATION SECTION ===== */}
-        <Card style={{ marginTop: 16 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-            <Ionicons name="settings-outline" size={20} color="#3B82F6" style={styles.sectionIcon} />
-            <Text style={styles.sectionTitle}>Configuration</Text>
-          </View>
-
-          <View style={{
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            paddingVertical: 12,
-            paddingHorizontal: 16,
-            backgroundColor: '#F8FAFC',
-            borderRadius: 8,
-          }}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14, fontWeight: '500', color: '#374151' }}>
-                Accepter les commandes
-              </Text>
-              <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
-                Permettre aux clients de passer commande
-              </Text>
-            </View>
-            <Switch
-              value={formData.can_receive_orders ?? true}
-              onValueChange={(value) => updateField('can_receive_orders', value)}
-              trackColor={{ false: '#E5E7EB', true: '#10B981' }}
-              thumbColor={formData.can_receive_orders ? '#FFFFFF' : '#F3F4F6'}
-            />
-          </View>
         </Card>
 
         {/* ===== SUBMIT SECTION ===== */}

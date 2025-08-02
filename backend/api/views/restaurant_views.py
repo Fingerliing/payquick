@@ -6,7 +6,7 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.shortcuts import get_object_or_404
 from django.db.models import Count, Q
 from django.utils import timezone
-from api.models import Restaurant, Table, Menu, Order, RestaurateurProfile, MenuItem
+from api.models import Restaurant, Table, Menu, Order, RestaurateurProfile, MenuItem, OpeningHours
 from api.serializers.restaurant_serializers import (
     RestaurantSerializer, 
     RestaurantCreateSerializer, 
@@ -103,7 +103,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             total_tables = Table.objects.filter(restaurant=restaurant).count()
             
             restaurants_data.append({
-                "id": restaurant.id,
+                "id": str(restaurant.id),  # Convertir en string pour cohérence
                 "name": restaurant.name,
                 "description": restaurant.description,
                 "address": restaurant.address,
@@ -141,6 +141,9 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         # Utiliser le serializer complet pour la réponse
         serializer = self.get_serializer(restaurant)
         data = serializer.data
+        
+        # S'assurer que l'id est une string
+        data['id'] = str(restaurant.id)
         
         # Ajouter les statistiques détaillées
         total_orders = Order.objects.filter(restaurant=restaurant).count()
@@ -190,7 +193,8 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                     'priceRange': {'type': 'integer', 'minimum': 1, 'maximum': 4},
                     'image': {'type': 'string', 'format': 'binary'},
                     'latitude': {'type': 'number', 'format': 'double'},
-                    'longitude': {'type': 'number', 'format': 'double'}
+                    'longitude': {'type': 'number', 'format': 'double'},
+                    'openingHours': {'type': 'array', 'items': {'type': 'object'}}
                 },
                 'required': ['name', 'address', 'city', 'zipCode', 'phone', 'email', 'cuisine', 'priceRange']
             }
@@ -202,19 +206,29 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         }
     )
     def create(self, request, *args, **kwargs):
-        """Crée un nouveau restaurant avec gestion des images"""
+        """Crée un nouveau restaurant avec gestion des images et horaires"""
         
         # Nettoyer les données frontend
         frontend_data = request.data.copy()
         
+        # Extraire les horaires d'ouverture avant de les supprimer
+        opening_hours_data = frontend_data.pop('openingHours', [])
+        
         # Supprimer les champs non gérés par le backend
         fields_to_remove = [
-            'rating', 'reviewCount', 'isActive', 'openingHours', 
-            'ownerId', 'createdAt', 'updatedAt', 'location'
+            'rating', 'reviewCount', 'isActive', 'ownerId', 
+            'createdAt', 'updatedAt', 'location', 'can_receive_orders',
+            'accepts_meal_vouchers_display'
         ]
         
         for field in fields_to_remove:
             frontend_data.pop(field, None)
+        
+        # Gérer latitude/longitude depuis location si présent
+        location_data = request.data.get('location')
+        if location_data and isinstance(location_data, dict):
+            frontend_data['latitude'] = location_data.get('latitude')
+            frontend_data['longitude'] = location_data.get('longitude')
         
         # Utiliser le sérialiseur de création
         serializer = self.get_serializer(data=frontend_data)
@@ -224,7 +238,27 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                 # Sauvegarder avec le propriétaire
                 restaurant = serializer.save(owner=request.user.restaurateur_profile)
                 
-                # Retourner avec le sérialiseur complet
+                # Créer les horaires d'ouverture
+                for hours in opening_hours_data:
+                    try:
+                        # Gérer les différents formats possibles
+                        day_of_week = hours.get('dayOfWeek', hours.get('day_of_week'))
+                        open_time = hours.get('openTime', hours.get('open_time', '09:00'))
+                        close_time = hours.get('closeTime', hours.get('close_time', '22:00'))
+                        is_closed = hours.get('isClosed', hours.get('is_closed', False))
+                        
+                        OpeningHours.objects.create(
+                            restaurant=restaurant,
+                            day_of_week=day_of_week,
+                            opening_time=open_time,
+                            closing_time=close_time,
+                            is_closed=is_closed
+                        )
+                    except Exception as e:
+                        print(f"Erreur création horaire: {e}")
+                        # Continuer même si un horaire échoue
+                
+                # Retourner avec le sérialiseur complet incluant les horaires
                 response_serializer = RestaurantSerializer(
                     restaurant, 
                     context={'request': request}
@@ -236,6 +270,10 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                 )
                 
             except Exception as e:
+                # Si erreur, supprimer le restaurant créé pour éviter les incohérences
+                if 'restaurant' in locals():
+                    restaurant.delete()
+                    
                 return Response({
                     'error': 'Erreur lors de la création',
                     'details': str(e)
@@ -259,20 +297,64 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         }
     )
     def update(self, request, *args, **kwargs):
-        """Met à jour un restaurant"""
+        """Met à jour un restaurant avec gestion des horaires"""
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
         
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        # Nettoyer les données
+        frontend_data = request.data.copy()
+        
+        # Extraire et gérer les horaires séparément si fournis
+        opening_hours_data = frontend_data.pop('openingHours', None)
+        
+        # Supprimer les champs en lecture seule
+        fields_to_remove = [
+            'id', 'ownerId', 'owner_id', 'createdAt', 'updatedAt',
+            'can_receive_orders', 'rating', 'reviewCount', 'location',
+            'accepts_meal_vouchers_display'
+        ]
+        
+        for field in fields_to_remove:
+            frontend_data.pop(field, None)
+        
+        # Gérer latitude/longitude
+        location_data = request.data.get('location')
+        if location_data and isinstance(location_data, dict):
+            frontend_data['latitude'] = location_data.get('latitude')
+            frontend_data['longitude'] = location_data.get('longitude')
+        
+        serializer = self.get_serializer(instance, data=frontend_data, partial=partial)
         
         if serializer.is_valid():
             try:
                 serializer.save()
                 
+                # Mettre à jour les horaires si fournis
+                if opening_hours_data is not None:
+                    # Supprimer les anciens horaires
+                    instance.opening_hours.all().delete()
+                    
+                    # Créer les nouveaux
+                    for hours in opening_hours_data:
+                        OpeningHours.objects.create(
+                            restaurant=instance,
+                            day_of_week=hours.get('dayOfWeek', hours.get('day_of_week')),
+                            opening_time=hours.get('openTime', hours.get('open_time', '09:00')),
+                            closing_time=hours.get('closeTime', hours.get('close_time', '22:00')),
+                            is_closed=hours.get('isClosed', hours.get('is_closed', False))
+                        )
+                
                 if getattr(instance, '_prefetched_objects_cache', None):
                     instance._prefetched_objects_cache = {}
+                
+                # Recharger avec les nouvelles données
+                instance.refresh_from_db()
+                response_serializer = RestaurantSerializer(
+                    instance,
+                    context={'request': request}
+                )
                     
-                return Response(serializer.data)
+                return Response(response_serializer.data)
                 
             except Exception as e:
                 return Response({
@@ -293,7 +375,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
 
     @extend_schema(
         summary="Supprimer un restaurant",
-        description="Supprime définitivement un restaurant et tous ses éléments associés (tables, menus, commandes, images).",
+        description="Supprime définitivement un restaurant et tous ses éléments associés (tables, menus, commandes, images, horaires).",
         responses={
             204: OpenApiResponse(description="Restaurant supprimé"),
             404: OpenApiResponse(description="Restaurant non trouvé")
@@ -313,7 +395,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                 except Exception:
                     pass  # Continuer même si la suppression échoue
             
-            # La suppression en cascade s'occupera des relations
+            # La suppression en cascade s'occupera des relations (y compris OpeningHours)
             self.perform_destroy(instance)
             
             return Response(status=status.HTTP_204_NO_CONTENT)
@@ -416,7 +498,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                     'success': True,
                     'message': 'Image uploadée avec succès',
                     'restaurant': {
-                        'id': updated_restaurant.id,
+                        'id': str(updated_restaurant.id),
                         'name': updated_restaurant.name
                     }
                 }
@@ -498,7 +580,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                         'image_name': os.path.basename(restaurant.image.name),
                         'image_size': getattr(restaurant.image, 'size', None),
                         'restaurant': {
-                            'id': restaurant.id,
+                            'id': str(restaurant.id),
                             'name': restaurant.name
                         }
                     })
@@ -507,7 +589,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                         'has_image': False,
                         'error': 'Image référencée mais fichier inaccessible',
                         'restaurant': {
-                            'id': restaurant.id,
+                            'id': str(restaurant.id),
                             'name': restaurant.name
                         }
                     })
@@ -515,7 +597,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                 return Response({
                     'has_image': False,
                     'restaurant': {
-                        'id': restaurant.id,
+                        'id': str(restaurant.id),
                         'name': restaurant.name
                     }
                 })
@@ -555,7 +637,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         restaurant.save(update_fields=['is_stripe_active'])
         
         return Response({
-            "id": restaurant.id,
+            "id": str(restaurant.id),
             "name": restaurant.name,
             "is_stripe_active": restaurant.is_stripe_active,
             "can_receive_orders": restaurant.can_receive_orders
@@ -573,7 +655,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         
         return Response({
             "restaurant": {
-                "id": restaurant.id,
+                "id": str(restaurant.id),
                 "name": restaurant.name,
                 "is_stripe_active": restaurant.is_stripe_active,
                 "can_receive_orders": restaurant.can_receive_orders
@@ -631,7 +713,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         
         return Response({
             "restaurant": {
-                "id": restaurant.id,
+                "id": str(restaurant.id),
                 "name": restaurant.name,
                 "can_receive_orders": restaurant.can_receive_orders,
                 "is_stripe_active": restaurant.is_stripe_active
@@ -678,7 +760,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         # Commandes récentes
         recent_orders = Order.objects.filter(restaurant=restaurant).order_by('-created_at')[:5]
         recent_orders_data = [{
-            "id": order.id,
+            "id": str(order.id),
             "table": order.table.identifiant,
             "status": order.status,
             "is_paid": order.is_paid,
@@ -687,7 +769,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         
         return Response({
             "restaurant": {
-                "id": restaurant.id,
+                "id": str(restaurant.id),
                 "name": restaurant.name,
                 "address": restaurant.address,
                 "can_receive_orders": restaurant.can_receive_orders,
@@ -729,7 +811,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             ).count()
             
             tables_data.append({
-                "id": table.id,
+                "id": str(table.id),
                 "identifiant": table.identifiant,
                 "has_qr_code": bool(table.qr_code_file),
                 "active_orders": active_orders,
@@ -762,7 +844,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                 available_items = 0
             
             menus_data.append({
-                "id": menu.id,
+                "id": str(menu.id),
                 "name": menu.name,
                 "is_available": getattr(menu, 'disponible', False),
                 "items_count": items_count,
@@ -807,7 +889,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                 items_count = 0
             
             orders_data.append({
-                "id": order.id,
+                "id": str(order.id),
                 "table": order.table.identifiant,
                 "status": order.status,
                 "is_paid": order.is_paid,
@@ -841,14 +923,15 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             "has_image": bool(restaurant.image),
             "has_tables": Table.objects.filter(restaurant=restaurant).exists(),
             "has_menus": Menu.objects.filter(restaurant=restaurant).exists(),
-            "can_receive_orders": restaurant.can_receive_orders
+            "can_receive_orders": restaurant.can_receive_orders,
+            "has_opening_hours": restaurant.opening_hours.exists()
         }
         
         all_good = all(checks.values())
         
         return Response({
             "restaurant": {
-                "id": restaurant.id,
+                "id": str(restaurant.id),
                 "name": restaurant.name
             },
             "status": "healthy" if all_good else "needs_attention",
@@ -884,15 +967,26 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                     restaurant_data['image_error'] = 'Erreur d\'accès au fichier'
             
             # Relations sécurisées
-            tables = [{"id": t.id, "identifiant": t.identifiant} for t in restaurant.tables.all()]
-            menus = [{"id": m.id, "name": m.name, "disponible": getattr(m, 'disponible', False)} for m in restaurant.menu.all()]
-            orders = [{"id": o.id, "status": o.status, "created_at": o.created_at.isoformat()} for o in restaurant.orders.all()[:50]]  # Limiter à 50
+            tables = [{"id": str(t.id), "identifiant": t.identifiant} for t in restaurant.tables.all()]
+            menus = [{"id": str(m.id), "name": m.name, "disponible": getattr(m, 'disponible', False)} for m in restaurant.menu.all()]
+            orders = [{"id": str(o.id), "status": o.status, "created_at": o.created_at.isoformat()} for o in restaurant.orders.all()[:50]]  # Limiter à 50
+            opening_hours = [
+                {
+                    "day_of_week": h.day_of_week,
+                    "day_name": h.get_day_of_week_display(),
+                    "opening_time": h.opening_time.strftime("%H:%M"),
+                    "closing_time": h.closing_time.strftime("%H:%M"),
+                    "is_closed": h.is_closed
+                }
+                for h in restaurant.opening_hours.all().order_by('day_of_week')
+            ]
             
             export_data = {
                 "restaurant": restaurant_data,
                 "tables": tables,
                 "menus": menus,
                 "recent_orders": orders,
+                "opening_hours": opening_hours,
                 "export_date": timezone.now().isoformat(),
                 "exported_by": request.user.username
             }
@@ -922,9 +1016,9 @@ class PublicRestaurantViewSet(viewsets.ReadOnlyModelViewSet):
         """Retourne uniquement les restaurants actifs qui peuvent recevoir des commandes"""
         return Restaurant.objects.filter(
             is_active=True,
-            can_receive_orders=True,
             owner__is_active=True,
-            owner__stripe_verified=True
+            owner__stripe_verified=True,
+            is_stripe_active=True
         ).select_related('owner').prefetch_related('opening_hours')
     
     @extend_schema(
@@ -975,7 +1069,9 @@ class PublicRestaurantViewSet(viewsets.ReadOnlyModelViewSet):
         """Retourne la liste des types de cuisine disponibles"""
         cuisines = Restaurant.objects.filter(
             is_active=True,
-            can_receive_orders=True
+            owner__is_active=True,
+            owner__stripe_verified=True,
+            is_stripe_active=True
         ).values_list('cuisine', flat=True).distinct()
         
         cuisine_choices = dict(Restaurant.CUISINE_CHOICES)
@@ -991,7 +1087,9 @@ class PublicRestaurantViewSet(viewsets.ReadOnlyModelViewSet):
         """Retourne la liste des villes avec restaurants"""
         cities = Restaurant.objects.filter(
             is_active=True,
-            can_receive_orders=True
+            owner__is_active=True,
+            owner__stripe_verified=True,
+            is_stripe_active=True
         ).values_list('city', flat=True).distinct().order_by('city')
         
         return Response(list(cities))

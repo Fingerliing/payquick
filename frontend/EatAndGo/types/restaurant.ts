@@ -1,5 +1,5 @@
 export interface Restaurant {
-  id: number;
+  id: string;
   name: string;
   description: string;
   address: string;
@@ -10,15 +10,11 @@ export interface Restaurant {
   email: string;
   website?: string;
   image?: string;
-  coverImage?: string;
   cuisine: string;
   priceRange: 1 | 2 | 3 | 4;
   rating: number;
   reviewCount: number;
   isActive: boolean;
-  isManuallyOverridden?: boolean;
-  manualOverrideUntil?: string | null;
-  manualOverrideReason?: string;
   can_receive_orders: boolean;
   openingHours: OpeningHours[];
   location: {
@@ -34,6 +30,7 @@ export interface Restaurant {
 }
 
 export interface OpeningHours {
+  id?: string; // Optionnel pour la création
   dayOfWeek: number; // 0 = Sunday, 1 = Monday, etc.
   openTime: string;
   closeTime: string;

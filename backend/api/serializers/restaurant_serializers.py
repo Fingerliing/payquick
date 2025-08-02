@@ -8,12 +8,34 @@ class OpeningHoursSerializer(serializers.ModelSerializer):
     """Sérialiseur pour les horaires d'ouverture"""
     day_name = serializers.CharField(source='get_day_of_week_display', read_only=True)
     
+    # Support des deux formats de nommage
+    dayOfWeek = serializers.IntegerField(source='day_of_week', required=False)
+    openTime = serializers.TimeField(source='opening_time', format='%H:%M', required=False)
+    closeTime = serializers.TimeField(source='closing_time', format='%H:%M', required=False)
+    isClosed = serializers.BooleanField(source='is_closed', required=False)
+    
     class Meta:
         model = OpeningHours
         fields = [
-            'id', 'day_of_week', 'day_name', 'opening_time', 
-            'closing_time', 'is_closed'
+            'id', 
+            # Format snake_case
+            'day_of_week', 'day_name', 'opening_time', 'closing_time', 'is_closed',
+            # Format camelCase pour compatibilité frontend
+            'dayOfWeek', 'openTime', 'closeTime', 'isClosed'
         ]
+    
+    def to_representation(self, instance):
+        """Convertir en format frontend (camelCase)"""
+        data = super().to_representation(instance)
+        # Garder seulement le format camelCase pour le frontend
+        return {
+            'id': data.get('id'),
+            'dayOfWeek': data.get('dayOfWeek') or data.get('day_of_week'),
+            'dayName': data.get('day_name'),
+            'openTime': data.get('openTime') or data.get('opening_time'),
+            'closeTime': data.get('closeTime') or data.get('closing_time'),
+            'isClosed': data.get('isClosed') if data.get('isClosed') is not None else data.get('is_closed')
+        }
 
 class RestaurantSerializer(serializers.ModelSerializer):
     """Sérialiseur Restaurant complet pour correspondre au frontend"""
@@ -44,6 +66,9 @@ class RestaurantSerializer(serializers.ModelSerializer):
     createdAt = serializers.DateTimeField(source='created_at', read_only=True)
     updatedAt = serializers.DateTimeField(source='updated_at', read_only=True)
     
+    # ID forcé en string pour cohérence
+    id = serializers.SerializerMethodField()
+    
     class Meta:
         model = Restaurant
         fields = [
@@ -69,7 +94,7 @@ class RestaurantSerializer(serializers.ModelSerializer):
             'latitude', 'longitude', 'location',
             
             # Statut et gestion
-            'isActive', 'is_active', 'siret', 'is_stripe_active', 'can_receive_orders',
+            'isActive', 'is_active', 'is_stripe_active', 'can_receive_orders',
             
             # Relations
             'opening_hours',
@@ -86,9 +111,10 @@ class RestaurantSerializer(serializers.ModelSerializer):
             'review_count', 'reviewCount', 'full_address', 'image_url',
             'image_name', 'image_size'
         ]
-        extra_kwargs = {
-            'siret': {'write_only': True},  # Pas exposé au frontend pour la sécurité
-        }
+    
+    def get_id(self, obj):
+        """Retourne toujours l'ID comme string"""
+        return str(obj.id) if obj and obj.id else None
     
     def get_location(self, obj):
         """Retourne la structure de géolocalisation attendue par le frontend"""
@@ -237,6 +263,21 @@ class RestaurantSerializer(serializers.ModelSerializer):
     
     def get_accepts_meal_vouchers_display(self, obj):
         return "Oui" if obj.accepts_meal_vouchers else "Non"
+    
+    def to_representation(self, instance):
+        """Convertir en format cohérent pour le frontend"""
+        data = super().to_representation(instance)
+        
+        # S'assurer que l'ID est toujours une string
+        if 'id' in data and data['id'] is not None:
+            data['id'] = str(data['id'])
+        
+        # S'assurer que les horaires sont dans le bon format
+        if 'opening_hours' in data:
+            # Les horaires sont déjà formatés par OpeningHoursSerializer
+            pass
+        
+        return data
 
 class RestaurantCreateSerializer(serializers.ModelSerializer):
     """Sérialiseur simplifié pour la création depuis le frontend"""
@@ -248,13 +289,20 @@ class RestaurantCreateSerializer(serializers.ModelSerializer):
     # Gestion de l'image
     image = serializers.ImageField(required=False, allow_null=True)
     
+    # Horaires d'ouverture (acceptés mais non traités ici)
+    openingHours = serializers.ListField(
+        child=serializers.DictField(),
+        required=False,
+        write_only=True
+    )
+    
     class Meta:
         model = Restaurant
         fields = [
             'name', 'description', 'address', 'city', 'zipCode', 
             'country', 'phone', 'email', 'website', 'cuisine', 
             'priceRange', 'latitude', 'longitude', 'image',
-            'accepts_meal_vouchers', 'meal_voucher_info'
+            'accepts_meal_vouchers', 'meal_voucher_info', 'openingHours'
         ]
     
     def validate_image(self, value):
@@ -282,6 +330,9 @@ class RestaurantCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         """Création avec génération automatique du SIRET"""
         
+        # Retirer les horaires d'ouverture (seront gérés dans la vue)
+        validated_data.pop('openingHours', None)
+        
         # Générer un SIRET unique
         import random
         while True:
@@ -294,6 +345,10 @@ class RestaurantCreateSerializer(serializers.ModelSerializer):
         validated_data.setdefault('is_active', True)
         validated_data.setdefault('rating', 0.00)
         validated_data.setdefault('review_count', 0)
+        
+        # S'assurer que meal_voucher_info a une valeur si titres acceptés
+        if validated_data.get('accepts_meal_vouchers', False) and not validated_data.get('meal_voucher_info'):
+            validated_data['meal_voucher_info'] = "Titres-restaurant acceptés selon les conditions légales"
         
         return super().create(validated_data)
     
