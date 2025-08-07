@@ -1,7 +1,10 @@
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
 import { Restaurant } from '@/types/restaurant';
+import { Table } from '@/types/table'
 import { SearchFilters, PaginatedResponse } from '@/types/common';
 import { restaurantService } from '@/services/restaurantService';
+import { tableService } from '@/services/tableService';
+
 
 interface RestaurantState {
   restaurants: Restaurant[];
@@ -37,6 +40,12 @@ export interface RestaurantContextType extends RestaurantState {
   clearCurrentRestaurant: () => void;
   refreshRestaurants: () => Promise<void>;
   setPublicMode: (isPublic: boolean) => void;
+
+  // Méthodes pour les tables
+  loadRestaurantTables: (restaurantId: string) => Promise<Table[]>;
+  createTables: (restaurantId: string, tableCount: number, startNumber?: number) => Promise<Table[]>;
+  deleteTable: (tableId: string) => Promise<void>;
+  toggleTableStatus: (tableId: string) => Promise<void>;
 }
 
 type RestaurantAction =
@@ -329,7 +338,7 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
       dispatch({ type: 'SET_LOADING', payload: false });
     }
   };
-  
+
   const createRestaurant = async (data: Omit<Restaurant, 'id' | 'createdAt' | 'updatedAt' | 'can_receive_orders' | 'ownerId'>) => {
     try {
       console.log('🚀 RestaurantContext: Creating restaurant...');
@@ -520,6 +529,86 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
     }
   };
 
+  const loadRestaurantTables = async (restaurantId: string): Promise<Table[]> => {
+    try {
+      console.log('🚀 RestaurantContext: Loading restaurant tables...', restaurantId);
+      dispatch({ type: 'SET_ERROR', payload: null });
+      
+      const tables = await tableService.getRestaurantTables(restaurantId) as any;
+      console.log('✅ RestaurantContext: Tables loaded:', tables.length);
+      
+      return tables;
+    } catch (error: any) {
+      console.error('❌ RestaurantContext: Load tables error:', error);
+      dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors du chargement des tables' });
+      throw error;
+    }
+  };
+
+  const createTables = async (
+    restaurantId: string, 
+    tableCount: number, 
+    startNumber: number = 1
+  ): Promise<Table[]> => {
+    try {
+      console.log('🚀 RestaurantContext: Creating tables...', { restaurantId, tableCount, startNumber });
+      dispatch({ type: 'SET_ERROR', payload: null });
+      
+      const tables = await tableService.createTables(restaurantId, tableCount, startNumber) as any;
+      console.log('✅ RestaurantContext: Tables created:', tables.length);
+      
+      return tables;
+    } catch (error: any) {
+      console.error('❌ RestaurantContext: Create tables error:', error);
+      
+      let errorMessage = 'Erreur lors de la création des tables';
+      
+      if (error.response?.data) {
+        const errorData = error.response.data;
+        if (errorData.error) {
+          errorMessage = errorData.error;
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      dispatch({ type: 'SET_ERROR', payload: errorMessage });
+      throw error;
+    }
+  };
+
+  const deleteTable = async (tableId: string): Promise<void> => {
+    try {
+      console.log('🚀 RestaurantContext: Deleting table...', tableId);
+      dispatch({ type: 'SET_ERROR', payload: null });
+      
+      await tableService.deleteTable(tableId);
+      console.log('✅ RestaurantContext: Table deleted:', tableId);
+      
+    } catch (error: any) {
+      console.error('❌ RestaurantContext: Delete table error:', error);
+      dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors de la suppression de la table' });
+      throw error;
+    }
+  };
+
+  const toggleTableStatus = async (tableId: string): Promise<void> => {
+    try {
+      console.log('🚀 RestaurantContext: Toggling table status...', tableId);
+      dispatch({ type: 'SET_ERROR', payload: null });
+      
+      await tableService.toggleTableStatus(tableId);
+      console.log('✅ RestaurantContext: Table status toggled:', tableId);
+      
+    } catch (error: any) {
+      console.error('❌ RestaurantContext: Toggle table status error:', error);
+      dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors du changement de statut de la table' });
+      throw error;
+    }
+  };
+
   useEffect(() => {
     console.log('🎬 RestaurantProvider mounted, loading initial data...');
     // Par défaut, charger en mode public
@@ -541,6 +630,10 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
     clearCurrentRestaurant,
     refreshRestaurants,
     setPublicMode,
+    loadRestaurantTables,
+    createTables,
+    deleteTable,
+    toggleTableStatus,
   };
 
   return <RestaurantContext.Provider value={value}>{children}</RestaurantContext.Provider>;
