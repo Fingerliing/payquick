@@ -17,6 +17,7 @@ interface ButtonProps extends Omit<TouchableOpacityProps, 'style'> {
   fullWidth?: boolean;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
+  icon?: React.ReactNode;
   style?: ViewStyle;
   textStyle?: TextStyle; // ✅ Nouvelle propriété
 }

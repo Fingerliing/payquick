@@ -17,6 +17,8 @@ import { Loading } from '@/components/ui/Loading';
 import { RestaurantCard } from '@/components/restaurant/RestaurantCard';
 import StripeAccountStatus from '@/components/stripe/StripeAccountStatus';
 import { router } from 'expo-router';
+import { Order, OrderList, isOrderList } from '@/types/order';
+import { RecentOrder } from '@/types/user';
 
 export default function DashboardScreen() {
   const { user, isRestaurateur, refreshUser } = useAuth();
@@ -54,7 +56,8 @@ export default function DashboardScreen() {
       console.log('🔄 Dashboard: Starting refresh...');
       await Promise.all([
         loadRestaurants(),
-        loadOrders({ limit: 5 }),
+        // Correction : utilisation du bon format pour loadOrders
+        loadOrders({ page: 1, limit: 5 }),
         refreshUser(),
       ]);
       console.log('✅ Dashboard: Refresh completed');
@@ -62,6 +65,61 @@ export default function DashboardScreen() {
       console.error('❌ Dashboard: Refresh error:', error);
     } finally {
       setRefreshing(false);
+    }
+  };
+
+  // Fonction utilitaire pour obtenir le nom du restaurant
+  const getRestaurantName = (order: Order | RecentOrder): string => {
+    // Si c'est un RecentOrder (de user.recent_orders)
+    if ('restaurant_name' in order && order.restaurant_name) {
+      return order.restaurant_name;
+    }
+    
+    // Si c'est un OrderList qui a restaurant_name
+    if (isOrderList(order) && order.restaurant_name) {
+      return order.restaurant_name;
+    }
+    
+    // Si c'est un Order avec une relation restaurant
+    if ('restaurant' in order && typeof order.restaurant === 'object' && order.restaurant?.name) {
+      return order.restaurant.name;
+    }
+    
+    // Fallback
+    return 'Restaurant';
+  };
+
+  // Fonction utilitaire pour obtenir le total
+  const getOrderTotal = (order: Order | RecentOrder): string => {
+    // Si c'est un RecentOrder, il n'a pas de total
+    if ('restaurant_name' in order && !('total_amount' in order)) {
+      return '0.00';
+    }
+    
+    // Si c'est un Order avec total_amount (string)
+    if ('total_amount' in order && order.total_amount) {
+      const amount = parseFloat(order.total_amount);
+      return isNaN(amount) ? '0.00' : amount.toFixed(2);
+    }
+    
+    // Si c'est un Order avec total (number) - pour compatibility
+    if ('total' in order && typeof order.total === 'number') {
+      return order.total.toFixed(2);
+    }
+    
+    // Fallback
+    return '0.00';
+  };
+
+  // Fonction utilitaire pour obtenir la date
+  const getOrderDate = (order: Order | RecentOrder): string => {
+    const dateString = order?.created_at;
+    if (!dateString) return 'Date inconnue';
+    
+    try {
+      return new Date(dateString).toLocaleDateString('fr-FR');
+    } catch {
+      return 'Date inconnue';
     }
   };
 
@@ -295,23 +353,15 @@ export default function DashboardScreen() {
                 >
                   <View>
                     <Text style={{ fontSize: 14, fontWeight: '500', color: '#111827' }}>
-                      {order?.restaurant_name || 'Restaurant'}
+                      {getRestaurantName(order)}
                     </Text>
                     <Text style={{ fontSize: 12, color: '#6B7280' }}>
-                      {order?.created_at 
-                        ? new Date(order.created_at).toLocaleDateString('fr-FR') 
-                        : 'Date inconnue'
-                      }
+                      {getOrderDate(order)}
                     </Text>
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
                     <Text style={{ fontSize: 14, fontWeight: '500', color: '#111827' }}>
-                      {
-                        // Vérifie que 'total' existe (cas d'un Order) et est un nombre avant utilisation
-                        'total' in order && typeof order.total === 'number'
-                          ? order.total.toFixed(2)   // Si order est de type Order avec un total
-                          : '0.00'                   // Si order est de type RecentOrder (pas de total)
-                      } €
+                      {getOrderTotal(order)} €
                     </Text>
                     <Text style={{ 
                       fontSize: 12, 
@@ -366,6 +416,19 @@ export default function DashboardScreen() {
                 </Card>
               </TouchableOpacity>
               
+              <TouchableOpacity
+                style={{ flex: 1 }}
+                onPress={() => router.push('/qrcodes')}
+              >
+                <Card style={{ alignItems: 'center', paddingVertical: 16 }}>
+                  <Text style={{ fontSize: 24, marginBottom: 4 }}>📱</Text>
+                  <Text style={{ fontSize: 12, color: '#6B7280', textAlign: 'center' }}>
+                    QR Codes Tables
+                  </Text>
+                </Card>
+              </TouchableOpacity>
+              
+              {/* Placeholder pour d'autres actions rapides */}
               {/* <TouchableOpacity
                 style={{ flex: 1 }}
                 onPress={() => router.push('/menu/manage')}
@@ -374,18 +437,6 @@ export default function DashboardScreen() {
                   <Text style={{ fontSize: 24, marginBottom: 4 }}>📋</Text>
                   <Text style={{ fontSize: 12, color: '#6B7280', textAlign: 'center' }}>
                     Gérer les menus
-                  </Text>
-                </Card>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={{ flex: 1 }}
-                onPress={() => router.push('/stats')}
-              >
-                <Card style={{ alignItems: 'center', paddingVertical: 16 }}>
-                  <Text style={{ fontSize: 24, marginBottom: 4 }}>📊</Text>
-                  <Text style={{ fontSize: 12, color: '#6B7280', textAlign: 'center' }}>
-                    Voir les stats
                   </Text>
                 </Card>
               </TouchableOpacity> */}
