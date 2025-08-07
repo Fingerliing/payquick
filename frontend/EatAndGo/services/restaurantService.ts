@@ -236,17 +236,70 @@ export class RestaurantService {
    * Crée un nouveau restaurant (privé - restaurateurs seulement)
    */
   async createRestaurant(data: any): Promise<Restaurant> {
-    // Préparer les données pour le backend
-    const backendData = prepareDataForBackend(data);
+    console.log('🚀 RestaurantService: Creating restaurant...');
+    console.log('📥 Données reçues dans le service:', JSON.stringify(data, null, 2));
     
-    // Gérer les horaires d'ouverture séparément
-    const openingHours = data.openingHours || [];
-    if (openingHours.length > 0) {
-      backendData.openingHours = openingHours;
+    // Validation des données requises avant envoi
+    const requiredFields = ['name', 'address', 'city', 'zip_code', 'phone', 'email', 'cuisine'];
+    const missingFields = requiredFields.filter(field => !data[field] || data[field].trim() === '');
+    
+    if (missingFields.length > 0) {
+      console.error('❌ Champs requis manquants:', missingFields);
+      throw new Error(`Champs requis manquants: ${missingFields.join(', ')}`);
     }
     
-    const response = await apiClient.post('api/v1/restaurants/', backendData);
-    return normalizeRestaurantData(response);
+    // Préparer les données finales pour le backend
+    const finalData = {
+      ...data,
+      // S'assurer que les champs numériques sont correctement typés
+      price_range: parseInt(data.price_range) || 2,
+      latitude: parseFloat(data.latitude) || 0,
+      longitude: parseFloat(data.longitude) || 0,
+      rating: parseFloat(data.rating) || 0,
+      review_count: parseInt(data.review_count) || 0,
+      is_active: Boolean(data.is_active),
+      accepts_meal_vouchers: Boolean(data.accepts_meal_vouchers),
+      
+      // S'assurer que les chaînes ne sont pas undefined
+      description: data.description || '',
+      website: data.website || '',
+      country: data.country || 'France',
+      meal_voucher_info: data.meal_voucher_info || '',
+      image: data.image || null,
+      
+      // Gestion spéciale des horaires d'ouverture
+      opening_hours: Array.isArray(data.opening_hours) ? data.opening_hours.map((hour: any) => ({
+        day_of_week: parseInt(hour.day_of_week) || parseInt(hour.dayOfWeek) || 0,
+        open_time: hour.open_time || hour.openTime || '09:00',
+        close_time: hour.close_time || hour.closeTime || '18:00',
+        is_closed: Boolean(hour.is_closed ?? hour.isClosed ?? false)
+      })) : []
+    };
+    
+    console.log('📤 Données finales envoyées à l\'API:', JSON.stringify(finalData, null, 2));
+    
+    try {
+      const response = await apiClient.post('api/v1/restaurants/', finalData);
+      console.log('✅ RestaurantService: Restaurant created successfully');
+      console.log('📥 Réponse du backend:', JSON.stringify(response, null, 2));
+      
+      return normalizeRestaurantData(response);
+    } catch (error: any) {
+      console.error('❌ RestaurantService: Creation failed');
+      console.error('📝 Error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message
+      });
+      
+      // Enrichir l'erreur avec les détails de validation si disponibles
+      if (error.response?.data?.validation_errors) {
+        error.validation_errors = error.response.data.validation_errors;
+      }
+      
+      throw error;
+    }
   }
 
   /**

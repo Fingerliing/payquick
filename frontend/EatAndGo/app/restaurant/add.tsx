@@ -500,13 +500,15 @@ export default function AddRestaurantScreen() {
       Alert.alert('Erreur de validation', 'Veuillez corriger les erreurs dans le formulaire');
       return;
     }
-
+  
     setIsLoading(true);
     try {
       const mockRestaurant = createMockRestaurant(formData, image || undefined);
       const currentStatus = RestaurantHoursUtils.isRestaurantOpen(mockRestaurant);
-
-      // Préparer les données selon l'interface Restaurant
+  
+      // Préparer les données selon l'interface Restaurant avec logs de débogage
+      console.log('🔍 FormData original:', JSON.stringify(formData, null, 2));
+      
       const restaurantData: Omit<Restaurant, 'id' | 'createdAt' | 'updatedAt' | 'can_receive_orders' | 'ownerId'> = {
         // Informations de base
         name: formData.name.trim(),
@@ -547,7 +549,10 @@ export default function AddRestaurantScreen() {
         // Média
         image: image || undefined,
       };
-
+  
+      console.log('📤 Données envoyées au contexte:', JSON.stringify(restaurantData, null, 2));
+      console.log('🕒 OpeningHours détail:', JSON.stringify(restaurantData.openingHours, null, 2));
+  
       await createRestaurant(restaurantData);
       
       const mealVoucherStatus = formData.accepts_meal_vouchers ? 'acceptés' : 'non acceptés';
@@ -559,9 +564,15 @@ export default function AddRestaurantScreen() {
     } catch (error: any) {
       console.error('❌ Erreur création restaurant:', error);
       
+      // Afficher plus de détails sur l'erreur
+      if (error.response?.data) {
+        console.error('📝 Détails de l\'erreur backend:', JSON.stringify(error.response.data, null, 2));
+      }
+      
       let errorMessage = 'Impossible de créer le restaurant';
       
       if (error.response?.data?.validation_errors) {
+        console.error('📋 Erreurs de validation:', error.response.data.validation_errors);
         const backendErrors: FormValidationErrors = {};
         Object.entries(error.response.data.validation_errors).forEach(([field, messages]) => {
           if (Array.isArray(messages) && messages.length > 0) {
@@ -572,9 +583,13 @@ export default function AddRestaurantScreen() {
           }
         });
         setErrors(backendErrors);
-        errorMessage = 'Erreurs de validation détectées';
+        errorMessage = 'Erreurs de validation détectées - vérifiez les champs en rouge';
       } else if (error.response?.data?.error) {
         errorMessage = error.response.data.error;
+      } else if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
       } else if (error.message) {
         errorMessage = error.message;
       }

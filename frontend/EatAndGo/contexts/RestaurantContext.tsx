@@ -329,23 +329,57 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
       dispatch({ type: 'SET_LOADING', payload: false });
     }
   };
-
+  
   const createRestaurant = async (data: Omit<Restaurant, 'id' | 'createdAt' | 'updatedAt' | 'can_receive_orders' | 'ownerId'>) => {
     try {
-      console.log('🚀 RestaurantContext: Creating restaurant:', data);
+      console.log('🚀 RestaurantContext: Creating restaurant...');
+      console.log('📥 Données reçues dans le contexte:', JSON.stringify(data, null, 2));
       dispatch({ type: 'SET_ERROR', payload: null });
       
-      // Préparer les données pour le backend
+      // Préparer les données pour le backend avec logs détaillés
       const backendData: any = {
-        ...data,
+        // Informations de base
+        name: data.name,
+        description: data.description || '',
+        cuisine: data.cuisine,
+        price_range: data.priceRange, // Conversion camelCase -> snake_case
+        
+        // Localisation - conversion location -> latitude/longitude
+        address: data.address,
+        city: data.city,
+        zip_code: data.zipCode, // Conversion camelCase -> snake_case
+        country: data.country || 'France',
+        latitude: data.location?.latitude || 0,
+        longitude: data.location?.longitude || 0,
+        
+        // Contact
+        phone: data.phone,
+        email: data.email,
+        website: data.website || '',
+        
+        // Configuration
+        rating: data.rating || 0,
+        review_count: data.reviewCount || 0, // Conversion camelCase -> snake_case
+        is_active: data.isActive !== undefined ? data.isActive : true, // Conversion camelCase -> snake_case
+        
+        // Horaires d'ouverture - gestion spéciale
+        opening_hours: data.openingHours ? data.openingHours.map(hour => ({
+          day_of_week: hour.dayOfWeek, // Conversion camelCase -> snake_case
+          open_time: hour.openTime,
+          close_time: hour.closeTime, // Conversion camelCase -> snake_case
+          is_closed: hour.isClosed // Conversion camelCase -> snake_case
+        })) : [],
+        
+        // Titres-restaurant
+        accepts_meal_vouchers: data.accepts_meal_vouchers || false,
+        meal_voucher_info: data.meal_voucher_info || '',
+        
+        // Média
+        image: data.image || null,
       };
       
-      // Gérer la conversion location -> latitude/longitude
-      if (data.location) {
-        backendData.latitude = data.location.latitude;
-        backendData.longitude = data.location.longitude;
-        delete backendData.location;
-      }
+      console.log('📤 Données préparées pour le backend:', JSON.stringify(backendData, null, 2));
+      console.log('🕒 OpeningHours transformées:', JSON.stringify(backendData.opening_hours, null, 2));
       
       const restaurant = await restaurantService.createRestaurant(backendData);
       console.log('✅ RestaurantContext: Restaurant created:', restaurant);
@@ -355,7 +389,35 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
       return normalizedRestaurant;
     } catch (error: any) {
       console.error('❌ RestaurantContext: Create error:', error);
-      dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors de la création du restaurant' });
+      
+      // Log des détails de l'erreur pour diagnostiquer
+      if (error.response) {
+        console.error('📝 Response status:', error.response.status);
+        console.error('📝 Response data:', JSON.stringify(error.response.data, null, 2));
+        console.error('📝 Response headers:', error.response.headers);
+      }
+      
+      let errorMessage = 'Erreur lors de la création du restaurant';
+      
+      // Gestion spécifique des erreurs backend
+      if (error.response?.data) {
+        const errorData = error.response.data;
+        
+        if (errorData.validation_errors || errorData.errors) {
+          errorMessage = 'Erreurs de validation des données';
+          console.error('📋 Erreurs de validation détaillées:', errorData.validation_errors || errorData.errors);
+        } else if (errorData.detail) {
+          errorMessage = errorData.detail;
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      dispatch({ type: 'SET_ERROR', payload: errorMessage });
       throw error;
     }
   };

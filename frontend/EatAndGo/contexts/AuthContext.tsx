@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../constants/config';
 import { router } from 'expo-router';
 
+// ... (garder toutes les interfaces existantes)
 export interface ClientProfile {
   id: number;
   user: number;
@@ -181,7 +182,7 @@ interface AuthContextType {
   clearError: () => void;
 }
 
-// Classe ApiClient améliorée
+// Classe ApiClient (inchangée)
 class ApiClient {
   async createStripeAccount(): Promise<{ account_id: string; onboarding_url: string; message: string }> {
     return this.request(`${API_URL}/stripe/create-account/`, {
@@ -344,7 +345,7 @@ class ApiClient {
 
 const apiClient = new ApiClient();
 
-// Contexte d'authentification amélioré
+// Contexte d'authentification avec navigation améliorée
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -361,18 +362,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const canCreateRestaurant = user?.permissions?.can_create_restaurant || false;
   const canManageOrders = user?.permissions?.can_manage_orders || false;
 
+  // Navigation améliorée avec délai et vérifications
   const navigateByRole = () => {
-    if (user?.role === 'client') {
-      router.replace('/(client)');
-    } else if (user?.role === 'restaurateur') {
-      router.replace('/(restaurant)');
+    if (!user) {
+      console.log('🚫 Pas d\'utilisateur pour la navigation');
+      return;
     }
+
+    console.log('🧭 Navigation par rôle:', { 
+      role: user.role, 
+      isAuthenticated: user.is_authenticated 
+    });
+
+    // Utiliser setTimeout pour s'assurer que la navigation se fait après le rendu
+    setTimeout(() => {
+      try {
+        if (user.role === 'client') {
+          console.log('👤 Redirection vers client');
+          router.replace('/(client)');
+        } else if (user.role === 'restaurateur') {
+          console.log('🍽️ Redirection vers restaurateur');
+          router.replace('/(restaurant)');
+        } else {
+          console.log('❓ Rôle inconnu:', user.role);
+        }
+      } catch (error) {
+        console.error('❌ Erreur de navigation:', error);
+        // Fallback: essayer de rediriger vers une route générique
+        setTimeout(() => {
+          router.replace('/(restaurant)');
+        }, 100);
+      }
+    }, 100);
   };
 
   // Effacer les erreurs
   const clearError = () => setLastError(null);
 
-  // Gestion des erreurs globales
+  // Gestion des erreurs globales (inchangée)
   const handleError = (error: any, context: string) => {
     console.error(`❌ Erreur dans ${context}:`, error);
     
@@ -394,7 +421,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return errorMessage;
   };
 
-  // Fonctions existantes avec gestion d'erreurs améliorée
+  // Fonctions de gestion auth avec navigation améliorée
   const clearAuthData = async () => {
     try {
       console.log('🗑️ Suppression des données auth');
@@ -459,12 +486,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(parsedUser);
         console.log('✅ Authentification restaurée depuis le cache');
 
-        // Rediriger l'utilisateur vers la bonne section selon son rôle
-        if (parsedUser.role === 'client') {
-          router.replace('/(client)');
-        } else if (parsedUser.role === 'restaurateur') {
-          router.replace('/(restaurant)');
-        }
+        // Redirection immédiate après setUser
+        setTimeout(() => navigateByRole(), 200);
         
         // Essayer de rafraîchir les données, mais ne pas échouer si 403
         try {
@@ -478,10 +501,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } else {
         console.log('🔓 Aucune authentification trouvée');
+        // S'assurer qu'on est sur la page de login
+        router.replace('/(auth)/login');
       }
     } catch (error) {
       console.error('❌ Erreur lors de la vérification de l\'authentification:', error);
       await clearAuthData();
+      router.replace('/(auth)/login');
     } finally {
       setIsLoading(false);
     }
@@ -504,9 +530,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const currentUser = await apiClient.getCurrentUser();
       await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(currentUser));
       setUser(currentUser);
-      navigateByRole();
-
+      
       console.log('✅ Inscription réussie avec données utilisateur complètes');
+      
+      // Navigation après inscription
+      setTimeout(() => navigateByRole(), 300);
+
     } catch (error: any) {
       console.error('❌ Erreur lors de l\'inscription:', error);
       handleError(error, 'register');
@@ -535,11 +564,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (currentUser) {
         await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(currentUser));
         setUser(currentUser);
-        console.log('👤 Utilisateur récupéré depuis /auth/me/');
-        navigateByRole();
+        console.log('👤 Utilisateur récupéré depuis /auth/me/', {
+          role: currentUser.role,
+          isAuthenticated: currentUser.is_authenticated
+        });
+        
+        console.log('✅ Connexion réussie avec données utilisateur complètes');
+        
+        // Navigation après connexion - délai plus long pour s'assurer que tout est prêt
+        setTimeout(() => navigateByRole(), 500);
       }
 
-      console.log('✅ Connexion réussie avec données utilisateur complètes');
     } catch (error: any) {
       console.error('❌ Erreur lors de la connexion:', error);
       handleError(error, 'login');
@@ -571,6 +606,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Stripe methods (inchangées)
   const createStripeAccount = async () => {
     try {
       clearError();
@@ -623,7 +659,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Utilitaires pour accéder aux données avec gestion d'erreurs
+  // Utilitaires pour accéder aux données (inchangées)
   const getUserRestaurants = (): Restaurant[] => {
     return user?.restaurants || [];
   };
@@ -639,7 +675,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return 0;
   };
 
-  // Méthodes pour charger des données avec gestion 403
+  // Méthodes pour charger des données avec gestion 403 (inchangée)
   const loadRestaurantsWithFallback = async (): Promise<Restaurant[]> => {
     try {
       const restaurants = await apiClient.getUserRestaurants();
@@ -697,7 +733,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// Hook avec gestion d'erreurs
+// Hooks (inchangés)
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
   if (context === undefined) {
@@ -706,21 +742,18 @@ export function useAuth(): AuthContextType {
   return context;
 }
 
-// Hook pour afficher les erreurs
 export function useAuthError() {
   const { lastError, clearError } = useAuth();
   
   useEffect(() => {
     if (lastError) {
       console.log('🔔 Erreur d\'authentification:', lastError);
-      // Vous pouvez ajouter ici une logique pour afficher un toast/alert
     }
   }, [lastError]);
   
   return { lastError, clearError };
 }
 
-//Hooks Stripe
 export function useStripe() {
   const { 
     createStripeAccount, 
@@ -734,12 +767,10 @@ export function useStripe() {
   const getStripeValidationStatus = () => {
     if (!user || !isRestaurateur) return false;
     
-    // Vérifier dans user.roles d'abord
     if (user.roles?.has_validated_profile !== undefined) {
       return user.roles.has_validated_profile;
     }
     
-    // Puis dans le profil restaurateur
     if (user.profile?.type === 'restaurateur') {
       const profile = user.profile as RestaurateurProfile;
       return profile.stripe_verified || profile.has_validated_profile || false;
@@ -769,8 +800,6 @@ export function useStripe() {
   };
 }
 
-
-// Hooks existants...
 export function useUserRestaurants() {
   const { getUserRestaurants } = useAuth();
   return getUserRestaurants();
