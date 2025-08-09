@@ -5,7 +5,7 @@ export interface Table {
   number: string;
   identifiant: string;
   restaurant: string;
-  capacity?: number;
+  capacity: number;
   is_active: boolean;
   qr_code?: string;
   qrCodeUrl: string;
@@ -37,7 +37,7 @@ class TableService {
     capacity: number = 4
   ): Promise<Table[]> {
     try {
-      const response = await apiClient.post<CreateTablesResponse>('api/v1/tables/bulk-create/', {
+      const response = await apiClient.post<CreateTablesResponse>('api/v1/table/bulk-create/', {
         restaurant_id: restaurantId,
         table_count: tableCount,
         start_number: startNumber,
@@ -56,7 +56,7 @@ class TableService {
    */
   async getRestaurantTables(restaurantId: string): Promise<Table[]> {
     try {
-      const response = await apiClient.get<Table[]>(`api/v1/restaurants/${restaurantId}/tables/`);
+      const response = await apiClient.get<Table[]>(`api/v1/restaurants/${restaurantId}/table/`);
       return Array.isArray(response) 
         ? response.map(table => this.normalizeTableData(table))
         : [];
@@ -76,7 +76,7 @@ class TableService {
     identifiant?: string;
   }): Promise<Table> {
     try {
-      const response = await apiClient.post<Table>('api/v1/tables/', {
+      const response = await apiClient.post<Table>('api/v1/table/', {
         restaurant: data.restaurantId,
         number: data.number,
         capacity: data.capacity || 4,
@@ -96,7 +96,7 @@ class TableService {
    */
   async updateTable(id: string, data: Partial<Table>): Promise<Table> {
     try {
-      const response = await apiClient.patch<Table>(`api/v1/tables/${id}/`, data);
+      const response = await apiClient.patch<Table>(`api/v1/table/${id}/`, data);
       return this.normalizeTableData(response);
     } catch (error: any) {
       console.error('❌ Erreur mise à jour table:', error);
@@ -109,7 +109,7 @@ class TableService {
    */
   async deleteTable(id: string): Promise<void> {
     try {
-      await apiClient.delete(`api/v1/tables/${id}/`);
+      await apiClient.delete(`api/v1/table/${id}/`);
     } catch (error: any) {
       console.error('❌ Erreur suppression table:', error);
       throw new Error(error.message || 'Erreur lors de la suppression de la table');
@@ -121,7 +121,7 @@ class TableService {
    */
   async toggleTableStatus(id: string): Promise<Table> {
     try {
-      const response = await apiClient.post<Table>(`api/v1/tables/${id}/toggle-status/`);
+      const response = await apiClient.post<Table>(`api/v1/table/${id}/toggle-status/`);
       return this.normalizeTableData(response);
     } catch (error: any) {
       console.error('❌ Erreur changement statut table:', error);
@@ -134,7 +134,7 @@ class TableService {
    */
   async generateQRCode(tableId: string): Promise<{ qr_code_url: string; manual_code: string }> {
     try {
-      const response = await apiClient.post(`api/v1/tables/${tableId}/generate-qr/`) as any;
+      const response = await apiClient.post(`api/v1/table/${tableId}/generate-qr/`) as any;
       return response;
     } catch (error: any) {
       console.error('❌ Erreur génération QR code:', error);
@@ -147,7 +147,7 @@ class TableService {
    */
   async getTableByIdentifiant(identifiant: string) {
     try {
-      const response = await apiClient.get(`api/v1/tables/public/${identifiant}/`);
+      const response = await apiClient.get(`api/v1/table/public/${identifiant}/`);
       return response;
     } catch (error: any) {
       console.error('❌ Erreur récupération table publique:', error);
@@ -160,7 +160,7 @@ class TableService {
    */
   async exportQRCodesPDF(restaurantId: string): Promise<Blob> {
     try {
-      const response = await apiClient.get(`api/v1/restaurants/${restaurantId}/tables/export-qr/`, {
+      const response = await apiClient.get(`api/v1/restaurants/${restaurantId}/table/export-qr/`, {
         responseType: 'blob'
       }) as any;
       return response;
