@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
 import { Order, OrderItem, CreateOrderRequest } from '@/types/order';
-import { SearchFilters } from '@/types/common';
+import { OrderSearchFilters, SearchFilters, PaginatedResponse } from '@/types/common';
 import { orderService } from '@/services/orderService';
 
 interface OrderState {
@@ -8,7 +8,7 @@ interface OrderState {
   currentOrder: Order | null;
   isLoading: boolean;
   error: string | null;
-  filters: SearchFilters;
+  filters: OrderSearchFilters;
   pagination: {
     page: number;
     limit: number;
@@ -16,10 +16,18 @@ interface OrderState {
     pages: number;
   };
   stats: {
+    total_orders: number;
     pending: number;
+    confirmed: number;
     preparing: number;
     ready: number;
     served: number;
+    cancelled: number;
+    paid_orders: number;
+    unpaid_orders: number;
+    total_revenue: string;
+    average_order_value: string;
+    average_preparation_time: number;
   };
 }
 
@@ -63,11 +71,19 @@ const initialState: OrderState = {
     pages: 0,
   },
   stats: {
+    total_orders: 0,
     pending: 0,
+    confirmed: 0,
     preparing: 0,
     ready: 0,
-    served: 0
-  }
+    served: 0,
+    cancelled: 0,
+    paid_orders: 0,
+    unpaid_orders: 0,
+    total_revenue: '0.00',
+    average_order_value: '0.00',
+    average_preparation_time: 0,
+  },
 };
 
 const orderReducer = (state: OrderState, action: OrderAction): OrderState => {
@@ -141,35 +157,21 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
       
+      // Appeler le service qui retourne maintenant PaginatedResponse<OrderList>
       const response = await orderService.getMyOrders({
         page,
         limit: state.pagination.limit,
         ...filters,
       });
       
-      console.log('📥 OrderService response:', response);
-      
-      let orderData: Order[] = [];
-      let paginationData = state.pagination;
-      
-      if (response && typeof response === 'object') {
-        if (Array.isArray(response.data)) {
-          orderData = response.data;
-          paginationData = response.pagination || state.pagination;
-        } else if (Array.isArray(response)) {
-          orderData = response;
-        }
-      } else if (Array.isArray(response)) {
-        orderData = response;
-      }
-      
-      console.log('✅ OrderContext: Processed data:', {
-        orderCount: orderData.length,
-        pagination: paginationData
+      console.log('📥 OrderService response:', {
+        dataCount: response.data.length,
+        pagination: response.pagination
       });
       
-      dispatch({ type: 'SET_ORDERS', payload: orderData });
-      dispatch({ type: 'SET_PAGINATION', payload: paginationData });
+      // Les données sont maintenant correctement typées
+      dispatch({ type: 'SET_ORDERS', payload: response.data });
+      dispatch({ type: 'SET_PAGINATION', payload: response.pagination });
       
       if (filters) {
         dispatch({ type: 'SET_FILTERS', payload: filters });
@@ -184,6 +186,29 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   };
 
+  const searchOrders = async (query: string, filters?: SearchFilters) => {
+    try {
+      console.log('🚀 OrderContext: Searching orders:', query, filters);
+      dispatch({ type: 'SET_LOADING', payload: true });
+      dispatch({ type: 'SET_ERROR', payload: null });
+      
+      // Appeler la méthode search qui retourne maintenant PaginatedResponse<OrderList>
+      const response = await orderService.searchOrders(query, filters);
+      console.log('✅ OrderContext: Search results:', response.data.length);
+      
+      dispatch({ type: 'SET_ORDERS', payload: response.data });
+      dispatch({ type: 'SET_PAGINATION', payload: response.pagination });
+      
+    } catch (error: any) {
+      console.error('❌ OrderContext: Search error:', error);
+      dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors de la recherche' });
+      dispatch({ type: 'SET_ORDERS', payload: [] });
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  };
+
+  // Les autres méthodes restent inchangées car elles ne dépendent pas des types de réponse problématiques
   const loadOrder = async (id: number) => {
     try {
       console.log('🚀 OrderContext: Loading single order:', id);
@@ -227,7 +252,9 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       const order = await orderService.updateOrder(id, data);
       console.log('✅ OrderContext: Order updated:', order);
       
-      dispatch({ type: 'UPDATE_ORDER', payload: order });
+      if (order) {
+        dispatch({ type: 'UPDATE_ORDER', payload: order });
+      }
     } catch (error: any) {
       console.error('❌ OrderContext: Update error:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors de la mise à jour de la commande' });
@@ -243,7 +270,9 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       const order = await orderService.updateOrderStatus(id, status);
       console.log('✅ OrderContext: Order status updated:', order);
       
-      dispatch({ type: 'UPDATE_ORDER', payload: order });
+      if (order) {
+        dispatch({ type: 'UPDATE_ORDER', payload: order });
+      }
     } catch (error: any) {
       console.error('❌ OrderContext: Status update error:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors de la mise à jour du statut' });
@@ -273,10 +302,11 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       console.log('🚀 OrderContext: Marking order as paid:', id, paymentMethod);
       dispatch({ type: 'SET_ERROR', payload: null });
       
-      const order = await orderService.markAsPaid(id, paymentMethod);
-      console.log('✅ OrderContext: Order marked as paid:', order);
+      await orderService.markAsPaid(id, paymentMethod);
+      console.log('✅ OrderContext: Order marked as paid');
       
-      dispatch({ type: 'UPDATE_ORDER', payload: order });
+      // Recharger les commandes pour voir la mise à jour
+      await loadOrders(state.filters, state.pagination.page);
     } catch (error: any) {
       console.error('❌ OrderContext: Mark paid error:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors du marquage comme payé' });
@@ -284,30 +314,12 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   };
 
-  const searchOrders = async (query: string, filters?: SearchFilters) => {
-    try {
-      console.log('🚀 OrderContext: Searching orders:', query, filters);
-      dispatch({ type: 'SET_LOADING', payload: true });
-      dispatch({ type: 'SET_ERROR', payload: null });
-      
-      const orders = await orderService.searchOrders(query, filters);
-      console.log('✅ OrderContext: Search results:', orders.length);
-      
-      const orderData = Array.isArray(orders) ? orders : [];
-      dispatch({ type: 'SET_ORDERS', payload: orderData });
-    } catch (error: any) {
-      console.error('❌ OrderContext: Search error:', error);
-      dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors de la recherche' });
-      dispatch({ type: 'SET_ORDERS', payload: [] });
-    } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
-    }
-  };
-
   const loadStats = async () => {
     try {
       const stats = await orderService.getOrderStats();
-      dispatch({ type: 'SET_STATS', payload: stats });
+      if (stats) {
+        dispatch({ type: 'SET_STATS', payload: stats });
+      }
     } catch (error: any) {
       console.error('❌ OrderContext: Load stats error:', error);
     }

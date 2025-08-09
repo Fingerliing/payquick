@@ -2,122 +2,24 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../constants/config';
 import { router } from 'expo-router';
-
-// ... (garder toutes les interfaces existantes)
-export interface ClientProfile {
-  id: number;
-  user: number;
-  phone: string;
-  type: 'client';
-  has_validated_profile?: boolean;
-}
-
-export interface RestaurateurProfile {
-  id: number;
-  user: number;
-  siret: string;
-  is_validated: boolean;
-  is_active: boolean;
-  created_at: string;
-  stripe_verified: boolean;
-  stripe_account_id?: string;
-  type: 'restaurateur';
-  stripe_onboarding_completed?: boolean;
-  stripe_account_created?: string | null;
-  has_validated_profile?: boolean;
-  nom?: string;
-  telephone?: string;
-}
-
-export interface Restaurant {
-  id: number;
-  name: string;
-  description: string;
-  address: string;
-  siret: string;
-  total_orders: number;
-  pending_orders: number;
-  menus_count: number;
-  can_receive_orders?: boolean;
-  owner_stripe_validated?: boolean;
-  is_stripe_active?: boolean;
-}
-
-export interface UserPermissions {
-  is_staff: boolean;
-  is_superuser: boolean;
-  can_create_restaurant: boolean;
-  can_manage_orders: boolean;
-  groups: string[];
-  user_permissions: string[];
-}
-
-export interface UserRoles {
-  is_client: boolean;
-  is_restaurateur: boolean;
-  is_staff: boolean;
-  is_admin: boolean;
-  has_validated_profile: boolean;
-}
-
-export interface UserStats {
-  // Pour les restaurateurs
-  total_restaurants?: number;
-  total_orders?: number;
-  pending_orders?: number;
-  active_restaurants?: number;
-  stripe_validated?: boolean;
-  stripe_onboarding_completed?: boolean;
-  
-  // Pour les clients  
-  favorite_restaurants?: any[];
-}
-
-export interface RecentOrder {
-  id: number;
-  restaurant_name: string;
-  restaurant_id?: number;
-  table: string;
-  status: 'pending' | 'in_progress' | 'served';
-  is_paid: boolean;
-  created_at: string;
-  items_count: number;
-}
-
-export interface User {
-  id: number;
-  username: string;
-  email: string;
-  first_name: string;
-  is_active: boolean;
-  is_staff: boolean;
-  is_superuser: boolean;
-  date_joined: string;
-  last_login: string | null;
-  role: 'client' | 'restaurateur';
-  profile: ClientProfile | RestaurateurProfile;
-  restaurants: Restaurant[];
-  stats: UserStats;
-  permissions: UserPermissions;
-  roles: UserRoles;
-  recent_orders: RecentOrder[];
-  is_authenticated: boolean;
-}
+import {
+  User,
+  ClientProfile,
+  RestaurateurProfile,
+  Restaurant,
+  UserPermissions,
+  UserRoles,
+  UserStats,
+  RecentOrder,
+  RegisterData,
+  ApiResponse
+} from '@/types/user';
 
 export interface AuthResponse {
   user?: User;
   access: string;
   refresh: string;
   message?: string;
-}
-
-export interface RegisterData {
-  username: string; // Email
-  password: string;
-  nom: string;
-  role: 'client' | 'restaurateur';
-  telephone?: string;
-  siret?: string;
 }
 
 export interface LoginData {

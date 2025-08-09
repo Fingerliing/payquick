@@ -6,12 +6,12 @@ import { useStripeDeepLink } from '@/app/hooks/useStripeDeepLink';
 import { Redirect } from 'expo-router';
 
 export default function TabLayout() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, isRestaurateur, hasValidatedProfile } = useAuth();
   
   useStripeDeepLink();
 
   if (isLoading) {
-    return null; // Ou un écran de chargement
+    return null;
   }
 
   if (!isAuthenticated) {
@@ -66,6 +66,17 @@ export default function TabLayout() {
           ),
         }}
       />
+      
+      <Tabs.Screen
+        name="qrcodes"
+        options={{
+          title: 'QR Codes',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="qr-code-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      
       <Tabs.Screen
         name="profile"
         options={{

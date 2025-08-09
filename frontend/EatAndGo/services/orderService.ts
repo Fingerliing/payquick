@@ -10,23 +10,20 @@ import {
   extractOrdersFromResponse,
   normalizeOrderToList
 } from '@/types/order';
+import { OrderSearchFilters, PaginatedResponse } from '@/types/common';
 import { apiClient } from './api';
 
 export class OrderService {
   
-  // ============================================================================
-  // MÉTHODES CLIENT (pour l'app client)
-  // ============================================================================
-  
   /**
    * Récupère les commandes du client connecté
-   * Correspond à GET /api/v1/orders/ avec filtrage dans get_queryset()
+   * Retourne maintenant un format unifié avec pagination
    */
   async getMyOrders(params?: {
     page?: number;
     limit?: number;
     status?: string;
-  }): Promise<OrderList[]> {
+  }): Promise<PaginatedResponse<OrderList>> {
     try {
       console.log('📤 OrderService.getMyOrders called with:', params);
       
@@ -43,18 +40,160 @@ export class OrderService {
       // Utiliser l'extracteur pour gérer tous les formats
       const orders = extractOrdersFromResponse(response);
       
+      // Construire la réponse paginée standardisée
+      let paginatedResponse: PaginatedResponse<OrderList>;
+      
+      if (response && typeof response === 'object' && 'count' in response) {
+        // Réponse paginée Django REST Framework
+        paginatedResponse = {
+          data: orders,
+          pagination: {
+            page: params?.page || 1,
+            limit: params?.limit || 20,
+            total: response.count || orders.length,
+            pages: Math.ceil((response.count || orders.length) / (params?.limit || 20))
+          }
+        };
+      } else {
+        // Réponse simple (array)
+        paginatedResponse = {
+          data: orders,
+          pagination: {
+            page: 1,
+            limit: orders.length,
+            total: orders.length,
+            pages: 1
+          }
+        };
+      }
+      
       console.log('✅ Orders extracted:', {
-        count: orders.length,
-        sample: orders[0]
+        count: paginatedResponse.data.length,
+        pagination: paginatedResponse.pagination
       });
       
-      return orders;
+      return paginatedResponse;
       
     } catch (error) {
       console.error('❌ OrderService.getMyOrders error:', error);
-      return [];
+      // Retourner une réponse vide mais bien typée
+      return {
+        data: [],
+        pagination: {
+          page: 1,
+          limit: 20,
+          total: 0,
+          pages: 0
+        }
+      };
     }
   }
+  
+  /**
+   * Récupère toutes les commandes du restaurateur
+   * Même format unifié
+   */
+  async getRestaurantOrders(params?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    restaurant?: number;
+  }): Promise<PaginatedResponse<OrderList>> {
+    try {
+      console.log('📤 OrderService.getRestaurantOrders called with:', params);
+      
+      const response = await apiClient.get('/api/v1/orders/', params) as any;
+      const orders = extractOrdersFromResponse(response);
+      
+      let paginatedResponse: PaginatedResponse<OrderList>;
+      
+      if (response && typeof response === 'object' && 'count' in response) {
+        paginatedResponse = {
+          data: orders,
+          pagination: {
+            page: params?.page || 1,
+            limit: params?.limit || 20,
+            total: response.count || orders.length,
+            pages: Math.ceil((response.count || orders.length) / (params?.limit || 20))
+          }
+        };
+      } else {
+        paginatedResponse = {
+          data: orders,
+          pagination: {
+            page: 1,
+            limit: orders.length,
+            total: orders.length,
+            pages: 1
+          }
+        };
+      }
+      
+      console.log('✅ Restaurant orders retrieved:', paginatedResponse.data.length);
+      return paginatedResponse;
+      
+    } catch (error) {
+      console.error('❌ OrderService.getRestaurantOrders error:', error);
+      return {
+        data: [],
+        pagination: {
+          page: 1,
+          limit: 20,
+          total: 0,
+          pages: 0
+        }
+      };
+    }
+  }
+  
+  /**
+   * Recherche des commandes avec pagination
+   */
+  async searchOrders(
+    query: string, 
+    filters?: OrderSearchFilters
+  ): Promise<PaginatedResponse<OrderList>> {
+    try {
+      console.log('📤 OrderService.searchOrders called:', { query, filters });
+      
+      const params = {
+        search: query,
+        ...filters
+      };
+      
+      const response = await apiClient.get('/api/v1/orders/', params) as any;
+      const orders = extractOrdersFromResponse(response);
+      
+      const paginatedResponse: PaginatedResponse<OrderList> = {
+        data: orders,
+        pagination: {
+          page: 1,
+          limit: orders.length,
+          total: orders.length,
+          pages: 1
+        }
+      };
+      
+      console.log('✅ Orders search completed:', paginatedResponse.data.length);
+      return paginatedResponse;
+      
+    } catch (error) {
+      console.error('❌ OrderService.searchOrders error:', error);
+      return {
+        data: [],
+        pagination: {
+          page: 1,
+          limit: 20,
+          total: 0,
+          pages: 0
+        }
+      };
+    }
+  }
+  
+  // ============================================================================
+  // MÉTHODES CLIENT (pour l'app client)
+  // ============================================================================
   
   /**
    * Récupère les détails d'une commande
@@ -122,31 +261,6 @@ export class OrderService {
   // ============================================================================
   // MÉTHODES RESTAURATEUR (pour l'app restaurant)
   // ============================================================================
-  
-  /**
-   * Récupère toutes les commandes du restaurateur
-   * Correspond à GET /api/v1/orders/ avec filtrage restaurateur dans get_queryset()
-   */
-  async getRestaurantOrders(params?: {
-    page?: number;
-    limit?: number;
-    status?: string;
-    restaurant?: number;
-  }): Promise<OrderList[]> {
-    try {
-      console.log('📤 OrderService.getRestaurantOrders called with:', params);
-      
-      const response = await apiClient.get('/api/v1/orders/', params);
-      const orders = extractOrdersFromResponse(response);
-      
-      console.log('✅ Restaurant orders retrieved:', orders.length);
-      return orders;
-      
-    } catch (error) {
-      console.error('❌ OrderService.getRestaurantOrders error:', error);
-      return [];
-    }
-  }
   
   /**
    * Met à jour le statut d'une commande (personnel cuisine/comptoir)
@@ -349,39 +463,6 @@ export class OrderService {
     } catch (error) {
       console.error('❌ OrderService.generateTicket error:', error);
       return null;
-    }
-  }
-  
-  // ============================================================================
-  // RECHERCHE ET FILTRAGE
-  // ============================================================================
-  
-  /**
-   * Recherche des commandes
-   * Utilise les filtres de recherche intégrés dans la vue list()
-   */
-  async searchOrders(query: string, filters?: {
-    status?: string;
-    restaurant?: number;
-    order_type?: string;
-  }): Promise<OrderList[]> {
-    try {
-      console.log('📤 OrderService.searchOrders called:', { query, filters });
-      
-      const params = {
-        search: query,
-        ...filters
-      };
-      
-      const response = await apiClient.get('/api/v1/orders/', params);
-      const orders = extractOrdersFromResponse(response);
-      
-      console.log('✅ Orders search completed:', orders.length);
-      return orders;
-      
-    } catch (error) {
-      console.error('❌ OrderService.searchOrders error:', error);
-      return [];
     }
   }
   

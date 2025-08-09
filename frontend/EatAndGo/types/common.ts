@@ -34,6 +34,31 @@ export interface SearchFilters {
   };
 }
 
+export interface OrderSearchFilters {
+  // Recherche
+  query?: string;
+  search?: string;
+  
+  // Filtres de commande
+  status?: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'served' | 'cancelled';
+  payment_status?: 'pending' | 'paid' | 'failed';
+  order_type?: 'dine_in' | 'takeaway';
+  restaurant?: number;
+  customer_name?: string;
+  
+  // Pagination
+  page?: number;
+  limit?: number;
+  
+  // Tri
+  sort_by?: 'created_at' | 'total_amount' | 'status';
+  sort_direction?: 'asc' | 'desc';
+  
+  // Dates et montants
+  date_range?: { start: string; end: string };
+  amount_range?: { min: number; max: number };
+}
+
 export interface SortOption {
   field: string;
   direction: 'asc' | 'desc';
