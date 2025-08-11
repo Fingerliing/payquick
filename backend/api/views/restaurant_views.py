@@ -1007,6 +1007,7 @@ class PublicRestaurantViewSet(viewsets.ReadOnlyModelViewSet):
     """
     serializer_class = RestaurantSerializer
     permission_classes = [AllowAny]  # Accès public
+    authentication_classes = []
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['name', 'address', 'city', 'cuisine']
     ordering_fields = ['name', 'rating', 'created_at']

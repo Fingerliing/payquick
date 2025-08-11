@@ -12,9 +12,9 @@ public_router.register(r'public', PublicRestaurantViewSet, basename='public-rest
 
 # URLs combinées
 urlpatterns = [
-    # APIs privées : /api/v1/restaurants/
-    path('', include(private_router.urls)),
-    
     # APIs publiques : /api/v1/restaurants/public/
     path('', include(public_router.urls)),
+
+    # APIs privées : /api/v1/restaurants/
+    path('', include(private_router.urls)),
 ]
