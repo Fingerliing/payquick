@@ -6,13 +6,82 @@ from rest_framework.permissions import IsAuthenticated
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
-from api.models import Order, RestaurateurProfile
+from django.db import transaction
+from decimal import Decimal
+
+from api.models import (
+    Order, RestaurateurProfile,
+    DraftOrder, OrderItem, MenuItem
+)
 from api.throttles import StripeCheckoutThrottle
 import stripe
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
 
 # Initialise ta clé Stripe globale
 stripe.api_key = settings.STRIPE_SECRET_KEY
+
+
+# ---------- Helper : transformer une DraftOrder en Order ----------
+@transaction.atomic
+def _create_order_from_draft(draft: DraftOrder, paid: bool) -> Order:
+    """
+    Crée une Order finale depuis une DraftOrder (invité).
+    - Montants : draft.amount (centimes) -> Order (euros Decimal)
+    - Items : copie MenuItem, quantité, prix unitaire
+    - Statuts : payment_status en fonction de 'paid'
+    """
+    # Gestion expiration simple (si ton modèle expose is_expired(), utilise-le)
+    if hasattr(draft, "is_expired") and draft.is_expired():
+        draft.status = "expired"
+        draft.save(update_fields=["status"])
+        raise ValueError("Draft expired")
+
+    subtotal = Decimal(draft.amount) / Decimal(100)  # centimes -> euros
+    tax_amount = Decimal("0.00")  # adapte si TVA
+    total_amount = subtotal + tax_amount
+
+    order = Order.objects.create(
+        restaurant=draft.restaurant,
+        order_type="dine_in" if draft.table_number else "takeaway",
+        table_number=draft.table_number or "",
+        customer_name=getattr(draft, "customer_name", "") or "",
+        phone=getattr(draft, "phone", "") or "",
+        status="pending",
+        payment_status="paid" if paid else "pending",
+        payment_method=draft.payment_method,
+        subtotal=subtotal,
+        tax_amount=tax_amount,
+        total_amount=total_amount,
+        notes="",
+        source="guest",
+        guest_contact_name=getattr(draft, "customer_name", "") or "",
+        guest_phone=getattr(draft, "phone", "") or "",
+        guest_email=getattr(draft, "email", None),
+    )
+
+    # Création des items
+    # draft.items est supposé être un JSON du type [{menu_item_id, quantity, options?}, ...]
+    for it in draft.items or []:
+        mi = MenuItem.objects.get(
+            id=it["menu_item_id"],
+            menu__restaurant=draft.restaurant
+        )
+        qty = int(it["quantity"])
+        unit_price = mi.price  # Decimal en euros (selon ton modèle)
+        OrderItem.objects.create(
+            order=order,
+            # ⚠️ Si ton OrderItem pointe sur un autre champ, adapte ici :
+            menu_item=mi,
+            quantity=qty,
+            unit_price=unit_price,
+            total_price=unit_price * qty,
+            # Si tu as un champ 'customizations' JSONField :
+            customizations=it.get("options") or {},
+            special_instructions=""
+        )
+
+    return order
+
 
 # ---------- 1. Création de la session Stripe Checkout ----------
 @extend_schema(
@@ -37,7 +106,7 @@ class CreateCheckoutSessionView(APIView):
     def post(self, request, order_id):
         try:
             order = Order.objects.get(id=order_id)
-            if order.is_paid:
+            if getattr(order, "is_paid", False):
                 return Response({"error": "Order already paid."}, status=status.HTTP_400_BAD_REQUEST)
 
             # Préparer les items de la commande
@@ -45,16 +114,16 @@ class CreateCheckoutSessionView(APIView):
                 {
                     "price_data": {
                         "currency": "eur",
-                        "product_data": {"name": item.menu_item.name},
-                        "unit_amount": int(item.menu_item.price * 100),
+                        "product_data": {"name": getattr(item.menu_item, "name", "Item")},
+                        "unit_amount": int(Decimal(item.menu_item.price) * 100),
                     },
                     "quantity": item.quantity,
                 }
                 for item in order.order_items.all()
             ]
 
-            restaurateur = order.restaurateur
-            if not restaurateur.stripe_account_id:
+            restaurateur = getattr(order, "restaurateur", None)
+            if not restaurateur or not restaurateur.stripe_account_id:
                 return Response({"error": "No Stripe account linked."}, status=status.HTTP_400_BAD_REQUEST)
 
             # Création de la session Stripe Checkout
@@ -80,6 +149,7 @@ class CreateCheckoutSessionView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
 # ---------- 2. Webhook Stripe sécurisé ----------
 @extend_schema(exclude=True)
 @method_decorator(csrf_exempt, name='dispatch')
@@ -97,31 +167,63 @@ class StripeWebhookView(APIView):
         except (ValueError, stripe.error.SignatureVerificationError):
             return HttpResponse(status=400)
 
-        if event["type"] == "checkout.session.completed":
+        etype = event.get("type")
+
+        # a) Paiement via Checkout (existant)
+        if etype == "checkout.session.completed":
             session = event["data"]["object"]
-            order_id = session["metadata"].get("order_id")
-            try:
-                order = Order.objects.get(id=order_id)
-                if not order.is_paid:
-                    order.is_paid = True
-                    order.save()
-                    print(f"[✓] Payment confirmed for order {order_id}")
-            except Order.DoesNotExist:
-                print(f"[✗] Order {order_id} not found")
-        elif event["type"] == "identity.verification_session.verified":
+            order_id = (session.get("metadata") or {}).get("order_id")
+            if order_id:
+                try:
+                    order = Order.objects.get(id=order_id)
+                    if not getattr(order, "is_paid", False):
+                        order.is_paid = True
+                        order.payment_status = "paid"  # si tu as ce champ
+                        order.save(update_fields=["is_paid", "payment_status"])
+                        # TODO: notifier via WS le restaurateur
+                except Order.DoesNotExist:
+                    pass
+
+        # b) Paiement invité via PaymentIntent (mode PaymentSheet)
+        elif etype == "payment_intent.succeeded":
+            pi = event["data"]["object"]
+            metadata = pi.get("metadata") or {}
+            draft_id = metadata.get("draft_order_id")
+            if draft_id:
+                try:
+                    draft = DraftOrder.objects.get(id=draft_id)
+                    # Créer la commande finale payée
+                    order = _create_order_from_draft(draft, paid=True)
+                    draft.status = "pi_succeeded"
+                    draft.save(update_fields=["status"])
+                    # TODO: notifier via WS (room restaurant:{id})
+                except DraftOrder.DoesNotExist:
+                    pass
+                except Exception:
+                    # en cas d'erreur de création, ne pas renvoyer 4xx au webhook (réessaies Stripe)
+                    pass
+
+        elif etype == "payment_intent.payment_failed":
+            pi = event["data"]["object"]
+            metadata = pi.get("metadata") or {}
+            draft_id = metadata.get("draft_order_id")
+            if draft_id:
+                DraftOrder.objects.filter(id=draft_id).update(status="failed")
+
+        # c) Vérification d'identité (existant)
+        elif etype == "identity.verification_session.verified":
             session = event["data"]["object"]
-            rest_id = session["metadata"].get("restaurateur_id")
+            rest_id = (session.get("metadata") or {}).get("restaurateur_id")
             if rest_id:
                 try:
                     restaurateur = RestaurateurProfile.objects.get(id=rest_id)
                     restaurateur.stripe_verified = True
-                    restaurateur.save()
-                    print(f"[✓] Restaurateur #{rest_id} vérifié via Stripe Identity.")
+                    restaurateur.save(update_fields=["stripe_verified"])
                 except RestaurateurProfile.DoesNotExist:
-                    print(f"[✗] Restaurateur #{rest_id} introuvable pour vérification Stripe.")
-
+                    pass
 
         return HttpResponse(status=200)
+
 
 # ---------- 3. Création du compte Stripe Connect ----------
 @extend_schema(
@@ -154,7 +256,7 @@ class CreateStripeAccountView(APIView):
         )
 
         restaurateur.stripe_account_id = account.id
-        restaurateur.save()
+        restaurateur.save(update_fields=["stripe_account_id"])
 
         account_link = stripe.AccountLink.create(
             account=account.id,
@@ -164,6 +266,7 @@ class CreateStripeAccountView(APIView):
         )
 
         return Response({"onboarding_url": account_link.url})
+
 
 # ---------- 4. Vérification du compte Stripe ----------
 @extend_schema(
@@ -196,6 +299,7 @@ class StripeAccountStatusView(APIView):
             "payouts_enabled": account.payouts_enabled,
             "requirements": account.requirements
         })
+
 
 @extend_schema(
     tags=["Stripe"],

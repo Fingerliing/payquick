@@ -1,3 +1,4 @@
+import uuid
 from django.db import models
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -466,6 +467,11 @@ class Order(models.Model):
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    source = models.CharField(max_length=10, default="user")  # user|guest
+    guest_contact_name = models.CharField(max_length=120, blank=True, null=True)
+    guest_phone = models.CharField(max_length=32, blank=True, null=True)
+    guest_email = models.EmailField(blank=True, null=True)
     
     class Meta:
         ordering = ['-created_at']
@@ -498,6 +504,25 @@ class Order(models.Model):
         buffer = 10  # minutes
         estimated = timezone.now() + timedelta(minutes=total_prep_time + buffer)
         return estimated.time()
+
+class DraftOrder(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    restaurant = models.ForeignKey('restaurants.Restaurant', on_delete=models.CASCADE)
+    table_number = models.CharField(max_length=12, blank=True, null=True)
+    items = models.JSONField()  # [{menu_item_id, quantity, options}]
+    amount = models.PositiveIntegerField(help_text="centimes")
+    currency = models.CharField(max_length=10, default="eur")
+    customer_name = models.CharField(max_length=120)
+    phone = models.CharField(max_length=32)
+    email = models.EmailField(blank=True, null=True)
+    payment_method = models.CharField(max_length=10, choices=[("online","online"),("cash","cash")])
+    payment_intent_id = models.CharField(max_length=255, blank=True, null=True)
+    status = models.CharField(max_length=20, default="created")  # created|pi_succeeded|failed|expired|confirmed_cash
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(default=lambda: timezone.now() + timedelta(minutes=15))
+
+    def is_expired(self) -> bool:
+        return timezone.now() > self.expires_at
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, related_name='items', on_delete=models.CASCADE)
