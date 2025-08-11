@@ -505,9 +505,12 @@ class Order(models.Model):
         estimated = timezone.now() + timedelta(minutes=total_prep_time + buffer)
         return estimated.time()
 
+def default_expires_at():
+    return timezone.now() + timedelta(minutes=15)
+
 class DraftOrder(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    restaurant = models.ForeignKey('restaurants.Restaurant', on_delete=models.CASCADE)
+    restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE)
     table_number = models.CharField(max_length=12, blank=True, null=True)
     items = models.JSONField()  # [{menu_item_id, quantity, options}]
     amount = models.PositiveIntegerField(help_text="centimes")
@@ -515,18 +518,24 @@ class DraftOrder(models.Model):
     customer_name = models.CharField(max_length=120)
     phone = models.CharField(max_length=32)
     email = models.EmailField(blank=True, null=True)
-    payment_method = models.CharField(max_length=10, choices=[("online","online"),("cash","cash")])
+    payment_method = models.CharField(
+        max_length=10,
+        choices=[("online","online"),("cash","cash")]
+    )
     payment_intent_id = models.CharField(max_length=255, blank=True, null=True)
-    status = models.CharField(max_length=20, default="created")  # created|pi_succeeded|failed|expired|confirmed_cash
+    status = models.CharField(
+        max_length=20,
+        default="created"  # created|pi_succeeded|failed|expired|confirmed_cash
+    )
     created_at = models.DateTimeField(auto_now_add=True)
-    expires_at = models.DateTimeField(default=lambda: timezone.now() + timedelta(minutes=15))
+    expires_at = models.DateTimeField(default=default_expires_at)
 
     def is_expired(self) -> bool:
         return timezone.now() > self.expires_at
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, related_name='items', on_delete=models.CASCADE)
-    menu_item = models.ForeignKey('Menu', on_delete=models.CASCADE)
+    menu_item = models.ForeignKey(MenuItem, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField()
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
     total_price = models.DecimalField(max_digits=10, decimal_places=2)
