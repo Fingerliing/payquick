@@ -8,11 +8,11 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { router } from 'expo-router';
-import { useCart } from '../../contexts/CartContext';
+import { useCart } from '@/contexts/CartContext';
 import { useClientOrders } from '@/hooks/client/useClientOrders';
-import { Header } from '../../components/ui/Header';
-import { Card } from '../../components/ui/Card';
-import { Button } from '../../components/ui/Button';
+import { Header } from '@/components/ui/Header';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
 
 export default function ClientCheckoutScreen() {
   const { cart, clearCart } = useCart();
@@ -37,8 +37,8 @@ export default function ClientCheckoutScreen() {
       const order = await createOrder(
         cart.items,
         cart.restaurantId,
-        cart.tableNumber?.toString()
-      );
+        cart.tableNumber,
+      ) as any;
 
       // Vider le panier
       clearCart();

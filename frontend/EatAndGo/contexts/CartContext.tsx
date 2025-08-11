@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { CartItem, Cart, CartContextType } from '../types/cart';
+import { CartItem, Cart, CartContextType } from '@/types/cart';
 
-const CART_STORAGE_KEY = '@payquick_cart';
+const CART_STORAGE_KEY = '@EatAndGo_cart';
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 

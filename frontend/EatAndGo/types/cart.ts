@@ -1,12 +1,12 @@
 export interface CartItem {
   id: string;
-  menuItemId: number; // Cohérent avec vos IDs numériques
+  menuItemId: number;
   name: string;
   description?: string;
   price: number;
   image?: string;
   quantity: number;
-  restaurantId: number; // Cohérent avec vos Restaurant IDs
+  restaurantId: number;
   restaurantName: string;
   specialInstructions?: string;
 }
