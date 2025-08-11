@@ -8,12 +8,12 @@ private_router.register(r'', RestaurantViewSet, basename='restaurants')
 
 # Router pour les APIs publiques (clients/navigation)
 public_router = DefaultRouter()
-public_router.register(r'public', PublicRestaurantViewSet, basename='public-restaurants')
+public_router.register(r'', PublicRestaurantViewSet, basename='public-restaurants')
 
 # URLs combinées
 urlpatterns = [
     # APIs publiques : /api/v1/restaurants/public/
-    path('', include(public_router.urls)),
+    path('public/', include(public_router.urls)),
 
     # APIs privées : /api/v1/restaurants/
     path('', include(private_router.urls)),
