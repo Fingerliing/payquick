@@ -96,6 +96,22 @@ export default function DashboardScreen() {
       limit: 5
     };
 
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        await Promise.all([
+          loadRestaurants(),
+          loadOrders(orderFilters),
+          refreshUser(),
+        ]);
+      } catch (error) {
+        console.error('Dashboard: Initial load error:', error);
+      }
+    };
+
+    fetchData();
+  }, []);
+
   const onRefresh = async () => {
     setRefreshing(true);
     try {
