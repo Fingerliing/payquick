@@ -28,8 +28,8 @@ export interface CreateTablesResponse {
 
 class TableService {
   /**
-   * Crée plusieurs tables pour un restaurant
-   */
+  * Crée plusieurs tables pour un restaurant
+  */
   async createTables(
     restaurantId: string, 
     tableCount: number, 
@@ -37,7 +37,7 @@ class TableService {
     capacity: number = 4
   ): Promise<Table[]> {
     try {
-      const response = await apiClient.post<CreateTablesResponse>('api/v1/table/bulk-create/', {
+      const response = await apiClient.post<CreateTablesResponse>('api/v1/table/bulk_create/', {
         restaurant_id: restaurantId,
         table_count: tableCount,
         start_number: startNumber,
@@ -47,22 +47,45 @@ class TableService {
       return response.tables.map(table => this.normalizeTableData(table));
     } catch (error: any) {
       console.error('❌ Erreur création tables:', error);
+      
+      // Gestion spécifique des erreurs 400 (conflit de numéros de tables)
+      if (error.response?.status === 400) {
+        const errorData = error.response.data;
+        
+        // Messages d'erreur plus explicites selon le type de conflit
+        if (errorData.error && errorData.error.includes('exist')) {
+          throw new Error(`Des tables avec ces numéros existent déjà. Choisissez d'autres numéros de départ ou chargez les tables existantes.`);
+        } else if (errorData.detail && errorData.detail.includes('exist')) {
+          throw new Error(`Conflit détecté : ${errorData.detail}`);
+        } else if (errorData.message && errorData.message.includes('exist')) {
+          throw new Error(`Conflit : ${errorData.message}`);
+        } else {
+          throw new Error(`Erreur 400 : ${errorData.error || errorData.detail || errorData.message || 'Données invalides'}`);
+        }
+      }
+      
+      // Pour les autres erreurs
       throw new Error(error.message || 'Erreur lors de la création des tables');
     }
   }
 
   /**
-   * Récupère les tables d'un restaurant
-   */
+  * Récupère les tables d'un restaurant
+  */
   async getRestaurantTables(restaurantId: string): Promise<Table[]> {
     try {
-      const response = await apiClient.get<Table[]>(`api/v1/restaurants/${restaurantId}/table/`);
-      return Array.isArray(response) 
-        ? response.map(table => this.normalizeTableData(table))
+      // appeler le bon endpoint
+      const response = await apiClient.get(`api/v1/table/restaurants/${restaurantId}/tables/`);
+      // extraire la liste des tables
+      const tables = Array.isArray((response as any).tables)
+        ? (response as any).tables
         : [];
+      return tables.map(this.normalizeTableData);
     } catch (error: any) {
-      console.error('❌ Erreur récupération tables:', error);
-      throw new Error(error.message || 'Erreur lors de la récupération des tables');
+      if (error.response?.status === 404) {
+        return []; // aucune table pour ce restaurant
+      }
+      throw new Error(error.message || "Erreur lors de la récupération des tables");
     }
   }
 
@@ -121,7 +144,7 @@ class TableService {
    */
   async toggleTableStatus(id: string): Promise<Table> {
     try {
-      const response = await apiClient.post<Table>(`api/v1/table/${id}/toggle-status/`);
+      const response = await apiClient.post<Table>(`api/v1/table/${id}/toggle_status/`);
       return this.normalizeTableData(response);
     } catch (error: any) {
       console.error('❌ Erreur changement statut table:', error);
@@ -134,7 +157,7 @@ class TableService {
    */
   async generateQRCode(tableId: string): Promise<{ qr_code_url: string; manual_code: string }> {
     try {
-      const response = await apiClient.post(`api/v1/table/${tableId}/generate-qr/`) as any;
+      const response = await apiClient.post(`api/v1/table/${tableId}/generate_qr/`) as any;
       return response;
     } catch (error: any) {
       console.error('❌ Erreur génération QR code:', error);
@@ -147,7 +170,7 @@ class TableService {
    */
   async getTableByIdentifiant(identifiant: string) {
     try {
-      const response = await apiClient.get(`api/v1/table/public/${identifiant}/`);
+      const response = await apiClient.get(`api/v1/table/${identifiant}/`);
       return response;
     } catch (error: any) {
       console.error('❌ Erreur récupération table publique:', error);
@@ -160,7 +183,7 @@ class TableService {
    */
   async exportQRCodesPDF(restaurantId: string): Promise<Blob> {
     try {
-      const response = await apiClient.get(`api/v1/restaurants/${restaurantId}/table/export-qr/`, {
+      const response = await apiClient.get(`api/v1/table/restaurants/${restaurantId}/export_qr/`, {
         responseType: 'blob'
       }) as any;
       return response;

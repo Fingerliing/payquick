@@ -537,10 +537,34 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
       const tables = await tableService.getRestaurantTables(restaurantId) as any;
       console.log('✅ RestaurantContext: Tables loaded:', tables.length);
       
-      return tables;
+      return Array.isArray(tables) ? tables : [];
     } catch (error: any) {
       console.error('❌ RestaurantContext: Load tables error:', error);
-      dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors du chargement des tables' });
+      
+      // Si erreur 404, cela signifie qu'il n'y a pas de tables pour ce restaurant
+      // C'est un comportement normal, pas une vraie erreur
+      if (error.response?.status === 404 || error.message?.includes('404')) {
+        console.log('📝 Aucune table trouvée pour ce restaurant (404 - comportement normal)');
+        return []; // Retourner un tableau vide au lieu de lancer une erreur
+      }
+      
+      // Pour les autres erreurs, on lance bien l'erreur
+      let errorMessage = 'Erreur lors du chargement des tables';
+      
+      if (error.response?.data) {
+        const errorData = error.response.data;
+        if (errorData.error) {
+          errorMessage = errorData.error;
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        } else if (errorData.detail) {
+          errorMessage = errorData.detail;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      dispatch({ type: 'SET_ERROR', payload: errorMessage });
       throw error;
     }
   };

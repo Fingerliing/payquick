@@ -801,7 +801,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
     def tables(self, request, pk=None):
         """Liste des tables d'un restaurant"""
         restaurant = self.get_object()
-        tables = Table.objects.filter(restaurant=restaurant).order_by('identifiant')
+        tables = Table.objects.filter(restaurant=restaurant).order_by('id')
         
         tables_data = []
         for table in tables:

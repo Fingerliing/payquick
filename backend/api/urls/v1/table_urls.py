@@ -6,6 +6,6 @@ router = DefaultRouter()
 router.register(r'', TableViewSet, basename='table')
 router.register(r'restaurants', RestaurantTableManagementViewSet, basename='restaurant-tables')
 
-urlpatterns = [
+urlpatterns = router.urls + [
     path('<str:identifiant>/', TableQRRouterView.as_view(), name='table_qr_router'),
 ]

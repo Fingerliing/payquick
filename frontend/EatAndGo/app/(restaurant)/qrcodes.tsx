@@ -28,11 +28,46 @@ import { COLORS } from '@/constants/config';
 
 const { width } = Dimensions.get('window');
 
+// Import du logo de l'application
+const APP_LOGO = require('@/assets/images/logo.png');
+
+// Types pour les tailles de QR code optimisées pour l'impression
+type QRSize = 'small' | 'medium' | 'large';
+
+interface QRSizeConfig {
+  label: string;
+  displaySize: number;
+  printSize: number;
+  logoSize: number;
+}
+
+const QR_SIZES: Record<QRSize, QRSizeConfig> = {
+  small: {
+    label: 'Petit (12/page)',
+    displaySize: 100,
+    printSize: 90,
+    logoSize: 16,
+  },
+  medium: {
+    label: 'Moyen (6/page)',
+    displaySize: 120,
+    printSize: 110,
+    logoSize: 20,
+  },
+  large: {
+    label: 'Grand (4/page)',
+    displaySize: 140,
+    printSize: 130,
+    logoSize: 24,
+  },
+};
+
 export default function QRCodesScreen() {
   const { 
     restaurants, 
     createTables, 
     loadRestaurantTables, 
+    deleteTable,
     isLoading,
     error 
   } = useRestaurant();
@@ -46,12 +81,41 @@ export default function QRCodesScreen() {
   const [showRestaurantPicker, setShowRestaurantPicker] = useState(false);
   const [previewTable, setPreviewTable] = useState<Table | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [existingTablesCount, setExistingTablesCount] = useState(0);
+  const [qrSize, setQrSize] = useState<QRSize>('medium');
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
 
   useEffect(() => {
     if (restaurants.length === 1) {
       setSelectedRestaurant(restaurants[0].id);
     }
   }, [restaurants]);
+
+  useEffect(() => {
+    if (selectedRestaurant) {
+      checkExistingTables();
+    }
+  }, [selectedRestaurant]);
+
+  const checkExistingTables = async () => {
+    if (!selectedRestaurant) return;
+    
+    try {
+      const existingTables = await loadRestaurantTables(selectedRestaurant);
+      const tablesArray = Array.isArray(existingTables) ? existingTables : [];
+      setExistingTablesCount(tablesArray.length);
+    } catch (error: any) {
+      // Si erreur 404, cela signifie qu'il n'y a pas de tables
+      if (error.message?.includes('404') || error.response?.status === 404) {
+        console.log('Info: Aucune table trouvée pour ce restaurant (404 - normal)');
+        setExistingTablesCount(0);
+      } else {
+        console.log('Info: Erreur lors de la vérification des tables existantes:', error.message);
+        setExistingTablesCount(0);
+      }
+    }
+  };
 
   const selectedRestaurantData = restaurants.find((r: Restaurant) => r.id === selectedRestaurant);
 
@@ -72,13 +136,196 @@ export default function QRCodesScreen() {
       );
     } catch (error: any) {
       console.error('Erreur lors de la génération des tables:', error);
-      Alert.alert(
-        'Erreur', 
-        error.message || 'Erreur lors de la génération des QR codes'
-      );
+      
+      // Gestion spécifique des erreurs de conflit
+      if (error.message.includes('400') || error.message.includes('exist') || error.message.includes('conflit')) {
+        Alert.alert(
+          'Conflit détecté', 
+          'Certaines tables existent déjà avec ces numéros. Voulez-vous :',
+          [
+            {
+              text: 'Remplacer',
+              onPress: () => handleReplaceTables(),
+              style: 'destructive'
+            },
+            {
+              text: 'Charger existantes',
+              onPress: () => loadExistingTables()
+            },
+            {
+              text: 'Autres numéros',
+              onPress: () => suggestNewStartNumber()
+            },
+            {
+              text: 'Annuler',
+              style: 'cancel'
+            }
+          ]
+        );
+      } else {
+        Alert.alert(
+          'Erreur', 
+          error.message || 'Erreur lors de la génération des QR codes'
+        );
+      }
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const handleReplaceTables = async () => {
+    if (!selectedRestaurant) return;
+
+    Alert.alert(
+      'Confirmer le remplacement',
+      `Voulez-vous vraiment remplacer les tables existantes ?\n\nCette action va :\n• Supprimer toutes les tables existantes\n• Créer ${tableCount} nouvelles tables (${startNumber} à ${startNumber + tableCount - 1})\n\nCette action est irréversible.`,
+      [
+        {
+          text: 'Annuler',
+          style: 'cancel'
+        },
+        {
+          text: 'Remplacer',
+          style: 'destructive',
+          onPress: async () => {
+            setIsGenerating(true);
+            try {
+              // 1. Charger les tables existantes
+              const existingTables = await loadRestaurantTables(selectedRestaurant);
+              const tablesArray = Array.isArray(existingTables) ? existingTables : [];
+              
+              if (tablesArray.length > 0) {
+                // 2. Supprimer toutes les tables existantes
+                console.log(`🗑️ Suppression de ${tablesArray.length} tables existantes...`);
+                const deletePromises = tablesArray.map(table => deleteTable(table.id));
+                await Promise.all(deletePromises);
+                console.log('✅ Toutes les tables existantes ont été supprimées');
+              }
+              
+              // 3. Créer les nouvelles tables
+              console.log(`📝 Création de ${tableCount} nouvelles tables...`);
+              const newTables = await createTables(selectedRestaurant, tableCount, startNumber);
+              
+              // 4. Mettre à jour l'état
+              setGeneratedTables(newTables);
+              setExistingTablesCount(newTables.length);
+              
+              Alert.alert(
+                'Remplacement réussi', 
+                `${tablesArray.length > 0 ? `${tablesArray.length} tables supprimées et ` : ''}${newTables.length} nouvelles tables créées avec succès !`,
+                [{ text: 'OK' }]
+              );
+              
+            } catch (error: any) {
+              console.error('❌ Erreur lors du remplacement:', error);
+              
+              let errorMessage = 'Erreur lors du remplacement des tables';
+              if (error.message) {
+                errorMessage = error.message;
+              }
+              
+              Alert.alert('Erreur', errorMessage);
+            } finally {
+              setIsGenerating(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const loadExistingTables = async () => {
+    if (!selectedRestaurant) return;
+    
+    try {
+      setIsGenerating(true);
+      const existingTables = await loadRestaurantTables(selectedRestaurant);
+      const tablesArray = Array.isArray(existingTables) ? existingTables : [];
+      
+      if (tablesArray.length > 0) {
+        setGeneratedTables(tablesArray);
+        setExistingTablesCount(tablesArray.length);
+        Alert.alert(
+          'Tables chargées', 
+          `${tablesArray.length} tables existantes ont été chargées.`,
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert('Aucune table', 'Aucune table trouvée pour ce restaurant.');
+        setExistingTablesCount(0);
+      }
+    } catch (error: any) {
+      console.error('Erreur chargement tables:', error);
+      
+      // Si erreur 404, cela signifie qu'il n'y a pas de tables
+      if (error.message?.includes('404') || error.response?.status === 404) {
+        Alert.alert('Aucune table', 'Aucune table trouvée pour ce restaurant.');
+        setExistingTablesCount(0);
+      } else {
+        Alert.alert('Erreur', 'Impossible de charger les tables existantes.');
+      }
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const suggestNewStartNumber = async () => {
+    if (!selectedRestaurant) return;
+    
+    try {
+      const existingTables = await loadRestaurantTables(selectedRestaurant);
+      const tablesArray = Array.isArray(existingTables) ? existingTables : [];
+      
+      if (tablesArray.length > 0) {
+        // Trouver le numéro de table le plus élevé
+        const maxNumber = Math.max(...tablesArray.map(t => parseInt(t.number) || 0));
+        const suggestedStart = maxNumber + 1;
+        
+        Alert.alert(
+          'Numéro suggéré',
+          `Il y a déjà ${tablesArray.length} tables (jusqu'au numéro ${maxNumber}).\n\nCommencer au numéro ${suggestedStart} ?`,
+          [
+            {
+              text: 'Oui',
+              onPress: () => {
+                setStartNumber(suggestedStart);
+                Alert.alert('Numéro mis à jour', `Le numéro de départ a été changé pour ${suggestedStart}. Vous pouvez maintenant générer les tables.`);
+              }
+            },
+            {
+              text: 'Choisir autre',
+              onPress: () => promptForStartNumber()
+            },
+            { text: 'Annuler', style: 'cancel' }
+          ]
+        );
+      } else {
+        setStartNumber(1);
+        Alert.alert('Info', 'Aucune table existante trouvée. Le numéro de départ reste à 1.');
+      }
+    } catch (error: any) {
+      // Si erreur 404, cela signifie qu'il n'y a pas de tables
+      if (error.message?.includes('404') || error.response?.status === 404) {
+        setStartNumber(1);
+        Alert.alert('Info', 'Aucune table existante trouvée. Vous pouvez commencer au numéro 1.');
+      } else {
+        Alert.alert('Erreur', 'Impossible de vérifier les tables existantes.');
+      }
+    }
+  };
+
+  const promptForStartNumber = () => {
+    // Solution compatible avec Android et iOS
+    Alert.alert(
+      'Choisir un numéro',
+      'Utilisez les boutons +/- dans les paramètres pour ajuster le numéro de départ, puis générez à nouveau.',
+      [
+        { 
+          text: 'Compris', 
+          onPress: () => setShowSettings(true)  // Ouvre les paramètres avancés
+        }
+      ]
+    );
   };
 
   const handleShareTable = async (table: Table) => {
@@ -94,64 +341,87 @@ export default function QRCodesScreen() {
     }
   };
 
-  const generatePrintHTML = (tables: Table[]) => {
-    const tablesHTML = tables.map(table => `
+  // Fonction pour générer un QR code avec le vrai logo
+  const generateQRCodeSVG = (url: string, size: number, logoSize: number) => {
+    const qrData = encodeURIComponent(url);
+    const logoPosition = (size - logoSize) / 2;
+    
+    return `
+      <div style="position: relative; width: ${size}px; height: ${size}px; margin: 0 auto;">
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${qrData}&format=png" 
+             width="${size}" height="${size}" 
+             style="display: block;" 
+             alt="QR Code" />
+        <img src="${APP_LOGO}" 
+             style="
+               position: absolute;
+               top: ${logoPosition}px;
+               left: ${logoPosition}px;
+               width: ${logoSize}px;
+               height: ${logoSize}px;
+               background: white;
+               border-radius: 4px;
+               padding: 2px;
+               border: 2px solid white;
+               box-shadow: 0 0 0 1px #ddd;
+             " 
+             alt="Logo" />
+      </div>
+    `;
+  };
+
+  const generatePrintHTML = (tables: Table[], size: QRSize = qrSize) => {
+    const sizeConfig = QR_SIZES[size];
+    const cardWidth = sizeConfig.printSize + 40; // Réduction de padding
+    const cardHeight = sizeConfig.printSize + 80; // Hauteur minimale
+    
+    // Calculer le nombre de colonnes selon la taille
+    const pageWidth = 210; // A4 width in mm
+    const columns = Math.floor((pageWidth - 20) / (cardWidth * 0.264583)); // Convert px to mm
+    
+    const tablesHTML = tables.map((table, index) => `
       <div style="
-        page-break-inside: avoid;
+        display: inline-block;
+        vertical-align: top;
         text-align: center;
-        margin-bottom: 40px;
-        padding: 20px;
-        border: 2px solid #000;
-        border-radius: 10px;
+        margin: 5px;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
         background: white;
-        width: 250px;
-        margin: 20px auto;
+        width: ${cardWidth}px;
+        height: ${cardHeight}px;
+        page-break-inside: avoid;
+        ${(index + 1) % columns === 0 ? 'page-break-after: auto;' : ''}
       ">
         <div style="
-          font-size: 24px;
+          font-size: 14px;
           font-weight: bold;
-          color: #059669;
-          margin-bottom: 10px;
-        ">Eat&Go</div>
-        
-        <div style="
-          font-size: 18px;
-          font-weight: bold;
-          margin: 10px 0;
+          margin-bottom: 8px;
+          color: #111827;
         ">Table ${table.number}</div>
         
-        <div style="
-          width: 150px;
-          height: 150px;
-          margin: 15px auto;
-          border: 1px solid #ddd;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: #f9f9f9;
-          font-size: 12px;
-        ">
-          QR CODE<br/>${table.identifiant}
+        <div style="margin-bottom: 8px;">
+          ${generateQRCodeSVG(table.qrCodeUrl, sizeConfig.printSize, sizeConfig.logoSize)}
         </div>
         
         <div style="
-          font-size: 14px;
+          font-size: 10px;
           color: #666;
-          margin-top: 15px;
-          padding: 10px;
-          background: #f3f4f6;
-          border-radius: 5px;
+          background: #f8f9fa;
+          padding: 4px 6px;
+          border-radius: 4px;
+          margin-bottom: 4px;
         ">
-          <strong>Code manuel :</strong><br/>
-          <span style="font-family: monospace; font-size: 16px; font-weight: bold;">${table.manualCode}</span>
+          <span style="font-family: monospace; font-weight: bold; font-size: 11px;">${table.manualCode}</span>
         </div>
         
         <div style="
-          font-size: 12px;
+          font-size: 8px;
           color: #999;
-          margin-top: 10px;
+          line-height: 1.2;
         ">
-          Scannez le QR code ou saisissez le code manuel
+          Scanner ou saisir le code
         </div>
       </div>
     `).join('');
@@ -163,49 +433,131 @@ export default function QRCodesScreen() {
           <meta charset="utf-8">
           <title>QR Codes - ${selectedRestaurantData?.name}</title>
           <style>
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
             body {
               font-family: Arial, sans-serif;
-              margin: 0;
-              padding: 20px;
+              padding: 10px;
               background: white;
+              font-size: 12px;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 15px;
+              page-break-after: avoid;
+            }
+            .header h1 {
+              font-size: 16px;
+              color: #059669;
+              margin-bottom: 5px;
+            }
+            .header p {
+              font-size: 10px;
+              color: #666;
+            }
+            .qr-container {
+              text-align: center;
+              line-height: 1;
             }
             @media print {
-              body { padding: 10px; }
-              .table-page { page-break-after: always; }
+              body { 
+                padding: 5mm;
+                font-size: 10px;
+              }
+              .header h1 {
+                font-size: 14px;
+              }
+              .no-break {
+                page-break-inside: avoid;
+              }
             }
           </style>
         </head>
         <body>
-          <h1 style="text-align: center; color: #059669; margin-bottom: 30px;">
-            QR Codes - ${selectedRestaurantData?.name}
-          </h1>
-          ${tablesHTML}
+          <div class="header">
+            <h1>QR Codes - ${selectedRestaurantData?.name}</h1>
+            <p>Taille: ${QR_SIZES[size].label} • ${tables.length} table${tables.length > 1 ? 's' : ''}</p>
+          </div>
+          <div class="qr-container">
+            ${tablesHTML}
+          </div>
         </body>
       </html>
     `;
   };
 
+  // Fonction pour imprimer (dialogue natif)
   const handlePrintAll = async () => {
     if (generatedTables.length === 0) return;
 
+    setIsPrinting(true);
     try {
       const html = generatePrintHTML(generatedTables);
-      const { uri } = await Print.printToFileAsync({ html });
-      await Sharing.shareAsync(uri);
+      await Print.printAsync({
+        html,
+        printerUrl: undefined, // Laisse le système choisir l'imprimante
+      });
     } catch (error) {
       console.error('Erreur impression:', error);
-      Alert.alert('Erreur', 'Impossible de générer le PDF');
+      Alert.alert('Erreur', 'Impossible d\'imprimer les QR codes');
+    } finally {
+      setIsPrinting(false);
     }
   };
 
   const handlePrintSingle = async (table: Table) => {
+    setIsPrinting(true);
+    try {
+      const html = generatePrintHTML([table]);
+      await Print.printAsync({
+        html,
+        printerUrl: undefined,
+      });
+    } catch (error) {
+      console.error('Erreur impression:', error);
+      Alert.alert('Erreur', 'Impossible d\'imprimer le QR code');
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
+  // Fonction pour télécharger (PDF)
+  const handleDownloadAll = async () => {
+    if (generatedTables.length === 0) return;
+
+    setIsDownloading(true);
+    try {
+      const html = generatePrintHTML(generatedTables);
+      const { uri } = await Print.printToFileAsync({ html });
+      await Sharing.shareAsync(uri, {
+        UTI: '.pdf',
+        mimeType: 'application/pdf',
+      });
+    } catch (error) {
+      console.error('Erreur téléchargement:', error);
+      Alert.alert('Erreur', 'Impossible de générer le PDF');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const handleDownloadSingle = async (table: Table) => {
+    setIsDownloading(true);
     try {
       const html = generatePrintHTML([table]);
       const { uri } = await Print.printToFileAsync({ html });
-      await Sharing.shareAsync(uri);
+      await Sharing.shareAsync(uri, {
+        UTI: '.pdf',
+        mimeType: 'application/pdf',
+      });
     } catch (error) {
-      console.error('Erreur impression:', error);
+      console.error('Erreur téléchargement:', error);
       Alert.alert('Erreur', 'Impossible de générer le PDF');
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -287,17 +639,51 @@ export default function QRCodesScreen() {
     </Modal>
   );
 
+  const renderQRSizePicker = () => (
+    <View style={{ marginBottom: 16 }}>
+      <Text style={{
+        fontSize: 12,
+        color: '#6B7280',
+        marginBottom: 8,
+        fontWeight: '500',
+      }}>
+        Taille du QR Code
+      </Text>
+      <View style={{
+        flexDirection: 'row',
+        backgroundColor: '#F3F4F6',
+        borderRadius: 8,
+        padding: 4,
+      }}>
+        {(Object.keys(QR_SIZES) as QRSize[]).map((size) => (
+          <TouchableOpacity
+            key={size}
+            onPress={() => setQrSize(size)}
+            style={{
+              flex: 1,
+              paddingVertical: 8,
+              paddingHorizontal: 12,
+              borderRadius: 6,
+              backgroundColor: qrSize === size ? '#FFFFFF' : 'transparent',
+              alignItems: 'center',
+            }}
+          >
+            <Text style={{
+              fontSize: 14,
+              fontWeight: qrSize === size ? '600' : '400',
+              color: qrSize === size ? '#111827' : '#6B7280',
+            }}>
+              {QR_SIZES[size].label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+
   const renderTableCard = (table: Table) => (
     <Card key={table.id} style={{ marginBottom: 16 }}>
       <View style={{ alignItems: 'center', padding: 16 }}>
-        <Text style={{
-          fontSize: 20,
-          fontWeight: 'bold',
-          color: '#059669',
-          marginBottom: 8,
-        }}>
-          Eat&Go
-        </Text>
         <Text style={{
           fontSize: 18,
           fontWeight: '600',
@@ -309,9 +695,15 @@ export default function QRCodesScreen() {
         <View style={{ marginBottom: 16 }}>
           <QRCode
             value={table.qrCodeUrl}
-            size={120}
+            size={QR_SIZES[qrSize].displaySize}
             backgroundColor="#FFFFFF"
             color="#000000"
+            logo={APP_LOGO}
+            logoSize={QR_SIZES[qrSize].logoSize}
+            logoBackgroundColor="#FFFFFF"
+            logoMargin={2}
+            logoBorderRadius={4}
+            quietZone={4}
           />
         </View>
         
@@ -370,13 +762,31 @@ export default function QRCodesScreen() {
             size="small"
             style={{ flex: 1 }}
           />
-          
+        </View>
+
+        <View style={{ 
+          flexDirection: 'row', 
+          justifyContent: 'space-around', 
+          width: '100%',
+          gap: 8,
+          marginTop: 8,
+        }}>
           <Button
             title="Imprimer"
             onPress={() => handlePrintSingle(table)}
             variant="outline"
             size="small"
             style={{ flex: 1 }}
+            loading={isPrinting}
+          />
+          
+          <Button
+            title="Télécharger"
+            onPress={() => handleDownloadSingle(table)}
+            variant="outline"
+            size="small"
+            style={{ flex: 1 }}
+            loading={isDownloading}
           />
         </View>
       </View>
@@ -406,14 +816,6 @@ export default function QRCodesScreen() {
             width: '100%',
           }}>
             <Text style={{
-              fontSize: 24,
-              fontWeight: 'bold',
-              color: '#059669',
-              marginBottom: 8,
-            }}>
-              Eat&Go
-            </Text>
-            <Text style={{
               fontSize: 20,
               fontWeight: '600',
               marginBottom: 16,
@@ -427,6 +829,12 @@ export default function QRCodesScreen() {
                 size={150}
                 backgroundColor="#FFFFFF"
                 color="#000000"
+                logo={APP_LOGO}
+                logoSize={30}
+                logoBackgroundColor="#FFFFFF"
+                logoMargin={2}
+                logoBorderRadius={4}
+                quietZone={4}
               />
             </View>
             
@@ -525,6 +933,28 @@ export default function QRCodesScreen() {
               Créez des QR codes pour vos tables et permettez à vos clients de scanner ou saisir un code manuel pour accéder au menu.
             </Text>
 
+            {/* Indication des tables existantes */}
+            {selectedRestaurant && existingTablesCount > 0 && (
+              <View style={{
+                backgroundColor: '#FEF3C7',
+                padding: 12,
+                borderRadius: 8,
+                marginBottom: 16,
+                flexDirection: 'row',
+                alignItems: 'center',
+              }}>
+                <Ionicons name="information-circle-outline" size={20} color="#D97706" />
+                <Text style={{
+                  fontSize: 14,
+                  color: '#92400E',
+                  marginLeft: 8,
+                  flex: 1,
+                }}>
+                  {existingTablesCount} table{existingTablesCount > 1 ? 's' : ''} existe{existingTablesCount > 1 ? 'nt' : ''} déjà pour ce restaurant
+                </Text>
+              </View>
+            )}
+
             {/* Sélection du restaurant */}
             <TouchableOpacity
               onPress={() => setShowRestaurantPicker(true)}
@@ -556,6 +986,9 @@ export default function QRCodesScreen() {
               </View>
               <Ionicons name="chevron-down-outline" size={20} color="#6B7280" />
             </TouchableOpacity>
+
+            {/* Sélecteur de taille de QR Code */}
+            {renderQRSizePicker()}
 
             {/* Configuration du nombre de tables */}
             <View style={{
@@ -678,22 +1111,55 @@ export default function QRCodesScreen() {
 
             {/* Boutons d'action */}
             <View style={{ gap: 12 }}>
-              <Button
-                title={isGenerating ? 'Génération...' : 'Générer les QR Codes'}
-                onPress={handleGenerateTables}
-                loading={isGenerating}
-                disabled={!selectedRestaurant}
-                variant="primary"
-                fullWidth
-              />
-
-              {generatedTables.length > 0 && (
+              <View style={{ flexDirection: 'row', gap: 12 }}>
                 <Button
-                  title="Imprimer tout (PDF)"
-                  onPress={handlePrintAll}
-                  variant="secondary"
+                  title={isGenerating ? 'Génération...' : 'Générer les QR Codes'}
+                  onPress={handleGenerateTables}
+                  loading={isGenerating}
+                  disabled={!selectedRestaurant}
+                  variant="primary"
+                  style={{ flex: 2 }}
+                />
+
+                {selectedRestaurant && existingTablesCount > 0 && (
+                  <Button
+                    title="Remplacer"
+                    onPress={handleReplaceTables}
+                    loading={isGenerating}
+                    disabled={!selectedRestaurant}
+                    variant="destructive"
+                    style={{ flex: 1 }}
+                  />
+                )}
+              </View>
+
+              {selectedRestaurant && (
+                <Button
+                  title="Charger les tables existantes"
+                  onPress={loadExistingTables}
+                  loading={isGenerating}
+                  variant="outline"
                   fullWidth
                 />
+              )}
+
+              {generatedTables.length > 0 && (
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                  <Button
+                    title={isPrinting ? 'Impression...' : 'Imprimer tout'}
+                    onPress={handlePrintAll}
+                    variant="secondary"
+                    style={{ flex: 1 }}
+                    loading={isPrinting}
+                  />
+                  <Button
+                    title={isDownloading ? 'Téléchargement...' : 'Télécharger PDF'}
+                    onPress={handleDownloadAll}
+                    variant="outline"
+                    style={{ flex: 1 }}
+                    loading={isDownloading}
+                  />
+                </View>
               )}
             </View>
           </View>
@@ -732,6 +1198,20 @@ export default function QRCodesScreen() {
                   color: '#6B7280',
                 }}>
                   {selectedRestaurantData.address}, {selectedRestaurantData.city}
+                </Text>
+              </View>
+              <View style={{
+                backgroundColor: '#F3F4F6',
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                borderRadius: 4,
+              }}>
+                <Text style={{
+                  fontSize: 10,
+                  color: '#6B7280',
+                  fontWeight: '500',
+                }}>
+                  {QR_SIZES[qrSize].label}
                 </Text>
               </View>
             </View>
@@ -808,9 +1288,10 @@ export default function QRCodesScreen() {
                   lineHeight: 18,
                 }}>
                   • Choisissez votre restaurant{'\n'}
+                  • Sélectionnez la taille des QR codes{'\n'}
                   • Indiquez le nombre de tables{'\n'}
                   • Générez les QR codes{'\n'}
-                  • Partagez ou imprimez{'\n'}
+                  • Imprimez ou téléchargez en PDF{'\n'}
                   • Vos clients pourront scanner ou saisir le code manuel
                 </Text>
               </View>
