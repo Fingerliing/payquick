@@ -22,56 +22,77 @@ export default function MenusScreen() {
   const [menus, setMenus] = useState<Menu[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [togglingMenuId, setTogglingMenuId] = useState<number | null>(null);
 
   useEffect(() => {
     loadMenus();
   }, []);
 
-  const loadMenus = async () => {
-    setIsLoading(true);
+  const loadMenus = async (showLoading = true) => {
+    if (showLoading) setIsLoading(true);
     try {
       const myMenus = await menuService.getMyMenus();
       setMenus(myMenus);
     } catch (error) {
-      Alert.alert('Erreur', 'Impossible de charger les menus');
       console.error('Erreur lors du chargement des menus:', error);
+      Alert.alert('Erreur', 'Impossible de charger les menus');
     } finally {
-      setIsLoading(false);
+      if (showLoading) setIsLoading(false);
     }
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadMenus();
+    await loadMenus(false);
     setRefreshing(false);
   };
 
+  /**
+   * Version améliorée du toggle avec meilleure gestion d'état
+   */
   const handleToggleMenu = async (menu: Menu) => {
+    if (togglingMenuId) return; // Évite les clics multiples
+
+    setTogglingMenuId(menu.id);
+
     try {
       const result = await menuService.toggleMenuAvailability(menu.id);
-      setMenus(prevMenus =>
-        prevMenus.map(m => 
-          m.id === menu.id 
-            ? { ...m, disponible: result.disponible }
-            : { ...m, disponible: false }
-        )
-      );
+
+      // Rechargement complet des menus pour éviter les incohérences
+      await loadMenus(false);
+      
       Alert.alert(
         'Succès', 
-        result.disponible 
-          ? 'Menu activé avec succès' 
-          : 'Menu désactivé avec succès'
+        result.message || (result.is_available 
+          ? 'Menu activé avec succès (les autres menus ont été désactivés)'
+          : 'Menu désactivé avec succès')
       );
-    } catch (error) {
-      Alert.alert('Erreur', 'Impossible de modifier le menu');
-      console.error('Erreur lors de la modification du menu:', error);
+
+    } catch (error: any) {
+      console.error('Erreur lors du toggle:', error);
+      
+      // Message d'erreur plus détaillé
+      let errorMessage = 'Impossible de modifier le menu';
+      if (error?.response?.status === 403) {
+        errorMessage = 'Vous n\'avez pas les permissions pour modifier ce menu';
+      } else if (error?.response?.status === 404) {
+        errorMessage = 'Menu non trouvé';
+      } else if (error?.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      Alert.alert('Erreur', errorMessage);
+    } finally {
+      setTogglingMenuId(null);
     }
   };
 
   const handleDeleteMenu = async (menu: Menu) => {
     Alert.alert(
       'Confirmer la suppression',
-      `Êtes-vous sûr de vouloir supprimer le menu "${menu.name}" ?`,
+      `Êtes-vous sûr de vouloir supprimer le menu "${menu.name}" ?\n\nCette action est irréversible.`,
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -82,9 +103,12 @@ export default function MenusScreen() {
               await menuService.deleteMenu(menu.id);
               setMenus(prevMenus => prevMenus.filter(m => m.id !== menu.id));
               Alert.alert('Succès', 'Menu supprimé avec succès');
-            } catch (error) {
-              Alert.alert('Erreur', 'Impossible de supprimer le menu');
+            } catch (error: any) {
               console.error('Erreur lors de la suppression du menu:', error);
+              Alert.alert(
+                'Erreur', 
+                error?.response?.data?.detail || 'Impossible de supprimer le menu'
+              );
             }
           }
         }
@@ -99,6 +123,7 @@ export default function MenusScreen() {
       onEdit={() => router.push(`/menu/edit/${item.id}` as any)}
       onToggle={() => handleToggleMenu(item)}
       onDelete={() => handleDeleteMenu(item)}
+      isToggling={togglingMenuId === item.id}
     />
   );
 
@@ -126,6 +151,10 @@ export default function MenusScreen() {
     );
   };
 
+  // Statistiques rapides
+  const activeMenusCount = menus.filter(m => m.is_available).length;
+  const totalMenusCount = menus.length;
+
   const containerStyle: ViewStyle = {
     flex: 1,
     backgroundColor: '#F9FAFB',
@@ -144,6 +173,24 @@ export default function MenusScreen() {
           }
         }}
       />
+
+      {/* Barre d'informations */}
+      {totalMenusCount > 0 && (
+        <View style={{ 
+          backgroundColor: '#FFFFFF', 
+          paddingHorizontal: 16, 
+          paddingVertical: 12, 
+          borderBottomWidth: 1, 
+          borderBottomColor: '#E5E7EB' 
+        }}>
+          <Text style={{ fontSize: 14, color: '#6B7280', textAlign: 'center' }}>
+            {activeMenusCount} menu(s) actif(s) sur {totalMenusCount}
+            {activeMenusCount > 1 && (
+              <Text style={{ color: '#EF4444' }}> ⚠️ Attention: plusieurs menus actifs</Text>
+            )}
+          </Text>
+        </View>
+      )}
 
       <FlatList
         data={menus}

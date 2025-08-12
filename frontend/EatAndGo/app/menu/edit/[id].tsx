@@ -16,17 +16,22 @@ export default function EditMenuScreen() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isToggling, setIsToggling] = useState(false);
 
   useEffect(() => {
     loadMenu();
   }, [id]);
 
   const loadMenu = async () => {
+    if (!id) return;
+    
     try {
-      const menuData = await menuService.getMenu(parseInt(id!));
+      setIsLoading(true);
+      const menuData = await menuService.getMenu(parseInt(id));
       setMenu(menuData);
-      setName(menuData.name);
+      setName(menuData.name || '');
     } catch (error) {
+      console.error('Erreur lors du chargement du menu:', error);
       Alert.alert('Erreur', 'Impossible de charger le menu');
       router.back();
     } finally {
@@ -40,34 +45,68 @@ export default function EditMenuScreen() {
       return;
     }
 
+    if (!id) return;
+
     setIsSaving(true);
     try {
-      await menuService.updateMenu(parseInt(id!), { name: name.trim() });
+      const updatedMenu = await menuService.updateMenu(parseInt(id), { name: name.trim() });
+      setMenu(updatedMenu);
       Alert.alert('Succès', 'Menu mis à jour avec succès');
-      router.back();
     } catch (error) {
+      console.error('Erreur lors de la sauvegarde:', error);
       Alert.alert('Erreur', 'Impossible de sauvegarder le menu');
-      console.error('Erreur lors de la sauvegarde du menu:', error);
     } finally {
       setIsSaving(false);
     }
   };
 
+  // Fonction pour déterminer si le menu est disponible (gestion legacy)
+  const isMenuAvailable = () => {
+    if (typeof menu?.is_available === 'boolean') {
+      return menu.is_available;
+    }
+    if (typeof (menu as any)?.disponible === 'boolean') {
+      return (menu as any).disponible;
+    }
+    return false;
+  };
+
   const handleToggleAvailability = async () => {
     if (!menu) return;
-    
+
+    setIsToggling(true);
     try {
       const result = await menuService.toggleMenuAvailability(menu.id);
-      setMenu(prev => prev ? { ...prev, disponible: result.disponible } : null);
+      
+      // Rechargement du menu pour avoir les données à jour
+      await loadMenu();
+      
+      // Afficher le message de succès
       Alert.alert(
         'Succès', 
-        result.disponible 
-          ? 'Menu activé avec succès (autres menus désactivés)' 
-          : 'Menu désactivé avec succès'
+        result.message || (result.is_available 
+          ? 'Menu activé avec succès (les autres menus ont été désactivés)'
+          : 'Menu désactivé avec succès')
       );
-    } catch (error) {
-      Alert.alert('Erreur', 'Impossible de modifier la disponibilité');
+      
+    } catch (error: any) {
       console.error('Erreur lors du toggle:', error);
+      
+      // Afficher un message d'erreur plus détaillé
+      let errorMessage = 'Impossible de modifier la disponibilité';
+      if (error?.response?.status === 403) {
+        errorMessage = 'Vous n\'avez pas les permissions pour modifier ce menu';
+      } else if (error?.response?.status === 404) {
+        errorMessage = 'Menu non trouvé';
+      } else if (error?.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      Alert.alert('Erreur', errorMessage);
+    } finally {
+      setIsToggling(false);
     }
   };
 
@@ -97,6 +136,8 @@ export default function EditMenuScreen() {
       </View>
     );
   }
+
+  const menuAvailable = isMenuAvailable();
 
   return (
     <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
@@ -133,16 +174,41 @@ export default function EditMenuScreen() {
           />
 
           <Text style={{ fontSize: 14, color: '#6B7280', marginTop: 12 }}>
-            Créé le {menu ? new Date(menu.created_at).toLocaleDateString('fr-FR', {
+            Créé le {new Date(menu.created_at).toLocaleDateString('fr-FR', {
               year: 'numeric',
               month: 'long',
               day: 'numeric',
               hour: '2-digit',
               minute: '2-digit'
-            }) : ''}
+            })}
             {'\n'}
-            {menu?.items.length || 0} plat(s) dans ce menu
+            {menu.items?.length || 0} plat(s) dans ce menu
           </Text>
+        </Card>
+
+        {/* État actuel */}
+        <Card style={{ marginBottom: 16 }}>
+          <View
+            style={{
+              backgroundColor: menuAvailable ? '#D1FAE5' : '#FEE2E2',
+              padding: 12,
+              borderRadius: 8,
+              marginBottom: 16,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 14,
+                color: menuAvailable ? '#065F46' : '#991B1B',
+                textAlign: 'center',
+                fontWeight: '500',
+              }}
+            >
+              {menuAvailable
+                ? '✅ Ce menu est actuellement visible par les clients'
+                : "⏸️ Ce menu n'est pas visible par les clients"}
+            </Text>
+          </View>
         </Card>
 
         {/* Actions sur le menu */}
@@ -151,48 +217,31 @@ export default function EditMenuScreen() {
             Actions
           </Text>
           
+          {/* Toggle principal */}
           <Button
-            title={menu?.disponible ? "Désactiver ce menu" : "Activer ce menu"}
+            title={menuAvailable ? 'Désactiver ce menu' : 'Activer ce menu'}
             onPress={handleToggleAvailability}
-            variant={menu?.disponible ? "secondary" : "primary"}
+            loading={isToggling}
+            variant={menuAvailable ? 'secondary' : 'primary'}
             fullWidth
-            leftIcon={menu?.disponible ? "pause-circle-outline" : "play-circle-outline"}
-            style={{ 
+            leftIcon={menuAvailable ? 'pause-circle-outline' : 'play-circle-outline'}
+            style={{
               marginBottom: 12,
-              backgroundColor: menu?.disponible ? '#EF4444' : '#10B981',
+              backgroundColor: menuAvailable ? '#EF4444' : '#10B981',
             }}
           />
 
           <Button
             title="Gérer les plats"
-            onPress={() => router.push(`/menu/${menu?.id}` as any)}
+            onPress={() => router.push(`/menu/${menu.id}` as any)}
             variant="outline"
             fullWidth
             leftIcon="restaurant-outline"
-            style={{ marginBottom: 12 }}
           />
-
-          <View style={{
-            backgroundColor: menu?.disponible ? '#D1FAE5' : '#FEE2E2',
-            padding: 12,
-            borderRadius: 8,
-          }}>
-            <Text style={{ 
-              fontSize: 12, 
-              color: menu?.disponible ? '#065F46' : '#991B1B',
-              textAlign: 'center',
-              fontWeight: '500'
-            }}>
-              {menu?.disponible 
-                ? '✅ Ce menu est actuellement visible par les clients' 
-                : '⏸️ Ce menu n\'est pas visible par les clients'
-              }
-            </Text>
-          </View>
         </Card>
 
         {/* Statistiques du menu */}
-        {menu && menu.items.length > 0 && (
+        {menu.items && menu.items.length > 0 && (
           <Card style={{ marginBottom: 32 }}>
             <Text style={{ fontSize: 18, fontWeight: '600', color: '#111827', marginBottom: 16 }}>
               Statistiques
@@ -210,7 +259,7 @@ export default function EditMenuScreen() {
               
               <View style={{ alignItems: 'center' }}>
                 <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#10B981' }}>
-                  {menu.items.filter(item => item.is_available).length}
+                  {menu.items.filter(item => item.is_available !== false).length}
                 </Text>
                 <Text style={{ fontSize: 12, color: '#6B7280', textAlign: 'center' }}>
                   Plats{'\n'}disponibles
@@ -219,7 +268,7 @@ export default function EditMenuScreen() {
               
               <View style={{ alignItems: 'center' }}>
                 <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#EF4444' }}>
-                  {menu.items.filter(item => !item.is_available).length}
+                  {menu.items.filter(item => item.is_available === false).length}
                 </Text>
                 <Text style={{ fontSize: 12, color: '#6B7280', textAlign: 'center' }}>
                   Plats{'\n'}indisponibles

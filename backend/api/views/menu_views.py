@@ -21,21 +21,79 @@ class MenuViewSet(viewsets.ModelViewSet):
         return Menu.objects.filter(restaurant__owner=self.request.user.restaurateur_profile)
     
     @extend_schema(
-        summary="Activer ce menu (et désactiver les autres)",
-        description="Rend ce menu disponible et désactive tous les autres menus du même restaurant.",
+        summary="Activer/désactiver ce menu",
+        description="Si le menu est inactif, l'active et désactive les autres. Si déjà actif, le désactive.",
         responses={
-            200: OpenApiResponse(description="Menu activé", response=MenuSerializer)
+            200: OpenApiResponse(description="État du menu modifié", response=MenuSerializer)
         }
     )
     @action(detail=True, methods=["post"])
     def toggle_is_available(self, request, pk=None):
         menu = self.get_object()
         restaurant = menu.restaurant
-        Menu.objects.filter(restaurant=restaurant).update(is_available=False)
+        
+        if menu.is_available:
+            # Si le menu est actif, le désactiver
+            menu.is_available = False
+            menu.save()
+        else:
+            # Si le menu est inactif, l'activer et désactiver les autres
+            Menu.objects.filter(restaurant=restaurant).update(is_available=False)
+            menu.is_available = True
+            menu.save()
+        
+        return Response({
+            "id": menu.id, 
+            "is_available": menu.is_available,
+            "message": "Menu activé avec succès" if menu.is_available else "Menu désactivé avec succès"
+        })
+
+    @extend_schema(
+        summary="Activer ce menu uniquement",
+        description="Active ce menu et désactive tous les autres du restaurant.",
+        responses={
+            200: OpenApiResponse(description="Menu activé", response=MenuSerializer)
+        }
+    )
+    @action(detail=True, methods=["post"])
+    def activate(self, request, pk=None):
+        """Action spécifique pour activer un menu (sans toggle)"""
+        menu = self.get_object()
+        restaurant = menu.restaurant
+        
+        # Désactiver tous les autres menus
+        Menu.objects.filter(restaurant=restaurant).exclude(id=menu.id).update(is_available=False)
+        
+        # Activer ce menu
         menu.is_available = True
         menu.save()
-        return Response({"id": menu.id, "is_available": menu.is_available}) 
+        
+        return Response({
+            "id": menu.id, 
+            "is_available": menu.is_available,
+            "message": "Menu activé avec succès"
+        })
 
+    @extend_schema(
+        summary="Désactiver ce menu",
+        description="Désactive ce menu spécifique.",
+        responses={
+            200: OpenApiResponse(description="Menu désactivé", response=MenuSerializer)
+        }
+    )
+    @action(detail=True, methods=["post"])
+    def deactivate(self, request, pk=None):
+        """Action spécifique pour désactiver un menu"""
+        menu = self.get_object()
+        menu.is_available = False
+        menu.save()
+        
+        return Response({
+            "id": menu.id, 
+            "is_available": menu.is_available,
+            "message": "Menu désactivé avec succès"
+        })
+    
 @extend_schema(tags=["Menu Items"])
 class MenuItemViewSet(viewsets.ModelViewSet):
     """

@@ -2,32 +2,53 @@ import { CreateMenuItemRequest, Menu, MenuItem, Allergen } from '@/types/menu';
 import { apiClient } from './api';
 
 export class MenuService {
+
+  /**
+   * Normalise les objets Menu provenant de l'API.
+   */
+  private normalizeMenu(raw: any): Menu {
+    if (raw && typeof raw === 'object') {
+      const hasIsAvailable = Object.prototype.hasOwnProperty.call(raw, 'is_available');
+      const hasDisponible = Object.prototype.hasOwnProperty.call(raw, 'disponible');
+      const normalized = { ...raw } as any;
+      if (!hasIsAvailable && hasDisponible) {
+        normalized.is_available = normalized.disponible;
+      }
+      return normalized as Menu;
+    }
+    return raw as Menu;
+  }
+
   /**
    * Récupérer tous les menus du restaurateur connecté
    */
   async getMyMenus(): Promise<Menu[]> {
-    return apiClient.get('/api/v1/menus/');
+    const menus = await apiClient.get('/api/v1/menus/');
+    return Array.isArray(menus) ? menus.map(menu => this.normalizeMenu(menu)) : [];
   }
 
   /**
    * Récupérer un menu spécifique avec ses items
    */
   async getMenu(id: number): Promise<Menu> {
-    return apiClient.get(`/api/v1/menus/${id}/`);
+    const menu = await apiClient.get(`/api/v1/menus/${id}/`);
+    return this.normalizeMenu(menu);
   }
 
   /**
    * Créer un nouveau menu
    */
   async createMenu(data: { name: string; restaurant: number }): Promise<Menu> {
-    return apiClient.post('/api/v1/menus/', data);
+    const menu = await apiClient.post('/api/v1/menus/', data);
+    return this.normalizeMenu(menu);
   }
 
   /**
    * Mettre à jour un menu
    */
   async updateMenu(id: number, data: Partial<Menu>): Promise<Menu> {
-    return apiClient.patch(`/api/v1/menus/${id}/`, data);
+    const menu = await apiClient.patch(`/api/v1/menus/${id}/`, data);
+    return this.normalizeMenu(menu);
   }
 
   /**
@@ -35,6 +56,19 @@ export class MenuService {
    */
   async deleteMenu(id: number): Promise<void> {
     return apiClient.delete(`/api/v1/menus/${id}/`);
+  }
+
+  /**
+   * Activer/Désactiver un menu (toggle)
+   * Si actif -> désactive, si inactif -> active et désactive les autres
+   */
+  async toggleMenuAvailability(id: number): Promise<{ id: number; is_available: boolean; message?: string }> {
+    const result = await apiClient.post(`/api/v1/menus/${id}/toggle_is_available/`) as any;
+    return {
+      id: result.id,
+      is_available: result.is_available,
+      message: result.message
+    };
   }
 
     /**
@@ -66,17 +100,9 @@ export class MenuService {
      * Récupérer les menus par restaurant (pour clients)
      */
     async getMenusByRestaurant(restaurantId: number): Promise<Menu[]> {
-      // Si l'API backend ne le support pas, filtrer côté client
       const allMenus = await this.getMyMenus();
       return allMenus.filter(menu => menu.restaurant === restaurantId);
     }
-
-  /**
-   * Activer/Désactiver un menu (rend ce menu disponible et désactive les autres)
-   */
-  async toggleMenuAvailability(id: number): Promise<{ id: number; is_available: boolean }> {
-    return apiClient.post(`/api/v1/menus/${id}/toggle_is_available/`);
-  }
 
   /**
    * Services pour les MenuItems
