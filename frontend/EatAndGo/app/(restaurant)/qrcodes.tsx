@@ -25,13 +25,16 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import QRCode from 'react-native-qrcode-svg';
 import { COLORS } from '@/constants/config';
+import * as FileSystem from 'expo-file-system';
+import { Image } from 'react-native';
+import { Asset } from 'expo-asset';
 
 const { width } = Dimensions.get('window');
 
 // Import du logo de l'application
 const APP_LOGO = require('@/assets/images/logo.png');
 
-// Types pour les tailles de QR code optimisées pour l'impression
+// Types pour les tailles de QR code optimisées pour format paysage A4
 type QRSize = 'small' | 'medium' | 'large';
 
 interface QRSizeConfig {
@@ -39,26 +42,47 @@ interface QRSizeConfig {
   displaySize: number;
   printSize: number;
   logoSize: number;
+  perPage: number;
+  cardWidth: string;
+  cardHeight: string;
+  columns: number;
+  rows: number;
 }
 
-const QR_SIZES: Record<QRSize, QRSizeConfig> = {
+const QR_SIZES = {
   small: {
-    label: 'Petit (12/page)',
-    displaySize: 100,
-    printSize: 90,
-    logoSize: 16,
+    label: 'Petit (24/page)',
+    displaySize: 90,
+    printSize: 70,
+    logoSize: 12,
+    perPage: 24,
+    cardWidth: '16%', // 6 colonnes
+    cardHeight: '31%', // 3 rangées par page
+    columns: 6,
+    rows: 3,
   },
   medium: {
-    label: 'Moyen (6/page)',
-    displaySize: 120,
+    label: 'Moyen (12/page)',
+    displaySize: 110,
     printSize: 110,
-    logoSize: 20,
+    logoSize: 18,
+    perPage: 12,
+    cardWidth: '32%', // 3 colonnes
+    cardHeight: '31%', // 3 rangées par page
+    columns: 3,
+    rows: 3,
   },
   large: {
-    label: 'Grand (4/page)',
-    displaySize: 140,
-    printSize: 130,
-    logoSize: 24,
+    // Ajustement : le grand format utilise réellement 6 cartes par page (2 colonnes × 3 lignes).
+    label: 'Grand (6/page)',
+    displaySize: 130,
+    printSize: 150,
+    logoSize: 26,
+    perPage: 6,
+    cardWidth: '49%', // 2 colonnes
+    cardHeight: '31%', // 3 rangées par page
+    columns: 2,
+    rows: 3,
   },
 };
 
@@ -84,6 +108,9 @@ export default function QRCodesScreen() {
   const [existingTablesCount, setExistingTablesCount] = useState(0);
   const [qrSize, setQrSize] = useState<QRSize>('medium');
   const [isDownloading, setIsDownloading] = useState(false);
+  // Stocke la version Base64 du logo pour l'impression. Ce state est rempli à l'initialisation
+  // afin de permettre l'insertion de l'image dans le HTML généré par l'impression/PDF.
+  const [logoBase64, setLogoBase64] = useState('');
   const [isPrinting, setIsPrinting] = useState(false);
 
   useEffect(() => {
@@ -91,6 +118,27 @@ export default function QRCodesScreen() {
       setSelectedRestaurant(restaurants[0].id);
     }
   }, [restaurants]);
+
+  // Charge le logo en Base64 au chargement du composant. On utilise expo‑asset pour s'assurer que
+  // l'image est disponible localement, puis expo‑file‑system pour lire son contenu et le convertir.
+  useEffect(() => {
+    const loadLogo = async () => {
+      try {
+        const asset = Asset.fromModule(APP_LOGO);
+        await asset.downloadAsync();
+        const localUri = asset.localUri || asset.uri;
+        if (localUri) {
+          const base64 = await FileSystem.readAsStringAsync(localUri, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          setLogoBase64(`data:image/png;base64,${base64}`);
+        }
+      } catch (err) {
+        console.warn('Erreur chargement du logo en base64:', err);
+      }
+    };
+    loadLogo();
+  }, []);
 
   useEffect(() => {
     if (selectedRestaurant) {
@@ -341,18 +389,20 @@ export default function QRCodesScreen() {
     }
   };
 
-  // Fonction pour générer un QR code avec le vrai logo
+  // Fonction pour générer un QR code avec un logo au centre. Utilise la variable d'état logoBase64
+  // pour insérer l'image en Base64 dans le HTML de l'impression. Si logoBase64 est vide (logo non chargé),
+  // le QR code s'affichera sans logo.
   const generateQRCodeSVG = (url: string, size: number, logoSize: number) => {
     const qrData = encodeURIComponent(url);
     const logoPosition = (size - logoSize) / 2;
-    
+    const logoSrc = logoBase64;
     return `
       <div style="position: relative; width: ${size}px; height: ${size}px; margin: 0 auto;">
         <img src="https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${qrData}&format=png" 
              width="${size}" height="${size}" 
              style="display: block;" 
              alt="QR Code" />
-        <img src="${APP_LOGO}" 
+        ${logoSrc ? `<img src="${logoSrc}" 
              style="
                position: absolute;
                top: ${logoPosition}px;
@@ -364,126 +414,92 @@ export default function QRCodesScreen() {
                padding: 2px;
                border: 2px solid white;
                box-shadow: 0 0 0 1px #ddd;
+               z-index: 1;
              " 
-             alt="Logo" />
+             alt="Logo" />` : ''}
       </div>
     `;
   };
 
   const generatePrintHTML = (tables: Table[], size: QRSize = qrSize) => {
+    /*
+     * Cette fonction génère du HTML optimisé pour l'impression en format paysage.
+     * Chaque page comprend un en‑tête et une grille de QR codes répartis en deux
+     * rangées. Les QR codes sont répartis en pages selon la configuration
+     * spécifiée dans QR_SIZES.perPage. Pour éviter que du contenu ne déborde
+     * d'une page à l'autre, on découpe le tableau en tranches et on génère
+     * autant de conteneurs de page que nécessaire. Chaque conteneur possède
+     * l'attribut CSS page‑break‑after pour forcer un saut de page après
+     * l'impression (sauf pour la dernière page).
+     */
     const sizeConfig = QR_SIZES[size];
-    const cardWidth = sizeConfig.printSize + 40; // Réduction de padding
-    const cardHeight = sizeConfig.printSize + 80; // Hauteur minimale
-    
-    // Calculer le nombre de colonnes selon la taille
-    const pageWidth = 210; // A4 width in mm
-    const columns = Math.floor((pageWidth - 20) / (cardWidth * 0.264583)); // Convert px to mm
-    
-    const tablesHTML = tables.map((table, index) => `
-      <div style="
-        display: inline-block;
-        vertical-align: top;
-        text-align: center;
-        margin: 5px;
-        padding: 10px;
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        background: white;
-        width: ${cardWidth}px;
-        height: ${cardHeight}px;
-        page-break-inside: avoid;
-        ${(index + 1) % columns === 0 ? 'page-break-after: auto;' : ''}
-      ">
-        <div style="
-          font-size: 14px;
-          font-weight: bold;
-          margin-bottom: 8px;
-          color: #111827;
-        ">Table ${table.number}</div>
-        
-        <div style="margin-bottom: 8px;">
-          ${generateQRCodeSVG(table.qrCodeUrl, sizeConfig.printSize, sizeConfig.logoSize)}
+
+    // Fonction utilitaire pour générer le bloc HTML d'un QR code
+    const buildQRCard = (table: Table) => {
+      return `
+        <div class="qr-card qr-card-${size}" style="width: ${sizeConfig.cardWidth}; height: ${sizeConfig.cardHeight};">
+          <div style="font-size: ${size === 'small' ? '14px' : size === 'medium' ? '16px' : '18px'}; font-weight: bold; color: #111827; margin-bottom: 6px; flex-shrink: 0;">Table ${table.number}</div>
+          <div style="display: flex; justify-content: center; align-items: center; flex: 1; margin: 4px 0;">
+            ${generateQRCodeSVG(table.qrCodeUrl, sizeConfig.printSize, sizeConfig.logoSize)}
+          </div>
+          <div style="font-size: ${size === 'small' ? '10px' : size === 'medium' ? '11px' : '12px'}; color: #666; background: #f8f9fa; padding: 3px 5px; border-radius: 3px; margin-bottom: 3px; flex-shrink: 0;">
+            <span style="font-family: monospace; font-weight: bold; font-size: ${size === 'small' ? '11px' : size === 'medium' ? '12px' : '14px'}; color: #111827;">${table.manualCode}</span>
+          </div>
+          <div style="font-size: ${size === 'small' ? '7px' : size === 'medium' ? '8px' : '9px'}; color: #999; line-height: 1.1; flex-shrink: 0;">Scanner ou saisir le code</div>
         </div>
-        
-        <div style="
-          font-size: 10px;
-          color: #666;
-          background: #f8f9fa;
-          padding: 4px 6px;
-          border-radius: 4px;
-          margin-bottom: 4px;
-        ">
-          <span style="font-family: monospace; font-weight: bold; font-size: 11px;">${table.manualCode}</span>
+      `;
+    };
+
+    // Trier les tables par leur numéro (numériquement) pour que 9, 10, 11 s'affichent dans l'ordre correct
+    const sortedTables = [...tables].sort((a, b) => {
+      const aNum = parseInt((a as any).number, 10) || 0;
+      const bNum = parseInt((b as any).number, 10) || 0;
+      return aNum - bNum;
+    });
+    // Découper les tables triées en pages
+    const pages: string[] = [];
+    for (let i = 0; i < sortedTables.length; i += sizeConfig.perPage) {
+      const pageTables = sortedTables.slice(i, i + sizeConfig.perPage);
+      const cardsHTML = pageTables.map((table) => buildQRCard(table)).join('');
+      pages.push(`
+        <div class="page-container">
+          <div class="qr-container">
+            ${cardsHTML}
+          </div>
         </div>
-        
-        <div style="
-          font-size: 8px;
-          color: #999;
-          line-height: 1.2;
-        ">
-          Scanner ou saisir le code
-        </div>
-      </div>
-    `).join('');
+      `);
+    }
+
+    // Fusionner toutes les pages. Le dernier conteneur ne doit pas avoir page-break-after.
+    const pagesHTML = pages
+      .map((pageHTML, idx) => {
+        // Ajouter un attribut data-last pour le dernier afin de supprimer le saut de page si besoin.
+        const isLast = idx === pages.length - 1;
+        return isLast
+          ? pageHTML.replace('<div class="page-container">', '<div class="page-container last-page">')
+          : pageHTML;
+      })
+      .join('');
 
     return `
       <!DOCTYPE html>
       <html>
-        <head>
-          <meta charset="utf-8">
-          <title>QR Codes - ${selectedRestaurantData?.name}</title>
-          <style>
-            * {
-              margin: 0;
-              padding: 0;
-              box-sizing: border-box;
-            }
-            body {
-              font-family: Arial, sans-serif;
-              padding: 10px;
-              background: white;
-              font-size: 12px;
-            }
-            .header {
-              text-align: center;
-              margin-bottom: 15px;
-              page-break-after: avoid;
-            }
-            .header h1 {
-              font-size: 16px;
-              color: #059669;
-              margin-bottom: 5px;
-            }
-            .header p {
-              font-size: 10px;
-              color: #666;
-            }
-            .qr-container {
-              text-align: center;
-              line-height: 1;
-            }
-            @media print {
-              body { 
-                padding: 5mm;
-                font-size: 10px;
-              }
-              .header h1 {
-                font-size: 14px;
-              }
-              .no-break {
-                page-break-inside: avoid;
-              }
-            }
-          </style>
-        </head>
+        <style>
+          @page { size: A4 landscape; margin: 8mm; }
+          body { margin: 0; font-family: Arial, sans-serif; }
+          .page-container { display: flex; flex-direction: column; height: 100%; page-break-after: always; }
+          .page-container.last-page { page-break-after: auto; }
+          .qr-container { display: flex; flex-wrap: wrap; justify-content: center; align-content: space-between; height: 100%; }
+          .qr-card { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+          .qr-card-small { width: 16%; height: 48%; }
+          .qr-card-medium { width: 32%; height: 48%; }
+          /* Pour le grand format, ajustez la hauteur à 31% afin d'afficher trois lignes de deux cartes chacune */
+          .qr-card-large { width: 49%; height: 31%; }
+          img { max-width: 100%; height: auto; }
+          .manual-code { margin-top: 4px; font-size: 12px; font-weight: bold; text-align: center; }
+        </style>
         <body>
-          <div class="header">
-            <h1>QR Codes - ${selectedRestaurantData?.name}</h1>
-            <p>Taille: ${QR_SIZES[size].label} • ${tables.length} table${tables.length > 1 ? 's' : ''}</p>
-          </div>
-          <div class="qr-container">
-            ${tablesHTML}
-          </div>
+          ${pagesHTML}
         </body>
       </html>
     `;
@@ -498,6 +514,7 @@ export default function QRCodesScreen() {
       const html = generatePrintHTML(generatedTables);
       await Print.printAsync({
         html,
+        orientation: 'landscape',
         printerUrl: undefined, // Laisse le système choisir l'imprimante
       });
     } catch (error) {
@@ -514,6 +531,7 @@ export default function QRCodesScreen() {
       const html = generatePrintHTML([table]);
       await Print.printAsync({
         html,
+        orientation: 'landscape',
         printerUrl: undefined,
       });
     } catch (error) {
