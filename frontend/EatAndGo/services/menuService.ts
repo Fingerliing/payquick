@@ -60,7 +60,6 @@ export class MenuService {
 
   /**
    * Activer/Désactiver un menu (toggle)
-   * Si actif -> désactive, si inactif -> active et désactive les autres
    */
   async toggleMenuAvailability(id: number): Promise<{ id: number; is_available: boolean; message?: string }> {
     const result = await apiClient.post(`/api/v1/menus/${id}/toggle_is_available/`) as any;
@@ -71,81 +70,79 @@ export class MenuService {
     };
   }
 
-    /**
+  /**
    * Récupérer les allergènes disponibles
    */
-    async getAllergens(): Promise<Allergen[]> {
-      return apiClient.get('/api/v1/menu-items/allergens/');
+  async getAllergens(): Promise<Allergen[]> {
+    return apiClient.get('/api/v1/menu-items/allergens/');
+  }
+
+  /**
+   * Récupérer les items par allergène
+   */
+  async getItemsByAllergen(allergen: string): Promise<MenuItem[]> {
+    return apiClient.get('/api/v1/menu-items/by_allergen/', { allergen });
+  }
+
+  /**
+   * Récupérer les items par options diététiques
+   */
+  async getDietaryOptions(filters: {
+    vegetarian?: boolean;
+    vegan?: boolean;
+    gluten_free?: boolean;
+  }): Promise<MenuItem[]> {
+    return apiClient.get('/api/v1/menu-items/dietary_options/', filters);
+  }
+
+  /**
+   * Récupère les menus disponibles pour un restaurant côté client.
+   * Essaye d'abord l'endpoint public, puis retombe sur le privé si erreur.
+   */
+  async getMenusByRestaurant(restaurantId: number): Promise<Menu[]> {
+    try {
+      // Endpoint public pensé pour les clients
+      const menus = await apiClient.get(`/api/v1/restaurants/public/${restaurantId}/menus/`) as any;
+      const list = Array.isArray(menus)
+        ? menus
+        : (menus?.results ?? menus?.data ?? []);
+      return list.map((m: any) => this.normalizeMenu(m))
+                 .filter((m: any) => m?.restaurant === restaurantId || m?.restaurant?.id === restaurantId);
+    } catch (e: any) {
+      // Fallback: ancien flux privé (auth requis)
+      try {
+        const allMenus = await this.getMyMenus();
+        return allMenus.filter(menu => menu.restaurant === restaurantId);
+      } catch {
+        return [];
+      }
     }
-  
-    /**
-     * Récupérer les items par allergène
-     */
-    async getItemsByAllergen(allergen: string): Promise<MenuItem[]> {
-      return apiClient.get('/api/v1/menu-items/by_allergen/', { allergen });
-    }
-  
-    /**
-     * Récupérer les items par options diététiques
-     */
-    async getDietaryOptions(filters: {
-      vegetarian?: boolean;
-      vegan?: boolean;
-      gluten_free?: boolean;
-    }): Promise<MenuItem[]> {
-      return apiClient.get('/api/v1/menu-items/dietary_options/', filters);
-    }
-  
-    /**
-     * Récupérer les menus par restaurant (pour clients)
-     */
-    async getMenusByRestaurant(restaurantId: number): Promise<Menu[]> {
-      const allMenus = await this.getMyMenus();
-      return allMenus.filter(menu => menu.restaurant === restaurantId);
-    }
+  }
 
   /**
    * Services pour les MenuItems
    */
   menuItems = {
-    /**
-     * Récupérer tous les items du restaurateur
-     */
     getMyMenuItems: (): Promise<MenuItem[]> => {
       return apiClient.get('/api/v1/menu-items/');
     },
 
-    /**
-     * Récupérer un item spécifique
-     */
     getMenuItem: (id: number): Promise<MenuItem> => {
       return apiClient.get(`/api/v1/menu-items/${id}/`);
     },
 
-    /**
-     * Créer un item de menu
-     */
     createMenuItem: (data: CreateMenuItemRequest): Promise<MenuItem> => {
       return apiClient.post('/api/v1/menu-items/', data);
     },
 
-    /**
-     * Mettre à jour un item
-     */
     updateMenuItem: (id: number, data: Partial<MenuItem>): Promise<MenuItem> => {
       return apiClient.patch(`/api/v1/menu-items/${id}/`, data);
     },
 
-    /**
-     * Supprimer un item
-     */
     deleteMenuItem: (id: number): Promise<void> => {
       return apiClient.delete(`/api/v1/menu-items/${id}/`);
     },
 
-    /**
-     * Activer/Désactiver un item
-     */
     toggleItemAvailability: (id: number): Promise<{ id: number; is_available: boolean }> => {
       return apiClient.post(`/api/v1/menu-items/${id}/toggle/`);
     },

@@ -28,6 +28,10 @@ class TableViewSet(viewsets.ModelViewSet):
     ViewSet pour la gestion des tables par les restaurateurs
     """
     permission_classes = [IsAuthenticated, IsRestaurateur, IsValidatedRestaurateur]
+
+    # Restreint l'identifiant utilisé dans l'URL à des nombres uniquement (évite que des
+    # codes alphanumériques comme "R12T003" soient interprétés comme un identifiant de TableViewSet).
+    lookup_value_regex = r'\d+'
     
     def get_queryset(self):
         """Filtre les tables par restaurant du propriétaire"""
@@ -406,6 +410,8 @@ class TableQRRouterView(APIView):
     Permet de récupérer le menu actif associé à une table.
     """
     permission_classes = [AllowAny]
+    # Désactive toute authentification pour cet endpoint afin qu'il reste réellement public.
+    authentication_classes = []
 
     def get(self, request, identifiant):
         try:

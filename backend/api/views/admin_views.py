@@ -3,8 +3,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAdminUser
-from api.models import RestaurateurProfile
-from api.serializers import RestaurateurProfileSerializer
+from api.models import RestaurateurProfile, Restaurant
+from api.serializers import RestaurateurProfileSerializer, RestaurantSerializer
 import stripe
 from django.conf import settings
 from drf_spectacular.utils import extend_schema, OpenApiResponse
@@ -77,4 +77,51 @@ class AdminRestaurateurViewSet(viewsets.ModelViewSet):
             'charges_enabled': account.charges_enabled,
             'payouts_enabled': account.payouts_enabled,
             'requirements': account.requirements
+        })
+
+@extend_schema(
+    tags=["Admin • Restaurants"],
+    description="Gestion des restaurants par les administrateurs."
+)
+class AdminRestaurantViewSet(viewsets.ModelViewSet):
+    queryset = Restaurant.objects.all().order_by('-created_at')
+    serializer_class = RestaurantSerializer
+    permission_classes = [IsAdminUser]
+
+    @extend_schema(
+        summary="Forcer l'activation des commandes",
+        description=(
+            "Passe owner.is_active=TRUE, owner.stripe_verified=TRUE, "
+            "restaurant.is_active=TRUE, restaurant.is_stripe_active=TRUE."
+        ),
+        responses={200: OpenApiResponse(description="Restaurant prêt à recevoir des commandes")}
+    )
+    @action(detail=True, methods=["post"])
+    def force_enable_orders(self, request, pk=None):
+        restaurant = self.get_object()
+        owner = getattr(restaurant, "owner", None)
+
+        # Flags owner
+        if owner:
+            changed = False
+            if not owner.is_active:
+                owner.is_active = True; changed = True
+            if not getattr(owner, "stripe_verified", False):
+                owner.stripe_verified = True; changed = True
+            if changed:
+                owner.save(update_fields=["is_active", "stripe_verified"])
+
+        # Flags restaurant
+        r_changed = False
+        if not restaurant.is_active:
+            restaurant.is_active = True; r_changed = True
+        if not restaurant.is_stripe_active:
+            restaurant.is_stripe_active = True; r_changed = True
+        if r_changed:
+            restaurant.save(update_fields=["is_active", "is_stripe_active"])
+
+        return Response({
+            "id": str(restaurant.id),
+            "is_stripe_active": restaurant.is_stripe_active,
+            "can_receive_orders": restaurant.can_receive_orders
         })

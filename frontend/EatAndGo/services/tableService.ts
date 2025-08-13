@@ -170,7 +170,10 @@ class TableService {
    */
   async getTableByIdentifiant(identifiant: string) {
     try {
-      const response = await apiClient.get(`api/v1/table/${identifiant}/`);
+      // Utilise l'endpoint public pour récupérer la table via son identifiant (QR ou manuel).
+      // Le préfixe 'public' évite que les identifiants numériques soient interprétés comme des IDs
+      // d'objets dans le ViewSet privé, ce qui entraînerait un 401.
+      const response = await apiClient.get(`api/v1/table/public/${identifiant}/`);
       return response;
     } catch (error: any) {
       console.error('❌ Erreur récupération table publique:', error);
@@ -207,7 +210,9 @@ class TableService {
       capacity: table.capacity || 4,
       is_active: table.is_active ?? true,
       qr_code: table.qr_code,
-      qrCodeUrl: `${baseUrl}/table/${table.identifiant}`,
+      // Utilise le préfixe /table/public/ pour générer l'URL accessible au client. Si
+      // table.identifiant est défini, on l'utilise, sinon on retombe sur qr_code.
+      qrCodeUrl: `${baseUrl}/table/public/${table.identifiant || table.qr_code}`,
       manualCode: table.identifiant || table.qr_code,
       created_at: table.created_at
     };

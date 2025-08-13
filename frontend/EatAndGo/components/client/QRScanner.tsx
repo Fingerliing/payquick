@@ -17,13 +17,13 @@ export default function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
     
     setIsScanning(false);
     
-    // Validation du QR code PayQuick
-    if (isValidPayQuickQR(data)) {
+    // Validation du QR code Eat&Go
+    if (isValidEatAndGoQR(data)) {
       onScanSuccess?.(data);
     } else {
       Alert.alert(
         'QR Code invalide',
-        'Ce QR code ne correspond pas à un restaurant PayQuick',
+        'Ce QR code ne correspond pas à un restaurant Eat&Go',
         [
           { text: 'Réessayer', onPress: () => setIsScanning(true) },
           { text: 'Annuler', onPress: onClose }
@@ -32,9 +32,9 @@ export default function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
     }
   };
 
-  const isValidPayQuickQR = (data: string): boolean => {
-    // Valider que c'est bien un QR PayQuick - adapter selon votre format
-    return data.includes('payquick') || 
+  const isValidEatAndGoQR = (data: string): boolean => {
+    // Valider que c'est bien un QR Eat&Go - adapter selon votre format
+    return data.includes('eatandgo') || 
            data.includes('restaurant') || 
            /restaurant[\/=]\d+/i.test(data);
   };

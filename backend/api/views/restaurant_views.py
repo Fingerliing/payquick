@@ -237,6 +237,10 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             try:
                 # Sauvegarder avec le propriétaire
                 restaurant = serializer.save(owner=request.user.restaurateur_profile)
+                owner = request.user.restaurateur_profile
+                if owner.stripe_verified and owner.is_active and not restaurant.is_stripe_active:
+                    restaurant.is_stripe_active = True
+                    restaurant.save(update_fields=["is_stripe_active"])
                 
                 # Créer les horaires d'ouverture
                 for hours in opening_hours_data:
@@ -759,13 +763,21 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         
         # Commandes récentes
         recent_orders = Order.objects.filter(restaurant=restaurant).order_by('-created_at')[:5]
-        recent_orders_data = [{
-            "id": str(order.id),
-            "table": order.table.identifiant,
-            "status": order.status,
-            "is_paid": order.is_paid,
-            "created_at": order.created_at
-        } for order in recent_orders]
+        recent_orders_data = []
+        for order in recent_orders:
+            table_ident = None
+            if getattr(order, "table_number", None) is not None:
+                t = Table.objects.filter(restaurant=restaurant, number=order.table_number).first()
+                table_ident = t.identifiant if t else None
+
+            recent_orders_data.append({
+                "id": str(order.id),
+                "table_number": order.table_number,
+                "table_identifiant": table_ident,
+                "status": order.status,
+                "is_paid": order.is_paid,
+                "created_at": order.created_at
+            })
         
         return Response({
             "restaurant": {
@@ -802,28 +814,34 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         """Liste des tables d'un restaurant"""
         restaurant = self.get_object()
         tables = Table.objects.filter(restaurant=restaurant).order_by('id')
-        
+
         tables_data = []
         for table in tables:
+            # Order n'a PAS de FK 'table' -> on filtre par restaurant + table_number
             active_orders = Order.objects.filter(
-                table=table, 
+                restaurant=restaurant,
+                table_number=getattr(table, "number", None),
                 status__in=['pending', 'in_progress']
             ).count()
-            
+
+            # Table n'a PAS 'qr_code_file' -> utiliser 'qr_code' (ou identifiant)
+            has_qr_code = bool(getattr(table, "qr_code", None) or getattr(table, "identifiant", None))
+
             tables_data.append({
                 "id": str(table.id),
-                "identifiant": table.identifiant,
-                "has_qr_code": bool(table.qr_code_file),
+                "number": table.number,
+                "identifiant": table.identifiant,  # alias de qr_code dans ton modèle
+                "has_qr_code": has_qr_code,
                 "active_orders": active_orders,
                 "created_at": table.created_at
             })
-        
+
         return Response({
             "restaurant": restaurant.name,
             "total_tables": len(tables_data),
             "tables": tables_data
         })
-
+    
     @extend_schema(
         summary="Lister les menus",
         description="Retourne la liste des menus du restaurant."
@@ -875,22 +893,27 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         status_filter = request.query_params.get('status')
         
         orders = Order.objects.filter(restaurant=restaurant).order_by('-created_at')
-        
         if status_filter:
             orders = orders.filter(status=status_filter)
-        
         orders = orders[:limit]
         
         orders_data = []
         for order in orders:
             try:
                 items_count = order.order_items.count()
-            except:
+            except Exception:
                 items_count = 0
-            
+
+            # CHANGEMENT: exposer table_number + identifiant si retrouvable
+            table_ident = None
+            if getattr(order, "table_number", None) is not None:
+                t = Table.objects.filter(restaurant=restaurant, number=order.table_number).first()
+                table_ident = t.identifiant if t else None
+
             orders_data.append({
                 "id": str(order.id),
-                "table": order.table.identifiant,
+                "table_number": order.table_number,
+                "table_identifiant": table_ident,
                 "status": order.status,
                 "is_paid": order.is_paid,
                 "items_count": items_count,
@@ -902,7 +925,6 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             "orders": orders_data,
             "count": len(orders_data)
         })
-
     # ============================================================================
     # ACTIONS UTILITAIRES
     # ============================================================================
@@ -1101,3 +1123,75 @@ class PublicRestaurantViewSet(viewsets.ReadOnlyModelViewSet):
         restaurants = self.get_queryset().filter(accepts_meal_vouchers=True)
         serializer = self.get_serializer(restaurants, many=True)
         return Response(serializer.data)
+
+    @extend_schema(
+    tags=["Private • Restaurants"],
+    summary="Activer Stripe pour ce restaurant",
+    description=(
+        "Passe is_stripe_active=TRUE pour ce restaurant. "
+        "Si toutes les conditions sont réunies (owner actif & vérifié, restaurant actif), "
+        "can_receive_orders passera à TRUE automatiquement."
+    ),
+    parameters=[
+        OpenApiParameter(
+            name="force_owner",
+            type=bool,
+            description="Admin uniquement : force aussi owner.is_active/owner.stripe_verified à TRUE",
+            required=False,
+        )
+    ],
+    responses={
+        200: OpenApiResponse(description="Mise à jour effectuée"),
+        202: OpenApiResponse(description="Mise à jour faite mais commandes pas encore possibles (voir missing)"),
+    },
+)
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[IsAuthenticated, IsRestaurateur]
+    )
+    def enable_orders(self, request, pk=None):
+        restaurant = self.get_object()
+        owner = getattr(restaurant, "owner", None)
+
+        # Toujours activer Stripe sur le restaurant ciblé
+        updated_fields = []
+        if not restaurant.is_stripe_active:
+            restaurant.is_stripe_active = True
+            updated_fields.append("is_stripe_active")
+
+        # Option admin : forcer les flags owner si demandé
+        force_owner = str(request.query_params.get("force_owner", "")).lower() in ("1", "true", "yes")
+        if request.user.is_staff and force_owner and owner:
+            owner_changed = False
+            if not owner.is_active:
+                owner.is_active = True
+                owner_changed = True
+            if not getattr(owner, "stripe_verified", False):
+                owner.stripe_verified = True
+                owner_changed = True
+            if owner_changed:
+                owner.save(update_fields=["is_active", "stripe_verified"])
+
+        if updated_fields:
+            restaurant.save(update_fields=updated_fields)
+
+        # État final
+        can_receive = getattr(restaurant, "can_receive_orders", False)
+        missing = {
+            "owner_is_active": bool(getattr(owner, "is_active", False)),
+            "owner_stripe_verified": bool(getattr(owner, "stripe_verified", False)),
+            "restaurant_is_active": bool(getattr(restaurant, "is_active", False)),
+            "restaurant_is_stripe_active": bool(getattr(restaurant, "is_stripe_active", False)),
+        }
+
+        status_code = status.HTTP_200_OK if can_receive else status.HTTP_202_ACCEPTED
+        return Response(
+            {
+                "id": str(restaurant.id),
+                "is_stripe_active": restaurant.is_stripe_active,
+                "can_receive_orders": can_receive,
+                "missing": {k: v for k, v in missing.items() if not v},
+            },
+            status=status_code,
+        )
