@@ -126,6 +126,9 @@ class CreateCheckoutSessionView(APIView):
             if not restaurateur or not restaurateur.stripe_account_id:
                 return Response({"error": "No Stripe account linked."}, status=status.HTTP_400_BAD_REQUEST)
 
+            # Commission 2% (en centimes) sur le total de commande
+            platform_fee_cents = int(order.total_amount * Decimal("100")) * 2 // 100
+
             # Création de la session Stripe Checkout
             session = stripe.checkout.Session.create(
                 payment_method_types=["card"],
@@ -135,7 +138,7 @@ class CreateCheckoutSessionView(APIView):
                 cancel_url=f"{settings.DOMAIN}/cancel?order={order_id}",
                 metadata={"order_id": str(order_id)},
                 payment_intent_data={
-                    "application_fee_amount": 0,
+                    "application_fee_amount": platform_fee_cents,
                     "transfer_data": {
                         "destination": restaurateur.stripe_account_id,
                     }

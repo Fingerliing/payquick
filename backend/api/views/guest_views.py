@@ -59,10 +59,14 @@ class GuestPrepare(APIView):
 
         client_secret = None
         if draft.payment_method == "online":
+            # Commission 2% (en centimes) sur le total de commande
+            platform_fee_cents = amount * 2 // 100
+
             pi = stripe.PaymentIntent.create(
                 amount=amount,
                 currency="eur",
                 automatic_payment_methods={"enabled": True},
+                application_fee_amount=platform_fee_cents,
                 metadata={
                     "draft_order_id": str(draft.id),
                     "restaurant_id": str(rest.id),
@@ -108,7 +112,7 @@ class GuestDraftStatus(APIView):
         q.is_valid(raise_exception=True)
         draft = get_object_or_404(DraftOrder, id=q.validated_data["draft_order_id"])
         # Tu peux stocker l'order_id sur la draft si tu préfères
-        from .models import Order
+        from api.models import Order
         o = Order.objects.filter(
             restaurant=draft.restaurant,
             guest_phone=draft.phone,
