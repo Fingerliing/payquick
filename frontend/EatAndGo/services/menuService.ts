@@ -102,7 +102,7 @@ export class MenuService {
   async getMenusByRestaurant(restaurantId: number): Promise<Menu[]> {
     try {
       // Endpoint public pensé pour les clients
-      const menus = await apiClient.get(`/api/v1/restaurants/public/${restaurantId}/menus/`) as any;
+      const menus = await apiClient.get(`/api/v1/menus/public/${restaurantId}/menus/`) as any;
       const list = Array.isArray(menus)
         ? menus
         : (menus?.results ?? menus?.data ?? []);

@@ -2,7 +2,7 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from api.models import Menu, MenuItem
 from api.serializers import MenuSerializer, MenuItemSerializer
 from api.permissions import IsRestaurateur, IsOwnerOrReadOnly
@@ -93,6 +93,27 @@ class MenuViewSet(viewsets.ModelViewSet):
             "is_available": menu.is_available,
             "message": "Menu désactivé avec succès"
         })
+    
+    @extend_schema(
+        tags=["Menu • Menus"],
+        summary="Lister les menus publics d’un restaurant",
+        description="Retourne les menus disponibles (is_available=True) d’un restaurant donné, accessible sans authentification.",
+        responses={200: OpenApiResponse(description="Liste des menus", response=MenuSerializer)}
+    )
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path=r"public/(?P<restaurant_id>[^/.]+)/menus",
+        permission_classes=[AllowAny],
+        authentication_classes=[],
+    )
+    def public_by_restaurant(self, request, restaurant_id=None):
+        qs = Menu.objects.filter(
+            restaurant_id=restaurant_id,
+            is_available=True
+        ).prefetch_related("items")  # si le serializer inclut les items
+        serializer = self.get_serializer(qs, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
     
 @extend_schema(tags=["Menu Items"])
 class MenuItemViewSet(viewsets.ModelViewSet):
