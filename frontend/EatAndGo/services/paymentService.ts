@@ -2,32 +2,33 @@ import { apiClient } from './api';
 
 export class PaymentService {
   // (si utilisé côté app) créer un PaymentIntent pour une commande interne
-  async createPaymentIntent(orderId: string): Promise<{ clientSecret: string; publishableKey: string }> {
-    return apiClient.post('/payments/create-intent/', { orderId });
+  async createPaymentIntent(orderId: string): Promise<never> { 
+    throw new Error('Not supported by backend v1 (use Stripe Checkout session).'); 
   }
 
-  async confirmPayment(paymentIntentId: string): Promise<{ status: string }> {
-    return apiClient.post('/payments/confirm/', { paymentIntentId });
+  async confirmPayment(paymentIntentId: string): Promise<never> { 
+    throw new Error('Not supported by backend v1.'); 
   }
 
-  async refundPayment(paymentId: string, amount?: number): Promise<{ status: string }> {
-    return apiClient.post('/payments/refund/', { paymentId, amount });
+  async refundPayment(paymentId: string, amount?: number): Promise<never> { 
+    throw new Error('Not supported by backend v1.'); 
   }
 
   async getPaymentMethods(): Promise<any[]> {
     return apiClient.get('/payments/methods/');
   }
 
-  async savePaymentMethod(data: any): Promise<any> {
-    return apiClient.post('/payments/methods/', data);
+  async savePaymentMethod(data: any): Promise<never> { 
+    throw new Error('Not supported by backend v1.'); 
   }
 
-  async deletePaymentMethod(id: string): Promise<void> {
-    return apiClient.delete(`/payments/methods/${id}/`);
+  async deletePaymentMethod(id: string): Promise<never> { 
+    throw new Error('Not supported by backend v1.'); 
   }
 
-  async createCheckoutSession(order_id: number): Promise<{ checkout_url: string }> {
-    return apiClient.post(`/api/payments/checkout/${order_id}/`);
+  async createCheckoutSession(order_id: number): Promise<{ checkout_url: string } & { url?: string }> {
+    // Backend expects POST /api/v1/payments/create_checkout_session/<order_id>/
+    return apiClient.post(`/api/v1/payments/create_checkout_session/${order_id}/`);
   }
 }
 

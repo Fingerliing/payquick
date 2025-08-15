@@ -1,371 +1,130 @@
-// ============================================================================
-// TYPES DE BASE (Correspondant aux modèles Django)
-// ============================================================================
+import type { OrderStatus, PaymentStatus, OrderType, DRFPaginated, ListResponse } from './common';
 
+// ------------------------------
+// Items de commande (backend)
+// ------------------------------
 export interface OrderItem {
   id: number;
-  menu_item: number;
-  menu_item_name?: string;
-  menu_item_image?: string; 
-  menu_item_price?: string;
-  category?: string;
+  menu_item: number;                 // FK MenuItem (ID)
+  menu_item_name?: string;           // read-only (serializer)
+  menu_item_image?: string | null;   // read-only (serializer)
+  menu_item_price?: string;          // read-only (serializer)
+  category?: string;                 // read-only (serializer)
+
   quantity: number;
-  unit_price: string;
-  total_price: string;
+  unit_price: string;                // décimal en string
+  total_price: string;               // décimal en string
+
   customizations?: Record<string, any>;
   special_instructions?: string;
-  allergen_display?: string[];
-  dietary_tags?: string[];
-  created_at: string;
+
+  created_at?: string;               // ISO
 }
 
-// ============================================================================
-// TYPES ORDER (Basés sur les Serializers Django)
-// ============================================================================
-
-/**
- * Type Order de base (correspondant au modèle Django)
- */
-export interface OrderBase {
+// ------------------------------
+// Représentation "liste" (kitchen/counter)
+// ------------------------------
+export interface OrderList {
   id: number;
   order_number: string;
-  user?: number;
-  customer_name?: string;
   restaurant: number;
-  order_type: 'dine_in' | 'takeaway';
-  table_number?: string;
-  phone?: string;
-  status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'served' | 'cancelled';
-  payment_status: 'pending' | 'paid' | 'failed';
-  payment_method?: 'cash' | 'card' | 'online';
-  subtotal: string;
-  tax_amount: string;
+  restaurant_name?: string;
+
+  table?: number | null;
+  table_number?: string | null;
+
+  order_type: OrderType;
+  status: OrderStatus;
+  status_display?: string;
+
+  payment_status: PaymentStatus;
+  payment_status_display?: string;
+
+  items_count: number;               // SerializerMethodField
+  waiting_time?: number | null;      // minutes (SerializerMethodField)
+  customer_display?: string;         // username / nom / "Client N"
+  created_at: string;                // ISO
+  updated_at?: string;               // ISO
+}
+
+// ------------------------------
+// Représentation "détail"
+// ------------------------------
+export interface OrderDetail extends Omit<OrderList, 'items_count'> {
+  items: OrderItem[];
+  payment_method?: string;           // 'cash' | 'card' | 'online' | autre
+  payment_method_display?: string;   // litéral
+  can_be_cancelled?: boolean;        // SerializerMethodField
+  preparation_time?: number | null;  // SerializerMethodField (minutes)
+
+  // Montants calculés par le backend (source de vérité)
+  subtotal: string;                  // décimal en string
+  tax_amount: string;                // si le backend le renvoie (sinon "0.00")
   total_amount: string;
-  estimated_ready_time?: string;
-  ready_at?: string;
-  served_at?: string;
-  notes?: string;
-  created_at: string;
-  updated_at: string;
+
+  estimated_ready_time?: string | null; // "HH:MM:SS"
+  ready_at?: string | null;             // ISO
+  served_at?: string | null;            // ISO
+
+  notes?: string | null;
 }
 
-/**
- * Order pour la liste (OrderListSerializer)
- * Correspond à ce que retourne la vue list()
- */
-export interface OrderList extends OrderBase {
-  // Propriétés ajoutées par OrderListSerializer
-  restaurant_name?: string;
-  customer_display?: string;
-  order_type_display?: string;
-  status_display?: string;
-  payment_status_display?: string;
-  items_count?: number;        // get_items_count()
-  waiting_time?: number;       // get_waiting_time()
-  
-  // Propriétés ajoutées par la vue list() dans order_views.py
-  is_urgent?: boolean;         // _is_order_urgent()
-  items_summary?: string;      // _get_items_summary()
-  next_possible_status?: string; // _get_next_status()
+// ------------------------------
+// Payload de création (POST /orders)
+// ------------------------------
+export interface CreateOrderItemInput {
+  menu_item: number;                 // ⚠️ champ attendu côté back
+  quantity: number;
+  customizations?: Record<string, any>;
+  special_instructions?: string;
 }
-
-/**
- * Order détaillé (OrderDetailSerializer)
- * Correspond à ce que retourne la vue retrieve()
- */
-export interface OrderDetail extends OrderBase {
-  // Propriétés ajoutées par OrderDetailSerializer
-  restaurant_name?: string;
-  customer_display?: string;
-  order_type_display?: string;
-  status_display?: string;
-  payment_status_display?: string;
-  payment_method_display?: string;
-  can_be_cancelled?: boolean;  // get_can_be_cancelled()
-  preparation_time?: number;   // get_preparation_time()
-  items?: OrderItem[];         // Relation avec OrderItems
-  
-  // Propriétés ajoutées par la vue retrieve() dans order_views.py
-  is_urgent?: boolean;
-  items_summary?: string;
-  next_possible_status?: string;
-  timeline?: TimelineEvent[];
-  payment_info?: PaymentInfo;
-}
-
-/**
- * Order pour la vue cuisine (kitchen_view)
- */
-export interface OrderKitchen extends OrderList {
-  special_instructions?: string[]; // _get_special_instructions()
-}
-
-// ============================================================================
-// TYPES UTILITAIRES (Basés sur order_views.py)
-// ============================================================================
-
-export interface TimelineEvent {
-  status: string;
-  timestamp: string;
-  label: string;
-}
-
-export interface PaymentInfo {
-  is_paid: boolean;
-  can_be_paid: boolean;
-  payment_methods_available: string[];
-}
-
-// ============================================================================
-// TYPES DE RÉPONSES API (Basés sur order_views.py)
-// ============================================================================
-
-/**
- * Réponse de la vue list() - ATTENTION: Pas toujours paginée !
- */
-export type OrderListResponse = OrderList[] | {
-  count: number;
-  next: string | null;
-  previous: string | null;
-  results: OrderList[];
-};
-
-/**
- * Réponse de la vue kitchen_view()
- */
-export interface KitchenViewResponse {
-  restaurant_id: string;
-  orders_by_status: {
-    pending: OrderKitchen[];
-    confirmed: OrderKitchen[];
-    preparing: OrderKitchen[];
-    ready: OrderKitchen[];
-  };
-  daily_stats: {
-    total: number;
-    served: number;
-    cancelled: number;
-    revenue: number | null;
-  };
-  last_updated: string;
-}
-
-/**
- * Réponse de la vue statistics()
- */
-export interface OrderStatsResponse {
-  period: string;
-  restaurant_id?: string;
-  stats: OrderStats;
-  generated_at: string;
-}
-
-// ============================================================================
-// TYPES POUR LES REQUÊTES
-// ============================================================================
 
 export interface CreateOrderRequest {
   restaurant: number;
-  order_type: 'dine_in' | 'takeaway';
-  table_number?: string;
-  customer_name?: string;
-  phone?: string;
-  payment_method: 'cash' | 'card' | 'online';
-  notes?: string;
-  items: CreateOrderItemRequest[];
+  order_type: OrderType;             // 'dine_in' | 'takeaway'
+  table?: number | null;             // requis si dine_in (selon logique back)
+  customer_name?: string | null;
+  items: CreateOrderItemInput[];     // mapping depuis le panier
+  notes?: string | null;
 }
 
-export interface CreateOrderItemRequest {
-  menu_item: number;
-  quantity: number;
-  customizations?: Record<string, any>;
-  special_instructions?: string;
-}
+// ------------------------------
+// Réponses possibles de l’API
+// ------------------------------
+export type OrderListResponse = ListResponse<OrderList>;
+export type OrderDetailResponse = OrderDetail;
 
-export interface UpdateOrderStatusRequest {
-  status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'served' | 'cancelled';
-}
+// Pour la vue "cuisine" / "comptoir" spécifique si tu as un endpoint dédié
+export type KitchenListResponse = ListResponse<OrderList>;
 
-export interface MarkAsPaidRequest {
-  payment_method: 'cash' | 'card' | 'online';
-}
-
-// ============================================================================
-// TYPES STATISTIQUES (Basés sur OrderStatsSerializer)
-// ============================================================================
-
+// ------------------------------
+// Stats (action /orders/statistics)
+// ------------------------------
 export interface OrderStats {
   total_orders: number;
-  pending: number;
-  confirmed: number;
-  preparing: number;
-  ready: number;
-  served: number;
-  cancelled: number;
   paid_orders: number;
-  unpaid_orders: number;
-  total_revenue: string;
-  average_order_value: string; 
-  average_preparation_time: number;
+  cancelled_orders: number;
+  pending_orders: number;
+  revenue: string;                  // décimal en string
+  by_status?: Record<OrderStatus, number>;
+  by_hour?: Record<string, number>;
+  // Ajoute ici les clés renvoyées par ton action "statistics" si besoin
 }
 
-// ============================================================================
-// TYPES UNION PRINCIPAUX
-// ============================================================================
+// Certaines implémentations renvoient { period, restaurant_id, stats: {...} }
+export type OrderStatsEnvelope =
+  | OrderStats
+  | {
+      period?: string;
+      restaurant_id?: number;
+      stats: OrderStats;
+    };
 
-/**
- * Type Order générique - Union de tous les formats possibles
- */
-export type Order = OrderBase | OrderList | OrderDetail | OrderKitchen;
+// ------------------------------
+// Helpers optionnels (utiles côté services/hooks)
+// ------------------------------
+export const isOrderStatsEnvelope = (x: any): x is { stats: OrderStats } =>
+  !!x && typeof x === 'object' && 'stats' in x && x.stats;
 
-// ============================================================================
-// TYPE GUARDS
-// ============================================================================
-
-export function isOrderList(order: Order): order is OrderList {
-  return 'items_count' in order && !('items' in order);
-}
-
-export function isOrderDetail(order: Order): order is OrderDetail {
-  return 'items' in order && Array.isArray(order.items);
-}
-
-export function isOrderKitchen(order: Order): order is OrderKitchen {
-  return 'special_instructions' in order;
-}
-
-// ============================================================================
-// ADAPTATEURS
-// ============================================================================
-
-/**
- * Normalise une commande vers le format OrderList standard
- */
-export function normalizeOrderToList(apiOrder: any): OrderList {
-  return {
-    // Propriétés de base garanties
-    id: apiOrder.id,
-    order_number: apiOrder.order_number,
-    user: apiOrder.user,
-    customer_name: apiOrder.customer_name,
-    restaurant: apiOrder.restaurant,
-    order_type: apiOrder.order_type,
-    table_number: apiOrder.table_number,
-    phone: apiOrder.phone,
-    status: apiOrder.status,
-    payment_status: apiOrder.payment_status,
-    payment_method: apiOrder.payment_method,
-    subtotal: apiOrder.subtotal,
-    tax_amount: apiOrder.tax_amount,
-    total_amount: apiOrder.total_amount,
-    estimated_ready_time: apiOrder.estimated_ready_time,
-    ready_at: apiOrder.ready_at,
-    served_at: apiOrder.served_at,
-    notes: apiOrder.notes,
-    created_at: apiOrder.created_at,
-    updated_at: apiOrder.updated_at,
-    
-    // Propriétés optionnelles du serializer
-    restaurant_name: apiOrder.restaurant_name,
-    customer_display: apiOrder.customer_display,
-    order_type_display: apiOrder.order_type_display,
-    status_display: apiOrder.status_display,
-    payment_status_display: apiOrder.payment_status_display,
-    items_count: apiOrder.items_count,
-    waiting_time: apiOrder.waiting_time,
-    
-    // Propriétés ajoutées par les vues
-    is_urgent: apiOrder.is_urgent,
-    items_summary: apiOrder.items_summary,
-    next_possible_status: apiOrder.next_possible_status,
-  };
-}
-
-/**
- * Extrait les commandes d'une réponse API (gère tous les formats)
- */
-export function extractOrdersFromResponse(response: any): OrderList[] {
-  // Array direct
-  if (Array.isArray(response)) {
-    return response.map(normalizeOrderToList);
-  }
-  
-  // Réponse paginée Django REST
-  if (response && typeof response === 'object') {
-    if ('results' in response && Array.isArray(response.results)) {
-      return response.results.map(normalizeOrderToList);
-    }
-    if ('data' in response && Array.isArray(response.data)) {
-      return response.data.map(normalizeOrderToList);
-    }
-  }
-  
-  // Fallback
-  return [];
-}
-
-// ============================================================================
-// CONSTANTES UTILES
-// ============================================================================
-
-export const ORDER_STATUS = {
-  PENDING: 'pending',
-  CONFIRMED: 'confirmed',
-  PREPARING: 'preparing',
-  READY: 'ready',
-  SERVED: 'served',
-  CANCELLED: 'cancelled',
-} as const;
-
-export const PAYMENT_STATUS = {
-  PENDING: 'pending',
-  PAID: 'paid',
-  FAILED: 'failed',
-} as const;
-
-export const ORDER_TYPE = {
-  DINE_IN: 'dine_in',
-  TAKEAWAY: 'takeaway',
-} as const;
-
-export const PAYMENT_METHOD = {
-  CASH: 'cash',
-  CARD: 'card',
-  ONLINE: 'online',
-} as const;
-
-// Types des constantes
-export type OrderStatus = typeof ORDER_STATUS[keyof typeof ORDER_STATUS];
-export type PaymentStatus = typeof PAYMENT_STATUS[keyof typeof PAYMENT_STATUS];
-export type OrderType = typeof ORDER_TYPE[keyof typeof ORDER_TYPE];
-export type PaymentMethod = typeof PAYMENT_METHOD[keyof typeof PAYMENT_METHOD];
-
-// ============================================================================
-// HOOKS UTILITAIRES
-// ============================================================================
-
-export function useOrderNormalizer() {
-  const normalizeOrder = (order: any): Order => {
-    return normalizeOrderToList(order);
-  };
-  
-  const extractOrders = (response: any): OrderList[] => {
-    return extractOrdersFromResponse(response);
-  };
-  
-  const isUrgent = (order: Order): boolean => {
-    if ('is_urgent' in order) {
-      return order.is_urgent || false;
-    }
-    
-    // Calcul fallback
-    const elapsed = Date.now() - new Date(order.created_at).getTime();
-    return elapsed > 30 * 60 * 1000; // Plus de 30 minutes
-  };
-  
-  return {
-    normalizeOrder,
-    extractOrders,
-    isUrgent,
-  };
-}
+export const unwrapOrderStats = (x: OrderStatsEnvelope | null | undefined): OrderStats | null =>
+  !x ? null : (isOrderStatsEnvelope(x) ? x.stats : x);

@@ -9,14 +9,13 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { useCart } from '@/contexts/CartContext';
-import { useClientOrders } from '@/hooks/client/useClientOrders';
+import { clientOrderService } from '@/services/clientOrderService';
 import { Header } from '@/components/ui/Header';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 
 export default function ClientCheckoutScreen() {
   const { cart, clearCart } = useCart();
-  const { createOrder } = useClientOrders();
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -34,11 +33,15 @@ export default function ClientCheckoutScreen() {
     try {
       setLoading(true);
       
-      const order = await createOrder(
-        cart.items,
-        cart.restaurantId,
-        cart.tableNumber,
-      ) as any;
+      // Utilisation correcte du service clientOrderService
+      const order = await clientOrderService.createFromCart({
+        restaurant: cart.restaurantId,
+        order_type: 'dine_in', // ou 'takeaway' selon le contexte
+        table: cart.tableNumber ? Number(cart.tableNumber) : null,
+        customer_name: null, // Le client est connecté, pas besoin du nom
+        notes: notes || null,
+        items: cart.items,
+      });
 
       // Vider le panier
       clearCart();
@@ -68,7 +71,12 @@ export default function ClientCheckoutScreen() {
       <SafeAreaView style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
         <Header title="Commande" leftIcon="arrow-back" onLeftPress={() => router.back()} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text>Votre panier est vide</Text>
+          <Text style={{ fontSize: 16, color: '#666' }}>Votre panier est vide</Text>
+          <Button 
+            title="Retour au menu"
+            onPress={() => router.back()}
+            style={{ marginTop: 16 }}
+          />
         </View>
       </SafeAreaView>
     );
@@ -101,7 +109,7 @@ export default function ClientCheckoutScreen() {
         {/* Articles */}
         <Card style={{ marginBottom: 16 }}>
           <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 12 }}>
-            Vos articles
+            Vos articles ({cart.itemCount} {cart.itemCount > 1 ? 'articles' : 'article'})
           </Text>
           {cart.items.map((item, index) => (
             <View 
@@ -121,6 +129,11 @@ export default function ClientCheckoutScreen() {
                 {item.specialInstructions && (
                   <Text style={{ fontSize: 12, color: '#666', fontStyle: 'italic' }}>
                     Note: {item.specialInstructions}
+                  </Text>
+                )}
+                {item.customizations && Object.keys(item.customizations).length > 0 && (
+                  <Text style={{ fontSize: 12, color: '#666' }}>
+                    Personnalisation incluse
                   </Text>
                 )}
               </View>
@@ -144,13 +157,20 @@ export default function ClientCheckoutScreen() {
               padding: 12,
               minHeight: 80,
               textAlignVertical: 'top',
+              backgroundColor: '#fff',
             }}
             placeholder="Allergies, préférences de cuisson, etc..."
             value={notes}
             onChangeText={setNotes}
             multiline
             numberOfLines={4}
+            maxLength={500}
           />
+          {notes.length > 0 && (
+            <Text style={{ fontSize: 12, color: '#666', textAlign: 'right', marginTop: 4 }}>
+              {notes.length}/500
+            </Text>
+          )}
         </Card>
 
         {/* Résumé */}
@@ -158,16 +178,6 @@ export default function ClientCheckoutScreen() {
           <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 12 }}>
             Résumé
           </Text>
-          
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-            <Text>Sous-total</Text>
-            <Text>{cart.subtotal.toFixed(2)} €</Text>
-          </View>
-          
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-            <Text>Frais de service</Text>
-            <Text>{cart.deliveryFee.toFixed(2)} €</Text>
-          </View>
           
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#eee' }}>
             <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Total</Text>

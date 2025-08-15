@@ -1,62 +1,24 @@
-import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
-import { Order, OrderItem, CreateOrderRequest } from '@/types/order';
-import { OrderSearchFilters, SearchFilters, PaginatedResponse } from '@/types/common';
-import { orderService } from '@/services/orderService';
+import React, { createContext, useContext, useReducer, ReactNode } from "react";
+import { orderService } from "@/services/orderService";
+
+// --- Types (uniquement en 'type' import) ---
+import type { OrderList, OrderDetail, CreateOrderRequest } from "@/types/order";
+import type { OrderSearchFilters } from "@/types/common";
+
+// --------------------
+// Types & état local
+// --------------------
+type Pagination = { page: number; limit: number; total: number; pages: number };
 
 interface OrderState {
-  orders: Order[];
-  currentOrder: Order | null;
+  orders: OrderList[];
+  currentOrder: OrderDetail | null;
   isLoading: boolean;
   error: string | null;
   filters: OrderSearchFilters;
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    pages: number;
-  };
-  stats: {
-    total_orders: number;
-    pending: number;
-    confirmed: number;
-    preparing: number;
-    ready: number;
-    served: number;
-    cancelled: number;
-    paid_orders: number;
-    unpaid_orders: number;
-    total_revenue: string;
-    average_order_value: string;
-    average_preparation_time: number;
-  };
+  pagination: Pagination;
+  stats: Record<string, any> | null;
 }
-
-export interface OrderContextType extends OrderState {
-  loadOrders: (filters?: SearchFilters, page?: number) => Promise<void>;
-  loadOrder: (id: number) => Promise<void>;
-  createOrder: (data: CreateOrderRequest) => Promise<Order>;
-  updateOrder: (id: number, data: Partial<Order>) => Promise<void>;
-  updateOrderStatus: (id: number, status: string) => Promise<void>;
-  cancelOrder: (id: number) => Promise<void>;
-  markAsPaid: (id: number, paymentMethod: string) => Promise<void>;
-  searchOrders: (query: string, filters?: SearchFilters) => Promise<void>;
-  setFilters: (filters: SearchFilters) => void;
-  clearCurrentOrder: () => void;
-  refreshOrders: () => Promise<void>;
-  loadStats: () => Promise<void>;
-}
-
-type OrderAction =
-  | { type: 'SET_LOADING'; payload: boolean }
-  | { type: 'SET_ERROR'; payload: string | null }
-  | { type: 'SET_ORDERS'; payload: Order[] }
-  | { type: 'SET_CURRENT_ORDER'; payload: Order | null }
-  | { type: 'ADD_ORDER'; payload: Order }
-  | { type: 'UPDATE_ORDER'; payload: Order }
-  | { type: 'REMOVE_ORDER'; payload: number }
-  | { type: 'SET_FILTERS'; payload: SearchFilters }
-  | { type: 'SET_PAGINATION'; payload: any }
-  | { type: 'SET_STATS'; payload: any };
 
 const initialState: OrderState = {
   orders: [],
@@ -64,314 +26,179 @@ const initialState: OrderState = {
   isLoading: false,
   error: null,
   filters: {},
-  pagination: {
-    page: 1,
-    limit: 20,
-    total: 0,
-    pages: 0,
-  },
-  stats: {
-    total_orders: 0,
-    pending: 0,
-    confirmed: 0,
-    preparing: 0,
-    ready: 0,
-    served: 0,
-    cancelled: 0,
-    paid_orders: 0,
-    unpaid_orders: 0,
-    total_revenue: '0.00',
-    average_order_value: '0.00',
-    average_preparation_time: 0,
-  },
+  pagination: { page: 1, limit: 10, total: 0, pages: 1 },
+  stats: null,
 };
 
-const orderReducer = (state: OrderState, action: OrderAction): OrderState => {
+type Ctx = OrderState & {
+  fetchOrders: (opts?: { page?: number; limit?: number; filters?: Partial<OrderSearchFilters> }) => Promise<void>;
+  searchOrders: (q: string, filters?: Partial<OrderSearchFilters>) => Promise<void>;
+  getOrder: (id: number) => Promise<OrderDetail | null>;
+  createOrder: (payload: CreateOrderRequest) => Promise<OrderDetail>;
+  updateOrderStatus: (id: number, status: string) => Promise<OrderDetail>;
+  markAsPaid: (id: number, paymentMethod?: string) => Promise<OrderDetail>;
+  fetchStats: (filters?: Partial<OrderSearchFilters>) => Promise<void>;
+};
+
+const OrderContext = createContext<Ctx | null>(null);
+
+// --------------------
+// Reducer
+// --------------------
+type Action =
+  | { type: "SET_LOADING"; payload: boolean }
+  | { type: "SET_ERROR"; payload: string | null }
+  | { type: "SET_ORDERS"; payload: OrderList[] }
+  | { type: "SET_CURRENT_ORDER"; payload: OrderDetail | null }
+  | { type: "SET_FILTERS"; payload: Partial<OrderSearchFilters> }
+  | { type: "SET_PAGINATION"; payload: Partial<Pagination> }
+  | { type: "SET_STATS"; payload: Record<string, any> | null };
+
+function reducer(state: OrderState, action: Action): OrderState {
   switch (action.type) {
-    case 'SET_LOADING':
-      return { ...state, isLoading: action.payload };
-    case 'SET_ERROR':
-      return { ...state, error: action.payload };
-    case 'SET_ORDERS':
-      return { 
-        ...state, 
-        orders: Array.isArray(action.payload) ? action.payload : [],
-        error: null 
-      };
-    case 'SET_CURRENT_ORDER':
-      return { ...state, currentOrder: action.payload };
-    case 'ADD_ORDER':
-      return { 
-        ...state, 
-        orders: [action.payload, ...state.orders],
-        error: null 
-      };
-    case 'UPDATE_ORDER':
-      return {
-        ...state,
-        orders: state.orders.map(o => 
-          o.id === action.payload.id ? action.payload : o
-        ),
-        currentOrder: state.currentOrder?.id === action.payload.id 
-          ? action.payload 
-          : state.currentOrder,
-        error: null
-      };
-    case 'REMOVE_ORDER':
-      return {
-        ...state,
-        orders: state.orders.filter(o => o.id !== action.payload),
-        currentOrder: state.currentOrder?.id === action.payload 
-          ? null 
-          : state.currentOrder,
-        error: null
-      };
-    case 'SET_FILTERS':
-      return { ...state, filters: action.payload };
-    case 'SET_PAGINATION':
-      return { ...state, pagination: action.payload };
-    case 'SET_STATS':
-      return { ...state, stats: action.payload };
-    default:
-      return state;
+    case "SET_LOADING": return { ...state, isLoading: action.payload };
+    case "SET_ERROR": return { ...state, error: action.payload };
+    case "SET_ORDERS": return { ...state, orders: action.payload, error: null };
+    case "SET_CURRENT_ORDER": return { ...state, currentOrder: action.payload, error: null };
+    case "SET_FILTERS": return { ...state, filters: { ...state.filters, ...action.payload } };
+    case "SET_PAGINATION": return { ...state, pagination: { ...state.pagination, ...action.payload } };
+    case "SET_STATS": return { ...state, stats: action.payload };
+    default: return state;
   }
-};
+}
 
-export const OrderContext = createContext<OrderContextType | undefined>(undefined);
+// --------------------
+// Helpers locaux
+// (on évite d’importer des helpers cassés)
+// --------------------
+type ListResponse<T> = T[] | { results: T[]; count: number } | { data: T[]; pagination: Pagination };
 
-export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [state, dispatch] = useReducer(orderReducer, initialState);
+function isDRF<T>(r: any): r is { results: T[]; count: number } {
+  return !!r && typeof r === "object" && "results" in r && "count" in r;
+}
+function isFrontPaginated<T>(r: any): r is { data: T[]; pagination: Pagination } {
+  return !!r && typeof r === "object" && "data" in r && "pagination" in r;
+}
 
-  useEffect(() => {
-    console.log('🔍 OrderContext state change:', {
-      orders: state.orders.length,
-      isLoading: state.isLoading,
-      error: state.error,
-      stats: state.stats
-    });
-  }, [state.orders, state.isLoading, state.error, state.stats]);
+function normalizeListResponse<T>(
+  resp: ListResponse<T>,
+  fallback: { page: number; limit: number }
+): { data: T[]; pagination: Pagination } {
+  const { page, limit } = fallback;
+  if (Array.isArray(resp)) {
+    return { data: resp, pagination: { page, limit, total: resp.length, pages: 1 } };
+  }
+  if (isDRF<T>(resp)) {
+    const total = resp.count ?? resp.results.length;
+    const pages = Math.max(1, Math.ceil(total / limit));
+    return { data: resp.results, pagination: { page, limit, total, pages } };
+  }
+  if (isFrontPaginated<T>(resp)) {
+    return { data: resp.data, pagination: resp.pagination };
+  }
+  return { data: [], pagination: { page, limit, total: 0, pages: 1 } };
+}
 
-  const loadOrders = async (filters?: SearchFilters, page = 1) => {
+function unwrapStats(x: any): Record<string, any> | null {
+  if (!x) return null;
+  return typeof x === "object" && "stats" in x ? x.stats : x;
+}
+
+// --------------------
+// Provider
+// --------------------
+export const OrderProvider = ({ children }: { children: ReactNode }) => {
+  const [state, dispatch] = useReducer(reducer, initialState);
+
+  const fetchOrders: Ctx["fetchOrders"] = async (opts) => {
+    dispatch({ type: "SET_LOADING", payload: true });
     try {
-      console.log('🚀 OrderContext: Starting loadOrders...', { filters, page });
-      dispatch({ type: 'SET_LOADING', payload: true });
-      dispatch({ type: 'SET_ERROR', payload: null });
-      
-      // Appeler le service qui retourne maintenant PaginatedResponse<OrderList>
-      const response = await orderService.getMyOrders({
-        page,
-        limit: state.pagination.limit,
-        ...filters,
-      });
-      
-      console.log('📥 OrderService response:', {
-        dataCount: response.data.length,
-        pagination: response.pagination
-      });
-      
-      // Les données sont maintenant correctement typées
-      dispatch({ type: 'SET_ORDERS', payload: response.data });
-      dispatch({ type: 'SET_PAGINATION', payload: response.pagination });
-      
-      if (filters) {
-        dispatch({ type: 'SET_FILTERS', payload: filters });
-      }
-      
-    } catch (error: any) {
-      console.error('❌ OrderContext: Load error:', error);
-      dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors du chargement des commandes' });
-      dispatch({ type: 'SET_ORDERS', payload: [] });
+      const page = opts?.page ?? state.pagination.page;
+      const limit = opts?.limit ?? state.pagination.limit;
+      const filters = { ...state.filters, ...(opts?.filters ?? {}) };
+
+      const resp: ListResponse<OrderList> = await orderService.getMyOrders({ page, limit, ...filters });
+      const { data, pagination } = normalizeListResponse<OrderList>(resp, { page, limit });
+
+      dispatch({ type: "SET_ORDERS", payload: data });
+      dispatch({ type: "SET_PAGINATION", payload: pagination });
+      dispatch({ type: "SET_FILTERS", payload: filters });
+    } catch (e: any) {
+      dispatch({ type: "SET_ERROR", payload: e?.message ?? "Erreur lors du chargement des commandes" });
     } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
+      dispatch({ type: "SET_LOADING", payload: false });
     }
   };
 
-  const searchOrders = async (query: string, filters?: SearchFilters) => {
+  const searchOrders: Ctx["searchOrders"] = async (q, filters) => {
+    dispatch({ type: "SET_LOADING", payload: true });
     try {
-      console.log('🚀 OrderContext: Searching orders:', query, filters);
-      dispatch({ type: 'SET_LOADING', payload: true });
-      dispatch({ type: 'SET_ERROR', payload: null });
-      
-      // Appeler la méthode search qui retourne maintenant PaginatedResponse<OrderList>
-      const response = await orderService.searchOrders(query, filters);
-      console.log('✅ OrderContext: Search results:', response.data.length);
-      
-      dispatch({ type: 'SET_ORDERS', payload: response.data });
-      dispatch({ type: 'SET_PAGINATION', payload: response.pagination });
-      
-    } catch (error: any) {
-      console.error('❌ OrderContext: Search error:', error);
-      dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors de la recherche' });
-      dispatch({ type: 'SET_ORDERS', payload: [] });
+      const resp: ListResponse<OrderList> = await orderService.searchOrders(q, { ...state.filters, ...(filters ?? {}) });
+      const { data, pagination } = normalizeListResponse<OrderList>(resp, { page: 1, limit: state.pagination.limit });
+      dispatch({ type: "SET_ORDERS", payload: data });
+      dispatch({ type: "SET_PAGINATION", payload: pagination });
+    } catch (e: any) {
+      dispatch({ type: "SET_ERROR", payload: e?.message ?? "Erreur lors de la recherche" });
     } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
+      dispatch({ type: "SET_LOADING", payload: false });
     }
   };
 
-  // Les autres méthodes restent inchangées car elles ne dépendent pas des types de réponse problématiques
-  const loadOrder = async (id: number) => {
+  const getOrder: Ctx["getOrder"] = async (id) => {
+    dispatch({ type: "SET_LOADING", payload: true });
     try {
-      console.log('🚀 OrderContext: Loading single order:', id);
-      dispatch({ type: 'SET_LOADING', payload: true });
-      dispatch({ type: 'SET_ERROR', payload: null });
-      
-      const order = await orderService.getOrder(id);
-      console.log('✅ OrderContext: Single order loaded:', order);
-      
-      dispatch({ type: 'SET_CURRENT_ORDER', payload: order });
-    } catch (error: any) {
-      console.error('❌ OrderContext: Load single error:', error);
-      dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors du chargement de la commande' });
-    } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
-    }
-  };
-
-  const createOrder = async (data: CreateOrderRequest) => {
-    try {
-      console.log('🚀 OrderContext: Creating order:', data);
-      dispatch({ type: 'SET_ERROR', payload: null });
-      
-      const order = await orderService.createOrder(data);
-      console.log('✅ OrderContext: Order created:', order);
-      
-      dispatch({ type: 'ADD_ORDER', payload: order });
+      const order = await orderService.getOrderById(id);
+      dispatch({ type: "SET_CURRENT_ORDER", payload: order });
       return order;
-    } catch (error: any) {
-      console.error('❌ OrderContext: Create error:', error);
-      dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors de la création de la commande' });
-      throw error;
+    } catch {
+      dispatch({ type: "SET_ERROR", payload: "Commande introuvable" });
+      return null;
+    } finally {
+      dispatch({ type: "SET_LOADING", payload: false });
     }
   };
 
-  const updateOrder = async (id: number, data: Partial<Order>) => {
-    try {
-      console.log('🚀 OrderContext: Updating order:', id, data);
-      dispatch({ type: 'SET_ERROR', payload: null });
-      
-      const order = await orderService.updateOrder(id, data);
-      console.log('✅ OrderContext: Order updated:', order);
-      
-      if (order) {
-        dispatch({ type: 'UPDATE_ORDER', payload: order });
-      }
-    } catch (error: any) {
-      console.error('❌ OrderContext: Update error:', error);
-      dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors de la mise à jour de la commande' });
-      throw error;
-    }
+  const createOrder: Ctx["createOrder"] = async (payload) => {
+    const order = await orderService.createOrder(payload);
+    dispatch({ type: "SET_CURRENT_ORDER", payload: order });
+    return order;
   };
 
-  const updateOrderStatus = async (id: number, status: string) => {
-    try {
-      console.log('🚀 OrderContext: Updating order status:', id, status);
-      dispatch({ type: 'SET_ERROR', payload: null });
-      
-      const order = await orderService.updateOrderStatus(id, status);
-      console.log('✅ OrderContext: Order status updated:', order);
-      
-      if (order) {
-        dispatch({ type: 'UPDATE_ORDER', payload: order });
-      }
-    } catch (error: any) {
-      console.error('❌ OrderContext: Status update error:', error);
-      dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors de la mise à jour du statut' });
-      throw error;
-    }
+  const updateOrderStatus: Ctx["updateOrderStatus"] = async (id, status) => {
+    const updated = await orderService.updateOrderStatus(id, status); // PATCH action dédiée côté back
+    dispatch({ type: "SET_CURRENT_ORDER", payload: updated });
+    await fetchOrders();
+    return updated;
   };
 
-  const cancelOrder = async (id: number) => {
-    try {
-      console.log('🚀 OrderContext: Cancelling order:', id);
-      dispatch({ type: 'SET_ERROR', payload: null });
-      
-      await orderService.cancelOrder(id);
-      console.log('✅ OrderContext: Order cancelled:', id);
-      
-      // Recharger les commandes pour avoir le statut à jour
-      await loadOrders(state.filters, state.pagination.page);
-    } catch (error: any) {
-      console.error('❌ OrderContext: Cancel error:', error);
-      dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors de l\'annulation de la commande' });
-      throw error;
-    }
+  const markAsPaid: Ctx["markAsPaid"] = async (id, paymentMethod) => {
+    const updated = await orderService.markAsPaid(id, paymentMethod); // POST action dédiée côté back
+    dispatch({ type: "SET_CURRENT_ORDER", payload: updated });
+    await fetchOrders();
+    return updated;
   };
 
-  const markAsPaid = async (id: number, paymentMethod: string) => {
-    try {
-      console.log('🚀 OrderContext: Marking order as paid:', id, paymentMethod);
-      dispatch({ type: 'SET_ERROR', payload: null });
-      
-      await orderService.markAsPaid(id, paymentMethod);
-      console.log('✅ OrderContext: Order marked as paid');
-      
-      // Recharger les commandes pour voir la mise à jour
-      await loadOrders(state.filters, state.pagination.page);
-    } catch (error: any) {
-      console.error('❌ OrderContext: Mark paid error:', error);
-      dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors du marquage comme payé' });
-      throw error;
-    }
+  const fetchStats: Ctx["fetchStats"] = async (filters) => {
+    const resp = await orderService.getOrderStats(filters);
+    dispatch({ type: "SET_STATS", payload: unwrapStats(resp) });
   };
 
-  const loadStats = async () => {
-    try {
-      const stats = await orderService.getOrderStats();
-      if (stats) {
-        dispatch({ type: 'SET_STATS', payload: stats });
-      }
-    } catch (error: any) {
-      console.error('❌ OrderContext: Load stats error:', error);
-    }
-  };
-
-  const setFilters = (filters: SearchFilters) => {
-    dispatch({ type: 'SET_FILTERS', payload: filters });
-  };
-
-  const clearCurrentOrder = () => {
-    dispatch({ type: 'SET_CURRENT_ORDER', payload: null });
-  };
-
-  const refreshOrders = async () => {
-    console.log('🔄 OrderContext: Refreshing orders...');
-    await loadOrders(state.filters, state.pagination.page);
-    await loadStats();
-  };
-
-  useEffect(() => {
-    console.log('🎬 OrderProvider mounted, loading initial data...');
-    loadOrders();
-    loadStats();
-  }, []);
-
-  const value: OrderContextType = {
+  const value: Ctx = {
     ...state,
-    loadOrders,
-    loadOrder,
-    createOrder,
-    updateOrder,
-    updateOrderStatus,
-    cancelOrder,
-    markAsPaid,
+    fetchOrders,
     searchOrders,
-    setFilters,
-    clearCurrentOrder,
-    refreshOrders,
-    loadStats,
+    getOrder,
+    createOrder,
+    updateOrderStatus,
+    markAsPaid,
+    fetchStats,
   };
 
   return <OrderContext.Provider value={value}>{children}</OrderContext.Provider>;
 };
 
-export const useOrder = (): OrderContextType => {
-  const context = useContext(OrderContext);
-  if (!context) {
-    throw new Error('useOrder doit être utilisé dans un OrderProvider');
-  }
-  
-  return {
-    ...context,
-    orders: Array.isArray(context.orders) ? context.orders : [],
-  };
+export const useOrder = () => {
+  const ctx = useContext(OrderContext);
+  if (!ctx) throw new Error("useOrder doit être utilisé dans un OrderProvider");
+  return { ...ctx, orders: Array.isArray(ctx.orders) ? ctx.orders : [] };
 };

@@ -32,22 +32,22 @@ type OnboardingReturn =
 class StripeService {
   /** Créer/initialiser un compte Connect et obtenir un lien d’onboarding */
   async createAccount(): Promise<StripeOnboarding> {
-    return apiClient.post<StripeOnboarding>('/api/stripe/account/');
+    return apiClient.post<StripeOnboarding>('/api/v1/stripe/create-account/');
   }
 
   /** Statut du compte Connect */
   async getAccountStatus(): Promise<StripeAccountStatus> {
-    return apiClient.get<StripeAccountStatus>('/api/stripe/account/status/');
+    return apiClient.get<StripeAccountStatus>('/api/v1/stripe/account-status/');
   }
 
   /** (Ré)obtenir un lien d’onboarding */
   async createOnboardingLink(): Promise<StripeOnboarding> {
-    return apiClient.post<StripeOnboarding>('/api/stripe/account/');
+    return apiClient.post<StripeOnboarding>('/api/v1/stripe/create-account/');
   }
 
   /** Créer une session Stripe Identity (KYC) */
   async createIdentitySession(): Promise<{ verification_url: string }> {
-    return apiClient.post('/api/stripe/identity/session/');
+    return apiClient.post('/api/v1/payments/identity/session/');
   }
 
   /** Ouvrir l’onboarding dans le navigateur */

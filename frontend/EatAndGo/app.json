@@ -23,7 +23,7 @@
       "intentFilters": [
         {
           "action": "VIEW",
-          "data": [{ "scheme": "payquick" }],
+          "data": [{ "scheme": "eatandgo" }],
           "category": ["BROWSABLE", "DEFAULT"]
         }
       ],
@@ -50,7 +50,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow PayQuick to access camera for QR code scanning"
+          "cameraPermission": "Permettre à EatAndGo d'accéder à la caméra pour scanner les QR codes des menus de restaurant."
         }
       ]
     ],

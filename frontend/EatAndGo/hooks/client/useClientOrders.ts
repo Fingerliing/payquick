@@ -1,61 +1,55 @@
-import { useState, useEffect } from 'react';
-import { clientOrderService } from '@/services/clientOrderService';
-import { useAuth } from '@/contexts/AuthContext';
+import { useCallback, useEffect, useState } from "react";
+import { clientOrderService } from "@/services/clientOrderService";
+import type { OrderList } from "@/types/order";
+import type { OrderSearchFilters, ListResponse } from "@/types/common";
+import { normalizeListResponse } from "@/types/common";
 
-export const useClientOrders = () => {
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(false);
+type Pagination = { page: number; limit: number; total: number; pages: number };
+
+export function useClientOrders(initialFilters?: Partial<OrderSearchFilters>) {
+  const [orders, setOrders] = useState<OrderList[]>([]);
+  const [isLoading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { isClient } = useAuth();
+  const [pagination, setPagination] = useState<Pagination>({ page: 1, limit: 10, total: 0, pages: 1 });
+  const [filters, setFilters] = useState<Partial<OrderSearchFilters>>(initialFilters ?? {});
 
-  const loadOrders = async () => {
-    if (!isClient) return;
-    
+  const fetchOrders = useCallback(async (opts?: { page?: number; limit?: number; filters?: Partial<OrderSearchFilters> }) => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      setError(null);
-      const response = await clientOrderService.getMyOrders() as any;
-      setOrders(response.results || response);
-    } catch (err: any) {
-      setError(err.message || 'Erreur lors du chargement');
-      console.error('Error loading client orders:', err);
+      const page = opts?.page ?? pagination.page;
+      const limit = opts?.limit ?? pagination.limit;
+      const mergedFilters = { ...filters, ...(opts?.filters ?? {}) };
+      const resp: ListResponse<OrderList> = await clientOrderService.getOrders({ page, limit, ...mergedFilters });
+      const { data, pagination: p } = normalizeListResponse<OrderList>(resp, { page, limit });
+      setOrders(data);
+      setPagination(p);
+      setFilters(mergedFilters);
+    } catch (e: any) {
+      setError(e?.message ?? "Erreur lors du chargement des commandes");
     } finally {
       setLoading(false);
     }
-  };
+  }, [pagination.page, pagination.limit, filters]);
 
-  const createOrder = async (cartItems: any[], restaurantId: number, tableNumber?: number) => {
+  const search = useCallback(async (q: string) => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      const order = await clientOrderService.createOrderFromCart(
-        cartItems,
-        restaurantId,
-        tableNumber
-      );
-      
-      // Recharger la liste des commandes
-      await loadOrders();
-      
-      return order;
-    } catch (err: any) {
-      setError(err.message || 'Erreur lors de la création');
-      console.error('Error creating order:', err);
-      throw err;
+      const resp: ListResponse<OrderList> = await clientOrderService.searchOrders(q, filters as OrderSearchFilters);
+      const { data, pagination: p } = normalizeListResponse<OrderList>(resp, { page: 1, limit: pagination.limit });
+      setOrders(data);
+      setPagination(p);
+    } catch (e: any) {
+      setError(e?.message ?? "Erreur lors de la recherche");
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters, pagination.limit]);
 
   useEffect(() => {
-    loadOrders();
-  }, [isClient]);
+    fetchOrders();
+  }, []); // eslint-disable-line
 
-  return {
-    orders,
-    loading,
-    error,
-    loadOrders,
-    createOrder,
-    clearError: () => setError(null),
-  };
-};
+  return { orders, isLoading, error, pagination, filters, setFilters, fetchOrders, search };
+}

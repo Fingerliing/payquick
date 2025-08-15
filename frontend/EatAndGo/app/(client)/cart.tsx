@@ -8,11 +8,12 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useCart } from '@/contexts/CartContext';
 import { Header } from '@/components/ui/Header';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { QRAccessButtons } from '@/components/qrCode/QRAccessButton';
 import { CartItem } from '@/types/cart';
 import { ListRenderItem } from 'react-native';
 
@@ -23,6 +24,8 @@ export default function CartScreen() {
     removeFromCart, 
     clearCart 
   } = useCart();
+
+  const { tableNumber } = useLocalSearchParams<{ tableNumber?: string }>();
 
   const handleQuantityChange = (itemId: string, newQuantity: number) => {
     if (newQuantity < 1) {
@@ -55,26 +58,80 @@ export default function CartScreen() {
       Alert.alert('Panier vide', 'Ajoutez des articles à votre panier pour continuer');
       return;
     }
-    router.push('/order/checkout');
+
+    // Navigation vers le checkout avec les paramètres nécessaires
+    const params: any = {};
+    if (cart.restaurantId) {
+      params.restaurantId = cart.restaurantId.toString();
+    }
+    if (tableNumber) {
+      params.tableNumber = tableNumber;
+    }
+
+    router.push({
+      pathname: '/order/checkout',
+      params
+    });
+  };
+
+  const handleGuestCheckout = () => {
+    if (cart.items.length === 0) {
+      Alert.alert('Panier vide', 'Ajoutez des articles à votre panier pour continuer');
+      return;
+    }
+
+    // Navigation vers le checkout invité
+    const params: any = {};
+    if (cart.restaurantId) {
+      params.restaurantId = cart.restaurantId.toString();
+    }
+    if (tableNumber) {
+      params.tableNumber = tableNumber;
+    }
+
+    router.push({
+      pathname: '/order/guest-checkout',
+      params
+    });
+  };
+
+  const renderCustomizations = (customizations?: Record<string, any>) => {
+    if (!customizations || Object.keys(customizations).length === 0) return null;
+    
+    return (
+      <View style={{ marginTop: 4 }}>
+        {Object.entries(customizations).map(([key, value]) => (
+          <Text key={key} style={{ fontSize: 12, color: '#888', fontStyle: 'italic' }}>
+            {key}: {Array.isArray(value) ? value.join(', ') : value}
+          </Text>
+        ))}
+      </View>
+    );
   };
 
   const renderCartItem: ListRenderItem<CartItem> = ({ item }) => (
     <Card style={{ marginBottom: 12 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 4 }}>
             {item.name}
           </Text>
-          <Text style={{ fontSize: 14, color: '#666', marginBottom: 8 }}>
+          <Text style={{ fontSize: 14, color: '#666', marginBottom: 4 }}>
             {item.price.toFixed(2)} € / unité
           </Text>
+          
+          {/* Affichage des personnalisations */}
+          {renderCustomizations(item.customizations)}
+          
+          {/* Instructions spéciales */}
           {item.specialInstructions && (
-            <Text style={{ fontSize: 12, color: '#FF9500', fontStyle: 'italic' }}>
+            <Text style={{ fontSize: 12, color: '#FF9500', fontStyle: 'italic', marginTop: 4 }}>
               Note: {item.specialInstructions}
             </Text>
           )}
         </View>
         
+        {/* Contrôles de quantité */}
         <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 16 }}>
           <Pressable
             style={{
@@ -115,6 +172,7 @@ export default function CartScreen() {
           </Pressable>
         </View>
         
+        {/* Prix et suppression */}
         <View style={{ alignItems: 'flex-end', marginLeft: 16 }}>
           <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#FF6B35' }}>
             {(item.price * item.quantity).toFixed(2)} €
@@ -140,27 +198,34 @@ export default function CartScreen() {
         />
         
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
-          <Ionicons name="bag-outline" size={80} color="#ccc" />
-          <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#333', marginTop: 20, marginBottom: 12 }}>
+          <Ionicons name="bag-outline" size={80} color="#ccc" style={{ marginBottom: 20 }} />
+          <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#333', marginBottom: 12, textAlign: 'center' }}>
             Votre panier est vide
           </Text>
           <Text style={{ fontSize: 16, color: '#666', textAlign: 'center', lineHeight: 22, marginBottom: 30 }}>
             Scannez un QR code ou parcourez les restaurants pour commencer
           </Text>
           
-          <Button
-            title="Scanner QR Code"
-            onPress={() => router.push('/(client)/index')}
-            leftIcon="qr-code-outline"
-            style={{ marginBottom: 12 }}
+          {/* Utilisation du composant QRAccessButtons */}
+          <QRAccessButtons
+            compact
+            vertical
+            title="Scanner pour commander"
+            description="Scannez un QR code pour accéder au menu"
+            scanButtonText="Scanner QR Code"
+            codeButtonText="Entrer le code"
+            containerStyle={{ width: '100%', backgroundColor: 'transparent' }}
           />
           
-          <Button
-            title="Parcourir les restaurants"
-            onPress={() => router.push('/(client)/browse')}
-            variant="outline"
-            leftIcon="restaurant-outline"
-          />
+          <View style={{ marginTop: 20, width: '100%' }}>
+            <Button
+              title="Parcourir les restaurants"
+              onPress={() => router.push('/(client)/browse')}
+              variant="outline"
+              leftIcon="restaurant-outline"
+              fullWidth
+            />
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -178,14 +243,23 @@ export default function CartScreen() {
 
       {/* Restaurant Info */}
       <Card style={{ margin: 16 }}>
-        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 8 }}>
-          {cart.restaurantName}
-        </Text>
-        {cart.tableNumber && (
-          <Text style={{ fontSize: 14, color: '#666' }}>
-            Table {cart.tableNumber}
-          </Text>
-        )}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 4 }}>
+              {cart.restaurantName || 'Restaurant'}
+            </Text>
+            {tableNumber && (
+              <Text style={{ fontSize: 14, color: '#666' }}>
+                Table {tableNumber}
+              </Text>
+            )}
+          </View>
+          <View style={{ alignItems: 'flex-end' }}>
+            <Text style={{ fontSize: 12, color: '#666' }}>
+              {cart.itemCount} {cart.itemCount > 1 ? 'articles' : 'article'}
+            </Text>
+          </View>
+        </View>
       </Card>
 
       {/* Cart Items */}
@@ -193,22 +267,12 @@ export default function CartScreen() {
         data={cart.items}
         renderItem={renderCartItem}
         keyExtractor={(item: CartItem) => item.id}
-        contentContainerStyle={{ padding: 16 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16 }}
         showsVerticalScrollIndicator={false}
       />
 
       {/* Order Summary */}
       <Card style={{ margin: 16 }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-          <Text style={{ fontSize: 16, color: '#666' }}>Sous-total</Text>
-          <Text style={{ fontSize: 16, color: '#333' }}>{cart.subtotal.toFixed(2)} €</Text>
-        </View>
-        
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-          <Text style={{ fontSize: 16, color: '#666' }}>Frais de service</Text>
-          <Text style={{ fontSize: 16, color: '#333' }}>{cart.deliveryFee.toFixed(2)} €</Text>
-        </View>
-        
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#eee' }}>
           <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#333' }}>Total</Text>
           <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#FF6B35' }}>
@@ -216,12 +280,22 @@ export default function CartScreen() {
           </Text>
         </View>
 
-        <Button
-          title="Passer commande"
-          onPress={handleCheckout}
-          fullWidth
-          style={{ backgroundColor: '#FF6B35' }}
-        />
+        <View style={{ gap: 12 }}>
+          <Button
+            title="Passer commande (Client connecté)"
+            onPress={handleCheckout}
+            fullWidth
+            style={{ backgroundColor: '#FF6B35' }}
+          />
+          
+          <Button
+            title="Commander en tant qu'invité"
+            onPress={handleGuestCheckout}
+            fullWidth
+            variant="outline"
+            style={{ borderColor: '#FF6B35' }}
+          />
+        </View>
       </Card>
     </SafeAreaView>
   );
