@@ -4,3 +4,5 @@ from .menu_serializers import *
 from .order_serializers import *
 from .payment_serializers import *
 from .admin_serializers import *
+from .guest_serializers import *
+from .table_serializers import *

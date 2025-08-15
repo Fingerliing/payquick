@@ -8,10 +8,7 @@ from django.conf import settings
 import datetime, stripe
 
 from api.models import DraftOrder, Restaurant, MenuItem
-from api.serializers import (
-    GuestPrepareSerializer, GuestPrepareResponse,
-    DraftStatusQuery, DraftStatusResponse
-)
+from api.serializers import GuestPrepareSerializer, GuestPrepareResponse, DraftStatusQuery, DraftStatusResponse
 from api.services import create_order_from_draft
 
 stripe.api_key = settings.STRIPE_SECRET_KEY

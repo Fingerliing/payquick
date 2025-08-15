@@ -4,5 +4,5 @@ from api.views.guest_views import GuestPrepare, GuestConfirmCash, GuestDraftStat
 urlpatterns = [
     path("prepare/", GuestPrepare.as_view()),
     path("confirm-cash/", GuestConfirmCash.as_view()),
-    path("status/", GuestDraftStatus.as_view()),
+    path("draft-status/", GuestDraftStatus.as_view()),
 ]

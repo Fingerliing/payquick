@@ -7,6 +7,7 @@ from django.shortcuts import get_object_or_404
 from django.http import HttpResponse
 from django.db import transaction
 from api.models import Table, Restaurant, Menu, MenuItem
+from api.serializers import TableSerializer, TableCreateSerializer
 from api.permissions import IsRestaurateur, IsValidatedRestaurateur
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
 import qrcode
@@ -28,11 +29,21 @@ class TableViewSet(viewsets.ModelViewSet):
     ViewSet pour la gestion des tables par les restaurateurs
     """
     permission_classes = [IsAuthenticated, IsRestaurateur, IsValidatedRestaurateur]
+    serializer_class = TableSerializer
 
     # Restreint l'identifiant utilisé dans l'URL à des nombres uniquement (évite que des
     # codes alphanumériques comme "R12T003" soient interprétés comme un identifiant de TableViewSet).
     lookup_value_regex = r'\d+'
     
+    def get_serializer_class(self):
+        """
+        Utilise un serializer dédié lors de la création (payload simplifié),
+        sinon le serializer complet.
+        """
+        if self.action in {"create"}:
+            return TableCreateSerializer
+        return TableSerializer
+
     def get_queryset(self):
         """Filtre les tables par restaurant du propriétaire"""
         try:
@@ -231,6 +242,7 @@ class RestaurantTableManagementViewSet(viewsets.ViewSet):
     ViewSet pour la gestion des tables depuis le restaurant
     """
     permission_classes = [IsAuthenticated, IsRestaurateur, IsValidatedRestaurateur]
+    serializer_class = TableSerializer
     
     @extend_schema(
         summary="Tables d'un restaurant",

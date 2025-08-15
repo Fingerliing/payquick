@@ -1,8 +1,9 @@
 import { apiClient } from './api';
 
 export class PaymentService {
+  // (si utilisé côté app) créer un PaymentIntent pour une commande interne
   async createPaymentIntent(orderId: string): Promise<{ clientSecret: string; publishableKey: string }> {
-    return apiClient.post(`/payments/create-intent/`, { orderId });
+    return apiClient.post('/payments/create-intent/', { orderId });
   }
 
   async confirmPayment(paymentIntentId: string): Promise<{ status: string }> {
@@ -23,6 +24,10 @@ export class PaymentService {
 
   async deletePaymentMethod(id: string): Promise<void> {
     return apiClient.delete(`/payments/methods/${id}/`);
+  }
+
+  async createCheckoutSession(order_id: number): Promise<{ checkout_url: string }> {
+    return apiClient.post(`/api/payments/checkout/${order_id}/`);
   }
 }
 

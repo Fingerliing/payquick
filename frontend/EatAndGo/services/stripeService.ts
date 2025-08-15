@@ -2,7 +2,7 @@ import { apiClient } from './api';
 import { Linking } from 'react-native';
 
 export interface StripeAccount {
-  status: string;
+  status?: string;
   account_id?: string;
   charges_enabled?: boolean;
   details_submitted?: boolean;
@@ -12,94 +12,76 @@ export interface StripeAccount {
 }
 
 export interface StripeOnboarding {
-  account_id: string;
+  account_id?: string;
   onboarding_url: string;
-  message: string;
 }
 
 export interface StripeAccountStatus {
-  onboarding_url: string;
+  charges_enabled: boolean;
+  payouts_enabled: boolean;
+  details_submitted?: boolean;
+  requirements?: any;
+  account_id?: string;
+  has_validated_profile?: boolean;
 }
 
+type OnboardingReturn =
+  | { success: true; type: 'success' | 'refresh' | 'cancel' }
+  | { success: false };
+
 class StripeService {
-  /**
-   * Créer un compte Stripe Connect pour un restaurateur
-   */
+  /** Créer/initialiser un compte Connect et obtenir un lien d’onboarding */
   async createAccount(): Promise<StripeOnboarding> {
-    try {
-      return await apiClient.post<StripeOnboarding>('/api/v1/stripe/create-account/');
-    } catch (error) {
-      console.error('Erreur création compte Stripe:', error);
-      throw error;
-    }
+    return apiClient.post<StripeOnboarding>('/api/stripe/account/');
   }
 
-  /**
-   * Vérifier le statut du compte Stripe
-   */
-  async getAccountStatus(): Promise<StripeAccount> {
-    try {
-      return await apiClient.get<StripeAccount>('/api/v1/stripe/account-status/');
-    } catch (error) {
-      console.error('Erreur statut compte Stripe:', error);
-      throw error;
-    }
+  /** Statut du compte Connect */
+  async getAccountStatus(): Promise<StripeAccountStatus> {
+    return apiClient.get<StripeAccountStatus>('/api/stripe/account/status/');
   }
 
-  /**
-   * Créer un nouveau lien d'onboarding
-   */
-  async createOnboardingLink(): Promise<StripeAccountStatus> {
-    try {
-      const response = await apiClient.post<StripeAccountStatus>('/api/v1/stripe/onboarding-link/');
-      console.log('Lien onboarding reçu:', response);
-      return response;
-    } catch (error) {
-      console.error('Erreur création lien onboarding:', error);
-      throw error;
-    }
+  /** (Ré)obtenir un lien d’onboarding */
+  async createOnboardingLink(): Promise<StripeOnboarding> {
+    return apiClient.post<StripeOnboarding>('/api/stripe/account/');
   }
 
-  /**
-   * Ouvrir l'URL Stripe dans le navigateur par défaut
-   */
-  async openStripeOnboarding(url: string): Promise<boolean> {
+  /** Créer une session Stripe Identity (KYC) */
+  async createIdentitySession(): Promise<{ verification_url: string }> {
+    return apiClient.post('/api/stripe/identity/session/');
+  }
+
+  /** Ouvrir l’onboarding dans le navigateur */
+  async openStripeOnboarding(url?: string): Promise<boolean> {
     try {
-      const supported = await Linking.canOpenURL(url);
+      const onboardingUrl = url ?? (await this.createOnboardingLink()).onboarding_url;
+      const supported = await Linking.canOpenURL(onboardingUrl);
       if (supported) {
-        await Linking.openURL(url);
+        await Linking.openURL(onboardingUrl);
         return true;
-      } else {
-        console.error('URL non supportée:', url);
-        return false;
       }
+      return false;
     } catch (error) {
-      console.error('Erreur ouverture URL:', error);
+      console.error("Impossible d'ouvrir l'onboarding Stripe:", error);
       return false;
     }
   }
 
-  /**
-   * Gérer le retour depuis Stripe (via deep linking)
-   */
-  handleStripeReturn(url: string): { success: boolean; type?: 'success' | 'refresh' | 'cancel' } {
+  /** Nouveau nom (utilisé par moi) */
+  parseOnboardingReturn(url: string): OnboardingReturn {
     try {
-      const urlObj = new URL(url);
-      const pathname = urlObj.pathname;
-
-      if (pathname.includes('/stripe/success')) {
-        return { success: true, type: 'success' };
-      } else if (pathname.includes('/stripe/refresh')) {
-        return { success: true, type: 'refresh' };
-      } else if (pathname.includes('/stripe/cancel')) {
-        return { success: true, type: 'cancel' };
-      }
-
+      const { pathname } = new URL(url);
+      if (pathname.includes('/stripe/success'))  return { success: true, type: 'success' };
+      if (pathname.includes('/stripe/refresh'))  return { success: true, type: 'refresh' };
+      if (pathname.includes('/stripe/cancel'))   return { success: true, type: 'cancel' };
       return { success: false };
     } catch (error) {
       console.error('Erreur parsing URL retour:', error);
       return { success: false };
     }
+  }
+
+  handleStripeReturn(url: string): OnboardingReturn {
+    return this.parseOnboardingReturn(url);
   }
 }
 
