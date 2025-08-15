@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { QRSessionUtils } from '@/utils/qrSessionUtils';
 import QRScanner from '@/components/client/QRScanner';
 
 interface QRAccessButtonsProps {
@@ -84,79 +85,28 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
     setIsProcessing(true);
     
     try {
-      let restaurantId: string | null = null;
-      let tableNumber: string | null = null;
-      let parsedSuccessfully = false;
-
-      // 1. Essayer de parser comme URL QR complète
-      try {
-        const url = new URL(codeData);
-        const searchParams = url.searchParams;
-        
-        restaurantId = searchParams.get('restaurant') || searchParams.get('r');
-        tableNumber = searchParams.get('table') || searchParams.get('t');
-        
-        if (restaurantId) {
-          parsedSuccessfully = true;
-        }
-      } catch {
-        // Pas une URL valide, continuer avec d'autres formats
-      }
-
-      // 2. Essayer les patterns dans l'URL path
-      if (!parsedSuccessfully) {
-        const restaurantMatch = codeData.match(/(?:restaurant|r)[\/=](\d+)/i);
-        const tableMatch = codeData.match(/(?:table|t)[\/=](\d+)/i);
-        
-        if (restaurantMatch) {
-          restaurantId = restaurantMatch[1];
-          tableNumber = tableMatch ? tableMatch[1] : null;
-          parsedSuccessfully = true;
-        }
-      }
-
-      // 3. Essayer les formats de codes simples
-      if (!parsedSuccessfully) {
-        // Format: R123T05 (Restaurant 123, Table 5)
-        const formatRTMatch = codeData.match(/^R(\d+)T(\d+)$/i);
-        if (formatRTMatch) {
-          restaurantId = formatRTMatch[1];
-          tableNumber = formatRTMatch[2];
-          parsedSuccessfully = true;
-        }
-        
-        // Format: R123 (Restaurant 123 seulement)
-        if (!parsedSuccessfully) {
-          const formatRMatch = codeData.match(/^R(\d+)$/i);
-          if (formatRMatch) {
-            restaurantId = formatRMatch[1];
-            parsedSuccessfully = true;
-          }
-        }
-        
-        // Format: Code numérique simple
-        if (!parsedSuccessfully && /^\d+$/.test(codeData)) {
-          restaurantId = codeData;
-          parsedSuccessfully = true;
-        }
-      }
+      // Utiliser les utilitaires QR pour parser et sauvegarder
+      const sessionData = await QRSessionUtils.createSessionFromCode(codeData);
       
-      if (parsedSuccessfully && restaurantId) {
+      if (sessionData) {
+        console.log('📋 Processed QR/Code successfully:', sessionData);
+
         if (onSuccess) {
           // Callback personnalisé
-          onSuccess(restaurantId, tableNumber || undefined, codeData);
+          onSuccess(sessionData.restaurantId, sessionData.tableNumber, sessionData.originalCode);
         } else {
-          // Navigation par défaut
+          // Navigation par défaut avec les paramètres complets
           const params: Record<string, string> = {
-            code: codeData
+            code: sessionData.originalCode,
+            restaurantId: sessionData.restaurantId
           };
           
-          if (tableNumber) {
-            params.tableNumber = tableNumber;
+          if (sessionData.tableNumber) {
+            params.tableNumber = sessionData.tableNumber;
           }
 
           router.push({
-            pathname: `/menu/client/${restaurantId}` as any,
+            pathname: `/menu/client/${sessionData.restaurantId}` as any,
             params
           });
         }
@@ -268,13 +218,13 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
                 style={styles.textInput}
                 value={accessCode}
                 onChangeText={setAccessCode}
-                placeholder="Ex: 123456 ou R123T05"
+                placeholder="Ex: 123456, R123T05, ou URL complète"
                 autoCapitalize="characters"
                 autoFocus
                 editable={!isProcessing}
               />
               <Text style={styles.inputHint}>
-                Entrez le code affiché sur votre table
+                Entrez le code affiché sur votre table ou l'URL complète
               </Text>
             </View>
             

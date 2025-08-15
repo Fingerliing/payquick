@@ -7,7 +7,7 @@ import { ApiError, ApiResponse } from '../types/common';
  * - Gère la baseURL (EXPO_PUBLIC_API_URL ou localhost)
  * - Ajoute automatiquement le Bearer token si présent dans AsyncStorage
  * - Normalise les chemins pour éviter les doubles slashs
- * - Expose des helpers génériques: get/post/put/patch/delete
+ * - Expose des helpers génériques: get/post/put/patch/delete/options
  */
 class ApiClient {
   private client: AxiosInstance;
@@ -180,6 +180,20 @@ class ApiClient {
     config?: AxiosRequestConfig
   ): Promise<T> {
     const response = await this.client.delete<ApiResponse<T> | T>(
+      this.buildUrl(url),
+      config
+    );
+    return this.extractData<T>(response);
+  }
+
+  /**
+   * Méthode OPTIONS pour récupérer les métadonnées d'un endpoint
+   */
+  async options<T = any>(
+    url: string,
+    config?: AxiosRequestConfig
+  ): Promise<T> {
+    const response = await this.client.options<ApiResponse<T> | T>(
       this.buildUrl(url),
       config
     );
