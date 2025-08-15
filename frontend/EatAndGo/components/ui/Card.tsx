@@ -1,9 +1,9 @@
 import React, { ReactNode } from 'react';
-import { View, ViewStyle } from 'react-native';
+import { View, ViewStyle, StyleProp } from 'react-native';
 
 interface CardProps {
   children: ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   padding?: number;
   margin?: number;
   shadow?: boolean;
@@ -31,8 +31,11 @@ export const Card: React.FC<CardProps> = ({
       shadowRadius: 4,
       elevation: 3,
     }),
-    ...style,
   };
 
-  return <View style={cardStyle}>{children}</View>;
+  return (
+    <View style={[cardStyle, style]}>
+      {children}
+    </View>
+  );
 };
