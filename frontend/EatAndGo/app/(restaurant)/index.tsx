@@ -8,14 +8,14 @@ import {
 } from 'react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRestaurant } from '@/contexts/RestaurantContext';
-import { useOrder } from '@/contexts/OrderContext';
+import { useOrder } from '@/contexts/OrderContext'; // Using your existing OrderContext
 import { Header } from '@/components/ui/Header';
 import { Card } from '@/components/ui/Card';
 import { Loading } from '@/components/ui/Loading';
 import { RestaurantCard } from '@/components/restaurant/RestaurantCard';
 import StripeAccountStatus from '@/components/stripe/StripeAccountStatus';
 import { router } from 'expo-router';
-import { Order, OrderList, isOrderList } from '@/types/order';
+import { OrderList, OrderDetail } from '@/types/order';
 import { OrderSearchFilters } from '@/types/common';
 import { RecentOrder } from '@/types/user';
 
@@ -24,39 +24,63 @@ function isRecentOrder(order: any): order is RecentOrder {
   return 'restaurant_name' in order && !('restaurant' in order);
 }
 
-function isFullOrder(order: any): order is Order {
-  return 'restaurant' in order && typeof order.restaurant === 'object';
+function isOrderList(order: any): order is OrderList {
+  return 'order_number' in order && 'restaurant' in order;
 }
 
-// Helper functions
-function getRestaurantName(order: Order | RecentOrder): string {
+function isOrderDetail(order: any): order is OrderDetail {
+  return 'items' in order && 'restaurant' in order;
+}
+
+// Helper functions adapted for your OrderList/OrderDetail types
+function getRestaurantName(order: OrderList | OrderDetail | RecentOrder): string {
   if (isRecentOrder(order)) {
     return order.restaurant_name || 'Restaurant';
   }
-  if (isOrderList(order) && order.restaurant_name) {
-    return order.restaurant_name;
+  if (isOrderList(order) || isOrderDetail(order)) {
+    return order.restaurant_name || 'Restaurant';
   }
   return 'Restaurant';
 }
 
-function getOrderTotal(order: Order | RecentOrder): string {
-  if ('total_amount' in order && typeof order.total_amount === 'string') {
+function getOrderTotal(order: OrderList | OrderDetail | RecentOrder): string {
+  // For your OrderDetail type
+  if (isOrderDetail(order) && order.total_amount) {
     const amount = parseFloat(order.total_amount);
     return isNaN(amount) ? '0.00' : amount.toFixed(2);
   }
-  if ('total' in order && typeof order.total === 'number') {
-    return order.total.toFixed(2);
+  
+  // For RecentOrder from user profile
+  if (isRecentOrder(order)) {
+    if ('total_amount' in order && typeof order.total_amount === 'string') {
+      const amount = parseFloat(order.total_amount);
+      return isNaN(amount) ? '0.00' : amount.toFixed(2);
+    }
+    if ('total' in order && typeof order.total === 'number') {
+      return order.total.toFixed(2);
+    }
   }
+  
   return '0.00';
 }
 
-function getOrderDate(order: Order | RecentOrder): string {
+function getOrderDate(order: OrderList | OrderDetail | RecentOrder): string {
   if (!order?.created_at) return 'Date inconnue';
   try {
     return new Date(order.created_at).toLocaleDateString('fr-FR');
   } catch {
     return 'Date inconnue';
   }
+}
+
+function getOrderNumber(order: OrderList | OrderDetail | RecentOrder): string {
+  if (isOrderList(order) || isOrderDetail(order)) {
+    return order.order_number || `#${order.id}`;
+  }
+  if ('id' in order) {
+    return `#${order.id}`;
+  }
+  return 'N/A';
 }
 
 function isOrderCompleted(status?: string): boolean {
@@ -74,9 +98,11 @@ export default function DashboardScreen() {
     isLoading: restaurantsLoading,
     error: restaurantsError,
   } = useRestaurant();
+
+  // Using your existing OrderContext with correct method names
   const {
     orders,
-    loadOrders,
+    fetchOrders, // This is the correct method name in your OrderContext
     isLoading: ordersLoading,
     error: ordersError,
   } = useOrder();
@@ -88,22 +114,29 @@ export default function DashboardScreen() {
     ? user.recent_orders
     : [];
 
-  const displayOrders =
-    safeUserOrders.length > 0 ? safeUserOrders : safeOrders;
-
-  const orderFilters: OrderSearchFilters = {
-      page: 1,
-      limit: 5
-    };
+  // Prioritize user's recent orders over general orders
+  const displayOrders = safeUserOrders.length > 0 ? safeUserOrders : safeOrders;
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        await Promise.all([
+        const promises = [
           loadRestaurants(),
-          loadOrders(orderFilters),
           refreshUser(),
-        ]);
+        ];
+
+        // Use fetchOrders with the correct signature for your OrderContext
+        if (fetchOrders && typeof fetchOrders === 'function') {
+          promises.push(
+            fetchOrders({
+              page: 1,
+              limit: 5,
+              filters: {} // Empty filters for initial load
+            })
+          );
+        }
+
+        await Promise.all(promises);
       } catch (error) {
         console.error('Dashboard: Initial load error:', error);
       }
@@ -115,11 +148,23 @@ export default function DashboardScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([
+      const promises = [
         loadRestaurants(),
-        loadOrders(orderFilters),
         refreshUser(),
-      ]);
+      ];
+
+      // Use fetchOrders with correct signature
+      if (fetchOrders && typeof fetchOrders === 'function') {
+        promises.push(
+          fetchOrders({
+            page: 1,
+            limit: 5,
+            filters: {}
+          })
+        );
+      }
+
+      await Promise.all(promises);
     } catch (error) {
       console.error('Dashboard: Refresh error:', error);
     } finally {
@@ -274,19 +319,23 @@ export default function DashboardScreen() {
                   borderBottomColor: '#E5E7EB',
                 }}
               >
-                <View>
+                <View style={{ flex: 1 }}>
                   <Text style={{ fontSize:14, fontWeight: '500', color: '#111827' }}>
                     {getRestaurantName(order)}
                   </Text>
                   <Text style={{ fontSize:12, color: '#6B7280' }}>
-                    {getOrderDate(order)}
+                    {getOrderNumber(order)} • {getOrderDate(order)}
                   </Text>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
                   <Text style={{ fontSize:14, fontWeight: '500', color: '#111827' }}>
                     {getOrderTotal(order)} €
                   </Text>
-                  <Text style={{ fontSize:12, color: isOrderCompleted(order.status) ? '#10B981' : '#D97706', fontWeight: '500' }}>
+                  <Text style={{ 
+                    fontSize:12, 
+                    color: isOrderCompleted(order.status) ? '#10B981' : '#D97706', 
+                    fontWeight: '500' 
+                  }}>
                     {order.status ?? 'Statut inconnu'}
                   </Text>
                 </View>
