@@ -217,7 +217,7 @@ export default function DashboardScreen() {
           </Text>
         </View>
 
-        {isRestaurateur && (
+        {isRestaurateur && !user?.roles?.has_validated_profile && (
           <View style={{ paddingHorizontal: 16, marginBottom: 24 }}>
             <StripeAccountStatus />
           </View>
