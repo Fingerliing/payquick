@@ -35,7 +35,6 @@ const API_ENDPOINTS = {
   auth: {
     register: `${API_URL}/auth/register/`,
     login: `${API_URL}/auth/login/`,
-    logout: `${API_URL}/auth/logout/`,
     user: `${API_URL}/auth/me/`,
     refresh: `${API_URL}/auth/refresh/`,
   },
@@ -209,13 +208,6 @@ class ApiClient {
     });
   }
 
-  async logout(refreshToken: string): Promise<{ message: string }> {
-    return this.request<{ message: string }>(API_ENDPOINTS.auth.logout, {
-      method: 'POST',
-      body: JSON.stringify({ refresh: refreshToken }),
-    });
-  }
-
   async getCurrentUser(): Promise<User> {
     return this.request<User>(API_ENDPOINTS.auth.user);
   }
@@ -265,37 +257,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const canManageOrders = user?.permissions?.can_manage_orders || false;
 
   // Navigation améliorée avec délai et vérifications
-  const navigateByRole = () => {
-    if (!user) {
-      console.log('🚫 Pas d\'utilisateur pour la navigation');
+  const navigateByRole = (u?: User) => {
+    const target = u ?? user;
+    if (!target) {
+      console.log("🚫 Pas d'utilisateur pour la navigation");
       return;
     }
-
-    console.log('🧭 Navigation par rôle:', { 
-      role: user.role, 
-      isAuthenticated: user.is_authenticated 
-    });
-
-    // Utiliser setTimeout pour s'assurer que la navigation se fait après le rendu
-    setTimeout(() => {
-      try {
-        if (user.role === 'client') {
-          console.log('👤 Redirection vers client');
-          router.replace('/(client)');
-        } else if (user.role === 'restaurateur') {
-          console.log('🍽️ Redirection vers restaurateur');
-          router.replace('/(restaurant)');
-        } else {
-          console.log('❓ Rôle inconnu:', user.role);
-        }
-      } catch (error) {
-        console.error('❌ Erreur de navigation:', error);
-        // Fallback: essayer de rediriger vers une route générique
-        setTimeout(() => {
-          router.replace('/(restaurant)');
-        }, 100);
+  
+    console.log('🧭 Navigation par rôle:', { role: target.role, isAuthenticated: target.is_authenticated });
+    try {
+      if (target.role === 'client') {
+        console.log('👤 Redirection vers client');
+        router.replace('/(client)');
+      } else if (target.role === 'restaurateur') {
+        console.log('🍽️ Redirection vers restaurateur');
+        router.replace('/(restaurant)');
+      } else {
+        console.log('❓ Rôle inconnu:', target.role);
       }
-    }, 100);
+    } catch (error) {
+      console.error('❌ Erreur de navigation:', error);
+      setTimeout(() => router.replace('/(restaurant)'), 100);
+    }
   };
 
   // Effacer les erreurs
@@ -381,19 +364,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('🔍 Vérification de l\'authentification...');
       const userData = await AsyncStorage.getItem(STORAGE_KEYS.USER_DATA);
       const accessToken = await AsyncStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
-
+  
       if (userData && accessToken) {
         console.log('🔑 Données utilisateur trouvées dans le cache');
         const parsedUser = JSON.parse(userData);
         setUser(parsedUser);
         console.log('✅ Authentification restaurée depuis le cache');
-
-        // Redirection immédiate après setUser
-        setTimeout(() => navigateByRole(), 200);
+  
+        // Redirection immédiate après setUser avec vérification du rôle
+        setTimeout(() => {
+          if (parsedUser.role) {
+            console.log(`🎯 Navigation pour utilisateur ${parsedUser.role}`);
+            navigateByRole(parsedUser);
+          } else {
+            console.log('⚠️ Utilisateur sans rôle défini, redirection vers login');
+            router.replace('/(auth)/login');
+          }
+        }, 200);
         
         // Essayer de rafraîchir les données, mais ne pas échouer si 403
         try {
           await refreshUser();
+          // Re-naviguer après refresh si le rôle a changé
+          const currentUser = await AsyncStorage.getItem(STORAGE_KEYS.USER_DATA);
+          if (currentUser) {
+            const refreshedUser = JSON.parse(currentUser);
+            if (refreshedUser.role !== parsedUser.role) {
+              console.log('🔄 Rôle mis à jour après refresh, re-navigation');
+              setTimeout(() => navigateByRole(refreshedUser), 100);
+            }
+          }
         } catch (error: any) {
           if (error.code === 403) {
             console.log('⚠️ Accès limité - profil non validé, mais connexion maintenue');
@@ -473,8 +473,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         console.log('✅ Connexion réussie avec données utilisateur complètes');
         
-        // Navigation après connexion - délai plus long pour s'assurer que tout est prêt
-        setTimeout(() => navigateByRole(), 500);
+        // Navigation après connexion
+        navigateByRole(currentUser);
       }
 
     } catch (error: any) {
@@ -490,23 +490,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     try {
       console.log('🚪 Déconnexion...');
-      const refreshToken = await AsyncStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
-      if (refreshToken) {
-        try {
-          await apiClient.logout(refreshToken);
-          console.log('✅ Déconnexion côté serveur réussie');
-        } catch (error) {
-          console.error('⚠️ Erreur lors de la déconnexion côté serveur:', error);
-        }
-      }
+      
+      // Nettoyer directement les données locales
+      await AsyncStorage.multiRemove([
+        STORAGE_KEYS.ACCESS_TOKEN,
+        STORAGE_KEYS.REFRESH_TOKEN,
+        STORAGE_KEYS.USER_DATA,
+      ]);
+      
+      setUser(null);
+      setLastError(null);
+      console.log('✅ Déconnexion locale réussie');
+      
+      router.replace('/(auth)/login');
     } catch (error) {
       console.error('❌ Erreur lors de la déconnexion:', error);
-    } finally {
-      await clearAuthData();
-      console.log('✅ Déconnexion locale terminée');
+      // Même en cas d'erreur, essayer de nettoyer et rediriger
+      setUser(null);
       router.replace('/(auth)/login');
     }
   };
+  
 
   // Stripe methods (inchangées)
   const createStripeAccount = async () => {
