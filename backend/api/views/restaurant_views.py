@@ -6,11 +6,16 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.shortcuts import get_object_or_404
 from django.db.models import Count, Q
 from django.utils import timezone
-from api.models import Restaurant, Table, Menu, Order, RestaurateurProfile, MenuItem, OpeningHours
+from datetime import datetime, timedelta
+from api.models import (
+    Restaurant, Table, Menu, Order, RestaurateurProfile, MenuItem, 
+    OpeningHours, OpeningPeriod, RestaurantHoursTemplate
+)
 from api.serializers.restaurant_serializers import (
     RestaurantSerializer, 
     RestaurantCreateSerializer, 
-    RestaurantImageSerializer
+    RestaurantImageSerializer,
+    RestaurantHoursTemplateSerializer
 )
 from api.permissions import IsRestaurateur, IsOwnerOrReadOnly, IsValidatedRestaurateur
 from drf_spectacular.utils import extend_schema, OpenApiRequest, OpenApiResponse, OpenApiParameter
@@ -31,6 +36,8 @@ class RestaurantViewSet(viewsets.ModelViewSet):
     - Gestion des tables et menus
     - Activation/désactivation Stripe
     - Validation et statuts
+    - NOUVEAU: Support des fermetures manuelles
+    - NOUVEAU: Gestion des horaires multi-périodes
     """
     queryset = Restaurant.objects.all().order_by('-id')
     serializer_class = RestaurantSerializer
@@ -118,7 +125,10 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                 "active_orders": active_orders,
                 "total_tables": total_tables,
                 "created_at": restaurant.created_at,
-                "updated_at": restaurant.updated_at
+                "updated_at": restaurant.updated_at,
+                # NOUVEAU: Statut manuel
+                "isManuallyOverridden": restaurant.is_manually_overridden,
+                "manualOverrideReason": restaurant.manual_override_reason
             })
         
         if page is not None:
@@ -175,7 +185,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
 
     @extend_schema(
         summary="Créer un restaurant",
-        description="Crée un nouveau restaurant avec toutes les informations nécessaires. Le SIRET peut être généré automatiquement si non fourni. Supporte l'upload d'image lors de la création.",
+        description="Crée un nouveau restaurant avec toutes les informations nécessaires. Le SIRET peut être généré automatiquement si non fourni. Supporte l'upload d'image lors de la création et les nouveaux horaires multi-périodes.",
         request={
             'multipart/form-data': {
                 'type': 'object',
@@ -206,7 +216,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         }
     )
     def create(self, request, *args, **kwargs):
-        """Crée un nouveau restaurant avec gestion des images et horaires"""
+        """Crée un nouveau restaurant avec gestion des images et horaires multi-périodes"""
         
         # Nettoyer les données frontend
         frontend_data = request.data.copy()
@@ -218,7 +228,8 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         fields_to_remove = [
             'rating', 'reviewCount', 'isActive', 'ownerId', 
             'createdAt', 'updatedAt', 'location', 'can_receive_orders',
-            'accepts_meal_vouchers_display'
+            'accepts_meal_vouchers_display', 'isManuallyOverridden',
+            'manualOverrideReason', 'manualOverrideUntil'
         ]
         
         for field in fields_to_remove:
@@ -242,25 +253,8 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                     restaurant.is_stripe_active = True
                     restaurant.save(update_fields=["is_stripe_active"])
                 
-                # Créer les horaires d'ouverture
-                for hours in opening_hours_data:
-                    try:
-                        # Gérer les différents formats possibles
-                        day_of_week = hours.get('dayOfWeek', hours.get('day_of_week'))
-                        open_time = hours.get('openTime', hours.get('open_time', '09:00'))
-                        close_time = hours.get('closeTime', hours.get('close_time', '22:00'))
-                        is_closed = hours.get('isClosed', hours.get('is_closed', False))
-                        
-                        OpeningHours.objects.create(
-                            restaurant=restaurant,
-                            day_of_week=day_of_week,
-                            opening_time=open_time,
-                            closing_time=close_time,
-                            is_closed=is_closed
-                        )
-                    except Exception as e:
-                        print(f"Erreur création horaire: {e}")
-                        # Continuer même si un horaire échoue
+                # Créer les horaires d'ouverture avec support multi-périodes
+                self._create_opening_hours_with_periods(restaurant, opening_hours_data)
                 
                 # Retourner avec le sérialiseur complet incluant les horaires
                 response_serializer = RestaurantSerializer(
@@ -291,9 +285,56 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                 'help': 'Vérifiez que tous les champs requis sont présents et valides'
             }, status=status.HTTP_400_BAD_REQUEST)
 
+    def _create_opening_hours_with_periods(self, restaurant, opening_hours_data):
+        """Crée les horaires avec support des périodes multiples"""
+        for day_data in opening_hours_data:
+            try:
+                # Gérer les différents formats possibles
+                day_of_week = day_data.get('dayOfWeek', day_data.get('day_of_week'))
+                is_closed = day_data.get('isClosed', day_data.get('is_closed', False))
+                periods_data = day_data.get('periods', [])
+                
+                # Créer l'entrée horaire pour ce jour
+                opening_hours = OpeningHours.objects.create(
+                    restaurant=restaurant,
+                    day_of_week=day_of_week,
+                    is_closed=is_closed
+                )
+                
+                # Créer les périodes si pas fermé
+                if not is_closed and periods_data:
+                    for period_data in periods_data:
+                        OpeningPeriod.objects.create(
+                            opening_hours=opening_hours,
+                            start_time=period_data.get('startTime', '09:00'),
+                            end_time=period_data.get('endTime', '19:00'),
+                            name=period_data.get('name', '')
+                        )
+                elif not is_closed:
+                    # Rétrocompatibilité : créer une période par défaut si aucune fournie
+                    # mais seulement si format ancien avec openTime/closeTime
+                    open_time = day_data.get('openTime', day_data.get('open_time'))
+                    close_time = day_data.get('closeTime', day_data.get('close_time'))
+                    
+                    if open_time and close_time:
+                        OpeningPeriod.objects.create(
+                            opening_hours=opening_hours,
+                            start_time=open_time,
+                            end_time=close_time,
+                            name='Service principal'
+                        )
+                        # Sauvegarder aussi dans l'ancien format pour rétrocompatibilité
+                        opening_hours.opening_time = open_time
+                        opening_hours.closing_time = close_time
+                        opening_hours.save()
+                
+            except Exception as e:
+                print(f"Erreur création horaire: {e}")
+                # Continuer même si un horaire échoue
+
     @extend_schema(
         summary="Modifier un restaurant",
-        description="Met à jour les informations d'un restaurant existant. Supporte les mises à jour partielles.",
+        description="Met à jour les informations d'un restaurant existant. Supporte les mises à jour partielles et les nouveaux horaires multi-périodes.",
         responses={
             200: OpenApiResponse(description="Restaurant mis à jour"),
             400: OpenApiResponse(description="Données invalides"),
@@ -301,7 +342,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         }
     )
     def update(self, request, *args, **kwargs):
-        """Met à jour un restaurant avec gestion des horaires"""
+        """Met à jour un restaurant avec gestion des horaires multi-périodes"""
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
         
@@ -315,7 +356,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         fields_to_remove = [
             'id', 'ownerId', 'owner_id', 'createdAt', 'updatedAt',
             'can_receive_orders', 'rating', 'reviewCount', 'location',
-            'accepts_meal_vouchers_display'
+            'accepts_meal_vouchers_display', 'lastStatusChangedBy', 'lastStatusChangedAt'
         ]
         
         for field in fields_to_remove:
@@ -335,18 +376,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                 
                 # Mettre à jour les horaires si fournis
                 if opening_hours_data is not None:
-                    # Supprimer les anciens horaires
-                    instance.opening_hours.all().delete()
-                    
-                    # Créer les nouveaux
-                    for hours in opening_hours_data:
-                        OpeningHours.objects.create(
-                            restaurant=instance,
-                            day_of_week=hours.get('dayOfWeek', hours.get('day_of_week')),
-                            opening_time=hours.get('openTime', hours.get('open_time', '09:00')),
-                            closing_time=hours.get('closeTime', hours.get('close_time', '22:00')),
-                            is_closed=hours.get('isClosed', hours.get('is_closed', False))
-                        )
+                    self._update_opening_hours_with_periods(instance, opening_hours_data)
                 
                 if getattr(instance, '_prefetched_objects_cache', None):
                     instance._prefetched_objects_cache = {}
@@ -367,6 +397,14 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def _update_opening_hours_with_periods(self, restaurant, opening_hours_data):
+        """Met à jour les horaires avec support des périodes multiples"""
+        # Supprimer les anciens horaires
+        restaurant.opening_hours.all().delete()
+        
+        # Créer les nouveaux horaires
+        self._create_opening_hours_with_periods(restaurant, opening_hours_data)
 
     @extend_schema(
         summary="Modifier partiellement un restaurant", 
@@ -399,7 +437,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                 except Exception:
                     pass  # Continuer même si la suppression échoue
             
-            # La suppression en cascade s'occupera des relations (y compris OpeningHours)
+            # La suppression en cascade s'occupera des relations (y compris OpeningHours et OpeningPeriod)
             self.perform_destroy(instance)
             
             return Response(status=status.HTTP_204_NO_CONTENT)
@@ -409,6 +447,318 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                 'error': 'Erreur lors de la suppression',
                 'details': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    # ============================================================================
+    # NOUVELLES FONCTIONNALITÉS - FERMETURES MANUELLES
+    # ============================================================================
+
+    @extend_schema(
+        summary="Fermer temporairement le restaurant",
+        description="Ferme manuellement le restaurant avec raison et durée optionnelle",
+        request={
+            'application/json': {
+                'type': 'object',
+                'properties': {
+                    'reason': {'type': 'string', 'description': 'Raison de la fermeture'},
+                    'until': {'type': 'string', 'format': 'date-time', 'description': 'Date de réouverture (optionnel)'},
+                    'duration_hours': {'type': 'integer', 'description': 'Durée en heures (alternatif à until)'}
+                },
+                'required': ['reason']
+            }
+        },
+        responses={
+            200: OpenApiResponse(description="Restaurant fermé temporairement"),
+            400: OpenApiResponse(description="Données invalides")
+        }
+    )
+    @action(detail=True, methods=["post"])
+    def manual_close(self, request, pk=None):
+        """Ferme manuellement le restaurant"""
+        restaurant = self.get_object()
+        reason = request.data.get('reason')
+        until = request.data.get('until')
+        duration_hours = request.data.get('duration_hours')
+        
+        if not reason:
+            return Response({
+                'error': 'La raison est obligatoire'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Calculer la date de fin si durée fournie
+        if duration_hours and not until:
+            until = timezone.now() + timedelta(hours=duration_hours)
+        elif until:
+            try:
+                until = datetime.fromisoformat(until.replace('Z', '+00:00'))
+            except ValueError:
+                return Response({
+                    'error': 'Format de date invalide'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Mettre à jour le restaurant
+        restaurant.is_manually_overridden = True
+        restaurant.manual_override_reason = reason
+        restaurant.manual_override_until = until
+        restaurant.last_status_changed_by = request.user
+        restaurant.last_status_changed_at = timezone.now()
+        restaurant.save(update_fields=[
+            'is_manually_overridden', 'manual_override_reason', 
+            'manual_override_until', 'last_status_changed_by', 
+            'last_status_changed_at'
+        ])
+        
+        return Response({
+            'success': True,
+            'message': 'Restaurant fermé temporairement',
+            'restaurant': {
+                'id': str(restaurant.id),
+                'name': restaurant.name,
+                'isManuallyOverridden': True,
+                'manualOverrideReason': reason,
+                'manualOverrideUntil': until.isoformat() if until else None,
+                'can_receive_orders': restaurant.can_receive_orders
+            }
+        })
+
+    @extend_schema(
+        summary="Rouvrir le restaurant",
+        description="Annule la fermeture manuelle du restaurant"
+    )
+    @action(detail=True, methods=["post"])
+    def manual_reopen(self, request, pk=None):
+        """Rouvre manuellement le restaurant"""
+        restaurant = self.get_object()
+        
+        if not restaurant.is_manually_overridden:
+            return Response({
+                'error': 'Le restaurant n\'est pas fermé manuellement'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        restaurant.is_manually_overridden = False
+        restaurant.manual_override_reason = None
+        restaurant.manual_override_until = None
+        restaurant.last_status_changed_by = request.user
+        restaurant.last_status_changed_at = timezone.now()
+        restaurant.save(update_fields=[
+            'is_manually_overridden', 'manual_override_reason', 
+            'manual_override_until', 'last_status_changed_by', 
+            'last_status_changed_at'
+        ])
+        
+        return Response({
+            'success': True,
+            'message': 'Restaurant rouvert',
+            'restaurant': {
+                'id': str(restaurant.id),
+                'name': restaurant.name,
+                'isManuallyOverridden': False,
+                'can_receive_orders': restaurant.can_receive_orders
+            }
+        })
+
+    @extend_schema(
+        summary="Statut en temps réel",
+        description="Obtient le statut actuel du restaurant avec logique métier complète"
+    )
+    @action(detail=True, methods=["get"])
+    def real_time_status(self, request, pk=None):
+        """Statut en temps réel du restaurant avec logique métier"""
+        restaurant = self.get_object()
+        now = timezone.now()
+        
+        # Vérifier l'expiration automatique des overrides
+        if restaurant.is_manually_overridden and restaurant.manual_override_until:
+            if now > restaurant.manual_override_until:
+                restaurant.is_manually_overridden = False
+                restaurant.manual_override_reason = None
+                restaurant.manual_override_until = None
+                restaurant.save(update_fields=[
+                    'is_manually_overridden', 'manual_override_reason', 
+                    'manual_override_until'
+                ])
+        
+        # Calculer le statut selon la logique frontend
+        status_info = self._calculate_restaurant_status(restaurant, now)
+        
+        return Response({
+            'restaurant': {
+                'id': str(restaurant.id),
+                'name': restaurant.name,
+                'isActive': restaurant.is_active,
+                'isManuallyOverridden': restaurant.is_manually_overridden,
+                'manualOverrideReason': restaurant.manual_override_reason,
+                'manualOverrideUntil': restaurant.manual_override_until.isoformat() if restaurant.manual_override_until else None,
+                'can_receive_orders': restaurant.can_receive_orders
+            },
+            'status': status_info,
+            'timestamp': now.isoformat()
+        })
+
+    # ============================================================================
+    # NOUVELLES FONCTIONNALITÉS - GESTION HORAIRES MULTI-PÉRIODES
+    # ============================================================================
+
+    @extend_schema(
+        summary="Mettre à jour les horaires",
+        description="Met à jour les horaires avec support des périodes multiples",
+        request={
+            'application/json': {
+                'type': 'object',
+                'properties': {
+                    'openingHours': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': {
+                                'dayOfWeek': {'type': 'integer', 'minimum': 0, 'maximum': 6},
+                                'isClosed': {'type': 'boolean'},
+                                'periods': {
+                                    'type': 'array',
+                                    'items': {
+                                        'type': 'object',
+                                        'properties': {
+                                            'startTime': {'type': 'string', 'pattern': '^[0-2][0-9]:[0-5][0-9]$'},
+                                            'endTime': {'type': 'string', 'pattern': '^[0-2][0-9]:[0-5][0-9]$'},
+                                            'name': {'type': 'string'}
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                'required': ['openingHours']
+            }
+        }
+    )
+    @action(detail=True, methods=["put"])
+    def update_hours(self, request, pk=None):
+        """Met à jour les horaires avec support multi-périodes"""
+        restaurant = self.get_object()
+        opening_hours_data = request.data.get('openingHours', [])
+        
+        if not opening_hours_data or len(opening_hours_data) != 7:
+            return Response({
+                'error': 'Les horaires doivent couvrir les 7 jours de la semaine'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Valider la structure
+        for day_data in opening_hours_data:
+            if 'dayOfWeek' not in day_data:
+                return Response({
+                    'error': 'dayOfWeek manquant pour un jour'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            if not day_data.get('isClosed', False):
+                periods = day_data.get('periods', [])
+                if not periods:
+                    return Response({
+                        'error': f'Aucune période définie pour le jour {day_data["dayOfWeek"]}'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Valider chaque période
+                for period in periods:
+                    if not all(k in period for k in ['startTime', 'endTime']):
+                        return Response({
+                            'error': 'startTime et endTime requis pour chaque période'
+                        }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Supprimer les anciens horaires
+            restaurant.opening_hours.all().delete()
+            
+            # Créer les nouveaux horaires
+            self._create_opening_hours_with_periods(restaurant, opening_hours_data)
+            
+            # Retourner les nouveaux horaires
+            restaurant.refresh_from_db()
+            serializer = self.get_serializer(restaurant)
+            
+            return Response({
+                'success': True,
+                'message': 'Horaires mis à jour avec succès',
+                'openingHours': serializer.data['opening_hours']
+            })
+            
+        except Exception as e:
+            return Response({
+                'error': 'Erreur lors de la mise à jour des horaires',
+                'details': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @extend_schema(
+        summary="Valider les horaires",
+        description="Valide une configuration d'horaires sans la sauvegarder"
+    )
+    @action(detail=False, methods=["post"])
+    def validate_hours(self, request):
+        """Valide une configuration d'horaires"""
+        opening_hours_data = request.data.get('openingHours', [])
+        
+        if not opening_hours_data:
+            return Response({
+                'isValid': False,
+                'errors': ['Aucun horaire fourni']
+            })
+        
+        errors = []
+        warnings = []
+        
+        # Validation basique
+        if len(opening_hours_data) != 7:
+            errors.append('Les horaires doivent couvrir les 7 jours de la semaine')
+        
+        days_covered = set()
+        for day_data in opening_hours_data:
+            day_of_week = day_data.get('dayOfWeek')
+            if day_of_week is None:
+                errors.append('dayOfWeek manquant')
+                continue
+            
+            if day_of_week in days_covered:
+                errors.append(f'Jour {day_of_week} défini plusieurs fois')
+            days_covered.add(day_of_week)
+            
+            if not day_data.get('isClosed', False):
+                periods = day_data.get('periods', [])
+                if not periods:
+                    errors.append(f'Aucune période définie pour le jour {day_of_week}')
+                
+                # Valider les périodes
+                for i, period in enumerate(periods):
+                    if not all(k in period for k in ['startTime', 'endTime']):
+                        errors.append(f'Période {i+1} du jour {day_of_week}: startTime et endTime requis')
+                    else:
+                        # Validation des heures
+                        try:
+                            start = datetime.strptime(period['startTime'], '%H:%M')
+                            end = datetime.strptime(period['endTime'], '%H:%M')
+                            
+                            # Durée minimale
+                            if end <= start:
+                                duration_minutes = (24 * 60) - (start.hour * 60 + start.minute) + (end.hour * 60 + end.minute)
+                            else:
+                                duration_minutes = (end.hour * 60 + end.minute) - (start.hour * 60 + start.minute)
+                            
+                            if duration_minutes < 30:
+                                warnings.append(f'Période très courte pour le jour {day_of_week}: {duration_minutes} minutes')
+                            
+                        except ValueError:
+                            errors.append(f'Format d\'heure invalide pour le jour {day_of_week}')
+        
+        # Vérifications métier
+        open_days = len([d for d in opening_hours_data if not d.get('isClosed', False)])
+        if open_days == 0:
+            warnings.append('Restaurant fermé toute la semaine')
+        elif open_days < 5:
+            warnings.append('Restaurant ouvert moins de 5 jours par semaine')
+        
+        return Response({
+            'isValid': len(errors) == 0,
+            'errors': errors,
+            'warnings': warnings,
+            'openDays': open_days
+        })
 
     # ============================================================================
     # GESTION DES IMAGES
@@ -695,7 +1045,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         pending_orders = orders.filter(status='pending').count()
         in_progress_orders = orders.filter(status='in_progress').count()
         served_orders = orders.filter(status='served').count()
-        paid_orders = orders.filter(is_paid=True).count()
+        paid_orders = orders.filter(payment_status='paid').count()
         
         # Statistiques des tables
         tables = Table.objects.filter(restaurant=restaurant)
@@ -759,7 +1109,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             status__in=['pending', 'in_progress']
         ).count()
         total_tables = Table.objects.filter(restaurant=restaurant).count()
-        active_menus = Menu.objects.filter(restaurant=restaurant, disponible=True).count()
+        active_menus = Menu.objects.filter(restaurant=restaurant, is_available=True).count()
         
         # Commandes récentes
         recent_orders = Order.objects.filter(restaurant=restaurant).order_by('-created_at')[:5]
@@ -775,7 +1125,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                 "table_number": order.table_number,
                 "table_identifiant": table_ident,
                 "status": order.status,
-                "is_paid": order.is_paid,
+                "payment_status": order.payment_status,
                 "created_at": order.created_at
             })
         
@@ -786,7 +1136,8 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                 "address": restaurant.address,
                 "can_receive_orders": restaurant.can_receive_orders,
                 "is_stripe_active": restaurant.is_stripe_active,
-                "has_image": bool(restaurant.image)
+                "has_image": bool(restaurant.image),
+                "isManuallyOverridden": restaurant.is_manually_overridden
             },
             "quick_stats": {
                 "total_orders": total_orders,
@@ -864,7 +1215,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             menus_data.append({
                 "id": str(menu.id),
                 "name": menu.name,
-                "is_available": getattr(menu, 'disponible', False),
+                "is_available": menu.is_available,
                 "items_count": items_count,
                 "available_items": available_items,
                 "created_at": menu.created_at,
@@ -900,7 +1251,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         orders_data = []
         for order in orders:
             try:
-                items_count = order.order_items.count()
+                items_count = order.items.count()
             except Exception:
                 items_count = 0
 
@@ -915,7 +1266,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                 "table_number": order.table_number,
                 "table_identifiant": table_ident,
                 "status": order.status,
-                "is_paid": order.is_paid,
+                "payment_status": order.payment_status,
                 "items_count": items_count,
                 "created_at": order.created_at
             })
@@ -925,6 +1276,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             "orders": orders_data,
             "count": len(orders_data)
         })
+
     # ============================================================================
     # ACTIONS UTILITAIRES
     # ============================================================================
@@ -946,7 +1298,8 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             "has_tables": Table.objects.filter(restaurant=restaurant).exists(),
             "has_menus": Menu.objects.filter(restaurant=restaurant).exists(),
             "can_receive_orders": restaurant.can_receive_orders,
-            "has_opening_hours": restaurant.opening_hours.exists()
+            "has_opening_hours": restaurant.opening_hours.exists(),
+            "not_manually_closed": not restaurant.is_manually_overridden
         }
         
         all_good = all(checks.values())
@@ -990,18 +1343,33 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             
             # Relations sécurisées
             tables = [{"id": str(t.id), "identifiant": t.identifiant} for t in restaurant.tables.all()]
-            menus = [{"id": str(m.id), "name": m.name, "disponible": getattr(m, 'disponible', False)} for m in restaurant.menu.all()]
-            orders = [{"id": str(o.id), "status": o.status, "created_at": o.created_at.isoformat()} for o in restaurant.orders.all()[:50]]  # Limiter à 50
-            opening_hours = [
-                {
+            menus = [{"id": str(m.id), "name": m.name, "is_available": m.is_available} for m in restaurant.menu.all()]
+            orders = [{"id": str(o.id), "status": o.status, "created_at": o.created_at.isoformat()} for o in Order.objects.filter(restaurant=restaurant)[:50]]  # Limiter à 50
+            
+            # Horaires avec support multi-périodes
+            opening_hours = []
+            for h in restaurant.opening_hours.all().order_by('day_of_week'):
+                day_data = {
                     "day_of_week": h.day_of_week,
                     "day_name": h.get_day_of_week_display(),
-                    "opening_time": h.opening_time.strftime("%H:%M"),
-                    "closing_time": h.closing_time.strftime("%H:%M"),
-                    "is_closed": h.is_closed
+                    "is_closed": h.is_closed,
+                    "periods": []
                 }
-                for h in restaurant.opening_hours.all().order_by('day_of_week')
-            ]
+                
+                if not h.is_closed:
+                    for period in h.periods.all():
+                        day_data["periods"].append({
+                            "start_time": period.start_time.strftime("%H:%M"),
+                            "end_time": period.end_time.strftime("%H:%M"),
+                            "name": period.name or ""
+                        })
+                    
+                    # Rétrocompatibilité
+                    if h.opening_time and h.closing_time:
+                        day_data["opening_time"] = h.opening_time.strftime("%H:%M")
+                        day_data["closing_time"] = h.closing_time.strftime("%H:%M")
+                
+                opening_hours.append(day_data)
             
             export_data = {
                 "restaurant": restaurant_data,
@@ -1020,7 +1388,227 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                 'error': 'Erreur lors de l\'export',
                 'details': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @extend_schema(
+        summary="Activer Stripe pour ce restaurant",
+        description=(
+            "Passe is_stripe_active=TRUE pour ce restaurant. "
+            "Si toutes les conditions sont réunies (owner actif & vérifié, restaurant actif), "
+            "can_receive_orders passera à TRUE automatiquement."
+        ),
+        parameters=[
+            OpenApiParameter(
+                name="force_owner",
+                type=bool,
+                description="Admin uniquement : force aussi owner.is_active/owner.stripe_verified à TRUE",
+                required=False,
+            )
+        ],
+        responses={
+            200: OpenApiResponse(description="Mise à jour effectuée"),
+            202: OpenApiResponse(description="Mise à jour faite mais commandes pas encore possibles (voir missing)"),
+        },
+    )
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[IsAuthenticated, IsRestaurateur]
+    )
+    def enable_orders(self, request, pk=None):
+        restaurant = self.get_object()
+        owner = getattr(restaurant, "owner", None)
+
+        # Toujours activer Stripe sur le restaurant ciblé
+        updated_fields = []
+        if not restaurant.is_stripe_active:
+            restaurant.is_stripe_active = True
+            updated_fields.append("is_stripe_active")
+
+        # Option admin : forcer les flags owner si demandé
+        force_owner = str(request.query_params.get("force_owner", "")).lower() in ("1", "true", "yes")
+        if request.user.is_staff and force_owner and owner:
+            owner_changed = False
+            if not owner.is_active:
+                owner.is_active = True
+                owner_changed = True
+            if not getattr(owner, "stripe_verified", False):
+                owner.stripe_verified = True
+                owner_changed = True
+            if owner_changed:
+                owner.save(update_fields=["is_active", "stripe_verified"])
+
+        if updated_fields:
+            restaurant.save(update_fields=updated_fields)
+
+        # État final
+        can_receive = getattr(restaurant, "can_receive_orders", False)
+        missing = {
+            "owner_is_active": bool(getattr(owner, "is_active", False)),
+            "owner_stripe_verified": bool(getattr(owner, "stripe_verified", False)),
+            "restaurant_is_active": bool(getattr(restaurant, "is_active", False)),
+            "restaurant_is_stripe_active": bool(getattr(restaurant, "is_stripe_active", False)),
+        }
+
+        status_code = status.HTTP_200_OK if can_receive else status.HTTP_202_ACCEPTED
+        return Response(
+            {
+                "id": str(restaurant.id),
+                "is_stripe_active": restaurant.is_stripe_active,
+                "can_receive_orders": can_receive,
+                "missing": {k: v for k, v in missing.items() if not v},
+            },
+            status=status_code,
+        )
+
+    # ============================================================================
+    # MÉTHODES UTILITAIRES PRIVÉES
+    # ============================================================================
+
+    def _calculate_restaurant_status(self, restaurant, current_time):
+        """Calcule le statut selon la logique frontend"""
+        # Override manuel
+        if restaurant.is_manually_overridden:
+            status = 'Fermé temporairement'
+            if restaurant.manual_override_reason:
+                status += f' ({restaurant.manual_override_reason})'
+            
+            return {
+                'isOpen': False,
+                'status': status,
+                'shortStatus': 'Fermé temp.',
+                'type': 'manual_override'
+            }
         
+        # Restaurant inactif
+        if not restaurant.is_active:
+            return {
+                'isOpen': False,
+                'status': 'Restaurant désactivé',
+                'shortStatus': 'Désactivé',
+                'type': 'inactive'
+            }
+        
+        # Vérifier selon les horaires
+        current_day = current_time.weekday()
+        # Convertir lundi=0 vers dimanche=0
+        current_day = (current_day + 1) % 7
+        current_minutes = current_time.hour * 60 + current_time.minute
+        
+        try:
+            today_hours = restaurant.opening_hours.get(day_of_week=current_day)
+            
+            if today_hours.is_closed:
+                # Chercher prochaine ouverture
+                next_opening = self._find_next_opening(restaurant, current_time)
+                if next_opening:
+                    return {
+                        'isOpen': False,
+                        'status': f'Fermé - Ouverture {next_opening}',
+                        'shortStatus': 'Fermé',
+                        'type': 'closed_schedule'
+                    }
+                else:
+                    return {
+                        'isOpen': False,
+                        'status': 'Fermé - Aucune ouverture prévue',
+                        'shortStatus': 'Fermé',
+                        'type': 'closed_schedule'
+                    }
+            
+            # Vérifier les périodes
+            current_period = None
+            for period in today_hours.periods.all():
+                start_minutes = period.start_time.hour * 60 + period.start_time.minute
+                end_minutes = period.end_time.hour * 60 + period.end_time.minute
+                
+                if end_minutes < start_minutes:  # Traverse minuit
+                    if current_minutes >= start_minutes or current_minutes < end_minutes:
+                        current_period = period
+                        break
+                else:
+                    if start_minutes <= current_minutes < end_minutes:
+                        current_period = period
+                        break
+            
+            if current_period:
+                period_name = current_period.name or 'Service en cours'
+                end_time = current_period.end_time.strftime('%H:%M')
+                return {
+                    'isOpen': True,
+                    'status': f'{period_name} jusqu\'à {end_time}',
+                    'shortStatus': f'Ouvert jusqu\'à {end_time}',
+                    'type': 'open',
+                    'currentPeriod': {
+                        'name': current_period.name,
+                        'startTime': current_period.start_time.strftime('%H:%M'),
+                        'endTime': current_period.end_time.strftime('%H:%M')
+                    }
+                }
+            else:
+                # Fermé selon horaires
+                next_opening = self._find_next_opening(restaurant, current_time)
+                if next_opening:
+                    return {
+                        'isOpen': False,
+                        'status': f'Fermé - Ouverture {next_opening}',
+                        'shortStatus': 'Fermé',
+                        'type': 'closed_schedule'
+                    }
+                else:
+                    return {
+                        'isOpen': False,
+                        'status': 'Fermé - Aucune ouverture prévue',
+                        'shortStatus': 'Fermé',
+                        'type': 'closed_schedule'
+                    }
+                    
+        except Exception as e:
+            return {
+                'isOpen': False,
+                'status': 'Erreur de configuration des horaires',
+                'shortStatus': 'Erreur',
+                'type': 'error',
+                'error': str(e)
+            }
+    
+    def _find_next_opening(self, restaurant, current_time):
+        """Trouve la prochaine ouverture"""
+        current_day = (current_time.weekday() + 1) % 7
+        current_minutes = current_time.hour * 60 + current_time.minute
+        
+        # Chercher dans les 14 prochains jours
+        for i in range(14):
+            check_day = (current_day + i) % 7
+            
+            try:
+                day_hours = restaurant.opening_hours.get(day_of_week=check_day)
+                
+                if not day_hours.is_closed and day_hours.periods.exists():
+                    # Pour aujourd'hui, chercher les périodes restantes
+                    if i == 0:
+                        remaining_periods = day_hours.periods.filter(
+                            start_time__gt=current_time.time()
+                        ).order_by('start_time')
+                        
+                        if remaining_periods.exists():
+                            next_period = remaining_periods.first()
+                            return f"aujourd'hui à {next_period.start_time.strftime('%H:%M')}"
+                    else:
+                        # Autres jours
+                        first_period = day_hours.periods.order_by('start_time').first()
+                        if first_period:
+                            days_names = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi']
+                            if i == 1:
+                                return f"demain à {first_period.start_time.strftime('%H:%M')}"
+                            else:
+                                return f"{days_names[check_day]} à {first_period.start_time.strftime('%H:%M')}"
+                                
+            except Exception:
+                continue
+        
+        return None
+
+
 @extend_schema(tags=["Public • Restaurants"])
 class PublicRestaurantViewSet(viewsets.ReadOnlyModelViewSet):
     """
@@ -1041,8 +1629,9 @@ class PublicRestaurantViewSet(viewsets.ReadOnlyModelViewSet):
             is_active=True,
             owner__is_active=True,
             owner__stripe_verified=True,
-            is_stripe_active=True
-        ).select_related('owner').prefetch_related('opening_hours')
+            is_stripe_active=True,
+            is_manually_overridden=False  # NOUVEAU: Exclure les restaurants fermés manuellement
+        ).select_related('owner').prefetch_related('opening_hours__periods')
     
     @extend_schema(
         summary="Liste des restaurants publics",
@@ -1094,7 +1683,8 @@ class PublicRestaurantViewSet(viewsets.ReadOnlyModelViewSet):
             is_active=True,
             owner__is_active=True,
             owner__stripe_verified=True,
-            is_stripe_active=True
+            is_stripe_active=True,
+            is_manually_overridden=False
         ).values_list('cuisine', flat=True).distinct()
         
         cuisine_choices = dict(Restaurant.CUISINE_CHOICES)
@@ -1112,7 +1702,8 @@ class PublicRestaurantViewSet(viewsets.ReadOnlyModelViewSet):
             is_active=True,
             owner__is_active=True,
             owner__stripe_verified=True,
-            is_stripe_active=True
+            is_stripe_active=True,
+            is_manually_overridden=False
         ).values_list('city', flat=True).distinct().order_by('city')
         
         return Response(list(cities))
@@ -1124,74 +1715,48 @@ class PublicRestaurantViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = self.get_serializer(restaurants, many=True)
         return Response(serializer.data)
 
+
+@extend_schema(tags=["Templates • Horaires"])
+class RestaurantHoursTemplateViewSet(viewsets.ReadOnlyModelViewSet):
+    """ViewSet pour les templates d'horaires prédéfinis"""
+    
+    queryset = RestaurantHoursTemplate.objects.filter(is_active=True)
+    serializer_class = RestaurantHoursTemplateSerializer
+    permission_classes = [IsAuthenticated]
+    
     @extend_schema(
-    tags=["Private • Restaurants"],
-    summary="Activer Stripe pour ce restaurant",
-    description=(
-        "Passe is_stripe_active=TRUE pour ce restaurant. "
-        "Si toutes les conditions sont réunies (owner actif & vérifié, restaurant actif), "
-        "can_receive_orders passera à TRUE automatiquement."
-    ),
-    parameters=[
-        OpenApiParameter(
-            name="force_owner",
-            type=bool,
-            description="Admin uniquement : force aussi owner.is_active/owner.stripe_verified à TRUE",
-            required=False,
-        )
-    ],
-    responses={
-        200: OpenApiResponse(description="Mise à jour effectuée"),
-        202: OpenApiResponse(description="Mise à jour faite mais commandes pas encore possibles (voir missing)"),
-    },
-)
-    @action(
-        detail=True,
-        methods=["post"],
-        permission_classes=[IsAuthenticated, IsRestaurateur]
+        summary="Lister les templates d'horaires",
+        description="Retourne la liste des templates d'horaires disponibles"
     )
-    def enable_orders(self, request, pk=None):
-        restaurant = self.get_object()
-        owner = getattr(restaurant, "owner", None)
-
-        # Toujours activer Stripe sur le restaurant ciblé
-        updated_fields = []
-        if not restaurant.is_stripe_active:
-            restaurant.is_stripe_active = True
-            updated_fields.append("is_stripe_active")
-
-        # Option admin : forcer les flags owner si demandé
-        force_owner = str(request.query_params.get("force_owner", "")).lower() in ("1", "true", "yes")
-        if request.user.is_staff and force_owner and owner:
-            owner_changed = False
-            if not owner.is_active:
-                owner.is_active = True
-                owner_changed = True
-            if not getattr(owner, "stripe_verified", False):
-                owner.stripe_verified = True
-                owner_changed = True
-            if owner_changed:
-                owner.save(update_fields=["is_active", "stripe_verified"])
-
-        if updated_fields:
-            restaurant.save(update_fields=updated_fields)
-
-        # État final
-        can_receive = getattr(restaurant, "can_receive_orders", False)
-        missing = {
-            "owner_is_active": bool(getattr(owner, "is_active", False)),
-            "owner_stripe_verified": bool(getattr(owner, "stripe_verified", False)),
-            "restaurant_is_active": bool(getattr(restaurant, "is_active", False)),
-            "restaurant_is_stripe_active": bool(getattr(restaurant, "is_stripe_active", False)),
-        }
-
-        status_code = status.HTTP_200_OK if can_receive else status.HTTP_202_ACCEPTED
-        return Response(
-            {
-                "id": str(restaurant.id),
-                "is_stripe_active": restaurant.is_stripe_active,
-                "can_receive_orders": can_receive,
-                "missing": {k: v for k, v in missing.items() if not v},
-            },
-            status=status_code,
-        )
+    def list(self, request, *args, **kwargs):
+        """Liste des templates avec catégories"""
+        queryset = self.get_queryset().order_by('category', 'name')
+        
+        # Grouper par catégorie
+        categories = {}
+        for template in queryset:
+            category = template.get_category_display()
+            if category not in categories:
+                categories[category] = []
+            
+            categories[category].append(
+                self.get_serializer(template).data
+            )
+        
+        return Response({
+            'categories': categories,
+            'total': queryset.count()
+        })
+    
+    @action(detail=False, methods=['get'])
+    def by_category(self, request):
+        """Templates filtrés par catégorie"""
+        category = request.query_params.get('category')
+        
+        if category:
+            queryset = self.get_queryset().filter(category=category)
+        else:
+            queryset = self.get_queryset()
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)

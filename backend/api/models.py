@@ -164,6 +164,32 @@ class Restaurant(models.Model):
     )
     is_stripe_active = models.BooleanField(default=False, verbose_name="Paiements Stripe actifs")
     
+    # NOUVEAU: Support des fermetures manuelles
+    is_manually_overridden = models.BooleanField(default=False, verbose_name="Fermeture manuelle active")
+    manual_override_reason = models.TextField(
+        blank=True, 
+        null=True,
+        verbose_name="Raison de la fermeture manuelle"
+    )
+    manual_override_until = models.DateTimeField(
+        blank=True, 
+        null=True,
+        verbose_name="Fermeture manuelle jusqu'à"
+    )
+    last_status_changed_by = models.ForeignKey(
+        User, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='restaurant_status_changes',
+        verbose_name="Dernière modification par"
+    )
+    last_status_changed_at = models.DateTimeField(
+        blank=True, 
+        null=True,
+        verbose_name="Dernière modification le"
+    )
+    
     # Métadonnées
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Créé le")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Modifié le")
@@ -176,9 +202,34 @@ class Restaurant(models.Model):
     def __str__(self):
         return f"{self.name} - {self.city}"
     
+    def save(self, *args, **kwargs):
+        # Nettoyer l'override expiré automatiquement
+        if self.is_manually_overridden and self.manual_override_until:
+            if timezone.now() > self.manual_override_until:
+                self.is_manually_overridden = False
+                self.manual_override_reason = None
+                self.manual_override_until = None
+        
+        super().save(*args, **kwargs)
+    
     @property
     def can_receive_orders(self):
         """Vérifie si le restaurant peut recevoir des commandes"""
+        # Vérifier l'override manuel en premier
+        if self.is_manually_overridden:
+            if self.manual_override_until and timezone.now() > self.manual_override_until:
+                # Override expiré, le nettoyer
+                self.is_manually_overridden = False
+                self.manual_override_reason = None
+                self.manual_override_until = None
+                self.save(update_fields=[
+                    'is_manually_overridden', 
+                    'manual_override_reason', 
+                    'manual_override_until'
+                ])
+            else:
+                return False  # Fermé manuellement
+        
         return (
             self.owner.stripe_verified and 
             self.owner.is_active and 
@@ -196,39 +247,164 @@ class Restaurant(models.Model):
         """Retourne l'affichage de la gamme de prix"""
         return '€' * self.price_range
 
-# Modèle pour les horaires d'ouverture
+# NOUVEAU: Support des périodes multiples
+class OpeningPeriod(models.Model):
+    """Période d'ouverture dans une journée (ex: service midi, service soir)"""
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    opening_hours = models.ForeignKey(
+        'OpeningHours',
+        on_delete=models.CASCADE,
+        related_name='periods'
+    )
+    
+    start_time = models.TimeField(verbose_name="Heure d'ouverture")
+    end_time = models.TimeField(verbose_name="Heure de fermeture")
+    name = models.CharField(
+        max_length=100, 
+        blank=True, 
+        null=True,
+        help_text="Nom du service (ex: Service midi, Service soir)"
+    )
+    
+    class Meta:
+        ordering = ['start_time']
+        verbose_name = "Période d'ouverture"
+        verbose_name_plural = "Périodes d'ouverture"
+    
+    def __str__(self):
+        name_part = f"{self.name} - " if self.name else ""
+        return f"{name_part}{self.start_time} - {self.end_time}"
+    
+    def clean(self):
+        if self.start_time and self.end_time:
+            # Convertir en minutes pour comparaison
+            start_minutes = self.start_time.hour * 60 + self.start_time.minute
+            end_minutes = self.end_time.hour * 60 + self.end_time.minute
+            
+            # Vérifier durée minimale (30 minutes)
+            if end_minutes > start_minutes:
+                duration = end_minutes - start_minutes
+            else:
+                # Service qui traverse minuit
+                duration = (24 * 60) - start_minutes + end_minutes
+            
+            if duration < 30:
+                raise ValidationError(
+                    "Une période doit durer au moins 30 minutes"
+                )
+    
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+# MODIFIÉ: Modèle des horaires d'ouverture
 class OpeningHours(models.Model):
-    """Horaires d'ouverture d'un restaurant"""
+    """Horaires d'ouverture d'un restaurant - Version multi-périodes"""
     
     DAYS_OF_WEEK = [
-        (0, 'Lundi'),
-        (1, 'Mardi'),
-        (2, 'Mercredi'),
-        (3, 'Jeudi'),
-        (4, 'Vendredi'),
-        (5, 'Samedi'),
-        (6, 'Dimanche'),
+        (0, 'Dimanche'),
+        (1, 'Lundi'),
+        (2, 'Mardi'),
+        (3, 'Mercredi'),
+        (4, 'Jeudi'),
+        (5, 'Vendredi'),
+        (6, 'Samedi'),
     ]
     
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     restaurant = models.ForeignKey(
         Restaurant, 
         on_delete=models.CASCADE, 
         related_name='opening_hours'
     )
     day_of_week = models.IntegerField(choices=DAYS_OF_WEEK)
-    opening_time = models.TimeField()
-    closing_time = models.TimeField()
     is_closed = models.BooleanField(default=False, verbose_name="Fermé ce jour")
+    
+    # DÉPRÉCIÉ: Garder pour rétrocompatibilité
+    opening_time = models.TimeField(blank=True, null=True)
+    closing_time = models.TimeField(blank=True, null=True)
     
     class Meta:
         unique_together = ('restaurant', 'day_of_week')
         ordering = ['day_of_week']
+        verbose_name = "Horaires d'ouverture"
+        verbose_name_plural = "Horaires d'ouverture"
     
     def __str__(self):
         day_name = dict(self.DAYS_OF_WEEK)[self.day_of_week]
         if self.is_closed:
             return f"{day_name}: Fermé"
-        return f"{day_name}: {self.opening_time} - {self.closing_time}"
+        
+        if self.periods.exists():
+            periods_text = ', '.join([
+                f"{p.start_time}-{p.end_time}" for p in self.periods.all()
+            ])
+            return f"{day_name}: {periods_text}"
+        elif self.opening_time and self.closing_time:
+            # Rétrocompatibilité
+            return f"{day_name}: {self.opening_time} - {self.closing_time}"
+        else:
+            return f"{day_name}: Non défini"
+    
+    def clean(self):
+        """Validation des périodes"""
+        super().clean()
+        
+        # Pas de validation si fermé
+        if self.is_closed:
+            return
+        
+        # Si sauvegardé, vérifier les chevauchements de périodes
+        if self.pk:
+            periods = list(self.periods.all().order_by('start_time'))
+            for i in range(len(periods) - 1):
+                current = periods[i]
+                next_period = periods[i + 1]
+                
+                if current.end_time > next_period.start_time:
+                    raise ValidationError(
+                        f"Chevauchement entre les périodes: "
+                        f"{current.start_time}-{current.end_time} et "
+                        f"{next_period.start_time}-{next_period.end_time}"
+                    )
+
+# NOUVEAU: Template d'horaires
+class RestaurantHoursTemplate(models.Model):
+    """Templates prédéfinis d'horaires pour différents types de restaurants"""
+    
+    CATEGORIES = [
+        ('traditional', 'Restaurant traditionnel'),
+        ('brasserie', 'Brasserie/Bistrot'),
+        ('fast_food', 'Restauration rapide'),
+        ('gastronomic', 'Restaurant gastronomique'),
+        ('cafe', 'Café'),
+        ('bar', 'Bar'),
+        ('custom', 'Personnalisé'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=100, verbose_name="Nom du template")
+    description = models.TextField(verbose_name="Description")
+    category = models.CharField(max_length=20, choices=CATEGORIES)
+    is_default = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    
+    # Données des horaires au format JSON
+    hours_data = models.JSONField(
+        help_text="Structure: [{dayOfWeek: 0, isClosed: false, periods: [...]}]"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['category', 'name']
+        verbose_name = "Template d'horaires"
+        verbose_name_plural = "Templates d'horaires"
+    
+    def __str__(self):
+        return f"{self.name} ({self.get_category_display()})"
 
 class Menu(models.Model):
     name = models.CharField(max_length=100)
