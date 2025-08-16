@@ -158,6 +158,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         if serializer.is_valid():
             try:
                 order = serializer.save()
+                print(f"✅ Order created: {order.id}")
                 
                 # Générer notification en temps réel (WebSocket)
                 self._notify_new_order(order)
@@ -167,11 +168,20 @@ class OrderViewSet(viewsets.ModelViewSet):
                     order, 
                     context={'request': request}
                 )
+                print(f"✅ Response serializer: {response_serializer.data}")
                 
+                if not response_data:
+                    print("❌ Response data is empty!")
+                    # Fallback vers OrderListSerializer
+                    fallback_serializer = OrderListSerializer(order, context={'request': request})
+                    response_data = fallback_serializer.data
+                    print(f"📋 Fallback data: {response_data}")
+
                 return Response(
                     response_serializer.data, 
                     status=status.HTTP_201_CREATED
                 )
+            
                 
             except Exception as e:
                 return Response({

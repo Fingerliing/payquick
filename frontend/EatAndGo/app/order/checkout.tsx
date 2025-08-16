@@ -103,39 +103,130 @@ export default function ClientCheckoutScreen() {
     if (!validation.isValid || !validation.restaurantId || !validation.tableNumber) {
       return;
     }
-
+  
     try {
       setLoading(true);
       
+      console.log('🔍 Cart items structure check:');
+      console.log('Cart items count:', cart.items.length);
+      console.log('Cart items raw:', JSON.stringify(cart.items, null, 2));
+
+      // ✅ VALIDATION: Vérifier chaque item
+      const itemsValidation = cart.items.map((item, index) => {
+        const validation = {
+          index,
+          isValid: true,
+          errors: [] as string[]
+        };
+        
+        if (!item) {
+          validation.isValid = false;
+          validation.errors.push('Item is null/undefined');
+        } else {
+          if (!item.menuItemId || typeof item.menuItemId !== 'number') {
+            validation.isValid = false;
+            validation.errors.push('No ID property found');
+          }
+          
+          if (!item.quantity || isNaN(Number(item.quantity)) || Number(item.quantity) <= 0) {
+            validation.isValid = false;
+            validation.errors.push(`Invalid quantity: ${item.quantity}`);
+          }
+          
+          console.log(`Item ${index}:`, {
+            id: item.id,
+            menuItemId: item.menuItemId,
+            quantity: item.quantity,
+            price: item.price,
+            name: item.name,
+            allKeys: Object.keys(item)
+          });
+        }
+        
+        return validation;
+      });
+    
+      // Afficher les erreurs de validation
+      const invalidItems = itemsValidation.filter(v => !v.isValid);
+      if (invalidItems.length > 0) {
+        console.error('❌ Invalid items found:', invalidItems);
+        Alert.alert(
+          'Erreur panier', 
+          `Des articles du panier sont invalides:\n${invalidItems.map(v => `Article ${v.index}: ${v.errors.join(', ')}`).join('\n')}`
+        );
+        return;
+      }
+
       // Mettre à jour le numéro de table dans le cart si modifié
       const effectiveTableNumber = getEffectiveTableNumber();
       if (effectiveTableNumber && effectiveTableNumber !== cart.tableNumber) {
         setTableNumber(effectiveTableNumber);
       }
       
-      // Préparer les items pour l'API - utiliser directement cart.items
       console.log('Cart items before processing:', cart.items);
-
-      // Log the payload before sending
+  
       const payload = {
         restaurant: validation.restaurantId,
         order_type: 'dine_in' as const,
-        table: validation.tableNumber,
+        table_number: String(validation.tableNumber),
         customer_name: customerName.trim(),
+        phone: '', // Optionnel
+        payment_method: 'cash', // Valeur par défaut
         notes: notes.trim() || null,
-        items: cart.items, // Utiliser directement les items du cart
+        items: cart.items, // ← DIRECT: pas de conversion nécessaire
       };
       
-      console.log('Sending order payload:', payload);
+      console.log('📤 Sending order payload:', JSON.stringify(payload, null, 2));
       
       try {
         const order = await clientOrderService.createFromCart(payload);
+  
+        console.log('✅ Order created successfully:', order);
 
-        console.log('Order created successfully:', order);
-
+        if (!order) {
+          console.warn('⚠️ Order created but no data returned from server');
+          
+          // Vider le panier quand même car la commande semble créée
+          clearCart();
+          
+          Alert.alert(
+            'Commande en cours de traitement',
+            'Votre commande a été acceptée par le restaurant. Vous pouvez vérifier son statut dans "Mes commandes".',
+            [
+              { 
+                text: 'OK', 
+                onPress: () => {
+                  // Rediriger vers la liste des commandes ou le menu
+                  router.replace('/orders'); // ou router.replace('/menu')
+                }
+              }
+            ]
+          );
+          return;
+        }
+      
+        // ✅ GESTION du cas où order.id est manquant
+        if (!order.id) {
+          console.warn('⚠️ Order created but missing ID:', order);
+          
+          clearCart();
+          
+          Alert.alert(
+            'Commande passée !',
+            'Votre commande a été envoyée au restaurant. Vous recevrez une notification quand elle sera prête.',
+            [
+              { 
+                text: 'OK', 
+                onPress: () => router.replace('/orders')
+              }
+            ]
+          );
+          return;
+        }
+  
         // Vider le panier
         clearCart();
-
+  
         // Rediriger vers le suivi de commande
         router.replace(`/order/${order.id}`);
         
@@ -144,28 +235,43 @@ export default function ClientCheckoutScreen() {
           'Votre commande a été envoyée au restaurant. Vous recevrez une notification quand elle sera prête.',
           [{ text: 'OK' }]
         );
+        
       } catch (err: any) {
         // 🔎 Log brut pour voir exactement ce que renvoie DRF
         const data = err?.response?.data;
         console.log('🧪 Raw server error (checkout):', JSON.stringify(data, null, 2));
       
-        // 🧠 Extraire un message lisible sans passer par extractErrorMessage
-        const raw =
-          data?.error ??
-          data?.errors ??
-          data?.non_field_errors ??
-          data?.detail ??
-          data;
+        // 🧠 Extraire un message lisible
+        let errorMessage = 'Erreur inconnue';
+        
+        if (data) {
+          if (data.error) {
+            errorMessage = Array.isArray(data.error) ? data.error.join('\n') : String(data.error);
+          } else if (data.errors) {
+            errorMessage = Array.isArray(data.errors) ? data.errors.join('\n') : String(data.errors);
+          } else if (data.non_field_errors) {
+            errorMessage = Array.isArray(data.non_field_errors) ? data.non_field_errors.join('\n') : String(data.non_field_errors);
+          } else if (data.detail) {
+            errorMessage = String(data.detail);
+          } else if (typeof data === 'object') {
+            // Gestion des erreurs de champ spécifiques
+            const fieldErrors = [];
+            for (const [field, messages] of Object.entries(data)) {
+              if (Array.isArray(messages)) {
+                fieldErrors.push(`${field}: ${messages.join(', ')}`);
+              } else {
+                fieldErrors.push(`${field}: ${messages}`);
+              }
+            }
+            errorMessage = fieldErrors.length > 0 ? fieldErrors.join('\n') : JSON.stringify(data);
+          }
+        } else {
+          errorMessage = err?.message || 'Erreur de connexion';
+        }
       
-        const msg = Array.isArray(raw)
-          ? raw.join('\n')
-          : typeof raw === 'object'
-            ? JSON.stringify(raw)
-            : String(raw || err?.message || 'Erreur inconnue');
-      
-        Alert.alert('Erreur serveur', msg);
+        Alert.alert('Erreur serveur', errorMessage);
       }
-
+  
     } catch (error: unknown) {
       logAPIError(error, 'Checkout error');
       

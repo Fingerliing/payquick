@@ -30,8 +30,7 @@ export interface OrderList {
   restaurant: number;
   restaurant_name?: string;
 
-  table?: number | null;
-  table_number?: string | null;
+  table_number?: string | null;      // ← CORRIGÉ: était table?: number
 
   order_type: OrderType;
   status: OrderStatus;
@@ -67,6 +66,11 @@ export interface OrderDetail extends Omit<OrderList, 'items_count'> {
   served_at?: string | null;            // ISO
 
   notes?: string | null;
+  
+  // ✅ AJOUT: Champs additionnels du backend
+  customer_name?: string;
+  phone?: string;
+  user?: number | null;              // FK User si connecté
 }
 
 // ------------------------------
@@ -75,21 +79,47 @@ export interface OrderDetail extends Omit<OrderList, 'items_count'> {
 export interface CreateOrderItemInput {
   menu_item: number;                 // ⚠️ champ attendu côté back
   quantity: number;
+  unit_price: string;
   customizations?: Record<string, any>;
   special_instructions?: string;
 }
 
+// ✅ CORRECTION MAJEURE: Correspondre exactement au serializer backend
 export interface CreateOrderRequest {
   restaurant: number;
   order_type: OrderType;             // 'dine_in' | 'takeaway'
-  table?: number | null;             // requis si dine_in (selon logique back)
-  customer_name?: string | null;
+  
+  // ✅ CORRIGÉ: table_number (string) au lieu de table (number)
+  table_number?: string;             // requis si dine_in (selon logique back)
+  
+  // ✅ CORRIGÉ: customer_name est REQUIS pour les commandes anonymes
+  customer_name: string;             // ← REQUIS (pas optionnel)
+  
+  // ✅ AJOUT: Champs optionnels supportés par le backend
+  phone?: string;
+  payment_method?: string;
+  
   items: CreateOrderItemInput[];     // mapping depuis le panier
   notes?: string | null;
 }
 
 // ------------------------------
-// Réponses possibles de l’API
+// Type pour la compatibilité avec l'ancien code
+// ------------------------------
+export interface CreateOrderRequestLegacy {
+  restaurant: number;
+  order_type: OrderType;
+  table?: number;                    // Ancien format (sera converti)
+  table_number?: string;             // Nouveau format
+  customer_name: string;
+  phone?: string;
+  payment_method?: string;
+  items: CreateOrderItemInput[];
+  notes?: string | null;
+}
+
+// ------------------------------
+// Réponses possibles de l'API
 // ------------------------------
 export type OrderListResponse = ListResponse<OrderList>;
 export type OrderDetailResponse = OrderDetail;
@@ -108,7 +138,17 @@ export interface OrderStats {
   revenue: string;                  // décimal en string
   by_status?: Record<OrderStatus, number>;
   by_hour?: Record<string, number>;
-  // Ajoute ici les clés renvoyées par ton action "statistics" si besoin
+  
+  // ✅ AJOUT: Champs du backend OrderStatsSerializer
+  confirmed?: number;
+  preparing?: number;
+  ready?: number;
+  served?: number;
+  cancelled?: number;
+  unpaid_orders?: number;
+  total_revenue?: string;
+  average_order_value?: string;
+  average_preparation_time?: number; // minutes
 }
 
 // Certaines implémentations renvoient { period, restaurant_id, stats: {...} }
@@ -118,6 +158,7 @@ export type OrderStatsEnvelope =
       period?: string;
       restaurant_id?: number;
       stats: OrderStats;
+      generated_at?: string;        // ISO timestamp
     };
 
 // ------------------------------
@@ -128,3 +169,54 @@ export const isOrderStatsEnvelope = (x: any): x is { stats: OrderStats } =>
 
 export const unwrapOrderStats = (x: OrderStatsEnvelope | null | undefined): OrderStats | null =>
   !x ? null : (isOrderStatsEnvelope(x) ? x.stats : x);
+
+export const normalizeCreateOrderRequest = (
+  request: CreateOrderRequestLegacy
+): CreateOrderRequest => {
+  const normalized: CreateOrderRequest = {
+    restaurant: request.restaurant,
+    order_type: request.order_type,
+    customer_name: request.customer_name,
+    items: request.items,
+    notes: request.notes,
+  };
+
+  // Gérer table vs table_number
+  if (request.table_number) {
+    normalized.table_number = request.table_number;
+  } else if (request.table) {
+    normalized.table_number = String(request.table);
+  }
+
+  // Champs optionnels
+  if (request.phone) normalized.phone = request.phone;
+  if (request.payment_method) normalized.payment_method = request.payment_method;
+
+  return normalized;
+};
+
+// ✅ NOUVEAU: Type guard pour valider un payload de commande
+export const isValidCreateOrderRequest = (
+  data: any
+): data is CreateOrderRequest => {
+  return (
+    data &&
+    typeof data === 'object' &&
+    typeof data.restaurant === 'number' &&
+    typeof data.order_type === 'string' &&
+    ['dine_in', 'takeaway'].includes(data.order_type) &&
+    typeof data.customer_name === 'string' &&
+    data.customer_name.trim().length > 0 &&
+    Array.isArray(data.items) &&
+    data.items.length > 0 &&
+    data.items.every((item: any) =>
+      item &&
+      typeof item.menu_item === 'number' &&
+      typeof item.quantity === 'number' &&
+      item.quantity > 0
+    ) &&
+    // Pour dine_in, table_number est requis
+    (data.order_type !== 'dine_in' || 
+     (data.table_number && typeof data.table_number === 'string'))
+  );
+};

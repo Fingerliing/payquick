@@ -504,6 +504,52 @@ class Order(models.Model):
         buffer = 10  # minutes
         estimated = timezone.now() + timedelta(minutes=total_prep_time + buffer)
         return estimated.time()
+    
+    def can_be_cancelled(self):
+        """
+        Détermine si une commande peut être annulée
+        
+        Règles métier :
+        - Peut être annulée si statut = pending ou confirmed
+        - Ne peut plus être annulée si en préparation, prête ou servie
+        - Ne peut pas être annulée si déjà annulée
+        - Peut être annulée même si payée (avec remboursement)
+        """
+        cancellable_statuses = ['pending', 'confirmed']
+        return self.status in cancellable_statuses
+    
+    def get_preparation_time(self):
+        """
+        Calcule le temps de préparation estimé en minutes
+        """
+        if self.status == 'served':
+            # Si servi, calculer le temps réel
+            if self.ready_at and self.created_at:
+                delta = self.ready_at - self.created_at
+                return int(delta.total_seconds() / 60)
+            return None
+        
+        elif self.status in ['preparing', 'ready']:
+            # Si en cours, calculer le temps écoulé
+            elapsed = timezone.now() - self.created_at
+            return int(elapsed.total_seconds() / 60)
+        
+        else:
+            # Si pas encore commencé, estimer basé sur les items
+            try:
+                total_prep_time = 0
+                for item in self.items.all():
+                    # Temps de préparation par item (par défaut 5 minutes)
+                    item_prep_time = getattr(item.menu_item, 'preparation_time', 5)
+                    total_prep_time += item_prep_time * item.quantity
+                
+                # Ajouter buffer de base
+                base_time = 5  # 5 minutes de base
+                buffer = max(5, total_prep_time * 0.2)  # 20% de buffer
+                
+                return int(base_time + total_prep_time + buffer)
+            except:
+                return 15  # Estimation par défaut si erreur
 
 def default_expires_at():
     return timezone.now() + timedelta(minutes=15)
