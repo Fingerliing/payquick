@@ -78,8 +78,8 @@ export class ClientOrderService {
    */
   private async getMenuItemPrice(menuItemId: number): Promise<string> {
     try {
-      const response = await apiClient.get(`/api/v1/menu-items/${menuItemId}/`);
-      return response.data.price || "0.00";
+      const data = await apiClient.get(`/api/v1/menu-items/${menuItemId}/`);
+      return data.price || "0.00";
     } catch (error) {
       console.warn(`⚠️ Could not fetch price for menu item ${menuItemId}:`, error);
       return "0.00";
@@ -97,10 +97,7 @@ export class ClientOrderService {
       console.log('1️⃣ Checking restaurant existence...');
       try {
         const restaurantCheck = await apiClient.get(`/api/v1/restaurants/${payload.restaurant}/`);
-        console.log('✅ Restaurant exists:', {
-          id: restaurantCheck.data.id,
-          name: restaurantCheck.data.name
-        });
+        console.log('✅ Restaurant exists:', { id: restaurantCheck.id, name: restaurantCheck.name });
       } catch (error: any) {
         console.log('❌ Restaurant check failed:', error.response?.data);
         throw new Error(`Restaurant ${payload.restaurant} does not exist or is not accessible`);
@@ -112,14 +109,14 @@ export class ClientOrderService {
         try {
           const menuItemCheck = await apiClient.get(`/api/v1/menu-items/${item.menu_item}/`);
           console.log(`✅ Menu item ${item.menu_item} exists:`, {
-            id: menuItemCheck.data.id,
-            name: menuItemCheck.data.name,
-            price: menuItemCheck.data.price,
-            restaurant: menuItemCheck.data.restaurant
+            id: menuItemCheck.id,
+            name: menuItemCheck.name,
+            price: menuItemCheck.price,
+            restaurant: menuItemCheck.restaurant
           });
           
           // Vérifier que le menu item appartient au bon restaurant
-          if (menuItemCheck.data.restaurant !== payload.restaurant) {
+          if (menuItemCheck.restaurant !== payload.restaurant) {
             throw new Error(`Menu item ${item.menu_item} belongs to restaurant ${menuItemCheck.data.restaurant}, not ${payload.restaurant}`);
           }
         } catch (error: any) {
@@ -386,6 +383,9 @@ export class ClientOrderService {
   /**
    * Liste des commandes du client connecté
    */
+  /**
+   * getOrders avec logs détaillés
+   */
   async getOrders(params: {
     page?: number;
     limit?: number;
@@ -394,36 +394,50 @@ export class ClientOrderService {
     order_type?: OrderSearchFilters['order_type'];
     search?: string;
   }): Promise<ListResponse<OrderList>> {
+    
+    console.log('📡 === getOrders CALL ===');
+    console.log('📝 Params envoyés:', params);
+    
     const { page, limit, ...rest } = params ?? {};
-    const response = await apiClient.get('/api/v1/orders/', {
-      params: {
-        page,
-        page_size: limit, // DRF par défaut
-        ...rest,
-      },
-    });
-    return response.data;
+    
+    const apiParams = {
+      page,
+      page_size: limit,
+      ...rest,
+    };
+    
+    console.log('📡 Params API finaux:', apiParams);
+    
+    try {
+      const data = await apiClient.get('/api/v1/orders/', { params: apiParams });
+      console.log('✅ Réponse getOrders:', {
+        keys: Object.keys(data || {}),
+        count: data?.count,
+        resultsLength: data?.results?.length,
+      });
+      return data;
+      
+    } catch (error: any) {
+      throw error;
+    }
   }
 
   /**
    * Recherche (propage ?search= vers DRF SearchFilter)
    */
   async searchOrders(query: string, filters?: Partial<OrderSearchFilters>): Promise<ListResponse<OrderList>> {
-    const response = await apiClient.get('/api/v1/orders/', {
-      params: {
-        search: query,
-        ...(filters ?? {}),
-      },
-    });
-    return response.data;
+    const data = await apiClient.get('/api/v1/orders/', {
+        params: { search: query, ...(filters ?? {}) },
+      });
+      return data;
   }
 
   /**
    * Détail d'une commande
    */
   async getOrderById(id: number): Promise<OrderDetail> {
-    const response = await apiClient.get(`/api/v1/orders/${id}/`);
-    return response.data;
+    const data = await apiClient.get(`/api/v1/orders/${id}/`);
+    return data;
   }
 
   /**
@@ -435,8 +449,9 @@ export class ClientOrderService {
       throw new Error('Invalid order payload');
     }
     
-    const response = await apiClient.post('/api/v1/orders/', payload);
-    return response.data;
+    const data = await apiClient.post('/api/v1/orders/', payload);
+    console.log('✅ Order created successfully:', data);
+    return data;
   }
 
   /**
