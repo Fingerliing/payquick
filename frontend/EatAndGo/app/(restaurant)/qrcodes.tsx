@@ -53,7 +53,7 @@ const QR_SIZES = {
   small: {
     label: 'Petit (24/page)',
     displaySize: 90,
-    printSize: 70,
+    printSize: 180,
     logoSize: 12,
     perPage: 24,
     cardWidth: '16%', // 6 colonnes
@@ -64,7 +64,7 @@ const QR_SIZES = {
   medium: {
     label: 'Moyen (12/page)',
     displaySize: 110,
-    printSize: 110,
+    printSize: 240,
     logoSize: 18,
     perPage: 12,
     cardWidth: '32%', // 3 colonnes
@@ -76,7 +76,7 @@ const QR_SIZES = {
     // Ajustement : le grand format utilise réellement 6 cartes par page (2 colonnes × 3 lignes).
     label: 'Grand (6/page)',
     displaySize: 130,
-    printSize: 150,
+    printSize: 300,
     logoSize: 26,
     perPage: 6,
     cardWidth: '49%', // 2 colonnes
@@ -398,9 +398,10 @@ export default function QRCodesScreen() {
     const logoSrc = logoBase64;
     return `
       <div style="position: relative; width: ${size}px; height: ${size}px; margin: 0 auto;">
-        <img src="https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${qrData}&format=png" 
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${qrData}&format=svg&ecc=H&margin=16"
              width="${size}" height="${size}" 
              style="display: block;" 
+             class="qr-image"
              alt="QR Code" />
         ${logoSrc ? `<img src="${logoSrc}" 
              style="
@@ -440,7 +441,7 @@ export default function QRCodesScreen() {
         <div class="qr-card qr-card-${size}" style="width: ${sizeConfig.cardWidth}; height: ${sizeConfig.cardHeight};">
           <div style="font-size: ${size === 'small' ? '14px' : size === 'medium' ? '16px' : '18px'}; font-weight: bold; color: #111827; margin-bottom: 6px; flex-shrink: 0;">Table ${table.number}</div>
           <div style="display: flex; justify-content: center; align-items: center; flex: 1; margin: 4px 0;">
-            ${generateQRCodeSVG(table.qrCodeUrl, sizeConfig.printSize, sizeConfig.logoSize)}
+            ${generateQRCodeSVG(table.qrCodeUrl, sizeConfig.printSize, Math.round(sizeConfig.printSize * 0.14))}
           </div>
           <div style="font-size: ${size === 'small' ? '10px' : size === 'medium' ? '11px' : '12px'}; color: #666; background: #f8f9fa; padding: 3px 5px; border-radius: 3px; margin-bottom: 3px; flex-shrink: 0;">
             <span style="font-family: monospace; font-weight: bold; font-size: ${size === 'small' ? '11px' : size === 'medium' ? '12px' : '14px'}; color: #111827;">${table.manualCode}</span>
@@ -495,7 +496,7 @@ export default function QRCodesScreen() {
           .qr-card-medium { width: 32%; height: 48%; }
           /* Pour le grand format, ajustez la hauteur à 31% afin d'afficher trois lignes de deux cartes chacune */
           .qr-card-large { width: 49%; height: 31%; }
-          img { max-width: 100%; height: auto; }
+          .qr-image { width: inherit; height: inherit; image-rendering: pixelated; display: block; }
           .manual-code { margin-top: 4px; font-size: 12px; font-weight: bold; text-align: center; }
         </style>
         <body>
@@ -716,12 +717,13 @@ export default function QRCodesScreen() {
             size={QR_SIZES[qrSize].displaySize}
             backgroundColor="#FFFFFF"
             color="#000000"
-            logo={APP_LOGO}
-            logoSize={QR_SIZES[qrSize].logoSize}
-            logoBackgroundColor="#FFFFFF"
-            logoMargin={2}
-            logoBorderRadius={4}
-            quietZone={4}
+            ecl="H"
+            quietZone={16}
+            // logo={APP_LOGO}
+            // logoSize={Math.round(QR_SIZES[qrSize].displaySize * 0.14)}
+            // logoBackgroundColor="#FFFFFF"
+            // logoMargin={2}
+            // logoBorderRadius={4}
           />
         </View>
         
@@ -847,12 +849,13 @@ export default function QRCodesScreen() {
                 size={150}
                 backgroundColor="#FFFFFF"
                 color="#000000"
-                logo={APP_LOGO}
-                logoSize={30}
-                logoBackgroundColor="#FFFFFF"
-                logoMargin={2}
-                logoBorderRadius={4}
-                quietZone={4}
+                ecl="H"
+                quietZone={16}
+                // logo={APP_LOGO}
+                // logoSize={Math.round(150 * 0.14)}
+                // logoBackgroundColor="#FFFFFF"
+                // logoMargin={2}
+                // logoBorderRadius={4}
               />
             </View>
             

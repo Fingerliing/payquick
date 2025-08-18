@@ -13,17 +13,23 @@ export default function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
   const [isScanning, setIsScanning] = useState(true);
 
   const handleBarcodeScanned = ({ data }: { data: string }) => {
+    console.log('🎯 QR Code scanné:', data);
+    
     if (!isScanning) return;
     
     setIsScanning(false);
     
-    // Validation du QR code Eat&Go
-    if (isValidEatAndGoQR(data)) {
-      onScanSuccess?.(data);
+    // 🔧 CORRECTION: Extraire l'identifiant et valider
+    const processedData = extractAndValidateCode(data);
+    
+    if (processedData) {
+      console.log('✅ QR Code valide, identifiant extrait:', processedData);
+      onScanSuccess?.(processedData);
     } else {
+      console.log('❌ QR Code invalide:', data);
       Alert.alert(
         'QR Code invalide',
-        'Ce QR code ne correspond pas à un restaurant Eat&Go',
+        `Ce QR code ne correspond pas à un restaurant Eat&Go\n\nValeur scannée: ${data}`,
         [
           { text: 'Réessayer', onPress: () => setIsScanning(true) },
           { text: 'Annuler', onPress: onClose }
@@ -32,8 +38,74 @@ export default function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
     }
   };
 
+  const extractAndValidateCode = (data: string): string | null => {
+    console.log('🔍 Analyse du QR code:', {
+      rawData: data,
+      isUrl: data.startsWith('http'),
+      length: data.length
+    });
+    
+    // Cas 1: C'est une URL de votre app
+    if (data.startsWith('http')) {
+      try {
+        const url = new URL(data);
+        console.log('🔍 URL analysée:', {
+          host: url.host,
+          pathname: url.pathname,
+          segments: url.pathname.split('/').filter(Boolean)
+        });
+        
+        // Vérifier si c'est une URL de table publique
+        if (url.pathname.includes('/table/public/')) {
+          const segments = url.pathname.split('/').filter(Boolean);
+          const lastSegment = segments[segments.length - 1];
+          
+          console.log('🔧 Extraction depuis URL:', {
+            segments: segments,
+            lastSegment: lastSegment,
+            isValidFormat: /^R\d+T\d+$/.test(lastSegment || '')
+          });
+          
+          // Vérifier que c'est bien un identifiant de table
+          if (lastSegment && /^R\d+T\d+$/.test(lastSegment)) {
+            return lastSegment;
+          }
+        }
+        
+        // Vérifier d'autres patterns dans l'URL
+        if (url.pathname.includes('/restaurant/') || url.pathname.includes('/table/')) {
+          const segments = url.pathname.split('/').filter(Boolean);
+          const lastSegment = segments[segments.length - 1];
+          if (lastSegment && lastSegment.length > 0) {
+            return lastSegment;
+          }
+        }
+        
+      } catch (error) {
+        console.error('❌ Erreur analyse URL:', error);
+      }
+    }
+    
+    // Cas 2: C'est directement un identifiant de table
+    if (/^R\d+T\d+$/.test(data)) {
+      console.log('✅ Identifiant direct détecté:', data);
+      return data;
+    }
+    
+    // Cas 3: Autres formats possibles
+    if (data.length >= 4 && data.length <= 20) {
+      // Accepter les codes courts qui pourraient être des identifiants
+      console.log('🤔 Code court accepté:', data);
+      return data;
+    }
+    
+    console.log('❌ Aucun format reconnu');
+    return null;
+  };
+
+  // 🗑️ ANCIENNE FONCTION - remplacée par extractAndValidateCode
   const isValidEatAndGoQR = (data: string): boolean => {
-    // Valider que c'est bien un QR Eat&Go - adapter selon votre format
+    // Cette fonction n'est plus utilisée
     return data.includes('eatandgo') || 
            data.includes('restaurant') || 
            /restaurant[\/=]\d+/i.test(data);

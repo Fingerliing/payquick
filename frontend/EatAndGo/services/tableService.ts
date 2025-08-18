@@ -212,7 +212,7 @@ class TableService {
       qr_code: table.qr_code,
       // Utilise le préfixe /table/public/ pour générer l'URL accessible au client. Si
       // table.identifiant est défini, on l'utilise, sinon on retombe sur qr_code.
-      qrCodeUrl: `${baseUrl}/table/public/${table.identifiant || table.qr_code}`,
+      qrCodeUrl: table.identifiant || table.qr_code,
       manualCode: table.identifiant || table.qr_code,
       created_at: table.created_at
     };
