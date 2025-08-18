@@ -47,42 +47,46 @@ interface QRSizeConfig {
   cardHeight: string;
   columns: number;
   rows: number;
+  maxBatchSize: number;
 }
 
+// Configuration optimisée pour éviter les problèmes de mémoire
 const QR_SIZES = {
   small: {
     label: 'Petit (24/page)',
     displaySize: 90,
-    printSize: 180,
-    logoSize: 12,
+    printSize: 120,     // Réduit pour économiser la mémoire
+    logoSize: 8,        // Logo plus petit
     perPage: 24,
-    cardWidth: '16%', // 6 colonnes
-    cardHeight: '31%', // 3 rangées par page
+    cardWidth: '16%',
+    cardHeight: '24%',
     columns: 6,
-    rows: 3,
+    rows: 4,
+    maxBatchSize: 24,   // Diviser en lots de 24 pour l'impression
   },
   medium: {
     label: 'Moyen (12/page)',
     displaySize: 110,
-    printSize: 240,
-    logoSize: 18,
+    printSize: 150,     // Réduit pour économiser la mémoire
+    logoSize: 12,
     perPage: 12,
-    cardWidth: '32%', // 3 colonnes
-    cardHeight: '31%', // 3 rangées par page
-    columns: 3,
+    cardWidth: '24%',
+    cardHeight: '32%',
+    columns: 4,
     rows: 3,
+    maxBatchSize: 12,   // Un seul lot
   },
   large: {
-    // Ajustement : le grand format utilise réellement 6 cartes par page (2 colonnes × 3 lignes).
     label: 'Grand (6/page)',
     displaySize: 130,
-    printSize: 300,
-    logoSize: 26,
+    printSize: 180,     // Réduit pour économiser la mémoire
+    logoSize: 15,
     perPage: 6,
-    cardWidth: '49%', // 2 colonnes
-    cardHeight: '31%', // 3 rangées par page
+    cardWidth: '49%',
+    cardHeight: '32%',
     columns: 2,
     rows: 3,
+    maxBatchSize: 6,    // Un seul lot
   },
 };
 
@@ -119,8 +123,8 @@ export default function QRCodesScreen() {
     }
   }, [restaurants]);
 
-  // Charge le logo en Base64 au chargement du composant. On utilise expo‑asset pour s'assurer que
-  // l'image est disponible localement, puis expo‑file‑system pour lire son contenu et le convertir.
+  // Charge le logo en Base64 au chargement du composant. On utilise expo-asset pour s'assurer que
+  // l'image est disponible localement, puis expo-file-system pour lire son contenu et le convertir.
   useEffect(() => {
     const loadLogo = async () => {
       try {
@@ -422,46 +426,50 @@ export default function QRCodesScreen() {
     `;
   };
 
-  const generatePrintHTML = (tables: Table[], size: QRSize = qrSize) => {
-    /*
-     * Cette fonction génère du HTML optimisé pour l'impression en format paysage.
-     * Chaque page comprend un en‑tête et une grille de QR codes répartis en deux
-     * rangées. Les QR codes sont répartis en pages selon la configuration
-     * spécifiée dans QR_SIZES.perPage. Pour éviter que du contenu ne déborde
-     * d'une page à l'autre, on découpe le tableau en tranches et on génère
-     * autant de conteneurs de page que nécessaire. Chaque conteneur possède
-     * l'attribut CSS page‑break‑after pour forcer un saut de page après
-     * l'impression (sauf pour la dernière page).
-     */
+  // Fonction optimisée pour générer le HTML avec moins de consommation mémoire
+  const generateOptimizedPrintHTML = (tables: Table[], size: QRSize = qrSize) => {
     const sizeConfig = QR_SIZES[size];
-
-    // Fonction utilitaire pour générer le bloc HTML d'un QR code
-    const buildQRCard = (table: Table) => {
+    
+    // Fonction pour générer un QR code avec une taille optimisée et sans logo pour économiser la mémoire
+    const generateOptimizedQRCodeSVG = (url: string, size: number) => {
+      const qrData = encodeURIComponent(url);
       return `
-        <div class="qr-card qr-card-${size}" style="width: ${sizeConfig.cardWidth}; height: ${sizeConfig.cardHeight};">
-          <div style="font-size: ${size === 'small' ? '14px' : size === 'medium' ? '16px' : '18px'}; font-weight: bold; color: #111827; margin-bottom: 6px; flex-shrink: 0;">Table ${table.number}</div>
-          <div style="display: flex; justify-content: center; align-items: center; flex: 1; margin: 4px 0;">
-            ${generateQRCodeSVG(table.qrCodeUrl, sizeConfig.printSize, Math.round(sizeConfig.printSize * 0.14))}
-          </div>
-          <div style="font-size: ${size === 'small' ? '10px' : size === 'medium' ? '11px' : '12px'}; color: #666; background: #f8f9fa; padding: 3px 5px; border-radius: 3px; margin-bottom: 3px; flex-shrink: 0;">
-            <span style="font-family: monospace; font-weight: bold; font-size: ${size === 'small' ? '11px' : size === 'medium' ? '12px' : '14px'}; color: #111827;">${table.manualCode}</span>
-          </div>
-          <div style="font-size: ${size === 'small' ? '7px' : size === 'medium' ? '8px' : '9px'}; color: #999; line-height: 1.1; flex-shrink: 0;">Scanner ou saisir le code</div>
+        <div style="position: relative; width: ${size}px; height: ${size}px; margin: 0 auto;">
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${qrData}&format=png&ecc=M&margin=8"
+               width="${size}" height="${size}" 
+               style="display: block; image-rendering: -webkit-optimize-contrast;" 
+               alt="QR Code" />
         </div>
       `;
     };
 
-    // Trier les tables par leur numéro (numériquement) pour que 9, 10, 11 s'affichent dans l'ordre correct
+    const buildOptimizedQRCard = (table: Table) => {
+      return `
+        <div class="qr-card qr-card-${size}" style="width: ${sizeConfig.cardWidth}; height: ${sizeConfig.cardHeight};">
+          <div style="font-size: ${size === 'small' ? '12px' : size === 'medium' ? '14px' : '16px'}; font-weight: bold; color: #111827; margin-bottom: 4px; flex-shrink: 0;">Table ${table.number}</div>
+          <div style="display: flex; justify-content: center; align-items: center; flex: 1; margin: 2px 0;">
+            ${generateOptimizedQRCodeSVG(table.qrCodeUrl, sizeConfig.printSize)}
+          </div>
+          <div style="font-size: ${size === 'small' ? '8px' : size === 'medium' ? '10px' : '11px'}; color: #666; background: #f8f9fa; padding: 2px 4px; border-radius: 2px; margin-bottom: 2px; flex-shrink: 0;">
+            <span style="font-family: monospace; font-weight: bold; font-size: ${size === 'small' ? '9px' : size === 'medium' ? '11px' : '12px'}; color: #111827;">${table.manualCode}</span>
+          </div>
+          <div style="font-size: ${size === 'small' ? '6px' : size === 'medium' ? '7px' : '8px'}; color: #999; line-height: 1.1; flex-shrink: 0;">Scanner ou saisir</div>
+        </div>
+      `;
+    };
+
+    // Trier les tables par numéro
     const sortedTables = [...tables].sort((a, b) => {
       const aNum = parseInt((a as any).number, 10) || 0;
       const bNum = parseInt((b as any).number, 10) || 0;
       return aNum - bNum;
     });
-    // Découper les tables triées en pages
+
+    // Découper en pages
     const pages: string[] = [];
     for (let i = 0; i < sortedTables.length; i += sizeConfig.perPage) {
       const pageTables = sortedTables.slice(i, i + sizeConfig.perPage);
-      const cardsHTML = pageTables.map((table) => buildQRCard(table)).join('');
+      const cardsHTML = pageTables.map((table) => buildOptimizedQRCard(table)).join('');
       pages.push(`
         <div class="page-container">
           <div class="qr-container">
@@ -471,10 +479,8 @@ export default function QRCodesScreen() {
       `);
     }
 
-    // Fusionner toutes les pages. Le dernier conteneur ne doit pas avoir page-break-after.
     const pagesHTML = pages
       .map((pageHTML, idx) => {
-        // Ajouter un attribut data-last pour le dernier afin de supprimer le saut de page si besoin.
         const isLast = idx === pages.length - 1;
         return isLast
           ? pageHTML.replace('<div class="page-container">', '<div class="page-container last-page">')
@@ -492,12 +498,10 @@ export default function QRCodesScreen() {
           .page-container.last-page { page-break-after: auto; }
           .qr-container { display: flex; flex-wrap: wrap; justify-content: center; align-content: space-between; height: 100%; }
           .qr-card { display: flex; flex-direction: column; align-items: center; justify-content: center; }
-          .qr-card-small { width: 16%; height: 48%; }
-          .qr-card-medium { width: 32%; height: 48%; }
-          /* Pour le grand format, ajustez la hauteur à 31% afin d'afficher trois lignes de deux cartes chacune */
-          .qr-card-large { width: 49%; height: 31%; }
-          .qr-image { width: inherit; height: inherit; image-rendering: pixelated; display: block; }
-          .manual-code { margin-top: 4px; font-size: 12px; font-weight: bold; text-align: center; }
+          .qr-card-small { width: 16%; height: 24%; }
+          .qr-card-medium { width: 24%; height: 32%; }
+          .qr-card-large { width: 49%; height: 32%; }
+          img { image-rendering: -webkit-optimize-contrast; image-rendering: pixelated; }
         </style>
         <body>
           ${pagesHTML}
@@ -506,30 +510,109 @@ export default function QRCodesScreen() {
     `;
   };
 
-  // Fonction pour imprimer (dialogue natif)
+  // Fonction pour imprimer par lots
+  const printInBatches = async (tables: Table[], batchSize: number) => {
+    setIsPrinting(true);
+    
+    try {
+      // Trier les tables par numéro avant de les diviser en lots
+      const sortedTables = [...tables].sort((a, b) => {
+        const aNum = parseInt((a as any).number, 10) || 0;
+        const bNum = parseInt((b as any).number, 10) || 0;
+        return aNum - bNum;
+      });
+      
+      const totalBatches = Math.ceil(sortedTables.length / batchSize);
+      
+      for (let i = 0; i < totalBatches; i++) {
+        const startIndex = i * batchSize;
+        const endIndex = Math.min(startIndex + batchSize, sortedTables.length);
+        const batchTables = sortedTables.slice(startIndex, endIndex);
+        
+        // Demander confirmation pour chaque lot (sauf le premier)
+        if (i > 0) {
+          const shouldContinue = await new Promise<boolean>((resolve) => {
+            Alert.alert(
+              `Lot ${i + 1}/${totalBatches}`,
+              `Imprimer les tables ${batchTables[0].number} à ${batchTables[batchTables.length - 1].number} ?`,
+              [
+                { text: 'Arrêter', onPress: () => resolve(false), style: 'cancel' },
+                { text: 'Continuer', onPress: () => resolve(true) }
+              ]
+            );
+          });
+          
+          if (!shouldContinue) break;
+        }
+        
+        // Imprimer le lot
+        const html = generateOptimizedPrintHTML(batchTables);
+        await Print.printAsync({
+          html,
+          orientation: 'landscape',
+          printerUrl: undefined,
+        });
+        
+        // Pause entre les lots pour libérer la mémoire
+        if (i < totalBatches - 1) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+      
+      Alert.alert('Succès', 'Tous les lots ont été imprimés avec succès !');
+    } catch (error) {
+      console.error('Erreur impression par lots:', error);
+      Alert.alert('Erreur', 'Erreur lors de l\'impression par lots');
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
+  // Fonction pour imprimer (dialogue natif) - Version optimisée
   const handlePrintAll = async () => {
     if (generatedTables.length === 0) return;
 
-    setIsPrinting(true);
-    try {
-      const html = generatePrintHTML(generatedTables);
-      await Print.printAsync({
-        html,
-        orientation: 'landscape',
-        printerUrl: undefined, // Laisse le système choisir l'imprimante
-      });
-    } catch (error) {
-      console.error('Erreur impression:', error);
-      Alert.alert('Erreur', 'Impossible d\'imprimer les QR codes');
-    } finally {
-      setIsPrinting(false);
+    const sizeConfig = QR_SIZES[qrSize];
+    const batchSize = sizeConfig.maxBatchSize;
+    
+    if (generatedTables.length <= batchSize) {
+      // Si le nombre de tables est inférieur ou égal à la taille du lot, imprimer normalement
+      setIsPrinting(true);
+      try {
+        const html = generateOptimizedPrintHTML(generatedTables);
+        await Print.printAsync({
+          html,
+          orientation: 'landscape',
+          printerUrl: undefined,
+        });
+      } catch (error) {
+        console.error('Erreur impression:', error);
+        Alert.alert('Erreur', 'Impossible d\'imprimer les QR codes');
+      } finally {
+        setIsPrinting(false);
+      }
+    } else {
+      // Diviser en lots et demander à l'utilisateur
+      const totalBatches = Math.ceil(generatedTables.length / batchSize);
+      
+      Alert.alert(
+        'Impression par lots',
+        `Pour éviter les problèmes de mémoire, l'impression sera divisée en ${totalBatches} lots de ${batchSize} QR codes maximum.\n\nVoulez-vous continuer ?`,
+        [
+          { text: 'Annuler', style: 'cancel' },
+          { 
+            text: 'Continuer',
+            onPress: () => printInBatches(generatedTables, batchSize)
+          }
+        ]
+      );
     }
   };
 
   const handlePrintSingle = async (table: Table) => {
     setIsPrinting(true);
     try {
-      const html = generatePrintHTML([table]);
+      const html = generateOptimizedPrintHTML([table]);
       await Print.printAsync({
         html,
         orientation: 'landscape',
@@ -549,7 +632,7 @@ export default function QRCodesScreen() {
 
     setIsDownloading(true);
     try {
-      const html = generatePrintHTML(generatedTables);
+      const html = generateOptimizedPrintHTML(generatedTables);
       const { uri } = await Print.printToFileAsync({ html });
       await Sharing.shareAsync(uri, {
         UTI: '.pdf',
@@ -566,7 +649,7 @@ export default function QRCodesScreen() {
   const handleDownloadSingle = async (table: Table) => {
     setIsDownloading(true);
     try {
-      const html = generatePrintHTML([table]);
+      const html = generateOptimizedPrintHTML([table]);
       const { uri } = await Print.printToFileAsync({ html });
       await Sharing.shareAsync(uri, {
         UTI: '.pdf',
