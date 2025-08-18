@@ -4,7 +4,7 @@ import { Table } from '@/types/table'
 import { SearchFilters, PaginatedResponse } from '@/types/common';
 import { restaurantService } from '@/services/restaurantService';
 import { tableService } from '@/services/tableService';
-
+import { useAuth } from './AuthContext'; // Ajout de l'import pour useAuth
 
 interface RestaurantState {
   restaurants: Restaurant[];
@@ -192,6 +192,9 @@ export const RestaurantContext = createContext<RestaurantContextType | undefined
 
 export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(restaurantReducer, initialState);
+  
+  // 🔧 CORRECTION : Accéder au contexte d'authentification
+  const { userRole, isAuthenticated } = useAuth();
 
   useEffect(() => {
     console.log('🔍 RestaurantContext state change:', {
@@ -202,6 +205,18 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
       isArray: Array.isArray(state.restaurants)
     });
   }, [state.restaurants, state.isLoading, state.error, state.isPublicMode]);
+
+  // 🔧 CORRECTION : Gérer le mode automatiquement selon le rôle utilisateur
+  useEffect(() => {
+    if (isAuthenticated && userRole) {
+      const shouldBePublicMode = userRole === 'client';
+      console.log('🎯 Ajustement du mode selon le rôle:', { userRole, shouldBePublicMode });
+      
+      if (state.isPublicMode !== shouldBePublicMode) {
+        dispatch({ type: 'SET_PUBLIC_MODE', payload: shouldBePublicMode });
+      }
+    }
+  }, [userRole, isAuthenticated, state.isPublicMode]);
 
   // ============================================================================
   // MÉTHODES PUBLIQUES
@@ -288,6 +303,12 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
   // ============================================================================
 
   const loadRestaurants = async (filters?: SearchFilters, page = 1) => {
+    // 🔧 CORRECTION : Vérifier que l'utilisateur est bien restaurateur
+    if (userRole !== 'restaurateur') {
+      console.log('⚠️ Tentative de chargement privé par un non-restaurateur, redirection vers public');
+      return loadPublicRestaurants(filters, page);
+    }
+
     try {
       console.log('🚀 RestaurantContext: Loading private restaurants...', { filters, page });
       dispatch({ type: 'SET_LOADING', payload: true });
@@ -386,7 +407,7 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
       };
       
       console.log('📤 Données préparées pour le backend:', JSON.stringify(backendData, null, 2));
-      console.log('🕒 OpeningHours transformées:', JSON.stringify(backendData.opening_hours, null, 2));
+      console.log('🕐 OpeningHours transformées:', JSON.stringify(backendData.opening_hours, null, 2));
       
       const restaurant = await restaurantService.createRestaurant(backendData);
       console.log('✅ RestaurantContext: Restaurant created:', restaurant);
@@ -399,9 +420,9 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
       
       // Log des détails de l'erreur pour diagnostiquer
       if (error.response) {
-        console.error('📝 Response status:', error.response.status);
-        console.error('📝 Response data:', JSON.stringify(error.response.data, null, 2));
-        console.error('📝 Response headers:', error.response.headers);
+        console.error('🔍 Response status:', error.response.status);
+        console.error('🔍 Response data:', JSON.stringify(error.response.data, null, 2));
+        console.error('🔍 Response headers:', error.response.headers);
       }
       
       let errorMessage = 'Erreur lors de la création du restaurant';
@@ -479,6 +500,11 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
   };
 
   const searchRestaurants = async (query: string, filters?: SearchFilters) => {
+    // 🔧 CORRECTION : Utiliser la recherche appropriée selon le rôle
+    if (userRole !== 'restaurateur') {
+      return searchPublicRestaurants(query, filters);
+    }
+
     try {
       console.log('🚀 RestaurantContext: Searching private restaurants:', query, filters);
       dispatch({ type: 'SET_LOADING', payload: true });
@@ -520,7 +546,8 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
 
   const refreshRestaurants = async () => {
     console.log('🔄 RestaurantContext: Refreshing restaurants...');
-    if (state.isPublicMode) {
+    // 🔧 CORRECTION : Utiliser le bon mode selon le rôle utilisateur
+    if (state.isPublicMode || userRole === 'client') {
       await loadPublicRestaurants(state.filters, state.pagination.page);
     } else {
       await loadRestaurants(state.filters, state.pagination.page);
@@ -542,7 +569,7 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
       // Si erreur 404, cela signifie qu'il n'y a pas de tables pour ce restaurant
       // C'est un comportement normal, pas une vraie erreur
       if (error.response?.status === 404 || error.message?.includes('404')) {
-        console.log('📝 Aucune table trouvée pour ce restaurant (404 - comportement normal)');
+        console.log('🔍 Aucune table trouvée pour ce restaurant (404 - comportement normal)');
         return []; // Retourner un tableau vide au lieu de lancer une erreur
       }
       
@@ -631,11 +658,25 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
     }
   };
 
+  // 🔧 CORRECTION : useEffect initial avec gestion intelligente selon le rôle
   useEffect(() => {
-    console.log('🎬 RestaurantProvider mounted, loading initial data...');
-    // Par défaut, charger en mode public
-    loadPublicRestaurants();
-  }, []);
+    console.log('🎬 RestaurantProvider mounted, loading initial data...', { userRole, isAuthenticated });
+    
+    // Attendre que l'authentification soit chargée
+    if (isAuthenticated && userRole) {
+      if (userRole === 'client') {
+        console.log('👤 Utilisateur client détecté - chargement en mode public');
+        loadPublicRestaurants();
+      } else if (userRole === 'restaurateur') {
+        console.log('🍽️ Utilisateur restaurateur détecté - chargement en mode privé');
+        loadRestaurants();
+      }
+    } else if (!isAuthenticated) {
+      // Utilisateur non connecté, charger en mode public
+      console.log('🌐 Utilisateur non connecté - chargement en mode public');
+      loadPublicRestaurants();
+    }
+  }, [userRole, isAuthenticated]);
 
   const value: RestaurantContextType = {
     ...state,
