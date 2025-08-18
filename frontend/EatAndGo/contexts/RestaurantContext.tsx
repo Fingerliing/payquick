@@ -295,8 +295,7 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
       
       const response = await restaurantService.getRestaurants({
         page,
-        limit: state.pagination.limit,
-        filters: filters || state.filters,
+        page_size: state.pagination.limit,
       });
       
       console.log('📥 Private restaurants response:', response);
@@ -374,8 +373,7 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
         // Horaires d'ouverture - gestion spéciale
         opening_hours: data.openingHours ? data.openingHours.map(hour => ({
           day_of_week: hour.dayOfWeek, // Conversion camelCase -> snake_case
-          open_time: hour.openTime,
-          close_time: hour.closeTime, // Conversion camelCase -> snake_case
+          periods: hour.periods, // Conversion camelCase -> snake_case
           is_closed: hour.isClosed // Conversion camelCase -> snake_case
         })) : [],
         

@@ -247,11 +247,11 @@ class Restaurant(models.Model):
         """Retourne l'affichage de la gamme de prix"""
         return '€' * self.price_range
 
-# NOUVEAU: Support des périodes multiples
+# NOUVEAU: Support des périodes multiples avec ID auto-incrémentés
 class OpeningPeriod(models.Model):
     """Période d'ouverture dans une journée (ex: service midi, service soir)"""
     
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    # Garder l'ID auto-incrémenté par défaut de Django
     opening_hours = models.ForeignKey(
         'OpeningHours',
         on_delete=models.CASCADE,
@@ -298,7 +298,7 @@ class OpeningPeriod(models.Model):
         self.full_clean()
         super().save(*args, **kwargs)
 
-# MODIFIÉ: Modèle des horaires d'ouverture
+# MODIFIÉ: Modèle des horaires d'ouverture - GARDER L'ID AUTO-INCRÉMENTÉ
 class OpeningHours(models.Model):
     """Horaires d'ouverture d'un restaurant - Version multi-périodes"""
     
@@ -312,7 +312,7 @@ class OpeningHours(models.Model):
         (6, 'Samedi'),
     ]
     
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    # GARDER l'ID auto-incrémenté de Django pour éviter les problèmes
     restaurant = models.ForeignKey(
         Restaurant, 
         on_delete=models.CASCADE, 
@@ -383,6 +383,7 @@ class RestaurantHoursTemplate(models.Model):
         ('custom', 'Personnalisé'),
     ]
     
+    # Utiliser UUID seulement pour les nouveaux modèles
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100, verbose_name="Nom du template")
     description = models.TextField(verbose_name="Description")

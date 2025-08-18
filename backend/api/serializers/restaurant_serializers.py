@@ -1,5 +1,7 @@
 from rest_framework import serializers
-from api.models import Restaurant, OpeningHours, OpeningPeriod, RestaurantHoursTemplate
+from api.models import (
+    Restaurant, OpeningHours, OpeningPeriod, RestaurantHoursTemplate
+)
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.utils import timezone
@@ -27,14 +29,14 @@ class OpeningPeriodSerializer(serializers.ModelSerializer):
         }
 
 class OpeningHoursSerializer(serializers.ModelSerializer):
-    """Sérialiseur pour les horaires d'ouverture - Version multi-périodes"""
+    """Sérialiseur pour les horaires d'ouverture - Support rétrocompatibilité et multi-périodes"""
     
     id = serializers.CharField(read_only=True)
     dayOfWeek = serializers.IntegerField(source='day_of_week')
     isClosed = serializers.BooleanField(source='is_closed')
     periods = OpeningPeriodSerializer(many=True, required=False)
     
-    # Rétrocompatibilité
+    # Rétrocompatibilité - format ancien
     openTime = serializers.TimeField(source='opening_time', format='%H:%M', required=False, allow_null=True)
     closeTime = serializers.TimeField(source='closing_time', format='%H:%M', required=False, allow_null=True)
     day_name = serializers.CharField(source='get_day_of_week_display', read_only=True)
@@ -255,7 +257,91 @@ class RestaurantSerializer(serializers.ModelSerializer):
     def get_accepts_meal_vouchers_display(self, obj):
         return "Oui" if obj.accepts_meal_vouchers else "Non"
     
-    # ... méthodes de validation existantes ...
+    def validate_image(self, value):
+        """Validation du fichier image"""
+        if value is None:
+            return value
+            
+        # Vérifier le type de fichier
+        allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+        if hasattr(value, 'content_type') and value.content_type:
+            if value.content_type not in allowed_types:
+                raise serializers.ValidationError(
+                    "Format d'image non supporté. Utilisez JPEG, PNG ou WebP."
+                )
+        
+        # Vérifier la taille (max 5MB)
+        if hasattr(value, 'size') and value.size:
+            if value.size > 5 * 1024 * 1024:
+                raise serializers.ValidationError(
+                    "L'image ne doit pas dépasser 5MB."
+                )
+        
+        # Vérifier l'extension
+        if hasattr(value, 'name') and value.name:
+            allowed_extensions = ['.jpg', '.jpeg', '.png', '.webp']
+            file_extension = os.path.splitext(value.name)[1].lower()
+            if file_extension not in allowed_extensions:
+                raise serializers.ValidationError(
+                    "Extension de fichier non supportée. Utilisez .jpg, .png ou .webp"
+                )
+        
+        return value
+    
+    def validate_phone(self, value):
+        """Validation du numéro de téléphone"""
+        if not value:
+            return value
+            
+        import re
+        # Nettoyer le numéro
+        cleaned = re.sub(r'[\s\.\-]', '', value)
+        
+        # Patterns français acceptés
+        patterns = [
+            r'^(\+33|0)[1-9]\d{8}$',  # Format standard
+            r'^\+33\s?[1-9](\s?\d{2}){4}$',  # Avec espaces
+        ]
+        
+        if not any(re.match(pattern, value) for pattern in patterns):
+            raise serializers.ValidationError(
+                "Format de téléphone invalide. Utilisez +33123456789 ou 0123456789"
+            )
+        return value
+    
+    def validate_zip_code(self, value):
+        """Validation du code postal français"""
+        if not value:
+            return value
+            
+        import re
+        if not re.match(r'^\d{5}$', value):
+            raise serializers.ValidationError(
+                "Le code postal doit contenir exactement 5 chiffres"
+            )
+        return value
+    
+    def validate_price_range(self, value):
+        """Validation de la gamme de prix"""
+        if value is not None and value not in [1, 2, 3, 4]:
+            raise serializers.ValidationError(
+                "La gamme de prix doit être entre 1 et 4"
+            )
+        return value
+    
+    def create(self, validated_data):
+        """Création d'un restaurant avec génération automatique du SIRET si manquant"""
+        
+        # Générer un SIRET unique si non fourni (pour les tests)
+        if not validated_data.get('siret'):
+            import random
+            while True:
+                siret = ''.join([str(random.randint(0, 9)) for _ in range(14)])
+                if not Restaurant.objects.filter(siret=siret).exists():
+                    validated_data['siret'] = siret
+                    break
+        
+        return super().create(validated_data)
     
     def update(self, instance, validated_data):
         """Mise à jour avec gestion des fermetures manuelles"""
@@ -269,6 +355,23 @@ class RestaurantSerializer(serializers.ModelSerializer):
             if user:
                 validated_data['last_status_changed_by'] = user
                 validated_data['last_status_changed_at'] = timezone.now()
+        
+        # Ne pas permettre la modification du SIRET après création
+        validated_data.pop('siret', None)
+        
+        # Gestion spéciale pour l'image
+        new_image = validated_data.get('image')
+        if new_image is not None:
+            # Supprimer l'ancienne image si elle existe
+            if instance.image:
+                try:
+                    # Supprimer le fichier physique
+                    if hasattr(instance.image, 'path') and instance.image.path:
+                        if os.path.isfile(instance.image.path):
+                            os.remove(instance.image.path)
+                except (ValueError, FileNotFoundError, AttributeError):
+                    # Ignorer si le fichier n'existe pas ou path invalide
+                    pass
         
         return super().update(instance, validated_data)
 
@@ -298,51 +401,154 @@ class RestaurantCreateSerializer(serializers.ModelSerializer):
             'accepts_meal_vouchers', 'meal_voucher_info', 'openingHours'
         ]
     
+    def validate_image(self, value):
+        """Validation du fichier image"""
+        if value is None:
+            return value
+            
+        # Vérifier le type de fichier
+        allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+        if hasattr(value, 'content_type') and value.content_type:
+            if value.content_type not in allowed_types:
+                raise serializers.ValidationError(
+                    "Format d'image non supporté. Utilisez JPEG, PNG ou WebP."
+                )
+        
+        # Vérifier la taille (max 5MB)
+        if hasattr(value, 'size') and value.size:
+            if value.size > 5 * 1024 * 1024:
+                raise serializers.ValidationError(
+                    "L'image ne doit pas dépasser 5MB."
+                )
+        
+        return value
+    
     def create(self, validated_data):
         """Création avec gestion des nouveaux horaires"""
         
         # Extraire les horaires
         opening_hours_data = validated_data.pop('openingHours', [])
         
+        # Générer un SIRET unique
+        import random
+        while True:
+            siret = ''.join([str(random.randint(0, 9)) for _ in range(14)])
+            if not Restaurant.objects.filter(siret=siret).exists():
+                validated_data['siret'] = siret
+                break
+        
+        # Valeurs par défaut
+        validated_data.setdefault('is_active', True)
+        validated_data.setdefault('rating', 0.00)
+        validated_data.setdefault('review_count', 0)
+        
+        # S'assurer que meal_voucher_info a une valeur si titres acceptés
+        if validated_data.get('accepts_meal_vouchers', False) and not validated_data.get('meal_voucher_info'):
+            validated_data['meal_voucher_info'] = "Titres-restaurant acceptés selon les conditions légales"
+        
         # Créer le restaurant
         restaurant = super().create(validated_data)
         
-        # Créer les horaires avec support multi-périodes
-        self._create_opening_hours(restaurant, opening_hours_data)
-        
+        # Les horaires seront créés dans la vue
         return restaurant
     
-    def _create_opening_hours(self, restaurant, hours_data):
-        """Crée les horaires avec support des périodes multiples"""
-        for day_data in hours_data:
-            day_of_week = day_data.get('dayOfWeek')
-            is_closed = day_data.get('isClosed', False)
-            periods_data = day_data.get('periods', [])
-            
-            # Créer l'entrée horaire pour ce jour
-            opening_hours = OpeningHours.objects.create(
-                restaurant=restaurant,
-                day_of_week=day_of_week,
-                is_closed=is_closed
-            )
-            
-            # Créer les périodes si pas fermé
-            if not is_closed and periods_data:
-                for period_data in periods_data:
-                    OpeningPeriod.objects.create(
-                        opening_hours=opening_hours,
-                        start_time=period_data.get('startTime', '09:00'),
-                        end_time=period_data.get('endTime', '19:00'),
-                        name=period_data.get('name', '')
-                    )
-            elif not is_closed:
-                # Rétrocompatibilité : créer une période par défaut
-                OpeningPeriod.objects.create(
-                    opening_hours=opening_hours,
-                    start_time='09:00',
-                    end_time='19:00',
-                    name='Service principal'
+    def validate(self, data):
+        # Si titres-restaurant acceptés, s'assurer qu'il y a des infos
+        if data.get('accepts_meal_vouchers', False) and not data.get('meal_voucher_info'):
+            data['meal_voucher_info'] = "Titres-restaurant acceptés selon les conditions légales"
+        return data
+
+class RestaurantImageSerializer(serializers.ModelSerializer):
+    """Sérialiseur spécialement pour la gestion des images"""
+    
+    image = serializers.ImageField(required=True)
+    image_url = serializers.SerializerMethodField(read_only=True)
+    
+    class Meta:
+        model = Restaurant
+        fields = ['image', 'image_url']
+    
+    def get_image_url(self, obj):
+        """Retourne l'URL complète de l'image"""
+        try:
+            if obj and obj.image and hasattr(obj.image, 'url'):
+                request = self.context.get('request')
+                if request:
+                    return request.build_absolute_uri(obj.image.url)
+                return obj.image.url
+        except (ValueError, AttributeError):
+            pass
+        return None
+    
+    def validate_image(self, value):
+        """Validation stricte du fichier image"""
+        if not value:
+            raise serializers.ValidationError("Une image est requise.")
+        
+        # Vérifier le type de fichier
+        allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+        if hasattr(value, 'content_type') and value.content_type:
+            if value.content_type not in allowed_types:
+                raise serializers.ValidationError(
+                    f"Format d'image non supporté: {value.content_type}. Formats acceptés : JPEG, PNG, WebP."
                 )
+        
+        # Vérifier la taille (max 5MB)
+        if hasattr(value, 'size') and value.size:
+            if value.size > 5 * 1024 * 1024:
+                raise serializers.ValidationError(
+                    f"L'image ne doit pas dépasser 5MB. Taille actuelle: {value.size/1024/1024:.1f}MB"
+                )
+        
+        # Vérifier les dimensions minimales (optionnel)
+        try:
+            from PIL import Image
+            if hasattr(value, 'file'):
+                # Sauvegarder la position actuelle du fichier
+                current_position = value.file.tell()
+                value.file.seek(0)
+                
+                image = Image.open(value.file)
+                width, height = image.size
+                
+                # Restaurer la position du fichier
+                value.file.seek(current_position)
+                
+                # Dimensions minimales recommandées
+                if width < 200 or height < 200:
+                    raise serializers.ValidationError(
+                        f"L'image doit faire au moins 200x200 pixels. Dimensions actuelles: {width}x{height}"
+                    )
+                
+                # Dimensions maximales
+                if width > 2000 or height > 2000:
+                    raise serializers.ValidationError(
+                        f"L'image ne doit pas dépasser 2000x2000 pixels. Dimensions actuelles: {width}x{height}"
+                    )
+                
+        except ImportError:
+            # PIL n'est pas installé, ignorer la validation des dimensions
+            pass
+        except Exception as e:
+            # En cas d'erreur, continuer sans validation des dimensions
+            print(f"Erreur lors de la validation des dimensions: {e}")
+        
+        return value
+    
+    def update(self, instance, validated_data):
+        """Mise à jour avec suppression de l'ancienne image"""
+        
+        # Supprimer l'ancienne image si elle existe
+        if instance.image:
+            try:
+                if hasattr(instance.image, 'path') and instance.image.path:
+                    if os.path.isfile(instance.image.path):
+                        os.remove(instance.image.path)
+            except (ValueError, FileNotFoundError, AttributeError):
+                # Ignorer si le fichier n'existe pas
+                pass
+        
+        return super().update(instance, validated_data)
 
 class RestaurantHoursTemplateSerializer(serializers.ModelSerializer):
     """Sérialiseur pour les templates d'horaires"""
