@@ -1,7 +1,7 @@
 services:
   web:
     build: .
-    command: gunicorn backend.wsgi:application --bind 0.0.0.0:8000
+    command: daphne -b 0.0.0.0 -p 8000 backend.asgi:application
     volumes:
       - .:/app
     ports:
@@ -11,19 +11,19 @@ services:
     depends_on:
       - db
     
-  test:
-    build: .
-    command: pytest
-    volumes:
-      - .:/app
-    env_file:
-      - .env
-    depends_on:
-      - db
-    environment:
-      - DJANGO_DEBUG=True
-      - DJANGO_ALLOWED_HOST=*
-      - DJANGO_CORS_ALLOW_ALL=True
+  # test:
+  #   build: .
+  #   command: pytest
+  #   volumes:
+  #     - .:/app
+  #   env_file:
+  #     - .env
+  #   depends_on:
+  #     - db
+  #   environment:
+  #     - DJANGO_DEBUG=True
+  #     - DJANGO_ALLOWED_HOST=*
+  #     - DJANGO_CORS_ALLOW_ALL=True
   db:
     image: postgres:15
     volumes:
@@ -35,5 +35,15 @@ services:
     ports:
       - "5432:5432"
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+
 volumes:
   postgres_data:
+  redis_data:

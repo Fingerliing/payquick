@@ -6,7 +6,6 @@ import {
   Pressable,
   RefreshControl,
   SafeAreaView,
-  ListRenderItem,
   ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
@@ -18,83 +17,86 @@ import { Header } from '@/components/ui/Header';
 import { Card } from '@/components/ui/Card';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { QRAccessButtons } from '@/components/qrCode/QRAccessButton';
+import { useOrderRealtime } from '@/hooks/useOrderRealtime';
 
 // Hook pour auto-refresh des commandes actives
-const useAutoRefresh = (hasActiveOrders: boolean, refreshFn: () => void) => {
+const useAutoRefresh = (
+  hasActiveOrders: boolean, 
+  refreshFn: () => void, 
+  realtimeEnabled: boolean = false
+) => {
   React.useEffect(() => {
-    if (!hasActiveOrders) return;
+    if (!hasActiveOrders || realtimeEnabled) return;
     
     const interval = setInterval(refreshFn, 30000); // 30 secondes
     return () => clearInterval(interval);
-  }, [hasActiveOrders, refreshFn]);
+  }, [hasActiveOrders, refreshFn, realtimeEnabled]);
 };
 
-// Composant pour le suivi de commande en temps réel
-const OrderTracker = React.memo(({ item }: { item: OrderList }) => {
-  const steps = [
-    { key: 'pending', label: 'Confirmée', icon: 'checkmark-circle' },
-    { key: 'confirmed', label: 'En préparation', icon: 'restaurant' },
-    { key: 'preparing', label: 'Presque prête', icon: 'timer' },
-    { key: 'ready', label: 'Prête', icon: 'checkmark-done' },
-    { key: 'served', label: 'Servie', icon: 'happy' },
-  ];
+// ✅ Indicateur de connexion temps réel (SIMPLIFIÉ)
+const RealtimeIndicator = React.memo(({ 
+  connectionState, 
+  activeOrdersCount,
+  lastUpdateTime 
+}: { 
+  connectionState: 'connecting' | 'connected' | 'disconnected' | 'error';
+  activeOrdersCount: number;
+  lastUpdateTime?: Date;
+}) => {
+  if (activeOrdersCount === 0) return null;
 
-  const currentStepIndex = steps.findIndex(step => step.key === item.status);
-  
+  const getIndicatorProps = () => {
+    switch (connectionState) {
+      case 'connected':
+        return { 
+          icon: 'radio-button-on' as const, 
+          color: '#10B981', 
+          text: 'Temps réel activé' 
+        };
+      case 'connecting':
+        return { 
+          icon: 'radio-button-off' as const, 
+          color: '#FF9500', 
+          text: 'Connexion...' 
+        };
+      case 'error':
+        return { 
+          icon: 'warning' as const, 
+          color: '#DC2626', 
+          text: 'Erreur connexion' 
+        };
+      default:
+        return { 
+          icon: 'radio-button-off' as const, 
+          color: '#9CA3AF', 
+          text: 'Hors ligne' 
+        };
+    }
+  };
+
+  const { icon, color, text } = getIndicatorProps();
+
   return (
-    <View style={styles.trackerContainer}>
-      <Text style={styles.trackerTitle}>Suivi de votre commande</Text>
-      <View style={styles.trackerSteps}>
-        {steps.map((step, index) => {
-          const isCompleted = index <= currentStepIndex;
-          const isCurrent = index === currentStepIndex;
-          
-          return (
-            <View key={step.key} style={styles.trackerStep}>
-              <View style={[
-                styles.trackerIcon,
-                isCompleted && styles.trackerIconCompleted,
-                isCurrent && styles.trackerIconCurrent,
-              ]}>
-                <Ionicons 
-                  name={step.icon as any} 
-                  size={16} 
-                  color={isCompleted ? '#fff' : '#ccc'} 
-                />
-              </View>
-              <Text style={[
-                styles.trackerLabel,
-                isCompleted && styles.trackerLabelCompleted,
-                isCurrent && styles.trackerLabelCurrent,
-              ]}>
-                {step.label}
-              </Text>
-              {index < steps.length - 1 && (
-                <View style={[
-                  styles.trackerLine,
-                  isCompleted && styles.trackerLineCompleted,
-                ]} />
-              )}
-            </View>
-          );
-        })}
-      </View>
-      
-      {/* Temps d'attente estimé */}
-      {item.waiting_time && (
-        <View style={styles.waitingTime}>
-          <Ionicons name="time-outline" size={16} color="#FF9500" />
-          <Text style={styles.waitingTimeText}>
-            Temps d'attente estimé : {item.waiting_time} min
-          </Text>
-        </View>
+    <View style={styles.realTimeIndicator}>
+      <Ionicons name={icon} size={12} color={color} />
+      <Text style={[styles.realTimeText, { color }]}>{text}</Text>
+      {lastUpdateTime && connectionState === 'connected' && (
+        <Text style={styles.lastUpdateText}>
+          {lastUpdateTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+        </Text>
       )}
     </View>
   );
 });
 
-// Composant pour une commande avec récapitulatif
-const OrderCard = React.memo(({ item }: { item: OrderList }) => {
+// ✅ Composant pour une commande (SIMPLIFIÉ)
+const OrderCard = React.memo(({ 
+  item, 
+  isRealtime = false 
+}: { 
+  item: OrderList;
+  isRealtime?: boolean;
+}) => {
   const displayInfo = useMemo(() => {
     const date = new Date(item.created_at);
     const isActive = ['pending', 'confirmed', 'preparing', 'ready'].includes(item.status);
@@ -102,9 +104,6 @@ const OrderCard = React.memo(({ item }: { item: OrderList }) => {
     return {
       title: `Commande #${item.order_number || item.id}`,
       restaurantName: item.restaurant_name || 'Restaurant',
-      itemsText: item.items_count ? 
-        `${item.items_count} article${item.items_count > 1 ? 's' : ''}` :
-        'Commande',
       time: date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
       date: date.toLocaleDateString('fr-FR'),
       isActive,
@@ -121,23 +120,28 @@ const OrderCard = React.memo(({ item }: { item: OrderList }) => {
       <Card style={[
         styles.orderCard,
         displayInfo.isActive && styles.activeOrderCard,
+        isRealtime && displayInfo.isActive && styles.realtimeOrderCard,
       ]}>
         {/* En-tête de la commande */}
         <View style={styles.orderHeader}>
           <View style={styles.orderInfo}>
-            <Text style={styles.orderTitle}>{displayInfo.title}</Text>
-            <Text style={styles.restaurantName}>{displayInfo.restaurantName}</Text>
-            <View style={styles.orderMeta}>
-              <Text style={styles.orderTime}>
-                {displayInfo.isToday ? `Aujourd'hui à ${displayInfo.time}` : displayInfo.date}
-              </Text>
-              <Text style={styles.itemsText}>{displayInfo.itemsText}</Text>
+            <View style={styles.orderTitleRow}>
+              <Text style={styles.orderTitle}>{displayInfo.title}</Text>
+              {isRealtime && displayInfo.isActive && (
+                <View style={styles.realtimeBadge}>
+                  <View style={styles.realtimeDot} />
+                </View>
+              )}
             </View>
+            <Text style={styles.restaurantName}>{displayInfo.restaurantName}</Text>
+            <Text style={styles.orderTime}>
+              {displayInfo.isToday ? `Aujourd'hui à ${displayInfo.time}` : displayInfo.date}
+            </Text>
           </View>
           <StatusBadge status={item.status} />
         </View>
 
-        {/* Détails contextuels */}
+        {/* Détails */}
         <View style={styles.orderDetails}>
           {item.table_number && (
             <View style={styles.detailItem}>
@@ -172,9 +176,14 @@ const OrderCard = React.memo(({ item }: { item: OrderList }) => {
           </View>
         </View>
 
-        {/* Suivi pour commandes actives */}
-        {displayInfo.isActive && (
-          <OrderTracker item={item} />
+        {/* Temps d'attente pour commandes actives */}
+        {displayInfo.isActive && item.waiting_time && (
+          <View style={styles.waitingTime}>
+            <Ionicons name="time-outline" size={16} color="#FF9500" />
+            <Text style={styles.waitingTimeText}>
+              Temps d'attente estimé : {item.waiting_time} min
+            </Text>
+          </View>
         )}
 
         {/* Action */}
@@ -225,11 +234,17 @@ const EmptyState = React.memo(() => {
 const ActiveOrdersSection = React.memo(({ 
   orders, 
   onRefresh, 
-  isLoading 
+  isLoading,
+  realtimeState
 }: { 
   orders: OrderList[]; 
   onRefresh: () => void;
   isLoading: boolean;
+  realtimeState?: {
+    connectionState: 'connecting' | 'connected' | 'disconnected' | 'error';
+    activeOrdersCount: number;
+    lastUpdateTime?: Date;
+  };
 }) => {
   const activeOrders = orders.filter(o => 
     ['pending', 'confirmed', 'preparing', 'ready'].includes(o.status)
@@ -240,7 +255,16 @@ const ActiveOrdersSection = React.memo(({
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Commandes en cours</Text>
+        <View style={styles.sectionTitleContainer}>
+          <Text style={styles.sectionTitle}>Commandes en cours</Text>
+          {realtimeState && (
+            <RealtimeIndicator 
+              connectionState={realtimeState.connectionState}
+              activeOrdersCount={realtimeState.activeOrdersCount}
+              lastUpdateTime={realtimeState.lastUpdateTime}
+            />
+          )}
+        </View>
         <Pressable onPress={onRefresh} disabled={isLoading}>
           <Ionicons 
             name="refresh" 
@@ -250,7 +274,11 @@ const ActiveOrdersSection = React.memo(({
         </Pressable>
       </View>
       {activeOrders.map(order => (
-        <OrderCard key={order.id} item={order} />
+        <OrderCard 
+          key={order.id} 
+          item={order} 
+          isRealtime={realtimeState?.connectionState === 'connected'}
+        />
       ))}
     </View>
   );
@@ -260,7 +288,7 @@ const ActiveOrdersSection = React.memo(({
 const HistorySection = React.memo(({ orders }: { orders: OrderList[] }) => {
   const historyOrders = orders.filter(o => 
     ['served', 'cancelled'].includes(o.status)
-  ).slice(0, 5); // Limiter à 5 commandes récentes
+  ).slice(0, 5);
 
   if (historyOrders.length === 0) return null;
 
@@ -274,9 +302,9 @@ const HistorySection = React.memo(({ orders }: { orders: OrderList[] }) => {
   );
 });
 
-// Composant principal simplifié
+// Composant principal
 export default function ClientOrdersScreen() {
-  const { isClient } = useAuth();
+  const { isClient, isAuthenticated, user } = useAuth(); // ✅ Récupération des bonnes propriétés
   const [refreshing, setRefreshing] = useState(false);
   
   const {
@@ -286,7 +314,17 @@ export default function ClientOrdersScreen() {
     fetchOrders,
   } = useClientOrders();
 
-  // Auto-refresh pour commandes actives
+  // Hook temps réel
+  const realtimeState = useOrderRealtime(orders, fetchOrders, {
+    enabled: isAuthenticated && orders.length > 0,
+    onOrderUpdate: (update) => {
+      console.log('📦 Order update received:', update);
+    },
+    onConnectionChange: (state) => {
+      console.log('🔗 Connection state changed:', state);
+    }
+  });
+
   const hasActiveOrders = orders.some(o => 
     ['pending', 'confirmed', 'preparing', 'ready'].includes(o.status)
   );
@@ -297,9 +335,10 @@ export default function ClientOrdersScreen() {
     setRefreshing(false);
   }, [fetchOrders]);
 
-  useAutoRefresh(hasActiveOrders, handleRefresh);
+  // Auto-refresh pour commandes actives
+  useAutoRefresh(hasActiveOrders, handleRefresh, realtimeState.isConnected);
 
-  // Rendu optimisé
+  // Rendu du contenu principal
   const renderContent = useCallback(() => {
     if (orders.length === 0 && !isLoading) {
       return <EmptyState />;
@@ -307,13 +346,14 @@ export default function ClientOrdersScreen() {
 
     return (
       <FlatList
-        data={[1]} // Dummy data pour utiliser FlatList avec RefreshControl
+        data={[1]}
         renderItem={() => (
           <View style={styles.content}>
             <ActiveOrdersSection 
               orders={orders}
               onRefresh={handleRefresh}
               isLoading={refreshing}
+              realtimeState={realtimeState}
             />
             <HistorySection orders={orders} />
           </View>
@@ -330,7 +370,7 @@ export default function ClientOrdersScreen() {
         showsVerticalScrollIndicator={false}
       />
     );
-  }, [orders, isLoading, refreshing, handleRefresh]);
+  }, [orders, isLoading, refreshing, handleRefresh, realtimeState]);
 
   // Gestion des erreurs d'accès
   if (!isClient) {
@@ -357,6 +397,16 @@ export default function ClientOrdersScreen() {
         </View>
       )}
 
+      {/* Bannière d'avertissement si temps réel échoue */}
+      {realtimeState.connectionState === 'error' && realtimeState.activeOrdersCount > 0 && (
+        <View style={styles.warningBanner}>
+          <Ionicons name="cloud-offline" size={16} color="#FF9500" />
+          <Text style={styles.warningBannerText}>
+            Notifications temps réel indisponibles. Tirez pour actualiser.
+          </Text>
+        </View>
+      )}
+
       {/* Contenu principal */}
       {renderContent()}
 
@@ -371,17 +421,16 @@ export default function ClientOrdersScreen() {
   );
 }
 
-// Styles simplifiés et optimisés
+// ✅ Styles (identiques mais organisés)
 const styles = {
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
   },
-  
   content: {
     padding: 16,
   },
-
+  
   // Sections
   section: {
     marginBottom: 24,
@@ -392,10 +441,38 @@ const styles = {
     alignItems: 'center' as const,
     marginBottom: 16,
   },
+  sectionTitleContainer: {
+    flex: 1,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 12,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold' as const,
     color: '#333',
+  },
+
+  // Temps réel
+  realTimeIndicator: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  realTimeText: {
+    fontSize: 11,
+    fontWeight: '500' as const,
+  },
+  lastUpdateText: {
+    fontSize: 10,
+    color: '#9CA3AF',
+    marginLeft: 4,
   },
 
   // Cartes de commande
@@ -406,14 +483,11 @@ const styles = {
   activeOrderCard: {
     borderLeftWidth: 4,
     borderLeftColor: '#FF6B35',
-    shadowColor: '#FF6B35',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
-
-  // En-tête de commande
+  realtimeOrderCard: {
+    borderColor: '#10B981',
+    borderWidth: 1,
+  },
   orderHeader: {
     flexDirection: 'row' as const,
     justifyContent: 'space-between' as const,
@@ -423,31 +497,42 @@ const styles = {
   orderInfo: {
     flex: 1,
   },
+  orderTitleRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+  },
   orderTitle: {
     fontSize: 18,
     fontWeight: 'bold' as const,
     color: '#333',
     marginBottom: 4,
   },
+  realtimeBadge: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#10B981',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  realtimeDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#fff',
+  },
   restaurantName: {
     fontSize: 16,
     color: '#666',
     marginBottom: 8,
   },
-  orderMeta: {
-    flexDirection: 'row' as const,
-    gap: 16,
-  },
   orderTime: {
     fontSize: 14,
     color: '#666',
   },
-  itemsText: {
-    fontSize: 14,
-    color: '#666',
-  },
 
-  // Détails de commande
+  // Détails
   orderDetails: {
     flexDirection: 'row' as const,
     flexWrap: 'wrap' as const,
@@ -464,76 +549,12 @@ const styles = {
     color: '#666',
   },
 
-  // Suivi de commande
-  trackerContainer: {
-    backgroundColor: '#F8F9FA',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-  trackerTitle: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: '#333',
-    marginBottom: 12,
-  },
-  trackerSteps: {
-    flexDirection: 'row' as const,
-    justifyContent: 'space-between' as const,
-    alignItems: 'center' as const,
-  },
-  trackerStep: {
-    alignItems: 'center' as const,
-    flex: 1,
-    position: 'relative' as const,
-  },
-  trackerIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#E5E7EB',
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    marginBottom: 8,
-  },
-  trackerIconCompleted: {
-    backgroundColor: '#10B981',
-  },
-  trackerIconCurrent: {
-    backgroundColor: '#FF6B35',
-  },
-  trackerLabel: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    textAlign: 'center' as const,
-  },
-  trackerLabelCompleted: {
-    color: '#10B981',
-    fontWeight: '500' as const,
-  },
-  trackerLabelCurrent: {
-    color: '#FF6B35',
-    fontWeight: '600' as const,
-  },
-  trackerLine: {
-    position: 'absolute' as const,
-    top: 16,
-    left: '50%',
-    right: '-50%',
-    height: 2,
-    backgroundColor: '#E5E7EB',
-    zIndex: -1,
-  },
-  trackerLineCompleted: {
-    backgroundColor: '#10B981',
-  },
-
   // Temps d'attente
   waitingTime: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
-    marginTop: 12,
+    marginBottom: 12,
     gap: 6,
   },
   waitingTimeText: {
@@ -557,7 +578,7 @@ const styles = {
     fontWeight: '500' as const,
   },
 
-  // État vide
+  // États
   emptyContainer: {
     flex: 1,
     justifyContent: 'center' as const,
@@ -583,8 +604,6 @@ const styles = {
     width: '100%',
     maxWidth: 400,
   },
-
-  // États d'erreur et de chargement
   errorContainer: {
     flex: 1,
     justifyContent: 'center' as const,
@@ -608,6 +627,22 @@ const styles = {
   },
   errorBannerText: {
     color: '#DC2626',
+    fontSize: 14,
+    marginLeft: 8,
+    flex: 1,
+  },
+  warningBanner: {
+    backgroundColor: '#FFF7ED',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    padding: 12,
+    margin: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FED7AA',
+  },
+  warningBannerText: {
+    color: '#FF9500',
     fontSize: 14,
     marginLeft: 8,
     flex: 1,

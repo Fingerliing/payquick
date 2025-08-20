@@ -13,7 +13,7 @@ def create_order_from_draft(draft: DraftOrder, paid: bool) -> Order:
 
     # Montants en Decimal (euros)
     subtotal = Decimal(draft.amount) / Decimal(100)
-    tax_amount = Decimal("0.00")  # ajuste si tu gères la TVA
+    tax_amount = Decimal("0.00")
     total_amount = subtotal + tax_amount
 
     order = Order.objects.create(
@@ -45,8 +45,6 @@ def create_order_from_draft(draft: DraftOrder, paid: bool) -> Order:
         unit_price = mi.price
         OrderItem.objects.create(
             order=order,
-            # ⚠️ si OrderItem.menu_item pointe déjà sur MenuItem, garde "menu_item=mi"
-            # sinon, adapte ou migre le FK comme recommandé
             menu_item=mi,                # <— idéalement FK->MenuItem
             quantity=qty,
             unit_price=unit_price,

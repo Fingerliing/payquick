@@ -20,6 +20,30 @@ def get_local_ip():
 
 LOCAL_IP = get_local_ip()
 
+# ✅ CONFIGURATION REDIS ADAPTATIVE
+def get_redis_config():
+    """Configuration Redis adaptative selon l'environnement"""
+    # Si on est dans Docker (variable d'environnement ou nom d'hôte détecté)
+    if os.environ.get('DOCKER_ENV') or os.path.exists('/.dockerenv'):
+        return {
+            'default': {
+                'BACKEND': 'channels_redis.core.RedisChannelLayer',
+                'CONFIG': {
+                    "hosts": [('redis', 6379)],  # ✅ Nom du service Docker
+                },
+            },
+        }
+    else:
+        # Développement local
+        return {
+            'default': {
+                'BACKEND': 'channels_redis.core.RedisChannelLayer',
+                'CONFIG': {
+                    "hosts": [('127.0.0.1', 6379)],  # ✅ Local
+                },
+            },
+        }
+
 # CORS Configuration pour l'app mobile
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:19006",  # Expo web
@@ -56,6 +80,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "corsheaders",
     "storages",
+    "channels",  # ✅ Pour WebSocket support
 ]
 
 MIDDLEWARE = [
@@ -87,7 +112,9 @@ TEMPLATES = [
     },
 ]
 
+# ✅ CONFIGURATION ASGI POUR WEBSOCKETS
 WSGI_APPLICATION = "backend.wsgi.application"
+ASGI_APPLICATION = 'backend.asgi.application'
 
 # PostgreSQL Docker Ready
 DATABASES = {
@@ -129,22 +156,10 @@ REST_FRAMEWORK = {
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
-
     "DEFAULT_THROTTLE_CLASSES": [],
     "DEFAULT_THROTTLE_RATES": {},
-
-    # "DEFAULT_THROTTLE_CLASSES": [
-    #     "rest_framework.throttling.UserRateThrottle",
-    #     "rest_framework.throttling.AnonRateThrottle",
-    #     "api.throttles.QRCodeThrottle",
-    #     "api.throttles.RegisterThrottle",
-    #     "api.throttles.StripeCheckoutThrottle"
-    # ],
-    # "DEFAULT_THROTTLE_RATES": {
-    #     "user": "1000/day",
-    #     "anon": "50/hour",#TODO: remettre la limitation
-    # },
 }
+
 import sys
 if 'test' in sys.argv:
     REST_FRAMEWORK['DEFAULT_THROTTLE_CLASSES'] = []
@@ -178,10 +193,10 @@ CSRF_TRUSTED_ORIGINS = config("CSRF_TRUSTED_ORIGINS", default="", cast=Csv())
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-#SWAGGER
+# SWAGGER
 SWAGGER_USE_COMPAT_RENDERERS = False
 
-# LOGS
+# ✅ LOGS AMÉLIORÉS POUR WEBSOCKETS
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -191,17 +206,32 @@ LOGGING = {
             'class': 'logging.FileHandler',
             'filename': 'stripe_logs.log',
         },
-        'console': {  # ← tout vers la console Docker
+        'console': {
             'class': 'logging.StreamHandler',
         },
     },
     'root': {
         'handlers': ['console'],
-        'level': 'INFO',  # Tu peux mettre DEBUG pour plus de détails
+        'level': 'INFO',
     },
     'loggers': {
         'api.views.stripe_connect': {
             'handlers': ['file', 'console'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'api.consumers': {  # ✅ Logs pour WebSocket consumers
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'api.signals': {  # ✅ Logs pour les signaux
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'channels': {  # ✅ Logs pour Django Channels
+            'handlers': ['console'],
             'level': 'INFO',
             'propagate': True,
         },
@@ -212,13 +242,14 @@ LOGGING = {
         },
         'django.request': {
             'handlers': ['console'],
-            'level': 'ERROR',  # Affiche les erreurs 500, etc.
+            'level': 'ERROR',
             'propagate': False,
         },
     },
 }
 
-import mimetypes
+CHANNEL_LAYERS = get_redis_config()
 
+import mimetypes
 # Configurer le type MIME pour WebP
 mimetypes.add_type("image/webp", ".webp")

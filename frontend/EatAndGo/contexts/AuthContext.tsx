@@ -83,7 +83,6 @@ interface AuthContextType {
   clearError: () => void;
 }
 
-// Classe ApiClient (inchangée)
 class ApiClient {
   async createStripeAccount(): Promise<{ account_id: string; onboarding_url: string; message: string }> {
     return this.request(`${API_URL}/stripe/create-account/`, {
