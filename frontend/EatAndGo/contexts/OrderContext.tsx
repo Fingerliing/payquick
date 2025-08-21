@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, ReactNode } from "react";
+import React, { createContext, useContext, useReducer, ReactNode, useCallback } from "react";
 import { orderService } from "@/services/orderService";
 
 // --- Types (uniquement en 'type' import) ---
@@ -144,7 +144,7 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const getOrder: Ctx["getOrder"] = async (id) => {
+  const getOrder: Ctx["getOrder"] = useCallback(async (id: number) => {
     dispatch({ type: "SET_LOADING", payload: true });
     try {
       const order = await orderService.getOrderById(id);
@@ -156,7 +156,7 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       dispatch({ type: "SET_LOADING", payload: false });
     }
-  };
+  }, []);
 
   const createOrder: Ctx["createOrder"] = async (payload) => {
     const order = await orderService.createOrder(payload);

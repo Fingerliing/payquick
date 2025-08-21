@@ -19,7 +19,7 @@ class OrderService {
     const response = await apiClient.get("/api/v1/orders/", {
       params: { page, page_size: limit, ...rest },
     });
-    return response.data;
+    return response;
   }
 
   /** GET /api/v1/orders/?search=... — recherche DRF */
@@ -27,37 +27,37 @@ class OrderService {
     const response = await apiClient.get("/api/v1/orders/", {
       params: { search: query, ...(filters ?? {}) },
     });
-    return response.data;
+    return response;
   }
 
   /** GET /api/v1/orders/:id/ — détail */
   async getOrderById(id: number): Promise<OrderDetail> {
     const response = await apiClient.get(`/api/v1/orders/${id}/`);
-    return response.data;
+    return response;
   }
 
   /** POST /api/v1/orders/ — création */
   async createOrder(payload: CreateOrderRequest): Promise<OrderDetail> {
     const response = await apiClient.post("/api/v1/orders/", payload);
-    return response.data;
+    return response;
   }
 
   /** PATCH action /api/v1/orders/:id/update_status/ — mise à jour de statut */
   async updateOrderStatus(id: number, status: string): Promise<OrderDetail> {
     const response = await apiClient.patch(`/api/v1/orders/${id}/update_status/`, { status });
-    return response.data;
+    return response;
   }
 
   /** POST action /api/v1/orders/:id/mark_as_paid/ — marquer payée */
   async markAsPaid(id: number, payment_method?: string): Promise<OrderDetail> {
     const response = await apiClient.post(`/api/v1/orders/${id}/mark_as_paid/`, { payment_method });
-    return response.data;
+    return response;
   }
 
   /** GET action /api/v1/orders/statistics/ — stats */
   async getOrderStats(filters?: Partial<OrderSearchFilters>): Promise<any> {
     const response = await apiClient.get("/api/v1/orders/statistics/", { params: { ...(filters ?? {}) } });
-    return response.data; // peut être { stats: {...} } ou directement {...}
+    return response; // peut être { stats: {...} } ou directement {...}
   }
 }
 

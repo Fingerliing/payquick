@@ -1,527 +1,775 @@
-// =============================================================================
-// order/[id].tsx - Détails d'une commande
-// =============================================================================
-
 import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
+  SafeAreaView,
+  ActivityIndicator,
+  Pressable,
   Alert,
-  RefreshControl,
-  ViewStyle,
-  TextStyle,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useOrder } from '@/contexts/OrderContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOrder } from '@/contexts/OrderContext';
+import { OrderDetail, OrderItem } from '@/types/order';
 import { Header } from '@/components/ui/Header';
 import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Loading } from '@/components/ui/Loading';
+import { StatusBadge } from '@/components/common/StatusBadge';
 
-// Types de statut pour l'affichage localisé
-const STATUS_LABELS = {
-  'pending': 'En attente',
-  'confirmed': 'Confirmée',
-  'preparing': 'En préparation',
-  'ready': 'Prête',
-  'served': 'Servie',
-  'cancelled': 'Annulée',
-};
+// Composant pour un item de commande
+const OrderItemCard = React.memo(({ item }: { item: OrderItem }) => (
+  <Card style={styles.itemCard}>
+    <View style={styles.itemHeader}>
+      <Text style={styles.itemName}>{item.menu_item_name || `Item #${item.menu_item}`}</Text>
+      <Text style={styles.itemPrice}>{item.total_price}€</Text>
+    </View>
+    
+    <View style={styles.itemDetails}>
+      <Text style={styles.itemQuantity}>Quantité: {item.quantity}</Text>
+      <Text style={styles.itemUnitPrice}>Prix unitaire: {item.unit_price}€</Text>
+    </View>
+    
+    {item.special_instructions && (
+      <View style={styles.itemInstructions}>
+        <Text style={styles.instructionsLabel}>Instructions spéciales:</Text>
+        <Text style={styles.instructionsText}>{item.special_instructions}</Text>
+      </View>
+    )}
+    
+    {item.customizations && Object.keys(item.customizations).length > 0 && (
+      <View style={styles.itemCustomizations}>
+        <Text style={styles.customizationsLabel}>Personnalisations:</Text>
+        {Object.entries(item.customizations).map(([key, value]) => (
+          <Text key={key} style={styles.customizationText}>
+            • {key}: {String(value)}
+          </Text>
+        ))}
+      </View>
+    )}
+  </Card>
+));
 
-const STATUS_COLORS = {
-  'pending': '#F59E0B',
-  'confirmed': '#3B82F6',
-  'preparing': '#8B5CF6',
-  'ready': '#10B981',
-  'served': '#059669',
-  'cancelled': '#EF4444',
-};
+// Actions pour restaurateurs
+const RestaurantActions = React.memo(({ 
+  order, 
+  onStatusUpdate, 
+  onMarkAsPaid,
+  isUpdating 
+}: {
+  order: OrderDetail;
+  onStatusUpdate: (status: string) => void;
+  onMarkAsPaid: (paymentMethod: string) => void;
+  isUpdating: boolean;
+}) => {
+  const canUpdateStatus = ['pending', 'confirmed', 'preparing', 'ready'].includes(order.status);
+  const canMarkAsPaid = order.payment_status !== 'paid' && order.status !== 'cancelled';
 
-const PAYMENT_STATUS_LABELS = {
-  'pending': 'En attente',
-  'paid': 'Payé',
-  'failed': 'Échoué',
-};
-
-const ORDER_TYPE_LABELS = {
-  'dine_in': '🪑 Sur place',
-  'takeaway': '📦 À emporter',
-};
-
-export default function OrderDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const { currentOrder, loadOrder, updateOrderStatus, cancelOrder, markAsPaid, isLoading } = useOrder();
-  const { user, isRestaurateur } = useAuth();
-  const [refreshing, setRefreshing] = useState(false);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (id) {
-      loadOrder(Number(id));
-    }
-  }, [id]);
-
-  const onRefresh = async () => {
-    if (!id) return;
-    setRefreshing(true);
-    try {
-      await loadOrder(Number(id));
-    } catch (error) {
-      Alert.alert('Erreur', 'Impossible de rafraîchir la commande');
-    } finally {
-      setRefreshing(false);
-    }
+  const statusFlow = {
+    'pending': { next: 'confirmed', label: 'Confirmer' },
+    'confirmed': { next: 'preparing', label: 'En préparation' },
+    'preparing': { next: 'ready', label: 'Prêt' },
+    'ready': { next: 'served', label: 'Servir' }
   };
 
-  const handleStatusUpdate = async (newStatus: string) => {
-    if (!currentOrder) return;
+  const nextStatus = statusFlow[order.status as keyof typeof statusFlow];
 
-    setActionLoading(newStatus);
-    try {
-      await updateOrderStatus(currentOrder.id, newStatus);
-      Alert.alert('Succès', `Commande ${STATUS_LABELS[newStatus as keyof typeof STATUS_LABELS]}`);
-    } catch (error) {
-      Alert.alert('Erreur', 'Impossible de mettre à jour le statut');
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const handleCancelOrder = () => {
-    if (!currentOrder) return;
-
-    Alert.alert(
-      'Annuler la commande',
-      'Êtes-vous sûr de vouloir annuler cette commande ?',
-      [
-        { text: 'Non', style: 'cancel' },
-        {
-          text: 'Oui, annuler',
-          style: 'destructive',
-          onPress: async () => {
-            setActionLoading('cancel');
-            try {
-              await cancelOrder(currentOrder.id);
-              Alert.alert('Succès', 'Commande annulée avec succès');
-            } catch (error) {
-              Alert.alert('Erreur', 'Impossible d\'annuler la commande');
-            } finally {
-              setActionLoading(null);
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const handleMarkAsPaid = (paymentMethod: string) => {
-    if (!currentOrder) return;
-
+  const handleMarkAsPaid = () => {
     Alert.alert(
       'Marquer comme payé',
-      `Confirmer le paiement par ${paymentMethod} ?`,
+      'Quelle méthode de paiement ?',
       [
         { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Confirmer',
-          onPress: async () => {
-            setActionLoading('payment');
-            try {
-              await markAsPaid(currentOrder.id, paymentMethod);
-              Alert.alert('Succès', 'Paiement confirmé');
-            } catch (error) {
-              Alert.alert('Erreur', 'Erreur lors de la confirmation du paiement');
-            } finally {
-              setActionLoading(null);
-            }
-          },
-        },
+        { text: 'Espèces', onPress: () => onMarkAsPaid('cash') },
+        { text: 'Carte', onPress: () => onMarkAsPaid('card') },
       ]
     );
   };
 
-  const showPaymentOptions = () => {
-    Alert.alert(
-      'Mode de paiement',
-      'Comment le client a-t-il payé ?',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        { text: '💵 Espèces', onPress: () => handleMarkAsPaid('cash') },
-        { text: '💳 Carte', onPress: () => handleMarkAsPaid('card') },
-        { text: '🌐 En ligne', onPress: () => handleMarkAsPaid('online') },
-      ]
-    );
+  return (
+    <View style={styles.actionsSection}>
+      <Text style={styles.sectionTitle}>Actions</Text>
+      
+      <View style={styles.actionButtons}>
+        {canUpdateStatus && nextStatus && (
+          <Pressable
+            style={[styles.actionButton, styles.statusButton]}
+            onPress={() => onStatusUpdate(nextStatus.next)}
+            disabled={isUpdating}
+          >
+            {isUpdating ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Ionicons name="arrow-forward" size={16} color="#fff" />
+                <Text style={styles.actionButtonText}>{nextStatus.label}</Text>
+              </>
+            )}
+          </Pressable>
+        )}
+
+        {canMarkAsPaid && (
+          <Pressable
+            style={[styles.actionButton, styles.paymentButton]}
+            onPress={handleMarkAsPaid}
+            disabled={isUpdating}
+          >
+            <Ionicons name="card" size={16} color="#fff" />
+            <Text style={styles.actionButtonText}>Encaisser</Text>
+          </Pressable>
+        )}
+      </View>
+    </View>
+  );
+});
+
+// Timeline de la commande
+const OrderTimeline = React.memo(({ order }: { order: OrderDetail }) => {
+  const timelineEvents = [
+    {
+      status: 'pending',
+      label: 'Commande créée',
+      time: order.created_at,
+      completed: true
+    },
+    {
+      status: 'confirmed',
+      label: 'Commande confirmée',
+      time: order.status === 'confirmed' ? order.updated_at : null,
+      completed: ['confirmed', 'preparing', 'ready', 'served'].includes(order.status)
+    },
+    {
+      status: 'preparing',
+      label: 'En préparation',
+      time: order.status === 'preparing' ? order.updated_at : null,
+      completed: ['preparing', 'ready', 'served'].includes(order.status)
+    },
+    {
+      status: 'ready',
+      label: 'Prêt',
+      time: order.ready_at || (order.status === 'ready' ? order.updated_at : null),
+      completed: ['ready', 'served'].includes(order.status)
+    },
+    {
+      status: 'served',
+      label: 'Servi',
+      time: order.served_at || (order.status === 'served' ? order.updated_at : null),
+      completed: order.status === 'served'
+    }
+  ];
+
+  const formatTime = (timeString?: string | null) => {
+    if (!timeString) return null;
+    const date = new Date(timeString);
+    return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   };
 
-  const getNextStatusAction = () => {
-    if (!currentOrder) return null;
+  return (
+    <View style={styles.timelineSection}>
+      <Text style={styles.sectionTitle}>Suivi de la commande</Text>
+      
+      {timelineEvents.map((event, index) => (
+        <View key={event.status} style={styles.timelineEvent}>
+          <View style={styles.timelineIconContainer}>
+            <View style={[
+              styles.timelineIcon,
+              event.completed && styles.timelineIconCompleted
+            ]}>
+              {event.completed && (
+                <Ionicons name="checkmark" size={12} color="#fff" />
+              )}
+            </View>
+            {index < timelineEvents.length - 1 && (
+              <View style={[
+                styles.timelineLine,
+                event.completed && styles.timelineLineCompleted
+              ]} />
+            )}
+          </View>
+          
+          <View style={styles.timelineContent}>
+            <Text style={[
+              styles.timelineLabel,
+              event.completed && styles.timelineLabelCompleted
+            ]}>
+              {event.label}
+            </Text>
+            {event.time && (
+              <Text style={styles.timelineTime}>
+                {formatTime(event.time)}
+              </Text>
+            )}
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+});
 
-    switch (currentOrder.status) {
-      case 'pending':
-        return { status: 'confirmed', label: 'Confirmer', icon: 'checkmark-circle-outline' };
-      case 'confirmed':
-        return { status: 'preparing', label: 'Commencer préparation', icon: 'restaurant-outline' };
-      case 'preparing':
-        return { status: 'ready', label: 'Marquer prêt', icon: 'checkmark-done-outline' };
-      case 'ready':
-        return { status: 'served', label: 'Marquer servi', icon: 'happy-outline' };
-      default:
-        return null;
+// Composant principal
+export default function OrderDetailScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { isRestaurateur, isClient } = useAuth();
+  const { getOrder, updateOrderStatus, markAsPaid } = useOrder();
+  
+  const [order, setOrder] = useState<OrderDetail | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Charger les détails de la commande
+  useEffect(() => {
+    if (!id) return;
+
+    const loadOrder = async () => {
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        console.log('🔍 Loading order details for:', id);
+        const orderData = await getOrder(parseInt(id));
+        
+        if (orderData) {
+          setOrder(orderData);
+          console.log('✅ Order loaded:', orderData);
+        } else {
+          setError('Commande introuvable');
+        }
+      } catch (err) {
+        console.error('❌ Error loading order:', err);
+        setError('Erreur lors du chargement de la commande');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadOrder();
+  }, [id, getOrder]);
+
+  // Gérer la mise à jour du statut
+  const handleStatusUpdate = async (newStatus: string) => {
+    if (!order) return;
+
+    setIsUpdating(true);
+    try {
+      console.log('🔄 Updating order status:', order.id, newStatus);
+      const updatedOrder = await updateOrderStatus(order.id, newStatus);
+      setOrder(updatedOrder);
+      console.log('✅ Order status updated');
+    } catch (error) {
+      console.error('❌ Error updating status:', error);
+      Alert.alert('Erreur', 'Impossible de mettre à jour le statut');
+    } finally {
+      setIsUpdating(false);
     }
   };
 
-  const formatDateTime = (dateString: string) => {
-    return new Date(dateString).toLocaleString('fr-FR');
+  // Gérer le marquage comme payé
+  const handleMarkAsPaid = async (paymentMethod: string) => {
+    if (!order) return;
+
+    setIsUpdating(true);
+    try {
+      console.log('💳 Marking order as paid:', order.id, paymentMethod);
+      const updatedOrder = await markAsPaid(order.id, paymentMethod);
+      setOrder(updatedOrder);
+      console.log('✅ Order marked as paid');
+    } catch (error) {
+      console.error('❌ Error marking as paid:', error);
+      Alert.alert('Erreur', 'Impossible de marquer comme payé');
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
-  if (isLoading && !currentOrder) {
+  // État de chargement
+  if (isLoading) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-        <Header title="Commande" leftIcon="arrow-back" onLeftPress={() => router.back()} />
-        <Loading fullScreen text="Chargement de la commande..." />
-      </View>
-    );
-  }
-
-  if (!currentOrder) {
-    return (
-      <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-        <Header title="Commande" leftIcon="arrow-back" onLeftPress={() => router.back()} />
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Ionicons name="receipt-outline" size={64} color="#D1D5DB" />
-          <Text style={{ fontSize: 18, color: '#6B7280', marginTop: 16, textAlign: 'center' }}>
-            Commande non trouvée
-          </Text>
-          <Button
-            title="Retour"
-            onPress={() => router.back()}
-            variant="outline"
-            style={{ marginTop: 16 }}
-          />
+      <SafeAreaView style={styles.container}>
+        <Header 
+          title="Détails de la commande" 
+          showBackButton
+        />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#FF6B35" />
+          <Text style={styles.loadingText}>Chargement...</Text>
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
-  const nextAction = getNextStatusAction();
-  const canCancel = currentOrder.can_be_cancelled;
-  const canUpdateStatus = isRestaurateur && currentOrder.status !== 'served' && currentOrder.status !== 'cancelled';
-  const needsPayment = currentOrder.payment_status === 'pending' && isRestaurateur;
+  // État d'erreur
+  if (error || !order) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Header 
+          title="Détails de la commande" 
+          showBackButton
+        />
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle-outline" size={64} color="#DC2626" />
+          <Text style={styles.errorTitle}>Erreur</Text>
+          <Text style={styles.errorMessage}>
+            {error || 'Commande introuvable'}
+          </Text>
+          <Pressable
+            style={styles.retryButton}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.retryButtonText}>Retour</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Calculs pour l'affichage
+  const displayInfo = {
+    title: `Commande ${order.order_number || `#${order.id}`}`,
+    restaurantName: order.restaurant_name || 'Restaurant',
+    customerName: order.customer_name || order.customer_display || 'Client anonyme',
+    date: new Date(order.created_at).toLocaleDateString('fr-FR'),
+    time: new Date(order.created_at).toLocaleTimeString('fr-FR', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    }),
+    isActive: ['pending', 'confirmed', 'preparing', 'ready'].includes(order.status),
+  };
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
+    <SafeAreaView style={styles.container}>
       <Header 
-        title={`Commande ${currentOrder.order_number}`}
-        leftIcon="arrow-back"
-        onLeftPress={() => router.back()}
+        title={displayInfo.title}
+        showBackButton
       />
 
-      <ScrollView
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
-        {/* Statut de la commande */}
-        <Card style={{ margin: 16 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <View style={{
-                width: 12,
-                height: 12,
-                borderRadius: 6,
-                backgroundColor: STATUS_COLORS[currentOrder.status as keyof typeof STATUS_COLORS],
-                marginRight: 8,
-              }} />
-              <Text style={{ fontSize: 18, fontWeight: '600', color: '#111827' }}>
-                {STATUS_LABELS[currentOrder.status as keyof typeof STATUS_LABELS]}
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Informations générales */}
+        <Card style={styles.headerCard}>
+          <View style={styles.orderHeader}>
+            <View style={styles.orderInfo}>
+              <Text style={styles.orderTitle}>{displayInfo.title}</Text>
+              <Text style={styles.restaurantName}>{displayInfo.restaurantName}</Text>
+              <Text style={styles.customerName}>{displayInfo.customerName}</Text>
+              <Text style={styles.orderDateTime}>
+                {displayInfo.date} à {displayInfo.time}
               </Text>
             </View>
+            <StatusBadge status={order.status} />
+          </View>
+
+          {/* Détails de la commande */}
+          <View style={styles.orderDetails}>
+            {order.table_number && (
+              <View style={styles.detailItem}>
+                <Ionicons name="restaurant-outline" size={16} color="#666" />
+                <Text style={styles.detailText}>Table {order.table_number}</Text>
+              </View>
+            )}
             
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View style={styles.detailItem}>
               <Ionicons 
-                name={currentOrder.order_type === 'dine_in' ? 'restaurant' : 'bag'} 
+                name={order.order_type === 'dine_in' ? "restaurant" : "bag"} 
                 size={16} 
-                color="#6B7280" 
+                color="#666" 
               />
-              <Text style={{ fontSize: 14, color: '#6B7280', marginLeft: 4 }}>
-                {ORDER_TYPE_LABELS[currentOrder.order_type as keyof typeof ORDER_TYPE_LABELS]}
+              <Text style={styles.detailText}>
+                {order.order_type === 'dine_in' ? 'Sur place' : 'À emporter'}
               </Text>
             </View>
-          </View>
 
-          {/* Informations client */}
-          <View style={{ backgroundColor: '#F8FAFC', padding: 12, borderRadius: 8, marginBottom: 16 }}>
-            <Text style={{ fontSize: 14, fontWeight: '500', color: '#374151', marginBottom: 8 }}>
-              Informations client
-            </Text>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-              <Text style={{ fontSize: 12, color: '#6B7280' }}>Client:</Text>
-              <Text style={{ fontSize: 12, fontWeight: '500', color: '#111827' }}>
-                {currentOrder.customer_display}
+            <View style={styles.detailItem}>
+              <Ionicons 
+                name={order.payment_status === 'paid' ? "checkmark-circle" : "time"} 
+                size={16} 
+                color={order.payment_status === 'paid' ? "#10B981" : "#FF9500"} 
+              />
+              <Text style={[
+                styles.detailText,
+                { color: order.payment_status === 'paid' ? "#10B981" : "#FF9500" }
+              ]}>
+                {order.payment_status === 'paid' ? 'Payé' : 'Paiement en attente'}
               </Text>
+              {order.payment_method && order.payment_status === 'paid' && (
+                <Text style={styles.paymentMethod}>
+                  ({order.payment_method === 'cash' ? 'Espèces' : 'Carte'})
+                </Text>
+              )}
             </View>
-            {currentOrder.table_number && (
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-                <Text style={{ fontSize: 12, color: '#6B7280' }}>Table:</Text>
-                <Text style={{ fontSize: 12, fontWeight: '500', color: '#111827' }}>
-                  {currentOrder.table_number}
+
+            {order.waiting_time && displayInfo.isActive && (
+              <View style={styles.detailItem}>
+                <Ionicons name="time-outline" size={16} color="#FF9500" />
+                <Text style={styles.detailText}>
+                  Temps estimé: {order.waiting_time} min
                 </Text>
               </View>
             )}
-            {currentOrder.phone && (
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-                <Text style={{ fontSize: 12, color: '#6B7280' }}>Téléphone:</Text>
-                <Text style={{ fontSize: 12, fontWeight: '500', color: '#111827' }}>
-                  {currentOrder.phone}
-                </Text>
-              </View>
-            )}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={{ fontSize: 12, color: '#6B7280' }}>Commande passée:</Text>
-              <Text style={{ fontSize: 12, fontWeight: '500', color: '#111827' }}>
-                {formatDateTime(currentOrder.created_at)}
-              </Text>
-            </View>
           </View>
 
-          {/* Actions pour les restaurateurs */}
-          {isRestaurateur && canUpdateStatus && nextAction && (
-            <Button
-              title={nextAction.label}
-              onPress={() => handleStatusUpdate(nextAction.status)}
-              loading={actionLoading === nextAction.status}
-              leftIcon={nextAction.icon}
-              fullWidth
-              style={{ marginBottom: 8 }}
-            />
-          )}
-
-          {/* Action paiement */}
-          {needsPayment && (
-            <Button
-              title="Marquer comme payé"
-              onPress={showPaymentOptions}
-              loading={actionLoading === 'payment'}
-              leftIcon="card-outline"
-              variant="secondary"
-              fullWidth
-              style={{ marginBottom: 8 }}
-            />
-          )}
-
-          {/* Action annulation */}
-          {canCancel && (
-            <Button
-              title="Annuler la commande"
-              onPress={handleCancelOrder}
-              loading={actionLoading === 'cancel'}
-              leftIcon="close-circle-outline"
-              variant="outline"
-              fullWidth
-            />
-          )}
-        </Card>
-
-        {/* Items de la commande */}
-        <Card style={{ margin: 16 }}>
-          <Text style={{ fontSize: 18, fontWeight: '600', color: '#111827', marginBottom: 16 }}>
-            Détail de la commande
-          </Text>
-
-          {currentOrder.items?.map((item, index) => (
-            <View key={item.id} style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              paddingVertical: 12,
-              borderBottomWidth: index < (currentOrder.items?.length || 0) - 1 ? 1 : 0,
-              borderBottomColor: '#F3F4F6',
-            }}>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 14, fontWeight: '500', color: '#111827', marginBottom: 2 }}>
-                  {item.quantity}x {item.menu_item_name}
-                </Text>
-                {item.special_instructions && (
-                  <Text style={{ fontSize: 12, color: '#F59E0B', fontStyle: 'italic', marginBottom: 2 }}>
-                    ℹ️ {item.special_instructions}
-                  </Text>
-                )}
-                {item.dietary_tags && item.dietary_tags.length > 0 && (
-                  <Text style={{ fontSize: 10, color: '#10B981' }}>
-                    {item.dietary_tags.join(' • ')}
-                  </Text>
-                )}
-              </View>
-              <View style={{ alignItems: 'flex-end' }}>
-                <Text style={{ fontSize: 14, fontWeight: '500', color: '#111827' }}>
-                  {item.total_price} €
-                </Text>
-                <Text style={{ fontSize: 12, color: '#6B7280' }}>
-                  {item.unit_price} € / unité
-                </Text>
-              </View>
-            </View>
-          ))}
-
-          {/* Totaux */}
-          <View style={{ marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#E5E7EB' }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-              <Text style={{ fontSize: 14, color: '#6B7280' }}>Sous-total:</Text>
-              <Text style={{ fontSize: 14, color: '#111827' }}>{currentOrder.subtotal} €</Text>
-            </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-              <Text style={{ fontSize: 14, color: '#6B7280' }}>TVA (10%):</Text>
-              <Text style={{ fontSize: 14, color: '#111827' }}>{currentOrder.tax_amount} €</Text>
-            </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={{ fontSize: 16, fontWeight: '600', color: '#111827' }}>Total:</Text>
-              <Text style={{ fontSize: 16, fontWeight: '600', color: '#111827' }}>
-                {currentOrder.total_amount} €
-              </Text>
-            </View>
-          </View>
-        </Card>
-
-        {/* Informations de paiement */}
-        <Card style={{ margin: 16 }}>
-          <Text style={{ fontSize: 18, fontWeight: '600', color: '#111827', marginBottom: 16 }}>
-            Paiement
-          </Text>
-
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <Text style={{ fontSize: 14, color: '#6B7280' }}>Statut:</Text>
-            <View style={{
-              paddingHorizontal: 8,
-              paddingVertical: 4,
-              borderRadius: 12,
-              backgroundColor: currentOrder.payment_status === 'paid' ? '#D1FAE5' : '#FEF3C7',
-            }}>
-              <Text style={{
-                fontSize: 12,
-                fontWeight: '500',
-                color: currentOrder.payment_status === 'paid' ? '#065F46' : '#92400E',
-              }}>
-                {PAYMENT_STATUS_LABELS[currentOrder.payment_status as keyof typeof PAYMENT_STATUS_LABELS]}
-              </Text>
-            </View>
-          </View>
-
-          {currentOrder.payment_method && (
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text style={{ fontSize: 14, color: '#6B7280' }}>Méthode:</Text>
-              <Text style={{ fontSize: 14, fontWeight: '500', color: '#111827' }}>
-                {currentOrder.payment_method_display}
-              </Text>
+          {order.notes && (
+            <View style={styles.notesSection}>
+              <Text style={styles.notesLabel}>Notes:</Text>
+              <Text style={styles.notesText}>{order.notes}</Text>
             </View>
           )}
         </Card>
-
-        {/* Notes */}
-        {currentOrder.notes && (
-          <Card style={{ margin: 16 }}>
-            <Text style={{ fontSize: 18, fontWeight: '600', color: '#111827', marginBottom: 12 }}>
-              Notes
-            </Text>
-            <Text style={{ fontSize: 14, color: '#6B7280', lineHeight: 20 }}>
-              {currentOrder.notes}
-            </Text>
-          </Card>
-        )}
 
         {/* Timeline */}
-        <Card style={{ margin: 16 }}>
-          <Text style={{ fontSize: 18, fontWeight: '600', color: '#111827', marginBottom: 16 }}>
-            Historique
-          </Text>
+        <OrderTimeline order={order} />
 
-          <View style={{ paddingLeft: 8 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-              <View style={{
-                width: 8,
-                height: 8,
-                borderRadius: 4,
-                backgroundColor: '#10B981',
-                marginRight: 12,
-              }} />
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 14, fontWeight: '500', color: '#111827' }}>
-                  Commande créée
-                </Text>
-                <Text style={{ fontSize: 12, color: '#6B7280' }}>
-                  {formatDateTime(currentOrder.created_at)}
-                </Text>
-              </View>
-            </View>
+        {/* Items de la commande */}
+        <View style={styles.itemsSection}>
+          <Text style={styles.sectionTitle}>Articles commandés</Text>
+          {order.items.map((item) => (
+            <OrderItemCard key={item.id} item={item} />
+          ))}
+        </View>
 
-            {currentOrder.ready_at && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-                <View style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 4,
-                  backgroundColor: '#10B981',
-                  marginRight: 12,
-                }} />
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '500', color: '#111827' }}>
-                    Commande prête
-                  </Text>
-                  <Text style={{ fontSize: 12, color: '#6B7280' }}>
-                    {formatDateTime(currentOrder.ready_at)}
-                  </Text>
-                </View>
-              </View>
-            )}
-
-            {currentOrder.served_at && (
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <View style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 4,
-                  backgroundColor: '#10B981',
-                  marginRight: 12,
-                }} />
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '500', color: '#111827' }}>
-                    Commande servie
-                  </Text>
-                  <Text style={{ fontSize: 12, color: '#6B7280' }}>
-                    {formatDateTime(currentOrder.served_at)}
-                  </Text>
-                </View>
-              </View>
-            )}
+        {/* Totaux */}
+        <Card style={styles.totalsCard}>
+          <Text style={styles.sectionTitle}>Récapitulatif</Text>
+          
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>Sous-total:</Text>
+            <Text style={styles.totalValue}>{order.subtotal}€</Text>
+          </View>
+          
+          <View style={[styles.totalRow, styles.finalTotal]}>
+            <Text style={styles.finalTotalLabel}>Total à payer:</Text>
+            <Text style={styles.finalTotalValue}>{order.subtotal}€</Text>
           </View>
         </Card>
 
-        {/* Actions client */}
-        {!isRestaurateur && (
-          <View style={{ paddingHorizontal: 16, paddingBottom: 24 }}>
-            <Button
-              title="Contacter le restaurant"
-              onPress={() => {/* Logique pour contacter */}}
-              variant="outline"
-              leftIcon="call-outline"
-              fullWidth
-              style={{ marginBottom: 8 }}
-            />
-            
-            {currentOrder.status === 'served' && (
-              <Button
-                title="Noter ma commande"
-                onPress={() => router.push(`/review/add/${currentOrder.id}` as any)}
-                variant="outline"
-                leftIcon="star-outline"
-                fullWidth
-              />
-            )}
-          </View>
+        {/* Actions pour restaurateurs */}
+        {isRestaurateur && (
+          <RestaurantActions
+            order={order}
+            onStatusUpdate={handleStatusUpdate}
+            onMarkAsPaid={handleMarkAsPaid}
+            isUpdating={isUpdating}
+          />
         )}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
+
+// Styles
+const styles = {
+  container: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+  },
+  content: {
+    flex: 1,
+    padding: 16,
+  },
+  
+  // États
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+    padding: 32,
+  },
+  errorTitle: {
+    fontSize: 24,
+    fontWeight: 'bold' as const,
+    color: '#DC2626',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  errorMessage: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center' as const,
+    marginBottom: 24,
+  },
+  retryButton: {
+    backgroundColor: '#FF6B35',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600' as const,
+  },
+
+  // En-tête
+  headerCard: {
+    marginBottom: 16,
+  },
+  orderHeader: {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'flex-start' as const,
+    marginBottom: 16,
+  },
+  orderInfo: {
+    flex: 1,
+  },
+  orderTitle: {
+    fontSize: 20,
+    fontWeight: 'bold' as const,
+    color: '#333',
+    marginBottom: 4,
+  },
+  restaurantName: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 4,
+  },
+  customerName: {
+    fontSize: 16,
+    color: '#333',
+    marginBottom: 4,
+  },
+  orderDateTime: {
+    fontSize: 14,
+    color: '#666',
+  },
+
+  // Détails
+  orderDetails: {
+    flexDirection: 'row' as const,
+    flexWrap: 'wrap' as const,
+    gap: 16,
+    marginBottom: 16,
+  },
+  detailItem: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 6,
+  },
+  detailText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  paymentMethod: {
+    fontSize: 12,
+    color: '#999',
+    marginLeft: 4,
+  },
+
+  // Notes
+  notesSection: {
+    backgroundColor: '#F8F9FA',
+    padding: 12,
+    borderRadius: 8,
+  },
+  notesLabel: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#333',
+    marginBottom: 4,
+  },
+  notesText: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+  },
+
+  // Timeline
+  timelineSection: {
+    marginBottom: 16,
+  },
+  timelineEvent: {
+    flexDirection: 'row' as const,
+    alignItems: 'flex-start' as const,
+    marginBottom: 12,
+  },
+  timelineIconContainer: {
+    alignItems: 'center' as const,
+    marginRight: 12,
+  },
+  timelineIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#E5E7EB',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  timelineIconCompleted: {
+    backgroundColor: '#10B981',
+  },
+  timelineLine: {
+    width: 2,
+    height: 20,
+    backgroundColor: '#E5E7EB',
+    marginTop: 4,
+  },
+  timelineLineCompleted: {
+    backgroundColor: '#10B981',
+  },
+  timelineContent: {
+    flex: 1,
+  },
+  timelineLabel: {
+    fontSize: 14,
+    color: '#666',
+  },
+  timelineLabelCompleted: {
+    color: '#333',
+    fontWeight: '500' as const,
+  },
+  timelineTime: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 2,
+  },
+
+  // Items
+  itemsSection: {
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold' as const,
+    color: '#333',
+    marginBottom: 12,
+  },
+  itemCard: {
+    marginBottom: 12,
+  },
+  itemHeader: {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'flex-start' as const,
+    marginBottom: 8,
+  },
+  itemName: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: '#333',
+    marginRight: 12,
+  },
+  itemPrice: {
+    fontSize: 16,
+    fontWeight: 'bold' as const,
+    color: '#FF6B35',
+  },
+  itemDetails: {
+    flexDirection: 'row' as const,
+    gap: 16,
+    marginBottom: 8,
+  },
+  itemQuantity: {
+    fontSize: 14,
+    color: '#666',
+  },
+  itemUnitPrice: {
+    fontSize: 14,
+    color: '#666',
+  },
+  itemInstructions: {
+    backgroundColor: '#FFF7ED',
+    padding: 8,
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  instructionsLabel: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: '#FF6B35',
+    marginBottom: 4,
+  },
+  instructionsText: {
+    fontSize: 14,
+    color: '#333',
+  },
+  itemCustomizations: {
+    backgroundColor: '#F3F4F6',
+    padding: 8,
+    borderRadius: 6,
+  },
+  customizationsLabel: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: '#666',
+    marginBottom: 4,
+  },
+  customizationText: {
+    fontSize: 13,
+    color: '#333',
+    marginBottom: 2,
+  },
+
+  // Totaux
+  totalsCard: {
+    marginBottom: 16,
+  },
+  totalRow: {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    marginBottom: 8,
+  },
+  totalLabel: {
+    fontSize: 14,
+    color: '#666',
+  },
+  totalValue: {
+    fontSize: 14,
+    color: '#333',
+  },
+  finalTotal: {
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    paddingTop: 8,
+    marginTop: 8,
+  },
+  finalTotalLabel: {
+    fontSize: 16,
+    fontWeight: 'bold' as const,
+    color: '#333',
+  },
+  finalTotalValue: {
+    fontSize: 16,
+    fontWeight: 'bold' as const,
+    color: '#FF6B35',
+  },
+
+  // Actions
+  actionsSection: {
+    marginBottom: 16,
+  },
+  actionButtons: {
+    flexDirection: 'row' as const,
+    gap: 12,
+  },
+  actionButton: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    gap: 6,
+    flex: 1,
+  },
+  statusButton: {
+    backgroundColor: '#FF6B35',
+  },
+  paymentButton: {
+    backgroundColor: '#10B981',
+  },
+  actionButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600' as const,
+  },
+};

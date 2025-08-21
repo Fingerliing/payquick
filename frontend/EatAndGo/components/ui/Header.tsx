@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StatusBar, ViewStyle, TextStyle, Alert } 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
+import { router } from 'expo-router';
 
 interface HeaderProps {
   title: string;
@@ -19,6 +20,10 @@ interface HeaderProps {
   logoutPosition?: 'left' | 'right';
   onLogoutComplete?: () => void;
   customLogoutIcon?: string;
+  // Nouvelle prop pour le bouton retour
+  showBackButton?: boolean;
+  onBackPress?: () => void;
+  backIcon?: string;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -34,6 +39,9 @@ export const Header: React.FC<HeaderProps> = ({
   logoutPosition = 'right',
   onLogoutComplete,
   customLogoutIcon = 'log-out-outline',
+  showBackButton = false,
+  onBackPress,
+  backIcon = 'arrow-back',
 }) => {
   const insets = useSafeAreaInsets();
   const { logout, isLoading } = useAuth();
@@ -68,6 +76,14 @@ export const Header: React.FC<HeaderProps> = ({
         'Une erreur s\'est produite lors de la déconnexion.',
         [{ text: 'OK' }]
       );
+    }
+  };
+
+  const handleBackPress = () => {
+    if (onBackPress) {
+      onBackPress();
+    } else {
+      router.back();
     }
   };
 
@@ -120,6 +136,16 @@ export const Header: React.FC<HeaderProps> = ({
 
   // Détermine quelle icône et action utiliser pour la gauche
   const getLeftIconAndAction = () => {
+    // Priorité 1: Bouton retour
+    if (showBackButton) {
+      return {
+        icon: backIcon,
+        action: handleBackPress,
+        disabled: false,
+      };
+    }
+    
+    // Priorité 2: Logout à gauche
     if (showLogout && logoutPosition === 'left') {
       return {
         icon: customLogoutIcon,
@@ -127,6 +153,8 @@ export const Header: React.FC<HeaderProps> = ({
         disabled: isLoading,
       };
     }
+    
+    // Priorité 3: Icône personnalisée
     return {
       icon: leftIcon,
       action: onLeftPress,
