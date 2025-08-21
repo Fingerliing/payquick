@@ -1,5 +1,5 @@
 from django.urls import path
-from api.views.payment_views import CreateCheckoutSessionView, StripeWebhookView, CreateStripeAccountView, StripeAccountStatusView, StripeIdentitySessionView
+from api.views.payment_views import CreateCheckoutSessionView, StripeWebhookView, CreateStripeAccountView, StripeAccountStatusView, StripeIdentitySessionView, CreatePaymentIntentView, UpdatePaymentStatusView
 
 urlpatterns = [
     path('create_checkout_session/<int:order_id>/', CreateCheckoutSessionView.as_view(), name='create-checkout-session'),
@@ -11,4 +11,6 @@ urlpatterns = [
     path('account/', CreateStripeAccountView.as_view(), name='create_stripe_account_alias'),
     path('account/status/', StripeAccountStatusView.as_view(), name='stripe_account_status_alias'),
     path('identity/session/', StripeIdentitySessionView.as_view(), name='stripe_identity_session_alias'),
+    path('create-payment-intent/', CreatePaymentIntentView.as_view(), name='create-payment-intent'),
+    path('update-status/<int:order_id>/', UpdatePaymentStatusView.as_view(), name='update-payment-status'),
 ]

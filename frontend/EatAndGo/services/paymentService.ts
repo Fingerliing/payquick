@@ -1,33 +1,24 @@
 import { apiClient } from './api';
 
+export interface PaymentIntentResponse {
+  client_secret: string;
+  payment_intent_id: string;
+}
+
 export class PaymentService {
-  // (si utilisé côté app) créer un PaymentIntent pour une commande interne
-  async createPaymentIntent(orderId: string): Promise<never> { 
-    throw new Error('Not supported by backend v1 (use Stripe Checkout session).'); 
+  async createPaymentIntent(orderId: string): Promise<PaymentIntentResponse> {
+    return apiClient.post('/api/v1/payments/create-payment-intent/', {
+      order_id: orderId
+    });
   }
 
-  async confirmPayment(paymentIntentId: string): Promise<never> { 
-    throw new Error('Not supported by backend v1.'); 
+  async updatePaymentStatus(orderId: string, paymentStatus: string): Promise<void> {
+    await apiClient.post(`/api/v1/payments/update-status/${orderId}/`, {
+      payment_status: paymentStatus
+    });
   }
 
-  async refundPayment(paymentId: string, amount?: number): Promise<never> { 
-    throw new Error('Not supported by backend v1.'); 
-  }
-
-  async getPaymentMethods(): Promise<any[]> {
-    return apiClient.get('/payments/methods/');
-  }
-
-  async savePaymentMethod(data: any): Promise<never> { 
-    throw new Error('Not supported by backend v1.'); 
-  }
-
-  async deletePaymentMethod(id: string): Promise<never> { 
-    throw new Error('Not supported by backend v1.'); 
-  }
-
-  async createCheckoutSession(order_id: number): Promise<{ checkout_url: string } & { url?: string }> {
-    // Backend expects POST /api/v1/payments/create_checkout_session/<order_id>/
+  async createCheckoutSession(order_id: number): Promise<{ checkout_url: string }> {
     return apiClient.post(`/api/v1/payments/create_checkout_session/${order_id}/`);
   }
 }
