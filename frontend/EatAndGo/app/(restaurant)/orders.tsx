@@ -24,6 +24,75 @@ import { StatusBadge } from '@/components/common/StatusBadge';
 import { orderService } from '@/services/orderService';
 import { useOrderRealtime } from '@/hooks/useOrderRealtime';
 
+// Hook pour gérer l'archivage des commandes
+const useOrderArchiving = () => {
+  const [archivedOrders, setArchivedOrders] = useState<Set<number>>(new Set());
+
+  // Charger les commandes archivées depuis le stockage local
+  useEffect(() => {
+    const loadArchivedOrders = async () => {
+      try {
+        const archived = await AsyncStorage.getItem('archivedOrders');
+        if (archived) {
+          setArchivedOrders(new Set(JSON.parse(archived)));
+        }
+      } catch (error) {
+        console.error('❌ Error loading archived orders:', error);
+      }
+    };
+    loadArchivedOrders();
+  }, []);
+
+  // Sauvegarder les commandes archivées
+  const saveArchivedOrders = useCallback(async (orders: Set<number>) => {
+    try {
+      await AsyncStorage.setItem('archivedOrders', JSON.stringify(Array.from(orders)));
+    } catch (error) {
+      console.error('❌ Error saving archived orders:', error);
+    }
+  }, []);
+
+  // Archiver une commande
+  const archiveOrder = useCallback(async (orderId: number) => {
+    const newArchived = new Set(archivedOrders);
+    newArchived.add(orderId);
+    setArchivedOrders(newArchived);
+    await saveArchivedOrders(newArchived);
+    console.log('📦 Order archived:', orderId);
+  }, [archivedOrders, saveArchivedOrders]);
+
+  // Désarchiver une commande
+  const unarchiveOrder = useCallback(async (orderId: number) => {
+    const newArchived = new Set(archivedOrders);
+    newArchived.delete(orderId);
+    setArchivedOrders(newArchived);
+    await saveArchivedOrders(newArchived);
+    console.log('📤 Order unarchived:', orderId);
+  }, [archivedOrders, saveArchivedOrders]);
+
+  // Archiver toutes les commandes complétées
+  const archiveCompletedOrders = useCallback(async (orders: OrderList[]) => {
+    const completedOrderIds = orders
+      .filter(order => ['served', 'cancelled'].includes(order.status))
+      .map(order => order.id);
+    
+    if (completedOrderIds.length === 0) return 0;
+
+    const newArchived = new Set([...archivedOrders, ...completedOrderIds]);
+    setArchivedOrders(newArchived);
+    await saveArchivedOrders(newArchived);
+    console.log('📦 Bulk archived orders:', completedOrderIds.length);
+    return completedOrderIds.length;
+  }, [archivedOrders, saveArchivedOrders]);
+
+  return {
+    archivedOrders,
+    archiveOrder,
+    unarchiveOrder,
+    archiveCompletedOrders,
+  };
+};
+
 // Hook pour gérer la sélection de restaurant avec persistance
 const useRestaurantSelection = () => {
   const [selectedRestaurantId, setSelectedRestaurantId] = useState<number | null>(null);
@@ -294,14 +363,20 @@ const RestaurantOrderCard = React.memo(({
   item, 
   onStatusUpdate,
   onMarkAsPaid,
+  onArchive,
+  onUnarchive,
   isUpdating = false,
-  isRealtime = false
+  isRealtime = false,
+  isArchived = false
 }: { 
   item: OrderList;
   onStatusUpdate: (orderId: number, newStatus: string) => Promise<void>;
   onMarkAsPaid: (orderId: number, paymentMethod: string) => Promise<void>;
+  onArchive?: (orderId: number) => Promise<void>;
+  onUnarchive?: (orderId: number) => Promise<void>;
   isUpdating?: boolean;
   isRealtime?: boolean;
+  isArchived?: boolean;
 }) => {
   const [localUpdating, setLocalUpdating] = useState(false);
 
@@ -364,8 +439,22 @@ const RestaurantOrderCard = React.memo(({
   }, [item.id]);
 
   const renderStatusActions = () => {
-    if (item.status === 'served' || item.status === 'cancelled') {
-      return null;
+    const isCompleted = ['served', 'cancelled'].includes(item.status);
+    
+    // Si archivé, montrer seulement le bouton de désarchivage
+    if (isArchived) {
+      return (
+        <View style={styles.actionButtons}>
+          <Pressable 
+            style={[styles.actionButton, styles.unarchiveButton]}
+            onPress={() => onUnarchive?.(item.id)}
+            disabled={isUpdating}
+          >
+            <Ionicons name="archive-outline" size={16} color="#fff" />
+            <Text style={styles.actionButtonText}>Désarchiver</Text>
+          </Pressable>
+        </View>
+      );
     }
 
     const statusFlow = {
@@ -376,8 +465,7 @@ const RestaurantOrderCard = React.memo(({
     };
 
     const nextStatus = statusFlow[item.status as keyof typeof statusFlow];
-    if (!nextStatus) return null;
-
+    
     const actionLabels = {
       'confirmed': 'Confirmer',
       'preparing': 'En préparation',
@@ -387,24 +475,28 @@ const RestaurantOrderCard = React.memo(({
 
     return (
       <View style={styles.actionButtons}>
-        <Pressable 
-          style={[styles.actionButton, styles.statusButton]}
-          onPress={() => handleStatusChange(nextStatus)}
-          disabled={localUpdating || isUpdating}
-        >
-          {localUpdating ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <>
-              <Ionicons name="arrow-forward" size={16} color="#fff" />
-              <Text style={styles.actionButtonText}>
-                {actionLabels[nextStatus as keyof typeof actionLabels]}
-              </Text>
-            </>
-          )}
-        </Pressable>
+        {/* Boutons de statut pour commandes actives */}
+        {nextStatus && (
+          <Pressable 
+            style={[styles.actionButton, styles.statusButton]}
+            onPress={() => handleStatusChange(nextStatus)}
+            disabled={localUpdating || isUpdating}
+          >
+            {localUpdating ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Ionicons name="arrow-forward" size={16} color="#fff" />
+                <Text style={styles.actionButtonText}>
+                  {actionLabels[nextStatus as keyof typeof actionLabels]}
+                </Text>
+              </>
+            )}
+          </Pressable>
+        )}
 
-        {item.payment_status !== 'paid' && (
+        {/* Bouton d'encaissement */}
+        {item.payment_status !== 'paid' && !isCompleted && (
           <Pressable 
             style={[styles.actionButton, styles.paymentButton]}
             onPress={handleMarkAsPaid}
@@ -412,6 +504,18 @@ const RestaurantOrderCard = React.memo(({
           >
             <Ionicons name="card" size={16} color="#fff" />
             <Text style={styles.actionButtonText}>Encaisser</Text>
+          </Pressable>
+        )}
+
+        {/* Bouton d'archivage pour commandes terminées */}
+        {isCompleted && onArchive && (
+          <Pressable 
+            style={[styles.actionButton, styles.archiveButton]}
+            onPress={() => onArchive(item.id)}
+            disabled={isUpdating}
+          >
+            <Ionicons name="archive" size={16} color="#fff" />
+            <Text style={styles.actionButtonText}>Archiver</Text>
           </Pressable>
         )}
       </View>
@@ -425,20 +529,26 @@ const RestaurantOrderCard = React.memo(({
         displayInfo.isActive && styles.activeOrderCard,
         displayInfo.isUrgent && styles.urgentOrderCard,
         isRealtime && displayInfo.isActive && styles.realtimeOrderCard,
+        isArchived && styles.archivedOrderCard,
       ]}>
         {/* En-tête de la commande */}
         <View style={styles.orderHeader}>
           <View style={styles.orderInfo}>
             <View style={styles.orderTitleRow}>
               <Text style={styles.orderTitle}>{displayInfo.title}</Text>
-              {displayInfo.isUrgent && (
+              {displayInfo.isUrgent && !isArchived && (
                 <View style={styles.urgentBadge}>
                   <Ionicons name="warning" size={12} color="#DC2626" />
                 </View>
               )}
-              {isRealtime && displayInfo.isActive && (
+              {isRealtime && displayInfo.isActive && !isArchived && (
                 <View style={styles.realtimeBadge}>
                   <View style={styles.realtimeDot} />
+                </View>
+              )}
+              {isArchived && (
+                <View style={styles.archivedBadge}>
+                  <Ionicons name="archive" size={12} color="#666" />
                 </View>
               )}
             </View>
@@ -524,41 +634,64 @@ const ActiveOrdersSection = React.memo(({
   isLoading,
   onStatusUpdate,
   onMarkAsPaid,
+  onArchive,
   refreshIndicator,
-  realtimeState
+  realtimeState,
+  onArchiveCompleted
 }: { 
   orders: OrderList[]; 
   onRefresh: () => void;
   isLoading: boolean;
   onStatusUpdate: (orderId: number, newStatus: string) => Promise<void>;
   onMarkAsPaid: (orderId: number, paymentMethod: string) => Promise<void>;
+  onArchive: (orderId: number) => Promise<void>;
   refreshIndicator: React.ReactNode;
   realtimeState?: {
     connectionState: 'connecting' | 'connected' | 'disconnected' | 'error';
     isConnected: boolean;
   };
+  onArchiveCompleted: () => void;
 }) => {
   const activeOrders = orders.filter(o => 
     ['pending', 'confirmed', 'preparing', 'ready'].includes(o.status)
   );
 
-  if (activeOrders.length === 0) return null;
+  const completedOrders = orders.filter(o => 
+    ['served', 'cancelled'].includes(o.status)
+  );
 
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
         <View style={styles.sectionTitleContainer}>
-          <Text style={styles.sectionTitle}>Commandes actives ({activeOrders.length})</Text>
+          <Text style={styles.sectionTitle}>
+            Commandes actives ({activeOrders.length})
+          </Text>
           {refreshIndicator}
         </View>
-        <Pressable onPress={onRefresh} disabled={isLoading}>
-          <Ionicons 
-            name="refresh" 
-            size={20} 
-            color={isLoading ? "#ccc" : "#007AFF"} 
-          />
-        </Pressable>
+        <View style={styles.headerActions}>
+          {completedOrders.length > 0 && (
+            <Pressable 
+              style={styles.archiveAllButton}
+              onPress={onArchiveCompleted}
+            >
+              <Ionicons name="archive" size={16} color="#666" />
+              <Text style={styles.archiveAllText}>
+                Archiver terminées ({completedOrders.length})
+              </Text>
+            </Pressable>
+          )}
+          <Pressable onPress={onRefresh} disabled={isLoading}>
+            <Ionicons 
+              name="refresh" 
+              size={20} 
+              color={isLoading ? "#ccc" : "#007AFF"} 
+            />
+          </Pressable>
+        </View>
       </View>
+      
+      {/* Commandes actives */}
       {activeOrders.map(order => (
         <RestaurantOrderCard 
           key={order.id} 
@@ -569,35 +702,62 @@ const ActiveOrdersSection = React.memo(({
           isRealtime={realtimeState?.isConnected}
         />
       ))}
+
+      {/* Commandes terminées */}
+      {completedOrders.map(order => (
+        <RestaurantOrderCard 
+          key={order.id} 
+          item={order} 
+          onStatusUpdate={onStatusUpdate}
+          onMarkAsPaid={onMarkAsPaid}
+          onArchive={onArchive}
+          isUpdating={isLoading}
+        />
+      ))}
+
+      {activeOrders.length === 0 && completedOrders.length === 0 && (
+        <View style={styles.emptySection}>
+          <Text style={styles.emptySectionText}>Aucune commande active</Text>
+        </View>
+      )}
     </View>
   );
 });
 
-// Section historique
-const HistorySection = React.memo(({ 
+// Section archives
+const ArchivedSection = React.memo(({ 
   orders,
-  onStatusUpdate,
-  onMarkAsPaid 
+  onUnarchive 
 }: { 
   orders: OrderList[];
-  onStatusUpdate: (orderId: number, newStatus: string) => Promise<void>;
-  onMarkAsPaid: (orderId: number, paymentMethod: string) => Promise<void>;
+  onUnarchive: (orderId: number) => Promise<void>;
 }) => {
-  const historyOrders = orders.filter(o => 
-    ['served', 'cancelled'].includes(o.status)
-  ).slice(0, 10); // Limiter à 10 pour l'affichage
-
-  if (historyOrders.length === 0) return null;
+  if (orders.length === 0) {
+    return (
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Archives</Text>
+        <View style={styles.emptySection}>
+          <Ionicons name="archive-outline" size={48} color="#ddd" />
+          <Text style={styles.emptySectionText}>Aucune commande archivée</Text>
+          <Text style={styles.emptySectionSubtext}>
+            Les commandes archivées apparaîtront ici
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Historique récent</Text>
-      {historyOrders.map(order => (
+      <Text style={styles.sectionTitle}>Archives ({orders.length})</Text>
+      {orders.map(order => (
         <RestaurantOrderCard 
           key={order.id} 
           item={order}
-          onStatusUpdate={onStatusUpdate}
-          onMarkAsPaid={onMarkAsPaid}
+          onStatusUpdate={async () => {}} // Pas d'action sur les archives
+          onMarkAsPaid={async () => {}} // Pas d'action sur les archives
+          onUnarchive={onUnarchive}
+          isArchived={true}
         />
       ))}
     </View>
@@ -626,19 +786,22 @@ const EmptyState = React.memo(({
 const StatusFilters = React.memo(({ 
   currentFilter, 
   onFilterChange, 
-  orders 
+  orders,
+  archivedCount
 }: {
   currentFilter: string;
   onFilterChange: (filter: string) => void;
   orders: OrderList[];
+  archivedCount: number;
 }) => {
   const filters = [
-    { key: 'all', label: 'Toutes', count: orders.length },
+    { key: 'all', label: 'Actives', count: orders.length },
     { key: 'pending', label: 'En attente', count: orders.filter(o => o.status === 'pending').length },
     { key: 'confirmed', label: 'Confirmées', count: orders.filter(o => o.status === 'confirmed').length },
     { key: 'preparing', label: 'En préparation', count: orders.filter(o => o.status === 'preparing').length },
     { key: 'ready', label: 'Prêtes', count: orders.filter(o => o.status === 'ready').length },
     { key: 'served', label: 'Servies', count: orders.filter(o => o.status === 'served').length },
+    { key: 'archived', label: 'Archives', count: archivedCount },
   ];
 
   return (
@@ -652,13 +815,15 @@ const StatusFilters = React.memo(({
           <Pressable
             style={[
               styles.filterButton,
-              currentFilter === item.key && styles.filterButtonActive
+              currentFilter === item.key && styles.filterButtonActive,
+              item.key === 'archived' && styles.filterButtonArchive
             ]}
             onPress={() => onFilterChange(item.key)}
           >
             <Text style={[
               styles.filterButtonText,
-              currentFilter === item.key && styles.filterButtonTextActive
+              currentFilter === item.key && styles.filterButtonTextActive,
+              item.key === 'archived' && currentFilter !== item.key && styles.filterButtonTextArchive
             ]}>
               {item.label} ({item.count})
             </Text>
@@ -684,6 +849,14 @@ export default function RestaurantOrdersScreen() {
     isLoadingRestaurants,
     selectRestaurant
   } = useRestaurantSelection();
+
+  // Hook d'archivage
+  const {
+    archivedOrders,
+    archiveOrder,
+    unarchiveOrder,
+    archiveCompletedOrders,
+  } = useOrderArchiving();
 
   // Utiliser le contexte OrderContext existant
   const { 
@@ -766,11 +939,25 @@ export default function RestaurantOrdersScreen() {
     }
   });
 
-  // Filtrer par statut sélectionné
+  // Filtrer par statut et archivage
   const filteredOrders = useMemo(() => {
-    if (filter === 'all') return restaurantOrders;
-    return restaurantOrders.filter(order => order.status === filter);
-  }, [restaurantOrders, filter]);
+    let filtered = restaurantOrders;
+
+    // Filtrer par archivage
+    if (filter === 'archived') {
+      filtered = filtered.filter(order => archivedOrders.has(order.id));
+    } else {
+      // Masquer les commandes archivées pour les autres vues
+      filtered = filtered.filter(order => !archivedOrders.has(order.id));
+    }
+
+    // Filtrer par statut (sauf pour la vue archivée)
+    if (filter !== 'all' && filter !== 'archived') {
+      filtered = filtered.filter(order => order.status === filter);
+    }
+
+    return filtered;
+  }, [restaurantOrders, filter, archivedOrders]);
 
   const hasActiveOrders = restaurantOrders.some(o => 
     ['pending', 'confirmed', 'preparing', 'ready'].includes(o.status)
@@ -803,6 +990,53 @@ export default function RestaurantOrdersScreen() {
   const handleFilterChange = useCallback((newFilter: string) => {
     setFilter(newFilter);
   }, []);
+
+  const handleArchiveOrder = useCallback(async (orderId: number) => {
+    try {
+      await archiveOrder(orderId);
+      Alert.alert('✅ Succès', 'Commande archivée avec succès');
+    } catch (error) {
+      console.error('❌ Error archiving order:', error);
+      Alert.alert('❌ Erreur', 'Impossible d\'archiver la commande');
+    }
+  }, [archiveOrder]);
+
+  const handleUnarchiveOrder = useCallback(async (orderId: number) => {
+    try {
+      await unarchiveOrder(orderId);
+      Alert.alert('✅ Succès', 'Commande désarchivée avec succès');
+    } catch (error) {
+      console.error('❌ Error unarchiving order:', error);
+      Alert.alert('❌ Erreur', 'Impossible de désarchiver la commande');
+    }
+  }, [unarchiveOrder]);
+
+  const handleArchiveCompleted = useCallback(async () => {
+    Alert.alert(
+      'Archiver les commandes terminées',
+      'Voulez-vous archiver toutes les commandes servies et annulées ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Archiver',
+          style: 'default',
+          onPress: async () => {
+            try {
+              const count = await archiveCompletedOrders(restaurantOrders);
+              if (count > 0) {
+                Alert.alert('✅ Succès', `${count} commande(s) archivée(s)`);
+              } else {
+                Alert.alert('ℹ️ Information', 'Aucune commande à archiver');
+              }
+            } catch (error) {
+              console.error('❌ Error bulk archiving:', error);
+              Alert.alert('❌ Erreur', 'Impossible d\'archiver les commandes');
+            }
+          }
+        },
+      ]
+    );
+  }, [archiveCompletedOrders, restaurantOrders]);
 
   const handleRestaurantSelect = useCallback(async (restaurantId: number) => {
     console.log('🏪 Selecting restaurant:', restaurantId);
@@ -853,20 +1087,24 @@ export default function RestaurantOrdersScreen() {
         data={[1]}
         renderItem={() => (
           <View style={styles.content}>
-            <ActiveOrdersSection 
-              orders={filteredOrders}
-              onRefresh={handleRefresh}
-              isLoading={refreshing}
-              onStatusUpdate={handleStatusUpdate}
-              onMarkAsPaid={handleMarkAsPaid}
-              refreshIndicator={refreshIndicator}
-              realtimeState={realtimeState}
-            />
-            <HistorySection 
-              orders={filteredOrders} 
-              onStatusUpdate={handleStatusUpdate}
-              onMarkAsPaid={handleMarkAsPaid}
-            />
+            {filter === 'archived' ? (
+              <ArchivedSection 
+                orders={filteredOrders}
+                onUnarchive={handleUnarchiveOrder}
+              />
+            ) : (
+              <ActiveOrdersSection 
+                orders={filteredOrders}
+                onRefresh={handleRefresh}
+                isLoading={refreshing}
+                onStatusUpdate={handleStatusUpdate}
+                onMarkAsPaid={handleMarkAsPaid}
+                onArchive={handleArchiveOrder}
+                refreshIndicator={refreshIndicator}
+                realtimeState={realtimeState}
+                onArchiveCompleted={handleArchiveCompleted}
+              />
+            )}
           </View>
         )}
         keyExtractor={() => 'content'}
@@ -931,7 +1169,8 @@ export default function RestaurantOrdersScreen() {
         <StatusFilters 
           currentFilter={filter}
           onFilterChange={handleFilterChange}
-          orders={restaurantOrders}
+          orders={restaurantOrders.filter(order => !archivedOrders.has(order.id))}
+          archivedCount={archivedOrders.size}
         />
       )}
 
@@ -1038,6 +1277,25 @@ const styles = {
     alignItems: 'center' as const,
     marginBottom: 16,
   },
+  headerActions: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 12,
+  },
+  archiveAllButton: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 16,
+    gap: 4,
+  },
+  archiveAllText: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '500' as const,
+  },
   sectionTitleContainer: {
     flex: 1,
     flexDirection: 'row' as const,
@@ -1092,6 +1350,10 @@ const styles = {
   filterButtonActive: {
     backgroundColor: '#FF6B35',
   },
+  filterButtonArchive: {
+    borderColor: '#9CA3AF',
+    borderWidth: 1,
+  },
   filterButtonText: {
     fontSize: 14,
     fontWeight: '500' as const,
@@ -1099,6 +1361,9 @@ const styles = {
   },
   filterButtonTextActive: {
     color: '#fff',
+  },
+  filterButtonTextArchive: {
+    color: '#666',
   },
 
   // Cartes de commande
@@ -1113,6 +1378,11 @@ const styles = {
   realtimeOrderCard: {
     borderColor: '#10B981',
     borderWidth: 1,
+  },
+  archivedOrderCard: {
+    opacity: 0.7,
+    borderLeftWidth: 4,
+    borderLeftColor: '#9CA3AF',
   },
   urgentOrderCard: {
     borderColor: '#DC2626',
@@ -1160,6 +1430,14 @@ const styles = {
     height: 4,
     borderRadius: 2,
     backgroundColor: '#fff',
+  },
+  archivedBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
   customerName: {
     fontSize: 16,
@@ -1226,6 +1504,12 @@ const styles = {
   },
   paymentButton: {
     backgroundColor: '#10B981',
+  },
+  archiveButton: {
+    backgroundColor: '#9CA3AF',
+  },
+  unarchiveButton: {
+    backgroundColor: '#6B7280',
   },
   actionButtonText: {
     color: '#fff',
@@ -1321,5 +1605,21 @@ const styles = {
     marginTop: 16,
     fontSize: 16,
     color: '#666',
+  },
+  emptySection: {
+    alignItems: 'center' as const,
+    padding: 32,
+  },
+  emptySectionText: {
+    fontSize: 16,
+    color: '#666',
+    marginTop: 12,
+    textAlign: 'center' as const,
+  },
+  emptySectionSubtext: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    marginTop: 4,
+    textAlign: 'center' as const,
   },
 };
