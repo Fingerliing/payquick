@@ -68,7 +68,7 @@ const RestaurantActions = React.memo(({
   const statusFlow = {
     'pending': { next: 'confirmed', label: 'Confirmer' },
     'confirmed': { next: 'preparing', label: 'En préparation' },
-    'preparing': { next: 'ready', label: 'Prêt' },
+    'preparing': { next: 'ready', label: 'Prête' },
     'ready': { next: 'served', label: 'Servir' }
   };
 
@@ -76,7 +76,7 @@ const RestaurantActions = React.memo(({
 
   const handleMarkAsPaid = () => {
     Alert.alert(
-      'Marquer comme payé',
+      'Marquer comme payée',
       'Quelle méthode de paiement ?',
       [
         { text: 'Annuler', style: 'cancel' },
@@ -146,13 +146,13 @@ const OrderTimeline = React.memo(({ order }: { order: OrderDetail }) => {
     },
     {
       status: 'ready',
-      label: 'Prêt',
+      label: 'Prête',
       time: order.ready_at || (order.status === 'ready' ? order.updated_at : null),
       completed: ['ready', 'served'].includes(order.status)
     },
     {
       status: 'served',
-      label: 'Servi',
+      label: 'Servie',
       time: order.served_at || (order.status === 'served' ? order.updated_at : null),
       completed: order.status === 'served'
     }
@@ -276,7 +276,7 @@ export default function OrderDetailScreen() {
       console.log('✅ Order marked as paid');
     } catch (error) {
       console.error('❌ Error marking as paid:', error);
-      Alert.alert('Erreur', 'Impossible de marquer comme payé');
+      Alert.alert('Erreur', 'Impossible de marquer comme payée');
     } finally {
       setIsUpdating(false);
     }
@@ -388,7 +388,7 @@ export default function OrderDetailScreen() {
                 styles.detailText,
                 { color: order.payment_status === 'paid' ? "#10B981" : "#FF9500" }
               ]}>
-                {order.payment_status === 'paid' ? 'Payé' : 'Paiement en attente'}
+                {order.payment_status === 'paid' ? 'Payée' : 'Paiement en attente'}
               </Text>
               {order.payment_method && order.payment_status === 'paid' && (
                 <Text style={styles.paymentMethod}>

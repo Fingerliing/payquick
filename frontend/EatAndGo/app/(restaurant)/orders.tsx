@@ -337,7 +337,7 @@ const RestaurantOrderCard = React.memo(({
     if (localUpdating || isUpdating) return;
     
     Alert.alert(
-      'Marquer comme payé',
+      'Marquer comme payée',
       'Quelle méthode de paiement ?',
       [
         { text: 'Annuler', style: 'cancel' },
@@ -489,7 +489,7 @@ const RestaurantOrderCard = React.memo(({
               styles.detailText,
               { color: item.payment_status === 'paid' ? "#10B981" : "#FF9500" }
             ]}>
-              {item.payment_status === 'paid' ? 'Payé' : 'Non payé'}
+              {item.payment_status === 'paid' ? 'Payée' : 'Non payée'}
             </Text>
           </View>
         </View>
