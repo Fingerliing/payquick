@@ -10,6 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCart } from '@/contexts/CartContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Header } from '@/components/ui/Header';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -24,7 +25,8 @@ export default function CartScreen() {
     removeFromCart, 
     clearCart 
   } = useCart();
-
+  
+  const { isAuthenticated } = useAuth();
   const { tableNumber } = useLocalSearchParams<{ tableNumber?: string }>();
 
   const handleQuantityChange = (itemId: string, newQuantity: number) => {
@@ -59,7 +61,7 @@ export default function CartScreen() {
       return;
     }
 
-    // Navigation vers le checkout avec les paramètres nécessaires
+    // Préparer les paramètres communs
     const params: any = {};
     if (cart.restaurantId) {
       params.restaurantId = cart.restaurantId.toString();
@@ -68,31 +70,20 @@ export default function CartScreen() {
       params.tableNumber = tableNumber;
     }
 
-    router.push({
-      pathname: '/order/checkout',
-      params
-    });
-  };
-
-  const handleGuestCheckout = () => {
-    if (cart.items.length === 0) {
-      Alert.alert('Panier vide', 'Ajoutez des articles à votre panier pour continuer');
-      return;
+    // Redirection automatique selon l'état d'authentification
+    if (isAuthenticated) {
+      // Utilisateur connecté → checkout normal
+      router.push({
+        pathname: '/order/checkout',
+        params
+      });
+    } else {
+      // Utilisateur non connecté → checkout invité
+      router.push({
+        pathname: '/order/guest-checkout',
+        params
+      });
     }
-
-    // Navigation vers le checkout invité
-    const params: any = {};
-    if (cart.restaurantId) {
-      params.restaurantId = cart.restaurantId.toString();
-    }
-    if (tableNumber) {
-      params.tableNumber = tableNumber;
-    }
-
-    router.push({
-      pathname: '/order/guest-checkout',
-      params
-    });
   };
 
   const renderCustomizations = (customizations?: Record<string, any>) => {
@@ -280,21 +271,27 @@ export default function CartScreen() {
           </Text>
         </View>
 
-        <View style={{ gap: 12 }}>
-          <Button
-            title="Passer commande (Client connecté)"
-            onPress={handleCheckout}
-            fullWidth
-            style={{ backgroundColor: '#FF6B35' }}
-          />
-          
-          <Button
-            title="Commander en tant qu'invité"
-            onPress={handleGuestCheckout}
-            fullWidth
-            variant="outline"
-            style={{ borderColor: '#FF6B35' }}
-          />
+        {/* Bouton unique de commande */}
+        <Button
+          title="Passer commande"
+          onPress={handleCheckout}
+          fullWidth
+          style={{ backgroundColor: '#FF6B35' }}
+        />
+        
+        {/* Indicateur du type de checkout */}
+        <View style={{ marginTop: 8, alignItems: 'center' }}>
+          <Text style={{ fontSize: 12, color: '#666', textAlign: 'center' }}>
+            {isAuthenticated 
+              ? '🔒 Commande avec votre compte client' 
+              : '👤 Commande en tant qu\'invité'
+            }
+          </Text>
+          {!isAuthenticated && (
+            <Text style={{ fontSize: 11, color: '#888', textAlign: 'center', marginTop: 2 }}>
+              Vous pourrez créer un compte après votre commande
+            </Text>
+          )}
         </View>
       </Card>
     </SafeAreaView>
