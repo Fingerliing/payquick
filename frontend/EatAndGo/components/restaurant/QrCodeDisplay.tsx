@@ -1,4 +1,4 @@
-import QRCode from 'qrcode';
+import QRCode from 'react-native-qrcode-svg';
 import { useEffect, useRef, useState } from 'react';
 
 interface QRCodeDisplayProps {

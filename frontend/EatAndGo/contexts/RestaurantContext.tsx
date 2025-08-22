@@ -4,7 +4,7 @@ import { Table } from '@/types/table'
 import { SearchFilters, PaginatedResponse } from '@/types/common';
 import { restaurantService } from '@/services/restaurantService';
 import { tableService } from '@/services/tableService';
-import { useAuth } from './AuthContext'; // Ajout de l'import pour useAuth
+import { useAuth } from './AuthContext';
 
 interface RestaurantState {
   restaurants: Restaurant[];
