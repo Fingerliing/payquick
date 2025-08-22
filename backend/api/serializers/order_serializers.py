@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from api.models import Order, OrderItem, Table
+from api.models import Order, OrderItem, TableSession
 from django.utils import timezone
 from decimal import Decimal
 from django.db import transaction
@@ -278,3 +278,83 @@ class OrderStatsSerializer(serializers.Serializer):
     total_revenue = serializers.DecimalField(max_digits=10, decimal_places=2)
     average_order_value = serializers.DecimalField(max_digits=10, decimal_places=2)
     average_preparation_time = serializers.IntegerField()  # en minutes
+
+class TableSessionSerializer(serializers.ModelSerializer):
+    """Serializer pour les sessions de table"""
+    
+    orders_count = serializers.ReadOnlyField()
+    total_amount = serializers.ReadOnlyField()
+    duration = serializers.ReadOnlyField()
+    orders = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = TableSession
+        fields = [
+            'id', 'restaurant', 'table_number', 'started_at', 'ended_at',
+            'is_active', 'primary_customer_name', 'primary_phone', 
+            'guest_count', 'session_notes', 'orders_count', 'total_amount',
+            'duration', 'orders'
+        ]
+        read_only_fields = ['id', 'started_at']
+    
+    def get_orders(self, obj):
+        """Retourne les commandes de la session"""
+        orders = obj.orders.all()
+        return OrderListSerializer(orders, many=True, context=self.context).data
+
+class OrderWithTableInfoSerializer(serializers.ModelSerializer):
+    """Serializer étendu avec informations de table"""
+    
+    # Informations de session de table
+    table_session_id = serializers.UUIDField(read_only=True)
+    order_sequence = serializers.IntegerField(read_only=True)
+    is_main_order = serializers.BooleanField(read_only=True)
+    
+    # Informations calculées
+    table_orders_count = serializers.SerializerMethodField()
+    table_total_amount = serializers.ReadOnlyField()
+    table_waiting_time = serializers.SerializerMethodField()
+    table_status_summary = serializers.ReadOnlyField()
+    
+    # Informations de base
+    restaurant_name = serializers.CharField(source='restaurant.name', read_only=True)
+    items = OrderItemSerializer(many=True, read_only=True)
+    customer_display = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Order
+        fields = [
+            'id', 'order_number', 'user', 'customer_display', 'restaurant', 'restaurant_name',
+            'order_type', 'table_number', 'customer_name', 'phone',
+            'status', 'payment_status', 'payment_method',
+            'subtotal', 'tax_amount', 'total_amount',
+            'estimated_ready_time', 'ready_at', 'served_at', 'notes',
+            'created_at', 'updated_at', 'items',
+            # Nouveaux champs pour table
+            'table_session_id', 'order_sequence', 'is_main_order',
+            'table_orders_count', 'table_total_amount', 'table_waiting_time',
+            'table_status_summary'
+        ]
+    
+    def get_table_orders_count(self, obj):
+        """Nombre de commandes dans cette session de table"""
+        return obj.table_orders.count()
+    
+    def get_table_waiting_time(self, obj):
+        """Temps d'attente pour cette table"""
+        return obj.get_table_waiting_time()
+    
+    def get_customer_display(self, obj):
+        if obj.user:
+            return obj.user.get_full_name() or obj.user.username
+        return obj.customer_name or f"Client {obj.order_number}"
+
+class TableOrdersSerializer(serializers.Serializer):
+    """Serializer pour toutes les commandes d'une table"""
+    
+    restaurant_id = serializers.IntegerField()
+    table_number = serializers.CharField()
+    active_orders = OrderWithTableInfoSerializer(many=True, read_only=True)
+    completed_orders = OrderWithTableInfoSerializer(many=True, read_only=True)
+    table_statistics = serializers.DictField(read_only=True)
+    current_session = TableSessionSerializer(read_only=True)

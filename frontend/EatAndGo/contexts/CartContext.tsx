@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { Cart, CartItem, CartContextType } from "@/types/cart";
+import { tableOrderService, TableOrdersResponse, OrderWithTableInfo } from "@/services/tableOrderService";
+import { CreateOrderRequest } from "@/types/order";
 
 const CART_STORAGE_KEY = "@EatAndGo_cart";
 const QR_SESSION_KEY = "@qr_session_data";
 
-// Interface pour les données de session QR
 interface QRSessionData {
   restaurantId: string;
   restaurantName?: string;
@@ -14,13 +15,23 @@ interface QRSessionData {
   timestamp: number;
 }
 
-// Type étendu pour inclure les méthodes QR
+// Type étendu pour inclure les méthodes de gestion des commandes multiples
 interface ExtendedCartContextType extends CartContextType {
-  // Méthodes QR session
+  // Méthodes QR session existantes
   initializeFromQRSession: () => Promise<void>;
   getQRSessionData: () => Promise<QRSessionData | null>;
   updateTableFromQR: (tableNumber: string) => Promise<void>;
   qrSessionData: QRSessionData | null;
+  
+  // Nouvelles méthodes pour commandes multiples
+  tableOrders: TableOrdersResponse | null;
+  isLoadingTableOrders: boolean;
+  tableOrdersError: string | null;
+  refreshTableOrders: () => Promise<void>;
+  hasActiveTableOrders: boolean;
+  canAddOrderToTable: boolean;
+  // ✅ CORRIGÉ: Type de retour cohérent avec l'implémentation
+  addOrderToTable: (orderData: CreateOrderRequest) => Promise<OrderWithTableInfo>;
 }
 
 const CartContext = createContext<ExtendedCartContextType | undefined>(undefined);
@@ -38,7 +49,7 @@ const emptyCart = (): Cart => ({
 function calculateTotals(cartData: Omit<Cart, "subtotal" | "total" | "itemCount"> & { items: CartItem[] }): Cart {
   const subtotal = cartData.items.reduce((sum, it) => sum + it.price * it.quantity, 0);
   const itemCount = cartData.items.reduce((n, it) => n + it.quantity, 0);
-  const total = subtotal; // pas de deliveryFee/tax côté front
+  const total = subtotal;
   return { ...cartData, subtotal, total, itemCount };
 }
 
@@ -46,11 +57,27 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [cart, setCart] = useState<Cart>(emptyCart());
   const [qrSessionData, setQRSessionData] = useState<QRSessionData | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  
+  // Nouveaux states pour les commandes multiples
+  const [tableOrders, setTableOrders] = useState<TableOrdersResponse | null>(null);
+  const [isLoadingTableOrders, setIsLoadingTableOrders] = useState(false);
+  const [tableOrdersError, setTableOrdersError] = useState<string | null>(null);
 
-  // Chargement initial : cart + session QR
+  // États calculés
+  const hasActiveTableOrders = tableOrders ? tableOrders.active_orders.length > 0 : false;
+  const canAddOrderToTable = tableOrders ? tableOrders.can_add_order : true;
+
+  // Chargement initial
   useEffect(() => {
     loadInitialData();
   }, []);
+
+  // Charger les commandes de table quand on a un restaurant et une table
+  useEffect(() => {
+    if (cart.restaurantId && cart.tableNumber && isInitialized) {
+      refreshTableOrders();
+    }
+  }, [cart.restaurantId, cart.tableNumber, isInitialized]);
 
   const loadInitialData = async () => {
     try {
@@ -73,10 +100,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         // Vérifier la validité de la session (24h)
         const now = Date.now();
         const sessionAge = now - (qrData?.timestamp ?? 0);
-        const maxAge = 24 * 60 * 60 * 1000; // 24 heures
+        const maxAge = 24 * 60 * 60 * 1000;
         
         if (sessionAge > maxAge) {
-          // Session expirée, la supprimer
           await AsyncStorage.removeItem(QR_SESSION_KEY);
           qrData = null;
           console.log('🕐 QR session expired and removed');
@@ -99,19 +125,104 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       setIsInitialized(true);
       
     } catch (error) {
-      console.error('❌ Error loading initial data:', error);
+      console.error('⚠️ Error loading initial data:', error);
       setIsInitialized(true);
     }
   };
 
-  // Persistance du cart (garder la logique existante)
+  // Persistance du cart
   useEffect(() => {
     if (isInitialized) {
       AsyncStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart)).catch(() => {});
     }
   }, [cart, isInitialized]);
 
-  // Méthodes QR Session
+  // Méthodes pour les commandes multiples
+  const refreshTableOrders = async () => {
+    if (!cart.restaurantId || !cart.tableNumber) {
+      setTableOrders(null);
+      return;
+    }
+
+    try {
+      setIsLoadingTableOrders(true);
+      setTableOrdersError(null);
+      
+      const data = await tableOrderService.getTableOrders(
+        cart.restaurantId,
+        cart.tableNumber
+      );
+      
+      setTableOrders(data);
+      console.log('📋 Table orders refreshed:', data.active_orders.length + ' active orders');
+      
+    } catch (error: any) {
+      console.error('⚠️ Error loading table orders:', error);
+      setTableOrdersError(error.message || 'Erreur lors du chargement des commandes');
+    } finally {
+      setIsLoadingTableOrders(false);
+    }
+  };
+
+  // ✅ CORRIGÉ: Signature cohérente avec l'interface
+  const addOrderToTable = async (orderData: CreateOrderRequest): Promise<OrderWithTableInfo> => {
+    if (!cart.restaurantId || !cart.tableNumber) {
+      throw new Error('Restaurant et table requis pour passer une commande');
+    }
+
+    if (!canAddOrderToTable) {
+      throw new Error('Impossible d\'ajouter une commande à cette table pour le moment');
+    }
+
+    try {
+      console.log('🍽️ Adding new order to table:', {
+        restaurant: cart.restaurantId,
+        table: cart.tableNumber,
+        items: cart.items.length
+      });
+
+      // ✅ CORRIGÉ: Utiliser les données du cart pour construire la requête
+      const completeOrderData: CreateOrderRequest = {
+        ...orderData,
+        restaurant: cart.restaurantId,
+        table_number: cart.tableNumber,
+        // Mapper les items du cart vers le format attendu par l'API
+        items: cart.items.map(item => {
+          const menuItemId = parseInt(item.id);
+          if (isNaN(menuItemId)) {
+            throw new Error(`Invalid menu item ID: ${item.id}`);
+          }
+          
+          return {
+            menu_item: menuItemId, // ✅ CORRIGÉ: Convertir string vers number avec validation
+            quantity: item.quantity,
+            unit_price: item.price.toString(),
+            customizations: item.customizations || {},
+            special_instructions: item.specialInstructions || ''
+          };
+        })
+      };
+
+      // Ajouter la commande via le service
+      const newOrder = await tableOrderService.addTableOrder(completeOrderData);
+
+      console.log('✅ Order added to table:', newOrder.order_number);
+
+      // Vider le panier après succès
+      clearCart();
+      
+      // Rafraîchir les commandes de la table
+      await refreshTableOrders();
+
+      return newOrder;
+      
+    } catch (error: any) {
+      console.error('⚠️ Error adding order to table:', error);
+      throw error;
+    }
+  };
+
+  // Méthodes QR existantes (inchangées)
   const initializeFromQRSession = async (): Promise<void> => {
     try {
       const qrRaw = await AsyncStorage.getItem(QR_SESSION_KEY);
@@ -120,7 +231,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       const qrData: QRSessionData = JSON.parse(qrRaw);
       setQRSessionData(qrData);
 
-      // Mettre à jour le cart si nécessaire
       setCart(prev => {
         const shouldUpdate = !prev.restaurantId || prev.restaurantId.toString() !== qrData.restaurantId;
         
@@ -138,7 +248,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       });
       
     } catch (error) {
-      console.error('❌ Error initializing from QR session:', error);
+      console.error('⚠️ Error initializing from QR session:', error);
     }
   };
 
@@ -147,17 +257,15 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       const qrRaw = await AsyncStorage.getItem(QR_SESSION_KEY);
       return qrRaw ? JSON.parse(qrRaw) : null;
     } catch (error) {
-      console.error('❌ Error getting QR session data:', error);
+      console.error('⚠️ Error getting QR session data:', error);
       return null;
     }
   };
 
   const updateTableFromQR = async (tableNumber: string): Promise<void> => {
     try {
-      // Mettre à jour le cart
       setCart(prev => ({ ...prev, tableNumber }));
 
-      // Mettre à jour la session QR si elle existe
       if (qrSessionData) {
         const updatedQRData = { ...qrSessionData, tableNumber };
         await AsyncStorage.setItem(QR_SESSION_KEY, JSON.stringify(updatedQRData));
@@ -165,14 +273,13 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         console.log('✅ Table number updated in QR session:', tableNumber);
       }
     } catch (error) {
-      console.error('❌ Error updating table from QR:', error);
+      console.error('⚠️ Error updating table from QR:', error);
     }
   };
 
-  // Méthodes existantes (garder votre logique)
+  // Méthodes existantes du cart (inchangées)
   const addToCart: CartContextType["addToCart"] = (item, quantity = 1) => {
     setCart(prev => {
-      // Panier mono-restaurant : reset si changement
       const shouldReset = prev.restaurantId && prev.restaurantId !== item.restaurantId;
       const base = shouldReset ? emptyCart() : prev;
 
@@ -211,8 +318,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const setTableNumber: CartContextType["setTableNumber"] = (tableNumber) => {
     setCart(prev => ({ ...prev, tableNumber }));
-    
-    // Aussi mettre à jour la session QR
     updateTableFromQR(tableNumber).catch(console.error);
   };
 
@@ -234,11 +339,20 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     isCartForRestaurant,
     setTableNumber,
     
-    // Nouvelles méthodes QR
+    // Méthodes QR existantes
     initializeFromQRSession,
     getQRSessionData,
     updateTableFromQR,
-    qrSessionData
+    qrSessionData,
+    
+    // Nouvelles méthodes pour commandes multiples
+    tableOrders,
+    isLoadingTableOrders,
+    tableOrdersError,
+    refreshTableOrders,
+    hasActiveTableOrders,
+    canAddOrderToTable,
+    addOrderToTable
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

@@ -5,15 +5,14 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.shortcuts import get_object_or_404
 from django.db.models import Count, Q, Avg, Sum
 from django.utils import timezone
-from django.db import transaction
-from api.models import Order, OrderItem, Restaurant, Table, MenuItem
+from api.models import Order, Table, MenuItem
 from api.serializers.order_serializers import (
     OrderListSerializer,
     OrderDetailSerializer, 
     OrderCreateSerializer,
     OrderStatusUpdateSerializer,
     OrderPaymentSerializer,
-    OrderItemSerializer,
+    OrderWithTableInfoSerializer,
     OrderStatsSerializer
 )
 from api.permissions import IsRestaurateur, IsOwnerOrReadOnly, IsValidatedRestaurateur
@@ -168,15 +167,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                     order, 
                     context={'request': request}
                 )
-                print(f"✅ Response serializer: {response_serializer.data}")
                 
-                if not response_data:
-                    print("❌ Response data is empty!")
-                    # Fallback vers OrderListSerializer
-                    fallback_serializer = OrderListSerializer(order, context={'request': request})
-                    response_data = fallback_serializer.data
-                    print(f"📋 Fallback data: {response_data}")
-
                 return Response(
                     response_serializer.data, 
                     status=status.HTTP_201_CREATED
@@ -322,14 +313,11 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     @extend_schema(
         summary="Vue cuisine",
-        description="Interface optimisée pour l'écran cuisine avec commandes actives.",
-        parameters=[
-            OpenApiParameter(name="restaurant", type=int, description="ID du restaurant")
-        ]
+        description="Interface cuisine avec regroupement par table",
     )
     @action(detail=False, methods=["get"])
     def kitchen_view(self, request):
-        """Vue spéciale pour l'écran cuisine"""
+        """Vue cuisine avec regroupement par table"""
         restaurant_id = request.query_params.get('restaurant')
         
         if not restaurant_id:
@@ -337,48 +325,55 @@ class OrderViewSet(viewsets.ModelViewSet):
                 'error': 'ID restaurant requis'
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        # Commandes actives par statut
-        queryset = self.get_queryset().filter(
+        # Commandes actives groupées par table
+        active_orders = self.get_queryset().filter(
             restaurant_id=restaurant_id,
             status__in=['pending', 'confirmed', 'preparing', 'ready']
-        ).order_by('created_at')
+        ).select_related('restaurant').prefetch_related('items__menu_item')
         
-        orders_by_status = {
-            'pending': [],
-            'confirmed': [],
-            'preparing': [],
-            'ready': []
-        }
-        
-        for order in queryset:
-            serializer = OrderListSerializer(order, context={'request': request})
-            order_data = serializer.data
+        # Grouper par table
+        tables = {}
+        for order in active_orders:
+            table_key = order.table_number or 'Takeaway'
             
-            # Ajouter infos cuisine
-            order_data.update({
-                'is_urgent': self._is_order_urgent(order),
-                'items_summary': self._get_items_summary(order),
-                'special_instructions': self._get_special_instructions(order)
-            })
+            if table_key not in tables:
+                tables[table_key] = {
+                    'table_number': table_key,
+                    'orders': [],
+                    'total_items': 0,
+                    'oldest_order_time': order.created_at,
+                    'urgency_level': 'normal'
+                }
             
-            orders_by_status[order.status].append(order_data)
+            # Ajouter la commande
+            order_data = OrderWithTableInfoSerializer(
+                order, 
+                context={'request': request}
+            ).data
+            
+            tables[table_key]['orders'].append(order_data)
+            tables[table_key]['total_items'] += order.items.count()
+            
+            # Calculer l'urgence
+            waiting_time = order.get_table_waiting_time()
+            if waiting_time > 30:
+                tables[table_key]['urgency_level'] = 'urgent'
+            elif waiting_time > 20:
+                tables[table_key]['urgency_level'] = 'warning'
         
-        # Statistiques du jour
-        today = timezone.now().date()
-        daily_stats = Order.objects.filter(
-            restaurant_id=restaurant_id,
-            created_at__date=today
-        ).aggregate(
-            total=Count('id'),
-            served=Count('id', filter=Q(status='served')),
-            cancelled=Count('id', filter=Q(status='cancelled')),
-            revenue=Sum('total_amount', filter=Q(payment_status='paid'))
+        # Trier les tables par urgence et temps d'attente
+        sorted_tables = sorted(
+            tables.values(),
+            key=lambda x: (
+                {'urgent': 0, 'warning': 1, 'normal': 2}[x['urgency_level']],
+                x['oldest_order_time']
+            )
         )
         
         return Response({
             'restaurant_id': restaurant_id,
-            'orders_by_status': orders_by_status,
-            'daily_stats': daily_stats,
+            'tables': sorted_tables,
+            'total_active_orders': active_orders.count(),
             'last_updated': timezone.now().isoformat()
         })
 
@@ -675,3 +670,48 @@ class OrderViewSet(viewsets.ModelViewSet):
         """Notification temps réel changement statut"""
         # TODO: Implémenter WebSocket notification
         pass
+
+    @extend_schema(
+        summary="Scanner table QR",
+        description="Scanne un QR code de table pour commencer une commande."
+    )
+    @action(detail=False, methods=["get"], permission_classes=[AllowAny], url_path='scan_table/(?P<table_code>[^/.]+)')
+    def scan_table(self, request, table_code=None):
+        """Scanner QR code d'une table"""
+        if not table_code:
+            return Response({
+                'error': 'Code de table requis'
+            }, status=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            table = get_object_or_404(Table, qr_code=table_code)
+            restaurant = table.restaurant
+            
+            # Vérifier que le restaurant peut recevoir des commandes
+            if not restaurant.can_receive_orders:
+                return Response({
+                    'error': 'Ce restaurant n\'accepte pas de commandes actuellement'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            return Response({
+                'success': True,
+                'restaurant': {
+                    'id': restaurant.id,
+                    'name': restaurant.name,
+                    'description': restaurant.description,
+                    'cuisine': restaurant.cuisine,
+                    'rating': float(restaurant.rating),
+                    'image_url': request.build_absolute_uri(restaurant.image.url) if restaurant.image else None
+                },
+                'table': {
+                    'id': table.id,
+                    'number': table.identifiant,
+                    'code': table_code
+                }
+            })
+            
+        except Exception as e:
+            return Response({
+                'error': 'Code de table invalide',
+                'details': str(e)
+            }, status=status.HTTP_404_NOT_FOUND)

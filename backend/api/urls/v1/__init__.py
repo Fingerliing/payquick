@@ -17,5 +17,6 @@ urlpatterns = [
     path('table/', include('api.urls.v1.table_urls')),
     path('token/', include('api.urls.v1.token_urls')),
     path('stripe/', include('api.urls.v1.stripe_urls')),
-    path('guest/', include('api.urls.v1.guest_urls'))
+    path('guest/', include('api.urls.v1.guest_urls')),
+    path('table-orders/', include('api.urls.v1.table_order_urls')),
 ]

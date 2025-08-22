@@ -174,7 +174,7 @@ class Restaurant(models.Model):
     manual_override_until = models.DateTimeField(
         blank=True, 
         null=True,
-        verbose_name="Fermeture manuelle jusqu'à"
+        verbose_name="Fermeture manuelle jusqu'à "
     )
     last_status_changed_by = models.ForeignKey(
         User, 
@@ -615,20 +615,25 @@ class Order(models.Model):
     ]
     
     # Identifiants
-    order_number = models.CharField(max_length=20, unique=True)  # Ex: "T001", "C042"
+    order_number = models.CharField(max_length=20, unique=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
-    restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE)
+    restaurant = models.ForeignKey('Restaurant', on_delete=models.CASCADE)
     
     # Type et détails commande
     order_type = models.CharField(max_length=20, choices=ORDER_TYPE_CHOICES, default='dine_in')
-    table_number = models.CharField(max_length=10, blank=True, null=True)  # Si sur place
-    customer_name = models.CharField(max_length=100, blank=True)  # Pour commandes anonymes
-    phone = models.CharField(max_length=20, blank=True)  # Optionnel pour rappel
+    table_number = models.CharField(max_length=10, blank=True, null=True)
+    customer_name = models.CharField(max_length=100, blank=True)
+    phone = models.CharField(max_length=20, blank=True)
+    
+    # NOUVEAU: Support pour regroupement de commandes
+    table_session_id = models.UUIDField(default=uuid.uuid4, editable=False, help_text="Identifie une session de table pour regrouper les commandes")
+    order_sequence = models.PositiveIntegerField(default=1, help_text="Numéro de séquence pour cette table/session")
+    is_main_order = models.BooleanField(default=True, help_text="Première commande de la session de table")
     
     # Statuts
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending')
-    payment_method = models.CharField(max_length=50, blank=True)  # 'cash', 'card', 'online'
+    payment_method = models.CharField(max_length=50, blank=True)
     
     # Montants
     subtotal = models.DecimalField(max_digits=10, decimal_places=2)
@@ -645,88 +650,272 @@ class Order(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    source = models.CharField(max_length=10, default="user")  # user|guest
+    source = models.CharField(max_length=10, default="user")
     guest_contact_name = models.CharField(max_length=120, blank=True, null=True)
     guest_phone = models.CharField(max_length=32, blank=True, null=True)
     guest_email = models.EmailField(blank=True, null=True)
     
     class Meta:
         ordering = ['-created_at']
-    
-    def __str__(self):
-        return f"Commande {self.order_number} - {self.restaurant.name}"
+        indexes = [
+            models.Index(fields=['restaurant', 'table_number', 'status']),
+            models.Index(fields=['table_session_id']),
+            models.Index(fields=['restaurant', 'created_at']),
+        ]
     
     def save(self, *args, **kwargs):
         if not self.order_number:
             self.order_number = self.generate_order_number()
+        
+        # Gestion automatique de la séquence pour la table
+        if not self.pk and self.table_number:
+            self.set_order_sequence()
+        
         super().save(*args, **kwargs)
     
     def generate_order_number(self):
-        """Génère un numéro de commande unique"""
+        """Génère un numéro de commande unique avec séquence table"""
         prefix = "T" if self.order_type == "dine_in" else "E"
         today = timezone.now().date()
+        
+        # Compter toutes les commandes du jour pour ce restaurant
         count = Order.objects.filter(
             restaurant=self.restaurant,
             created_at__date=today
         ).count() + 1
+        
+        # Si c'est une commande de table avec séquence
+        if self.table_number and hasattr(self, 'order_sequence'):
+            return f"{prefix}{self.table_number}-{self.order_sequence:02d}"
+        
         return f"{prefix}{count:03d}"
     
-    def calculate_estimated_time(self):
-        """Calcule le temps estimé basé sur les items"""
-        total_prep_time = sum(
-            item.menu_item.preparation_time * item.quantity 
-            for item in self.items.all()
-        )
-        # Ajouter buffer de 5-15 min selon charge restaurant
-        buffer = 10  # minutes
-        estimated = timezone.now() + timedelta(minutes=total_prep_time + buffer)
-        return estimated.time()
-    
-    def can_be_cancelled(self):
-        """
-        Détermine si une commande peut être annulée
+    def set_order_sequence(self):
+        """Définit la séquence de commande pour cette table"""
+        if not self.table_number:
+            return
         
-        Règles métier :
-        - Peut être annulée si statut = pending ou confirmed
-        - Ne peut plus être annulée si en préparation, prête ou servie
-        - Ne peut pas être annulée si déjà annulée
-        - Peut être annulée même si payée (avec remboursement)
-        """
-        cancellable_statuses = ['pending', 'confirmed']
-        return self.status in cancellable_statuses
-    
-    def get_preparation_time(self):
-        """
-        Calcule le temps de préparation estimé en minutes
-        """
-        if self.status == 'served':
-            # Si servi, calculer le temps réel
-            if self.ready_at and self.created_at:
-                delta = self.ready_at - self.created_at
-                return int(delta.total_seconds() / 60)
-            return None
+        # Trouver la dernière commande active de cette table
+        last_order = Order.objects.filter(
+            restaurant=self.restaurant,
+            table_number=self.table_number,
+            status__in=['pending', 'confirmed', 'preparing', 'ready']
+        ).order_by('-created_at').first()
         
-        elif self.status in ['preparing', 'ready']:
-            # Si en cours, calculer le temps écoulé
-            elapsed = timezone.now() - self.created_at
-            return int(elapsed.total_seconds() / 60)
-        
+        if last_order and last_order.table_session_id:
+            # Continuer la session existante
+            self.table_session_id = last_order.table_session_id
+            self.order_sequence = last_order.order_sequence + 1
+            self.is_main_order = False
         else:
-            # Si pas encore commencé, estimer basé sur les items
-            try:
-                total_prep_time = 0
-                for item in self.items.all():
-                    # Temps de préparation par item (par défaut 5 minutes)
-                    item_prep_time = getattr(item.menu_item, 'preparation_time', 5)
-                    total_prep_time += item_prep_time * item.quantity
-                
-                # Ajouter buffer de base
-                base_time = 5  # 5 minutes de base
-                buffer = max(5, total_prep_time * 0.2)  # 20% de buffer
-                
-                return int(base_time + total_prep_time + buffer)
-            except:
-                return 15  # Estimation par défaut si erreur
+            # Nouvelle session de table
+            self.table_session_id = uuid.uuid4()
+            self.order_sequence = 1
+            self.is_main_order = True
+    
+    # ✅ AJOUT: Méthode manquante can_be_cancelled
+    def can_be_cancelled(self):
+        """Vérifie si une commande peut être annulée"""
+        # Ne peut plus être annulée si déjà servie ou annulée
+        if self.status in ['served', 'cancelled']:
+            return False
+        
+        # Ne peut plus être annulée si en préparation depuis trop longtemps
+        if self.status == 'preparing':
+            elapsed = timezone.now() - self.created_at
+            # Pas d'annulation si préparation depuis plus de 15 minutes
+            return elapsed.total_seconds() < 900  # 15 minutes
+        
+        # Peut être annulée si pending, confirmed ou ready depuis peu
+        return True
+    
+    # ✅ AJOUT: Méthode manquante get_preparation_time
+    def get_preparation_time(self):
+        """Calcule le temps de préparation estimé en minutes"""
+        if not self.items.exists():
+            return 10  # Temps par défaut
+        
+        total_time = 0
+        for item in self.items.all():
+            # Utiliser preparation_time du MenuItem si disponible
+            prep_time = getattr(item.menu_item, 'preparation_time', 5)
+            total_time += prep_time * item.quantity
+        
+        # Ajouter un temps de base et un buffer
+        base_time = 5
+        buffer = max(5, total_time * 0.2)  # 20% de buffer, minimum 5min
+        
+        return int(base_time + total_time + buffer)
+    
+    @property
+    def table_orders(self):
+        """Retourne toutes les commandes de cette session de table"""
+        if self.table_session_id:
+            return Order.objects.filter(
+                table_session_id=self.table_session_id
+            ).order_by('created_at')
+        return Order.objects.filter(id=self.id)
+    
+    @property
+    def table_total_amount(self):
+        """Montant total de toutes les commandes de cette table"""
+        return self.table_orders.aggregate(
+            total=models.Sum('total_amount')
+        )['total'] or 0
+    
+    @property
+    def table_status_summary(self):
+        """Résumé des statuts pour cette session de table"""
+        orders = self.table_orders
+        statuses = orders.values_list('status', flat=True)
+        
+        return {
+            'total_orders': orders.count(),
+            'pending': statuses.filter(status='pending').count(),
+            'confirmed': statuses.filter(status='confirmed').count(),
+            'preparing': statuses.filter(status='preparing').count(),
+            'ready': statuses.filter(status='ready').count(),
+            'served': statuses.filter(status='served').count(),
+            'cancelled': statuses.filter(status='cancelled').count(),
+        }
+    
+    def can_add_order_to_table(self):
+        """Vérifie si on peut ajouter une commande à cette table"""
+        if not self.table_number:
+            return False
+        
+        # Vérifier qu'il n'y a pas trop de commandes en attente
+        pending_orders = Order.objects.filter(
+            restaurant=self.restaurant,
+            table_number=self.table_number,
+            status__in=['pending', 'confirmed', 'preparing']
+        ).count()
+        
+        # Limite configurable (par exemple 5 commandes max en cours)
+        return pending_orders < 5
+    
+    def get_table_waiting_time(self):
+        """Temps d'attente pour la table (basé sur la commande la plus ancienne)"""
+        oldest_order = self.table_orders.filter(
+            status__in=['pending', 'confirmed', 'preparing']
+        ).order_by('created_at').first()
+        
+        if oldest_order:
+            elapsed = timezone.now() - oldest_order.created_at
+            return int(elapsed.total_seconds() / 60)
+        return 0
+
+
+# Nouveau modèle pour suivre les sessions de table
+class TableSession(models.Model):
+    """Modèle pour suivre les sessions de table et regrouper les commandes"""
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    restaurant = models.ForeignKey('Restaurant', on_delete=models.CASCADE)
+    table_number = models.CharField(max_length=10)
+    
+    # Session info
+    started_at = models.DateTimeField(auto_now_add=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    
+    # Customer info (pour la session)
+    primary_customer_name = models.CharField(max_length=100, blank=True)
+    primary_phone = models.CharField(max_length=20, blank=True)
+    guest_count = models.PositiveIntegerField(default=1)
+    
+    # Notes de session
+    session_notes = models.TextField(blank=True)
+    
+    class Meta:
+        ordering = ['-started_at']
+        indexes = [
+            models.Index(fields=['restaurant', 'table_number', 'is_active']),
+        ]
+    
+    def __str__(self):
+        return f"Session Table {self.table_number} - {self.restaurant.name}"
+    
+    @property
+    def orders(self):
+        """Toutes les commandes de cette session"""
+        return Order.objects.filter(table_session_id=self.id)
+    
+    @property
+    def total_amount(self):
+        """Montant total de la session"""
+        return self.orders.aggregate(
+            total=models.Sum('total_amount')
+        )['total'] or 0
+    
+    @property
+    def orders_count(self):
+        """Nombre de commandes dans cette session"""
+        return self.orders.count()
+    
+    @property
+    def duration(self):
+        """Durée de la session"""
+        end_time = self.ended_at or timezone.now()
+        return end_time - self.started_at
+    
+    def end_session(self):
+        """Termine la session de table"""
+        self.is_active = False
+        self.ended_at = timezone.now()
+        self.save()
+    
+    def can_add_order(self):
+        """Vérifie si on peut ajouter une commande à cette session"""
+        if not self.is_active:
+            return False
+        
+        # Vérifier le nombre de commandes en cours
+        active_orders = self.orders.filter(
+            status__in=['pending', 'confirmed', 'preparing']
+        ).count()
+        
+        return active_orders < 5  # Limite configurable
+
+
+# Nouveau manager pour les commandes avec méthodes utilitaires
+class OrderManager(models.Manager):
+    def for_table(self, restaurant, table_number):
+        """Toutes les commandes pour une table donnée"""
+        return self.filter(
+            restaurant=restaurant,
+            table_number=table_number
+        ).order_by('-created_at')
+    
+    def active_for_table(self, restaurant, table_number):
+        """Commandes actives pour une table"""
+        return self.for_table(restaurant, table_number).filter(
+            status__in=['pending', 'confirmed', 'preparing', 'ready']
+        )
+    
+    def by_table_session(self, session_id):
+        """Commandes par session de table"""
+        return self.filter(table_session_id=session_id).order_by('created_at')
+    
+    def table_statistics(self, restaurant, table_number):
+        """Statistiques pour une table"""
+        orders = self.for_table(restaurant, table_number)
+        
+        return {
+            'total_orders': orders.count(),
+            'total_revenue': orders.aggregate(
+                total=models.Sum('total_amount')
+            )['total'] or 0,
+            'average_order_value': orders.aggregate(
+                avg=models.Avg('total_amount')
+            )['avg'] or 0,
+            'active_orders': orders.filter(
+                status__in=['pending', 'confirmed', 'preparing', 'ready']
+            ).count()
+        }
+
+# Ajouter le manager personnalisé au modèle Order
+Order.add_to_class('objects', OrderManager())
 
 def default_expires_at():
     return timezone.now() + timedelta(minutes=15)

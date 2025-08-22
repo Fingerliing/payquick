@@ -2,32 +2,30 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
+  ScrollView,
+  Alert,
+  SafeAreaView,
   FlatList,
   Pressable,
-  SafeAreaView,
-  Alert,
-  ScrollView,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Header } from '@/components/ui/Header';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { QRAccessButtons } from '@/components/qrCode/QRAccessButton';
 import { TableOrders } from '@/components/order/TableOrders';
+import { QRAccessButtons } from '@/components/qrCode/QRAccessButton';
+import { Ionicons } from '@expo/vector-icons';
 import { CartItem } from '@/types/cart';
 import { ListRenderItem } from 'react-native';
-import { clientOrderService } from '@/services/clientOrderService'; // ✅ CORRIGÉ: Utiliser le service existant
 
-export default function CartScreen() {
+export default function CartWithTableOrdersScreen() {
   const { 
     cart, 
-    updateQuantity, 
-    removeFromCart, 
+    updateQuantity,
+    removeFromCart,
     clearCart,
-    // Nouvelles propriétés pour les commandes multiples
     hasActiveTableOrders,
     tableOrders,
     isLoadingTableOrders,
@@ -38,9 +36,6 @@ export default function CartScreen() {
   const { isAuthenticated } = useAuth();
   const { tableNumber } = useLocalSearchParams<{ tableNumber?: string }>();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isCreatingOrder, setIsCreatingOrder] = useState(false); // ✅ AJOUT: État pour la création de commande
-
-  const currentTableNumber = tableNumber || cart.tableNumber;
 
   const handleQuantityChange = (itemId: string, newQuantity: number) => {
     if (newQuantity < 1) {
@@ -75,16 +70,15 @@ export default function CartScreen() {
     }
 
     // Si on a une table avec des commandes actives, proposer d'ajouter à la session
-    if (hasActiveTableOrders && tableOrders && currentTableNumber) {
-      const ordersCount = tableOrders?.active_orders?.length || 0;
+    if (hasActiveTableOrders && tableOrders) {
       Alert.alert(
         'Commandes en cours',
-        `Cette table a déjà ${String(ordersCount)} commande(s) en cours. Comment souhaitez-vous procéder ?`,
+        `Cette table a déjà ${tableOrders.active_orders.length} commande(s) en cours. Voulez-vous ajouter cette commande à la session existante ?`,
         [
           { text: 'Annuler', style: 'cancel' },
           { 
             text: 'Nouvelle session', 
-            onPress: () => createOrderAndRedirect() 
+            onPress: () => navigateToCheckout() 
           },
           { 
             text: 'Ajouter à la session', 
@@ -95,58 +89,34 @@ export default function CartScreen() {
       return;
     }
 
-    // Sinon, créer la commande et rediriger vers le paiement
-    await createOrderAndRedirect();
+    // Sinon, procéder normalement
+    navigateToCheckout();
   };
 
-  const createOrderAndRedirect = async () => {
-    if (!cart.restaurantId) {
-      Alert.alert('Erreur', 'Restaurant non défini');
-      return;
+  const navigateToCheckout = () => {
+    const params: any = {};
+    if (cart.restaurantId) {
+      params.restaurantId = cart.restaurantId.toString();
+    }
+    if (tableNumber || cart.tableNumber) {
+      params.tableNumber = tableNumber || cart.tableNumber;
     }
 
-    try {
-      setIsCreatingOrder(true);
-
-      // ✅ CORRIGÉ: Fix du type order_type avec typage explicite
-      const orderType: 'dine_in' | 'takeaway' = currentTableNumber ? 'dine_in' : 'takeaway';
-      
-      const orderData = {
-        restaurant: cart.restaurantId,
-        order_type: orderType,
-        table_number: currentTableNumber,
-        customer_name: isAuthenticated ? 'Client connecté' : 'Client invité',
-        phone: '',
-        payment_method: 'cash', // Sera modifié sur la page de paiement
-        notes: '',
-        items: cart.items, // ✅ Passer directement les CartItem[], le service s'occupe de la conversion
-      };
-
-      console.log('🚀 Creating order from cart:', {
-        restaurant: orderData.restaurant,
-        order_type: orderData.order_type,
-        table_number: orderData.table_number,
-        items_count: orderData.items.length
+    if (isAuthenticated) {
+      router.push({
+        pathname: '/order/checkout',
+        params
       });
-
-      // Créer la commande avec le service complet qui gère toute la validation
-      const newOrder = await clientOrderService.createFromCart(orderData);
-      
-      console.log('✅ Order created for payment:', newOrder.id);
-
-      // Rediriger vers la page de paiement
-      router.push(`/order/payment?orderId=${String(newOrder.id)}`);
-
-    } catch (error: any) {
-      console.error('❌ Error creating order:', error);
-      Alert.alert('Erreur', error.message || 'Erreur lors de la création de la commande');
-    } finally {
-      setIsCreatingOrder(false);
+    } else {
+      router.push({
+        pathname: '/order/guest-checkout',
+        params
+      });
     }
   };
 
   const addToExistingSession = async () => {
-    if (!cart.restaurantId || !currentTableNumber) {
+    if (!cart.restaurantId || !cart.tableNumber) {
       Alert.alert('Erreur', 'Informations de table manquantes');
       return;
     }
@@ -154,23 +124,26 @@ export default function CartScreen() {
     try {
       setIsSubmitting(true);
 
+      // Préparer les données de commande avec les types corrects
       const orderData = {
         restaurant: cart.restaurantId,
-        order_type: 'dine_in' as 'dine_in',
-        table_number: currentTableNumber,
+        order_type: 'dine_in' as const,
+        table_number: cart.tableNumber,
         customer_name: isAuthenticated ? 'Client connecté' : 'Client invité',
         phone: '',
-        payment_method: '', // Sera défini sur la page de paiement
+        payment_method: 'cash',
         notes: '',
+        // Les items seront mappés automatiquement dans addOrderToTable
         items: []
       };
 
       const newOrder = await addOrderToTable(orderData);
-      
-      console.log('✅ Order added to table session:', newOrder.order_number);
 
-      // Rediriger vers la page de paiement
-      router.push(`/order/payment?orderId=${String(newOrder.id)}`);
+      Alert.alert(
+        'Commande ajoutée !',
+        `Votre commande #${newOrder.order_number} a été ajoutée à la session de table existante.`,
+        [{ text: 'OK', onPress: () => router.back() }]
+      );
 
     } catch (error: any) {
       console.error('Error adding order to table:', error);
@@ -187,7 +160,7 @@ export default function CartScreen() {
       <View style={{ marginTop: 4 }}>
         {Object.entries(customizations).map(([key, value]) => (
           <Text key={key} style={{ fontSize: 12, color: '#888', fontStyle: 'italic' }}>
-            {String(key)}: {Array.isArray(value) ? value.join(', ') : String(value)}
+            {key}: {Array.isArray(value) ? value.join(', ') : value}
           </Text>
         ))}
       </View>
@@ -199,21 +172,24 @@ export default function CartScreen() {
       <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 4 }}>
-            {String(item.name || '')}
+            {item.name}
           </Text>
           <Text style={{ fontSize: 14, color: '#666', marginBottom: 4 }}>
-            {(item.price || 0).toFixed(2)} € / unité
+            {item.price.toFixed(2)} € / unité
           </Text>
           
+          {/* Affichage des personnalisations */}
           {renderCustomizations(item.customizations)}
           
-          {item.specialInstructions ? (
+          {/* Instructions spéciales */}
+          {item.specialInstructions && (
             <Text style={{ fontSize: 12, color: '#FF9500', fontStyle: 'italic', marginTop: 4 }}>
-              Note: {String(item.specialInstructions)}
+              Note: {item.specialInstructions}
             </Text>
-          ) : null}
+          )}
         </View>
         
+        {/* Contrôles de quantité */}
         <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 16 }}>
           <Pressable
             style={{
@@ -236,7 +212,7 @@ export default function CartScreen() {
             minWidth: 20,
             textAlign: 'center',
           }}>
-            {String(item.quantity || 0)}
+            {item.quantity}
           </Text>
           
           <Pressable
@@ -254,9 +230,10 @@ export default function CartScreen() {
           </Pressable>
         </View>
         
+        {/* Prix et suppression */}
         <View style={{ alignItems: 'flex-end', marginLeft: 16 }}>
           <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#FF6B35' }}>
-            {((item.price || 0) * (item.quantity || 0)).toFixed(2)} €
+            {(item.price * item.quantity).toFixed(2)} €
           </Text>
           <Pressable
             style={{ marginTop: 8, padding: 4 }}
@@ -269,31 +246,33 @@ export default function CartScreen() {
     </Card>
   );
 
-  // Panier vide avec table - Afficher les commandes existantes
-  if (cart.items.length === 0 && cart.restaurantId && currentTableNumber) {
+  // Si pas d'articles dans le panier, afficher les commandes de la table
+  if (cart.items.length === 0 && cart.restaurantId && cart.tableNumber) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
         <Header 
-          title={`Table ${String(currentTableNumber || '')}`}
+          title={`Table ${cart.tableNumber}`}
           leftIcon="arrow-back" 
           onLeftPress={() => router.back()} 
         />
         
         <TableOrders
-          restaurantId={Number(cart.restaurantId) || 0}
-          tableNumber={String(currentTableNumber)}
+          restaurantId={cart.restaurantId}
+          tableNumber={cart.tableNumber}
           onAddOrder={() => {
-            router.push(`/menu/client/${String(cart.restaurantId)}?tableNumber=${String(currentTableNumber)}`);
+            // Rediriger vers le menu pour ajouter des articles
+            router.push(`/menu/client/${cart.restaurantId}?tableNumber=${cart.tableNumber}`);
           }}
           onOrderPress={(order) => {
-            router.push(`/order/${String(order.id)}`);
+            // Rediriger vers les détails de la commande
+            router.push(`/order/${order.id}`);
           }}
         />
       </SafeAreaView>
     );
   }
 
-  // Panier vide sans table
+  // Panier vide sans informations de table
   if (cart.items.length === 0) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
@@ -340,7 +319,7 @@ export default function CartScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
       <Header 
-        title={`Panier (${String(cart.itemCount || 0)})`}
+        title={`Panier (${cart.itemCount})`}
         leftIcon="arrow-back" 
         onLeftPress={() => router.back()}
         rightIcon="trash-outline"
@@ -353,29 +332,29 @@ export default function CartScreen() {
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 4 }}>
-                {String(cart.restaurantName || 'Restaurant')}
+                {cart.restaurantName || 'Restaurant'}
               </Text>
-              {currentTableNumber ? (
+              {(tableNumber || cart.tableNumber) && (
                 <Text style={{ fontSize: 14, color: '#666' }}>
-                  Table {String(currentTableNumber)}
+                  Table {tableNumber || cart.tableNumber}
                 </Text>
-              ) : null}
+              )}
             </View>
             <View style={{ alignItems: 'flex-end' }}>
               <Text style={{ fontSize: 12, color: '#666' }}>
-                {String(cart.itemCount || 0)} {(cart.itemCount || 0) > 1 ? 'articles' : 'article'}
+                {cart.itemCount} {cart.itemCount > 1 ? 'articles' : 'article'}
               </Text>
-              {isLoadingTableOrders && currentTableNumber ? (
+              {isLoadingTableOrders && (
                 <Text style={{ fontSize: 11, color: '#FF9500', marginTop: 2 }}>
-                  Vérification des commandes...
+                  Chargement des commandes...
                 </Text>
-              ) : null}
+              )}
             </View>
           </View>
         </Card>
 
         {/* Alerte commandes existantes */}
-        {hasActiveTableOrders && tableOrders && currentTableNumber && (
+        {hasActiveTableOrders && tableOrders && (
           <Card style={{ margin: 16, marginTop: 0, backgroundColor: '#FFF7ED', borderColor: '#FB923C' }}>
             <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
               <Ionicons name="information-circle" size={24} color="#FB923C" />
@@ -384,28 +363,18 @@ export default function CartScreen() {
                   Commandes en cours sur cette table
                 </Text>
                 <Text style={{ fontSize: 14, color: '#92400E', marginBottom: 8 }}>
-                  {String(tableOrders?.active_orders?.length || 0)} commande(s) en cours. Vous pouvez ajouter votre commande à la session existante.
+                  Cette table a {tableOrders.active_orders.length} commande(s) en cours. 
+                  Vous pouvez ajouter votre commande à la session existante.
                 </Text>
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <Button
-                    title="Voir les commandes"
-                    variant="outline"
-                    size="small"
-                    onPress={() => {
-                      router.push(`/table/${String(currentTableNumber)}/orders?restaurantId=${String(cart.restaurantId)}`);
-                    }}
-                    style={{ borderColor: '#FB923C', flex: 1 }}
-                  />
-                  <Button
-                    title="Actualiser"
-                    variant="outline"
-                    size="small"
-                    onPress={refreshTableOrders}
-                    disabled={isLoadingTableOrders}
-                    style={{ borderColor: '#FB923C' }}
-                    leftIcon="refresh"
-                  />
-                </View>
+                <Button
+                  title="Voir les commandes en cours"
+                  variant="outline"
+                  size="small"
+                  onPress={() => {
+                    router.push(`/table/${cart.tableNumber}/orders?restaurantId=${cart.restaurantId}`);
+                  }}
+                  style={{ borderColor: '#FB923C' }}
+                />
               </View>
             </View>
           </Card>
@@ -416,7 +385,7 @@ export default function CartScreen() {
           <FlatList
             data={cart.items}
             renderItem={renderCartItem}
-            keyExtractor={(item: CartItem) => String(item.id)}
+            keyExtractor={(item: CartItem) => item.id}
             scrollEnabled={false}
             showsVerticalScrollIndicator={false}
           />
@@ -427,68 +396,62 @@ export default function CartScreen() {
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#eee' }}>
             <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#333' }}>Total</Text>
             <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#FF6B35' }}>
-              {(cart.total || 0).toFixed(2)} €
+              {cart.total.toFixed(2)} €
             </Text>
           </View>
 
           <View style={{ gap: 12 }}>
-            {/* Bouton principal de commande */}
             <Button
-              title={
-                isCreatingOrder 
-                  ? "Création en cours..." 
-                  : hasActiveTableOrders 
-                    ? "Passer commande (nouvelle session)" 
-                    : "Passer commande"
-              }
+              title={hasActiveTableOrders ? "Passer commande (nouvelle session)" : "Passer commande"}
               onPress={handleCheckout}
               fullWidth
               style={{ backgroundColor: '#FF6B35' }}
-              disabled={isSubmitting || isCreatingOrder}
-              loading={isCreatingOrder}
+              disabled={isSubmitting}
             />
             
-            {/* Bouton d'ajout à la session existante (si applicable) */}
-            {hasActiveTableOrders && currentTableNumber && (
+            {hasActiveTableOrders && (
               <Button
                 title={isSubmitting ? "Ajout en cours..." : "Ajouter à la session en cours"}
                 onPress={addToExistingSession}
                 fullWidth
                 variant="outline"
                 style={{ borderColor: '#FF6B35' }}
-                disabled={isSubmitting || isCreatingOrder}
+                disabled={isSubmitting}
                 loading={isSubmitting}
               />
             )}
           </View>
 
-          {/* Indicateurs d'état */}
+          {/* Indicateur du type de checkout */}
           <View style={{ marginTop: 12, alignItems: 'center' }}>
-            {!isCreatingOrder && !isSubmitting ? (
-              <>
-                <Text style={{ fontSize: 12, color: '#666', textAlign: 'center' }}>
-                  {isAuthenticated 
-                    ? '🔒 Commande avec votre compte client' 
-                    : '👤 Commande en tant qu\'invité'
-                  }
-                </Text>
-                {hasActiveTableOrders && currentTableNumber ? (
-                  <Text style={{ fontSize: 11, color: '#888', textAlign: 'center', marginTop: 2 }}>
-                    Cette table a des commandes en cours
-                  </Text>
-                ) : (
-                  <Text style={{ fontSize: 11, color: '#888', textAlign: 'center', marginTop: 2 }}>
-                    Paiement sécurisé à l'étape suivante
-                  </Text>
-                )}
-              </>
-            ) : (
-              <Text style={{ fontSize: 12, color: '#FF9500', textAlign: 'center' }}>
-                {isCreatingOrder ? 'Création de la commande...' : 'Ajout à la session...'}
+            <Text style={{ fontSize: 12, color: '#666', textAlign: 'center' }}>
+              {isAuthenticated 
+                ? '🔒 Commande avec votre compte client' 
+                : '👤 Commande en tant qu\'invité'
+              }
+            </Text>
+            {hasActiveTableOrders && (
+              <Text style={{ fontSize: 11, color: '#888', textAlign: 'center', marginTop: 2 }}>
+                Cette table a des commandes en cours
               </Text>
             )}
           </View>
         </Card>
+
+        {/* Bouton de rafraîchissement des commandes de table */}
+        {cart.restaurantId && cart.tableNumber && (
+          <View style={{ padding: 16, paddingTop: 0 }}>
+            <Button
+              title="Actualiser les commandes de la table"
+              onPress={refreshTableOrders}
+              variant="outline"
+              size="small"
+              leftIcon="refresh"
+              disabled={isLoadingTableOrders}
+              loading={isLoadingTableOrders}
+            />
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
