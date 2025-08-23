@@ -8,8 +8,11 @@ import {
   TouchableOpacity,
   StatusBar,
   Alert,
+  Image,
+  Dimensions,
 } from 'react-native';
 import { router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/contexts/AuthContext';
@@ -18,6 +21,9 @@ import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS } from '@/styles/tokens';
 import { useResponsive } from '@/utils/responsive';
+
+const APP_LOGO = require('@/assets/images/logo.png');
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 interface LoginFormData {
   email: string;
@@ -35,6 +41,7 @@ export default function LoginScreen() {
   
   const { login } = useAuth();
   const { isMobile, isTablet, getSpacing, getFontSize } = useResponsive();
+  const insets = useSafeAreaInsets();
 
   // ✅ VALIDATION AMÉLIORÉE
   const validateForm = useCallback((): boolean => {
@@ -78,12 +85,10 @@ export default function LoginScreen() {
     
     setLoading(true);
     try {
-      // Use email directly as expected by the API
       await login({
         username: formData.email.trim().toLowerCase(),
         password: formData.password,
       });
-      // Navigation handled by AuthContext
     } catch (error: any) {
       handleLoginError(error);
     } finally {
@@ -111,18 +116,29 @@ export default function LoginScreen() {
     Alert.alert('Bientôt disponible', 'La connexion Apple sera disponible prochainement');
   }, []);
 
-  // ✅ STYLES RESPONSIVES OPTIMISÉS
+  // ✅ STYLES RESPONSIVES OPTIMISÉS AVEC SAFE AREA
   const styles = {
     container: {
       flex: 1,
-      backgroundColor: COLORS.background.primary,
+      backgroundColor: '#F9FAFB',
+      paddingTop: insets.top,
+    },
+    
+    contentContainer: {
+      flex: 1,
+      backgroundColor: '#F9FAFB',
     },
     
     header: {
-      height: getSpacing(280, 320, 360),
-      justifyContent: 'flex-end' as const,
-      paddingBottom: getSpacing(SPACING.xl, SPACING.xxl),
+      height: getSpacing(
+        Math.min(screenHeight * 0.2, 160), // Mobile - réduit significativement
+        Math.min(screenHeight * 0.18, 140), // Tablette
+        Math.min(screenHeight * 0.15, 120)  // Grande tablette
+      ),
+      justifyContent: 'center' as const,
       paddingHorizontal: getSpacing(SPACING.lg, SPACING.xl),
+      position: 'relative' as const,
+      backgroundColor: '#1E2A78',
     },
     
     headerGradient: {
@@ -135,257 +151,285 @@ export default function LoginScreen() {
     
     logoContainer: {
       alignItems: 'center' as const,
-      marginBottom: getSpacing(SPACING.lg, SPACING.xl),
+      zIndex: 1,
     },
     
-    logo: {
-      width: getSpacing(64, 80, 96),
-      height: getSpacing(64, 80, 96),
-      borderRadius: RADIUS.lg,
-      backgroundColor: COLORS.text.white,
+    logoImageContainer: {
+      width: getSpacing(60, 70, 80),
+      height: getSpacing(60, 70, 80),
+      borderRadius: getSpacing(30, 35, 40),
+      backgroundColor: 'rgba(255, 255, 255, 0.95)',
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
-      marginBottom: getSpacing(SPACING.md, SPACING.lg),
-      // Ajout d'une ombre subtile
-      shadowColor: COLORS.text.primary,
+      shadowColor: '#000',
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.1,
       shadowRadius: 8,
       elevation: 4,
+      borderWidth: 2,
+      borderColor: '#FFC845',
     },
     
-    welcomeText: {
-      fontSize: getFontSize(32, 36, 40),
-      fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: COLORS.text.white,
-      textAlign: 'center' as const,
-      marginBottom: SPACING.sm,
+    logoImage: {
+      width: getSpacing(40, 46, 52),
+      height: getSpacing(40, 46, 52),
+      borderRadius: getSpacing(20, 23, 26),
     },
     
-    subtitleText: {
-      fontSize: getFontSize(16, 18, 20),
-      color: COLORS.text.white,
-      textAlign: 'center' as const,
-      opacity: 0.9,
+    logoFallback: {
+      width: getSpacing(40, 46, 52),
+      height: getSpacing(40, 46, 52),
+      borderRadius: getSpacing(20, 23, 26),
+      backgroundColor: '#1E2A78',
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
     },
     
-    content: {
-      flex: 1,
+    scrollViewContainer: {
+      flexGrow: 1,
       paddingHorizontal: getSpacing(SPACING.lg, SPACING.xl),
-      paddingTop: getSpacing(SPACING.lg, SPACING.xl),
+      paddingTop: getSpacing(SPACING.md, SPACING.lg),
     },
     
     formCard: {
       maxWidth: isTablet ? 480 : undefined,
       alignSelf: 'center' as const,
       width: '100%' as const,
+      marginBottom: getSpacing(SPACING.md, SPACING.lg),
     },
     
     formTitle: {
-      fontSize: getFontSize(24, 28, 32),
-      fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      color: COLORS.text.primary,
+      fontSize: getFontSize(22, 26, 30),
+      fontWeight: TYPOGRAPHY.fontWeight.bold,
+      color: '#1E2A78',
       textAlign: 'center' as const,
       marginBottom: getSpacing(SPACING.lg, SPACING.xl),
     },
     
     socialSection: {
-      marginVertical: getSpacing(SPACING.lg, SPACING.xl),
-      gap: SPACING.md,
+      marginVertical: getSpacing(SPACING.md, SPACING.lg),
+      gap: SPACING.sm,
     },
     
     socialButton: {
-      backgroundColor: COLORS.surface.secondary,
-      borderWidth: 1,
-      borderColor: COLORS.border.light,
+      backgroundColor: '#FFFFFF',
+      borderWidth: 1.5,
+      borderColor: '#E5E7EB',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 4,
+      elevation: 2,
     },
     
     divider: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
-      marginVertical: getSpacing(SPACING.lg, SPACING.xl),
+      marginVertical: getSpacing(SPACING.md, SPACING.lg),
     },
     
     dividerLine: {
       flex: 1,
       height: 1,
-      backgroundColor: COLORS.border.light,
+      backgroundColor: '#E5E7EB',
     },
     
     dividerText: {
       fontSize: TYPOGRAPHY.fontSize.sm,
-      color: COLORS.text.tertiary,
+      color: '#6B7280',
       paddingHorizontal: SPACING.md,
       fontWeight: TYPOGRAPHY.fontWeight.medium,
+      backgroundColor: '#F9FAFB',
     },
     
     inputContainer: {
-      gap: SPACING.md,
+      gap: getSpacing(SPACING.sm, SPACING.md),
     },
     
     forgotPassword: {
       fontSize: getFontSize(14, 15, 16),
-      color: COLORS.primary,
+      color: '#FFC845',
       textAlign: 'center' as const,
-      marginTop: SPACING.md,
-      fontWeight: TYPOGRAPHY.fontWeight.medium,
+      marginTop: SPACING.sm,
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
     },
     
     submitButton: {
-      marginTop: getSpacing(SPACING.xl, SPACING.xxl),
+      marginTop: getSpacing(SPACING.lg, SPACING.xl),
+      backgroundColor: '#1E2A78',
+      shadowColor: '#1E2A78',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 6,
     },
     
     footer: {
       paddingVertical: getSpacing(SPACING.lg, SPACING.xl),
+      paddingBottom: Math.max(insets.bottom, getSpacing(SPACING.lg, SPACING.xl)),
       alignItems: 'center' as const,
+      backgroundColor: '#F9FAFB',
     },
     
     registerLink: {
-      fontSize: getFontSize(14, 16, 18),
-      color: COLORS.primary,
-      fontWeight: TYPOGRAPHY.fontWeight.medium,
+      fontSize: getFontSize(15, 16, 18),
+      color: '#FFC845',
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
       textAlign: 'center' as const,
+      paddingVertical: SPACING.sm,
+      paddingHorizontal: SPACING.md,
+    },
+    
+    keyboardAvoid: {
+      flex: 1,
     },
   };
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+      <StatusBar 
+        barStyle="light-content" 
+        backgroundColor="#1E2A78" 
+        translucent={false}
+      />
       
-      {/* ✅ HEADER AVEC GRADIENT MODERNE */}
+      {/* ✅ HEADER AVEC GRADIENT BLEU ET LOGO UNIQUEMENT */}
       <View style={styles.header}>
         <LinearGradient
-          colors={[COLORS.primary, COLORS.primary_light]}
+          colors={['#1E2A78', '#2563EB', '#3B82F6']}
           style={styles.headerGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         />
         
         <View style={styles.logoContainer}>
-          <View style={styles.logo}>
-            <Ionicons 
-              name="restaurant" 
-              size={getSpacing(32, 40, 48)} 
-              color={COLORS.primary} 
+          <View style={styles.logoImageContainer}>
+            <Image 
+              source={APP_LOGO}
+              style={styles.logoImage}
+              resizeMode="contain"
+              onError={() => {
+                console.log('Logo loading failed, using fallback');
+              }}
             />
           </View>
-          
-          <Text style={styles.welcomeText}>Eat&Go</Text>
-          <Text style={styles.subtitleText}>
-            Commandez en toute simplicité
-          </Text>
         </View>
       </View>
 
-      {/* ✅ CONTENT SCROLLABLE RESPONSIVE */}
+      {/* ✅ CONTENT CONTAINER AVEC KEYBOARD AVOIDING */}
       <KeyboardAvoidingView 
-        style={{ flex: 1 }}
+        style={styles.keyboardAvoid}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
       >
-        <ScrollView 
-          style={styles.content}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ flexGrow: 1 }}
-        >
-          <Card style={styles.formCard} variant="elevated" padding="xl">
-            <Text style={styles.formTitle}>Connexion</Text>
-            
-            {/* ✅ SOCIAL LOGIN SECTION */}
-            <View style={styles.socialSection}>
-              <Button
-                title="Continuer avec Google"
-                variant="outline"
-                leftIcon={
-                  <Ionicons name="logo-google" size={20} color={COLORS.text.primary} />
-                }
-                onPress={handleGoogleLogin}
-                style={styles.socialButton}
-                fullWidth
-              />
+        <View style={styles.contentContainer}>
+          <ScrollView 
+            contentContainerStyle={styles.scrollViewContainer}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            bounces={false}
+          >
+            <Card style={styles.formCard} variant="elevated" padding="xl">
+              <Text style={styles.formTitle}>Connexion</Text>
               
+              {/* ✅ SOCIAL LOGIN SECTION */}
+              <View style={styles.socialSection}>
+                <Button
+                  title="Continuer avec Google"
+                  variant="outline"
+                  leftIcon={
+                    <Ionicons name="logo-google" size={20} color="#EA4335" />
+                  }
+                  onPress={handleGoogleLogin}
+                  style={styles.socialButton}
+                  fullWidth
+                />
+                
+                {Platform.OS === 'ios' && (
+                  <Button
+                    title="Continuer avec Apple"
+                    variant="outline"
+                    leftIcon={
+                      <Ionicons name="logo-apple" size={20} color="#000000" />
+                    }
+                    onPress={handleAppleLogin}
+                    style={styles.socialButton}
+                    fullWidth
+                  />
+                )}
+              </View>
+
+              {/* ✅ DIVIDER AMÉLIORÉ */}
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>ou</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              {/* ✅ FORMULAIRE AMÉLIORÉ */}
+              <View style={styles.inputContainer}>
+                <Input
+                  label="Email"
+                  placeholder="votre@email.com"
+                  value={formData.email}
+                  onChangeText={(text) => {
+                    updateFormData('email')(text);
+                    clearFieldError('email');
+                  }}
+                  error={errors.email}
+                  leftIcon="mail-outline"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  autoCorrect={false}
+                  returnKeyType="next"
+                  required
+                />
+
+                <Input
+                  label="Mot de passe"
+                  placeholder="••••••••"
+                  value={formData.password}
+                  onChangeText={(text) => {
+                    updateFormData('password')(text);
+                    clearFieldError('password');
+                  }}
+                  error={errors.password}
+                  leftIcon="lock-closed-outline"
+                  rightIcon={showPassword ? "eye-off-outline" : "eye-outline"}
+                  onRightIconPress={() => setShowPassword(!showPassword)}
+                  secureTextEntry={!showPassword}
+                  autoComplete="password"
+                  returnKeyType="done"
+                  onSubmitEditing={handleSubmit}
+                  required
+                />
+              </View>
+
+              <TouchableOpacity 
+                onPress={() => Alert.alert('Récupération', 'Fonctionnalité bientôt disponible')}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.forgotPassword}>
+                  Mot de passe oublié ?
+                </Text>
+              </TouchableOpacity>
+
+              {/* ✅ BOUTON DE CONNEXION AMÉLIORÉ */}
               <Button
-                title="Continuer avec Apple"
-                variant="outline"
-                leftIcon={
-                  <Ionicons name="logo-apple" size={20} color={COLORS.text.primary} />
-                }
-                onPress={handleAppleLogin}
-                style={styles.socialButton}
+                title="Se connecter"
+                onPress={handleSubmit}
+                loading={loading}
+                disabled={loading || !formData.email.trim() || !formData.password}
+                variant="primary"
+                size="lg"
                 fullWidth
+                style={styles.submitButton}
               />
-            </View>
+            </Card>
+          </ScrollView>
 
-            {/* ✅ DIVIDER */}
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>ou</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            {/* ✅ FORMULAIRE AMÉLIORÉ */}
-            <View style={styles.inputContainer}>
-              <Input
-                label="Email"
-                placeholder="votre@email.com"
-                value={formData.email}
-                onChangeText={(text) => {
-                  updateFormData('email')(text);
-                  clearFieldError('email');
-                }}
-                error={errors.email}
-                leftIcon="mail-outline"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoComplete="email"
-                autoCorrect={false}
-                returnKeyType="next"
-                required
-              />
-
-              <Input
-                label="Mot de passe"
-                placeholder="••••••••"
-                value={formData.password}
-                onChangeText={(text) => {
-                  updateFormData('password')(text);
-                  clearFieldError('password');
-                }}
-                error={errors.password}
-                leftIcon="lock-closed-outline"
-                rightIcon={showPassword ? "eye-off-outline" : "eye-outline"}
-                onRightIconPress={() => setShowPassword(!showPassword)}
-                secureTextEntry={!showPassword}
-                autoComplete="password"
-                returnKeyType="done"
-                onSubmitEditing={handleSubmit}
-                required
-              />
-            </View>
-
-            <TouchableOpacity 
-              onPress={() => Alert.alert('Récupération', 'Fonctionnalité bientôt disponible')}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.forgotPassword}>
-                Mot de passe oublié ?
-              </Text>
-            </TouchableOpacity>
-
-            {/* ✅ BOUTON DE CONNEXION AMÉLIORÉ */}
-            <Button
-              title="Se connecter"
-              onPress={handleSubmit}
-              loading={loading}
-              disabled={loading || !formData.email.trim() || !formData.password}
-              variant="primary"
-              size="lg"
-              fullWidth
-              style={styles.submitButton}
-            />
-          </Card>
-
-          {/* ✅ FOOTER RESPONSIVE */}
+          {/* ✅ FOOTER TOUJOURS VISIBLE AVEC SAFE AREA */}
           <View style={styles.footer}>
             <TouchableOpacity 
               onPress={() => router.push('/(auth)/register')}
@@ -396,7 +440,7 @@ export default function LoginScreen() {
               </Text>
             </TouchableOpacity>
           </View>
-        </ScrollView>
+        </View>
       </KeyboardAvoidingView>
     </View>
   );

@@ -854,7 +854,7 @@ export default function QRCodesScreen() {
             title="Aperçu"
             onPress={() => setPreviewTable(table)}
             variant="outline"
-            size="small"
+            size="sm"
             style={{ flex: 1 }}
           />
           
@@ -862,7 +862,7 @@ export default function QRCodesScreen() {
             title="Partager"
             onPress={() => handleShareTable(table)}
             variant="secondary"
-            size="small"
+            size="sm"
             style={{ flex: 1 }}
           />
         </View>
@@ -878,7 +878,7 @@ export default function QRCodesScreen() {
             title="Imprimer"
             onPress={() => handlePrintSingle(table)}
             variant="outline"
-            size="small"
+            size="sm"
             style={{ flex: 1 }}
             loading={isPrinting}
           />
@@ -887,7 +887,7 @@ export default function QRCodesScreen() {
             title="Télécharger"
             onPress={() => handleDownloadSingle(table)}
             variant="outline"
-            size="small"
+            size="sm"
             style={{ flex: 1 }}
             loading={isDownloading}
           />
