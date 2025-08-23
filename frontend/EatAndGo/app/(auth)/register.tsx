@@ -9,8 +9,11 @@ import {
   TouchableOpacity,
   StatusBar,
   Alert,
+  Image,
+  Dimensions,
 } from 'react-native';
 import { router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/contexts/AuthContext';
@@ -19,6 +22,9 @@ import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { COLORS, TYPOGRAPHY, SPACING } from '@/styles/tokens';
 import { useResponsive } from '@/utils/responsive';
+
+const APP_LOGO = require('@/assets/images/logo.png');
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 interface RegisterFormData {
   firstName: string;
@@ -44,6 +50,7 @@ export default function RegisterScreen() {
   
   const { register } = useAuth();
   const { isMobile, isTablet, getSpacing, getFontSize } = useResponsive();
+  const insets = useSafeAreaInsets();
 
   // ✅ VALIDATION COMPLÈTE AMÉLIORÉE
   const validateForm = useCallback((): boolean => {
@@ -122,7 +129,6 @@ export default function RegisterScreen() {
         role: 'client',
         telephone: '',
       });
-      // Navigation handled by AuthContext
     } catch (error: any) {
       handleRegistrationError(error);
     } finally {
@@ -158,18 +164,29 @@ export default function RegisterScreen() {
                      formData.confirmPassword && 
                      acceptedTerms;
 
-  // ✅ STYLES RESPONSIVES OPTIMISÉS
+  // ✅ STYLES ALIGNÉS AVEC LOGIN
   const styles = {
     container: {
       flex: 1,
-      backgroundColor: COLORS.background.primary,
+      backgroundColor: '#F9FAFB',
+      paddingTop: insets.top,
+    },
+    
+    contentContainer: {
+      flex: 1,
+      backgroundColor: '#F9FAFB',
     },
     
     header: {
-      height: getSpacing(200, 240, 280),
-      justifyContent: 'flex-end' as const,
-      paddingBottom: getSpacing(SPACING.lg, SPACING.xl),
+      height: getSpacing(
+        Math.min(screenHeight * 0.2, 160), // Mobile - aligné avec login
+        Math.min(screenHeight * 0.18, 140), // Tablette
+        Math.min(screenHeight * 0.15, 120)  // Grande tablette
+      ),
+      justifyContent: 'center' as const,
       paddingHorizontal: getSpacing(SPACING.lg, SPACING.xl),
+      position: 'relative' as const,
+      backgroundColor: '#1E2A78',
     },
     
     headerGradient: {
@@ -182,7 +199,7 @@ export default function RegisterScreen() {
     
     backButton: {
       position: 'absolute' as const,
-      top: getSpacing(50, 60, 70),
+      top: getSpacing(20, 25, 30),
       left: getSpacing(SPACING.lg, SPACING.xl),
       width: 40,
       height: 40,
@@ -190,44 +207,70 @@ export default function RegisterScreen() {
       backgroundColor: 'rgba(255, 255, 255, 0.2)',
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
-      shadowColor: COLORS.text.primary,
-      shadowOffset: { width: 0, height: 2 },
+      zIndex: 2,
+    },
+    
+    logoContainer: {
+      alignItems: 'center' as const,
+      zIndex: 1,
+    },
+    
+    logoImageContainer: {
+      width: getSpacing(60, 70, 80),
+      height: getSpacing(60, 70, 80),
+      borderRadius: getSpacing(30, 35, 40),
+      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 2,
+      shadowRadius: 8,
+      elevation: 4,
+      borderWidth: 2,
+      borderColor: '#FFC845',
     },
     
-    headerTitle: {
-      fontSize: getFontSize(28, 32, 36),
-      fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: COLORS.text.white,
-      textAlign: 'center' as const,
+    logoImage: {
+      width: getSpacing(40, 46, 52),
+      height: getSpacing(40, 46, 52),
+      borderRadius: getSpacing(20, 23, 26),
     },
     
-    headerSubtitle: {
-      fontSize: getFontSize(16, 18, 20),
-      color: COLORS.text.white,
-      textAlign: 'center' as const,
-      opacity: 0.9,
-      marginTop: SPACING.sm,
+    logoFallback: {
+      width: getSpacing(40, 46, 52),
+      height: getSpacing(40, 46, 52),
+      borderRadius: getSpacing(20, 23, 26),
+      backgroundColor: '#1E2A78',
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
     },
     
-    content: {
-      flex: 1,
+    scrollViewContainer: {
+      flexGrow: 1,
       paddingHorizontal: getSpacing(SPACING.lg, SPACING.xl),
-      paddingTop: getSpacing(SPACING.lg, SPACING.xl),
+      paddingTop: getSpacing(SPACING.md, SPACING.lg),
     },
     
     formCard: {
       maxWidth: isTablet ? 480 : undefined,
       alignSelf: 'center' as const,
       width: '100%' as const,
+      marginBottom: getSpacing(SPACING.md, SPACING.lg),
+    },
+    
+    formTitle: {
+      fontSize: getFontSize(22, 26, 30),
+      fontWeight: TYPOGRAPHY.fontWeight.bold,
+      color: '#1E2A78',
+      textAlign: 'center' as const,
+      marginBottom: getSpacing(SPACING.lg, SPACING.xl),
     },
     
     nameRow: {
       flexDirection: isMobile ? 'column' as const : 'row' as const,
-      gap: isMobile ? 0 : SPACING.md,
-      marginBottom: isMobile ? 0 : SPACING.md,
+      gap: isMobile ? getSpacing(SPACING.sm, SPACING.md) : SPACING.md,
+      marginBottom: getSpacing(SPACING.sm, SPACING.md),
     },
     
     nameInput: {
@@ -235,13 +278,13 @@ export default function RegisterScreen() {
     },
     
     inputContainer: {
-      gap: SPACING.md,
+      gap: getSpacing(SPACING.sm, SPACING.md),
     },
     
     termsContainer: {
       flexDirection: 'row' as const,
       alignItems: 'flex-start' as const,
-      marginVertical: getSpacing(SPACING.lg, SPACING.xl),
+      marginVertical: getSpacing(SPACING.md, SPACING.lg),
       paddingHorizontal: SPACING.xs,
     },
     
@@ -250,8 +293,8 @@ export default function RegisterScreen() {
       height: 20,
       borderRadius: 4,
       borderWidth: 2,
-      borderColor: acceptedTerms ? COLORS.primary : COLORS.border.medium,
-      backgroundColor: acceptedTerms ? COLORS.primary : 'transparent',
+      borderColor: acceptedTerms ? '#1E2A78' : '#D1D5DB',
+      backgroundColor: acceptedTerms ? '#1E2A78' : 'transparent',
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
       marginRight: SPACING.md,
@@ -261,40 +304,58 @@ export default function RegisterScreen() {
     termsText: {
       flex: 1,
       fontSize: getFontSize(14, 15, 16),
-      color: COLORS.text.secondary,
+      color: '#6B7280',
       lineHeight: 20,
     },
     
     termsLink: {
-      color: COLORS.primary,
-      fontWeight: TYPOGRAPHY.fontWeight.medium,
+      color: '#FFC845',
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
     },
     
     submitButton: {
-      marginTop: getSpacing(SPACING.md, SPACING.lg),
+      marginTop: getSpacing(SPACING.lg, SPACING.xl),
+      backgroundColor: '#1E2A78',
+      shadowColor: '#1E2A78',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 6,
     },
     
     footer: {
       paddingVertical: getSpacing(SPACING.lg, SPACING.xl),
+      paddingBottom: Math.max(insets.bottom, getSpacing(SPACING.lg, SPACING.xl)),
       alignItems: 'center' as const,
+      backgroundColor: '#F9FAFB',
     },
     
     loginLink: {
-      fontSize: getFontSize(14, 16, 18),
-      color: COLORS.primary,
-      fontWeight: TYPOGRAPHY.fontWeight.medium,
+      fontSize: getFontSize(15, 16, 18),
+      color: '#FFC845',
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
       textAlign: 'center' as const,
+      paddingVertical: SPACING.sm,
+      paddingHorizontal: SPACING.md,
+    },
+    
+    keyboardAvoid: {
+      flex: 1,
     },
   };
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+      <StatusBar 
+        barStyle="light-content" 
+        backgroundColor="#1E2A78" 
+        translucent={false}
+      />
       
-      {/* ✅ HEADER AVEC BOUTON RETOUR */}
+      {/* ✅ HEADER AVEC GRADIENT BLEU ET LOGO (ALIGNÉ AVEC LOGIN) */}
       <View style={styles.header}>
         <LinearGradient
-          colors={[COLORS.primary, COLORS.primary_light]}
+          colors={['#1E2A78', '#2563EB', '#3B82F6']}
           style={styles.headerGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -305,158 +366,171 @@ export default function RegisterScreen() {
           onPress={() => router.back()}
           activeOpacity={0.7}
         >
-          <Ionicons name="arrow-back" size={24} color={COLORS.text.white} />
+          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         
-        <Text style={styles.headerTitle}>Créer un compte</Text>
-        <Text style={styles.headerSubtitle}>
-          Rejoignez la communauté Eat&Go
-        </Text>
+        <View style={styles.logoContainer}>
+          <View style={styles.logoImageContainer}>
+            <Image 
+              source={APP_LOGO}
+              style={styles.logoImage}
+              resizeMode="contain"
+              onError={() => {
+                console.log('Logo loading failed, using fallback');
+              }}
+            />
+          </View>
+        </View>
       </View>
 
-      {/* ✅ FORMULAIRE D'INSCRIPTION AMÉLIORÉ */}
+      {/* ✅ CONTENT CONTAINER AVEC KEYBOARD AVOIDING */}
       <KeyboardAvoidingView 
-        style={{ flex: 1 }}
+        style={styles.keyboardAvoid}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
       >
-        <ScrollView 
-          style={styles.content}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ flexGrow: 1 }}
-        >
-          <Card style={styles.formCard} variant="elevated" padding="xl">
-            {/* ✅ NOMS SUR UNE LIGNE EN TABLETTE */}
-            <View style={styles.nameRow}>
-              <Input
-                label="Prénom"
-                placeholder="Jean"
-                value={formData.firstName}
-                onChangeText={(text) => {
-                  updateFormData('firstName')(text);
-                  clearFieldError('firstName');
-                }}
-                error={errors.firstName}
-                leftIcon="person-outline"
-                autoCapitalize="words"
-                autoCorrect={false}
-                returnKeyType="next"
-                style={styles.nameInput}
-                required
-              />
+        <View style={styles.contentContainer}>
+          <ScrollView 
+            contentContainerStyle={styles.scrollViewContainer}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            bounces={false}
+          >
+            <Card style={styles.formCard} variant="elevated" padding="xl">
+              <Text style={styles.formTitle}>Créer un compte</Text>
               
-              <Input
-                label="Nom"
-                placeholder="Dupont"
-                value={formData.lastName}
-                onChangeText={(text) => {
-                  updateFormData('lastName')(text);
-                  clearFieldError('lastName');
-                }}
-                error={errors.lastName}
-                leftIcon="person-outline"
-                autoCapitalize="words"
-                autoCorrect={false}
-                returnKeyType="next"
-                style={styles.nameInput}
-                required
-              />
-            </View>
+              {/* ✅ NOMS SUR UNE LIGNE EN TABLETTE */}
+              <View style={styles.nameRow}>
+                <Input
+                  label="Prénom"
+                  placeholder="Jean"
+                  value={formData.firstName}
+                  onChangeText={(text) => {
+                    updateFormData('firstName')(text);
+                    clearFieldError('firstName');
+                  }}
+                  error={errors.firstName}
+                  leftIcon="person-outline"
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                  returnKeyType="next"
+                  style={styles.nameInput}
+                  required
+                />
+                
+                <Input
+                  label="Nom"
+                  placeholder="Dupont"
+                  value={formData.lastName}
+                  onChangeText={(text) => {
+                    updateFormData('lastName')(text);
+                    clearFieldError('lastName');
+                  }}
+                  error={errors.lastName}
+                  leftIcon="person-outline"
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                  returnKeyType="next"
+                  style={styles.nameInput}
+                  required
+                />
+              </View>
 
-            <View style={styles.inputContainer}>
-              <Input
-                label="Email"
-                placeholder="votre@email.com"
-                value={formData.email}
-                onChangeText={(text) => {
-                  updateFormData('email')(text);
-                  clearFieldError('email');
-                }}
-                error={errors.email}
-                leftIcon="mail-outline"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoComplete="email"
-                autoCorrect={false}
-                returnKeyType="next"
-                required
-              />
+              <View style={styles.inputContainer}>
+                <Input
+                  label="Email"
+                  placeholder="votre@email.com"
+                  value={formData.email}
+                  onChangeText={(text) => {
+                    updateFormData('email')(text);
+                    clearFieldError('email');
+                  }}
+                  error={errors.email}
+                  leftIcon="mail-outline"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  autoCorrect={false}
+                  returnKeyType="next"
+                  required
+                />
 
-              <Input
-                label="Mot de passe"
-                placeholder="••••••••"
-                value={formData.password}
-                onChangeText={(text) => {
-                  updateFormData('password')(text);
-                  clearFieldError('password');
-                }}
-                error={errors.password}
-                leftIcon="lock-closed-outline"
-                rightIcon={showPassword ? "eye-off-outline" : "eye-outline"}
-                onRightIconPress={() => setShowPassword(!showPassword)}
-                secureTextEntry={!showPassword}
-                helperText="8 caractères min, avec majuscule, minuscule et chiffre"
-                returnKeyType="next"
-                required
-              />
+                <Input
+                  label="Mot de passe"
+                  placeholder="••••••••"
+                  value={formData.password}
+                  onChangeText={(text) => {
+                    updateFormData('password')(text);
+                    clearFieldError('password');
+                  }}
+                  error={errors.password}
+                  leftIcon="lock-closed-outline"
+                  rightIcon={showPassword ? "eye-off-outline" : "eye-outline"}
+                  onRightIconPress={() => setShowPassword(!showPassword)}
+                  secureTextEntry={!showPassword}
+                  helperText="8 caractères min, avec majuscule, minuscule et chiffre"
+                  returnKeyType="next"
+                  required
+                />
 
-              <Input
-                label="Confirmer le mot de passe"
-                placeholder="••••••••"
-                value={formData.confirmPassword}
-                onChangeText={(text) => {
-                  updateFormData('confirmPassword')(text);
-                  clearFieldError('confirmPassword');
-                }}
-                error={errors.confirmPassword}
-                leftIcon="lock-closed-outline"
-                rightIcon={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
-                onRightIconPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                secureTextEntry={!showConfirmPassword}
-                returnKeyType="done"
-                onSubmitEditing={handleSubmit}
-                required
-              />
-            </View>
+                <Input
+                  label="Confirmer le mot de passe"
+                  placeholder="••••••••"
+                  value={formData.confirmPassword}
+                  onChangeText={(text) => {
+                    updateFormData('confirmPassword')(text);
+                    clearFieldError('confirmPassword');
+                  }}
+                  error={errors.confirmPassword}
+                  leftIcon="lock-closed-outline"
+                  rightIcon={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
+                  onRightIconPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                  secureTextEntry={!showConfirmPassword}
+                  returnKeyType="done"
+                  onSubmitEditing={handleSubmit}
+                  required
+                />
+              </View>
 
-            {/* ✅ CHECKBOX TERMS AMÉLIORÉ */}
-            <View style={styles.termsContainer}>
-              <TouchableOpacity 
-                style={styles.checkbox}
-                onPress={() => setAcceptedTerms(!acceptedTerms)}
-                activeOpacity={0.7}
-              >
-                {acceptedTerms && (
-                  <Ionicons name="checkmark" size={12} color={COLORS.text.white} />
-                )}
-              </TouchableOpacity>
-              
-              <Text style={styles.termsText}>
-                J'accepte les{' '}
-                <Text style={styles.termsLink} onPress={handleTermsPress}>
-                  conditions d'utilisation
+              {/* ✅ CHECKBOX TERMS AMÉLIORÉ */}
+              <View style={styles.termsContainer}>
+                <TouchableOpacity 
+                  style={styles.checkbox}
+                  onPress={() => setAcceptedTerms(!acceptedTerms)}
+                  activeOpacity={0.7}
+                >
+                  {acceptedTerms && (
+                    <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+                  )}
+                </TouchableOpacity>
+                
+                <Text style={styles.termsText}>
+                  J'accepte les{' '}
+                  <Text style={styles.termsLink} onPress={handleTermsPress}>
+                    conditions d'utilisation
+                  </Text>
+                  {' '}et la{' '}
+                  <Text style={styles.termsLink} onPress={handlePrivacyPress}>
+                    politique de confidentialité
+                  </Text>
                 </Text>
-                {' '}et la{' '}
-                <Text style={styles.termsLink} onPress={handlePrivacyPress}>
-                  politique de confidentialité
-                </Text>
-              </Text>
-            </View>
+              </View>
 
-            {/* ✅ BOUTON D'INSCRIPTION AMÉLIORÉ */}
-            <Button
-              title="Créer mon compte"
-              onPress={handleSubmit}
-              loading={loading}
-              disabled={loading || !isFormValid}
-              variant="primary"
-              size="lg"
-              fullWidth
-              style={styles.submitButton}
-            />
-          </Card>
+              {/* ✅ BOUTON D'INSCRIPTION AMÉLIORÉ */}
+              <Button
+                title="Créer mon compte"
+                onPress={handleSubmit}
+                loading={loading}
+                disabled={loading || !isFormValid}
+                variant="primary"
+                size="lg"
+                fullWidth
+                style={styles.submitButton}
+              />
+            </Card>
+          </ScrollView>
 
-          {/* ✅ LIEN VERS CONNEXION */}
+          {/* ✅ FOOTER TOUJOURS VISIBLE AVEC SAFE AREA */}
           <View style={styles.footer}>
             <TouchableOpacity 
               onPress={() => router.push('/(auth)/login')}
@@ -467,7 +541,7 @@ export default function RegisterScreen() {
               </Text>
             </TouchableOpacity>
           </View>
-        </ScrollView>
+        </View>
       </KeyboardAvoidingView>
     </View>
   );
