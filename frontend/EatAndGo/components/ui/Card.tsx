@@ -1,41 +1,91 @@
-import React, { ReactNode } from 'react';
-import { View, ViewStyle, StyleProp } from 'react-native';
 
-interface CardProps {
-  children: ReactNode;
-  style?: StyleProp<ViewStyle>;
-  padding?: number;
-  margin?: number;
-  shadow?: boolean;
+import React from 'react';
+import { View, ViewStyle, TouchableOpacity, TouchableOpacityProps } from 'react-native';
+import { COLORS, RADIUS, SHADOWS, SPACING } from '@/styles/tokens';
+import { useResponsive } from '@/utils/responsive';
+
+interface CardProps extends TouchableOpacityProps {
+  children: React.ReactNode;
+  variant?: 'default' | 'elevated' | 'outlined';
+  padding?: keyof typeof SPACING | number;
+  style?: ViewStyle;
+  pressable?: boolean;
 }
 
 export const Card: React.FC<CardProps> = ({
   children,
+  variant = 'default',
+  padding = 'md',
   style,
-  padding = 16,
-  margin = 0,
-  shadow = true,
+  pressable = false,
+  ...props
 }) => {
-  const cardStyle: ViewStyle = {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding,
-    margin,
-    ...(shadow && {
-      shadowColor: '#000',
-      shadowOffset: {
-        width: 0,
-        height: 2,
-      },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
-    }),
+  const { getSpacing } = useResponsive();
+  
+  const paddingValue = typeof padding === 'number' 
+    ? padding 
+    : (() => {
+        const spacingValue = SPACING[padding];
+        if (typeof spacingValue === 'number') {
+          return getSpacing(spacingValue, spacingValue * 1.25);
+        } else {
+          // Handle responsive object case (container, section)
+          return getSpacing(
+            spacingValue.mobile, 
+            spacingValue.tablet, 
+            spacingValue.desktop
+          );
+        }
+      })();
+
+  // ✅ STYLES PAR VARIANTE
+  const getVariantStyles = (): ViewStyle => {
+    const baseStyle: ViewStyle = {
+      borderRadius: RADIUS.card,
+      padding: paddingValue,
+    };
+
+    switch (variant) {
+      case 'elevated':
+        return {
+          ...baseStyle,
+          backgroundColor: COLORS.surface.elevated,
+          ...SHADOWS.md,
+        };
+
+      case 'outlined':
+        return {
+          ...baseStyle,
+          backgroundColor: COLORS.surface.primary,
+          borderWidth: 1,
+          borderColor: COLORS.border.light,
+        };
+
+      default:
+        return {
+          ...baseStyle,
+          backgroundColor: COLORS.surface.primary,
+          ...SHADOWS.sm,
+        };
+    }
   };
 
-  return (
-    <View style={[cardStyle, style]}>
-      {children}
-    </View>
-  );
+  const cardStyle: ViewStyle = {
+    ...getVariantStyles(),
+    ...style,
+  };
+
+  if (pressable) {
+    return (
+      <TouchableOpacity 
+        style={cardStyle} 
+        activeOpacity={0.95}
+        {...props}
+      >
+        {children}
+      </TouchableOpacity>
+    );
+  }
+
+  return <View style={cardStyle}>{children}</View>;
 };

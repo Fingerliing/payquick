@@ -369,7 +369,7 @@ export default function CartWithTableOrdersScreen() {
                 <Button
                   title="Voir les commandes en cours"
                   variant="outline"
-                  size="small"
+                  size="sm"
                   onPress={() => {
                     router.push(`/table/${cart.tableNumber}/orders?restaurantId=${cart.restaurantId}`);
                   }}
@@ -445,7 +445,7 @@ export default function CartWithTableOrdersScreen() {
               title="Actualiser les commandes de la table"
               onPress={refreshTableOrders}
               variant="outline"
-              size="small"
+              size="sm"
               leftIcon="refresh"
               disabled={isLoadingTableOrders}
               loading={isLoadingTableOrders}

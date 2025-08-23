@@ -1,465 +1,474 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+// app/(auth)/register.tsx
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
-  Alert,
   KeyboardAvoidingView,
   Platform,
-  ViewStyle,
-  TextStyle,
-  TextInput,
+  TouchableOpacity,
+  StatusBar,
+  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
-import { ValidationUtils } from '@/utils/validators';
-import { stripeService } from '@/services/stripeService';
+import { COLORS, TYPOGRAPHY, SPACING } from '@/styles/tokens';
+import { useResponsive } from '@/utils/responsive';
 
 interface RegisterFormData {
-  username: string;
+  firstName: string;
+  lastName: string;
+  email: string;
   password: string;
   confirmPassword: string;
-  nom: string;
-  role: 'client' | 'restaurateur';
-  telephone: string;
-  siret: string;
 }
-
-interface FormErrors {
-  [key: string]: string;
-}
-const stripeInfoStyles = {
-  container: {
-    flexDirection: 'row',
-    backgroundColor: '#EBF8FF',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: '#3B82F6',
-  } as ViewStyle,
-  
-  iconContainer: {
-    marginRight: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  } as ViewStyle,
-  
-  icon: {
-    fontSize: 20,
-  } as TextStyle,
-  
-  content: {
-    flex: 1,
-  } as ViewStyle,
-  
-  title: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1E40AF',
-    marginBottom: 4,
-  } as TextStyle,
-  
-  description: {
-    fontSize: 12,
-    color: '#1E40AF',
-    lineHeight: 16,
-  } as TextStyle,
-};
-const styles = {
-  container: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
-  } as ViewStyle,
-  
-  content: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 32,
-  } as ViewStyle,
-  
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#111827',
-    textAlign: 'center',
-    marginBottom: 8,
-  } as TextStyle,
-  
-  subtitle: {
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-    marginBottom: 32,
-  } as TextStyle,
-  
-  link: {
-    color: '#3B82F6',
-    fontWeight: '500',
-    textAlign: 'center',
-    marginTop: 16,
-  } as TextStyle,
-  
-  passwordHint: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 4,
-    marginBottom: 8,
-  } as TextStyle,
-  
-  roleSelector: {
-    flexDirection: 'row',
-    marginBottom: 16,
-    borderRadius: 8,
-    overflow: 'hidden',
-  } as ViewStyle,
-  
-  roleButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-  } as ViewStyle,
-  
-  roleButtonActive: {
-    backgroundColor: '#3B82F6',
-  } as ViewStyle,
-  
-  roleButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-  } as TextStyle,
-  
-  roleButtonTextActive: {
-    color: '#FFFFFF',
-  } as TextStyle,
-};
 
 export default function RegisterScreen() {
   const [formData, setFormData] = useState<RegisterFormData>({
-    username: '',
+    firstName: '',
+    lastName: '',
+    email: '',
     password: '',
     confirmPassword: '',
-    nom: '',
-    role: 'client',
-    telephone: '',
-    siret: '',
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<Partial<RegisterFormData>>({});
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   
-  const [errors, setErrors] = useState<FormErrors>({});
-  const [isLoading, setIsLoading] = useState(false);
   const { register } = useAuth();
-  const usernameRef = useRef<TextInput>(null);
-  const nomRef = useRef<TextInput>(null);
-  const telephoneRef = useRef<TextInput>(null);
-  const siretRef = useRef<TextInput>(null);
-  const passwordRef = useRef<TextInput>(null);
-  const confirmPasswordRef = useRef<TextInput>(null);
+  const { isMobile, isTablet, getSpacing, getFontSize } = useResponsive();
 
-  // Gestionnaire simple
-  const updateField = useCallback((field: keyof RegisterFormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[field];
-        return newErrors;
-      });
-    }
-  }, [errors]);
-
+  // ✅ VALIDATION COMPLÈTE AMÉLIORÉE
   const validateForm = useCallback((): boolean => {
-    const validation = ValidationUtils.validateUserRegistration({
-      username: formData.username.trim().toLowerCase(),
-      password: formData.password,
-      nom: formData.nom.trim(),
-      role: formData.role,
-      telephone: formData.telephone.replace(/\s/g, ''),
-      siret: formData.siret.replace(/\s/g, '')
-    });
-
-    const newErrors = { ...validation.errors };
-    if (!ValidationUtils.isRequired(formData.confirmPassword)) {
-      newErrors.confirmPassword = 'Veuillez confirmer votre mot de passe';
+    const newErrors: Partial<RegisterFormData> = {};
+    
+    // Validation prénom
+    if (!formData.firstName.trim()) {
+      newErrors.firstName = 'Prénom requis';
+    } else if (formData.firstName.trim().length < 2) {
+      newErrors.firstName = 'Minimum 2 caractères';
+    }
+    
+    // Validation nom
+    if (!formData.lastName.trim()) {
+      newErrors.lastName = 'Nom requis';
+    } else if (formData.lastName.trim().length < 2) {
+      newErrors.lastName = 'Minimum 2 caractères';
+    }
+    
+    // Validation email
+    const email = formData.email.trim();
+    if (!email) {
+      newErrors.email = 'Email requis';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      newErrors.email = 'Format d\'email invalide';
+    }
+    
+    // Validation mot de passe
+    if (!formData.password) {
+      newErrors.password = 'Mot de passe requis';
+    } else if (formData.password.length < 8) {
+      newErrors.password = 'Minimum 8 caractères';
+    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
+      newErrors.password = 'Doit contenir majuscule, minuscule et chiffre';
+    }
+    
+    // Validation confirmation mot de passe
+    if (!formData.confirmPassword) {
+      newErrors.confirmPassword = 'Confirmation requise';
     } else if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = 'Les mots de passe ne correspondent pas';
     }
-
+    
     setErrors(newErrors);
-    return validation.isValid && !newErrors.confirmPassword;
-  }, [formData]);
+    return Object.keys(newErrors).length === 0 && acceptedTerms;
+  }, [formData, acceptedTerms]);
 
-  const handleRegister = useCallback(async () => {
+  // ✅ GESTION DES ERREURS AMÉLIORÉE
+  const handleRegistrationError = (error: any) => {
+    console.error('Registration error:', error);
+    
+    if (error.message?.includes('email')) {
+      setErrors({ email: 'Cette adresse email est déjà utilisée' });
+    } else if (error.message?.includes('network')) {
+      Alert.alert('Erreur de connexion', 'Vérifiez votre connexion internet');
+    } else {
+      Alert.alert('Erreur', error.message || 'Une erreur est survenue lors de l\'inscription');
+    }
+  };
+
+  // ✅ SOUMISSION AVEC VALIDATION RENFORCÉE
+  const handleSubmit = useCallback(async () => {
     if (!validateForm()) {
-      Alert.alert('Erreur de validation', 'Veuillez corriger les erreurs dans le formulaire');
+      if (!acceptedTerms) {
+        Alert.alert('Conditions d\'utilisation', 'Veuillez accepter les conditions d\'utilisation pour continuer');
+      }
       return;
     }
-  
+    
+    setLoading(true);
     try {
-      setIsLoading(true);
-      
-      const registerData = {
-        username: formData.username.trim().toLowerCase(),
+      await register({
+        username: formData.email.trim().toLowerCase(),
         password: formData.password,
-        nom: formData.nom.trim(),
-        role: formData.role,
-        telephone: formData.telephone.replace(/\s/g, ''),
-        ...(formData.role === 'restaurateur' && { siret: formData.siret.replace(/\s/g, '') })
-      };
-  
-      await register(registerData);
-      
-      // Si c'est un restaurateur, proposer la configuration Stripe
-      if (formData.role === 'restaurateur') {
-        Alert.alert(
-          'Inscription réussie !', 
-          'Votre compte restaurateur a été créé avec succès ! 🎉\n\nSouhaitez-vous configurer votre compte Stripe maintenant pour pouvoir recevoir des paiements ?',
-          [
-            { 
-              text: 'Plus tard', 
-              style: 'cancel',
-              onPress: () => router.replace('/(restaurant)') 
-            },
-            { 
-              text: 'Configurer Stripe', 
-              onPress: () => handleStripeOnboarding() 
-            }
-          ]
-        );
-      } else {
-        // Client normal
-        Alert.alert(
-          'Inscription réussie !', 
-          'Votre compte client a été créé avec succès ! Bienvenue sur Eat&Go ! 🎉',
-          [{ text: 'OK', onPress: () => router.replace('/(client)') }]
-        );
-      }
-      
+        nom: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
+        role: 'client',
+        telephone: '',
+      });
+      // Navigation handled by AuthContext
     } catch (error: any) {
-      console.error('Erreur d\'inscription:', error);
-      
-      let errorMessage = 'Une erreur est survenue lors de l\'inscription';
-      
-      if (error.response?.data) {
-        const backendErrors = error.response.data;
-        
-        if (backendErrors.username) {
-          errorMessage = Array.isArray(backendErrors.username) 
-            ? backendErrors.username[0] 
-            : backendErrors.username;
-        } else if (backendErrors.password) {
-          errorMessage = Array.isArray(backendErrors.password) 
-            ? backendErrors.password.join(', ') 
-            : backendErrors.password;
-        } else if (backendErrors.non_field_errors) {
-          errorMessage = Array.isArray(backendErrors.non_field_errors) 
-            ? backendErrors.non_field_errors[0] 
-            : backendErrors.non_field_errors;
-        } else if (backendErrors.message) {
-          errorMessage = backendErrors.message;
-        }
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      Alert.alert('Erreur d\'inscription', errorMessage);
+      handleRegistrationError(error);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
-  }, [formData, validateForm, register]);
-  
-  const handleStripeOnboarding = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      
-      const stripeAccount = await stripeService.createAccount();
-      
-      // Ouvrir l'URL Stripe dans le navigateur
-      const opened = await stripeService.openStripeOnboarding(stripeAccount.onboarding_url);
-      
-      if (opened) {
-        // Rediriger vers un écran d'attente
-        router.replace('./stripe');
-      } else {
-        Alert.alert(
-          'Erreur',
-          'Impossible d\'ouvrir Stripe. Vous pourrez configurer votre compte plus tard depuis votre profil.',
-          [{ text: 'OK', onPress: () => router.replace('/(restaurant)') }]
-        );
-      }
-    } catch (error: any) {
-      console.error('Erreur Stripe:', error);
-      Alert.alert(
-        'Erreur Stripe',
-        'Erreur lors de la configuration du compte Stripe. Vous pourrez le configurer plus tard depuis votre profil.',
-        [{ text: 'OK', onPress: () => router.replace('/(restaurant)') }]
-      );
-    } finally {
-      setIsLoading(false);
+  }, [formData, register, validateForm, acceptedTerms]);
+
+  // ✅ HELPERS POUR FORMULAIRE
+  const updateFormData = useCallback((field: keyof RegisterFormData) => 
+    (value: string) => setFormData(prev => ({ ...prev, [field]: value }))
+  , []);
+
+  const clearFieldError = useCallback((field: keyof RegisterFormData) => {
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: undefined }));
     }
+  }, [errors]);
+
+  // ✅ GESTION DES CONDITIONS
+  const handleTermsPress = useCallback(() => {
+    Alert.alert('Conditions d\'utilisation', 'Les conditions d\'utilisation seront bientôt disponibles');
   }, []);
 
-  const buttonTitle = useMemo(() => {
-    return `S'inscrire comme ${formData.role}`;
-  }, [formData.role]);
+  const handlePrivacyPress = useCallback(() => {
+    Alert.alert('Politique de confidentialité', 'La politique de confidentialité sera bientôt disponible');
+  }, []);
+
+  // ✅ VALIDATION EN TEMPS RÉEL
+  const isFormValid = formData.firstName.trim() && 
+                     formData.lastName.trim() && 
+                     formData.email.trim() && 
+                     formData.password && 
+                     formData.confirmPassword && 
+                     acceptedTerms;
+
+  // ✅ STYLES RESPONSIVES OPTIMISÉS
+  const styles = {
+    container: {
+      flex: 1,
+      backgroundColor: COLORS.background.primary,
+    },
+    
+    header: {
+      height: getSpacing(200, 240, 280),
+      justifyContent: 'flex-end' as const,
+      paddingBottom: getSpacing(SPACING.lg, SPACING.xl),
+      paddingHorizontal: getSpacing(SPACING.lg, SPACING.xl),
+    },
+    
+    headerGradient: {
+      position: 'absolute' as const,
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
+    },
+    
+    backButton: {
+      position: 'absolute' as const,
+      top: getSpacing(50, 60, 70),
+      left: getSpacing(SPACING.lg, SPACING.xl),
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      shadowColor: COLORS.text.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    
+    headerTitle: {
+      fontSize: getFontSize(28, 32, 36),
+      fontWeight: TYPOGRAPHY.fontWeight.bold,
+      color: COLORS.text.white,
+      textAlign: 'center' as const,
+    },
+    
+    headerSubtitle: {
+      fontSize: getFontSize(16, 18, 20),
+      color: COLORS.text.white,
+      textAlign: 'center' as const,
+      opacity: 0.9,
+      marginTop: SPACING.sm,
+    },
+    
+    content: {
+      flex: 1,
+      paddingHorizontal: getSpacing(SPACING.lg, SPACING.xl),
+      paddingTop: getSpacing(SPACING.lg, SPACING.xl),
+    },
+    
+    formCard: {
+      maxWidth: isTablet ? 480 : undefined,
+      alignSelf: 'center' as const,
+      width: '100%' as const,
+    },
+    
+    nameRow: {
+      flexDirection: isMobile ? 'column' as const : 'row' as const,
+      gap: isMobile ? 0 : SPACING.md,
+      marginBottom: isMobile ? 0 : SPACING.md,
+    },
+    
+    nameInput: {
+      flex: isMobile ? undefined : 1,
+    },
+    
+    inputContainer: {
+      gap: SPACING.md,
+    },
+    
+    termsContainer: {
+      flexDirection: 'row' as const,
+      alignItems: 'flex-start' as const,
+      marginVertical: getSpacing(SPACING.lg, SPACING.xl),
+      paddingHorizontal: SPACING.xs,
+    },
+    
+    checkbox: {
+      width: 20,
+      height: 20,
+      borderRadius: 4,
+      borderWidth: 2,
+      borderColor: acceptedTerms ? COLORS.primary : COLORS.border.medium,
+      backgroundColor: acceptedTerms ? COLORS.primary : 'transparent',
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      marginRight: SPACING.md,
+      marginTop: 2,
+    },
+    
+    termsText: {
+      flex: 1,
+      fontSize: getFontSize(14, 15, 16),
+      color: COLORS.text.secondary,
+      lineHeight: 20,
+    },
+    
+    termsLink: {
+      color: COLORS.primary,
+      fontWeight: TYPOGRAPHY.fontWeight.medium,
+    },
+    
+    submitButton: {
+      marginTop: getSpacing(SPACING.md, SPACING.lg),
+    },
+    
+    footer: {
+      paddingVertical: getSpacing(SPACING.lg, SPACING.xl),
+      alignItems: 'center' as const,
+    },
+    
+    loginLink: {
+      fontSize: getFontSize(14, 16, 18),
+      color: COLORS.primary,
+      fontWeight: TYPOGRAPHY.fontWeight.medium,
+      textAlign: 'center' as const,
+    },
+  };
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
-    >
-      <ScrollView 
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Card>
-          <Text style={styles.title}>Créer un compte</Text>
-          <Text style={styles.subtitle}>Rejoignez Eat&Go aujourd'hui</Text>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+      
+      {/* ✅ HEADER AVEC BOUTON RETOUR */}
+      <View style={styles.header}>
+        <LinearGradient
+          colors={[COLORS.primary, COLORS.primary_light]}
+          style={styles.headerGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        />
+        
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => router.back()}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="arrow-back" size={24} color={COLORS.text.white} />
+        </TouchableOpacity>
+        
+        <Text style={styles.headerTitle}>Créer un compte</Text>
+        <Text style={styles.headerSubtitle}>
+          Rejoignez la communauté Eat&Go
+        </Text>
+      </View>
 
-          {/* Sélecteur de rôle SIMPLE - inline */}
-          <View style={styles.roleSelector}>
-            <TouchableOpacity
-              style={[styles.roleButton, formData.role === 'client' && styles.roleButtonActive]}
-              onPress={() => updateField('role', 'client')}
-            >
-              <Text style={[styles.roleButtonText, formData.role === 'client' && styles.roleButtonTextActive]}>
-                Client
+      {/* ✅ FORMULAIRE D'INSCRIPTION AMÉLIORÉ */}
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView 
+          style={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ flexGrow: 1 }}
+        >
+          <Card style={styles.formCard} variant="elevated" padding="xl">
+            {/* ✅ NOMS SUR UNE LIGNE EN TABLETTE */}
+            <View style={styles.nameRow}>
+              <Input
+                label="Prénom"
+                placeholder="Jean"
+                value={formData.firstName}
+                onChangeText={(text) => {
+                  updateFormData('firstName')(text);
+                  clearFieldError('firstName');
+                }}
+                error={errors.firstName}
+                leftIcon="person-outline"
+                autoCapitalize="words"
+                autoCorrect={false}
+                returnKeyType="next"
+                style={styles.nameInput}
+                required
+              />
+              
+              <Input
+                label="Nom"
+                placeholder="Dupont"
+                value={formData.lastName}
+                onChangeText={(text) => {
+                  updateFormData('lastName')(text);
+                  clearFieldError('lastName');
+                }}
+                error={errors.lastName}
+                leftIcon="person-outline"
+                autoCapitalize="words"
+                autoCorrect={false}
+                returnKeyType="next"
+                style={styles.nameInput}
+                required
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Input
+                label="Email"
+                placeholder="votre@email.com"
+                value={formData.email}
+                onChangeText={(text) => {
+                  updateFormData('email')(text);
+                  clearFieldError('email');
+                }}
+                error={errors.email}
+                leftIcon="mail-outline"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+                autoCorrect={false}
+                returnKeyType="next"
+                required
+              />
+
+              <Input
+                label="Mot de passe"
+                placeholder="••••••••"
+                value={formData.password}
+                onChangeText={(text) => {
+                  updateFormData('password')(text);
+                  clearFieldError('password');
+                }}
+                error={errors.password}
+                leftIcon="lock-closed-outline"
+                rightIcon={showPassword ? "eye-off-outline" : "eye-outline"}
+                onRightIconPress={() => setShowPassword(!showPassword)}
+                secureTextEntry={!showPassword}
+                helperText="8 caractères min, avec majuscule, minuscule et chiffre"
+                returnKeyType="next"
+                required
+              />
+
+              <Input
+                label="Confirmer le mot de passe"
+                placeholder="••••••••"
+                value={formData.confirmPassword}
+                onChangeText={(text) => {
+                  updateFormData('confirmPassword')(text);
+                  clearFieldError('confirmPassword');
+                }}
+                error={errors.confirmPassword}
+                leftIcon="lock-closed-outline"
+                rightIcon={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
+                onRightIconPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                secureTextEntry={!showConfirmPassword}
+                returnKeyType="done"
+                onSubmitEditing={handleSubmit}
+                required
+              />
+            </View>
+
+            {/* ✅ CHECKBOX TERMS AMÉLIORÉ */}
+            <View style={styles.termsContainer}>
+              <TouchableOpacity 
+                style={styles.checkbox}
+                onPress={() => setAcceptedTerms(!acceptedTerms)}
+                activeOpacity={0.7}
+              >
+                {acceptedTerms && (
+                  <Ionicons name="checkmark" size={12} color={COLORS.text.white} />
+                )}
+              </TouchableOpacity>
+              
+              <Text style={styles.termsText}>
+                J'accepte les{' '}
+                <Text style={styles.termsLink} onPress={handleTermsPress}>
+                  conditions d'utilisation
+                </Text>
+                {' '}et la{' '}
+                <Text style={styles.termsLink} onPress={handlePrivacyPress}>
+                  politique de confidentialité
+                </Text>
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.roleButton, formData.role === 'restaurateur' && styles.roleButtonActive]}
-              onPress={() => updateField('role', 'restaurateur')}
+            </View>
+
+            {/* ✅ BOUTON D'INSCRIPTION AMÉLIORÉ */}
+            <Button
+              title="Créer mon compte"
+              onPress={handleSubmit}
+              loading={loading}
+              disabled={loading || !isFormValid}
+              variant="primary"
+              size="lg"
+              fullWidth
+              style={styles.submitButton}
+            />
+          </Card>
+
+          {/* ✅ LIEN VERS CONNEXION */}
+          <View style={styles.footer}>
+            <TouchableOpacity 
+              onPress={() => router.push('/(auth)/login')}
+              activeOpacity={0.7}
             >
-              <Text style={[styles.roleButtonText, formData.role === 'restaurateur' && styles.roleButtonTextActive]}>
-                Restaurateur
+              <Text style={styles.loginLink}>
+                Déjà un compte ? Se connecter
               </Text>
             </TouchableOpacity>
           </View>
-
-          {/* INPUTS avec icônes */}
-          <Input
-            ref={nomRef}
-            label="Nom complet *"
-            placeholder="Jean Dupont"
-            value={formData.nom}
-            onChangeText={(value) => updateField('nom', value)}
-            error={errors.nom}
-            autoCapitalize="words"
-            returnKeyType="next"
-            leftIcon="person-outline"
-          />
-
-          <Input
-            label="Email *"
-            ref={usernameRef}
-            placeholder="votre@email.com"
-            value={formData.username}
-            onChangeText={(value) => updateField('username', value)}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            error={errors.username}
-            returnKeyType="next"
-            leftIcon="mail-outline"
-          />
-
-          <Input
-            ref={telephoneRef}
-            label="Téléphone"
-            placeholder="+33 6 12 34 56 78"
-            value={formData.telephone}
-            onChangeText={(value) => updateField('telephone', value)}
-            keyboardType="phone-pad"
-            error={errors.telephone}
-            returnKeyType="next"
-            leftIcon="call-outline"
-          />
-
-        {formData.role === 'restaurateur' && (
-          <>
-            <Input
-              ref={siretRef}
-              label="SIRET *"
-              placeholder="12345678901234"
-              value={formData.siret}
-              onChangeText={(value) => updateField('siret', value)}
-              keyboardType="numeric"
-              error={errors.siret}
-              helperText="Numéro d'identification de votre entreprise (14 chiffres)"
-              maxLength={14}
-              returnKeyType="next"
-              leftIcon="business-outline"
-            />
-          
-            <View style={stripeInfoStyles.container}>
-              <View style={stripeInfoStyles.iconContainer}>
-                <Text style={stripeInfoStyles.icon}>💳</Text>
-              </View>
-              <View style={stripeInfoStyles.content}>
-                <Text style={stripeInfoStyles.title}>Configuration Stripe</Text>
-                <Text style={stripeInfoStyles.description}>
-                  Après votre inscription, vous pourrez configurer votre compte Stripe pour recevoir les paiements de vos clients en toute sécurité.
-                </Text>
-              </View>
-            </View>
-          </>
-        )}
-
-
-          <Input
-            ref={passwordRef}
-            label="Mot de passe *"
-            placeholder="••••••••"
-            value={formData.password}
-            onChangeText={(value) => updateField('password', value)}
-            secureTextEntry={true}
-            error={errors.password}
-            returnKeyType="next"
-            leftIcon="lock-closed-outline"
-          />
-          <Text style={styles.passwordHint}>
-            Le mot de passe doit contenir au moins 8 caractères avec majuscules, minuscules et chiffres
-          </Text>
-
-          <Input
-            ref={confirmPasswordRef}
-            label="Confirmer le mot de passe *"
-            placeholder="••••••••"
-            value={formData.confirmPassword}
-            onChangeText={(value) => updateField('confirmPassword', value)}
-            secureTextEntry={true}
-            error={errors.confirmPassword}
-            returnKeyType="done"
-            onSubmitEditing={handleRegister}
-            leftIcon="lock-closed-outline"
-          />
-
-          <Button
-            title={buttonTitle}
-            onPress={handleRegister}
-            loading={isLoading}
-            disabled={isLoading}
-            fullWidth
-            style={{ marginTop: 16 }}
-          />
-
-          <TouchableOpacity 
-            onPress={() => router.push('/(auth)/login')}
-            disabled={isLoading}
-          >
-            <Text style={styles.link}>Déjà un compte ? Se connecter</Text>
-          </TouchableOpacity>
-        </Card>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }

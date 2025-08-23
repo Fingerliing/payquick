@@ -7,157 +7,157 @@ import {
   TextStyle,
   TouchableOpacityProps,
 } from 'react-native';
-import { COLORS } from '@/constants/config';
+import { COLORS, TYPOGRAPHY, SPACING, RADIUS, SHADOWS } from '@/styles/tokens';
+import { useResponsive } from '@/utils/responsive';
 
 interface ButtonProps extends Omit<TouchableOpacityProps, 'style'> {
   title: string;
   loading?: boolean;
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive'; // ✅ Ajout variant destructive
-  size?: 'small' | 'medium' | 'large';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive';
+  size?: 'sm' | 'md' | 'lg';
   fullWidth?: boolean;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
-  icon?: React.ReactNode;
   style?: ViewStyle;
-  textStyle?: TextStyle; // ✅ Nouvelle propriété
 }
 
-export function Button({
+export const Button: React.FC<ButtonProps> = ({
   title,
   loading = false,
   variant = 'primary',
-  size = 'medium',
+  size = 'md',
   fullWidth = false,
   leftIcon,
   rightIcon,
   style,
-  textStyle, // ✅ Destructuring de la nouvelle prop
   disabled,
   ...props
-}: ButtonProps) {
+}) => {
+  const { isMobile, getSpacing } = useResponsive();
   const isDisabled = disabled || loading;
 
-  // Styles de base
-  const getButtonStyle = (): ViewStyle => {
+  // ✅ STYLES RESPONSIVES PAR TAILLE
+  const getSizeStyles = () => {
+    const paddingH = getSpacing(
+      isMobile ? SPACING.md : SPACING.lg,
+      SPACING.lg,
+      SPACING.xl
+    );
+
+    switch (size) {
+      case 'sm':
+        return {
+          paddingVertical: SPACING.sm,
+          paddingHorizontal: paddingH * 0.75,
+          minHeight: 36,
+          ...TYPOGRAPHY.styles.buttonSmall,
+        };
+      case 'lg':
+        return {
+          paddingVertical: SPACING.lg,
+          paddingHorizontal: paddingH * 1.25,
+          minHeight: 56,
+          fontSize: 18,
+          fontWeight: '600',
+        };
+      default:
+        return {
+          paddingVertical: SPACING.md,
+          paddingHorizontal: paddingH,
+          minHeight: 48,
+          ...TYPOGRAPHY.styles.button,
+        };
+    }
+  };
+
+  // ✅ STYLES PAR VARIANTE AVEC COULEURS IMPOSÉES
+  const getVariantStyles = () => {
     const baseStyle: ViewStyle = {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: 8,
-      paddingHorizontal: 16,
+      borderRadius: RADIUS.button,
+      ...getSizeStyles(),
     };
 
-    // Tailles
-    switch (size) {
-      case 'small':
-        baseStyle.paddingVertical = 8;
-        break;
-      case 'large':
-        baseStyle.paddingVertical = 16;
-        break;
-      default:
-        baseStyle.paddingVertical = 12;
-    }
-
-    // Largeur
-    if (fullWidth) {
-      baseStyle.width = '100%';
-    }
-
-    // Variantes
     switch (variant) {
+      case 'primary':
+        return {
+          container: {
+            ...baseStyle,
+            backgroundColor: COLORS.primary,
+            ...SHADOWS.sm,
+          },
+          text: { color: COLORS.text.white },
+        };
+
       case 'secondary':
-        baseStyle.backgroundColor = COLORS.text.secondary;
-        break;
+        return {
+          container: {
+            ...baseStyle,
+            backgroundColor: COLORS.secondary,
+            ...SHADOWS.sm,
+          },
+          text: { color: COLORS.text.primary },
+        };
+
       case 'outline':
-        baseStyle.backgroundColor = 'transparent';
-        baseStyle.borderWidth = 1;
-        baseStyle.borderColor = COLORS.primary;
-        break;
-      case 'destructive': // ✅ Nouveau variant destructive
-        baseStyle.backgroundColor = 'transparent';
-        baseStyle.borderWidth = 1;
-        baseStyle.borderColor = '#FF3B30';
-        break;
+        return {
+          container: {
+            ...baseStyle,
+            backgroundColor: 'transparent',
+            borderWidth: 1.5,
+            borderColor: COLORS.primary,
+          },
+          text: { color: COLORS.primary },
+        };
+
       case 'ghost':
-        baseStyle.backgroundColor = 'transparent';
-        break;
-      default:
-        baseStyle.backgroundColor = COLORS.primary;
-    }
+        return {
+          container: {
+            ...baseStyle,
+            backgroundColor: 'transparent',
+          },
+          text: { color: COLORS.primary },
+        };
 
-    // État désactivé
-    if (isDisabled) {
-      baseStyle.opacity = 0.6;
-    }
-
-    return { ...baseStyle, ...(style || {}) };
-  };
-
-  const getTextStyle = (): TextStyle => {
-    const baseStyle: TextStyle = {
-      fontWeight: '600',
-    };
-
-    // Tailles de texte
-    switch (size) {
-      case 'small':
-        baseStyle.fontSize = 14;
-        break;
-      case 'large':
-        baseStyle.fontSize = 18;
-        break;
-      default:
-        baseStyle.fontSize = 16;
-    }
-
-    // Couleurs selon la variante
-    switch (variant) {
-      case 'outline':
-        baseStyle.color = COLORS.primary;
-        break;
-      case 'destructive': // ✅ Couleur pour variant destructive
-        baseStyle.color = '#FF3B30';
-        break;
-      case 'ghost':
-        baseStyle.color = COLORS.text.primary;
-        break;
-      case 'secondary':
-        baseStyle.color = COLORS.surface;
-        break;
-      default:
-        baseStyle.color = COLORS.surface;
-    }
-
-    // ✅ Combiner avec le textStyle personnalisé
-    return { ...baseStyle, ...textStyle };
-  };
-
-  // ✅ Fonction pour obtenir la couleur de l'icône/loader
-  const getIconColor = (): string => {
-    // Si textStyle contient une couleur, l'utiliser en priorité
-    if (textStyle?.color) {
-      return textStyle.color as string;
-    }
-
-    // Sinon, utiliser la couleur par défaut selon le variant
-    switch (variant) {
-      case 'outline':
-        return COLORS.primary;
       case 'destructive':
-        return '#FF3B30';
-      case 'ghost':
-        return COLORS.text.primary;
-      case 'secondary':
-        return COLORS.surface;
+        return {
+          container: {
+            ...baseStyle,
+            backgroundColor: 'transparent',
+            borderWidth: 1.5,
+            borderColor: COLORS.error,
+          },
+          text: { color: COLORS.error },
+        };
+
       default:
-        return COLORS.surface;
+        return {
+          container: baseStyle,
+          text: { color: COLORS.text.primary },
+        };
     }
+  };
+
+  const styles = getVariantStyles();
+  
+  const containerStyle: ViewStyle = {
+    ...styles.container,
+    width: fullWidth ? '100%' : undefined,
+    opacity: isDisabled ? 0.6 : 1,
+    ...style,
+  };
+
+  const textStyle: TextStyle = {
+    ...styles.text,
+    marginLeft: leftIcon ? SPACING.sm : 0,
+    marginRight: rightIcon ? SPACING.sm : 0,
   };
 
   return (
     <TouchableOpacity
-      style={getButtonStyle()}
+      style={containerStyle}
       disabled={isDisabled}
       activeOpacity={0.8}
       {...props}
@@ -167,14 +167,14 @@ export function Button({
       {loading ? (
         <ActivityIndicator 
           size="small" 
-          color={getIconColor()} // ✅ Utiliser la couleur calculée
+          color={styles.text.color} 
         />
       ) : (
         <>
-          <Text style={getTextStyle()}>{title}</Text>
+          <Text style={textStyle}>{title}</Text>
           {rightIcon && rightIcon}
         </>
       )}
     </TouchableOpacity>
   );
-}
+};

@@ -390,7 +390,7 @@ export default function CartScreen() {
                   <Button
                     title="Voir les commandes"
                     variant="outline"
-                    size="small"
+                    size="sm"
                     onPress={() => {
                       router.push(`/table/${String(currentTableNumber)}/orders?restaurantId=${String(cart.restaurantId)}`);
                     }}
@@ -399,7 +399,7 @@ export default function CartScreen() {
                   <Button
                     title="Actualiser"
                     variant="outline"
-                    size="small"
+                    size="sm"
                     onPress={refreshTableOrders}
                     disabled={isLoadingTableOrders}
                     style={{ borderColor: '#FB923C' }}

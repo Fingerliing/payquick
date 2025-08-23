@@ -1,236 +1,111 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StatusBar, ViewStyle, TextStyle, Alert } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, Text, Pressable, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../contexts/AuthContext';
 import { router } from 'expo-router';
+import { COLORS, useScreenType, createResponsiveStyles, COMPONENT_CONSTANTS } from '@/utils/designSystem';
 
 interface HeaderProps {
   title: string;
-  subtitle?: string;
+  showBackButton?: boolean;
   leftIcon?: string;
   rightIcon?: string;
-  rightBadge?: string;
   onLeftPress?: () => void;
   onRightPress?: () => void;
   backgroundColor?: string;
-  style?: ViewStyle;
-  // Nouvelles props pour la déconnexion
-  showLogout?: boolean;
-  logoutPosition?: 'left' | 'right';
-  onLogoutComplete?: () => void;
-  customLogoutIcon?: string;
-  // Nouvelle prop pour le bouton retour
-  showBackButton?: boolean;
-  onBackPress?: () => void;
-  backIcon?: string;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   title,
-  subtitle,
+  showBackButton = false,
   leftIcon,
   rightIcon,
   onLeftPress,
   onRightPress,
-  backgroundColor = '#FFFFFF',
-  style,
-  showLogout = false,
-  logoutPosition = 'right',
-  onLogoutComplete,
-  customLogoutIcon = 'log-out-outline',
-  showBackButton = false,
-  onBackPress,
-  backIcon = 'arrow-back',
+  backgroundColor = COLORS.surface,
 }) => {
-  const insets = useSafeAreaInsets();
-  const { logout, isLoading } = useAuth();
-
-  const handleLogout = () => {
-    Alert.alert(
-      'Déconnexion',
-      'Êtes-vous sûr de vouloir vous déconnecter ?',
-      [
-        {
-          text: 'Annuler',
-          style: 'cancel',
-        },
-        {
-          text: 'Se déconnecter',
-          style: 'destructive',
-          onPress: performLogout,
-        },
-      ],
-      { cancelable: true }
-    );
-  };
-
-  const performLogout = async () => {
-    try {
-      await logout();
-      onLogoutComplete?.();
-    } catch (error) {
-      console.error('Erreur lors de la déconnexion:', error);
-      Alert.alert(
-        'Erreur',
-        'Une erreur s\'est produite lors de la déconnexion.',
-        [{ text: 'OK' }]
-      );
-    }
-  };
-
-  const handleBackPress = () => {
-    if (onBackPress) {
-      onBackPress();
-    } else {
+  const screenType = useScreenType();
+  const responsiveStyles = createResponsiveStyles(screenType);
+  
+  const headerHeight = COMPONENT_CONSTANTS.headerHeight[screenType];
+  
+  const handleLeftPress = () => {
+    if (onLeftPress) {
+      onLeftPress();
+    } else if (showBackButton) {
       router.back();
     }
   };
-
-  const headerStyle: ViewStyle = {
-    backgroundColor,
-    paddingTop: insets.top,
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    ...style,
-  };
-
-  const titleContainerStyle: ViewStyle = {
-    flex: 1,
-    alignItems: 'center',
-  };
-
-  const titleStyle: TextStyle = {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-    textAlign: 'center',
-  };
-
-  const subtitleStyle: TextStyle = {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-    marginTop: 2,
-  };
-
-  const iconButtonStyle: ViewStyle = {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  };
-
-  const getIconColor = (bgColor: string) => {
-    // Détermine la couleur d'icône en fonction du fond
-    if (bgColor === '#FFFFFF' || bgColor === '#F9FAFB') {
-      return '#111827';
-    }
-    return '#FFFFFF';
-  };
-
-  // Détermine quelle icône et action utiliser pour la gauche
-  const getLeftIconAndAction = () => {
-    // Priorité 1: Bouton retour
-    if (showBackButton) {
-      return {
-        icon: backIcon,
-        action: handleBackPress,
-        disabled: false,
-      };
-    }
-    
-    // Priorité 2: Logout à gauche
-    if (showLogout && logoutPosition === 'left') {
-      return {
-        icon: customLogoutIcon,
-        action: handleLogout,
-        disabled: isLoading,
-      };
-    }
-    
-    // Priorité 3: Icône personnalisée
-    return {
-      icon: leftIcon,
-      action: onLeftPress,
-      disabled: false,
-    };
-  };
-
-  // Détermine quelle icône et action utiliser pour la droite
-  const getRightIconAndAction = () => {
-    if (showLogout && logoutPosition === 'right') {
-      return {
-        icon: customLogoutIcon,
-        action: handleLogout,
-        disabled: isLoading,
-      };
-    }
-    return {
-      icon: rightIcon,
-      action: onRightPress,
-      disabled: false,
-    };
-  };
-
-  const leftConfig = getLeftIconAndAction();
-  const rightConfig = getRightIconAndAction();
-
+  
   return (
-    <>
-      <StatusBar 
-        barStyle={backgroundColor === '#FFFFFF' ? 'dark-content' : 'light-content'} 
-        backgroundColor={backgroundColor} 
-      />
-      <View style={headerStyle}>
-        <View style={iconButtonStyle}>
-          {leftConfig.icon && leftConfig.action && (
-            <TouchableOpacity 
-              onPress={leftConfig.action}
-              disabled={leftConfig.disabled}
-              style={{ opacity: leftConfig.disabled ? 0.5 : 1 }}
+    <SafeAreaView style={{ backgroundColor }}>
+      <View style={[
+        responsiveStyles.flexRow,
+        {
+          height: headerHeight,
+          backgroundColor,
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: 16,
+          borderBottomWidth: 1,
+          borderBottomColor: COLORS.border.light,
+        }
+      ]}>
+        {/* Bouton gauche */}
+        <View style={{ width: 40, alignItems: 'flex-start' }}>
+          {(showBackButton || leftIcon) && (
+            <Pressable
+              onPress={handleLeftPress}
+              style={{
+                width: 40,
+                height: 40,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 20,
+              }}
+              android_ripple={{ color: COLORS.border.default, borderless: true }}
             >
-              <Ionicons 
-                name={leftConfig.icon as any} 
-                size={24} 
-                color={getIconColor(backgroundColor)} 
+              <Ionicons
+                name={(leftIcon || 'arrow-back') as any}
+                size={24}
+                color={COLORS.text.primary}
               />
-            </TouchableOpacity>
+            </Pressable>
           )}
         </View>
-
-        <View style={titleContainerStyle}>
-          <Text style={[titleStyle, { color: getIconColor(backgroundColor) }]}>
+        
+        {/* Titre */}
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text style={[
+            responsiveStyles.textSubtitle,
+            { textAlign: 'center' }
+          ]}>
             {title}
           </Text>
-          {subtitle && (
-            <Text style={[subtitleStyle, { color: backgroundColor === '#FFFFFF' ? '#6B7280' : '#D1D5DB' }]}>
-              {subtitle}
-            </Text>
-          )}
         </View>
-
-        <View style={iconButtonStyle}>
-          {rightConfig.icon && rightConfig.action && (
-            <TouchableOpacity 
-              onPress={rightConfig.action}
-              disabled={rightConfig.disabled}
-              style={{ opacity: rightConfig.disabled ? 0.5 : 1 }}
+        
+        {/* Bouton droit */}
+        <View style={{ width: 40, alignItems: 'flex-end' }}>
+          {rightIcon && (
+            <Pressable
+              onPress={onRightPress}
+              style={{
+                width: 40,
+                height: 40,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 20,
+              }}
+              android_ripple={{ color: COLORS.border.default, borderless: true }}
             >
-              <Ionicons 
-                name={rightConfig.icon as any} 
-                size={24} 
-                color={getIconColor(backgroundColor)} 
+              <Ionicons
+                name={rightIcon as any}
+                size={24}
+                color={COLORS.text.primary}
               />
-            </TouchableOpacity>
+            </Pressable>
           )}
         </View>
       </View>
-    </>
+    </SafeAreaView>
   );
 };

@@ -45,7 +45,7 @@ export function TableOrders({
               const result = await endSession() as any;
               Alert.alert(
                 'Session terminée',
-                `Session terminée avec succès.\nTotal: ${result.total_amount.toFixed(2)} €\nCommandes: ${result.orders_count}\nDurée: ${result.duration_minutes} min`
+                `Session terminée avec succès.\nTotal: ${Number(result.total_amount).toFixed(2)} €\nCommandes: ${result.orders_count}\nDurée: ${result.duration_minutes} min`
               );
             } catch (error: any) {
               Alert.alert('Erreur', error.message);
@@ -153,7 +153,7 @@ export function TableOrders({
               {data.active_orders.length} active{data.active_orders.length > 1 ? 's' : ''}
             </Text>
             <Text style={styles.statText}>
-              Total: {data.table_statistics.total_revenue.toFixed(2)} €
+              Total: {Number(data.table_statistics.total_revenue).toFixed(2)} €
             </Text>
           </View>
         </View>

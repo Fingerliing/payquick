@@ -1,125 +1,139 @@
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useState } from 'react';
 import {
   View,
   Text,
   TextInput,
+  TouchableOpacity,
   ViewStyle,
   TextStyle,
   TextInputProps,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '@/constants/config';
+import { COLORS } from '@/styles/tokens/colors';
+import { TYPOGRAPHY } from '@/styles/tokens/typography';
+import { SPACING } from '@/styles/tokens/spacing';
+import { RADIUS } from '@/styles/tokens/radius';
+import { useResponsive } from '@/utils/responsive';
 
 interface InputProps extends TextInputProps {
   label?: string;
   error?: string;
   leftIcon?: keyof typeof Ionicons.glyphMap;
-  containerStyle?: ViewStyle;
-  fullWidth?: boolean;
-  required?: boolean;
+  rightIcon?: keyof typeof Ionicons.glyphMap;
+  onRightIconPress?: () => void;
   helperText?: string;
+  required?: boolean;
+  fullWidth?: boolean;
+  variant?: 'default' | 'floating';
 }
 
 export const Input = forwardRef<TextInput, InputProps>(({
   label,
   error,
   leftIcon,
-  containerStyle,
-  fullWidth = true,
-  required = false,
+  rightIcon,
+  onRightIconPress,
   helperText,
+  required = false,
+  fullWidth = true,
+  variant = 'default',
   style,
-  ...textInputProps
+  ...props
 }, ref) => {
+  const [isFocused, setIsFocused] = useState(false);
+  const { getSpacing, getFontSize } = useResponsive();
+  
   const hasError = !!error;
+  const hasValue = !!props.value || !!props.defaultValue;
 
-  // Styles avec support des icônes
-  const containerStyle_: ViewStyle = {
+  // ✅ STYLES RESPONSIVES
+  const containerStyle: ViewStyle = {
     width: fullWidth ? '100%' : undefined,
-    marginBottom: 16,
-    ...containerStyle,
+    marginBottom: getSpacing(SPACING.md, SPACING.lg),
   };
 
   const labelStyle: TextStyle = {
-    fontSize: 14,
-    fontWeight: '500',
-    color: COLORS.text.primary,
-    marginBottom: 6,
+    fontSize: getFontSize(14, 15, 16),
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    color: hasError ? COLORS.error : COLORS.text.primary,
+    marginBottom: getSpacing(SPACING.xs, SPACING.sm),
   };
 
   const inputContainerStyle: ViewStyle = {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    backgroundColor: COLORS.surface,
-    borderColor: hasError ? COLORS.error : '#D1D5DB',
-    minHeight: 48,
+    borderWidth: 1.5,
+    borderRadius: RADIUS.input,
+    backgroundColor: COLORS.surface.primary,
+    borderColor: hasError 
+      ? COLORS.error 
+      : isFocused 
+        ? COLORS.primary 
+        : COLORS.border.light,
+    paddingHorizontal: getSpacing(SPACING.md, SPACING.lg),
+    paddingVertical: getSpacing(SPACING.sm, SPACING.md),
+    minHeight: getSpacing(48, 52, 56),
   };
 
   const textInputStyle: TextStyle = {
     flex: 1,
-    fontSize: 16,
+    fontSize: getFontSize(16, 17, 18),
     color: COLORS.text.primary,
     paddingVertical: 0,
-    marginLeft: leftIcon ? 8 : 0,
+    marginLeft: leftIcon ? SPACING.sm : 0,
+    marginRight: rightIcon ? SPACING.sm : 0,
     ...(style as TextStyle),
   };
 
-  const errorStyle: TextStyle = {
-    fontSize: 12,
-    color: COLORS.error,
-    marginTop: 4,
-  };
+  const iconColor = hasError 
+    ? COLORS.error 
+    : isFocused 
+      ? COLORS.primary 
+      : COLORS.text.tertiary;
 
-  const helperStyle: TextStyle = {
-    fontSize: 12,
-    color: COLORS.text.secondary,
-    marginTop: 4,
+  const messageStyle: TextStyle = {
+    fontSize: getFontSize(12, 13, 14),
+    marginTop: SPACING.xs,
+    color: hasError ? COLORS.error : COLORS.text.tertiary,
   };
 
   return (
-    <View style={containerStyle_}>
+    <View style={containerStyle}>
       {/* Label */}
-      {label && (
+      {label && variant === 'default' && (
         <Text style={labelStyle}>
           {label}
           {required && <Text style={{ color: COLORS.error }}> *</Text>}
         </Text>
       )}
 
-      {/* Input Container avec icône */}
+      {/* Input Container */}
       <View style={inputContainerStyle}>
-        {/* Left Icon */}
         {leftIcon && (
-          <Ionicons 
-            name={leftIcon} 
-            size={20} 
-            color={hasError ? COLORS.error : COLORS.text.secondary}
-          />
+          <Ionicons name={leftIcon} size={20} color={iconColor} />
         )}
 
-        {/* Text Input */}
         <TextInput
           ref={ref}
           style={textInputStyle}
-          placeholderTextColor={COLORS.text.light || '#9CA3AF'}
-          editable={true}
-          selectTextOnFocus={false}
-          {...textInputProps}
+          placeholderTextColor={COLORS.text.light}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          {...props}
         />
+
+        {rightIcon && (
+          <TouchableOpacity onPress={onRightIconPress}>
+            <Ionicons name={rightIcon} size={20} color={iconColor} />
+          </TouchableOpacity>
+        )}
       </View>
 
-      {/* Error */}
-      {hasError && (
-        <Text style={errorStyle}>{error}</Text>
-      )}
-
-      {/* Helper Text */}
-      {!hasError && helperText && (
-        <Text style={helperStyle}>{helperText}</Text>
+      {/* Error / Helper Text */}
+      {(error || helperText) && (
+        <Text style={messageStyle}>
+          {error || helperText}
+        </Text>
       )}
     </View>
   );

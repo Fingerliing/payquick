@@ -1,319 +1,403 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
-  Alert,
   KeyboardAvoidingView,
   Platform,
-  ViewStyle,
-  TextStyle,
-  TextInput,
+  TouchableOpacity,
+  StatusBar,
+  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
-import { ValidationUtils } from '@/utils/validators';
+import { COLORS, TYPOGRAPHY, SPACING, RADIUS } from '@/styles/tokens';
+import { useResponsive } from '@/utils/responsive';
 
 interface LoginFormData {
-  username: string; // Email qui sert de username
+  email: string;
   password: string;
 }
 
-interface FormErrors {
-  [key: string]: string;
-}
-
-// Styles constants
-const styles = {
-  container: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
-  } as ViewStyle,
-  
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 32,
-  } as ViewStyle,
-  
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#111827',
-    textAlign: 'center',
-    marginBottom: 8,
-  } as TextStyle,
-  
-  subtitle: {
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-    marginBottom: 40,
-  } as TextStyle,
-  
-  link: {
-    color: '#3B82F6',
-    fontWeight: '500',
-    textAlign: 'center',
-    marginTop: 16,
-  } as TextStyle,
-  
-  forgotPassword: {
-    color: '#6B7280',
-    fontSize: 14,
-    textAlign: 'center',
-    marginTop: 12,
-  } as TextStyle,
-  
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 20,
-  } as ViewStyle,
-  
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#E5E7EB',
-  } as ViewStyle,
-  
-  dividerText: {
-    marginHorizontal: 16,
-    color: '#9CA3AF',
-    fontSize: 14,
-  } as TextStyle,
-  
-  buttonStyle: {
-    marginTop: 24,
-  } as ViewStyle,
-} as const;
-
 export default function LoginScreen() {
   const [formData, setFormData] = useState<LoginFormData>({
-    username: '',
+    email: '',
     password: '',
   });
-  
-  const [errors, setErrors] = useState<FormErrors>({});
-  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<Partial<LoginFormData>>({});
   
   const { login } = useAuth();
-  
-  // Refs pour la navigation
-  const usernameRef = useRef<TextInput>(null);
-  const passwordRef = useRef<TextInput>(null);
+  const { isMobile, isTablet, getSpacing, getFontSize } = useResponsive();
 
-  // Gestionnaire de champs optimisé
-  const updateField = useCallback((field: keyof LoginFormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    
-    // Effacer l'erreur du champ quand l'utilisateur tape
-    if (errors[field]) {
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[field];
-        return newErrors;
-      });
-    }
-  }, [errors]);
-
-  // Validation côté client
+  // ✅ VALIDATION AMÉLIORÉE
   const validateForm = useCallback((): boolean => {
-    const newErrors: FormErrors = {};
+    const newErrors: Partial<LoginFormData> = {};
     
-    // Validation email
-    if (!formData.username.trim()) {
-      newErrors.username = 'L\'email est requis';
-    } else if (!ValidationUtils.isEmail(formData.username.trim())) {
-      newErrors.username = 'Format d\'email invalide';
+    // Email validation
+    const email = formData.email.trim();
+    if (!email) {
+      newErrors.email = 'Email requis';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      newErrors.email = 'Format d\'email invalide';
     }
     
-    // Validation mot de passe
+    // Password validation
     if (!formData.password) {
-      newErrors.password = 'Le mot de passe est requis';
+      newErrors.password = 'Mot de passe requis';
     } else if (formData.password.length < 6) {
-      newErrors.password = 'Le mot de passe doit contenir au moins 6 caractères';
+      newErrors.password = 'Minimum 6 caractères';
     }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [formData]);
+  }, [formData.email, formData.password]);
 
-  // Gestionnaire de connexion
-  const handleLogin = useCallback(async () => {
-    if (!validateForm()) {
-      Alert.alert('Erreur de validation', 'Veuillez corriger les erreurs dans le formulaire');
-      return;
+  // ✅ GESTION DES ERREURS AMÉLIORÉE
+  const handleLoginError = (error: any) => {
+    console.error('Login error:', error);
+    
+    if (error.message?.includes('401')) {
+      setErrors({ email: 'Email ou mot de passe incorrect' });
+    } else if (error.message?.includes('network')) {
+      Alert.alert('Erreur de connexion', 'Vérifiez votre connexion internet');
+    } else {
+      Alert.alert('Erreur', error.message || 'Une erreur est survenue');
     }
+  };
 
+  // ✅ SOUMISSION AVEC FEEDBACK AMÉLIORÉ
+  const handleSubmit = useCallback(async () => {
+    if (!validateForm()) return;
+    
+    setLoading(true);
     try {
-      setIsLoading(true);
-      
-      // Préparer les données pour l'API (format attendu par le backend)
-      const loginData = {
-        username: formData.username.trim().toLowerCase(),
+      // Use email directly as expected by the API
+      await login({
+        username: formData.email.trim().toLowerCase(),
         password: formData.password,
-      };
-
-      console.log('Tentative de connexion avec:', { username: loginData.username });
-
-      // Appel à l'API via le contexte Auth
-      await login(loginData);
-      
-      console.log('Connexion réussie, redirection...');
-      
-      // Succès - redirection automatique gérée par le contexte
-      // Le contexte va sauvegarder les tokens et mettre à jour l'état
-      
+      });
+      // Navigation handled by AuthContext
     } catch (error: any) {
-      console.error('Erreur de connexion:', error);
-      
-      // Gestion des erreurs spécifiques du backend
-      let errorMessage = 'Une erreur est survenue lors de la connexion';
-      
-      if (error.response?.data) {
-        const backendErrors = error.response.data;
-        
-        // Gestion des erreurs backend Django
-        if (backendErrors.non_field_errors) {
-          errorMessage = Array.isArray(backendErrors.non_field_errors) 
-            ? backendErrors.non_field_errors[0] 
-            : backendErrors.non_field_errors;
-        } else if (backendErrors.username) {
-          errorMessage = Array.isArray(backendErrors.username) 
-            ? backendErrors.username[0] 
-            : backendErrors.username;
-        } else if (backendErrors.password) {
-          errorMessage = Array.isArray(backendErrors.password) 
-            ? backendErrors.password[0] 
-            : backendErrors.password;
-        } else if (backendErrors.message) {
-          errorMessage = backendErrors.message;
-        } else if (backendErrors.detail) {
-          errorMessage = backendErrors.detail;
-        }
-      } else if (error.response?.status === 401) {
-        errorMessage = 'Email ou mot de passe incorrect';
-      } else if (error.response?.status === 400) {
-        errorMessage = 'Données de connexion invalides';
-      } else if (error.response?.status >= 500) {
-        errorMessage = 'Erreur serveur, veuillez réessayer plus tard';
-      } else if (error.message === 'Network Error') {
-        errorMessage = 'Problème de connexion réseau. Vérifiez votre connexion internet.';
-      } else if (error.message && error.message !== 'Network Error') {
-        errorMessage = error.message;
-      }
-      
-      Alert.alert('Erreur de connexion', errorMessage);
+      handleLoginError(error);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
-  }, [formData, validateForm, login]);
+  }, [formData, login, validateForm]);
 
-  // Navigation vers le champ suivant
-  const focusPassword = useCallback(() => {
-    passwordRef.current?.focus();
+  // ✅ HELPERS POUR FORMULAIRE
+  const updateFormData = useCallback((field: keyof LoginFormData) => 
+    (value: string) => setFormData(prev => ({ ...prev, [field]: value }))
+  , []);
+
+  const clearFieldError = useCallback((field: keyof LoginFormData) => {
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: undefined }));
+    }
+  }, [errors]);
+
+  // ✅ SOCIAL LOGIN HANDLERS
+  const handleGoogleLogin = useCallback(() => {
+    Alert.alert('Bientôt disponible', 'La connexion Google sera disponible prochainement');
   }, []);
 
-  // Navigation vers l'inscription
-  const handleGoToRegister = useCallback(() => {
-    router.push('/(auth)/register');
+  const handleAppleLogin = useCallback(() => {
+    Alert.alert('Bientôt disponible', 'La connexion Apple sera disponible prochainement');
   }, []);
 
-  // Navigation vers mot de passe oublié
-  const handleForgotPassword = useCallback(() => {
-    router.push('/(auth)/forgot-password' as any);
-  }, []);
+  // ✅ STYLES RESPONSIVES OPTIMISÉS
+  const styles = {
+    container: {
+      flex: 1,
+      backgroundColor: COLORS.background.primary,
+    },
+    
+    header: {
+      height: getSpacing(280, 320, 360),
+      justifyContent: 'flex-end' as const,
+      paddingBottom: getSpacing(SPACING.xl, SPACING.xxl),
+      paddingHorizontal: getSpacing(SPACING.lg, SPACING.xl),
+    },
+    
+    headerGradient: {
+      position: 'absolute' as const,
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
+    },
+    
+    logoContainer: {
+      alignItems: 'center' as const,
+      marginBottom: getSpacing(SPACING.lg, SPACING.xl),
+    },
+    
+    logo: {
+      width: getSpacing(64, 80, 96),
+      height: getSpacing(64, 80, 96),
+      borderRadius: RADIUS.lg,
+      backgroundColor: COLORS.text.white,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      marginBottom: getSpacing(SPACING.md, SPACING.lg),
+      // Ajout d'une ombre subtile
+      shadowColor: COLORS.text.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      elevation: 4,
+    },
+    
+    welcomeText: {
+      fontSize: getFontSize(32, 36, 40),
+      fontWeight: TYPOGRAPHY.fontWeight.bold,
+      color: COLORS.text.white,
+      textAlign: 'center' as const,
+      marginBottom: SPACING.sm,
+    },
+    
+    subtitleText: {
+      fontSize: getFontSize(16, 18, 20),
+      color: COLORS.text.white,
+      textAlign: 'center' as const,
+      opacity: 0.9,
+    },
+    
+    content: {
+      flex: 1,
+      paddingHorizontal: getSpacing(SPACING.lg, SPACING.xl),
+      paddingTop: getSpacing(SPACING.lg, SPACING.xl),
+    },
+    
+    formCard: {
+      maxWidth: isTablet ? 480 : undefined,
+      alignSelf: 'center' as const,
+      width: '100%' as const,
+    },
+    
+    formTitle: {
+      fontSize: getFontSize(24, 28, 32),
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      color: COLORS.text.primary,
+      textAlign: 'center' as const,
+      marginBottom: getSpacing(SPACING.lg, SPACING.xl),
+    },
+    
+    socialSection: {
+      marginVertical: getSpacing(SPACING.lg, SPACING.xl),
+      gap: SPACING.md,
+    },
+    
+    socialButton: {
+      backgroundColor: COLORS.surface.secondary,
+      borderWidth: 1,
+      borderColor: COLORS.border.light,
+    },
+    
+    divider: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      marginVertical: getSpacing(SPACING.lg, SPACING.xl),
+    },
+    
+    dividerLine: {
+      flex: 1,
+      height: 1,
+      backgroundColor: COLORS.border.light,
+    },
+    
+    dividerText: {
+      fontSize: TYPOGRAPHY.fontSize.sm,
+      color: COLORS.text.tertiary,
+      paddingHorizontal: SPACING.md,
+      fontWeight: TYPOGRAPHY.fontWeight.medium,
+    },
+    
+    inputContainer: {
+      gap: SPACING.md,
+    },
+    
+    forgotPassword: {
+      fontSize: getFontSize(14, 15, 16),
+      color: COLORS.primary,
+      textAlign: 'center' as const,
+      marginTop: SPACING.md,
+      fontWeight: TYPOGRAPHY.fontWeight.medium,
+    },
+    
+    submitButton: {
+      marginTop: getSpacing(SPACING.xl, SPACING.xxl),
+    },
+    
+    footer: {
+      paddingVertical: getSpacing(SPACING.lg, SPACING.xl),
+      alignItems: 'center' as const,
+    },
+    
+    registerLink: {
+      fontSize: getFontSize(14, 16, 18),
+      color: COLORS.primary,
+      fontWeight: TYPOGRAPHY.fontWeight.medium,
+      textAlign: 'center' as const,
+    },
+  };
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView 
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <Card>
-          {/* En-tête */}
-          <Text style={styles.title}>Eat&Go</Text>
-          <Text style={styles.subtitle}>Connectez-vous à votre compte</Text>
-
-          {/* Formulaire de connexion */}
-          <Input
-            ref={usernameRef}
-            label="Email *"
-            placeholder="votre@email.com"
-            value={formData.username}
-            onChangeText={(value) => updateField('username', value)}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            autoComplete="email"
-            textContentType="emailAddress"
-            leftIcon="mail-outline"
-            error={errors.username}
-            returnKeyType="next"
-            onSubmitEditing={focusPassword}
-            editable={!isLoading}
-          />
-
-          <Input
-            ref={passwordRef}
-            label="Mot de passe *"
-            placeholder="••••••••"
-            value={formData.password}
-            onChangeText={(value) => updateField('password', value)}
-            secureTextEntry
-            autoComplete="current-password"
-            textContentType="password"
-            leftIcon="lock-closed-outline"
-            error={errors.password}
-            returnKeyType="done"
-            onSubmitEditing={handleLogin}
-            editable={!isLoading}
-          />
-
-          {/* Mot de passe oublié */}
-          <TouchableOpacity 
-            onPress={handleForgotPassword}
-            disabled={isLoading}
-          >
-            <Text style={styles.forgotPassword}>Mot de passe oublié ?</Text>
-          </TouchableOpacity>
-
-          {/* Bouton de connexion */}
-          <Button
-            title="Se connecter"
-            onPress={handleLogin}
-            loading={isLoading}
-            disabled={isLoading}
-            fullWidth
-            style={styles.buttonStyle}
-          />
-
-          {/* Divider */}
-          <View style={styles.dividerContainer}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>ou</Text>
-            <View style={styles.dividerLine} />
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+      
+      {/* ✅ HEADER AVEC GRADIENT MODERNE */}
+      <View style={styles.header}>
+        <LinearGradient
+          colors={[COLORS.primary, COLORS.primary_light]}
+          style={styles.headerGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        />
+        
+        <View style={styles.logoContainer}>
+          <View style={styles.logo}>
+            <Ionicons 
+              name="restaurant" 
+              size={getSpacing(32, 40, 48)} 
+              color={COLORS.primary} 
+            />
           </View>
+          
+          <Text style={styles.welcomeText}>Eat&Go</Text>
+          <Text style={styles.subtitleText}>
+            Commandez en toute simplicité
+          </Text>
+        </View>
+      </View>
 
-          {/* Lien vers l'inscription */}
-          <TouchableOpacity 
-            onPress={handleGoToRegister}
-            disabled={isLoading}
-          >
-            <Text style={styles.link}>Pas encore de compte ? S'inscrire</Text>
-          </TouchableOpacity>
-        </Card>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      {/* ✅ CONTENT SCROLLABLE RESPONSIVE */}
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView 
+          style={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ flexGrow: 1 }}
+        >
+          <Card style={styles.formCard} variant="elevated" padding="xl">
+            <Text style={styles.formTitle}>Connexion</Text>
+            
+            {/* ✅ SOCIAL LOGIN SECTION */}
+            <View style={styles.socialSection}>
+              <Button
+                title="Continuer avec Google"
+                variant="outline"
+                leftIcon={
+                  <Ionicons name="logo-google" size={20} color={COLORS.text.primary} />
+                }
+                onPress={handleGoogleLogin}
+                style={styles.socialButton}
+                fullWidth
+              />
+              
+              <Button
+                title="Continuer avec Apple"
+                variant="outline"
+                leftIcon={
+                  <Ionicons name="logo-apple" size={20} color={COLORS.text.primary} />
+                }
+                onPress={handleAppleLogin}
+                style={styles.socialButton}
+                fullWidth
+              />
+            </View>
+
+            {/* ✅ DIVIDER */}
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>ou</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* ✅ FORMULAIRE AMÉLIORÉ */}
+            <View style={styles.inputContainer}>
+              <Input
+                label="Email"
+                placeholder="votre@email.com"
+                value={formData.email}
+                onChangeText={(text) => {
+                  updateFormData('email')(text);
+                  clearFieldError('email');
+                }}
+                error={errors.email}
+                leftIcon="mail-outline"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+                autoCorrect={false}
+                returnKeyType="next"
+                required
+              />
+
+              <Input
+                label="Mot de passe"
+                placeholder="••••••••"
+                value={formData.password}
+                onChangeText={(text) => {
+                  updateFormData('password')(text);
+                  clearFieldError('password');
+                }}
+                error={errors.password}
+                leftIcon="lock-closed-outline"
+                rightIcon={showPassword ? "eye-off-outline" : "eye-outline"}
+                onRightIconPress={() => setShowPassword(!showPassword)}
+                secureTextEntry={!showPassword}
+                autoComplete="password"
+                returnKeyType="done"
+                onSubmitEditing={handleSubmit}
+                required
+              />
+            </View>
+
+            <TouchableOpacity 
+              onPress={() => Alert.alert('Récupération', 'Fonctionnalité bientôt disponible')}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.forgotPassword}>
+                Mot de passe oublié ?
+              </Text>
+            </TouchableOpacity>
+
+            {/* ✅ BOUTON DE CONNEXION AMÉLIORÉ */}
+            <Button
+              title="Se connecter"
+              onPress={handleSubmit}
+              loading={loading}
+              disabled={loading || !formData.email.trim() || !formData.password}
+              variant="primary"
+              size="lg"
+              fullWidth
+              style={styles.submitButton}
+            />
+          </Card>
+
+          {/* ✅ FOOTER RESPONSIVE */}
+          <View style={styles.footer}>
+            <TouchableOpacity 
+              onPress={() => router.push('/(auth)/register')}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.registerLink}>
+                Pas encore de compte ? S'inscrire
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
