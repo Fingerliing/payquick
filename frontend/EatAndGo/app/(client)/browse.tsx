@@ -7,6 +7,7 @@ import {
   RefreshControl,
   SafeAreaView,
   ListRenderItem,
+  useWindowDimensions,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +16,13 @@ import { Header } from '@/components/ui/Header';
 import { Card } from '@/components/ui/Card';
 import { SearchBar } from '@/components/common/SearchBar';
 import { Restaurant } from '@/types/restaurant';
+import { 
+  useScreenType, 
+  getResponsiveValue, 
+  COLORS, 
+  SPACING, 
+  BORDER_RADIUS 
+} from '@/utils/designSystem';
 
 export default function BrowseRestaurantsScreen() {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
@@ -22,6 +30,21 @@ export default function BrowseRestaurantsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  const screenType = useScreenType();
+  const { width } = useWindowDimensions();
+
+  // Configuration responsive
+  const layoutConfig = {
+    containerPadding: getResponsiveValue(SPACING.container, screenType),
+    numColumns: getResponsiveValue(
+      { mobile: 1, tablet: 2, desktop: 3 },
+      screenType
+    ),
+    itemSpacing: getResponsiveValue(SPACING.md, screenType),
+    maxContentWidth: screenType === 'desktop' ? 1200 : undefined,
+    isTabletLandscape: screenType === 'tablet' && width > 1000,
+  };
 
   useEffect(() => {
     loadRestaurants();
@@ -38,7 +61,7 @@ export default function BrowseRestaurantsScreen() {
         limit: 50,
       });
       
-      console.log('📥 Response received:', response);
+      console.log('🔥 Response received:', response);
       
       let restaurantsData: Restaurant[] = [];
       
@@ -110,83 +133,359 @@ export default function BrowseRestaurantsScreen() {
     }
   };
 
-  const renderRestaurantItem: ListRenderItem<Restaurant> = ({ item }) => (
-    <Pressable onPress={() => router.push(`/menu/client/${item.id}`)}>
-      <Card style={{ marginBottom: 12 }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 18, fontWeight: '600', color: '#333', marginBottom: 4 }}>
+  const styles = {
+    container: {
+      flex: 1,
+      backgroundColor: COLORS.background,
+    },
+
+    searchContainer: {
+      padding: layoutConfig.containerPadding,
+      maxWidth: layoutConfig.maxContentWidth,
+      alignSelf: 'center' as const,
+      width: '100%' as const,
+    },
+
+    listContainer: {
+      padding: layoutConfig.containerPadding,
+      maxWidth: layoutConfig.maxContentWidth,
+      alignSelf: 'center' as const,
+      width: '100%' as const,
+    },
+
+    restaurantCard: {
+      marginBottom: layoutConfig.itemSpacing,
+      padding: getResponsiveValue(SPACING.lg, screenType),
+      backgroundColor: COLORS.surface,
+      borderRadius: BORDER_RADIUS.lg,
+      shadowColor: COLORS.shadow.default,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+      borderWidth: 1,
+      borderColor: COLORS.border.light,
+    },
+
+    restaurantHeader: {
+      flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
+      alignItems: 'flex-start' as const,
+      marginBottom: getResponsiveValue(SPACING.sm, screenType),
+    },
+
+    restaurantInfo: {
+      flex: 1,
+      marginRight: getResponsiveValue(SPACING.sm, screenType),
+    },
+
+    restaurantName: {
+      fontSize: getResponsiveValue(
+        { mobile: 18, tablet: 20, desktop: 22 },
+        screenType
+      ),
+      fontWeight: '600' as const,
+      color: COLORS.text.primary,
+      marginBottom: getResponsiveValue(SPACING.xs, screenType),
+    },
+
+    restaurantDescription: {
+      fontSize: getResponsiveValue(
+        { mobile: 14, tablet: 15, desktop: 16 },
+        screenType
+      ),
+      color: COLORS.text.secondary,
+      marginBottom: getResponsiveValue(SPACING.xs, screenType),
+      lineHeight: getResponsiveValue(
+        { mobile: 18, tablet: 20, desktop: 22 },
+        screenType
+      ),
+    },
+
+    restaurantAddress: {
+      fontSize: getResponsiveValue(
+        { mobile: 12, tablet: 13, desktop: 14 },
+        screenType
+      ),
+      color: COLORS.text.secondary,
+    },
+
+    voucherBadge: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      marginTop: getResponsiveValue(SPACING.xs, screenType),
+      backgroundColor: COLORS.success + '20',
+      paddingHorizontal: getResponsiveValue(SPACING.xs, screenType),
+      paddingVertical: getResponsiveValue(SPACING.xs, screenType) / 2,
+      borderRadius: BORDER_RADIUS.sm,
+      alignSelf: 'flex-start' as const,
+    },
+
+    voucherText: {
+      fontSize: getResponsiveValue(
+        { mobile: 10, tablet: 11, desktop: 12 },
+        screenType
+      ),
+      color: COLORS.success,
+      marginLeft: getResponsiveValue(SPACING.xs, screenType) / 2,
+      fontWeight: '500' as const,
+    },
+
+    chevronIcon: {
+      alignSelf: 'flex-start' as const,
+    },
+
+    restaurantDetails: {
+      flexDirection: screenType === 'mobile' ? 'column' as const : 'row' as const,
+      justifyContent: 'space-between' as const,
+      alignItems: screenType === 'mobile' ? 'flex-start' as const : 'center' as const,
+      marginTop: getResponsiveValue(SPACING.sm, screenType),
+      gap: getResponsiveValue(SPACING.xs, screenType),
+    },
+
+    detailRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: getResponsiveValue(SPACING.xs, screenType),
+      flexWrap: 'wrap' as const,
+    },
+
+    detailItem: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: getResponsiveValue(SPACING.xs, screenType) / 2,
+      marginRight: getResponsiveValue(SPACING.sm, screenType),
+    },
+
+    detailText: {
+      fontSize: getResponsiveValue(
+        { mobile: 12, tablet: 13, desktop: 14 },
+        screenType
+      ),
+      color: COLORS.text.secondary,
+    },
+
+    statusText: {
+      fontSize: getResponsiveValue(
+        { mobile: 12, tablet: 13, desktop: 14 },
+        screenType
+      ),
+      fontWeight: '500' as const,
+    },
+
+    errorContainer: {
+      margin: layoutConfig.containerPadding,
+      padding: getResponsiveValue(SPACING.md, screenType),
+      backgroundColor: COLORS.error + '10',
+      borderRadius: BORDER_RADIUS.lg,
+      borderLeftWidth: 4,
+      borderLeftColor: COLORS.error,
+      maxWidth: layoutConfig.maxContentWidth,
+      alignSelf: 'center' as const,
+      width: '100%' as const,
+    },
+
+    errorTitle: {
+      color: COLORS.error,
+      fontSize: getResponsiveValue(
+        { mobile: 14, tablet: 15, desktop: 16 },
+        screenType
+      ),
+      fontWeight: '500' as const,
+    },
+
+    errorMessage: {
+      color: COLORS.error,
+      fontSize: getResponsiveValue(
+        { mobile: 12, tablet: 13, desktop: 14 },
+        screenType
+      ),
+      marginTop: getResponsiveValue(SPACING.xs, screenType),
+    },
+
+    emptyContainer: {
+      flex: 1,
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+      paddingVertical: getResponsiveValue(
+        { mobile: 40, tablet: 60, desktop: 80 },
+        screenType
+      ),
+      paddingHorizontal: layoutConfig.containerPadding,
+    },
+
+    emptyIcon: {
+      marginBottom: getResponsiveValue(SPACING.md, screenType),
+    },
+
+    emptyTitle: {
+      fontSize: getResponsiveValue(
+        { mobile: 18, tablet: 22, desktop: 26 },
+        screenType
+      ),
+      color: COLORS.text.secondary,
+      textAlign: 'center' as const,
+      marginBottom: getResponsiveValue(SPACING.xs, screenType),
+    },
+
+    emptySubtitle: {
+      fontSize: getResponsiveValue(
+        { mobile: 14, tablet: 16, desktop: 18 },
+        screenType
+      ),
+      color: COLORS.text.secondary,
+      textAlign: 'center' as const,
+      marginBottom: getResponsiveValue(SPACING.md, screenType),
+    },
+
+    retryButton: {
+      backgroundColor: COLORS.secondary,
+      paddingHorizontal: getResponsiveValue(SPACING.lg, screenType),
+      paddingVertical: getResponsiveValue(SPACING.sm, screenType),
+      borderRadius: BORDER_RADIUS.lg,
+      shadowColor: COLORS.shadow.default,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+
+    retryButtonText: {
+      color: COLORS.text.primary,
+      fontSize: getResponsiveValue(
+        { mobile: 14, tablet: 15, desktop: 16 },
+        screenType
+      ),
+      fontWeight: '500' as const,
+    },
+  };
+
+  const iconSize = getResponsiveValue(
+    { mobile: 16, tablet: 18, desktop: 20 },
+    screenType
+  );
+
+  const chevronSize = getResponsiveValue(
+    { mobile: 20, tablet: 22, desktop: 24 },
+    screenType
+  );
+
+  const renderRestaurantItem: ListRenderItem<Restaurant> = ({ item, index }) => (
+    <Pressable 
+      onPress={() => router.push(`/menu/client/${item.id}`)}
+      android_ripple={{ 
+        color: COLORS.primary + '20',
+        borderless: false 
+      }}
+    >
+      <Card style={styles.restaurantCard}>
+        <View style={styles.restaurantHeader}>
+          <View style={styles.restaurantInfo}>
+            <Text style={styles.restaurantName}>
               {item.name}
             </Text>
             {item.description && (
-              <Text style={{ fontSize: 14, color: '#666', marginBottom: 8, lineHeight: 18 }}>
+              <Text style={styles.restaurantDescription}>
                 {item.description}
               </Text>
             )}
-            <Text style={{ fontSize: 12, color: '#666' }}>
+            <Text style={styles.restaurantAddress}>
               {item.address}, {item.city}
             </Text>
             
             {/* Titres-restaurant */}
             {item.accepts_meal_vouchers && (
-              <View style={{ 
-                flexDirection: 'row', 
-                alignItems: 'center', 
-                marginTop: 4,
-                backgroundColor: '#E8F5E8',
-                paddingHorizontal: 8,
-                paddingVertical: 2,
-                borderRadius: 4,
-                alignSelf: 'flex-start'
-              }}>
-                <Ionicons name="card-outline" size={12} color="#10B981" />
-                <Text style={{ fontSize: 10, color: '#10B981', marginLeft: 4 }}>
+              <View style={styles.voucherBadge}>
+                <Ionicons name="card-outline" size={iconSize - 4} color={COLORS.success} />
+                <Text style={styles.voucherText}>
                   Titres-restaurant acceptés
                 </Text>
               </View>
             )}
           </View>
-          <Ionicons name="chevron-forward" size={20} color="#666" />
+          <View style={styles.chevronIcon}>
+            <Ionicons name="chevron-forward" size={chevronSize} color={COLORS.text.secondary} />
+          </View>
         </View>
 
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Ionicons name="restaurant-outline" size={16} color="#FF6B35" />
-            <Text style={{ fontSize: 12, color: '#666', marginLeft: 4 }}>
-              {item.cuisine || 'Restaurant'}
-            </Text>
-          </View>
-          
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={{ fontSize: 12, color: '#666', marginRight: 12 }}>
-              {'€'.repeat(item.priceRange || 2)}
-            </Text>
-            
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Ionicons 
-                name={item.can_receive_orders ? "checkmark-circle" : "close-circle"} 
-                size={16} 
-                color={item.can_receive_orders ? "#10B981" : "#EF4444"} 
-              />
-              <Text style={{ 
-                fontSize: 12, 
-                color: item.can_receive_orders ? "#10B981" : "#EF4444", 
-                marginLeft: 4 
-              }}>
-                {item.can_receive_orders ? "Ouvert" : "Fermé"}
+        <View style={styles.restaurantDetails}>
+          <View style={styles.detailRow}>
+            <View style={styles.detailItem}>
+              <Ionicons name="restaurant-outline" size={iconSize} color={COLORS.secondary} />
+              <Text style={styles.detailText}>
+                {item.cuisine || 'Restaurant'}
               </Text>
             </View>
+            
+            <View style={styles.detailItem}>
+              <Text style={styles.detailText}>
+                {'€'.repeat(item.priceRange || 2)}
+              </Text>
+            </View>
+          </View>
+          
+          <View style={styles.detailItem}>
+            <Ionicons 
+              name={item.can_receive_orders ? "checkmark-circle" : "close-circle"} 
+              size={iconSize} 
+              color={item.can_receive_orders ? COLORS.success : COLORS.error} 
+            />
+            <Text style={[
+              styles.statusText,
+              { color: item.can_receive_orders ? COLORS.success : COLORS.error }
+            ]}>
+              {item.can_receive_orders ? "Ouvert" : "Fermé"}
+            </Text>
           </View>
         </View>
       </Card>
     </Pressable>
   );
 
+  const renderEmptyComponent = () => (
+    <View style={styles.emptyContainer}>
+      <View style={styles.emptyIcon}>
+        <Ionicons 
+          name="restaurant-outline" 
+          size={getResponsiveValue({ mobile: 64, tablet: 80, desktop: 96 }, screenType)} 
+          color={COLORS.text.light} 
+        />
+      </View>
+      <Text style={styles.emptyTitle}>
+        {loading 
+          ? 'Chargement...' 
+          : searchQuery 
+            ? 'Aucun restaurant trouvé' 
+            : 'Aucun restaurant disponible'
+        }
+      </Text>
+      {searchQuery && !loading && (
+        <Text style={styles.emptySubtitle}>
+          Essayez avec d'autres mots-clés
+        </Text>
+      )}
+      {error && (
+        <Pressable 
+          style={styles.retryButton}
+          onPress={loadRestaurants}
+          android_ripple={{ 
+            color: COLORS.primary + '20',
+            borderless: false 
+          }}
+        >
+          <Text style={styles.retryButtonText}>
+            Réessayer
+          </Text>
+        </Pressable>
+      )}
+    </View>
+  );
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
+    <SafeAreaView style={styles.container}>
       <Header title="Restaurants" />
 
-      <View style={{ padding: 16 }}>
+      <View style={styles.searchContainer}>
         <SearchBar
           placeholder="Rechercher un restaurant..."
           value={searchQuery}
@@ -195,18 +494,11 @@ export default function BrowseRestaurantsScreen() {
       </View>
 
       {error && (
-        <View style={{ 
-          margin: 16, 
-          padding: 16, 
-          backgroundColor: '#FEE2E2', 
-          borderRadius: 8,
-          borderLeftWidth: 4,
-          borderLeftColor: '#EF4444'
-        }}>
-          <Text style={{ color: '#DC2626', fontSize: 14, fontWeight: '500' }}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorTitle}>
             Erreur de configuration
           </Text>
-          <Text style={{ color: '#DC2626', fontSize: 12, marginTop: 4 }}>
+          <Text style={styles.errorMessage}>
             {error}
           </Text>
         </View>
@@ -216,45 +508,19 @@ export default function BrowseRestaurantsScreen() {
         data={restaurants}
         renderItem={renderRestaurantItem}
         keyExtractor={(item: Restaurant) => item.id.toString()}
-        contentContainerStyle={{ padding: 16 }}
+        contentContainerStyle={styles.listContainer}
+        numColumns={layoutConfig.numColumns}
+        key={`${layoutConfig.numColumns}-${screenType}`}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            colors={[COLORS.primary]}
+            tintColor={COLORS.primary}
+          />
         }
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={() => (
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 40 }}>
-            <Ionicons name="restaurant-outline" size={64} color="#ccc" />
-            <Text style={{ fontSize: 18, color: '#666', textAlign: 'center', marginTop: 16 }}>
-              {loading 
-                ? 'Chargement...' 
-                : searchQuery 
-                  ? 'Aucun restaurant trouvé' 
-                  : 'Aucun restaurant disponible'
-              }
-            </Text>
-            {searchQuery && !loading && (
-              <Text style={{ fontSize: 14, color: '#999', textAlign: 'center', marginTop: 8 }}>
-                Essayez avec d'autres mots-clés
-              </Text>
-            )}
-            {error && (
-              <Pressable 
-                onPress={loadRestaurants}
-                style={{
-                  marginTop: 16,
-                  paddingHorizontal: 20,
-                  paddingVertical: 10,
-                  backgroundColor: '#FF6B35',
-                  borderRadius: 8
-                }}
-              >
-                <Text style={{ color: 'white', fontSize: 14, fontWeight: '500' }}>
-                  Réessayer
-                </Text>
-              </Pressable>
-            )}
-          </View>
-        )}
+        ListEmptyComponent={renderEmptyComponent}
       />
     </SafeAreaView>
   );
