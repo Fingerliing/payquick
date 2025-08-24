@@ -1,96 +1,98 @@
-import { COLORS } from "@/styles/tokens/colors";
+import { COLORS } from "@/styles/tokens";
 
 export const TYPOGRAPHY = {
-  // ✅ SCALE RESPONSIVE HARMONIEUSE
+  // Tailles de police responsives
   fontSize: {
     xs: 12,
-    sm: 14, 
+    sm: 14,
     base: 16,
     lg: 18,
     xl: 20,
     '2xl': 24,
-    '3xl': 28,
-    '4xl': 32,
-    '5xl': 36,
-    '6xl': 48,
+    '3xl': 30,
+    '4xl': 36,
+    '5xl': 48,
   },
   
-  lineHeight: {
-    xs: 16,
-    sm: 20,
-    base: 24,
-    lg: 28, 
-    xl: 32,
-    '2xl': 32,
-    '3xl': 36,
-    '4xl': 40,
-    '5xl': 44,
-    '6xl': 56,
-  },
-  
+  // Poids des polices
   fontWeight: {
-    light: '300',
-    normal: '400',
-    medium: '500', 
-    semibold: '600',
-    bold: '700',
-    extrabold: '800',
+    light: '300' as const,
+    normal: '400' as const,
+    medium: '500' as const,
+    semibold: '600' as const,
+    bold: '700' as const,
+    extrabold: '800' as const,
   },
   
-  // ✅ STYLES PRÉDÉFINIS RESPONSIVE
+  // Hauteurs de ligne responsives
+  lineHeight: {
+    tight: 1.25,
+    snug: 1.375,
+    normal: 1.5,
+    relaxed: 1.625,
+    loose: 2,
+  },
+  
+  // Styles prédéfinis responsifs
   styles: {
-    hero: {
+    h1: {
       fontSize: 32,
-      fontWeight: '700',
-      lineHeight: 40,
+      fontWeight: '700' as const,
+      lineHeight: 1.2,
       color: COLORS.text.primary,
     },
-    
-    title: {
-      fontSize: 24, 
-      fontWeight: '600',
-      lineHeight: 32,
+    h2: {
+      fontSize: 28,
+      fontWeight: '600' as const,
+      lineHeight: 1.25,
       color: COLORS.text.primary,
     },
-    
-    subtitle: {
-      fontSize: 18,
-      fontWeight: '500', 
-      lineHeight: 28,
-      color: COLORS.text.secondary,
+    h3: {
+      fontSize: 24,
+      fontWeight: '600' as const,
+      lineHeight: 1.3,
+      color: COLORS.text.primary,
     },
-    
+    h4: {
+      fontSize: 20,
+      fontWeight: '500' as const,
+      lineHeight: 1.4,
+      color: COLORS.text.primary,
+    },
     body: {
       fontSize: 16,
-      fontWeight: '400',
-      lineHeight: 24,
+      fontWeight: '400' as const,
+      lineHeight: 1.5,
       color: COLORS.text.primary,
     },
-    
     bodySmall: {
       fontSize: 14,
-      fontWeight: '400',
-      lineHeight: 20, 
+      fontWeight: '400' as const,
+      lineHeight: 1.4,
       color: COLORS.text.secondary,
     },
-    
     caption: {
       fontSize: 12,
-      fontWeight: '400',
-      lineHeight: 16,
+      fontWeight: '400' as const,
+      lineHeight: 1.3,
       color: COLORS.text.tertiary,
     },
-    
     button: {
       fontSize: 16,
-      fontWeight: '600',
-      lineHeight: 24,
+      fontWeight: '600' as const,
+      lineHeight: 1.2,
     },
-    
     buttonSmall: {
       fontSize: 14,
-      fontWeight: '600', 
-      lineHeight: 20,
+      fontWeight: '600' as const,
+      lineHeight: 1.2,
+    },
+    overline: {
+      fontSize: 12,
+      fontWeight: '600' as const,
+      lineHeight: 1.5,
+      letterSpacing: 1.2,
+      textTransform: 'uppercase' as const,
     },
   },
 } as const;

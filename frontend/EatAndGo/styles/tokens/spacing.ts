@@ -1,29 +1,14 @@
 export const SPACING = {
-  // ✅ SYSTÈME 8PT GRID
-  0: 0,
-  1: 4,   // xs
-  2: 8,   // sm  
-  3: 12,
-  4: 16,  // md - base pour mobile
-  5: 20,
-  6: 24,  // lg 
-  7: 28,
-  8: 32,  // xl
-  10: 40,
-  12: 48, // xxl
-  16: 64,
-  20: 80,
-  24: 96,
-  
-  // ✅ ALIASES SÉMANTIQUES
+  // Espacement de base
   xs: 4,
   sm: 8,
   md: 16,
   lg: 24,
   xl: 32,
   xxl: 48,
+  xxxl: 64,
   
-  // ✅ SPACINGS SPÉCIFIQUES RESPONSIVE
+  // Espacements spécialisés responsifs
   container: {
     mobile: 16,
     tablet: 24,
@@ -32,7 +17,31 @@ export const SPACING = {
   
   section: {
     mobile: 24,
-    tablet: 32, 
+    tablet: 32,
     desktop: 48,
+  },
+  
+  // Tailles de composants
+  buttonHeight: {
+    sm: 36,
+    md: 48,
+    lg: 56,
+  },
+  
+  inputHeight: {
+    sm: 40,
+    md: 48,
+    lg: 56,
+  },
+  
+  headerHeight: {
+    mobile: 56,
+    tablet: 64,
+    desktop: 72,
+  },
+  
+  tabBarHeight: {
+    mobile: 64,
+    tablet: 72,
   },
 } as const;

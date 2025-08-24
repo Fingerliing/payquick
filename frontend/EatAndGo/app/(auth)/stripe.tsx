@@ -5,14 +5,83 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
+  Dimensions,
+  Platform,
+  ScrollView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { stripeService } from '@/services/stripeService';
+
+// Récupération des dimensions d'écran
+const { width, height } = Dimensions.get('window');
+
+// Détection du type d'appareil
+const isTablet = width >= 768;
+const isSmallScreen = width < 360;
+
+// Couleurs de l'application
+const COLORS = {
+  primary: '#1E2A78',
+  secondary: '#FFC845',
+  success: '#10B981',
+  error: '#EF4444',
+  warning: '#F59E0B',
+  white: '#FFFFFF',
+  gray: {
+    50: '#F9FAFB',
+    100: '#F3F4F6',
+    200: '#E5E7EB',
+    300: '#D1D5DB',
+    500: '#6B7280',
+    700: '#374151',
+    900: '#111827',
+  },
+};
+
+// Configuration responsive
+const getResponsiveStyles = () => {
+  const baseSize = isTablet ? 1.3 : isSmallScreen ? 0.9 : 1;
+  
+  return {
+    container: {
+      paddingHorizontal: isTablet ? width * 0.15 : isSmallScreen ? 16 : 20,
+      paddingVertical: isTablet ? 40 : isSmallScreen ? 20 : 30,
+    },
+    content: {
+      maxWidth: isTablet ? 500 : width - 40,
+      width: '100%' as const,
+    },
+    title: {
+      fontSize: (isTablet ? 32 : isSmallScreen ? 22 : 26) * baseSize,
+    },
+    message: {
+      fontSize: (isTablet ? 18 : isSmallScreen ? 14 : 16) * baseSize,
+      lineHeight: (isTablet ? 26 : isSmallScreen ? 20 : 24) * baseSize,
+    },
+    button: {
+      height: isTablet ? 54 : isSmallScreen ? 44 : 48,
+      paddingHorizontal: isTablet ? 32 : 20,
+    },
+    buttonText: {
+      fontSize: (isTablet ? 18 : isSmallScreen ? 14 : 16) * baseSize,
+    },
+    icon: {
+      fontSize: (isTablet ? 64 : isSmallScreen ? 40 : 48) * baseSize,
+    },
+    spacing: {
+      small: isTablet ? 16 : isSmallScreen ? 8 : 12,
+      medium: isTablet ? 24 : isSmallScreen ? 16 : 20,
+      large: isTablet ? 32 : isSmallScreen ? 24 : 28,
+    },
+  };
+};
 
 export default function Stripe() {
   const navigation = useNavigation();
   const [status, setStatus] = useState<'checking' | 'waiting' | 'success' | 'error'>('checking');
   const [message, setMessage] = useState('Vérification de votre compte Stripe...');
+  
+  const responsiveStyles = getResponsiveStyles();
 
   useEffect(() => {
     const checkStatus = async () => {
@@ -74,13 +143,13 @@ export default function Stripe() {
   const getStatusIcon = () => {
     switch (status) {
       case 'checking':
-        return <ActivityIndicator size="large" color="#4f46e5" />;
+        return <ActivityIndicator size={isTablet ? "large" : "small"} color={COLORS.primary} />;
       case 'waiting':
-        return <Text style={styles.icon}>⏳</Text>;
+        return <Text style={[styles.icon, { fontSize: responsiveStyles.icon.fontSize }]}>⏳</Text>;
       case 'success':
-        return <Text style={styles.icon}>✅</Text>;
+        return <Text style={[styles.icon, { fontSize: responsiveStyles.icon.fontSize }]}>✅</Text>;
       case 'error':
-        return <Text style={styles.icon}>❌</Text>;
+        return <Text style={[styles.icon, { fontSize: responsiveStyles.icon.fontSize }]}>❌</Text>;
       default:
         return null;
     }
@@ -89,223 +158,266 @@ export default function Stripe() {
   const getStatusColor = () => {
     switch (status) {
       case 'success':
-        return '#10b981';
+        return COLORS.success;
       case 'error':
-        return '#ef4444';
+        return COLORS.error;
       case 'waiting':
-        return '#f59e0b';
+        return COLORS.warning;
       default:
-        return '#6b7280';
+        return COLORS.gray[500];
+    }
+  };
+
+  const getStatusTitle = () => {
+    switch (status) {
+      case 'checking':
+        return 'Vérification en cours...';
+      case 'waiting':
+        return 'Configuration en attente';
+      case 'success':
+        return 'Compte validé !';
+      case 'error':
+        return 'Erreur de validation';
+      default:
+        return '';
     }
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.content}>
-        <View style={styles.iconContainer}>
-          {getStatusIcon()}
-        </View>
+    <ScrollView 
+      style={styles.scrollView}
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
+      <View style={[styles.container, responsiveStyles.container]}>
+        <View style={[styles.content, responsiveStyles.content]}>
+          {/* Icône de statut */}
+          <View style={[styles.iconContainer, { marginBottom: responsiveStyles.spacing.large }]}>
+            {getStatusIcon()}
+          </View>
 
-        <Text style={[styles.title, { color: getStatusColor() }]}>
-          {status === 'checking' && 'Vérification en cours...'}
-          {status === 'waiting' && 'Configuration en attente'}
-          {status === 'success' && 'Compte validé !'}
-          {status === 'error' && 'Erreur de validation'}
-        </Text>
-
-        <Text style={styles.message}>{message}</Text>
-
-        {status === 'success' && (
-          <Text style={styles.successDetail}>
-            Vous pouvez maintenant activer vos restaurants et commencer à recevoir des commandes.
+          {/* Titre de statut */}
+          <Text style={[
+            styles.title, 
+            { 
+              color: getStatusColor(),
+              fontSize: responsiveStyles.title.fontSize,
+              marginBottom: responsiveStyles.spacing.medium,
+            }
+          ]}>
+            {getStatusTitle()}
           </Text>
-        )}
 
-        <View style={styles.buttonContainer}>
-          {status === 'success' || status === 'waiting' ? (
-            <TouchableOpacity style={styles.button} onPress={handleContinue}>
-              <Text style={styles.buttonText}>
-                Continuer vers le tableau de bord
-              </Text>
-            </TouchableOpacity>
-          ) : status === 'error' ? (
-            <>
-              <TouchableOpacity style={styles.button} onPress={handleRetry}>
-                <Text style={styles.buttonText}>Réessayer</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.secondaryButton} onPress={handleContinue}>
-                <Text style={styles.secondaryButtonText}>
-                  Continuer sans Stripe
+          {/* Message principal */}
+          <Text style={[
+            styles.message,
+            {
+              fontSize: responsiveStyles.message.fontSize,
+              lineHeight: responsiveStyles.message.lineHeight,
+              marginBottom: responsiveStyles.spacing.medium,
+            }
+          ]}>
+            {message}
+          </Text>
+
+          {/* Message de succès détaillé */}
+          {status === 'success' && (
+            <Text style={[
+              styles.successDetail,
+              { 
+                fontSize: responsiveStyles.message.fontSize * 0.9,
+                marginBottom: responsiveStyles.spacing.large,
+              }
+            ]}>
+              Vous pouvez maintenant activer vos restaurants et commencer à recevoir des commandes.
+            </Text>
+          )}
+
+          {/* Boutons d'action */}
+          <View style={[styles.buttonContainer, { marginTop: responsiveStyles.spacing.medium }]}>
+            {status === 'success' || status === 'waiting' ? (
+              <TouchableOpacity 
+                style={[
+                  styles.primaryButton,
+                  {
+                    height: responsiveStyles.button.height,
+                    paddingHorizontal: responsiveStyles.button.paddingHorizontal,
+                  }
+                ]} 
+                onPress={handleContinue}
+                activeOpacity={0.8}
+              >
+                <Text style={[
+                  styles.primaryButtonText,
+                  { fontSize: responsiveStyles.buttonText.fontSize }
+                ]}>
+                  Continuer vers le tableau de bord
                 </Text>
               </TouchableOpacity>
-            </>
-          ) : null}
+            ) : status === 'error' ? (
+              <>
+                <TouchableOpacity 
+                  style={[
+                    styles.primaryButton,
+                    {
+                      height: responsiveStyles.button.height,
+                      paddingHorizontal: responsiveStyles.button.paddingHorizontal,
+                      marginBottom: responsiveStyles.spacing.small,
+                    }
+                  ]} 
+                  onPress={handleRetry}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[
+                    styles.primaryButtonText,
+                    { fontSize: responsiveStyles.buttonText.fontSize }
+                  ]}>
+                    Réessayer
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[
+                    styles.secondaryButton,
+                    {
+                      height: responsiveStyles.button.height,
+                      paddingHorizontal: responsiveStyles.button.paddingHorizontal,
+                    }
+                  ]} 
+                  onPress={handleContinue}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[
+                    styles.secondaryButtonText,
+                    { fontSize: responsiveStyles.buttonText.fontSize }
+                  ]}>
+                    Continuer sans Stripe
+                  </Text>
+                </TouchableOpacity>
+              </>
+            ) : null}
+          </View>
         </View>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginVertical: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1f2937',
-  },
-  refreshButton: {
-    padding: 8,
-  },
-  refreshText: {
-    fontSize: 16,
-  },
-  loadingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 20,
-  },
-  loadingText: {
-    marginLeft: 8,
-    color: '#6b7280',
-  },
-  statusCard: {
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 12,
-  },
-  statusHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  statusIcon: {
-    fontSize: 20,
-    marginRight: 8,
-  },
-  statusTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  statusDescription: {
-    fontSize: 14,
-    marginBottom: 12,
-    lineHeight: 20,
-  },
-  successInfo: {
-    marginTop: 8,
-  },
-  successText: {
-    fontSize: 14,
-    color: '#059669',
-    fontStyle: 'italic',
-  },
-  actionContainer: {
-    marginTop: 8,
-  },
-  actionButton: {
-    backgroundColor: '#4f46e5',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  actionButtonDisabled: {
-    backgroundColor: '#9ca3af',
-  },
-  actionButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  requirementsContainer: {
-    marginTop: 12,
-    padding: 12,
-    backgroundColor: 'rgba(251, 191, 36, 0.1)',
-    borderRadius: 8,
-  },
-  requirementsTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#92400e',
-    marginBottom: 4,
-  },
-  requirementItem: {
-    fontSize: 12,
-    color: '#92400e',
-    marginLeft: 8,
-  },
-  // Styles pour StripeOnboardingScreen
-  content: {
+  scrollView: {
     flex: 1,
+    backgroundColor: COLORS.gray[50],
+  },
+  scrollContent: {
+    flexGrow: 1,
+    minHeight: height,
+  },
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.gray[50],
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+  },
+  content: {
+    backgroundColor: COLORS.white,
+    borderRadius: isTablet ? 20 : 16,
+    padding: isTablet ? 40 : 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { 
+      width: 0, 
+      height: isTablet ? 8 : 4,
+    },
+    shadowOpacity: isTablet ? 0.15 : 0.1,
+    shadowRadius: isTablet ? 12 : 8,
+    elevation: isTablet ? 8 : 4,
+    ...(Platform.OS === 'web' && {
+      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
+    }),
   },
   iconContainer: {
-    marginBottom: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: isTablet ? 100 : 80,
+    height: isTablet ? 100 : 80,
+    borderRadius: isTablet ? 50 : 40,
+    backgroundColor: COLORS.gray[100],
   },
   icon: {
-    fontSize: 48,
     textAlign: 'center',
+  },
+  title: {
+    fontWeight: 'bold',
+    textAlign: 'center',
+    ...(Platform.OS === 'web' && {
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+    }),
   },
   message: {
-    fontSize: 16,
     textAlign: 'center',
-    color: '#6b7280',
-    marginBottom: 16,
-    lineHeight: 24,
+    color: COLORS.gray[700],
+    ...(Platform.OS === 'web' && {
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+    }),
   },
   successDetail: {
-    fontSize: 14,
     textAlign: 'center',
-    color: '#059669',
-    marginBottom: 24,
+    color: COLORS.success,
     fontStyle: 'italic',
+    ...(Platform.OS === 'web' && {
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+    }),
   },
   buttonContainer: {
     width: '100%',
-    maxWidth: 300,
-  },
-  button: {
-    backgroundColor: '#4f46e5',
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 8,
     alignItems: 'center',
-    marginBottom: 12,
   },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+  primaryButton: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+    ...(Platform.OS === 'web' && {
+      boxShadow: `0 2px 8px ${COLORS.primary}30`,
+      cursor: 'pointer',
+      transition: 'all 0.2s ease',
+    }),
+  },
+  primaryButtonText: {
+    color: COLORS.white,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    ...(Platform.OS === 'web' && {
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+    }),
   },
   secondaryButton: {
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 8,
+    backgroundColor: 'transparent',
+    borderRadius: 12,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#d1d5db',
+    justifyContent: 'center',
+    width: '100%',
+    borderWidth: 2,
+    borderColor: COLORS.gray[300],
+    ...(Platform.OS === 'web' && {
+      cursor: 'pointer',
+      transition: 'all 0.2s ease',
+    }),
   },
   secondaryButtonText: {
-    color: '#6b7280',
-    fontSize: 16,
+    color: COLORS.gray[700],
+    fontWeight: '600',
+    textAlign: 'center',
+    ...(Platform.OS === 'web' && {
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+    }),
   },
 });
