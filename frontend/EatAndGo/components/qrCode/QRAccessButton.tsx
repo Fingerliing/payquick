@@ -6,15 +6,23 @@ import {
   TextInput,
   Modal,
   Alert,
-  StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Vibration
+  Vibration,
+  useWindowDimensions
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { QRSessionUtils } from '@/utils/qrSessionUtils';
 import QRScanner from '@/components/client/QRScanner';
+import { 
+  useScreenType, 
+  getResponsiveValue, 
+  COLORS, 
+  SPACING, 
+  BORDER_RADIUS 
+} from '@/utils/designSystem';
 
 interface QRAccessButtonsProps {
   /** Titre affiché au-dessus des boutons */
@@ -49,6 +57,289 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
   const [showCodeInput, setShowCodeInput] = useState(false);
   const [accessCode, setAccessCode] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+
+  const screenType = useScreenType();
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+
+  // Configuration responsive
+  const layoutConfig = {
+    containerPadding: getResponsiveValue(SPACING.container, screenType),
+    modalMaxWidth: getResponsiveValue(
+      { mobile: width * 0.9, tablet: 480, desktop: 520 },
+      screenType
+    ),
+    buttonLayout: vertical || screenType === 'mobile' ? 'vertical' : 'horizontal',
+  };
+
+  const styles = {
+    // Container principal
+    container: {
+      backgroundColor: COLORS.surface,
+      borderRadius: BORDER_RADIUS.xl,
+      padding: compact ? getResponsiveValue(SPACING.md, screenType) : getResponsiveValue(SPACING.xl, screenType),
+      alignItems: 'center' as const,
+      marginBottom: compact ? 0 : getResponsiveValue(SPACING.lg, screenType),
+      shadowColor: COLORS.shadow.default,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      elevation: 3,
+      borderWidth: 1,
+      borderColor: COLORS.border.light,
+    },
+
+    compactContainer: {
+      padding: getResponsiveValue(SPACING.md, screenType),
+      alignItems: 'center' as const,
+      backgroundColor: 'transparent',
+      shadowOpacity: 0,
+      elevation: 0,
+      borderWidth: 0,
+    },
+
+    // Icône et textes
+    icon: {
+      marginBottom: getResponsiveValue(SPACING.md, screenType),
+    },
+
+    title: {
+      fontSize: getResponsiveValue(
+        { mobile: 20, tablet: 24, desktop: 28 },
+        screenType
+      ),
+      fontWeight: '700' as const,
+      color: COLORS.text.primary,
+      marginBottom: getResponsiveValue(SPACING.xs, screenType),
+      textAlign: 'center' as const,
+    },
+
+    description: {
+      fontSize: getResponsiveValue(
+        { mobile: 15, tablet: 16, desktop: 17 },
+        screenType
+      ),
+      color: COLORS.text.secondary,
+      textAlign: 'center' as const,
+      lineHeight: getResponsiveValue(
+        { mobile: 20, tablet: 22, desktop: 24 },
+        screenType
+      ),
+      marginBottom: getResponsiveValue(SPACING.lg, screenType),
+      paddingHorizontal: getResponsiveValue(SPACING.xs, screenType),
+    },
+
+    // Conteneur des boutons
+    buttonContainer: {
+      flexDirection: layoutConfig.buttonLayout === 'vertical' ? 'column' as const : 'row' as const,
+      gap: getResponsiveValue(SPACING.sm, screenType),
+      width: '100%' as const,
+    },
+
+    // Boutons d'action
+    actionButton: {
+      flex: layoutConfig.buttonLayout === 'horizontal' ? 1 : 0,
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      paddingVertical: getResponsiveValue(SPACING.sm, screenType),
+      paddingHorizontal: getResponsiveValue(SPACING.md, screenType),
+      borderRadius: BORDER_RADIUS.lg,
+      gap: getResponsiveValue(SPACING.xs, screenType),
+      minHeight: getResponsiveValue(
+        { mobile: 50, tablet: 56, desktop: 60 },
+        screenType
+      ),
+      shadowColor: COLORS.shadow.default,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+
+    primaryButton: {
+      backgroundColor: COLORS.secondary,
+    },
+
+    secondaryButton: {
+      backgroundColor: COLORS.surface,
+      borderWidth: 2,
+      borderColor: COLORS.secondary,
+    },
+
+    buttonDisabled: {
+      opacity: 0.6,
+    },
+
+    // Textes des boutons
+    primaryButtonText: {
+      color: COLORS.text.primary,
+      fontSize: getResponsiveValue(
+        { mobile: 16, tablet: 17, desktop: 18 },
+        screenType
+      ),
+      fontWeight: '600' as const,
+    },
+
+    secondaryButtonText: {
+      color: COLORS.secondary,
+      fontSize: getResponsiveValue(
+        { mobile: 16, tablet: 17, desktop: 18 },
+        screenType
+      ),
+      fontWeight: '600' as const,
+    },
+
+    // Modal
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+      padding: layoutConfig.containerPadding,
+      paddingTop: Math.max(layoutConfig.containerPadding, insets.top + 20),
+      paddingBottom: Math.max(layoutConfig.containerPadding, insets.bottom + 20),
+    },
+
+    modalContent: {
+      backgroundColor: COLORS.surface,
+      borderRadius: BORDER_RADIUS.xl,
+      padding: getResponsiveValue(SPACING.xl, screenType),
+      width: '100%' as const,
+      maxWidth: layoutConfig.modalMaxWidth,
+      shadowColor: COLORS.shadow.default,
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: 0.3,
+      shadowRadius: 20,
+      elevation: 16,
+    },
+
+    modalHeader: {
+      flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
+      alignItems: 'center' as const,
+      marginBottom: getResponsiveValue(SPACING.lg, screenType),
+    },
+
+    modalTitle: {
+      fontSize: getResponsiveValue(
+        { mobile: 20, tablet: 22, desktop: 24 },
+        screenType
+      ),
+      fontWeight: '700' as const,
+      color: COLORS.text.primary,
+    },
+
+    modalCloseButton: {
+      padding: getResponsiveValue(SPACING.xs, screenType),
+      borderRadius: BORDER_RADIUS.full,
+      backgroundColor: COLORS.background,
+    },
+
+    // Input container
+    inputContainer: {
+      marginBottom: getResponsiveValue(SPACING.xl, screenType),
+    },
+
+    inputLabel: {
+      fontSize: getResponsiveValue(
+        { mobile: 16, tablet: 17, desktop: 18 },
+        screenType
+      ),
+      fontWeight: '600' as const,
+      color: COLORS.text.primary,
+      marginBottom: getResponsiveValue(SPACING.xs, screenType),
+    },
+
+    textInput: {
+      borderWidth: 2,
+      borderColor: COLORS.border.light,
+      borderRadius: BORDER_RADIUS.lg,
+      padding: getResponsiveValue(SPACING.sm, screenType),
+      fontSize: getResponsiveValue(
+        { mobile: 16, tablet: 17, desktop: 18 },
+        screenType
+      ),
+      backgroundColor: COLORS.background,
+      color: COLORS.text.primary,
+      minHeight: getResponsiveValue(
+        { mobile: 50, tablet: 56, desktop: 60 },
+        screenType
+      ),
+    },
+
+    textInputFocused: {
+      borderColor: COLORS.primary,
+    },
+
+    inputHint: {
+      fontSize: getResponsiveValue(
+        { mobile: 14, tablet: 15, desktop: 16 },
+        screenType
+      ),
+      color: COLORS.text.secondary,
+      textAlign: 'center' as const,
+      marginTop: getResponsiveValue(SPACING.xs, screenType),
+      lineHeight: getResponsiveValue(
+        { mobile: 18, tablet: 20, desktop: 22 },
+        screenType
+      ),
+    },
+
+    // Actions de modal
+    modalActions: {
+      flexDirection: screenType === 'mobile' ? 'column' as const : 'row' as const,
+      gap: getResponsiveValue(SPACING.sm, screenType),
+    },
+
+    modalButton: {
+      flex: screenType === 'mobile' ? 0 : 1,
+      paddingVertical: getResponsiveValue(SPACING.sm, screenType),
+      paddingHorizontal: getResponsiveValue(SPACING.md, screenType),
+      borderRadius: BORDER_RADIUS.lg,
+      alignItems: 'center' as const,
+      minHeight: getResponsiveValue(
+        { mobile: 50, tablet: 56, desktop: 60 },
+        screenType
+      ),
+      justifyContent: 'center' as const,
+    },
+
+    cancelButton: {
+      backgroundColor: COLORS.background,
+      borderWidth: 2,
+      borderColor: COLORS.border.default,
+    },
+
+    confirmButton: {
+      backgroundColor: COLORS.secondary,
+    },
+
+    cancelButtonText: {
+      fontSize: getResponsiveValue(
+        { mobile: 16, tablet: 17, desktop: 18 },
+        screenType
+      ),
+      fontWeight: '600' as const,
+      color: COLORS.text.secondary,
+    },
+
+    confirmButtonText: {
+      fontSize: getResponsiveValue(
+        { mobile: 16, tablet: 17, desktop: 18 },
+        screenType
+      ),
+      fontWeight: '600' as const,
+      color: COLORS.text.primary,
+    },
+  };
+
+  // Tailles d'icônes responsive
+  const iconSizes = {
+    main: getResponsiveValue({ mobile: 64, tablet: 80, desktop: 96 }, screenType),
+    button: getResponsiveValue({ mobile: 20, tablet: 22, desktop: 24 }, screenType),
+    modal: getResponsiveValue({ mobile: 24, tablet: 26, desktop: 28 }, screenType),
+  };
 
   const handleScanSuccess = (qrData: string) => {
     console.log('QR Code scanné:', qrData);
@@ -152,26 +443,29 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
     <View style={[compact ? styles.compactContainer : styles.container, containerStyle]}>
       {!compact && (
         <>
-          <Ionicons name="qr-code-outline" size={80} color="#FF6B35" />
+          <View style={styles.icon}>
+            <Ionicons name="qr-code-outline" size={iconSizes.main} color={COLORS.secondary} />
+          </View>
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.description}>{description}</Text>
         </>
       )}
       
-      <View style={[
-        styles.buttonContainer, 
-        vertical && styles.buttonContainerVertical
-      ]}>
+      <View style={styles.buttonContainer}>
         <Pressable 
           style={[
             styles.actionButton, 
             styles.primaryButton,
-            vertical && styles.actionButtonVertical
+            isProcessing && styles.buttonDisabled
           ]} 
           onPress={() => setShowScanner(true)}
           disabled={isProcessing}
+          android_ripple={{ 
+            color: COLORS.primary + '20',
+            borderless: false 
+          }}
         >
-          <Ionicons name="camera" size={20} color="#fff" />
+          <Ionicons name="camera" size={iconSizes.button} color={COLORS.text.primary} />
           <Text style={styles.primaryButtonText}>{scanButtonText}</Text>
         </Pressable>
         
@@ -179,12 +473,16 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
           style={[
             styles.actionButton, 
             styles.secondaryButton,
-            vertical && styles.actionButtonVertical
+            isProcessing && styles.buttonDisabled
           ]} 
           onPress={() => setShowCodeInput(true)}
           disabled={isProcessing}
+          android_ripple={{ 
+            color: COLORS.secondary + '20',
+            borderless: false 
+          }}
         >
-          <Ionicons name="keypad" size={20} color="#FF6B35" />
+          <Ionicons name="keypad" size={iconSizes.button} color={COLORS.secondary} />
           <Text style={styles.secondaryButtonText}>{codeButtonText}</Text>
         </Pressable>
       </View>
@@ -207,18 +505,26 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
                 style={styles.modalCloseButton}
                 onPress={() => setShowCodeInput(false)}
                 disabled={isProcessing}
+                android_ripple={{ 
+                  color: COLORS.text.secondary + '20',
+                  borderless: true 
+                }}
               >
-                <Ionicons name="close" size={24} color="#666" />
+                <Ionicons name="close" size={iconSizes.modal} color={COLORS.text.secondary} />
               </Pressable>
             </View>
             
             <View style={styles.inputContainer}>
               <Text style={styles.inputLabel}>Code d'accès</Text>
               <TextInput
-                style={styles.textInput}
+                style={[
+                  styles.textInput,
+                  // styles.textInputFocused // Peut être ajouté avec un state si nécessaire
+                ]}
                 value={accessCode}
                 onChangeText={setAccessCode}
                 placeholder="Ex: 123456, R123T05, ou URL complète"
+                placeholderTextColor={COLORS.text.secondary}
                 autoCapitalize="characters"
                 autoFocus
                 editable={!isProcessing}
@@ -233,6 +539,10 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
                 style={[styles.modalButton, styles.cancelButton]}
                 onPress={() => setShowCodeInput(false)}
                 disabled={isProcessing}
+                android_ripple={{ 
+                  color: COLORS.text.secondary + '20',
+                  borderless: false 
+                }}
               >
                 <Text style={styles.cancelButtonText}>Annuler</Text>
               </Pressable>
@@ -245,6 +555,10 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
                 ]}
                 onPress={handleManualCodeSubmit}
                 disabled={isProcessing}
+                android_ripple={{ 
+                  color: COLORS.primary + '20',
+                  borderless: false 
+                }}
               >
                 <Text style={styles.confirmButtonText}>
                   {isProcessing ? 'Traitement...' : 'Valider'}
@@ -257,153 +571,3 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: '#f8f8f8',
-    borderRadius: 20,
-    padding: 24,
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  compactContainer: {
-    padding: 16,
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#333',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  description: {
-    fontSize: 15,
-    color: '#666',
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 20,
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    gap: 12,
-    width: '100%',
-  },
-  buttonContainerVertical: {
-    flexDirection: 'column',
-    gap: 12,
-  },
-  actionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 12,
-    gap: 6,
-  },
-  actionButtonVertical: {
-    flex: 0,
-    width: '100%',
-  },
-  primaryButton: {
-    backgroundColor: '#FF6B35',
-  },
-  secondaryButton: {
-    backgroundColor: '#fff',
-    borderWidth: 2,
-    borderColor: '#FF6B35',
-  },
-  primaryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  secondaryButtonText: {
-    color: '#FF6B35',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 24,
-    width: '100%',
-    maxWidth: 400,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  modalCloseButton: {
-    padding: 4,
-  },
-  inputContainer: {
-    marginBottom: 24,
-  },
-  inputLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-    marginTop: 12,
-  },
-  textInput: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: '#f9f9f9',
-  },
-  inputHint: {
-    fontSize: 14,
-    color: '#999',
-    fontStyle: 'italic',
-    marginTop: 6,
-    textAlign: 'center',
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  modalButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  cancelButton: {
-    backgroundColor: '#f5f5f5',
-  },
-  confirmButton: {
-    backgroundColor: '#FF6B35',
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#666',
-  },
-  confirmButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-  },
-});

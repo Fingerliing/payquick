@@ -7,11 +7,11 @@ export const BREAKPOINTS = {
   desktop: 1024,
 } as const;
 
-// COULEURS DE LA CHARTE
+// COULEURS DE LA CHARTE AVEC EFFETS DORÉS
 export const COLORS = {
   // Couleurs principales de la marque
   primary: '#1E2A78',      // Bleu principal
-  secondary: '#FFC845',    // Jaune/Orange
+  secondary: '#D4AF37',    // Or classique (remplace le jaune)
   
   // Couleurs système
   success: '#10B981',      // Vert pour succès
@@ -19,10 +19,11 @@ export const COLORS = {
   error: '#EF4444',        // Rouge pour erreurs
   info: '#3B82F6',         // Bleu pour informations
   
-  // Couleurs de surface
+  // Couleurs de surface avec touches dorées
   background: '#F9FAFB',   // Arrière-plan principal
   surface: '#FFFFFF',      // Surfaces des cartes, modales
   overlay: 'rgba(0, 0, 0, 0.5)', // Overlay pour modales
+  goldenSurface: '#FFFCF0', // Surface avec teinte dorée subtile
   
   // Couleurs de texte
   text: {
@@ -30,6 +31,7 @@ export const COLORS = {
     secondary: '#6B7280',  // Texte secondaire (descriptions, sous-titres)
     light: '#9CA3AF',      // Texte léger (placeholders, métadonnées)
     inverse: '#FFFFFF',    // Texte inversé (sur fonds sombres)
+    golden: '#B8941F',     // Texte doré pour les accents
   },
   
   // Couleurs de bordure et séparateurs
@@ -37,14 +39,16 @@ export const COLORS = {
     light: '#F3F4F6',      // Bordures très légères
     default: '#E5E7EB',    // Bordures normales
     dark: '#D1D5DB',       // Bordures plus visibles
+    golden: '#E6D08A',     // Bordure dorée subtile
   },
   
-  // Couleurs d'ombre
+  // Couleurs d'ombre avec reflets dorés
   shadow: {
     light: 'rgba(0, 0, 0, 0.05)',
     default: 'rgba(0, 0, 0, 0.1)',
     medium: 'rgba(0, 0, 0, 0.15)',
     dark: 'rgba(0, 0, 0, 0.25)',
+    golden: 'rgba(212, 175, 55, 0.15)', // Ombre dorée
   },
   
   // Variantes des couleurs principales
@@ -62,17 +66,26 @@ export const COLORS = {
       900: '#0D1629',
     },
     secondary: {
-      50: '#FFFDF0',
-      100: '#FFF9E0',
-      200: '#FFF3C4',
-      300: '#FFEB9C',
-      400: '#FFE066',
-      500: '#FFC845',  // Couleur principale
-      600: '#F59E0B',
-      700: '#D97706',
-      800: '#B45309',
-      900: '#92400E',
+      50: '#FFFEF7',   // Or presque blanc
+      100: '#FFFBEB',  // Or très pâle
+      200: '#FEF3C7',  // Or pâle
+      300: '#FDE68A',  // Or clair
+      400: '#FACC15',  // Or moyen
+      500: '#D4AF37',  // Or classique (couleur principale)
+      600: '#CA8A04',  // Or intense
+      700: '#A16207',  // Or foncé
+      800: '#854D0E',  // Or très foncé
+      900: '#713F12',  // Or profond
     },
+  },
+  
+  // Gradients dorés pour les effets premium
+  gradients: {
+    goldenHorizontal: ['#FFD700', '#D4AF37', '#B8941F'],
+    goldenVertical: ['#F4E17B', '#D4AF37', '#A16207'],
+    goldenRadial: ['#FACC15', '#D4AF37', '#854D0E'],
+    premiumGold: ['#FFE55C', '#D4AF37', '#8B7355'],
+    subtleGold: ['#FAF7E8', '#F4E17B', '#E6D08A'],
   },
 } as const;
 
@@ -139,7 +152,7 @@ export const BORDER_RADIUS = {
   full: 9999,
 } as const;
 
-// OMBRES
+// OMBRES AVEC EFFETS DORÉS
 export const SHADOWS = {
   none: {
     shadowColor: 'transparent',
@@ -189,6 +202,21 @@ export const SHADOWS = {
     shadowOpacity: 1,
     shadowRadius: 8,
     elevation: 4,
+  },
+  // Ombres dorées pour les éléments premium
+  goldenGlow: {
+    shadowColor: COLORS.shadow.golden,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  premiumCard: {
+    shadowColor: COLORS.variants.secondary[300],
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 8,
   },
 } as const;
 
@@ -241,7 +269,7 @@ export const createResponsiveStyles = (screenType: 'mobile' | 'tablet' | 'deskto
       flex: 1,
     },
     
-    // Cartes
+    // Cartes avec options dorées
     card: {
       backgroundColor: COLORS.surface,
       borderRadius: BORDER_RADIUS.lg,
@@ -249,7 +277,16 @@ export const createResponsiveStyles = (screenType: 'mobile' | 'tablet' | 'deskto
       ...SHADOWS.card,
     },
     
-    // Boutons
+    premiumCard: {
+      backgroundColor: COLORS.goldenSurface,
+      borderRadius: BORDER_RADIUS.lg,
+      padding: getResponsiveValue(SPACING.card, screenType),
+      borderWidth: 1,
+      borderColor: COLORS.border.golden,
+      ...SHADOWS.premiumCard,
+    },
+    
+    // Boutons avec variantes dorées
     button: {
       paddingVertical: getResponsiveValue(SPACING.sm, screenType),
       paddingHorizontal: getResponsiveValue(SPACING.md, screenType),
@@ -265,11 +302,29 @@ export const createResponsiveStyles = (screenType: 'mobile' | 'tablet' | 'deskto
       backgroundColor: COLORS.secondary,
     },
     
-    // Textes
+    buttonGolden: {
+      backgroundColor: COLORS.variants.secondary[500],
+      ...SHADOWS.goldenGlow,
+    },
+    
+    buttonGoldenOutline: {
+      backgroundColor: 'transparent',
+      borderWidth: 2,
+      borderColor: COLORS.variants.secondary[500],
+    },
+    
+    // Textes avec options dorées
     textTitle: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize['2xl'], screenType),
       fontWeight: TYPOGRAPHY.fontWeight.bold,
       color: COLORS.text.primary,
+      lineHeight: TYPOGRAPHY.lineHeight.tight,
+    },
+    
+    textTitleGolden: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize['2xl'], screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.bold,
+      color: COLORS.text.golden,
       lineHeight: TYPOGRAPHY.lineHeight.tight,
     },
     
@@ -291,6 +346,13 @@ export const createResponsiveStyles = (screenType: 'mobile' | 'tablet' | 'deskto
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
       fontWeight: TYPOGRAPHY.fontWeight.normal,
       color: COLORS.text.light,
+      lineHeight: TYPOGRAPHY.lineHeight.normal,
+    },
+    
+    textGoldenAccent: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      color: COLORS.text.golden,
       lineHeight: TYPOGRAPHY.lineHeight.normal,
     },
     
@@ -338,9 +400,9 @@ export const createResponsiveStyles = (screenType: 'mobile' | 'tablet' | 'deskto
   };
 };
 
-// COMPOSANTS DE STYLES PRÉDÉFINIS
+// COMPOSANTS DE STYLES PRÉDÉFINIS AVEC EFFETS DORÉS
 export const COMPONENT_STYLES = {
-  // Styles pour StatusBadge
+  // Styles pour StatusBadge avec variantes dorées
   statusBadge: {
     base: {
       paddingHorizontal: 8,
@@ -359,8 +421,8 @@ export const COMPONENT_STYLES = {
       borderWidth: 1,
     },
     preparing: {
-      backgroundColor: '#FEF3C7',
-      borderColor: '#F59E0B',
+      backgroundColor: COLORS.variants.secondary[200],
+      borderColor: COLORS.variants.secondary[500],
       borderWidth: 1,
     },
     ready: {
@@ -378,9 +440,15 @@ export const COMPONENT_STYLES = {
       borderColor: COLORS.error,
       borderWidth: 1,
     },
+    premium: {
+      backgroundColor: COLORS.variants.secondary[100],
+      borderColor: COLORS.variants.secondary[500],
+      borderWidth: 2,
+      ...SHADOWS.goldenGlow,
+    },
   },
   
-  // Styles pour les formulaires
+  // Styles pour les formulaires avec touches dorées
   input: {
     base: {
       borderWidth: 1,
@@ -400,9 +468,19 @@ export const COMPONENT_STYLES = {
       borderColor: COLORS.error,
       borderWidth: 2,
     },
+    golden: {
+      borderColor: COLORS.border.golden,
+      backgroundColor: COLORS.goldenSurface,
+      borderWidth: 1,
+    },
+    goldenFocused: {
+      borderColor: COLORS.variants.secondary[500],
+      borderWidth: 2,
+      ...SHADOWS.goldenGlow,
+    },
   },
   
-  // Styles pour la timeline
+  // Styles pour la timeline avec accents dorés
   timeline: {
     icon: {
       width: 24,
@@ -415,6 +493,10 @@ export const COMPONENT_STYLES = {
     iconCompleted: {
       backgroundColor: COLORS.success,
     },
+    iconGolden: {
+      backgroundColor: COLORS.variants.secondary[500],
+      ...SHADOWS.goldenGlow,
+    },
     line: {
       width: 2,
       height: 20,
@@ -423,6 +505,9 @@ export const COMPONENT_STYLES = {
     },
     lineCompleted: {
       backgroundColor: COLORS.success,
+    },
+    lineGolden: {
+      backgroundColor: COLORS.variants.secondary[400],
     },
   },
 } as const;
