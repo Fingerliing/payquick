@@ -1,6 +1,7 @@
-from django.db.models.signals import post_save, pre_save
+from django.db.models.signals import post_save, pre_save, post_migrate
 from django.contrib.auth.models import User, Group
 from django.dispatch import receiver
+from django.apps import apps as django_apps
 from api.models import RestaurateurProfile, Restaurant, ClientProfile
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
@@ -9,6 +10,23 @@ import logging
 import time
 
 logger = logging.getLogger(__name__)
+
+
+DEFAULT_GROUPS = ("restaurateur", "client", "admin")
+
+@receiver(post_migrate)
+def create_default_groups(sender, **kwargs):
+    """
+    Créé les groupes par défaut après les migrations.
+    On attend que l'app 'auth' (qui contient auth_group) soit migrée.
+    """
+    if getattr(sender, "name", None) != "django.contrib.auth":
+        return
+
+    Group = django_apps.get_model("auth", "Group")
+    for name in DEFAULT_GROUPS:
+        Group.objects.get_or_create(name=name)
+    print(f"✅ [MIGRATE] Groupes par défaut OK: {', '.join(DEFAULT_GROUPS)}")
 
 @receiver(post_save, sender=RestaurateurProfile)
 def update_restaurant_stripe_status(sender, instance, **kwargs):
