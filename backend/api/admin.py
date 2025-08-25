@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Restaurant, RestaurateurProfile
+from .models import Restaurant, RestaurateurProfile, MenuCategory, MenuSubCategory
 
 class RestaurantAdmin(admin.ModelAdmin):
     list_display = ('name', 'owner', 'owner_stripe_validated', 'is_stripe_active', 'can_receive_orders')
@@ -48,3 +48,40 @@ class RestaurateurProfileAdmin(admin.ModelAdmin):
     
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('user')
+    
+@admin.register(MenuCategory)
+class MenuCategoryAdmin(admin.ModelAdmin):
+    list_display = ['name', 'restaurant', 'is_active', 'order', 'subcategories_count']
+    list_filter = ['is_active', 'restaurant', 'created_at']
+    search_fields = ['name', 'restaurant__name']
+    ordering = ['restaurant', 'order', 'name']
+    list_editable = ['is_active', 'order']
+    
+    fieldsets = (
+        ('Informations de base', {
+            'fields': ('restaurant', 'name', 'description')
+        }),
+        ('Apparence', {
+            'fields': ('icon', 'color')
+        }),
+        ('Gestion', {
+            'fields': ('is_active', 'order')
+        }),
+    )
+    
+    def subcategories_count(self, obj):
+        return obj.subcategories.count()
+    subcategories_count.short_description = 'Sous-catégories'
+
+
+@admin.register(MenuSubCategory)
+class MenuSubCategoryAdmin(admin.ModelAdmin):
+    list_display = ['name', 'category', 'restaurant_name', 'is_active', 'order']
+    list_filter = ['is_active', 'category__restaurant', 'created_at']
+    search_fields = ['name', 'category__name', 'category__restaurant__name']
+    ordering = ['category', 'order', 'name']
+    list_editable = ['is_active', 'order']
+    
+    def restaurant_name(self, obj):
+        return obj.category.restaurant.name
+    restaurant_name.short_description = 'Restaurant'

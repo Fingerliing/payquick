@@ -16,20 +16,20 @@ class ApiConfig(AppConfig):
         except ImportError as e:
             print(f"❌ [APPS] Erreur lors du chargement des signaux: {e}")
         
-        # Créer les groupes de base si ils n'existent pas
-        self.create_default_groups()
+        # # Créer les groupes de base si ils n'existent pas
+        # self.create_default_groups()
     
-    def create_default_groups(self):
-        """Crée les groupes par défaut au démarrage de l'application"""
-        from django.contrib.auth.models import Group
+    # def create_default_groups(self):
+    #     """Crée les groupes par défaut au démarrage de l'application"""
+    #     from django.contrib.auth.models import Group
         
-        default_groups = [
-            'restaurateur',
-            'client', 
-            'admin'
-        ]
+    #     default_groups = [
+    #         'restaurateur',
+    #         'client', 
+    #         'admin'
+    #     ]
         
-        for group_name in default_groups:
-            group, created = Group.objects.get_or_create(name=group_name)
-            if created:
-                print(f"✅ [APPS] Groupe '{group_name}' créé automatiquement")
+    #     for group_name in default_groups:
+    #         group, created = Group.objects.get_or_create(name=group_name)
+    #         if created:
+    #             print(f"✅ [APPS] Groupe '{group_name}' créé automatiquement")

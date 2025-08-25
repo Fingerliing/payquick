@@ -3,6 +3,7 @@ from django.db import models
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 from datetime import timedelta
 
@@ -417,17 +418,209 @@ class Menu(models.Model):
     def __str__(self):
         return f"Menu de {self.restaurant.name}"
 
+class MenuCategory(models.Model):
+    """
+    Modèle pour les catégories principales de menu (Entrées, Plats, Desserts, etc.)
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    restaurant = models.ForeignKey(
+        'Restaurant', 
+        on_delete=models.CASCADE, 
+        related_name='menu_categories',
+        verbose_name="Restaurant"
+    )
+    
+    # Informations de base
+    name = models.CharField(
+        max_length=100, 
+        verbose_name="Nom de la catégorie"
+    )
+    description = models.TextField(
+        blank=True, 
+        null=True,
+        verbose_name="Description"
+    )
+    
+    # Apparence
+    icon = models.CharField(
+        max_length=10,
+        blank=True,
+        null=True,
+        verbose_name="Icône emoji",
+        help_text="Emoji représentant la catégorie (ex: 🥗, 🍽️, 🍰)"
+    )
+    color = models.CharField(
+        max_length=7,
+        default='#1E2A78',
+        verbose_name="Couleur",
+        help_text="Code couleur hexadécimal (ex: #1E2A78)"
+    )
+    
+    # Gestion
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name="Actif"
+    )
+    order = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Ordre d'affichage"
+    )
+    
+    # Métadonnées
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Catégorie de menu"
+        verbose_name_plural = "Catégories de menu"
+        ordering = ['restaurant', 'order', 'name']
+        unique_together = [['restaurant', 'name']]
+        indexes = [
+            models.Index(fields=['restaurant', 'is_active']),
+            models.Index(fields=['restaurant', 'order']),
+        ]
+    
+    def __str__(self):
+        return f"{self.restaurant.name} - {self.name}"
+    
+    def clean(self):
+        """Validation personnalisée"""
+        if self.color and not self.color.startswith('#'):
+            raise ValidationError("La couleur doit être un code hexadécimal (ex: #1E2A78)")
+        
+        if len(self.color) != 7:
+            raise ValidationError("La couleur doit être au format #RRGGBB")
+    
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+    
+    @property
+    def active_subcategories_count(self):
+        """Retourne le nombre de sous-catégories actives"""
+        return self.subcategories.filter(is_active=True).count()
+    
+    @property
+    def total_menu_items_count(self):
+        """Retourne le nombre total de plats dans cette catégorie"""
+        return MenuItem.objects.filter(category=self, is_available=True).count()
+
+class MenuSubCategory(models.Model):
+    """
+    Modèle pour les sous-catégories (Terre, Mer, Végétarien, etc.)
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    category = models.ForeignKey(
+        MenuCategory,
+        on_delete=models.CASCADE,
+        related_name='subcategories',
+        verbose_name="Catégorie parent"
+    )
+    
+    # Informations de base
+    name = models.CharField(
+        max_length=100,
+        verbose_name="Nom de la sous-catégorie"
+    )
+    description = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="Description"
+    )
+    
+    # Gestion
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name="Actif"
+    )
+    order = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Ordre d'affichage"
+    )
+    
+    # Métadonnées
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Sous-catégorie de menu"
+        verbose_name_plural = "Sous-catégories de menu"
+        ordering = ['category', 'order', 'name']
+        unique_together = [['category', 'name']]
+        indexes = [
+            models.Index(fields=['category', 'is_active']),
+            models.Index(fields=['category', 'order']),
+        ]
+    
+    def __str__(self):
+        return f"{self.category.name} > {self.name}"
+    
+    @property
+    def restaurant(self):
+        """Raccourci vers le restaurant via la catégorie parent"""
+        return self.category.restaurant
+    
+    @property
+    def menu_items_count(self):
+        """Retourne le nombre de plats dans cette sous-catégorie"""
+        return MenuItem.objects.filter(
+            category=self.category,
+            subcategory=self,
+            is_available=True
+        ).count()
+
 class MenuItem(models.Model):
     menu = models.ForeignKey(Menu, on_delete=models.CASCADE, related_name='items')
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
     price = models.DecimalField(max_digits=6, decimal_places=2)
-    category = models.CharField(max_length=50)  # Entrée, Plat, Dessert, etc.
+    category = models.ForeignKey(
+        MenuCategory,
+        on_delete=models.CASCADE,
+        related_name='menu_items',
+        verbose_name="Catégorie",
+        null=True,  # Temporaire pour la migration
+        blank=True
+    )
+    subcategory = models.ForeignKey(
+        MenuSubCategory,
+        on_delete=models.SET_NULL,
+        related_name='menu_items',
+        verbose_name="Sous-catégorie",
+        null=True,
+        blank=True
+    )
     is_available = models.BooleanField(default=True)
     allergens = models.JSONField(default=list, blank=True, help_text="Liste des allergènes présents")
     is_vegetarian = models.BooleanField(default=False, verbose_name="Végétarien")
     is_vegan = models.BooleanField(default=False, verbose_name="Vegan")
     is_gluten_free = models.BooleanField(default=False, verbose_name="Sans gluten")
+        # Informations nutritionnelles optionnelles
+    calories = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Calories (pour 100g)"
+    )
+    
+    preparation_time = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(120)],
+        verbose_name="Temps de préparation (minutes)"
+    )
+    
+    # Gestion des stocks (optionnel)
+    stock_quantity = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Quantité en stock"
+    )
+    
+    stock_alert_threshold = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Seuil d'alerte stock"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -456,6 +649,14 @@ class MenuItem(models.Model):
             vegan_incompatible = {'milk', 'eggs'}
             if any(allergen in vegan_incompatible for allergen in self.allergens):
                 raise ValidationError("Un plat vegan ne peut pas contenir de lait ou d'œufs")
+            if not self.is_vegetarian:
+                self.is_vegetarian = True
+    
+        if self.subcategory and self.category:
+            if self.subcategory.category != self.category:
+                raise ValidationError(
+                    "La sous-catégorie doit appartenir à la catégorie sélectionnée"
+                )
 
     def save(self, *args, **kwargs):
         self.full_clean()
@@ -493,7 +694,6 @@ class MenuItem(models.Model):
         if self.is_gluten_free:
             tags.append('Sans gluten')
         return tags
-
 
 class ClientProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)

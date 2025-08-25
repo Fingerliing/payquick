@@ -2,53 +2,63 @@ from rest_framework import serializers
 from api.models import Menu, MenuItem
 
 class MenuItemSerializer(serializers.ModelSerializer):
-    allergen_display = serializers.ReadOnlyField()
+    """Serializer amélioré pour les items de menu avec catégories"""
+    
+    category_name = serializers.CharField(source='category.name', read_only=True)
+    category_icon = serializers.CharField(source='category.icon', read_only=True)
+    subcategory_name = serializers.CharField(source='subcategory.name', read_only=True)
     dietary_tags = serializers.ReadOnlyField()
-
+    allergen_display = serializers.ReadOnlyField()
+    
     class Meta:
         model = MenuItem
         fields = [
-            'id', 'name', 'description', 'price', 'category', 
-            'is_available', 'menu', 'allergens', 'is_vegetarian', 
-            'is_vegan', 'is_gluten_free', 'allergen_display', 
-            'dietary_tags', 'created_at', 'updated_at'
+            'id', 'name', 'description', 'price', 'is_available',
+            'category', 'category_name', 'category_icon',
+            'subcategory', 'subcategory_name',
+            'allergens', 'allergen_display',
+            'is_vegetarian', 'is_vegan', 'is_gluten_free',
+            'dietary_tags', 'preparation_time',
+            'created_at', 'updated_at'
         ]
-
+        read_only_fields = ['id', 'created_at', 'updated_at', 'dietary_tags', 'allergen_display']
+    
     def validate_allergens(self, value):
-        """Validation des allergènes"""
-        valid_allergens = {
-            'gluten', 'crustaceans', 'eggs', 'fish', 'peanuts', 
-            'soybeans', 'milk', 'nuts', 'celery', 'mustard', 
-            'sesame', 'sulphites', 'lupin', 'molluscs'
-        }
-        
+        """Validation de la liste des allergènes"""
         if not isinstance(value, list):
             raise serializers.ValidationError("Les allergènes doivent être une liste")
         
-        invalid_allergens = set(value) - valid_allergens
+        valid_allergens = [
+            'gluten', 'milk', 'eggs', 'fish', 'shellfish',
+            'nuts', 'peanuts', 'soy', 'sesame', 'sulfites'
+        ]
+        
+        invalid_allergens = [a for a in value if a not in valid_allergens]
         if invalid_allergens:
             raise serializers.ValidationError(
-                f"Allergènes invalides: {', '.join(invalid_allergens)}"
+                f"Allergènes non reconnus: {', '.join(invalid_allergens)}"
             )
         
-        return value
-
-    def validate(self, data):
-        """Validation globale"""
-        # Si vegan, alors végétarien
-        if data.get('is_vegan') and not data.get('is_vegetarian'):
-            data['is_vegetarian'] = True
+        return list(set(value))  # Supprimer les doublons
+    
+    def validate(self, attrs):
+        """Validation au niveau de l'objet"""
+        category = attrs.get('category')
+        subcategory = attrs.get('subcategory')
+        is_vegan = attrs.get('is_vegan', False)
+        is_vegetarian = attrs.get('is_vegetarian', False)
         
-        # Si sans gluten, retirer le gluten des allergènes
-        if data.get('is_gluten_free') and 'gluten' in data.get('allergens', []):
-            data['allergens'] = [a for a in data['allergens'] if a != 'gluten']
+        # Vérifier que la sous-catégorie appartient à la catégorie
+        if category and subcategory and subcategory.category != category:
+            raise serializers.ValidationError({
+                'subcategory': 'La sous-catégorie doit appartenir à la catégorie sélectionnée'
+            })
         
-        # Si vegan, retirer lait et œufs
-        if data.get('is_vegan'):
-            allergens = data.get('allergens', [])
-            data['allergens'] = [a for a in allergens if a not in ['milk', 'eggs']]
+        # Si végan, alors automatiquement végétarien
+        if is_vegan and not is_vegetarian:
+            attrs['is_vegetarian'] = True
         
-        return data
+        return attrs
 
 class MenuSerializer(serializers.ModelSerializer):
     items = MenuItemSerializer(many=True, read_only=True)

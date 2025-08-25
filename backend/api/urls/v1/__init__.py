@@ -6,17 +6,33 @@ urlpatterns = [
     path('docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 
+    # Authentification
     path('auth/', include('api.urls.v1.auth_urls')),
+    
+    # Gestion des restaurants
     path('restaurants/', include('api.urls.v1.restaurant_urls')),
+    
+    # Gestion des menus et plats
     path('menus/', include('api.urls.v1.menu_urls')),
     path('menu-items/', include('api.urls.v1.menu_item_urls')),
+    
+    # Gestion des catégories de menu
+    path('menu/', include('api.urls.v1.category_urls')),
+    
+    # Commandes et paiements
     path('orders/', include('api.urls.v1.order_urls')),
     path('payments/', include('api.urls.v1.payment_urls')),
-    path('admin/', include('api.urls.v1.admin_urls')),
+    
+    # Tables et QR codes
     path('qrcode/', include('api.urls.v1.qrcode_urls')),
     path('table/', include('api.urls.v1.table_urls')),
-    path('token/', include('api.urls.v1.token_urls')),
-    path('stripe/', include('api.urls.v1.stripe_urls')),
-    path('guest/', include('api.urls.v1.guest_urls')),
     path('table-orders/', include('api.urls.v1.table_order_urls')),
+    
+    # Invités et tokens
+    path('token/', include('api.urls.v1.token_urls')),
+    path('guest/', include('api.urls.v1.guest_urls')),
+    
+    # Administration et Stripe
+    path('admin/', include('api.urls.v1.admin_urls')),
+    path('stripe/', include('api.urls.v1.stripe_urls')),
 ]
