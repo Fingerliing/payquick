@@ -19,6 +19,7 @@ interface ButtonProps extends Omit<TouchableOpacityProps, 'style'> {
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
   style?: ViewStyle;
+  textStyle?: TextStyle;
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -31,6 +32,7 @@ export const Button: React.FC<ButtonProps> = ({
   rightIcon,
   style,
   disabled,
+  textStyle: textStyleProp,
   ...props
 }) => {
   const { isMobile, getSpacing } = useResponsive();
@@ -153,6 +155,7 @@ export const Button: React.FC<ButtonProps> = ({
     ...styles.text,
     marginLeft: leftIcon ? SPACING.sm : 0,
     marginRight: rightIcon ? SPACING.sm : 0,
+    ...(textStyleProp || {}),
   };
 
   return (
@@ -167,7 +170,7 @@ export const Button: React.FC<ButtonProps> = ({
       {loading ? (
         <ActivityIndicator 
           size="small" 
-          color={styles.text.color} 
+          color={(textStyle.color as string) || (styles.text.color as string)}
         />
       ) : (
         <>

@@ -7,6 +7,7 @@ import {
   RefreshControl,
   SafeAreaView,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +19,13 @@ import { Card } from '@/components/ui/Card';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { QRAccessButtons } from '@/components/qrCode/QRAccessButton';
 import { useOrderRealtime } from '@/hooks/useOrderRealtime';
+import { 
+  useScreenType, 
+  getResponsiveValue, 
+  COLORS, 
+  SPACING, 
+  BORDER_RADIUS 
+} from '@/utils/designSystem';
 
 // Hook pour auto-refresh des commandes actives
 const useAutoRefresh = (
@@ -33,15 +41,17 @@ const useAutoRefresh = (
   }, [hasActiveOrders, refreshFn, realtimeEnabled]);
 };
 
-// ✅ Indicateur de connexion temps réel (SIMPLIFIÉ)
+// Indicateur de connexion temps réel
 const RealtimeIndicator = React.memo(({ 
   connectionState, 
   activeOrdersCount,
-  lastUpdateTime 
+  lastUpdateTime,
+  screenType 
 }: { 
   connectionState: 'connecting' | 'connected' | 'disconnected' | 'error';
   activeOrdersCount: number;
   lastUpdateTime?: Date;
+  screenType: 'mobile' | 'tablet' | 'desktop';
 }) => {
   if (activeOrdersCount === 0) return null;
 
@@ -50,25 +60,25 @@ const RealtimeIndicator = React.memo(({
       case 'connected':
         return { 
           icon: 'radio-button-on' as const, 
-          color: '#10B981', 
+          color: COLORS.success, 
           text: 'Temps réel activé' 
         };
       case 'connecting':
         return { 
           icon: 'radio-button-off' as const, 
-          color: '#FF9500', 
+          color: COLORS.warning, 
           text: 'Connexion...' 
         };
       case 'error':
         return { 
           icon: 'warning' as const, 
-          color: '#DC2626', 
+          color: COLORS.error, 
           text: 'Erreur connexion' 
         };
       default:
         return { 
           icon: 'radio-button-off' as const, 
-          color: '#9CA3AF', 
+          color: COLORS.text.light, 
           text: 'Hors ligne' 
         };
     }
@@ -76,12 +86,42 @@ const RealtimeIndicator = React.memo(({
 
   const { icon, color, text } = getIndicatorProps();
 
+  const styles = {
+    indicator: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: getResponsiveValue(SPACING.xs, screenType),
+      paddingHorizontal: getResponsiveValue(SPACING.xs, screenType),
+      paddingVertical: getResponsiveValue(SPACING.xs, screenType) / 2,
+      backgroundColor: COLORS.background,
+      borderRadius: BORDER_RADIUS.full,
+      borderWidth: 1,
+      borderColor: COLORS.border.light,
+    },
+    text: {
+      fontSize: getResponsiveValue(
+        { mobile: 11, tablet: 12, desktop: 13 },
+        screenType
+      ),
+      fontWeight: '500' as const,
+      color,
+    },
+    timeText: {
+      fontSize: getResponsiveValue(
+        { mobile: 10, tablet: 11, desktop: 12 },
+        screenType
+      ),
+      color: COLORS.text.secondary,
+      marginLeft: getResponsiveValue(SPACING.xs, screenType),
+    },
+  };
+
   return (
-    <View style={styles.realTimeIndicator}>
-      <Ionicons name={icon} size={12} color={color} />
-      <Text style={[styles.realTimeText, { color }]}>{text}</Text>
+    <View style={styles.indicator}>
+      <Ionicons name={icon} size={getResponsiveValue({ mobile: 12, tablet: 13, desktop: 14 }, screenType)} color={color} />
+      <Text style={styles.text}>{text}</Text>
       {lastUpdateTime && connectionState === 'connected' && (
-        <Text style={styles.lastUpdateText}>
+        <Text style={styles.timeText}>
           {lastUpdateTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
         </Text>
       )}
@@ -89,13 +129,15 @@ const RealtimeIndicator = React.memo(({
   );
 });
 
-// ✅ Composant pour une commande (SIMPLIFIÉ)
+// Composant pour une commande
 const OrderCard = React.memo(({ 
   item, 
-  isRealtime = false 
+  isRealtime = false,
+  screenType
 }: { 
   item: OrderList;
   isRealtime?: boolean;
+  screenType: 'mobile' | 'tablet' | 'desktop';
 }) => {
   const displayInfo = useMemo(() => {
     const date = new Date(item.created_at);
@@ -115,18 +157,178 @@ const OrderCard = React.memo(({
     router.push(`/order/${item.id}` as any);
   }, [item.id]);
 
+  const styles = {
+    card: {
+      marginBottom: getResponsiveValue(SPACING.md, screenType),
+      padding: getResponsiveValue(SPACING.lg, screenType),
+      backgroundColor: COLORS.surface,
+      borderRadius: BORDER_RADIUS.lg,
+      shadowColor: COLORS.shadow.default,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+      borderWidth: 1,
+      borderColor: displayInfo.isActive ? COLORS.primary + '20' : COLORS.border.light,
+      ...(displayInfo.isActive && {
+        borderLeftWidth: 4,
+        borderLeftColor: COLORS.secondary,
+      }),
+      ...(isRealtime && displayInfo.isActive && {
+        borderColor: COLORS.success + '30',
+        borderWidth: 1,
+      }),
+    },
+
+    header: {
+      flexDirection: screenType === 'mobile' ? 'column' as const : 'row' as const,
+      justifyContent: 'space-between' as const,
+      alignItems: screenType === 'mobile' ? 'flex-start' as const : 'flex-start' as const,
+      marginBottom: getResponsiveValue(SPACING.md, screenType),
+      gap: getResponsiveValue(SPACING.xs, screenType),
+    },
+
+    orderInfo: {
+      flex: 1,
+    },
+
+    titleRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: getResponsiveValue(SPACING.xs, screenType),
+      marginBottom: getResponsiveValue(SPACING.xs, screenType),
+    },
+
+    title: {
+      fontSize: getResponsiveValue(
+        { mobile: 18, tablet: 20, desktop: 22 },
+        screenType
+      ),
+      fontWeight: '700' as const,
+      color: COLORS.text.primary,
+    },
+
+    realtimeBadge: {
+      width: getResponsiveValue({ mobile: 8, tablet: 9, desktop: 10 }, screenType),
+      height: getResponsiveValue({ mobile: 8, tablet: 9, desktop: 10 }, screenType),
+      borderRadius: getResponsiveValue({ mobile: 4, tablet: 4.5, desktop: 5 }, screenType),
+      backgroundColor: COLORS.success,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+
+    realtimeDot: {
+      width: getResponsiveValue({ mobile: 4, tablet: 4.5, desktop: 5 }, screenType),
+      height: getResponsiveValue({ mobile: 4, tablet: 4.5, desktop: 5 }, screenType),
+      borderRadius: getResponsiveValue({ mobile: 2, tablet: 2.25, desktop: 2.5 }, screenType),
+      backgroundColor: COLORS.surface,
+    },
+
+    restaurantName: {
+      fontSize: getResponsiveValue(
+        { mobile: 16, tablet: 17, desktop: 18 },
+        screenType
+      ),
+      color: COLORS.text.secondary,
+      marginBottom: getResponsiveValue(SPACING.xs, screenType),
+    },
+
+    orderTime: {
+      fontSize: getResponsiveValue(
+        { mobile: 14, tablet: 15, desktop: 16 },
+        screenType
+      ),
+      color: COLORS.text.secondary,
+    },
+
+    statusContainer: {
+      alignItems: screenType === 'mobile' ? 'flex-start' as const : 'flex-end' as const,
+      marginTop: screenType === 'mobile' ? getResponsiveValue(SPACING.xs, screenType) : 0,
+    },
+
+    details: {
+      flexDirection: screenType === 'mobile' ? 'column' as const : 'row' as const,
+      flexWrap: 'wrap' as const,
+      gap: getResponsiveValue(SPACING.sm, screenType),
+      marginBottom: displayInfo.isActive && item.waiting_time ? getResponsiveValue(SPACING.sm, screenType) : getResponsiveValue(SPACING.md, screenType),
+    },
+
+    detailItem: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: getResponsiveValue(SPACING.xs, screenType),
+    },
+
+    detailText: {
+      fontSize: getResponsiveValue(
+        { mobile: 14, tablet: 15, desktop: 16 },
+        screenType
+      ),
+      color: COLORS.text.secondary,
+    },
+
+    waitingTime: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      marginBottom: getResponsiveValue(SPACING.sm, screenType),
+      gap: getResponsiveValue(SPACING.xs, screenType),
+      backgroundColor: COLORS.warning + '10',
+      padding: getResponsiveValue(SPACING.sm, screenType),
+      borderRadius: BORDER_RADIUS.md,
+    },
+
+    waitingTimeText: {
+      fontSize: getResponsiveValue(
+        { mobile: 14, tablet: 15, desktop: 16 },
+        screenType
+      ),
+      color: COLORS.warning,
+      fontWeight: '500' as const,
+    },
+
+    action: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'space-between' as const,
+      paddingTop: getResponsiveValue(SPACING.md, screenType),
+      borderTopWidth: 1,
+      borderTopColor: COLORS.border.light,
+    },
+
+    actionText: {
+      fontSize: getResponsiveValue(
+        { mobile: 16, tablet: 17, desktop: 18 },
+        screenType
+      ),
+      color: COLORS.primary,
+      fontWeight: '500' as const,
+    },
+  };
+
+  const iconSize = getResponsiveValue(
+    { mobile: 16, tablet: 17, desktop: 18 },
+    screenType
+  );
+
+  const chevronSize = getResponsiveValue(
+    { mobile: 20, tablet: 22, desktop: 24 },
+    screenType
+  );
+
   return (
-    <Pressable onPress={handlePress}>
-      <Card style={[
-        styles.orderCard,
-        displayInfo.isActive && styles.activeOrderCard,
-        isRealtime && displayInfo.isActive && styles.realtimeOrderCard,
-      ]}>
-        {/* En-tête de la commande */}
-        <View style={styles.orderHeader}>
+    <Pressable 
+      onPress={handlePress}
+      android_ripple={{ 
+        color: COLORS.primary + '10',
+        borderless: false 
+      }}
+    >
+      <Card style={styles.card}>
+        <View style={styles.header}>
           <View style={styles.orderInfo}>
-            <View style={styles.orderTitleRow}>
-              <Text style={styles.orderTitle}>{displayInfo.title}</Text>
+            <View style={styles.titleRow}>
+              <Text style={styles.title}>{displayInfo.title}</Text>
               {isRealtime && displayInfo.isActive && (
                 <View style={styles.realtimeBadge}>
                   <View style={styles.realtimeDot} />
@@ -138,14 +340,15 @@ const OrderCard = React.memo(({
               {displayInfo.isToday ? `Aujourd'hui à ${displayInfo.time}` : displayInfo.date}
             </Text>
           </View>
-          <StatusBadge status={item.status} />
+          <View style={styles.statusContainer}>
+            <StatusBadge status={item.status} />
+          </View>
         </View>
 
-        {/* Détails */}
-        <View style={styles.orderDetails}>
+        <View style={styles.details}>
           {item.table_number && (
             <View style={styles.detailItem}>
-              <Ionicons name="restaurant-outline" size={16} color="#666" />
+              <Ionicons name="restaurant-outline" size={iconSize} color={COLORS.text.secondary} />
               <Text style={styles.detailText}>Table {item.table_number}</Text>
             </View>
           )}
@@ -153,8 +356,8 @@ const OrderCard = React.memo(({
           <View style={styles.detailItem}>
             <Ionicons 
               name={item.order_type === 'dine_in' ? "restaurant" : "bag"} 
-              size={16} 
-              color="#666" 
+              size={iconSize} 
+              color={COLORS.text.secondary} 
             />
             <Text style={styles.detailText}>
               {item.order_type === 'dine_in' ? 'Sur place' : 'À emporter'}
@@ -164,12 +367,12 @@ const OrderCard = React.memo(({
           <View style={styles.detailItem}>
             <Ionicons 
               name={item.payment_status === 'paid' ? "checkmark-circle" : "time"} 
-              size={16} 
-              color={item.payment_status === 'paid' ? "#10B981" : "#FF9500"} 
+              size={iconSize} 
+              color={item.payment_status === 'paid' ? COLORS.success : COLORS.warning} 
             />
             <Text style={[
               styles.detailText,
-              { color: item.payment_status === 'paid' ? "#10B981" : "#FF9500" }
+              { color: item.payment_status === 'paid' ? COLORS.success : COLORS.warning }
             ]}>
               {item.payment_status === 'paid' ? 'Payé' : 'Paiement en attente'}
             </Text>
@@ -179,7 +382,7 @@ const OrderCard = React.memo(({
         {/* Temps d'attente pour commandes actives */}
         {displayInfo.isActive && item.waiting_time && (
           <View style={styles.waitingTime}>
-            <Ionicons name="time-outline" size={16} color="#FF9500" />
+            <Ionicons name="time-outline" size={iconSize} color={COLORS.warning} />
             <Text style={styles.waitingTimeText}>
               Temps d'attente estimé : {item.waiting_time} min
             </Text>
@@ -187,9 +390,9 @@ const OrderCard = React.memo(({
         )}
 
         {/* Action */}
-        <View style={styles.orderAction}>
+        <View style={styles.action}>
           <Text style={styles.actionText}>Voir le récapitulatif</Text>
-          <Ionicons name="chevron-forward" size={20} color="#007AFF" />
+          <Ionicons name="chevron-forward" size={chevronSize} color={COLORS.primary} />
         </View>
       </Card>
     </Pressable>
@@ -197,7 +400,7 @@ const OrderCard = React.memo(({
 });
 
 // État vide avec QR Access
-const EmptyState = React.memo(() => {
+const EmptyState = React.memo(({ screenType }: { screenType: 'mobile' | 'tablet' | 'desktop' }) => {
   const handleQRSuccess = useCallback((restaurantId: string, tableNumber?: string) => {
     const params: Record<string, string> = {};
     if (tableNumber) {
@@ -210,11 +413,61 @@ const EmptyState = React.memo(() => {
     });
   }, []);
 
+  const styles = {
+    container: {
+      flex: 1,
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+      padding: getResponsiveValue(
+        { mobile: 32, tablet: 48, desktop: 64 },
+        screenType
+      ),
+    },
+
+    title: {
+      fontSize: getResponsiveValue(
+        { mobile: 24, tablet: 28, desktop: 32 },
+        screenType
+      ),
+      fontWeight: '700' as const,
+      color: COLORS.text.primary,
+      marginTop: getResponsiveValue(SPACING.lg, screenType),
+      marginBottom: getResponsiveValue(SPACING.sm, screenType),
+      textAlign: 'center' as const,
+    },
+
+    message: {
+      fontSize: getResponsiveValue(
+        { mobile: 16, tablet: 18, desktop: 20 },
+        screenType
+      ),
+      color: COLORS.text.secondary,
+      textAlign: 'center' as const,
+      lineHeight: getResponsiveValue(
+        { mobile: 24, tablet: 26, desktop: 28 },
+        screenType
+      ),
+      marginBottom: getResponsiveValue(SPACING.xl, screenType),
+    },
+
+    qrContainer: {
+      width: '100%',
+      maxWidth: getResponsiveValue(
+        { mobile: 400, tablet: 500, desktop: 600 },
+        screenType
+      ),
+    },
+  };
+
   return (
-    <View style={styles.emptyContainer}>
-      <Ionicons name="receipt-outline" size={80} color="#ddd" />
-      <Text style={styles.emptyTitle}>Aucune commande en cours</Text>
-      <Text style={styles.emptyMessage}>
+    <View style={styles.container}>
+      <Ionicons 
+        name="receipt-outline" 
+        size={getResponsiveValue({ mobile: 80, tablet: 100, desktop: 120 }, screenType)} 
+        color={COLORS.text.light} 
+      />
+      <Text style={styles.title}>Aucune commande en cours</Text>
+      <Text style={styles.message}>
         Scannez le QR code de votre table pour passer votre première commande
       </Text>
       
@@ -235,7 +488,8 @@ const ActiveOrdersSection = React.memo(({
   orders, 
   onRefresh, 
   isLoading,
-  realtimeState
+  realtimeState,
+  screenType
 }: { 
   orders: OrderList[]; 
   onRefresh: () => void;
@@ -245,6 +499,7 @@ const ActiveOrdersSection = React.memo(({
     activeOrdersCount: number;
     lastUpdateTime?: Date;
   };
+  screenType: 'mobile' | 'tablet' | 'desktop';
 }) => {
   const activeOrders = orders.filter(o => 
     ['pending', 'confirmed', 'preparing', 'ready'].includes(o.status)
@@ -252,51 +507,126 @@ const ActiveOrdersSection = React.memo(({
 
   if (activeOrders.length === 0) return null;
 
+  const styles = {
+    section: {
+      marginBottom: getResponsiveValue(SPACING.xl, screenType),
+    },
+
+    header: {
+      flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
+      alignItems: 'center' as const,
+      marginBottom: getResponsiveValue(SPACING.md, screenType),
+      paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
+    },
+
+    titleContainer: {
+      flex: 1,
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: getResponsiveValue(SPACING.sm, screenType),
+    },
+
+    title: {
+      fontSize: getResponsiveValue(
+        { mobile: 18, tablet: 22, desktop: 26 },
+        screenType
+      ),
+      fontWeight: '700' as const,
+      color: COLORS.text.primary,
+    },
+
+    refreshButton: {
+      padding: getResponsiveValue(SPACING.xs, screenType),
+    },
+  };
+
+  const refreshIconSize = getResponsiveValue(
+    { mobile: 20, tablet: 22, desktop: 24 },
+    screenType
+  );
+
   return (
     <View style={styles.section}>
-      <View style={styles.sectionHeader}>
-        <View style={styles.sectionTitleContainer}>
-          <Text style={styles.sectionTitle}>Commandes en cours</Text>
+      <View style={styles.header}>
+        <View style={styles.titleContainer}>
+          <Text style={styles.title}>Commandes en cours</Text>
           {realtimeState && (
             <RealtimeIndicator 
               connectionState={realtimeState.connectionState}
               activeOrdersCount={realtimeState.activeOrdersCount}
               lastUpdateTime={realtimeState.lastUpdateTime}
+              screenType={screenType}
             />
           )}
         </View>
-        <Pressable onPress={onRefresh} disabled={isLoading}>
+        <Pressable 
+          style={styles.refreshButton}
+          onPress={onRefresh} 
+          disabled={isLoading}
+          android_ripple={{ 
+            color: COLORS.primary + '20',
+            borderless: true 
+          }}
+        >
           <Ionicons 
             name="refresh" 
-            size={20} 
-            color={isLoading ? "#ccc" : "#007AFF"} 
+            size={refreshIconSize} 
+            color={isLoading ? COLORS.text.light : COLORS.primary} 
           />
         </Pressable>
       </View>
       {activeOrders.map(order => (
-        <OrderCard 
-          key={order.id} 
-          item={order} 
-          isRealtime={realtimeState?.connectionState === 'connected'}
-        />
+        <View key={order.id} style={{ paddingHorizontal: getResponsiveValue(SPACING.container, screenType) }}>
+          <OrderCard 
+            item={order} 
+            isRealtime={realtimeState?.connectionState === 'connected'}
+            screenType={screenType}
+          />
+        </View>
       ))}
     </View>
   );
 });
 
 // Section historique
-const HistorySection = React.memo(({ orders }: { orders: OrderList[] }) => {
+const HistorySection = React.memo(({ 
+  orders, 
+  screenType 
+}: { 
+  orders: OrderList[];
+  screenType: 'mobile' | 'tablet' | 'desktop';
+}) => {
   const historyOrders = orders.filter(o => 
     ['served', 'cancelled'].includes(o.status)
   ).slice(0, 5);
 
   if (historyOrders.length === 0) return null;
 
+  const styles = {
+    section: {
+      marginBottom: getResponsiveValue(SPACING.xl, screenType),
+    },
+
+    title: {
+      fontSize: getResponsiveValue(
+        { mobile: 18, tablet: 22, desktop: 26 },
+        screenType
+      ),
+      fontWeight: '700' as const,
+      color: COLORS.text.primary,
+      marginBottom: getResponsiveValue(SPACING.md, screenType),
+      paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
+    },
+  };
+
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Historique récent</Text>
+      <Text style={styles.title}>Historique récent</Text>
       {historyOrders.map(order => (
-        <OrderCard key={order.id} item={order} />
+        <View key={order.id} style={{ paddingHorizontal: getResponsiveValue(SPACING.container, screenType) }}>
+          <OrderCard item={order} screenType={screenType} />
+        </View>
       ))}
     </View>
   );
@@ -304,7 +634,7 @@ const HistorySection = React.memo(({ orders }: { orders: OrderList[] }) => {
 
 // Composant principal
 export default function ClientOrdersScreen() {
-  const { isClient, isAuthenticated, user } = useAuth(); // ✅ Récupération des bonnes propriétés
+  const { isClient, isAuthenticated } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   
   const {
@@ -313,6 +643,9 @@ export default function ClientOrdersScreen() {
     error,
     fetchOrders,
   } = useClientOrders();
+
+  const screenType = useScreenType();
+  const { width } = useWindowDimensions();
 
   // Hook temps réel
   const realtimeState = useOrderRealtime(orders, fetchOrders, {
@@ -338,10 +671,118 @@ export default function ClientOrdersScreen() {
   // Auto-refresh pour commandes actives
   useAutoRefresh(hasActiveOrders, handleRefresh, realtimeState.isConnected);
 
+  // Configuration responsive
+  const layoutConfig = {
+    containerPadding: getResponsiveValue(SPACING.container, screenType),
+    maxContentWidth: screenType === 'desktop' ? 1000 : undefined,
+    useGridLayout: screenType === 'desktop' && width > 1200,
+  };
+
+  const styles = {
+    container: {
+      flex: 1,
+      backgroundColor: COLORS.background,
+    },
+
+    content: {
+      maxWidth: layoutConfig.maxContentWidth,
+      alignSelf: 'center' as const,
+      width: '100%' as const,
+    },
+
+    errorContainer: {
+      flex: 1,
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+      padding: getResponsiveValue(
+        { mobile: 40, tablet: 60, desktop: 80 },
+        screenType
+      ),
+    },
+
+    errorText: {
+      fontSize: getResponsiveValue(
+        { mobile: 16, tablet: 18, desktop: 20 },
+        screenType
+      ),
+      color: COLORS.text.secondary,
+      marginTop: getResponsiveValue(SPACING.md, screenType),
+      textAlign: 'center' as const,
+    },
+
+    errorBanner: {
+      backgroundColor: COLORS.error + '10',
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      padding: getResponsiveValue(SPACING.sm, screenType),
+      margin: getResponsiveValue(SPACING.md, screenType),
+      borderRadius: BORDER_RADIUS.lg,
+      borderWidth: 1,
+      borderColor: COLORS.error + '30',
+      maxWidth: layoutConfig.maxContentWidth,
+      alignSelf: 'center' as const,
+      width: '100%' as const,
+    },
+
+    errorBannerText: {
+      color: COLORS.error,
+      fontSize: getResponsiveValue(
+        { mobile: 14, tablet: 15, desktop: 16 },
+        screenType
+      ),
+      marginLeft: getResponsiveValue(SPACING.xs, screenType),
+      flex: 1,
+    },
+
+    warningBanner: {
+      backgroundColor: COLORS.warning + '10',
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      padding: getResponsiveValue(SPACING.sm, screenType),
+      margin: getResponsiveValue(SPACING.md, screenType),
+      borderRadius: BORDER_RADIUS.lg,
+      borderWidth: 1,
+      borderColor: COLORS.warning + '30',
+      maxWidth: layoutConfig.maxContentWidth,
+      alignSelf: 'center' as const,
+      width: '100%' as const,
+    },
+
+    warningBannerText: {
+      color: COLORS.warning,
+      fontSize: getResponsiveValue(
+        { mobile: 14, tablet: 15, desktop: 16 },
+        screenType
+      ),
+      marginLeft: getResponsiveValue(SPACING.xs, screenType),
+      flex: 1,
+    },
+
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+      padding: getResponsiveValue(
+        { mobile: 40, tablet: 60, desktop: 80 },
+        screenType
+      ),
+    },
+
+    loadingText: {
+      marginTop: getResponsiveValue(SPACING.md, screenType),
+      fontSize: getResponsiveValue(
+        { mobile: 16, tablet: 18, desktop: 20 },
+        screenType
+      ),
+      color: COLORS.text.secondary,
+      textAlign: 'center' as const,
+    },
+  };
+
   // Rendu du contenu principal
   const renderContent = useCallback(() => {
     if (orders.length === 0 && !isLoading) {
-      return <EmptyState />;
+      return <EmptyState screenType={screenType} />;
     }
 
     return (
@@ -354,8 +795,12 @@ export default function ClientOrdersScreen() {
               onRefresh={handleRefresh}
               isLoading={refreshing}
               realtimeState={realtimeState}
+              screenType={screenType}
             />
-            <HistorySection orders={orders} />
+            <HistorySection 
+              orders={orders}
+              screenType={screenType}
+            />
           </View>
         )}
         keyExtractor={() => 'content'}
@@ -363,14 +808,15 @@ export default function ClientOrdersScreen() {
           <RefreshControl 
             refreshing={refreshing} 
             onRefresh={handleRefresh}
-            colors={['#FF6B35']}
-            tintColor="#FF6B35"
+            colors={[COLORS.primary]}
+            tintColor={COLORS.primary}
           />
         }
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ flexGrow: 1 }}
       />
     );
-  }, [orders, isLoading, refreshing, handleRefresh, realtimeState]);
+  }, [orders, isLoading, refreshing, handleRefresh, realtimeState, screenType, styles.content]);
 
   // Gestion des erreurs d'accès
   if (!isClient) {
@@ -378,7 +824,11 @@ export default function ClientOrdersScreen() {
       <SafeAreaView style={styles.container}>
         <Header title="Mes commandes" />
         <View style={styles.errorContainer}>
-          <Ionicons name="lock-closed-outline" size={48} color="#666" />
+          <Ionicons 
+            name="lock-closed-outline" 
+            size={getResponsiveValue({ mobile: 48, tablet: 56, desktop: 64 }, screenType)} 
+            color={COLORS.text.secondary} 
+          />
           <Text style={styles.errorText}>Accès réservé aux clients</Text>
         </View>
       </SafeAreaView>
@@ -392,7 +842,11 @@ export default function ClientOrdersScreen() {
       {/* Bannière d'erreur */}
       {error && (
         <View style={styles.errorBanner}>
-          <Ionicons name="warning" size={16} color="#DC2626" />
+          <Ionicons 
+            name="warning" 
+            size={getResponsiveValue({ mobile: 16, tablet: 18, desktop: 20 }, screenType)} 
+            color={COLORS.error} 
+          />
           <Text style={styles.errorBannerText}>{error}</Text>
         </View>
       )}
@@ -400,7 +854,11 @@ export default function ClientOrdersScreen() {
       {/* Bannière d'avertissement si temps réel échoue */}
       {realtimeState.connectionState === 'error' && realtimeState.activeOrdersCount > 0 && (
         <View style={styles.warningBanner}>
-          <Ionicons name="cloud-offline" size={16} color="#FF9500" />
+          <Ionicons 
+            name="cloud-offline" 
+            size={getResponsiveValue({ mobile: 16, tablet: 18, desktop: 20 }, screenType)} 
+            color={COLORS.warning} 
+          />
           <Text style={styles.warningBannerText}>
             Notifications temps réel indisponibles. Tirez pour actualiser.
           </Text>
@@ -413,248 +871,13 @@ export default function ClientOrdersScreen() {
       {/* Indicateur de chargement initial */}
       {isLoading && orders.length === 0 && (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF6B35" />
+          <ActivityIndicator 
+            size="large" 
+            color={COLORS.primary} 
+          />
           <Text style={styles.loadingText}>Chargement de vos commandes...</Text>
         </View>
       )}
     </SafeAreaView>
   );
 }
-
-// ✅ Styles (identiques mais organisés)
-const styles = {
-  container: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
-  },
-  content: {
-    padding: 16,
-  },
-  
-  // Sections
-  section: {
-    marginBottom: 24,
-  },
-  sectionHeader: {
-    flexDirection: 'row' as const,
-    justifyContent: 'space-between' as const,
-    alignItems: 'center' as const,
-    marginBottom: 16,
-  },
-  sectionTitleContainer: {
-    flex: 1,
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 12,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold' as const,
-    color: '#333',
-  },
-
-  // Temps réel
-  realTimeIndicator: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    backgroundColor: '#F8F9FA',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  realTimeText: {
-    fontSize: 11,
-    fontWeight: '500' as const,
-  },
-  lastUpdateText: {
-    fontSize: 10,
-    color: '#9CA3AF',
-    marginLeft: 4,
-  },
-
-  // Cartes de commande
-  orderCard: {
-    marginBottom: 16,
-    padding: 20,
-  },
-  activeOrderCard: {
-    borderLeftWidth: 4,
-    borderLeftColor: '#FF6B35',
-  },
-  realtimeOrderCard: {
-    borderColor: '#10B981',
-    borderWidth: 1,
-  },
-  orderHeader: {
-    flexDirection: 'row' as const,
-    justifyContent: 'space-between' as const,
-    alignItems: 'flex-start' as const,
-    marginBottom: 16,
-  },
-  orderInfo: {
-    flex: 1,
-  },
-  orderTitleRow: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 8,
-  },
-  orderTitle: {
-    fontSize: 18,
-    fontWeight: 'bold' as const,
-    color: '#333',
-    marginBottom: 4,
-  },
-  realtimeBadge: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#10B981',
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-  },
-  realtimeDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#fff',
-  },
-  restaurantName: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 8,
-  },
-  orderTime: {
-    fontSize: 14,
-    color: '#666',
-  },
-
-  // Détails
-  orderDetails: {
-    flexDirection: 'row' as const,
-    flexWrap: 'wrap' as const,
-    gap: 16,
-    marginBottom: 16,
-  },
-  detailItem: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 6,
-  },
-  detailText: {
-    fontSize: 14,
-    color: '#666',
-  },
-
-  // Temps d'attente
-  waitingTime: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    marginBottom: 12,
-    gap: 6,
-  },
-  waitingTimeText: {
-    fontSize: 14,
-    color: '#FF9500',
-    fontWeight: '500' as const,
-  },
-
-  // Action
-  orderAction: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    justifyContent: 'space-between' as const,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-  },
-  actionText: {
-    fontSize: 16,
-    color: '#007AFF',
-    fontWeight: '500' as const,
-  },
-
-  // États
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
-    padding: 32,
-  },
-  emptyTitle: {
-    fontSize: 24,
-    fontWeight: 'bold' as const,
-    color: '#333',
-    marginTop: 24,
-    marginBottom: 12,
-    textAlign: 'center' as const,
-  },
-  emptyMessage: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center' as const,
-    lineHeight: 24,
-    marginBottom: 32,
-  },
-  qrContainer: {
-    width: '100%',
-    maxWidth: 400,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
-    padding: 40,
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#666',
-    marginTop: 16,
-  },
-  errorBanner: {
-    backgroundColor: '#FEF2F2',
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    padding: 12,
-    margin: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#FCA5A5',
-  },
-  errorBannerText: {
-    color: '#DC2626',
-    fontSize: 14,
-    marginLeft: 8,
-    flex: 1,
-  },
-  warningBanner: {
-    backgroundColor: '#FFF7ED',
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    padding: 12,
-    margin: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#FED7AA',
-  },
-  warningBannerText: {
-    color: '#FF9500',
-    fontSize: 14,
-    marginLeft: 8,
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666',
-  },
-};
