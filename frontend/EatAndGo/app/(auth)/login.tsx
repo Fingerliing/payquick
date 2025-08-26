@@ -40,7 +40,7 @@ export default function LoginScreen() {
   const [errors, setErrors] = useState<Partial<LoginFormData>>({});
   
   const { login } = useAuth();
-  const { isMobile, isTablet, getSpacing, getFontSize } = useResponsive();
+  const { isMobile, isTablet, isSmallScreen, getSpacing, getFontSize, getResponsiveValue } = useResponsive();
   const insets = useSafeAreaInsets();
 
   // ✅ VALIDATION AMÉLIORÉE
@@ -131,49 +131,82 @@ export default function LoginScreen() {
     
     header: {
       height: getSpacing(
-        Math.min(screenHeight * 0.2, 160), // Mobile - réduit significativement
-        Math.min(screenHeight * 0.18, 140), // Tablette
-        Math.min(screenHeight * 0.15, 120)  // Grande tablette
+        Math.min(screenHeight * 0.20, 160),
+        Math.min(screenHeight * 0.22, 180),
+        Math.min(screenHeight * 0.22, 180)
       ),
-      justifyContent: 'center' as const,
-      paddingHorizontal: getSpacing(SPACING.lg, SPACING.xl),
       position: 'relative' as const,
-      backgroundColor: '#1E2A78',
+      overflow: 'hidden' as const,
     },
-    
     headerGradient: {
       position: 'absolute' as const,
-      left: 0,
-      right: 0,
-      top: 0,
-      bottom: 0,
+      left: 0, right: 0, top: 0, bottom: 0,
     },
-    
-    logoContainer: {
+    headerPattern: {
+      position: 'absolute' as const,
+      right: getResponsiveValue(-40, -50, -60),
+      top: getResponsiveValue(-20, -25, -30),
+      width: getResponsiveValue(120, 150, 180),
+      height: getResponsiveValue(120, 150, 180),
+      borderRadius: getResponsiveValue(60, 75, 90),
+      backgroundColor: 'rgba(212, 175, 55, 0.1)',
+      transform: [{ rotate: '45deg' }],
+    },
+    headerPattern2: {
+      position: 'absolute' as const,
+      left: getResponsiveValue(-40, -50, -60),
+      bottom: getResponsiveValue(-30, -35, -40),
+      width: getResponsiveValue(100, 120, 140),
+      height: getResponsiveValue(100, 120, 140),
+      borderRadius: getResponsiveValue(50, 60, 70),
+      backgroundColor: 'rgba(255, 255, 255, 0.08)',
+      transform: [{ rotate: '30deg' }],
+    },
+    backButton: {
+      position: 'absolute' as const,
+      top: getSpacing(SPACING.md, SPACING.lg),
+      left: getSpacing(SPACING.lg, SPACING.xl),
+      width: 44,
+      height: 44,
+      borderRadius: RADIUS.full,
+      backgroundColor: 'rgba(255, 255, 255, 0.25)',
       alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      zIndex: 10,
+      shadowColor: 'rgba(0, 0, 0, 0.2)',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 1,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    headerContent: {
+      flex: 1,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      paddingHorizontal: getSpacing(SPACING.lg, SPACING.xl),
+      paddingTop: getSpacing(SPACING.md, SPACING.lg),
       zIndex: 1,
     },
     
     logoImageContainer: {
-      width: getSpacing(60, 70, 80),
-      height: getSpacing(60, 70, 80),
-      borderRadius: getSpacing(30, 35, 40),
+      width: getResponsiveValue(64, 72, 80),
+      height: getResponsiveValue(64, 72, 80),
+      borderRadius: RADIUS.full,
       backgroundColor: 'rgba(255, 255, 255, 0.95)',
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.1,
-      shadowRadius: 8,
-      elevation: 4,
       borderWidth: 2,
-      borderColor: '#FFC845',
+      borderColor: COLORS.secondary,
+      shadowColor: COLORS.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 6,
     },
-    
     logoImage: {
-      width: getSpacing(40, 46, 52),
-      height: getSpacing(40, 46, 52),
-      borderRadius: getSpacing(20, 23, 26),
+      width: getResponsiveValue(40, 44, 48),
+      height: getResponsiveValue(40, 44, 48),
+      borderRadius: RADIUS.full,
     },
     
     logoFallback: {
@@ -183,6 +216,24 @@ export default function LoginScreen() {
       backgroundColor: '#1E2A78',
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
+    },
+
+    headerTitle: {
+      fontSize: getFontSize(TYPOGRAPHY.fontSize['2xl'], TYPOGRAPHY.fontSize['3xl'], TYPOGRAPHY.fontSize['4xl']),
+      fontWeight: TYPOGRAPHY.fontWeight.bold,
+      color: COLORS.text.inverse,
+      textAlign: 'center' as const,
+      marginBottom: getSpacing(SPACING.xs, SPACING.sm),
+      textShadowColor: 'rgba(0, 0, 0, 0.3)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 3,
+    },
+    headerSubtitle: {
+      fontSize: getFontSize(TYPOGRAPHY.fontSize.sm, TYPOGRAPHY.fontSize.base),
+      fontWeight: TYPOGRAPHY.fontWeight.normal,
+      color: 'rgba(255, 255, 255, 0.9)',
+      textAlign: 'center' as const,
+      paddingHorizontal: getSpacing(SPACING.sm, SPACING.md),
     },
     
     scrollViewContainer: {
@@ -248,7 +299,7 @@ export default function LoginScreen() {
     
     forgotPassword: {
       fontSize: getFontSize(14, 15, 16),
-      color: '#FFC845',
+      color: COLORS.secondary,
       textAlign: 'center' as const,
       marginTop: SPACING.sm,
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
@@ -273,7 +324,7 @@ export default function LoginScreen() {
     
     registerLink: {
       fontSize: getFontSize(15, 16, 18),
-      color: '#FFC845',
+      color: COLORS.secondary,
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
       textAlign: 'center' as const,
       paddingVertical: SPACING.sm,
@@ -293,26 +344,41 @@ export default function LoginScreen() {
         translucent={false}
       />
       
-      {/* ✅ HEADER AVEC GRADIENT BLEU ET LOGO UNIQUEMENT */}
+      {/* HEADER AVEC LOGO */}
       <View style={styles.header}>
         <LinearGradient
-          colors={['#1E2A78', '#2563EB', '#3B82F6']}
+          colors={['#1E2A78', '#2D3E8F', '#3B4BA3']}
           style={styles.headerGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         />
-        
-        <View style={styles.logoContainer}>
+
+        {/* Motifs décoratifs */}
+        <View style={styles.headerPattern} />
+        <View style={styles.headerPattern2} />
+
+        {/* Back (optionnel) */}
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => router.back()}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+
+        {/* Contenu centré */}
+        <View style={styles.headerContent}>
           <View style={styles.logoImageContainer}>
-            <Image 
-              source={APP_LOGO}
-              style={styles.logoImage}
-              resizeMode="contain"
-              onError={() => {
-                console.log('Logo loading failed, using fallback');
-              }}
-            />
+            <View style={styles.logoImageContainer}>
+              <Image 
+                source={APP_LOGO}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
+            </View>
           </View>
+          <Text style={styles.headerTitle}>Ravis de vous voir</Text>
+          <Text style={styles.headerSubtitle}>Connectez-vous pour continuer</Text>
         </View>
       </View>
 
@@ -422,7 +488,7 @@ export default function LoginScreen() {
                 loading={loading}
                 disabled={loading || !formData.email.trim() || !formData.password}
                 variant="primary"
-                size="lg"
+                size={isSmallScreen ? 'sm' : (isMobile ? 'md' : 'lg')}
                 fullWidth
                 style={styles.submitButton}
               />
