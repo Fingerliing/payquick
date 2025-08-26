@@ -69,20 +69,64 @@ export default function LoginScreen() {
   // ✅ GESTION DES ERREURS AMÉLIORÉE
   const handleLoginError = (error: any) => {
     console.error('Login error:', error);
-    
-    if (error.message?.includes('401')) {
-      setErrors({ email: 'Email ou mot de passe incorrect' });
-    } else if (error.message?.includes('network')) {
-      Alert.alert('Erreur de connexion', 'Vérifiez votre connexion internet');
-    } else {
-      Alert.alert('Erreur', error.message || 'Une erreur est survenue');
+  
+    const status = error?.response?.status ?? error?.status;
+    const code = error?.response?.data?.code ?? error?.code;
+    const serverMessage = String(
+      error?.response?.data?.message ?? error?.message ?? ''
+    ).toLowerCase();
+  
+    const show = (title: string, msg: string) => Alert.alert(title, msg);
+  
+    // 👤 Aucun utilisateur avec cet email
+    if (
+      status === 404 ||
+      code === 'USER_NOT_FOUND' ||
+      /user.*not.*found|no.*user|aucun.*utilisateur|unknown.*user/.test(serverMessage)
+    ) {
+      setErrors(prev => ({ ...prev, email: 'Aucun utilisateur avec cet email' }));
+      show('Email inconnu', 'Aucun utilisateur avec cet email');
+      return;
     }
+  
+    // 🔒 Mauvais mot de passe
+    if (
+      status === 401 || status === 400 ||
+      code === 'INVALID_PASSWORD' || code === 'INVALID_CREDENTIALS' ||
+      /wrong.*password|invalid.*password|bad.*credentials|mot.*de.*passe.*(incorrect|invalide|erron)/.test(serverMessage)
+    ) {
+      setErrors(prev => ({ ...prev, password: 'Mot de passe incorrect' }));
+      show('Mot de passe incorrect', 'Veuillez vérifier votre mot de passe.');
+      return;
+    }
+  
+    // ⏱️ Trop de tentatives
+    if (status === 429 || code === 'RATE_LIMITED') {
+      show('Trop de tentatives', 'Réessayez dans quelques instants.');
+      return;
+    }
+  
+    // 🌐 Problème réseau
+    if (serverMessage.includes('network') || code === 'ERR_NETWORK') {
+      show('Erreur de connexion', 'Vérifiez votre connexion internet.');
+      return;
+    }
+  
+    // 🛠️ Erreur serveur
+    if (typeof status === 'number' && status >= 500) {
+      show('Service indisponible', 'Réessayez plus tard.');
+      return;
+    }
+  
+    // 🧩 Cas non mappé
+    show('Erreur', error?.response?.data?.message || error?.message || 'Une erreur est survenue');
   };
 
   // ✅ SOUMISSION AVEC FEEDBACK AMÉLIORÉ
   const handleSubmit = useCallback(async () => {
     if (!validateForm()) return;
     
+    setErrors({});
     setLoading(true);
     try {
       await login({

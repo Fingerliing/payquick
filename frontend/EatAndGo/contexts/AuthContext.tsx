@@ -144,7 +144,17 @@ class ApiClient {
         console.error(`❌ API Error ${response.status}:`, errorData);
         
         // Créer une erreur structurée
-        const error = new Error(this.getErrorMessage(response.status, errorData));
+        const method = String(config.method || 'GET').toUpperCase();
+        const isLoginCall = endpoint === API_ENDPOINTS.auth.login && method === 'POST';
+        
+        let message = this.getErrorMessage(response.status, errorData);
+        
+        // Si appel login → garder "Identifiants invalides." (ou message serveur)
+        if (response.status === 401 && isLoginCall) {
+          message = errorData?.detail || errorData?.message || 'Identifiants invalides.';
+        }
+        
+        const error = new Error(message);
         (error as any).code = response.status;
         (error as any).response = { status: response.status, data: errorData };
         throw error;
@@ -296,7 +306,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         errorMessage = 'Vous n\'avez pas les permissions nécessaires';
       }
     } else if (error.code === 401) {
-      errorMessage = 'Votre session a expiré, veuillez vous reconnecter';
+      if (context === 'login') {
+        // garder le message du backend si présent
+        errorMessage = error?.response?.data?.detail || error?.response?.data?.message || 'Identifiants invalides.';
+      } else {
+        errorMessage = 'Votre session a expiré, veuillez vous reconnecter';
+      }
     } else if (error.message) {
       errorMessage = error.message;
     }
@@ -479,7 +494,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error: any) {
       console.error('❌ Erreur lors de la connexion:', error);
       handleError(error, 'login');
-      await clearAuthData();
       throw new Error(lastError || 'Erreur lors de la connexion');
     } finally {
       setIsLoading(false);
