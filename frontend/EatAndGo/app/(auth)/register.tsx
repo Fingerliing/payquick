@@ -1,4 +1,3 @@
-// app/(auth)/register.tsx
 import React, { useState, useCallback } from 'react';
 import {
   View,
@@ -11,6 +10,7 @@ import {
   Alert,
   Image,
   Dimensions,
+  Pressable,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,98 +20,123 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
-import { COLORS, TYPOGRAPHY, SPACING } from '@/styles/tokens';
+import { COLORS, SPACING, TYPOGRAPHY, SHADOWS, RADIUS } from '@/styles/tokens';
 import { useResponsive } from '@/utils/responsive';
 
 const APP_LOGO = require('@/assets/images/logo.png');
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
+// Types correspondant au backend Django
 interface RegisterFormData {
-  firstName: string;
-  lastName: string;
-  email: string;
+  username: string; // Email utilisé comme username
   password: string;
-  confirmPassword: string;
+  nom: string; // Nom complet
+  role: 'client' | 'restaurateur';
+  telephone: string; // Pour les clients
+  siret: string; // Pour les restaurateurs
+}
+
+interface FormErrors {
+  username?: string;
+  password?: string;
+  nom?: string;
+  telephone?: string;
+  siret?: string;
+  general?: string;
 }
 
 export default function RegisterScreen() {
   const [formData, setFormData] = useState<RegisterFormData>({
-    firstName: '',
-    lastName: '',
-    email: '',
+    username: '',
     password: '',
-    confirmPassword: '',
+    nom: '',
+    role: 'client',
+    telephone: '',
+    siret: '',
   });
+  
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<Partial<RegisterFormData>>({});
+  const [errors, setErrors] = useState<FormErrors>({});
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   
   const { register } = useAuth();
-  const { isMobile, isTablet, getSpacing, getFontSize } = useResponsive();
+  const { isMobile, isTablet, isSmallScreen, getSpacing, getFontSize, getResponsiveValue } = useResponsive();
   const insets = useSafeAreaInsets();
 
-  // ✅ VALIDATION COMPLÈTE AMÉLIORÉE
+  // Validation selon les règles Django
   const validateForm = useCallback((): boolean => {
-    const newErrors: Partial<RegisterFormData> = {};
+    const newErrors: FormErrors = {};
     
-    // Validation prénom
-    if (!formData.firstName.trim()) {
-      newErrors.firstName = 'Prénom requis';
-    } else if (formData.firstName.trim().length < 2) {
-      newErrors.firstName = 'Minimum 2 caractères';
-    }
-    
-    // Validation nom
-    if (!formData.lastName.trim()) {
-      newErrors.lastName = 'Nom requis';
-    } else if (formData.lastName.trim().length < 2) {
-      newErrors.lastName = 'Minimum 2 caractères';
-    }
-    
-    // Validation email
-    const email = formData.email.trim();
+    // Validation email (username)
+    const email = formData.username.trim();
     if (!email) {
-      newErrors.email = 'Email requis';
+      newErrors.username = 'Email requis';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      newErrors.email = 'Format d\'email invalide';
+      newErrors.username = 'Format d\'email invalide';
     }
     
-    // Validation mot de passe
+    // Validation nom (minimum 2 caractères selon Django)
+    if (!formData.nom.trim()) {
+      newErrors.nom = 'Nom requis';
+    } else if (formData.nom.trim().length < 2) {
+      newErrors.nom = 'Minimum 2 caractères';
+    }
+    
+    // Validation mot de passe (minimum 8 caractères selon Django)
     if (!formData.password) {
       newErrors.password = 'Mot de passe requis';
     } else if (formData.password.length < 8) {
       newErrors.password = 'Minimum 8 caractères';
-    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
-      newErrors.password = 'Doit contenir majuscule, minuscule et chiffre';
     }
     
-    // Validation confirmation mot de passe
-    if (!formData.confirmPassword) {
-      newErrors.confirmPassword = 'Confirmation requise';
-    } else if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Les mots de passe ne correspondent pas';
+    // Validation selon le rôle
+    if (formData.role === 'client') {
+      if (!formData.telephone.trim()) {
+        newErrors.telephone = 'Téléphone requis pour les clients';
+      }
+    } else if (formData.role === 'restaurateur') {
+      if (!formData.siret.trim()) {
+        newErrors.siret = 'SIRET requis pour les restaurateurs';
+      } else if (!/^\d{14}$/.test(formData.siret.trim())) {
+        newErrors.siret = 'SIRET doit contenir exactement 14 chiffres';
+      }
     }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0 && acceptedTerms;
   }, [formData, acceptedTerms]);
 
-  // ✅ GESTION DES ERREURS AMÉLIORÉE
   const handleRegistrationError = (error: any) => {
     console.error('Registration error:', error);
     
-    if (error.message?.includes('email')) {
-      setErrors({ email: 'Cette adresse email est déjà utilisée' });
-    } else if (error.message?.includes('network')) {
-      Alert.alert('Erreur de connexion', 'Vérifiez votre connexion internet');
+    if (error.response?.data) {
+      const backendErrors = error.response.data;
+      const newErrors: FormErrors = {};
+      
+      // Mapper les erreurs du backend
+      if (backendErrors.username) {
+        newErrors.username = Array.isArray(backendErrors.username) 
+          ? backendErrors.username[0] 
+          : backendErrors.username;
+      }
+      if (backendErrors.siret) {
+        newErrors.siret = Array.isArray(backendErrors.siret) 
+          ? backendErrors.siret[0] 
+          : backendErrors.siret;
+      }
+      if (backendErrors.telephone) {
+        newErrors.telephone = Array.isArray(backendErrors.telephone) 
+          ? backendErrors.telephone[0] 
+          : backendErrors.telephone;
+      }
+      
+      setErrors(newErrors);
     } else {
       Alert.alert('Erreur', error.message || 'Une erreur est survenue lors de l\'inscription');
     }
   };
 
-  // ✅ SOUMISSION AVEC VALIDATION RENFORCÉE
   const handleSubmit = useCallback(async () => {
     if (!validateForm()) {
       if (!acceptedTerms) {
@@ -122,12 +147,14 @@ export default function RegisterScreen() {
     
     setLoading(true);
     try {
+      // Envoyer les données au format attendu par Django
       await register({
-        username: formData.email.trim().toLowerCase(),
+        username: formData.username.trim().toLowerCase(), // Email comme username
         password: formData.password,
-        nom: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
-        role: 'client',
-        telephone: '',
+        nom: formData.nom.trim(), // Nom complet
+        role: formData.role,
+        telephone: formData.role === 'client' ? formData.telephone.trim() : '',
+        siret: formData.role === 'restaurateur' ? formData.siret.trim() : '',
       });
     } catch (error: any) {
       handleRegistrationError(error);
@@ -136,57 +163,63 @@ export default function RegisterScreen() {
     }
   }, [formData, register, validateForm, acceptedTerms]);
 
-  // ✅ HELPERS POUR FORMULAIRE
   const updateFormData = useCallback((field: keyof RegisterFormData) => 
-    (value: string) => setFormData(prev => ({ ...prev, [field]: value }))
-  , []);
-
-  const clearFieldError = useCallback((field: keyof RegisterFormData) => {
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: undefined }));
+    (value: string) => {
+      setFormData(prev => ({ ...prev, [field]: value }));
+      // Clear error when user starts typing
+      if (errors[field as keyof FormErrors]) {
+        setErrors(prev => ({ ...prev, [field]: undefined }));
+      }
     }
-  }, [errors]);
+  , [errors]);
 
-  // ✅ GESTION DES CONDITIONS
-  const handleTermsPress = useCallback(() => {
-    Alert.alert('Conditions d\'utilisation', 'Les conditions d\'utilisation seront bientôt disponibles');
+  const handleRoleChange = useCallback((newRole: 'client' | 'restaurateur') => {
+    setFormData(prev => ({ 
+      ...prev, 
+      role: newRole,
+      // Clear role-specific fields when switching
+      telephone: newRole === 'restaurateur' ? '' : prev.telephone,
+      siret: newRole === 'client' ? '' : prev.siret,
+    }));
+    // Clear role-specific errors
+    setErrors(prev => ({ ...prev, telephone: undefined, siret: undefined }));
   }, []);
 
-  const handlePrivacyPress = useCallback(() => {
-    Alert.alert('Politique de confidentialité', 'La politique de confidentialité sera bientôt disponible');
-  }, []);
-
-  // ✅ VALIDATION EN TEMPS RÉEL
-  const isFormValid = formData.firstName.trim() && 
-                     formData.lastName.trim() && 
-                     formData.email.trim() && 
+  const isFormValid = formData.username.trim() && 
+                     formData.nom.trim() && 
                      formData.password && 
-                     formData.confirmPassword && 
-                     acceptedTerms;
+                     acceptedTerms &&
+                     ((formData.role === 'client' && formData.telephone.trim()) ||
+                      (formData.role === 'restaurateur' && formData.siret.trim()));
 
-  // ✅ STYLES ALIGNÉS AVEC LOGIN
+  // Utilisation du système responsive existant
+  const headerHeight = getResponsiveValue(
+    screenHeight < 700 ? 160 : Math.min(screenHeight * 0.22, 200),
+    Math.min(screenHeight * 0.30, 280),
+    Math.min(screenHeight * 0.30, 280)
+  );
+
+  // Réduction fine des paddings sur mobile
+  const roleButtonVPadMobile = isSmallScreen ? SPACING.xs : SPACING.sm;
+  const roleButtonHPadMobile = isSmallScreen ? SPACING.md : SPACING.lg;
+
+  // Styles avec votre système de design
   const styles = {
     container: {
       flex: 1,
-      backgroundColor: '#F9FAFB',
+      backgroundColor: COLORS.background,
       paddingTop: insets.top,
     },
     
     contentContainer: {
       flex: 1,
-      backgroundColor: '#F9FAFB',
+      backgroundColor: COLORS.background,
     },
     
     header: {
-      height: getSpacing(
-        Math.min(screenHeight * 0.2, 160), // Mobile - aligné avec login
-        Math.min(screenHeight * 0.18, 140), // Tablette
-        Math.min(screenHeight * 0.15, 120)  // Grande tablette
-      ),
-      justifyContent: 'center' as const,
-      paddingHorizontal: getSpacing(SPACING.lg, SPACING.xl),
+      height: headerHeight,
       position: 'relative' as const,
-      backgroundColor: '#1E2A78',
+      overflow: 'hidden' as const,
     },
     
     headerGradient: {
@@ -197,126 +230,221 @@ export default function RegisterScreen() {
       bottom: 0,
     },
     
+    headerPattern: {
+      position: 'absolute' as const,
+      right: getResponsiveValue(-40, -50, -60),
+      top: getResponsiveValue(-20, -25, -30),
+      width: getResponsiveValue(120, 150, 180),
+      height: getResponsiveValue(120, 150, 180),
+      borderRadius: getResponsiveValue(60, 75, 90),
+      backgroundColor: 'rgba(212, 175, 55, 0.1)',
+      transform: [{ rotate: '45deg' }],
+    },
+    
+    headerPattern2: {
+      position: 'absolute' as const,
+      left: getResponsiveValue(-40, -50, -60),
+      bottom: getResponsiveValue(-30, -35, -40),
+      width: getResponsiveValue(100, 120, 140),
+      height: getResponsiveValue(100, 120, 140),
+      borderRadius: getResponsiveValue(50, 60, 70),
+      backgroundColor: 'rgba(255, 255, 255, 0.08)',
+      transform: [{ rotate: '30deg' }],
+    },
+    
     backButton: {
       position: 'absolute' as const,
-      top: getSpacing(20, 25, 30),
+      top: getSpacing(SPACING.md, SPACING.lg),
       left: getSpacing(SPACING.lg, SPACING.xl),
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+      width: 44,
+      height: 44,
+      borderRadius: RADIUS.full,
+      backgroundColor: 'rgba(255, 255, 255, 0.25)',
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
-      zIndex: 2,
+      zIndex: 10,
+      shadowColor: 'rgba(0, 0, 0, 0.2)',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 1,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    
+    headerContent: {
+      flex: 1,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      paddingHorizontal: getSpacing(SPACING.lg, SPACING.xl),
+      paddingTop: getSpacing(SPACING.md, SPACING.lg),
+      zIndex: 1,
     },
     
     logoContainer: {
       alignItems: 'center' as const,
-      zIndex: 1,
+      marginBottom: getSpacing(SPACING.md, SPACING.lg),
     },
     
     logoImageContainer: {
-      width: getSpacing(60, 70, 80),
-      height: getSpacing(60, 70, 80),
-      borderRadius: getSpacing(30, 35, 40),
+      width: getResponsiveValue(64, 72, 80),
+      height: getResponsiveValue(64, 72, 80),
+      borderRadius: RADIUS.full,
       backgroundColor: 'rgba(255, 255, 255, 0.95)',
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.1,
-      shadowRadius: 8,
-      elevation: 4,
       borderWidth: 2,
-      borderColor: '#FFC845',
+      borderColor: COLORS.secondary,
+      shadowColor: COLORS.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 6,
     },
     
     logoImage: {
-      width: getSpacing(40, 46, 52),
-      height: getSpacing(40, 46, 52),
-      borderRadius: getSpacing(20, 23, 26),
+      width: getResponsiveValue(40, 44, 48),
+      height: getResponsiveValue(40, 44, 48),
+      borderRadius: RADIUS.full,
     },
     
-    logoFallback: {
-      width: getSpacing(40, 46, 52),
-      height: getSpacing(40, 46, 52),
-      borderRadius: getSpacing(20, 23, 26),
-      backgroundColor: '#1E2A78',
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
+    headerTitle: {
+      fontSize: getFontSize(TYPOGRAPHY.fontSize['2xl'], TYPOGRAPHY.fontSize['3xl'], TYPOGRAPHY.fontSize['4xl']),
+      fontWeight: TYPOGRAPHY.fontWeight.bold,
+      color: COLORS.text.inverse,
+      textAlign: 'center' as const,
+      marginBottom: getSpacing(SPACING.xs, SPACING.sm),
+      textShadowColor: 'rgba(0, 0, 0, 0.3)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 3,
+    },
+    
+    headerSubtitle: {
+      fontSize: getFontSize(TYPOGRAPHY.fontSize.sm, TYPOGRAPHY.fontSize.base),
+      fontWeight: TYPOGRAPHY.fontWeight.normal,
+      color: 'rgba(255, 255, 255, 0.9)',
+      textAlign: 'center' as const,
+      paddingHorizontal: getSpacing(SPACING.sm, SPACING.md),
     },
     
     scrollViewContainer: {
       flexGrow: 1,
       paddingHorizontal: getSpacing(SPACING.lg, SPACING.xl),
-      paddingTop: getSpacing(SPACING.md, SPACING.lg),
+      paddingTop: getSpacing(SPACING.lg, SPACING.xl),
+      paddingBottom: getSpacing(SPACING.xl, SPACING.xxl),
     },
     
     formCard: {
-      maxWidth: isTablet ? 480 : undefined,
+      maxWidth: getResponsiveValue(undefined, 480, 520),
       alignSelf: 'center' as const,
       width: '100%' as const,
-      marginBottom: getSpacing(SPACING.md, SPACING.lg),
+      borderRadius: RADIUS.card,
+      backgroundColor: COLORS.surface.primary,
+      shadowColor: COLORS.primary,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.1,
+      shadowRadius: 16,
+      elevation: 8,
+      borderWidth: 1,
+      borderColor: COLORS.border.light,
+      padding: getSpacing(SPACING.lg, SPACING.xl),
     },
     
     formTitle: {
-      fontSize: getFontSize(22, 26, 30),
+      fontSize: getFontSize(TYPOGRAPHY.fontSize.xl, TYPOGRAPHY.fontSize['2xl']),
       fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: '#1E2A78',
+      color: COLORS.primary,
       textAlign: 'center' as const,
       marginBottom: getSpacing(SPACING.lg, SPACING.xl),
     },
     
-    nameRow: {
-      flexDirection: isMobile ? 'column' as const : 'row' as const,
-      gap: isMobile ? getSpacing(SPACING.sm, SPACING.md) : SPACING.md,
-      marginBottom: getSpacing(SPACING.sm, SPACING.md),
+    roleSelector: {
+      marginBottom: getSpacing(SPACING.xl, SPACING.xxl),
     },
     
-    nameInput: {
-      flex: isMobile ? undefined : 1,
+    roleSelectorLabel: {
+      fontSize: getFontSize(TYPOGRAPHY.fontSize.lg, TYPOGRAPHY.fontSize.xl),
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      color: COLORS.primary,
+      textAlign: 'center' as const,
+      marginBottom: getSpacing(SPACING.md, SPACING.lg),
+    },
+    
+    roleButtons: {
+      flexDirection: 'row' as const,
+      backgroundColor: COLORS.neutral[100],
+      borderRadius: RADIUS.lg,
+      padding: 4,
+      gap: 4,
+    },
+    
+    roleButton: {
+      flex: 1,
+      paddingVertical: getSpacing(roleButtonVPadMobile, SPACING.lg),
+      paddingHorizontal: getSpacing(roleButtonHPadMobile, SPACING.xl),
+      minHeight: getResponsiveValue(40, 50, 50),
+      borderRadius: getResponsiveValue(RADIUS.sm, RADIUS.md, RADIUS.md),
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    
+    roleButtonText: {
+      fontSize: getFontSize(TYPOGRAPHY.fontSize.sm, TYPOGRAPHY.fontSize.lg),
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      color: COLORS.text.secondary,
+    },
+    
+    roleButtonActive: {
+      backgroundColor: COLORS.primary,
+      shadowColor: COLORS.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    
+    roleButtonTextActive: {
+      color: COLORS.text.inverse,
     },
     
     inputContainer: {
-      gap: getSpacing(SPACING.sm, SPACING.md),
+      gap: getSpacing(SPACING.md, SPACING.lg),
     },
     
     termsContainer: {
       flexDirection: 'row' as const,
       alignItems: 'flex-start' as const,
-      marginVertical: getSpacing(SPACING.md, SPACING.lg),
-      paddingHorizontal: SPACING.xs,
+      marginVertical: getSpacing(SPACING.lg, SPACING.xl),
     },
     
     checkbox: {
-      width: 20,
-      height: 20,
-      borderRadius: 4,
+      width: 24,
+      height: 24,
+      borderRadius: RADIUS.sm,
       borderWidth: 2,
-      borderColor: acceptedTerms ? '#1E2A78' : '#D1D5DB',
-      backgroundColor: acceptedTerms ? '#1E2A78' : 'transparent',
+      borderColor: acceptedTerms ? COLORS.primary : COLORS.border.medium,
+      backgroundColor: acceptedTerms ? COLORS.primary : 'transparent',
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
-      marginRight: SPACING.md,
+      marginRight: getSpacing(SPACING.sm, SPACING.md),
       marginTop: 2,
     },
     
     termsText: {
       flex: 1,
-      fontSize: getFontSize(14, 15, 16),
-      color: '#6B7280',
+      fontSize: getFontSize(TYPOGRAPHY.fontSize.sm, TYPOGRAPHY.fontSize.base),
+      color: COLORS.text.secondary,
       lineHeight: 20,
     },
     
     termsLink: {
-      color: '#FFC845',
+      color: COLORS.secondary,
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
     },
     
     submitButton: {
-      marginTop: getSpacing(SPACING.lg, SPACING.xl),
-      backgroundColor: '#1E2A78',
-      shadowColor: '#1E2A78',
+      marginTop: getSpacing(SPACING.xl, SPACING.xxl),
+      backgroundColor: COLORS.primary,
+      borderRadius: RADIUS.button,
+      shadowColor: COLORS.primary,
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.3,
       shadowRadius: 8,
@@ -325,18 +453,18 @@ export default function RegisterScreen() {
     
     footer: {
       paddingVertical: getSpacing(SPACING.lg, SPACING.xl),
-      paddingBottom: Math.max(insets.bottom, getSpacing(SPACING.lg, SPACING.xl)),
+      paddingBottom: Math.max(insets.bottom + getSpacing(SPACING.sm), getSpacing(SPACING.lg)),
       alignItems: 'center' as const,
-      backgroundColor: '#F9FAFB',
+      backgroundColor: COLORS.background,
     },
     
     loginLink: {
-      fontSize: getFontSize(15, 16, 18),
-      color: '#FFC845',
+      fontSize: getFontSize(TYPOGRAPHY.fontSize.base, TYPOGRAPHY.fontSize.lg),
+      color: COLORS.secondary,
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
       textAlign: 'center' as const,
-      paddingVertical: SPACING.sm,
-      paddingHorizontal: SPACING.md,
+      paddingVertical: getSpacing(SPACING.md, SPACING.lg),
+      paddingHorizontal: getSpacing(SPACING.lg, SPACING.xl),
     },
     
     keyboardAvoid: {
@@ -352,38 +480,42 @@ export default function RegisterScreen() {
         translucent={false}
       />
       
-      {/* ✅ HEADER AVEC GRADIENT BLEU ET LOGO (ALIGNÉ AVEC LOGIN) */}
+      {/* Header élégant avec motifs décoratifs */}
       <View style={styles.header}>
         <LinearGradient
-          colors={['#1E2A78', '#2563EB', '#3B82F6']}
+          colors={['#1E2A78', '#2D3E8F', '#3B4BA3']}
           style={styles.headerGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         />
         
+        {/* Motifs décoratifs */}
+        <View style={styles.headerPattern} />
+        <View style={styles.headerPattern2} />
+        
         <TouchableOpacity 
           style={styles.backButton}
           onPress={() => router.back()}
-          activeOpacity={0.7}
+          activeOpacity={0.8}
         >
           <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         
-        <View style={styles.logoContainer}>
-          <View style={styles.logoImageContainer}>
-            <Image 
-              source={APP_LOGO}
-              style={styles.logoImage}
-              resizeMode="contain"
-              onError={() => {
-                console.log('Logo loading failed, using fallback');
-              }}
-            />
+        <View style={styles.headerContent}>
+          <View style={styles.logoContainer}>
+            <View style={styles.logoImageContainer}>
+              <Image 
+                source={APP_LOGO}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
+            </View>
           </View>
+          <Text style={styles.headerTitle}>Rejoignez-nous</Text>
+          <Text style={styles.headerSubtitle}>Créez votre compte en quelques clics</Text>
         </View>
       </View>
 
-      {/* ✅ CONTENT CONTAINER AVEC KEYBOARD AVOIDING */}
       <KeyboardAvoidingView 
         style={styles.keyboardAvoid}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -396,145 +528,163 @@ export default function RegisterScreen() {
             keyboardShouldPersistTaps="handled"
             bounces={false}
           >
-            <Card style={styles.formCard} variant="elevated" padding="xl">
-              <Text style={styles.formTitle}>Créer un compte</Text>
-              
-              {/* ✅ NOMS SUR UNE LIGNE EN TABLETTE */}
-              <View style={styles.nameRow}>
-                <Input
-                  label="Prénom"
-                  placeholder="Jean"
-                  value={formData.firstName}
-                  onChangeText={(text) => {
-                    updateFormData('firstName')(text);
-                    clearFieldError('firstName');
-                  }}
-                  error={errors.firstName}
-                  leftIcon="person-outline"
-                  autoCapitalize="words"
-                  autoCorrect={false}
-                  returnKeyType="next"
-                  style={styles.nameInput}
-                  required
-                />
+            <View style={styles.formCard}>
+                <Text style={styles.formTitle}>Créer un compte</Text>
                 
-                <Input
-                  label="Nom"
-                  placeholder="Dupont"
-                  value={formData.lastName}
-                  onChangeText={(text) => {
-                    updateFormData('lastName')(text);
-                    clearFieldError('lastName');
-                  }}
-                  error={errors.lastName}
-                  leftIcon="person-outline"
-                  autoCapitalize="words"
-                  autoCorrect={false}
-                  returnKeyType="next"
-                  style={styles.nameInput}
-                  required
-                />
-              </View>
+                {/* Sélecteur de rôle élégant */}
+                <View style={styles.roleSelector}>
+                  <Text style={styles.roleSelectorLabel}>Je suis :</Text>
+                  <View style={styles.roleButtons}>
+                    <Pressable
+                      style={[
+                        styles.roleButton,
+                        formData.role === 'client' && styles.roleButtonActive
+                      ]}
+                      onPress={() => handleRoleChange('client')}
+                    >
+                      <Text style={[
+                        styles.roleButtonText,
+                        formData.role === 'client' && styles.roleButtonTextActive
+                      ]}>
+                        Client
+                      </Text>
+                    </Pressable>
+                    
+                    <Pressable
+                      style={[
+                        styles.roleButton,
+                        formData.role === 'restaurateur' && styles.roleButtonActive
+                      ]}
+                      onPress={() => handleRoleChange('restaurateur')}
+                    >
+                      <Text style={[
+                        styles.roleButtonText,
+                        formData.role === 'restaurateur' && styles.roleButtonTextActive
+                      ]}>
+                        Restaurateur
+                      </Text>
+                    </Pressable>
+                  </View>
+                </View>
 
-              <View style={styles.inputContainer}>
-                <Input
-                  label="Email"
-                  placeholder="votre@email.com"
-                  value={formData.email}
-                  onChangeText={(text) => {
-                    updateFormData('email')(text);
-                    clearFieldError('email');
-                  }}
-                  error={errors.email}
-                  leftIcon="mail-outline"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoComplete="email"
-                  autoCorrect={false}
-                  returnKeyType="next"
-                  required
-                />
+                <View style={styles.inputContainer}>
+                  <Input
+                    label="Email"
+                    placeholder="votre@email.com"
+                    value={formData.username}
+                    onChangeText={updateFormData('username')}
+                    error={errors.username}
+                    leftIcon="mail-outline"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                    autoCorrect={false}
+                    returnKeyType="next"
+                    required
+                  />
 
-                <Input
-                  label="Mot de passe"
-                  placeholder="••••••••"
-                  value={formData.password}
-                  onChangeText={(text) => {
-                    updateFormData('password')(text);
-                    clearFieldError('password');
-                  }}
-                  error={errors.password}
-                  leftIcon="lock-closed-outline"
-                  rightIcon={showPassword ? "eye-off-outline" : "eye-outline"}
-                  onRightIconPress={() => setShowPassword(!showPassword)}
-                  secureTextEntry={!showPassword}
-                  helperText="8 caractères min, avec majuscule, minuscule et chiffre"
-                  returnKeyType="next"
-                  required
-                />
+                  <Input
+                    label="Nom complet"
+                    placeholder="Jean Dupont"
+                    value={formData.nom}
+                    onChangeText={updateFormData('nom')}
+                    error={errors.nom}
+                    leftIcon="person-outline"
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                    returnKeyType="next"
+                    required
+                  />
 
-                <Input
-                  label="Confirmer le mot de passe"
-                  placeholder="••••••••"
-                  value={formData.confirmPassword}
-                  onChangeText={(text) => {
-                    updateFormData('confirmPassword')(text);
-                    clearFieldError('confirmPassword');
-                  }}
-                  error={errors.confirmPassword}
-                  leftIcon="lock-closed-outline"
-                  rightIcon={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
-                  onRightIconPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                  secureTextEntry={!showConfirmPassword}
-                  returnKeyType="done"
-                  onSubmitEditing={handleSubmit}
-                  required
-                />
-              </View>
+                  <Input
+                    label="Mot de passe"
+                    placeholder="••••••••"
+                    value={formData.password}
+                    onChangeText={updateFormData('password')}
+                    error={errors.password}
+                    leftIcon="lock-closed-outline"
+                    rightIcon={showPassword ? "eye-off-outline" : "eye-outline"}
+                    onRightIconPress={() => setShowPassword(!showPassword)}
+                    secureTextEntry={!showPassword}
+                    helperText="Minimum 8 caractères"
+                    returnKeyType="next"
+                    required
+                  />
 
-              {/* ✅ CHECKBOX TERMS AMÉLIORÉ */}
-              <View style={styles.termsContainer}>
-                <TouchableOpacity 
-                  style={styles.checkbox}
-                  onPress={() => setAcceptedTerms(!acceptedTerms)}
-                  activeOpacity={0.7}
-                >
-                  {acceptedTerms && (
-                    <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+                  {/* Champs conditionnels selon le rôle */}
+                  {formData.role === 'client' && (
+                    <Input
+                      label="Téléphone"
+                      placeholder="06 12 34 56 78"
+                      value={formData.telephone}
+                      onChangeText={updateFormData('telephone')}
+                      error={errors.telephone}
+                      leftIcon="call-outline"
+                      keyboardType="phone-pad"
+                      returnKeyType="done"
+                      onSubmitEditing={handleSubmit}
+                      required
+                    />
                   )}
-                </TouchableOpacity>
-                
-                <Text style={styles.termsText}>
-                  J'accepte les{' '}
-                  <Text style={styles.termsLink} onPress={handleTermsPress}>
-                    conditions d'utilisation
-                  </Text>
-                  {' '}et la{' '}
-                  <Text style={styles.termsLink} onPress={handlePrivacyPress}>
-                    politique de confidentialité
-                  </Text>
-                </Text>
-              </View>
 
-              {/* ✅ BOUTON D'INSCRIPTION AMÉLIORÉ */}
-              <Button
-                title="Créer mon compte"
-                onPress={handleSubmit}
-                loading={loading}
-                disabled={loading || !isFormValid}
-                variant="primary"
-                size="lg"
-                fullWidth
-                style={styles.submitButton}
-              />
-            </Card>
+                  {formData.role === 'restaurateur' && (
+                    <Input
+                      label="SIRET"
+                      placeholder="12345678901234"
+                      value={formData.siret}
+                      onChangeText={updateFormData('siret')}
+                      error={errors.siret}
+                      leftIcon="business-outline"
+                      keyboardType="number-pad"
+                      helperText="14 chiffres exactement"
+                      returnKeyType="done"
+                      onSubmitEditing={handleSubmit}
+                      required
+                    />
+                  )}
+                </View>
+
+                {/* Checkbox des conditions */}
+                <View style={styles.termsContainer}>
+                  <TouchableOpacity 
+                    style={styles.checkbox}
+                    onPress={() => setAcceptedTerms(!acceptedTerms)}
+                    activeOpacity={0.8}
+                  >
+                    {acceptedTerms && (
+                      <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                    )}
+                  </TouchableOpacity>
+                  
+                  <Text style={styles.termsText}>
+                    J'accepte les{' '}
+                    <Text style={styles.termsLink}>
+                      conditions d'utilisation
+                    </Text>
+                    {' '}et la{' '}
+                    <Text style={styles.termsLink}>
+                      politique de confidentialité
+                    </Text>
+                  </Text>
+                </View>
+
+                <Button
+                  title="Créer mon compte"
+                  onPress={handleSubmit}
+                  loading={loading}
+                  disabled={loading || !isFormValid}
+                  variant="primary"
+                  size="lg"
+                  fullWidth
+                  style={styles.submitButton}
+                />
+              </View>
           </ScrollView>
 
-          {/* ✅ FOOTER TOUJOURS VISIBLE AVEC SAFE AREA */}
           <View style={styles.footer}>
             <TouchableOpacity 
               onPress={() => router.push('/(auth)/login')}
-              activeOpacity={0.7}
+              activeOpacity={0.8}
             >
               <Text style={styles.loginLink}>
                 Déjà un compte ? Se connecter
