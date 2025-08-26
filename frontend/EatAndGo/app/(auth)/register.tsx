@@ -60,7 +60,7 @@ export default function RegisterScreen() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   
-  const { register } = useAuth();
+  const { register, login } = useAuth();
   const { isMobile, isTablet, isSmallScreen, getSpacing, getFontSize, getResponsiveValue } = useResponsive();
   const insets = useSafeAreaInsets();
 
@@ -156,6 +156,11 @@ export default function RegisterScreen() {
         telephone: formData.role === 'client' ? formData.telephone.trim() : '',
         siret: formData.role === 'restaurateur' ? formData.siret.trim() : '',
       });
+      await login({
+        username: formData.username.trim().toLowerCase(),
+        password: formData.password,
+      });
+      router.replace('/');
     } catch (error: any) {
       handleRegistrationError(error);
     } finally {
