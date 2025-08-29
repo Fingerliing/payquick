@@ -36,7 +36,7 @@ export default function StripeSuccessScreen() {
   }, []);
 
   const handleContinue = () => {
-    router.replace('/(tabs)');
+    router.replace('/(restaurant)');
   };
 
   return (

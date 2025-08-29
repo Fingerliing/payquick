@@ -15,6 +15,8 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
+APP_RETURN_URL  = "eatandgo://stripe/success"
+APP_REFRESH_URL = "eatandgo://stripe/refresh"
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -64,8 +66,8 @@ def create_stripe_account(request):
         # Créer un lien d'onboarding avec des URLs adaptées à votre app
         account_link = stripe.AccountLink.create(
             account=account.id,
-            refresh_url="https://example.com/stripe/success",
-            return_url="https://example.com/stripe/success",
+            refresh_url=APP_REFRESH_URL,
+            return_url=APP_RETURN_URL, 
             type='account_onboarding',
         )
         
@@ -156,10 +158,8 @@ def create_onboarding_link(request):
     try:
         account_link = stripe.AccountLink.create(
             account=restaurateur_profile.stripe_account_id,
-            # refresh_url=f"eatandgo://stripe/refresh",
-            # return_url=f"eatandgo://stripe/success",
-            refresh_url="https://example.com/stripe/refresh",
-            return_url="https://example.com/stripe/success",
+            refresh_url=APP_REFRESH_URL,
+            return_url=APP_RETURN_URL, 
             type='account_onboarding',
         )
         

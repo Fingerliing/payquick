@@ -10,6 +10,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { MaterialIcons } from '@expo/vector-icons';
 import { RestaurateurProfile } from '@/types/user';
+import { stripeService } from '@/services/stripeService';
 
 interface StripeAccountStatusProps {
   onStatusChange?: (isValidated: boolean) => void;
@@ -110,7 +111,7 @@ export default function StripeAccountStatus({
               { 
                 text: 'Continuer', 
                 onPress: () => {
-                  console.log('Onboarding URL:', stripeAccount.onboarding_url);
+                  stripeService.openStripeOnboarding(stripeAccount.onboarding_url);
                   // Mettre à jour le statut local
                   setAccount(prev => ({
                     ...prev,

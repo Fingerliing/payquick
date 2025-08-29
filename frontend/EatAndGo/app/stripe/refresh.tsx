@@ -35,7 +35,7 @@ export default function StripeRefreshScreen() {
   }, []);
 
   const handleBackToApp = () => {
-    router.replace('/(tabs)');
+    router.replace('/(restaurant)');
   };
 
   const handleRetry = () => {
