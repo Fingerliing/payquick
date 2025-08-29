@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, useScreenType, createResponsiveStyles, COMPONENT_CONSTANTS } from '@/utils/designSystem';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface HeaderProps {
   title: string;
@@ -14,18 +15,24 @@ interface HeaderProps {
   onRightPress?: () => void;
   backgroundColor?: string;
   includeSafeArea?: boolean; // Option pour inclure ou non la safe area
+  showLogout?: boolean;
+  logoutPosition?: 'left' | 'right';
 }
 
-export const Header: React.FC<HeaderProps> = ({
-  title,
-  showBackButton = false,
-  leftIcon,
-  rightIcon,
-  onLeftPress,
-  onRightPress,
-  backgroundColor = COLORS.surface,
-  includeSafeArea = true,
-}) => {
+export const Header: React.FC<HeaderProps> = (props) => {
+  const { logout } = useAuth();
+  const {
+    title,
+    showBackButton = false,
+    leftIcon,
+    rightIcon,
+    onLeftPress,
+    onRightPress,
+    backgroundColor = COLORS.surface,
+    includeSafeArea = true,
+    showLogout = false,
+    logoutPosition = 'right',
+  } = props;
   const screenType = useScreenType();
   const responsiveStyles = createResponsiveStyles(screenType);
   const insets = useSafeAreaInsets();
@@ -99,6 +106,15 @@ export const Header: React.FC<HeaderProps> = ({
               />
             </Pressable>
           )}
+          {showLogout && logoutPosition === 'left' && (
+            <Pressable
+              onPress={logout}
+              style={buttonStyle}
+              android_ripple={{ color: COLORS.border.default, borderless: true }}
+            >
+              <Ionicons name="log-out-outline" size={24} color={COLORS.text.primary} />
+            </Pressable>
+          )}
         </View>
         
         {/* Titre */}
@@ -116,17 +132,22 @@ export const Header: React.FC<HeaderProps> = ({
         
         {/* Bouton droit */}
         <View style={rightContainerStyle}>
+          {showLogout && logoutPosition === 'right' && (
+            <Pressable
+              onPress={logout}
+              style={buttonStyle}
+              android_ripple={{ color: COLORS.border.default, borderless: true }}
+            >
+              <Ionicons name="log-out-outline" size={24} color={COLORS.text.primary} />
+            </Pressable>
+          )}
           {rightIcon && (
             <Pressable
               onPress={onRightPress}
               style={buttonStyle}
               android_ripple={{ color: COLORS.border.default, borderless: true }}
             >
-              <Ionicons
-                name={rightIcon as any}
-                size={24}
-                color={COLORS.text.primary}
-              />
+              <Ionicons name={rightIcon as any} size={24} color={COLORS.text.primary} />
             </Pressable>
           )}
         </View>
