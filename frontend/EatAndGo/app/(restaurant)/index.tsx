@@ -14,6 +14,7 @@ import { Card } from '@/components/ui/Card';
 import { Loading } from '@/components/ui/Loading';
 import { RestaurantCard } from '@/components/restaurant/RestaurantCard';
 import StripeAccountStatus from '@/components/stripe/StripeAccountStatus';
+import { ValidationPending } from '@/components/restaurant/ValidationPending';
 import { router } from 'expo-router';
 import { OrderList, OrderDetail } from '@/types/order';
 import { OrderSearchFilters } from '@/types/common';
@@ -97,6 +98,7 @@ export default function DashboardScreen() {
     loadRestaurants,
     isLoading: restaurantsLoading,
     error: restaurantsError,
+    validationStatus,
   } = useRestaurant();
 
   // Using your existing OrderContext with correct method names
@@ -116,6 +118,10 @@ export default function DashboardScreen() {
 
   // Prioritize user's recent orders over general orders
   const displayOrders = safeUserOrders.length > 0 ? safeUserOrders : safeOrders;
+
+  if (isRestaurateur && validationStatus?.needsValidation) {
+    return <ValidationPending validationStatus={validationStatus} />;
+  }
 
   useEffect(() => {
     const fetchData = async () => {

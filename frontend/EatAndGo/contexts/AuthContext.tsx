@@ -683,6 +683,15 @@ export function useStripe() {
     hasValidatedProfile 
   } = useAuth();
   
+  // Helper pour accéder au profil restaurateur de manière sécurisée
+  const getRestaurateurProfile = (): RestaurateurProfile | null => {
+    if (!user || !isRestaurateur) return null;
+    if (user.profile?.type === 'restaurateur') {
+      return user.profile as RestaurateurProfile;
+    }
+    return null;
+  };
+  
   const getStripeValidationStatus = () => {
     if (!user || !isRestaurateur) return false;
     
@@ -690,9 +699,9 @@ export function useStripe() {
       return user.roles.has_validated_profile;
     }
     
-    if (user.profile?.type === 'restaurateur') {
-      const profile = user.profile as RestaurateurProfile;
-      return profile.stripe_verified || profile.has_validated_profile || false;
+    const restaurateurProfile = getRestaurateurProfile();
+    if (restaurateurProfile) {
+      return restaurateurProfile.stripe_verified || restaurateurProfile.has_validated_profile || false;
     }
     
     return false;
@@ -701,9 +710,9 @@ export function useStripe() {
   const getStripeAccountId = () => {
     if (!user || !isRestaurateur) return null;
     
-    if (user.profile?.type === 'restaurateur') {
-      const profile = user.profile as RestaurateurProfile;
-      return profile.stripe_account_id || null;
+    const restaurateurProfile = getRestaurateurProfile();
+    if (restaurateurProfile) {
+      return restaurateurProfile.stripe_account_id || null;
     }
     
     return null;

@@ -56,6 +56,78 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         except AttributeError:
             return Restaurant.objects.none()
 
+    def handle_unvalidated_restaurateur(self):
+        """Retourne une réponse appropriée pour les restaurateurs non validés"""
+        try:
+            profile = self.request.user.restaurateur_profile
+            return Response({
+                'restaurants': [],
+                'message': 'Profil en cours de validation',
+                'validation_status': {
+                    'stripe_verified': profile.stripe_verified,
+                    'is_active': profile.is_active,
+                    'stripe_onboarding_completed': profile.stripe_onboarding_completed,
+                    'has_stripe_account': bool(profile.stripe_account_id),
+                },
+                'next_steps': [
+                    'Complétez votre profil Stripe' if not profile.stripe_account_id else None,
+                    'Finalisez le processus de vérification Stripe' if not profile.stripe_verified else None,
+                ][0] if not profile.stripe_verified else 'Votre profil est en cours de validation par nos équipes'
+            })
+        except AttributeError:
+            return Response({
+                'restaurants': [],
+                'error': 'Profil restaurateur non trouvé'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+    def list(self, request, *args, **kwargs):
+        """Liste tous les restaurants du restaurateur avec gestion des non-validés"""
+        try:
+            # Vérifier d'abord si l'utilisateur a un profil restaurateur
+            if not hasattr(request.user, 'restaurateur_profile'):
+                return Response({
+                    'restaurants': [],
+                    'error': 'Profil restaurateur requis'
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            profile = request.user.restaurateur_profile
+            
+            # Si le restaurateur n'est pas validé, retourner une réponse appropriée
+            if not profile.stripe_verified or not profile.is_active:
+                return self.handle_unvalidated_restaurateur()
+
+            # Si validé, procéder normalement
+            return super().list(request, *args, **kwargs)
+            
+        except Exception as e:
+            return self.handle_unvalidated_restaurateur()
+
+    def retrieve(self, request, *args, **kwargs):
+        """Détails d'un restaurant avec gestion des non-validés"""
+        try:
+            if not hasattr(request.user, 'restaurateur_profile'):
+                return Response({
+                    'error': 'Profil restaurateur requis'
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            profile = request.user.restaurateur_profile
+            
+            if not profile.stripe_verified or not profile.is_active:
+                return Response({
+                    'error': 'Profil en cours de validation',
+                    'validation_status': {
+                        'stripe_verified': profile.stripe_verified,
+                        'is_active': profile.is_active,
+                    }
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            return super().retrieve(request, *args, **kwargs)
+            
+        except Exception as e:
+            return Response({
+                'error': 'Erreur lors de la récupération du restaurant'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     def get_serializer_class(self):
         """Utilise le bon sérialiseur selon l'action"""
         if self.action == 'create':
