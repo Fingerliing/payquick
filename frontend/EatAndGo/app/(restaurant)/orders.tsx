@@ -9,26 +9,34 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  useWindowDimensions,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '@/contexts/AuthContext';
-import { useOrder } from '@/contexts/OrderContext'; // Utiliser le contexte existant
-import { useRestaurant } from '@/contexts/RestaurantContext'; // Pour récupérer les restaurants
+import { useOrder } from '@/contexts/OrderContext';
+import { useRestaurant } from '@/contexts/RestaurantContext';
 import { OrderList } from '@/types/order';
 import { Restaurant } from '@/types/restaurant';
 import { Header } from '@/components/ui/Header';
 import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
 import { StatusBadge } from '@/components/common/StatusBadge';
-import { orderService } from '@/services/orderService';
-import { useOrderRealtime } from '@/hooks/useOrderRealtime';
+import { 
+  useScreenType, 
+  getResponsiveValue, 
+  COLORS, 
+  SPACING, 
+  BORDER_RADIUS 
+} from '@/utils/designSystem';
+
+type ScreenType = 'mobile' | 'tablet' | 'desktop';
 
 // Hook pour gérer l'archivage des commandes
 const useOrderArchiving = () => {
   const [archivedOrders, setArchivedOrders] = useState<Set<number>>(new Set());
 
-  // Charger les commandes archivées depuis le stockage local
   useEffect(() => {
     const loadArchivedOrders = async () => {
       try {
@@ -37,40 +45,34 @@ const useOrderArchiving = () => {
           setArchivedOrders(new Set(JSON.parse(archived)));
         }
       } catch (error) {
-        console.error('❌ Error loading archived orders:', error);
+        console.error('Error loading archived orders:', error);
       }
     };
     loadArchivedOrders();
   }, []);
 
-  // Sauvegarder les commandes archivées
   const saveArchivedOrders = useCallback(async (orders: Set<number>) => {
     try {
       await AsyncStorage.setItem('archivedOrders', JSON.stringify(Array.from(orders)));
     } catch (error) {
-      console.error('❌ Error saving archived orders:', error);
+      console.error('Error saving archived orders:', error);
     }
   }, []);
 
-  // Archiver une commande
   const archiveOrder = useCallback(async (orderId: number) => {
     const newArchived = new Set(archivedOrders);
     newArchived.add(orderId);
     setArchivedOrders(newArchived);
     await saveArchivedOrders(newArchived);
-    console.log('📦 Order archived:', orderId);
   }, [archivedOrders, saveArchivedOrders]);
 
-  // Désarchiver une commande
   const unarchiveOrder = useCallback(async (orderId: number) => {
     const newArchived = new Set(archivedOrders);
     newArchived.delete(orderId);
     setArchivedOrders(newArchived);
     await saveArchivedOrders(newArchived);
-    console.log('📤 Order unarchived:', orderId);
   }, [archivedOrders, saveArchivedOrders]);
 
-  // Archiver toutes les commandes complétées
   const archiveCompletedOrders = useCallback(async (orders: OrderList[]) => {
     const completedOrderIds = orders
       .filter(order => ['served', 'cancelled'].includes(order.status))
@@ -81,7 +83,6 @@ const useOrderArchiving = () => {
     const newArchived = new Set([...archivedOrders, ...completedOrderIds]);
     setArchivedOrders(newArchived);
     await saveArchivedOrders(newArchived);
-    console.log('📦 Bulk archived orders:', completedOrderIds.length);
     return completedOrderIds.length;
   }, [archivedOrders, saveArchivedOrders]);
 
@@ -93,43 +94,33 @@ const useOrderArchiving = () => {
   };
 };
 
-// Hook pour gérer la sélection de restaurant avec persistance
+// Hook pour gérer la sélection de restaurant
 const useRestaurantSelection = () => {
   const [selectedRestaurantId, setSelectedRestaurantId] = useState<number | null>(null);
   const { restaurants, loadRestaurants, isLoading: isLoadingRestaurants } = useRestaurant();
 
-  // Charger les restaurants et restaurer la sélection
   useEffect(() => {
     const initializeRestaurants = async () => {
-      console.log('🏪 Initializing restaurants...');
-      
-      // Charger les restaurants du restaurateur
       await loadRestaurants();
     };
-
     initializeRestaurants();
   }, []);
 
-  // Restaurer la sélection depuis AsyncStorage quand les restaurants sont chargés
   useEffect(() => {
     const restoreSelection = async () => {
       if (restaurants.length > 0 && selectedRestaurantId === null) {
         try {
           const savedRestaurantId = await AsyncStorage.getItem('selectedRestaurantId');
-          console.log('💾 Saved restaurant ID:', savedRestaurantId);
           
           if (savedRestaurantId && restaurants.find(r => r.id === savedRestaurantId)) {
             setSelectedRestaurantId(parseInt(savedRestaurantId));
-            console.log('🔄 Restored restaurant selection:', savedRestaurantId);
           } else if (restaurants.length > 0) {
-            // Sélectionner le premier restaurant par défaut
             const firstId = parseInt(restaurants[0].id);
             setSelectedRestaurantId(firstId);
             await AsyncStorage.setItem('selectedRestaurantId', String(firstId));
-            console.log('🎯 Auto-selected first restaurant:', firstId);
           }
         } catch (error) {
-          console.error('❌ Error restoring restaurant selection:', error);
+          console.error('Error restoring restaurant selection:', error);
         }
       }
     };
@@ -137,11 +128,9 @@ const useRestaurantSelection = () => {
     restoreSelection();
   }, [restaurants.length, selectedRestaurantId]);
 
-  // Changer de restaurant sélectionné
   const selectRestaurant = useCallback(async (restaurantId: number) => {
     setSelectedRestaurantId(restaurantId);
     await AsyncStorage.setItem('selectedRestaurantId', String(restaurantId));
-    console.log('✅ Restaurant selection saved:', restaurantId);
   }, []);
 
   return {
@@ -152,142 +141,139 @@ const useRestaurantSelection = () => {
   };
 };
 
-// Hook pour auto-refresh des commandes actives
-const useAutoRefresh = (
-  hasActiveOrders: boolean, 
-  refreshFn: () => void, 
-  realtimeEnabled: boolean = false
-) => {
-  useEffect(() => {
-    if (!hasActiveOrders || realtimeEnabled) return;
-    
-    const intervalId = setInterval(refreshFn, 30000); // 30 secondes
-    return () => clearInterval(intervalId);
-  }, [hasActiveOrders, refreshFn, realtimeEnabled]);
-};
-
-// Indicateur de connexion temps réel et dernière mise à jour
-const RefreshIndicator = React.memo(({ 
-  isRefreshing, 
-  lastUpdateTime,
-  activeOrdersCount,
-  realtimeState
-}: { 
-  isRefreshing: boolean;
-  lastUpdateTime?: Date;
-  activeOrdersCount: number;
-  realtimeState?: {
-    connectionState: 'connecting' | 'connected' | 'disconnected' | 'error';
-    lastUpdateTime?: Date;
-  };
-}) => {
-  if (activeOrdersCount === 0) return null;
-
-  // Priorité à l'état temps réel s'il est actif
-  if (realtimeState && realtimeState.connectionState !== 'disconnected') {
-    const getIndicatorProps = () => {
-      switch (realtimeState.connectionState) {
-        case 'connected':
-          return { 
-            icon: 'radio-button-on' as const, 
-            color: '#10B981', 
-            text: 'Temps réel activé' 
-          };
-        case 'connecting':
-          return { 
-            icon: 'radio-button-off' as const, 
-            color: '#FF9500', 
-            text: 'Connexion...' 
-          };
-        case 'error':
-          return { 
-            icon: 'warning' as const, 
-            color: '#DC2626', 
-            text: 'Erreur connexion' 
-          };
-        default:
-          return { 
-            icon: 'radio-button-off' as const, 
-            color: '#9CA3AF', 
-            text: 'Hors ligne' 
-          };
-      }
-    };
-
-    const { icon, color, text } = getIndicatorProps();
-
-    return (
-      <View style={styles.refreshIndicator}>
-        <Ionicons name={icon} size={12} color={color} />
-        <Text style={[styles.refreshText, { color }]}>{text}</Text>
-        {realtimeState.lastUpdateTime && realtimeState.connectionState === 'connected' && (
-          <Text style={styles.lastUpdateText}>
-            {realtimeState.lastUpdateTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-          </Text>
-        )}
-      </View>
-    );
-  }
-
-  // Fallback vers l'indicateur de refresh manuel
-  return (
-    <View style={styles.refreshIndicator}>
-      <Ionicons 
-        name={isRefreshing ? "refresh" : "checkmark-circle"} 
-        size={12} 
-        color={isRefreshing ? "#FF9500" : "#10B981"} 
-      />
-      <Text style={[styles.refreshText, { color: isRefreshing ? "#FF9500" : "#10B981" }]}>
-        {isRefreshing ? 'Actualisation...' : 'À jour'}
-      </Text>
-      {lastUpdateTime && !isRefreshing && (
-        <Text style={styles.lastUpdateText}>
-          {lastUpdateTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-        </Text>
-      )}
-    </View>
-  );
-});
-
-// Sélecteur de restaurant
+// Composant sélecteur de restaurant
 const RestaurantSelector = React.memo(({ 
   restaurants, 
   selectedRestaurantId, 
   onSelect,
-  isLoading
+  isLoading,
+  screenType
 }: {
   restaurants: Restaurant[];
   selectedRestaurantId: number | null;
   onSelect: (id: number) => void;
   isLoading: boolean;
+  screenType: ScreenType;
 }) => {
   const [showModal, setShowModal] = useState(false);
-
   const selectedRestaurant = restaurants.find(r => r.id === String(selectedRestaurantId));
+
+  const styles = {
+    selector: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
+      paddingVertical: getResponsiveValue(SPACING.sm, screenType),
+      backgroundColor: COLORS.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: COLORS.border.light,
+      gap: getResponsiveValue(SPACING.xs, screenType),
+    },
+    
+    selectorText: {
+      flex: 1,
+      fontSize: getResponsiveValue(
+        { mobile: 16, tablet: 18, desktop: 20 },
+        screenType
+      ),
+      fontWeight: '500' as const,
+      color: COLORS.text.primary,
+    },
+
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'flex-end' as const,
+    },
+
+    modalContent: {
+      backgroundColor: COLORS.surface,
+      borderTopLeftRadius: BORDER_RADIUS.xl,
+      borderTopRightRadius: BORDER_RADIUS.xl,
+      maxHeight: '70%' as const,
+    },
+
+    modalHeader: {
+      flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
+      alignItems: 'center' as const,
+      padding: getResponsiveValue(SPACING.lg, screenType),
+      borderBottomWidth: 1,
+      borderBottomColor: COLORS.border.light,
+    },
+
+    modalTitle: {
+      fontSize: getResponsiveValue(
+        { mobile: 18, tablet: 20, desktop: 22 },
+        screenType
+      ),
+      fontWeight: '600' as const,
+      color: COLORS.text.primary,
+    },
+
+    restaurantOption: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      padding: getResponsiveValue(SPACING.lg, screenType),
+      borderBottomWidth: 1,
+      borderBottomColor: COLORS.border.light,
+    },
+
+    restaurantOptionSelected: {
+      backgroundColor: COLORS.secondary + '10',
+    },
+
+    restaurantOptionText: {
+      fontSize: getResponsiveValue(
+        { mobile: 16, tablet: 18, desktop: 20 },
+        screenType
+      ),
+      fontWeight: '500' as const,
+      color: COLORS.text.primary,
+      marginBottom: getResponsiveValue(SPACING.xs, screenType) / 2,
+    },
+
+    restaurantOptionTextSelected: {
+      color: COLORS.secondary,
+    },
+
+    restaurantOptionAddress: {
+      fontSize: getResponsiveValue(
+        { mobile: 14, tablet: 15, desktop: 16 },
+        screenType
+      ),
+      color: COLORS.text.secondary,
+    },
+  };
+
+  const iconSize = getResponsiveValue(
+    { mobile: 20, tablet: 22, desktop: 24 },
+    screenType
+  );
 
   if (isLoading) {
     return (
-      <View style={styles.restaurantSelector}>
-        <ActivityIndicator size="small" color="#FF6B35" />
-        <Text style={styles.restaurantSelectorText}>Chargement...</Text>
+      <View style={styles.selector}>
+        <ActivityIndicator size="small" color={COLORS.primary} />
+        <Text style={styles.selectorText}>Chargement...</Text>
       </View>
     );
   }
 
   if (restaurants.length === 0) {
     return (
-      <View style={styles.restaurantSelector}>
-        <Ionicons name="warning" size={16} color="#FF9500" />
-        <Text style={styles.restaurantSelectorText}>Aucun restaurant trouvé</Text>
+      <View style={styles.selector}>
+        <Ionicons name="warning" size={iconSize} color={COLORS.warning} />
+        <Text style={styles.selectorText}>Aucun restaurant trouvé</Text>
       </View>
     );
   }
 
   if (restaurants.length === 1) {
     return (
-      <View style={styles.restaurantSelector}>
-        <Ionicons name="restaurant" size={16} color="#FF6B35" />
-        <Text style={styles.restaurantSelectorText}>{restaurants[0].name}</Text>
+      <View style={styles.selector}>
+        <Ionicons name="restaurant" size={iconSize} color={COLORS.secondary} />
+        <Text style={styles.selectorText}>{restaurants[0].name}</Text>
       </View>
     );
   }
@@ -295,14 +281,18 @@ const RestaurantSelector = React.memo(({
   return (
     <>
       <Pressable 
-        style={styles.restaurantSelector}
+        style={styles.selector}
         onPress={() => setShowModal(true)}
+        android_ripple={{ 
+          color: COLORS.primary + '20',
+          borderless: false 
+        }}
       >
-        <Ionicons name="restaurant" size={16} color="#FF6B35" />
-        <Text style={styles.restaurantSelectorText}>
+        <Ionicons name="restaurant" size={iconSize} color={COLORS.secondary} />
+        <Text style={styles.selectorText}>
           {selectedRestaurant?.name || 'Sélectionner un restaurant'}
         </Text>
-        <Ionicons name="chevron-down" size={16} color="#666" />
+        <Ionicons name="chevron-down" size={iconSize} color={COLORS.text.secondary} />
       </Pressable>
 
       <Modal
@@ -316,7 +306,7 @@ const RestaurantSelector = React.memo(({
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Choisir un restaurant</Text>
               <Pressable onPress={() => setShowModal(false)}>
-                <Ionicons name="close" size={24} color="#666" />
+                <Ionicons name="close" size={24} color={COLORS.text.secondary} />
               </Pressable>
             </View>
             
@@ -333,6 +323,10 @@ const RestaurantSelector = React.memo(({
                     onSelect(parseInt(item.id));
                     setShowModal(false);
                   }}
+                  android_ripple={{ 
+                    color: COLORS.primary + '20',
+                    borderless: false 
+                  }}
                 >
                   <View style={{ flex: 1 }}>
                     <Text style={[
@@ -346,7 +340,7 @@ const RestaurantSelector = React.memo(({
                     </Text>
                   </View>
                   {item.id === String(selectedRestaurantId) && (
-                    <Ionicons name="checkmark-circle" size={20} color="#FF6B35" />
+                    <Ionicons name="checkmark-circle" size={iconSize} color={COLORS.secondary} />
                   )}
                 </Pressable>
               )}
@@ -358,16 +352,16 @@ const RestaurantSelector = React.memo(({
   );
 });
 
-// Composant pour une commande côté restaurateur
-const RestaurantOrderCard = React.memo(({ 
+// Composant pour une commande
+const OrderCard = React.memo(({ 
   item, 
   onStatusUpdate,
   onMarkAsPaid,
   onArchive,
   onUnarchive,
   isUpdating = false,
-  isRealtime = false,
-  isArchived = false
+  isArchived = false,
+  screenType
 }: { 
   item: OrderList;
   onStatusUpdate: (orderId: number, newStatus: string) => Promise<void>;
@@ -375,15 +369,15 @@ const RestaurantOrderCard = React.memo(({
   onArchive?: (orderId: number) => Promise<void>;
   onUnarchive?: (orderId: number) => Promise<void>;
   isUpdating?: boolean;
-  isRealtime?: boolean;
   isArchived?: boolean;
+  screenType: ScreenType;
 }) => {
   const [localUpdating, setLocalUpdating] = useState(false);
 
   const displayInfo = useMemo(() => {
     const date = new Date(item.created_at);
     const isActive = ['pending', 'confirmed', 'preparing', 'ready'].includes(item.status);
-    const isUrgent = isActive && (Date.now() - date.getTime()) > 30 * 60 * 1000; // Plus de 30 min
+    const isUrgent = isActive && (Date.now() - date.getTime()) > 30 * 60 * 1000;
     
     return {
       title: `Commande ${item.order_number}`,
@@ -394,6 +388,167 @@ const RestaurantOrderCard = React.memo(({
       isToday: date.toDateString() === new Date().toDateString(),
     };
   }, [item]);
+
+  const styles = {
+    card: {
+      marginBottom: getResponsiveValue(SPACING.sm, screenType),
+      padding: getResponsiveValue(SPACING.lg, screenType),
+      backgroundColor: COLORS.surface,
+      borderRadius: BORDER_RADIUS.lg,
+      shadowColor: COLORS.shadow.default,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+      borderWidth: 1,
+      borderColor: displayInfo.isActive ? COLORS.secondary : COLORS.border.light,
+    },
+
+    archivedCard: {
+      opacity: 0.7,
+      borderColor: COLORS.border.default,
+    },
+
+    urgentCard: {
+      borderColor: COLORS.error,
+      backgroundColor: COLORS.error + '05',
+    },
+
+    header: {
+      flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
+      alignItems: 'flex-start' as const,
+      marginBottom: getResponsiveValue(SPACING.sm, screenType),
+    },
+
+    orderInfo: {
+      flex: 1,
+    },
+
+    titleRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: getResponsiveValue(SPACING.xs, screenType),
+    },
+
+    title: {
+      fontSize: getResponsiveValue(
+        { mobile: 18, tablet: 20, desktop: 22 },
+        screenType
+      ),
+      fontWeight: '600' as const,
+      color: COLORS.text.primary,
+      marginBottom: getResponsiveValue(SPACING.xs, screenType) / 2,
+    },
+
+    badge: {
+      width: getResponsiveValue(
+        { mobile: 20, tablet: 22, desktop: 24 },
+        screenType
+      ),
+      height: getResponsiveValue(
+        { mobile: 20, tablet: 22, desktop: 24 },
+        screenType
+      ),
+      borderRadius: getResponsiveValue(
+        { mobile: 10, tablet: 11, desktop: 12 },
+        screenType
+      ),
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+
+    urgentBadge: {
+      backgroundColor: COLORS.error + '20',
+    },
+
+    customerName: {
+      fontSize: getResponsiveValue(
+        { mobile: 16, tablet: 18, desktop: 20 },
+        screenType
+      ),
+      color: COLORS.text.secondary,
+      marginBottom: getResponsiveValue(SPACING.xs, screenType),
+    },
+
+    orderTime: {
+      fontSize: getResponsiveValue(
+        { mobile: 14, tablet: 15, desktop: 16 },
+        screenType
+      ),
+      color: COLORS.text.secondary,
+    },
+
+    details: {
+      flexDirection: screenType === 'mobile' ? 'column' as const : 'row' as const,
+      flexWrap: 'wrap' as const,
+      gap: getResponsiveValue(SPACING.sm, screenType),
+      marginBottom: getResponsiveValue(SPACING.sm, screenType),
+    },
+
+    detailItem: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: getResponsiveValue(SPACING.xs, screenType) / 2,
+    },
+
+    detailText: {
+      fontSize: getResponsiveValue(
+        { mobile: 14, tablet: 15, desktop: 16 },
+        screenType
+      ),
+      color: COLORS.text.secondary,
+    },
+
+    waitingTime: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      marginBottom: getResponsiveValue(SPACING.sm, screenType),
+      gap: getResponsiveValue(SPACING.xs, screenType) / 2,
+      paddingVertical: getResponsiveValue(SPACING.xs, screenType),
+      backgroundColor: COLORS.warning + '10',
+      borderRadius: BORDER_RADIUS.sm,
+    },
+
+    waitingTimeText: {
+      fontSize: getResponsiveValue(
+        { mobile: 14, tablet: 15, desktop: 16 },
+        screenType
+      ),
+      color: COLORS.warning,
+      fontWeight: '500' as const,
+    },
+
+    actions: {
+      flexDirection: screenType === 'mobile' ? 'column' as const : 'row' as const,
+      gap: getResponsiveValue(SPACING.xs, screenType),
+      marginBottom: getResponsiveValue(SPACING.sm, screenType),
+    },
+
+    viewDetails: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'space-between' as const,
+      paddingTop: getResponsiveValue(SPACING.sm, screenType),
+      borderTopWidth: 1,
+      borderTopColor: COLORS.border.light,
+    },
+
+    viewDetailsText: {
+      fontSize: getResponsiveValue(
+        { mobile: 16, tablet: 18, desktop: 20 },
+        screenType
+      ),
+      color: COLORS.primary,
+      fontWeight: '500' as const,
+    },
+  };
+
+  const iconSize = getResponsiveValue(
+    { mobile: 16, tablet: 18, desktop: 20 },
+    screenType
+  );
 
   const handleStatusChange = useCallback(async (newStatus: string) => {
     if (localUpdating || isUpdating) return;
@@ -438,117 +593,108 @@ const RestaurantOrderCard = React.memo(({
     router.push(`/order/${item.id}` as any);
   }, [item.id]);
 
-  const renderStatusActions = () => {
+  const renderActions = () => {
     const isCompleted = ['served', 'cancelled'].includes(item.status);
     
-    // Si archivé, montrer seulement le bouton de désarchivage
     if (isArchived) {
       return (
-        <View style={styles.actionButtons}>
-          <Pressable 
-            style={[styles.actionButton, styles.unarchiveButton]}
+        <View style={styles.actions}>
+          <Button
+            title="Désarchiver"
             onPress={() => onUnarchive?.(item.id)}
             disabled={isUpdating}
-          >
-            <Ionicons name="archive-outline" size={16} color="#fff" />
-            <Text style={styles.actionButtonText}>Désarchiver</Text>
-          </Pressable>
+            variant="outline"
+            size="sm"
+            leftIcon="archive-outline"
+            fullWidth={screenType === 'mobile'}
+            style={{ 
+              borderColor: COLORS.text.secondary,
+              backgroundColor: 'transparent' 
+            }}
+            textStyle={{ color: COLORS.text.secondary }}
+          />
         </View>
       );
     }
 
     const statusFlow = {
-      'pending': 'confirmed',
-      'confirmed': 'preparing',
-      'preparing': 'ready',
-      'ready': 'served'
+      'pending': { next: 'confirmed', label: 'Confirmer' },
+      'confirmed': { next: 'preparing', label: 'En préparation' },
+      'preparing': { next: 'ready', label: 'Prêt' },
+      'ready': { next: 'served', label: 'Servir' }
     };
 
-    const nextStatus = statusFlow[item.status as keyof typeof statusFlow];
-    
-    const actionLabels = {
-      'confirmed': 'Confirmer',
-      'preparing': 'En préparation',
-      'ready': 'Prêt',
-      'served': 'Servir'
-    };
+    const nextAction = statusFlow[item.status as keyof typeof statusFlow];
 
     return (
-      <View style={styles.actionButtons}>
-        {/* Boutons de statut pour commandes actives */}
-        {nextStatus && (
-          <Pressable 
-            style={[styles.actionButton, styles.statusButton]}
-            onPress={() => handleStatusChange(nextStatus)}
+      <View style={styles.actions}>
+        {nextAction && (
+          <Button
+            title={nextAction.label}
+            onPress={() => handleStatusChange(nextAction.next)}
             disabled={localUpdating || isUpdating}
-          >
-            {localUpdating ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <>
-                <Ionicons name="arrow-forward" size={16} color="#fff" />
-                <Text style={styles.actionButtonText}>
-                  {actionLabels[nextStatus as keyof typeof actionLabels]}
-                </Text>
-              </>
-            )}
-          </Pressable>
+            loading={localUpdating}
+            style={{ backgroundColor: COLORS.secondary }}
+            textStyle={{ color: COLORS.text.primary }}
+            size="sm"
+            leftIcon="arrow-forward"
+            fullWidth={screenType === 'mobile'}
+          />
         )}
 
-        {/* Bouton d'encaissement */}
         {item.payment_status !== 'paid' && !isCompleted && (
-          <Pressable 
-            style={[styles.actionButton, styles.paymentButton]}
+          <Button
+            title="Encaisser"
             onPress={handleMarkAsPaid}
             disabled={localUpdating || isUpdating}
-          >
-            <Ionicons name="card" size={16} color="#fff" />
-            <Text style={styles.actionButtonText}>Encaisser</Text>
-          </Pressable>
+            variant="outline"
+            size="sm"
+            leftIcon="card"
+            fullWidth={screenType === 'mobile'}
+            style={{ 
+              borderColor: COLORS.success,
+              backgroundColor: 'transparent' 
+            }}
+            textStyle={{ color: COLORS.success }}
+          />
         )}
 
-        {/* Bouton d'archivage pour commandes terminées */}
         {isCompleted && onArchive && (
-          <Pressable 
-            style={[styles.actionButton, styles.archiveButton]}
+          <Button
+            title="Archiver"
             onPress={() => onArchive(item.id)}
             disabled={isUpdating}
-          >
-            <Ionicons name="archive" size={16} color="#fff" />
-            <Text style={styles.actionButtonText}>Archiver</Text>
-          </Pressable>
+            variant="outline"
+            size="sm"
+            leftIcon="archive"
+            fullWidth={screenType === 'mobile'}
+            style={{ 
+              borderColor: COLORS.text.secondary,
+              backgroundColor: 'transparent' 
+            }}
+            textStyle={{ color: COLORS.text.secondary }}
+          />
         )}
       </View>
     );
   };
 
+  const cardStyle = {
+    ...styles.card,
+    ...(displayInfo.isUrgent && styles.urgentCard),
+    ...(isArchived && styles.archivedCard),
+  };
+
   return (
     <Pressable onPress={handlePress}>
-      <Card style={[
-        styles.orderCard,
-        displayInfo.isActive && styles.activeOrderCard,
-        displayInfo.isUrgent && styles.urgentOrderCard,
-        isRealtime && displayInfo.isActive && styles.realtimeOrderCard,
-        isArchived && styles.archivedOrderCard,
-      ]}>
-        {/* En-tête de la commande */}
-        <View style={styles.orderHeader}>
+      <Card style={cardStyle}>
+        <View style={styles.header}>
           <View style={styles.orderInfo}>
-            <View style={styles.orderTitleRow}>
-              <Text style={styles.orderTitle}>{displayInfo.title}</Text>
+            <View style={styles.titleRow}>
+              <Text style={styles.title}>{displayInfo.title}</Text>
               {displayInfo.isUrgent && !isArchived && (
-                <View style={styles.urgentBadge}>
-                  <Ionicons name="warning" size={12} color="#DC2626" />
-                </View>
-              )}
-              {isRealtime && displayInfo.isActive && !isArchived && (
-                <View style={styles.realtimeBadge}>
-                  <View style={styles.realtimeDot} />
-                </View>
-              )}
-              {isArchived && (
-                <View style={styles.archivedBadge}>
-                  <Ionicons name="archive" size={12} color="#666" />
+                <View style={[styles.badge, styles.urgentBadge]}>
+                  <Ionicons name="warning" size={12} color={COLORS.error} />
                 </View>
               )}
             </View>
@@ -562,11 +708,10 @@ const RestaurantOrderCard = React.memo(({
           <StatusBadge status={item.status} />
         </View>
 
-        {/* Détails */}
-        <View style={styles.orderDetails}>
+        <View style={styles.details}>
           {item.table_number && (
             <View style={styles.detailItem}>
-              <Ionicons name="restaurant-outline" size={16} color="#666" />
+              <Ionicons name="restaurant-outline" size={iconSize} color={COLORS.text.secondary} />
               <Text style={styles.detailText}>Table {item.table_number}</Text>
             </View>
           )}
@@ -574,8 +719,8 @@ const RestaurantOrderCard = React.memo(({
           <View style={styles.detailItem}>
             <Ionicons 
               name={item.order_type === 'dine_in' ? "restaurant" : "bag"} 
-              size={16} 
-              color="#666" 
+              size={iconSize} 
+              color={COLORS.text.secondary} 
             />
             <Text style={styles.detailText}>
               {item.order_type === 'dine_in' ? 'Sur place' : 'À emporter'}
@@ -583,7 +728,7 @@ const RestaurantOrderCard = React.memo(({
           </View>
 
           <View style={styles.detailItem}>
-            <Ionicons name="receipt-outline" size={16} color="#666" />
+            <Ionicons name="receipt-outline" size={iconSize} color={COLORS.text.secondary} />
             <Text style={styles.detailText}>
               {item.items_count} article{item.items_count > 1 ? 's' : ''}
             </Text>
@@ -592,207 +737,51 @@ const RestaurantOrderCard = React.memo(({
           <View style={styles.detailItem}>
             <Ionicons 
               name={item.payment_status === 'paid' ? "checkmark-circle" : "time"} 
-              size={16} 
-              color={item.payment_status === 'paid' ? "#10B981" : "#FF9500"} 
+              size={iconSize} 
+              color={item.payment_status === 'paid' ? COLORS.success : COLORS.warning} 
             />
             <Text style={[
               styles.detailText,
-              { color: item.payment_status === 'paid' ? "#10B981" : "#FF9500" }
+              { color: item.payment_status === 'paid' ? COLORS.success : COLORS.warning }
             ]}>
               {item.payment_status === 'paid' ? 'Payée' : 'Non payée'}
             </Text>
           </View>
         </View>
 
-        {/* Temps d'attente pour commandes actives */}
         {displayInfo.isActive && item.waiting_time && (
           <View style={styles.waitingTime}>
-            <Ionicons name="time-outline" size={16} color="#FF9500" />
+            <Ionicons name="time-outline" size={iconSize} color={COLORS.warning} />
             <Text style={styles.waitingTimeText}>
               Temps estimé : {item.waiting_time} min
             </Text>
           </View>
         )}
 
-        {/* Actions */}
-        {renderStatusActions()}
+        {renderActions()}
 
-        {/* Action de consultation */}
-        <View style={styles.orderAction}>
-          <Text style={styles.actionText}>Voir les détails</Text>
-          <Ionicons name="chevron-forward" size={20} color="#007AFF" />
+        <View style={styles.viewDetails}>
+          <Text style={styles.viewDetailsText}>Voir les détails</Text>
+          <Ionicons name="chevron-forward" size={iconSize} color={COLORS.primary} />
         </View>
       </Card>
     </Pressable>
   );
 });
 
-// Section commandes actives
-const ActiveOrdersSection = React.memo(({ 
-  orders, 
-  onRefresh, 
-  isLoading,
-  onStatusUpdate,
-  onMarkAsPaid,
-  onArchive,
-  refreshIndicator,
-  realtimeState,
-  onArchiveCompleted
-}: { 
-  orders: OrderList[]; 
-  onRefresh: () => void;
-  isLoading: boolean;
-  onStatusUpdate: (orderId: number, newStatus: string) => Promise<void>;
-  onMarkAsPaid: (orderId: number, paymentMethod: string) => Promise<void>;
-  onArchive: (orderId: number) => Promise<void>;
-  refreshIndicator: React.ReactNode;
-  realtimeState?: {
-    connectionState: 'connecting' | 'connected' | 'disconnected' | 'error';
-    isConnected: boolean;
-  };
-  onArchiveCompleted: () => void;
-}) => {
-  const activeOrders = orders.filter(o => 
-    ['pending', 'confirmed', 'preparing', 'ready'].includes(o.status)
-  );
-
-  const completedOrders = orders.filter(o => 
-    ['served', 'cancelled'].includes(o.status)
-  );
-
-  return (
-    <View style={styles.section}>
-      <View style={styles.sectionHeader}>
-        <View style={styles.sectionTitleContainer}>
-          <Text style={styles.sectionTitle}>
-            Commandes actives ({activeOrders.length})
-          </Text>
-          {refreshIndicator}
-        </View>
-        <View style={styles.headerActions}>
-          {completedOrders.length > 0 && (
-            <Pressable 
-              style={styles.archiveAllButton}
-              onPress={onArchiveCompleted}
-            >
-              <Ionicons name="archive" size={16} color="#666" />
-              <Text style={styles.archiveAllText}>
-                Archiver terminées ({completedOrders.length})
-              </Text>
-            </Pressable>
-          )}
-          <Pressable onPress={onRefresh} disabled={isLoading}>
-            <Ionicons 
-              name="refresh" 
-              size={20} 
-              color={isLoading ? "#ccc" : "#007AFF"} 
-            />
-          </Pressable>
-        </View>
-      </View>
-      
-      {/* Commandes actives */}
-      {activeOrders.map(order => (
-        <RestaurantOrderCard 
-          key={order.id} 
-          item={order} 
-          onStatusUpdate={onStatusUpdate}
-          onMarkAsPaid={onMarkAsPaid}
-          isUpdating={isLoading}
-          isRealtime={realtimeState?.isConnected}
-        />
-      ))}
-
-      {/* Commandes terminées */}
-      {completedOrders.map(order => (
-        <RestaurantOrderCard 
-          key={order.id} 
-          item={order} 
-          onStatusUpdate={onStatusUpdate}
-          onMarkAsPaid={onMarkAsPaid}
-          onArchive={onArchive}
-          isUpdating={isLoading}
-        />
-      ))}
-
-      {activeOrders.length === 0 && completedOrders.length === 0 && (
-        <View style={styles.emptySection}>
-          <Text style={styles.emptySectionText}>Aucune commande active</Text>
-        </View>
-      )}
-    </View>
-  );
-});
-
-// Section archives
-const ArchivedSection = React.memo(({ 
-  orders,
-  onUnarchive 
-}: { 
-  orders: OrderList[];
-  onUnarchive: (orderId: number) => Promise<void>;
-}) => {
-  if (orders.length === 0) {
-    return (
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Archives</Text>
-        <View style={styles.emptySection}>
-          <Ionicons name="archive-outline" size={48} color="#ddd" />
-          <Text style={styles.emptySectionText}>Aucune commande archivée</Text>
-          <Text style={styles.emptySectionSubtext}>
-            Les commandes archivées apparaîtront ici
-          </Text>
-        </View>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Archives ({orders.length})</Text>
-      {orders.map(order => (
-        <RestaurantOrderCard 
-          key={order.id} 
-          item={order}
-          onStatusUpdate={async () => {}} // Pas d'action sur les archives
-          onMarkAsPaid={async () => {}} // Pas d'action sur les archives
-          onUnarchive={onUnarchive}
-          isArchived={true}
-        />
-      ))}
-    </View>
-  );
-});
-
-// État vide
-const EmptyState = React.memo(({ 
-  selectedRestaurant 
-}: { 
-  selectedRestaurant?: Restaurant 
-}) => (
-  <View style={styles.emptyContainer}>
-    <Ionicons name="receipt-outline" size={80} color="#ddd" />
-    <Text style={styles.emptyTitle}>Aucune commande</Text>
-    <Text style={styles.emptyMessage}>
-      {selectedRestaurant 
-        ? `Aucune commande pour ${selectedRestaurant.name}`
-        : 'Les nouvelles commandes apparaîtront ici'
-      }
-    </Text>
-  </View>
-));
-
 // Filtres par statut
 const StatusFilters = React.memo(({ 
   currentFilter, 
   onFilterChange, 
   orders,
-  archivedCount
+  archivedCount,
+  screenType
 }: {
   currentFilter: string;
   onFilterChange: (filter: string) => void;
   orders: OrderList[];
   archivedCount: number;
+  screenType: ScreenType;
 }) => {
   const filters = [
     { key: 'all', label: 'Actives', count: orders.length },
@@ -804,8 +793,57 @@ const StatusFilters = React.memo(({
     { key: 'archived', label: 'Archives', count: archivedCount },
   ];
 
+  const styles = {
+    container: {
+      backgroundColor: COLORS.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: COLORS.border.light,
+    },
+
+    content: {
+      paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
+      paddingVertical: getResponsiveValue(SPACING.sm, screenType),
+    },
+
+    filterButton: {
+      paddingHorizontal: getResponsiveValue(SPACING.sm, screenType),
+      paddingVertical: getResponsiveValue(SPACING.xs, screenType),
+      borderRadius: BORDER_RADIUS.lg,
+      backgroundColor: COLORS.background,
+      marginRight: getResponsiveValue(SPACING.xs, screenType),
+      borderWidth: 1,
+      borderColor: COLORS.border.light,
+    },
+
+    filterButtonActive: {
+      backgroundColor: COLORS.primary,
+      borderColor: COLORS.primary,
+    },
+
+    filterButtonArchive: {
+      borderColor: COLORS.text.secondary,
+    },
+
+    filterButtonText: {
+      fontSize: getResponsiveValue(
+        { mobile: 14, tablet: 15, desktop: 16 },
+        screenType
+      ),
+      fontWeight: '500' as const,
+      color: COLORS.text.secondary,
+    },
+
+    filterButtonTextActive: {
+      color: COLORS.surface,
+    },
+
+    filterButtonTextArchive: {
+      color: COLORS.text.secondary,
+    },
+  };
+
   return (
-    <View style={styles.filtersContainer}>
+    <View style={styles.container}>
       <FlatList
         horizontal
         data={filters}
@@ -819,6 +857,10 @@ const StatusFilters = React.memo(({
               item.key === 'archived' && styles.filterButtonArchive
             ]}
             onPress={() => onFilterChange(item.key)}
+            android_ripple={{ 
+              color: COLORS.primary + '20',
+              borderless: false 
+            }}
           >
             <Text style={[
               styles.filterButtonText,
@@ -829,7 +871,7 @@ const StatusFilters = React.memo(({
             </Text>
           </Pressable>
         )}
-        contentContainerStyle={styles.filtersContent}
+        contentContainerStyle={styles.content}
       />
     </View>
   );
@@ -839,10 +881,18 @@ const StatusFilters = React.memo(({
 export default function RestaurantOrdersScreen() {
   const { isRestaurateur, isAuthenticated } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
-  const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date());
   const [filter, setFilter] = useState<string>('all');
   
-  // Gestion de la sélection de restaurant
+  const screenType = useScreenType();
+  const { width } = useWindowDimensions();
+
+  // Configuration responsive
+  const layoutConfig = {
+    containerPadding: getResponsiveValue(SPACING.container, screenType),
+    maxContentWidth: screenType === 'desktop' ? 1200 : undefined,
+    isTabletLandscape: screenType === 'tablet' && width > 1000,
+  };
+  
   const {
     restaurants,
     selectedRestaurantId,
@@ -850,7 +900,6 @@ export default function RestaurantOrdersScreen() {
     selectRestaurant
   } = useRestaurantSelection();
 
-  // Hook d'archivage
   const {
     archivedOrders,
     archiveOrder,
@@ -858,7 +907,6 @@ export default function RestaurantOrdersScreen() {
     archiveCompletedOrders,
   } = useOrderArchiving();
 
-  // Utiliser le contexte OrderContext existant
   const { 
     orders: allOrders, 
     isLoading, 
@@ -868,90 +916,40 @@ export default function RestaurantOrdersScreen() {
     markAsPaid 
   } = useOrder();
 
-  // Debug logs
-  useEffect(() => {
-    console.log('📊 Orders state:', {
-      allOrders: allOrders.length,
-      selectedRestaurantId,
-      isLoading,
-      error
-    });
-  }, [allOrders.length, selectedRestaurantId, isLoading, error]);
-
   // Filtrer les commandes par restaurant sélectionné
   const restaurantOrders = useMemo(() => {
-    if (!selectedRestaurantId) return allOrders; // Afficher toutes si aucun restaurant sélectionné
+    if (!selectedRestaurantId) return allOrders;
     
     const selectedRestaurant = restaurants.find(r => r.id === String(selectedRestaurantId));
+    if (!selectedRestaurant) return allOrders;
     
-    console.log('🔍 Filtering orders for restaurant:', selectedRestaurantId, selectedRestaurant?.name);
-    console.log('📦 All orders:', allOrders.map(o => ({ 
-      id: o.id, 
-      restaurant: o.restaurant, 
-      restaurant_name: o.restaurant_name 
-    })));
-    
-    if (!selectedRestaurant) {
-      console.log('⚠️ No restaurant found with ID:', selectedRestaurantId);
-      return allOrders;
-    }
-    
-    const filtered = allOrders.filter(order => {
-      // Filtrer par nom de restaurant (plus fiable que l'ID qui n'est pas toujours présent)
-      const match = order.restaurant_name === selectedRestaurant.name;
-      
-      console.log(`🔍 Order ${order.id}: "${order.restaurant_name}" === "${selectedRestaurant.name}" ? ${match}`);
-      
-      return match;
-    });
-    
-    console.log('✅ Filtered orders:', filtered.length);
-    return filtered;
+    return allOrders.filter(order => order.restaurant_name === selectedRestaurant.name);
   }, [allOrders, selectedRestaurantId, restaurants]);
 
   const handleRefresh = useCallback(async () => {
-    console.log('🔄 Refreshing orders...');
     setRefreshing(true);
     try {
-      // Utiliser le contexte pour charger toutes les commandes du restaurateur
       await fetchOrders({
         page: 1,
-        limit: 100, // Charger plus de commandes
+        limit: 100,
       });
-      setLastUpdateTime(new Date());
-      console.log('✅ Orders refreshed successfully');
     } catch (error) {
-      console.error('❌ Error refreshing orders:', error);
+      console.error('Error refreshing orders:', error);
     } finally {
       setRefreshing(false);
     }
   }, [fetchOrders]);
 
-  // Hook temps réel pour les commandes du restaurant sélectionné
-  const realtimeState = useOrderRealtime(restaurantOrders, handleRefresh, {
-    enabled: isAuthenticated && isRestaurateur && restaurantOrders.length > 0,
-    onOrderUpdate: (update) => {
-      console.log('🔔 Restaurant order update received:', update);
-      // Optionnel: afficher une notification
-    },
-    onConnectionChange: (state) => {
-      console.log('🔗 Restaurant connection state changed:', state);
-    }
-  });
-
   // Filtrer par statut et archivage
   const filteredOrders = useMemo(() => {
     let filtered = restaurantOrders;
 
-    // Filtrer par archivage
     if (filter === 'archived') {
       filtered = filtered.filter(order => archivedOrders.has(order.id));
     } else {
-      // Masquer les commandes archivées pour les autres vues
       filtered = filtered.filter(order => !archivedOrders.has(order.id));
     }
 
-    // Filtrer par statut (sauf pour la vue archivée)
     if (filter !== 'all' && filter !== 'archived') {
       filtered = filtered.filter(order => order.status === filter);
     }
@@ -959,57 +957,25 @@ export default function RestaurantOrdersScreen() {
     return filtered;
   }, [restaurantOrders, filter, archivedOrders]);
 
-  const hasActiveOrders = restaurantOrders.some(o => 
-    ['pending', 'confirmed', 'preparing', 'ready'].includes(o.status)
-  );
-
   const selectedRestaurant = restaurants.find(r => r.id === String(selectedRestaurantId));
 
   const handleStatusUpdate = useCallback(async (orderId: number, newStatus: string) => {
     try {
-      console.log('🔄 Updating order status:', orderId, newStatus);
       await updateOrderStatus(orderId, newStatus);
-      console.log('✅ Order status updated');
     } catch (error) {
-      console.error('❌ Error updating status:', error);
+      console.error('Error updating status:', error);
       Alert.alert('Erreur', 'Impossible de mettre à jour le statut de la commande');
     }
   }, [updateOrderStatus]);
 
   const handleMarkAsPaid = useCallback(async (orderId: number, paymentMethod: string) => {
     try {
-      console.log('💳 Marking order as paid:', orderId, paymentMethod);
       await markAsPaid(orderId, paymentMethod);
-      console.log('✅ Order marked as paid');
     } catch (error) {
-      console.error('❌ Error marking as paid:', error);
+      console.error('Error marking as paid:', error);
       Alert.alert('Erreur', 'Impossible de marquer la commande comme payée');
     }
   }, [markAsPaid]);
-
-  const handleFilterChange = useCallback((newFilter: string) => {
-    setFilter(newFilter);
-  }, []);
-
-  const handleArchiveOrder = useCallback(async (orderId: number) => {
-    try {
-      await archiveOrder(orderId);
-      Alert.alert('✅ Succès', 'Commande archivée avec succès');
-    } catch (error) {
-      console.error('❌ Error archiving order:', error);
-      Alert.alert('❌ Erreur', 'Impossible d\'archiver la commande');
-    }
-  }, [archiveOrder]);
-
-  const handleUnarchiveOrder = useCallback(async (orderId: number) => {
-    try {
-      await unarchiveOrder(orderId);
-      Alert.alert('✅ Succès', 'Commande désarchivée avec succès');
-    } catch (error) {
-      console.error('❌ Error unarchiving order:', error);
-      Alert.alert('❌ Erreur', 'Impossible de désarchiver la commande');
-    }
-  }, [unarchiveOrder]);
 
   const handleArchiveCompleted = useCallback(async () => {
     Alert.alert(
@@ -1024,13 +990,13 @@ export default function RestaurantOrdersScreen() {
             try {
               const count = await archiveCompletedOrders(restaurantOrders);
               if (count > 0) {
-                Alert.alert('✅ Succès', `${count} commande(s) archivée(s)`);
+                Alert.alert('Succès', `${count} commande(s) archivée(s)`);
               } else {
-                Alert.alert('ℹ️ Information', 'Aucune commande à archiver');
+                Alert.alert('Information', 'Aucune commande à archiver');
               }
             } catch (error) {
-              console.error('❌ Error bulk archiving:', error);
-              Alert.alert('❌ Erreur', 'Impossible d\'archiver les commandes');
+              console.error('Error bulk archiving:', error);
+              Alert.alert('Erreur', 'Impossible d\'archiver les commandes');
             }
           }
         },
@@ -1038,88 +1004,147 @@ export default function RestaurantOrdersScreen() {
     );
   }, [archiveCompletedOrders, restaurantOrders]);
 
-  const handleRestaurantSelect = useCallback(async (restaurantId: number) => {
-    console.log('🏪 Selecting restaurant:', restaurantId);
-    await selectRestaurant(restaurantId);
-    // Les commandes sont déjà chargées, le filtrage se fait automatiquement
-  }, [selectRestaurant]);
-
-  // Auto-refresh pour commandes actives (désactivé si temps réel connecté)
-  useAutoRefresh(hasActiveOrders, handleRefresh, realtimeState.isConnected);
-
-  // Charger les commandes au montage et quand l'auth change
+  // Charger les commandes au montage
   useEffect(() => {
     if (isAuthenticated && isRestaurateur) {
-      console.log('🚀 Loading orders for restaurateur...');
       handleRefresh();
     }
   }, [isAuthenticated, isRestaurateur]);
 
-  // Rendu du contenu principal
-  const renderContent = useCallback(() => {
-    if (!selectedRestaurantId && !isLoadingRestaurants) {
-      return (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="restaurant-outline" size={80} color="#ddd" />
-          <Text style={styles.emptyTitle}>Aucun restaurant sélectionné</Text>
-          <Text style={styles.emptyMessage}>Sélectionnez un restaurant pour voir les commandes</Text>
-        </View>
-      );
-    }
+  const styles = {
+    container: {
+      flex: 1,
+      backgroundColor: COLORS.background,
+    },
 
-    if (restaurantOrders.length === 0 && !isLoading) {
-      return <EmptyState selectedRestaurant={selectedRestaurant} />;
-    }
+    content: {
+      padding: layoutConfig.containerPadding,
+      maxWidth: layoutConfig.maxContentWidth,
+      alignSelf: 'center' as const,
+      width: '100%' as const,
+    },
 
-    const refreshIndicator = (
-      <RefreshIndicator 
-        isRefreshing={refreshing}
-        lastUpdateTime={lastUpdateTime}
-        activeOrdersCount={restaurantOrders.filter(o => 
-          ['pending', 'confirmed', 'preparing', 'ready'].includes(o.status)
-        ).length}
-        realtimeState={realtimeState}
-      />
-    );
+    sectionHeader: {
+      flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
+      alignItems: 'center' as const,
+      marginBottom: getResponsiveValue(SPACING.md, screenType),
+    },
 
-    return (
-      <FlatList
-        data={[1]}
-        renderItem={() => (
-          <View style={styles.content}>
-            {filter === 'archived' ? (
-              <ArchivedSection 
-                orders={filteredOrders}
-                onUnarchive={handleUnarchiveOrder}
-              />
-            ) : (
-              <ActiveOrdersSection 
-                orders={filteredOrders}
-                onRefresh={handleRefresh}
-                isLoading={refreshing}
-                onStatusUpdate={handleStatusUpdate}
-                onMarkAsPaid={handleMarkAsPaid}
-                onArchive={handleArchiveOrder}
-                refreshIndicator={refreshIndicator}
-                realtimeState={realtimeState}
-                onArchiveCompleted={handleArchiveCompleted}
-              />
-            )}
-          </View>
-        )}
-        keyExtractor={() => 'content'}
-        refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
-            onRefresh={handleRefresh}
-            colors={['#FF6B35']}
-            tintColor="#FF6B35"
-          />
-        }
-        showsVerticalScrollIndicator={false}
-      />
-    );
-  }, [selectedRestaurantId, isLoadingRestaurants, restaurantOrders.length, isLoading, selectedRestaurant, filteredOrders, refreshing, handleRefresh, handleStatusUpdate, handleMarkAsPaid, lastUpdateTime]);
+    sectionTitle: {
+      fontSize: getResponsiveValue(
+        { mobile: 20, tablet: 24, desktop: 28 },
+        screenType
+      ),
+      fontWeight: '600' as const,
+      color: COLORS.text.primary,
+    },
+
+    headerActions: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: getResponsiveValue(SPACING.sm, screenType),
+    },
+
+    emptyContainer: {
+      flex: 1,
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+      padding: getResponsiveValue(
+        { mobile: 40, tablet: 60, desktop: 80 },
+        screenType
+      ),
+    },
+
+    emptyIcon: {
+      marginBottom: getResponsiveValue(SPACING.lg, screenType),
+    },
+
+    emptyTitle: {
+      fontSize: getResponsiveValue(
+        { mobile: 24, tablet: 28, desktop: 32 },
+        screenType
+      ),
+      fontWeight: '700' as const,
+      color: COLORS.primary,
+      marginBottom: getResponsiveValue(SPACING.sm, screenType),
+      textAlign: 'center' as const,
+    },
+
+    emptyMessage: {
+      fontSize: getResponsiveValue(
+        { mobile: 16, tablet: 18, desktop: 20 },
+        screenType
+      ),
+      color: COLORS.text.secondary,
+      textAlign: 'center' as const,
+      lineHeight: getResponsiveValue(
+        { mobile: 22, tablet: 24, desktop: 26 },
+        screenType
+      ),
+    },
+
+    errorContainer: {
+      flex: 1,
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+      padding: getResponsiveValue(
+        { mobile: 40, tablet: 60, desktop: 80 },
+        screenType
+      ),
+    },
+
+    errorText: {
+      fontSize: getResponsiveValue(
+        { mobile: 16, tablet: 18, desktop: 20 },
+        screenType
+      ),
+      color: COLORS.text.secondary,
+      marginTop: getResponsiveValue(SPACING.md, screenType),
+      textAlign: 'center' as const,
+    },
+
+    errorBanner: {
+      backgroundColor: COLORS.error + '10',
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      padding: getResponsiveValue(SPACING.sm, screenType),
+      margin: layoutConfig.containerPadding,
+      borderRadius: BORDER_RADIUS.lg,
+      borderWidth: 1,
+      borderColor: COLORS.error + '40',
+    },
+
+    errorBannerText: {
+      color: COLORS.error,
+      fontSize: getResponsiveValue(
+        { mobile: 14, tablet: 15, desktop: 16 },
+        screenType
+      ),
+      marginLeft: getResponsiveValue(SPACING.xs, screenType),
+      flex: 1,
+    },
+
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+    },
+
+    loadingText: {
+      marginTop: getResponsiveValue(SPACING.md, screenType),
+      fontSize: getResponsiveValue(
+        { mobile: 16, tablet: 18, desktop: 20 },
+        screenType
+      ),
+      color: COLORS.text.secondary,
+    },
+  };
+
+  const iconSize = getResponsiveValue(
+    { mobile: 64, tablet: 80, desktop: 96 },
+    screenType
+  );
 
   // Gestion des erreurs d'accès
   if (!isRestaurateur) {
@@ -1127,499 +1152,154 @@ export default function RestaurantOrdersScreen() {
       <SafeAreaView style={styles.container}>
         <Header title="Commandes" />
         <View style={styles.errorContainer}>
-          <Ionicons name="lock-closed-outline" size={48} color="#666" />
+          <Ionicons name="lock-closed-outline" size={iconSize} color={COLORS.secondary} />
           <Text style={styles.errorText}>Accès réservé aux restaurateurs</Text>
         </View>
       </SafeAreaView>
     );
   }
 
+  const renderContent = () => {
+    if (!selectedRestaurantId && !isLoadingRestaurants) {
+      return (
+        <View style={styles.emptyContainer}>
+          <View style={styles.emptyIcon}>
+            <Ionicons name="restaurant-outline" size={iconSize} color={COLORS.secondary} />
+          </View>
+          <Text style={styles.emptyTitle}>Aucun restaurant sélectionné</Text>
+          <Text style={styles.emptyMessage}>
+            Sélectionnez un restaurant pour voir les commandes
+          </Text>
+        </View>
+      );
+    }
+
+    if (restaurantOrders.length === 0 && !isLoading) {
+      return (
+        <View style={styles.emptyContainer}>
+          <View style={styles.emptyIcon}>
+            <Ionicons name="receipt-outline" size={iconSize} color={COLORS.secondary} />
+          </View>
+          <Text style={styles.emptyTitle}>Aucune commande</Text>
+          <Text style={styles.emptyMessage}>
+            {selectedRestaurant 
+              ? `Aucune commande pour ${selectedRestaurant.name}`
+              : 'Les nouvelles commandes apparaîtront ici'
+            }
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <FlatList
+        data={filteredOrders}
+        renderItem={({ item }) => (
+          <OrderCard
+            key={item.id}
+            item={item}
+            onStatusUpdate={handleStatusUpdate}
+            onMarkAsPaid={handleMarkAsPaid}
+            onArchive={archiveOrder}
+            onUnarchive={unarchiveOrder}
+            isUpdating={refreshing}
+            isArchived={filter === 'archived'}
+            screenType={screenType}
+          />
+        )}
+        keyExtractor={(item) => String(item.id)}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={handleRefresh}
+            colors={[COLORS.primary]}
+            tintColor={COLORS.primary}
+          />
+        }
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+        ListHeaderComponent={() => {
+          const completedOrders = restaurantOrders.filter(o => 
+            ['served', 'cancelled'].includes(o.status) && !archivedOrders.has(o.id)
+          );
+
+          return (
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>
+                {filter === 'archived' ? 'Archives' : 'Commandes actives'} ({filteredOrders.length})
+              </Text>
+              <View style={styles.headerActions}>
+                {completedOrders.length > 0 && filter !== 'archived' && (
+                  <Button
+                    title={`Archiver (${completedOrders.length})`}
+                    onPress={handleArchiveCompleted}
+                    variant="outline"
+                    size="sm"
+                    leftIcon="archive"
+                    style={{ 
+                      borderColor: COLORS.text.secondary,
+                      backgroundColor: 'transparent' 
+                    }}
+                    textStyle={{ color: COLORS.text.secondary }}
+                  />
+                )}
+                <Pressable onPress={handleRefresh} disabled={refreshing}>
+                  <Ionicons 
+                    name="refresh" 
+                    size={getResponsiveValue(
+                      { mobile: 20, tablet: 22, desktop: 24 },
+                      screenType
+                    )} 
+                    color={refreshing ? COLORS.text.light : COLORS.primary} 
+                  />
+                </Pressable>
+              </View>
+            </View>
+          );
+        }}
+      />
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <Header title="Gestion des commandes" />
 
-      {/* Sélecteur de restaurant */}
       <RestaurantSelector
         restaurants={restaurants}
         selectedRestaurantId={selectedRestaurantId}
-        onSelect={handleRestaurantSelect}
+        onSelect={selectRestaurant}
         isLoading={isLoadingRestaurants}
+        screenType={screenType}
       />
 
-      {/* Bannière d'erreur */}
       {error && (
         <View style={styles.errorBanner}>
-          <Ionicons name="warning" size={16} color="#DC2626" />
+          <Ionicons name="warning" size={16} color={COLORS.error} />
           <Text style={styles.errorBannerText}>{error}</Text>
         </View>
       )}
 
-      {/* Bannière d'avertissement si temps réel échoue */}
-      {realtimeState.connectionState === 'error' && realtimeState.activeOrdersCount > 0 && (
-        <View style={styles.warningBanner}>
-          <Ionicons name="cloud-offline" size={16} color="#FF9500" />
-          <Text style={styles.warningBannerText}>
-            Notifications temps réel indisponibles. Tirez pour actualiser.
-          </Text>
-        </View>
-      )}
-
-      {/* Filtres par statut */}
       {restaurantOrders.length > 0 && (
         <StatusFilters 
           currentFilter={filter}
-          onFilterChange={handleFilterChange}
+          onFilterChange={setFilter}
           orders={restaurantOrders.filter(order => !archivedOrders.has(order.id))}
           archivedCount={archivedOrders.size}
+          screenType={screenType}
         />
       )}
 
-      {/* Contenu principal */}
-      {renderContent()}
-
-      {/* Indicateur de chargement initial */}
-      {(isLoading || isLoadingRestaurants) && allOrders.length === 0 && (
+      {(isLoading || isLoadingRestaurants) && allOrders.length === 0 ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF6B35" />
+          <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>
             {isLoadingRestaurants ? 'Chargement des restaurants...' : 'Chargement des commandes...'}
           </Text>
         </View>
+      ) : (
+        renderContent()
       )}
     </SafeAreaView>
   );
 }
-
-// Styles (identiques à la version précédente)
-const styles = {
-  container: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
-  },
-  content: {
-    padding: 16,
-  },
-  
-  // Sélecteur de restaurant
-  restaurantSelector: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    gap: 8,
-  },
-  restaurantSelectorText: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '500' as const,
-    color: '#333',
-  },
-
-  // Modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end' as const,
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    flex: 0.7,
-  },
-  modalHeader: {
-    flexDirection: 'row' as const,
-    justifyContent: 'space-between' as const,
-    alignItems: 'center' as const,
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold' as const,
-    color: '#333',
-  },
-  restaurantOption: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  restaurantOptionSelected: {
-    backgroundColor: '#FFF7ED',
-  },
-  restaurantOptionText: {
-    fontSize: 16,
-    fontWeight: '500' as const,
-    color: '#333',
-    marginBottom: 2,
-  },
-  restaurantOptionTextSelected: {
-    color: '#FF6B35',
-  },
-  restaurantOptionAddress: {
-    fontSize: 14,
-    color: '#666',
-  },
-  
-  // Sections
-  section: {
-    marginBottom: 24,
-  },
-  sectionHeader: {
-    flexDirection: 'row' as const,
-    justifyContent: 'space-between' as const,
-    alignItems: 'center' as const,
-    marginBottom: 16,
-  },
-  headerActions: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 12,
-  },
-  archiveAllButton: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 16,
-    gap: 4,
-  },
-  archiveAllText: {
-    fontSize: 12,
-    color: '#666',
-    fontWeight: '500' as const,
-  },
-  sectionTitleContainer: {
-    flex: 1,
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 12,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold' as const,
-    color: '#333',
-  },
-
-  // Indicateur de refresh
-  refreshIndicator: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    backgroundColor: '#F8F9FA',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  refreshText: {
-    fontSize: 11,
-    fontWeight: '500' as const,
-  },
-  lastUpdateText: {
-    fontSize: 10,
-    color: '#9CA3AF',
-    marginLeft: 4,
-  },
-
-  // Filtres
-  filtersContainer: {
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  filtersContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  filterButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#F3F4F6',
-    marginRight: 8,
-  },
-  filterButtonActive: {
-    backgroundColor: '#FF6B35',
-  },
-  filterButtonArchive: {
-    borderColor: '#9CA3AF',
-    borderWidth: 1,
-  },
-  filterButtonText: {
-    fontSize: 14,
-    fontWeight: '500' as const,
-    color: '#6B7280',
-  },
-  filterButtonTextActive: {
-    color: '#fff',
-  },
-  filterButtonTextArchive: {
-    color: '#666',
-  },
-
-  // Cartes de commande
-  orderCard: {
-    marginBottom: 16,
-    padding: 20,
-  },
-  activeOrderCard: {
-    borderLeftWidth: 4,
-    borderLeftColor: '#FF6B35',
-  },
-  realtimeOrderCard: {
-    borderColor: '#10B981',
-    borderWidth: 1,
-  },
-  archivedOrderCard: {
-    opacity: 0.7,
-    borderLeftWidth: 4,
-    borderLeftColor: '#9CA3AF',
-  },
-  urgentOrderCard: {
-    borderColor: '#DC2626',
-    borderWidth: 1,
-    backgroundColor: '#FEF2F2',
-  },
-  orderHeader: {
-    flexDirection: 'row' as const,
-    justifyContent: 'space-between' as const,
-    alignItems: 'flex-start' as const,
-    marginBottom: 16,
-  },
-  orderInfo: {
-    flex: 1,
-  },
-  orderTitleRow: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 8,
-  },
-  orderTitle: {
-    fontSize: 18,
-    fontWeight: 'bold' as const,
-    color: '#333',
-    marginBottom: 4,
-  },
-  urgentBadge: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#FEE2E2',
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-  },
-  realtimeBadge: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#10B981',
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-  },
-  realtimeDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#fff',
-  },
-  archivedBadge: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-  },
-  customerName: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 8,
-  },
-  orderTime: {
-    fontSize: 14,
-    color: '#666',
-  },
-
-  // Détails
-  orderDetails: {
-    flexDirection: 'row' as const,
-    flexWrap: 'wrap' as const,
-    gap: 16,
-    marginBottom: 16,
-  },
-  detailItem: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 6,
-  },
-  detailText: {
-    fontSize: 14,
-    color: '#666',
-  },
-
-  // Temps d'attente
-  waitingTime: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    marginBottom: 12,
-    gap: 6,
-    paddingVertical: 8,
-    backgroundColor: '#FFF7ED',
-    borderRadius: 8,
-  },
-  waitingTimeText: {
-    fontSize: 14,
-    color: '#FF9500',
-    fontWeight: '500' as const,
-  },
-
-  // Boutons d'action
-  actionButtons: {
-    flexDirection: 'row' as const,
-    gap: 8,
-    marginBottom: 12,
-  },
-  actionButton: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-    gap: 6,
-    flex: 1,
-  },
-  statusButton: {
-    backgroundColor: '#FF6B35',
-  },
-  paymentButton: {
-    backgroundColor: '#10B981',
-  },
-  archiveButton: {
-    backgroundColor: '#9CA3AF',
-  },
-  unarchiveButton: {
-    backgroundColor: '#6B7280',
-  },
-  actionButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600' as const,
-  },
-
-  // Action de consultation
-  orderAction: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    justifyContent: 'space-between' as const,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-  },
-  actionText: {
-    fontSize: 16,
-    color: '#007AFF',
-    fontWeight: '500' as const,
-  },
-
-  // États
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
-    padding: 32,
-  },
-  emptyTitle: {
-    fontSize: 24,
-    fontWeight: 'bold' as const,
-    color: '#333',
-    marginTop: 24,
-    marginBottom: 12,
-    textAlign: 'center' as const,
-  },
-  emptyMessage: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center' as const,
-    lineHeight: 24,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
-    padding: 40,
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#666',
-    marginTop: 16,
-  },
-  errorBanner: {
-    backgroundColor: '#FEF2F2',
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    padding: 12,
-    margin: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#FCA5A5',
-  },
-  errorBannerText: {
-    color: '#DC2626',
-    fontSize: 14,
-    marginLeft: 8,
-    flex: 1,
-  },
-  warningBanner: {
-    backgroundColor: '#FFF7ED',
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    padding: 12,
-    margin: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#FED7AA',
-  },
-  warningBannerText: {
-    color: '#FF9500',
-    fontSize: 14,
-    marginLeft: 8,
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666',
-  },
-  emptySection: {
-    alignItems: 'center' as const,
-    padding: 32,
-  },
-  emptySectionText: {
-    fontSize: 16,
-    color: '#666',
-    marginTop: 12,
-    textAlign: 'center' as const,
-  },
-  emptySectionSubtext: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    marginTop: 4,
-    textAlign: 'center' as const,
-  },
-};
