@@ -62,6 +62,7 @@ ALLOWED_HOSTS = [
     LOCAL_IP,
     '0.0.0.0',
     '192.168.1.163',
+    '192.168.1.129',
     # Ajoutez votre domaine en production
 ]
 
