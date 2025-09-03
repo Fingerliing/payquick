@@ -18,6 +18,16 @@ import { Card } from '@/components/ui/Card';
 import { Loading } from '@/components/ui/Loading';
 import { UpdateRestaurantData, CuisineType } from '@/types/restaurant';
 import * as ImagePicker from 'expo-image-picker';
+import { 
+  useScreenType, 
+  getResponsiveValue, 
+  createResponsiveStyles,
+  COLORS, 
+  SPACING, 
+  BORDER_RADIUS,
+  TYPOGRAPHY,
+  SHADOWS 
+} from '@/utils/designSystem';
 
 const RestaurantDetailPage = () => {
   const params = useLocalSearchParams();
@@ -32,7 +42,26 @@ const RestaurantDetailPage = () => {
     clearCurrentRestaurant 
   } = useRestaurant();
 
-  // États locaux pour l'édition avec types appropriés
+  // Configuration responsive avec le système designSystem.ts
+  const screenType = useScreenType();
+  const responsiveStyles = createResponsiveStyles(screenType);
+  const isTabletLandscape = screenType === 'tablet';
+
+  // Valeurs responsive avec getResponsiveValue
+  const containerPadding = getResponsiveValue(SPACING.container, screenType);
+  const cardSpacing = getResponsiveValue(SPACING.lg, screenType);
+  const imageHeight = getResponsiveValue(
+    { mobile: 200, tablet: 250, desktop: 300 },
+    screenType
+  );
+  const fontSize = {
+    title: getResponsiveValue(TYPOGRAPHY.fontSize['2xl'], screenType),
+    subtitle: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
+    body: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
+    small: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+  };
+
+  // États locaux pour l'édition
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<UpdateRestaurantData>({
     name: '',
@@ -111,7 +140,6 @@ const RestaurantDetailPage = () => {
     
     setIsClosing(true);
     try {
-      // Appel API pour fermer le restaurant
       const response = await fetch(`/api/restaurants/${id}/manual_close/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -122,7 +150,7 @@ const RestaurantDetailPage = () => {
       });
       
       if (response.ok) {
-        await loadRestaurant(id); // Recharger les données
+        await loadRestaurant(id);
         setShowCloseModal(false);
         setCloseForm({ reason: '', duration: '' });
         Alert.alert('Succès', 'Restaurant fermé temporairement');
@@ -218,7 +246,7 @@ const RestaurantDetailPage = () => {
   // États de chargement et d'erreur
   if (isLoading) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
+      <View style={styles.container}>
         <Header title="Restaurant" showBackButton onBackPress={() => router.back()} />
         <Loading fullScreen text="Chargement du restaurant..." />
       </View>
@@ -227,20 +255,20 @@ const RestaurantDetailPage = () => {
 
   if (error || !currentRestaurant) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
+      <View style={styles.container}>
         <Header title="Restaurant" showBackButton onBackPress={() => router.back()} />
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-          <Text style={{ fontSize: 18, fontWeight: '600', color: '#111827', marginBottom: 8, textAlign: 'center' }}>
+        <View style={[styles.errorContainer, { padding: containerPadding }]}>
+          <Text style={[styles.errorTitle, { fontSize: fontSize.subtitle }]}>
             Restaurant non trouvé
           </Text>
-          <Text style={{ fontSize: 14, color: '#6B7280', marginBottom: 16, textAlign: 'center' }}>
+          <Text style={[styles.errorText, { fontSize: fontSize.body }]}>
             Ce restaurant n'existe pas ou vous n'y avez pas accès.
           </Text>
           <TouchableOpacity 
             onPress={() => router.back()}
-            style={{ backgroundColor: '#3B82F6', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 }}
+            style={[styles.errorButton, responsiveStyles.button]}
           >
-            <Text style={{ color: 'white', fontWeight: '500' }}>Retour</Text>
+            <Text style={[styles.errorButtonText, { fontSize: fontSize.body }]}>Retour</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -249,20 +277,20 @@ const RestaurantDetailPage = () => {
 
   const getStatusBadge = () => {
     if (currentRestaurant.isManuallyOverridden) {
-      return { text: 'Fermé temporairement', color: '#DC2626', backgroundColor: '#FEE2E2' };
+      return { text: 'Fermé temporairement', color: COLORS.error, backgroundColor: '#FEE2E2' };
     }
     
     if (currentRestaurant.can_receive_orders) {
-      return { text: 'Ouvert aux commandes', color: '#059669', backgroundColor: '#D1FAE5' };
+      return { text: 'Ouvert aux commandes', color: COLORS.success, backgroundColor: '#D1FAE5' };
     }
     
-    return { text: 'Configuration requise', color: '#6B7280', backgroundColor: '#F3F4F6' };
+    return { text: 'Configuration requise', color: COLORS.text.secondary, backgroundColor: COLORS.neutral[100] };
   };
 
   const statusBadge = getStatusBadge();
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
+    <View style={styles.container}>
       <Header 
         title={currentRestaurant.name} 
         showBackButton
@@ -273,618 +301,545 @@ const RestaurantDetailPage = () => {
 
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        style={{ flex: 1 }}
+        style={styles.scrollView}
+        contentContainerStyle={{ 
+          padding: containerPadding,
+          paddingBottom: containerPadding + 20 
+        }}
       >
-        <View style={{ padding: 16 }}>
-          
-          {/* Badge de statut */}
-          <View style={{ marginBottom: 16 }}>
-            <View style={{ 
-              alignSelf: 'flex-start',
-              backgroundColor: statusBadge.backgroundColor,
-              paddingHorizontal: 12,
-              paddingVertical: 6,
-              borderRadius: 20
-            }}>
-              <Text style={{ color: statusBadge.color, fontSize: 12, fontWeight: '500' }}>
-                {statusBadge.text}
-              </Text>
-            </View>
-          </View>
-
-          {/* Alerte fermeture temporaire */}
-          {currentRestaurant.isManuallyOverridden && (
-            <Card style={{ marginBottom: 16, backgroundColor: '#FEF2F2', borderLeftWidth: 4, borderLeftColor: '#DC2626' }}>
-              <Text style={{ fontSize: 14, fontWeight: '600', color: '#991B1B', marginBottom: 4 }}>
-                ⚠️ Restaurant fermé temporairement
-              </Text>
-              <Text style={{ fontSize: 12, color: '#7F1D1D' }}>
-                {currentRestaurant.manualOverrideReason}
-              </Text>
-              {currentRestaurant.manualOverrideUntil && (
-                <Text style={{ fontSize: 11, color: '#991B1B', marginTop: 4 }}>
-                  Jusqu'au: {new Date(currentRestaurant.manualOverrideUntil).toLocaleString()}
+        {/* Layout principal responsive avec votre système */}
+        <View style={[
+          isTabletLandscape ? styles.tabletLayout : styles.mobileLayout
+        ]}>
+          {/* Colonne principale */}
+          <View style={[
+            isTabletLandscape ? styles.mainColumn : styles.fullWidth
+          ]}>
+            {/* Badge de statut */}
+            <View style={{ marginBottom: cardSpacing }}>
+              <View style={[
+                styles.statusBadge,
+                { backgroundColor: statusBadge.backgroundColor }
+              ]}>
+                <Text style={[
+                  styles.statusBadgeText,
+                  { color: statusBadge.color, fontSize: fontSize.small }
+                ]}>
+                  {statusBadge.text}
                 </Text>
+              </View>
+            </View>
+
+            {/* Alerte fermeture temporaire */}
+            {currentRestaurant.isManuallyOverridden && (
+              <Card style={[styles.alertCard, { marginBottom: cardSpacing }]}>
+                <Text style={[styles.alertTitle, { fontSize: fontSize.body }]}>
+                  ⚠️ Restaurant fermé temporairement
+                </Text>
+                <Text style={[styles.alertText, { fontSize: fontSize.small }]}>
+                  {currentRestaurant.manualOverrideReason}
+                </Text>
+                {currentRestaurant.manualOverrideUntil && (
+                  <Text style={[styles.alertDate, { fontSize: fontSize.small }]}>
+                    Jusqu'au: {new Date(currentRestaurant.manualOverrideUntil).toLocaleString()}
+                  </Text>
+                )}
+              </Card>
+            )}
+
+            {/* Boutons d'action avec système responsive */}
+            <View style={[
+              styles.actionButtonsContainer,
+              { marginBottom: cardSpacing, gap: cardSpacing / 2 }
+            ]}>
+              {currentRestaurant.isManuallyOverridden ? (
+                <TouchableOpacity
+                  onPress={handleReopenRestaurant}
+                  style={[styles.reopenButton, responsiveStyles.button]}
+                >
+                  <Text style={[styles.buttonText, { fontSize: fontSize.body }]}>Rouvrir</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  onPress={() => setShowCloseModal(true)}
+                  style={[styles.closeButton, responsiveStyles.button]}
+                >
+                  <Text style={[styles.buttonText, { fontSize: fontSize.body }]}>Fermer temporairement</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Image du restaurant optimisée */}
+            <Card style={[responsiveStyles.card, { marginBottom: cardSpacing }]}>
+              <Text style={[styles.sectionTitle, { fontSize: fontSize.subtitle, marginBottom: cardSpacing * 0.75 }]}>
+                Image du restaurant
+              </Text>
+              
+              {currentRestaurant.image_url ? (
+                <View>
+                  <Image 
+                    source={{ uri: currentRestaurant.image_url }} 
+                    style={[
+                      styles.restaurantImage,
+                      { height: imageHeight }
+                    ]}
+                    resizeMode="cover"
+                  />
+                  <TouchableOpacity
+                    onPress={handleImagePicker}
+                    style={[styles.imageButton, responsiveStyles.button, { marginTop: cardSpacing * 0.75 }]}
+                  >
+                    <Text style={[styles.buttonText, { fontSize: fontSize.body }]}>Changer l'image</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View>
+                  <View style={[
+                    styles.imagePlaceholder,
+                    { height: imageHeight }
+                  ]}>
+                    <Text style={[styles.placeholderIcon, { fontSize: screenType === 'mobile' ? 48 : 64 }]}>📷</Text>
+                    <Text style={[styles.placeholderText, { fontSize: fontSize.body }]}>Aucune image</Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={handleImagePicker}
+                    style={[styles.imageButton, responsiveStyles.button, { marginTop: cardSpacing * 0.75 }]}
+                  >
+                    <Text style={[styles.buttonText, { fontSize: fontSize.body }]}>Ajouter une image</Text>
+                  </TouchableOpacity>
+                </View>
               )}
             </Card>
-          )}
 
-          {/* Boutons d'action */}
-          <View style={{ flexDirection: 'row', marginBottom: 16, gap: 8 }}>
-            {currentRestaurant.isManuallyOverridden ? (
-              <TouchableOpacity
-                onPress={handleReopenRestaurant}
-                style={{ 
-                  flex: 1, 
-                  backgroundColor: '#059669', 
-                  paddingVertical: 12, 
-                  borderRadius: 8,
-                  alignItems: 'center'
-                }}
-              >
-                <Text style={{ color: 'white', fontWeight: '500' }}>Rouvrir</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                onPress={() => setShowCloseModal(true)}
-                style={{ 
-                  flex: 1, 
-                  backgroundColor: '#DC2626', 
-                  paddingVertical: 12, 
-                  borderRadius: 8,
-                  alignItems: 'center'
-                }}
-              >
-                <Text style={{ color: 'white', fontWeight: '500' }}>Fermer temporairement</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {/* Image du restaurant */}
-          <Card style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', color: '#111827', marginBottom: 12 }}>
-              Image du restaurant
-            </Text>
-            
-            {currentRestaurant.image_url ? (
-              <View>
-                <Image 
-                  source={{ uri: currentRestaurant.image_url }} 
-                  style={{ width: '100%', height: 200, borderRadius: 8, marginBottom: 12 }}
-                  resizeMode="cover"
-                />
-                <TouchableOpacity
-                  onPress={handleImagePicker}
-                  style={{ 
-                    backgroundColor: '#3B82F6', 
-                    paddingVertical: 10, 
-                    borderRadius: 8,
-                    alignItems: 'center'
-                  }}
-                >
-                  <Text style={{ color: 'white', fontWeight: '500' }}>Changer l'image</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View>
-                <View style={{ 
-                  width: '100%', 
-                  height: 200, 
-                  backgroundColor: '#F3F4F6', 
-                  borderRadius: 8, 
-                  justifyContent: 'center', 
-                  alignItems: 'center',
-                  marginBottom: 12
-                }}>
-                  <Text style={{ fontSize: 48 }}>📷</Text>
-                  <Text style={{ color: '#6B7280', marginTop: 8 }}>Aucune image</Text>
-                </View>
-                <TouchableOpacity
-                  onPress={handleImagePicker}
-                  style={{ 
-                    backgroundColor: '#3B82F6', 
-                    paddingVertical: 10, 
-                    borderRadius: 8,
-                    alignItems: 'center'
-                  }}
-                >
-                  <Text style={{ color: 'white', fontWeight: '500' }}>Ajouter une image</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </Card>
-
-          {/* Informations générales */}
-          <Card style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', color: '#111827', marginBottom: 12 }}>
-              Informations générales
-            </Text>
-            
-            {isEditing ? (
-              <View style={{ gap: 12 }}>
-                <View>
-                  <Text style={{ fontSize: 12, fontWeight: '500', color: '#374151', marginBottom: 4 }}>
-                    Nom du restaurant
-                  </Text>
-                  <TextInput
-                    value={editForm.name}
-                    onChangeText={(text) => setEditForm({...editForm, name: text})}
-                    style={{ 
-                      borderWidth: 1, 
-                      borderColor: '#D1D5DB', 
-                      borderRadius: 8, 
-                      paddingHorizontal: 12, 
-                      paddingVertical: 10,
-                      backgroundColor: 'white'
-                    }}
-                    placeholder="Nom du restaurant"
-                  />
-                </View>
-                
-                <View>
-                  <Text style={{ fontSize: 12, fontWeight: '500', color: '#374151', marginBottom: 4 }}>
-                    Description
-                  </Text>
-                  <TextInput
-                    value={editForm.description}
-                    onChangeText={(text) => setEditForm({...editForm, description: text})}
-                    multiline
-                    numberOfLines={3}
-                    style={{ 
-                      borderWidth: 1, 
-                      borderColor: '#D1D5DB', 
-                      borderRadius: 8, 
-                      paddingHorizontal: 12, 
-                      paddingVertical: 10,
-                      backgroundColor: 'white',
-                      textAlignVertical: 'top'
-                    }}
-                    placeholder="Description du restaurant"
-                  />
-                </View>
-                
-                <View>
-                  <Text style={{ fontSize: 12, fontWeight: '500', color: '#374151', marginBottom: 4 }}>
-                    Adresse
-                  </Text>
-                  <TextInput
-                    value={editForm.address}
-                    onChangeText={(text) => setEditForm({...editForm, address: text})}
-                    style={{ 
-                      borderWidth: 1, 
-                      borderColor: '#D1D5DB', 
-                      borderRadius: 8, 
-                      paddingHorizontal: 12, 
-                      paddingVertical: 10,
-                      backgroundColor: 'white'
-                    }}
-                    placeholder="Adresse"
-                  />
-                </View>
-                
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <View style={{ flex: 2 }}>
-                    <Text style={{ fontSize: 12, fontWeight: '500', color: '#374151', marginBottom: 4 }}>
-                      Ville
+            {/* Informations générales */}
+            <Card style={[responsiveStyles.card, { marginBottom: cardSpacing }]}>
+              <Text style={[styles.sectionTitle, { fontSize: fontSize.subtitle, marginBottom: cardSpacing * 0.75 }]}>
+                Informations générales
+              </Text>
+              
+              {isEditing ? (
+                <View style={{ gap: cardSpacing * 0.75 }}>
+                  <View>
+                    <Text style={[styles.inputLabel, { fontSize: fontSize.small }]}>
+                      Nom du restaurant
                     </Text>
                     <TextInput
-                      value={editForm.city}
-                      onChangeText={(text) => setEditForm({...editForm, city: text})}
-                      style={{ 
-                        borderWidth: 1, 
-                        borderColor: '#D1D5DB', 
-                        borderRadius: 8, 
-                        paddingHorizontal: 12, 
-                        paddingVertical: 10,
-                        backgroundColor: 'white'
-                      }}
-                      placeholder="Ville"
+                      value={editForm.name}
+                      onChangeText={(text) => setEditForm({...editForm, name: text})}
+                      style={[styles.textInput, { fontSize: fontSize.body }]}
+                      placeholder="Nom du restaurant"
                     />
                   </View>
                   
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 12, fontWeight: '500', color: '#374151', marginBottom: 4 }}>
-                      Code postal
+                  <View>
+                    <Text style={[styles.inputLabel, { fontSize: fontSize.small }]}>
+                      Description
                     </Text>
                     <TextInput
-                      value={editForm.zipCode}
-                      onChangeText={(text) => setEditForm({...editForm, zipCode: text})}
-                      style={{ 
-                        borderWidth: 1, 
-                        borderColor: '#D1D5DB', 
-                        borderRadius: 8, 
-                        paddingHorizontal: 12, 
-                        paddingVertical: 10,
-                        backgroundColor: 'white'
-                      }}
-                      placeholder="Code postal"
-                      keyboardType="numeric"
-                    />
-                  </View>
-                </View>
-                
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 12, fontWeight: '500', color: '#374151', marginBottom: 4 }}>
-                      Téléphone
-                    </Text>
-                    <TextInput
-                      value={editForm.phone}
-                      onChangeText={(text) => setEditForm({...editForm, phone: text})}
-                      style={{ 
-                        borderWidth: 1, 
-                        borderColor: '#D1D5DB', 
-                        borderRadius: 8, 
-                        paddingHorizontal: 12, 
-                        paddingVertical: 10,
-                        backgroundColor: 'white'
-                      }}
-                      placeholder="Téléphone"
-                      keyboardType="phone-pad"
+                      value={editForm.description}
+                      onChangeText={(text) => setEditForm({...editForm, description: text})}
+                      multiline
+                      numberOfLines={3}
+                      style={[styles.textInputMultiline, { fontSize: fontSize.body }]}
+                      placeholder="Description du restaurant"
                     />
                   </View>
                   
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 12, fontWeight: '500', color: '#374151', marginBottom: 4 }}>
-                      Email
+                  <View>
+                    <Text style={[styles.inputLabel, { fontSize: fontSize.small }]}>
+                      Adresse
                     </Text>
                     <TextInput
-                      value={editForm.email}
-                      onChangeText={(text) => setEditForm({...editForm, email: text})}
-                      style={{ 
-                        borderWidth: 1, 
-                        borderColor: '#D1D5DB', 
-                        borderRadius: 8, 
-                        paddingHorizontal: 12, 
-                        paddingVertical: 10,
-                        backgroundColor: 'white'
-                      }}
-                      placeholder="Email"
-                      keyboardType="email-address"
+                      value={editForm.address}
+                      onChangeText={(text) => setEditForm({...editForm, address: text})}
+                      style={[styles.textInput, { fontSize: fontSize.body }]}
+                      placeholder="Adresse"
                     />
                   </View>
-                </View>
-                
-                <View>
-                  <Text style={{ fontSize: 12, fontWeight: '500', color: '#374151', marginBottom: 4 }}>
-                    Site web (optionnel)
-                  </Text>
-                  <TextInput
-                    value={editForm.website}
-                    onChangeText={(text) => setEditForm({...editForm, website: text})}
-                    style={{ 
-                      borderWidth: 1, 
-                      borderColor: '#D1D5DB', 
-                      borderRadius: 8, 
-                      paddingHorizontal: 12, 
-                      paddingVertical: 10,
-                      backgroundColor: 'white'
-                    }}
-                    placeholder="https://..."
-                    keyboardType="url"
-                  />
-                </View>
-                
-                <View>
-                  <Text style={{ fontSize: 12, fontWeight: '500', color: '#374151', marginBottom: 4 }}>
-                    Type de cuisine
-                  </Text>
-                  <View style={{ 
-                    borderWidth: 1, 
-                    borderColor: '#D1D5DB', 
-                    borderRadius: 8, 
-                    backgroundColor: 'white'
-                  }}>
-                    {/* Pour React Native, vous pourriez utiliser @react-native-picker/picker ici */}
-                    <TouchableOpacity
-                      style={{ paddingHorizontal: 12, paddingVertical: 10 }}
-                      onPress={() => {
-                        // Ici vous pourriez ouvrir un modal avec les options de cuisine
-                        Alert.alert('Type de cuisine', 'Fonctionnalité à implémenter avec un picker');
-                      }}
-                    >
-                      <Text style={{ color: editForm.cuisine ? '#111827' : '#9CA3AF' }}>
-                        {editForm.cuisine ? editForm.cuisine.charAt(0).toUpperCase() + editForm.cuisine.slice(1) : 'Sélectionner un type'}
+                  
+                  <View style={[
+                    screenType === 'mobile' ? styles.addressRowMobile : styles.addressRowTablet,
+                    { gap: cardSpacing * 0.5 }
+                  ]}>
+                    <View style={{ flex: screenType === 'mobile' ? 1 : 2 }}>
+                      <Text style={[styles.inputLabel, { fontSize: fontSize.small }]}>
+                        Ville
                       </Text>
+                      <TextInput
+                        value={editForm.city}
+                        onChangeText={(text) => setEditForm({...editForm, city: text})}
+                        style={[styles.textInput, { fontSize: fontSize.body }]}
+                        placeholder="Ville"
+                      />
+                    </View>
+                    
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.inputLabel, { fontSize: fontSize.small }]}>
+                        Code postal
+                      </Text>
+                      <TextInput
+                        value={editForm.zipCode}
+                        onChangeText={(text) => setEditForm({...editForm, zipCode: text})}
+                        style={[styles.textInput, { fontSize: fontSize.body }]}
+                        placeholder="Code postal"
+                        keyboardType="numeric"
+                      />
+                    </View>
+                  </View>
+                  
+                  <View style={[
+                    styles.contactRow,
+                    { gap: cardSpacing * 0.5 }
+                  ]}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.inputLabel, { fontSize: fontSize.small }]}>
+                        Téléphone
+                      </Text>
+                      <TextInput
+                        value={editForm.phone}
+                        onChangeText={(text) => setEditForm({...editForm, phone: text})}
+                        style={[styles.textInput, { fontSize: fontSize.body }]}
+                        placeholder="Téléphone"
+                        keyboardType="phone-pad"
+                      />
+                    </View>
+                    
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.inputLabel, { fontSize: fontSize.small }]}>
+                        Email
+                      </Text>
+                      <TextInput
+                        value={editForm.email}
+                        onChangeText={(text) => setEditForm({...editForm, email: text})}
+                        style={[styles.textInput, { fontSize: fontSize.body }]}
+                        placeholder="Email"
+                        keyboardType="email-address"
+                      />
+                    </View>
+                  </View>
+                  
+                  {/* Actions d'édition */}
+                  <View style={[styles.editActions, { gap: cardSpacing * 0.5 }]}>
+                    <TouchableOpacity
+                      onPress={() => setIsEditing(false)}
+                      style={[styles.cancelButton, responsiveStyles.button]}
+                    >
+                      <Text style={[styles.buttonText, { fontSize: fontSize.body }]}>Annuler</Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity
+                      onPress={handleEditSubmit}
+                      style={[styles.saveButton, responsiveStyles.button]}
+                    >
+                      <Text style={[styles.buttonText, { fontSize: fontSize.body }]}>Sauvegarder</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
-                
-                <View>
-                  <Text style={{ fontSize: 12, fontWeight: '500', color: '#374151', marginBottom: 4 }}>
-                    Gamme de prix
-                  </Text>
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
-                    {[1, 2, 3, 4].map((level) => (
-                      <TouchableOpacity
-                        key={level}
-                        onPress={() => setEditForm({...editForm, priceRange: level as 1 | 2 | 3 | 4})}
-                        style={{
-                          flex: 1,
-                          paddingVertical: 8,
-                          paddingHorizontal: 12,
-                          borderRadius: 8,
-                          borderWidth: 1,
-                          borderColor: editForm.priceRange === level ? '#3B82F6' : '#D1D5DB',
-                          backgroundColor: editForm.priceRange === level ? '#EBF8FF' : 'white',
-                          alignItems: 'center'
-                        }}
-                      >
-                        <Text style={{ 
-                          color: editForm.priceRange === level ? '#3B82F6' : '#6B7280',
-                          fontWeight: '500' 
-                        }}>
-                          {'€'.repeat(level)}
+              ) : (
+                <View style={{ gap: cardSpacing * 0.75 }}>
+                  <View>
+                    <Text style={[styles.infoLabel, { fontSize: fontSize.small }]}>Adresse:</Text>
+                    <Text style={[styles.infoValue, { fontSize: fontSize.body }]}>
+                      {currentRestaurant.address}, {currentRestaurant.zipCode} {currentRestaurant.city}
+                    </Text>
+                  </View>
+                  
+                  <View>
+                    <Text style={[styles.infoLabel, { fontSize: fontSize.small }]}>Téléphone:</Text>
+                    <Text style={[styles.infoValue, { fontSize: fontSize.body }]}>{currentRestaurant.phone}</Text>
+                  </View>
+                  
+                  <View>
+                    <Text style={[styles.infoLabel, { fontSize: fontSize.small }]}>Email:</Text>
+                    <Text style={[styles.infoValue, { fontSize: fontSize.body }]}>{currentRestaurant.email}</Text>
+                  </View>
+                  
+                  {currentRestaurant.website && (
+                    <View>
+                      <Text style={[styles.infoLabel, { fontSize: fontSize.small }]}>Site web:</Text>
+                      <Text style={[styles.websiteLink, { fontSize: fontSize.body }]}>{currentRestaurant.website}</Text>
+                    </View>
+                  )}
+                  
+                  <View>
+                    <Text style={[styles.infoLabel, { fontSize: fontSize.small }]}>Cuisine:</Text>
+                    <Text style={[styles.infoValue, { fontSize: fontSize.body, textTransform: 'capitalize' }]}>
+                      {currentRestaurant.cuisine}
+                    </Text>
+                  </View>
+                  
+                  <View>
+                    <Text style={[styles.infoLabel, { fontSize: fontSize.small }]}>Gamme de prix:</Text>
+                    <Text style={[styles.priceRange, { fontSize: fontSize.body }]}>
+                      {'€'.repeat(currentRestaurant.priceRange)}
+                    </Text>
+                  </View>
+                  
+                  <View>
+                    <Text style={[styles.infoLabel, { fontSize: fontSize.small }]}>Note moyenne:</Text>
+                    <Text style={[styles.infoValue, { fontSize: fontSize.body }]}>
+                      ⭐ {currentRestaurant.rating || 0} ({currentRestaurant.reviewCount || 0} avis)
+                    </Text>
+                  </View>
+                  
+                  {currentRestaurant.accepts_meal_vouchers && (
+                    <View>
+                      <Text style={[styles.infoLabel, { fontSize: fontSize.small }]}>Titres-restaurant:</Text>
+                      <Text style={[styles.mealVoucherAccepted, { fontSize: fontSize.body }]}>Acceptés</Text>
+                      {currentRestaurant.meal_voucher_info && (
+                        <Text style={[styles.mealVoucherInfo, { fontSize: fontSize.small }]}>
+                          {currentRestaurant.meal_voucher_info}
                         </Text>
-                      </TouchableOpacity>
+                      )}
+                    </View>
+                  )}
+                  
+                  {currentRestaurant.description && (
+                    <View>
+                      <Text style={[styles.infoLabel, { fontSize: fontSize.small }]}>Description:</Text>
+                      <Text style={[styles.infoValue, { fontSize: fontSize.body }]}>{currentRestaurant.description}</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </Card>
+          </View>
+
+          {/* Colonne secondaire (tablette paysage uniquement) */}
+          {isTabletLandscape && (
+            <View style={styles.sideColumn}>
+              {/* Horaires d'ouverture */}
+              {currentRestaurant.opening_hours && currentRestaurant.opening_hours.length > 0 && (
+                <Card style={[responsiveStyles.card, { marginBottom: cardSpacing }]}>
+                  <Text style={[styles.sectionTitle, { fontSize: fontSize.subtitle, marginBottom: cardSpacing * 0.75 }]}>
+                    Horaires d'ouverture
+                  </Text>
+                  
+                  <View style={{ gap: cardSpacing * 0.5 }}>
+                    {currentRestaurant.opening_hours.map((hours) => (
+                      <View key={hours.dayOfWeek} style={styles.scheduleRow}>
+                        <Text style={[styles.dayLabel, { fontSize: fontSize.body }]}>
+                          {['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'][hours.dayOfWeek]}
+                        </Text>
+                        <View style={styles.scheduleInfo}>
+                          {hours.isClosed ? (
+                            <Text style={[styles.closedText, { fontSize: fontSize.small }]}>Fermé</Text>
+                          ) : hours.periods && hours.periods.length > 0 ? (
+                            <View>
+                              {hours.periods.map((period, idx) => (
+                                <View key={idx}>
+                                  <Text style={[styles.scheduleTime, { fontSize: fontSize.small }]}>
+                                    {period.startTime} - {period.endTime}
+                                    {period.name && (
+                                      <Text style={[styles.schedulePeriod, { fontSize: fontSize.small }]}> ({period.name})</Text>
+                                    )}
+                                  </Text>
+                                </View>
+                              ))}
+                            </View>
+                          ) : (
+                            <Text style={[styles.notDefinedText, { fontSize: fontSize.small }]}>Non défini</Text>
+                          )}
+                        </View>
+                      </View>
                     ))}
                   </View>
-                </View>
+                </Card>
+              )}
+
+              {/* Statistiques */}
+              <Card style={[responsiveStyles.card, { marginBottom: cardSpacing }]}>
+                <Text style={[styles.sectionTitle, { fontSize: fontSize.subtitle, marginBottom: cardSpacing * 0.75 }]}>
+                  Statistiques
+                </Text>
                 
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Text style={{ fontSize: 14, color: '#374151' }}>
-                    Accepte les titres-restaurant
-                  </Text>
-                  <Switch
-                    value={editForm.accepts_meal_vouchers}
-                    onValueChange={(value) => setEditForm({...editForm, accepts_meal_vouchers: value})}
-                  />
-                </View>
-                
-                {editForm.accepts_meal_vouchers && (
-                  <View>
-                    <Text style={{ fontSize: 12, fontWeight: '500', color: '#374151', marginBottom: 4 }}>
-                      Informations sur les titres-restaurant
-                    </Text>
-                    <TextInput
-                      value={editForm.meal_voucher_info}
-                      onChangeText={(text) => setEditForm({...editForm, meal_voucher_info: text})}
-                      multiline
-                      numberOfLines={2}
-                      style={{ 
-                        borderWidth: 1, 
-                        borderColor: '#D1D5DB', 
-                        borderRadius: 8, 
-                        paddingHorizontal: 12, 
-                        paddingVertical: 10,
-                        backgroundColor: 'white',
-                        textAlignVertical: 'top'
-                      }}
-                      placeholder="Ex: Tous types de titres acceptés, maximum 19€ par jour..."
-                    />
+                <View style={{ gap: cardSpacing * 0.5 }}>
+                  <View style={styles.statRow}>
+                    <Text style={[styles.statLabel, { fontSize: fontSize.small }]}>Paiements Stripe</Text>
+                    <View style={[
+                      styles.statusIndicator,
+                      { backgroundColor: currentRestaurant.is_stripe_active ? COLORS.surface.golden : '#FEE2E2' }
+                    ]}>
+                      <Text style={[
+                        styles.statusText,
+                        { 
+                          fontSize: fontSize.small,
+                          color: currentRestaurant.is_stripe_active ? COLORS.success : COLORS.error 
+                        }
+                      ]}>
+                        {currentRestaurant.is_stripe_active ? 'Actif' : 'Inactif'}
+                      </Text>
+                    </View>
                   </View>
-                )}
+                  
+                  <View style={styles.statRow}>
+                    <Text style={[styles.statLabel, { fontSize: fontSize.small }]}>Créé le</Text>
+                    <Text style={[styles.statValue, { fontSize: fontSize.small }]}>
+                      {new Date(currentRestaurant.createdAt).toLocaleDateString()}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.statRow}>
+                    <Text style={[styles.statLabel, { fontSize: fontSize.small }]}>Dernière modif.</Text>
+                    <Text style={[styles.statValue, { fontSize: fontSize.small }]}>
+                      {new Date(currentRestaurant.updatedAt).toLocaleDateString()}
+                    </Text>
+                  </View>
+                </View>
+              </Card>
+
+              {/* Actions rapides */}
+              <Card style={responsiveStyles.card}>
+                <Text style={[styles.sectionTitle, { fontSize: fontSize.subtitle, marginBottom: cardSpacing * 0.75 }]}>
+                  Actions rapides
+                </Text>
                 
-                <View style={{ flexDirection: 'row', gap: 8 }}>
+                <View style={{ gap: cardSpacing * 0.5 }}>
                   <TouchableOpacity
-                    onPress={() => setIsEditing(false)}
-                    style={{ 
-                      flex: 1, 
-                      backgroundColor: '#6B7280', 
-                      paddingVertical: 12, 
-                      borderRadius: 8,
-                      alignItems: 'center'
-                    }}
+                    onPress={() => router.push(`/(restaurant)/qrcodes`)}
+                    style={styles.quickActionButton}
                   >
-                    <Text style={{ color: 'white', fontWeight: '500' }}>Annuler</Text>
+                    <Text style={[styles.quickActionIcon, { fontSize: fontSize.subtitle }]}>👥</Text>
+                    <Text style={[styles.quickActionText, { fontSize: fontSize.body }]}>Gérer les tables</Text>
                   </TouchableOpacity>
                   
                   <TouchableOpacity
-                    onPress={handleEditSubmit}
-                    style={{ 
-                      flex: 1, 
-                      backgroundColor: '#3B82F6', 
-                      paddingVertical: 12, 
-                      borderRadius: 8,
-                      alignItems: 'center'
-                    }}
+                    onPress={() => router.push(`/(restaurant)/menu`)}
+                    style={styles.quickActionButton}
                   >
-                    <Text style={{ color: 'white', fontWeight: '500' }}>Sauvegarder</Text>
+                    <Text style={[styles.quickActionIcon, { fontSize: fontSize.subtitle }]}>⚙️</Text>
+                    <Text style={[styles.quickActionText, { fontSize: fontSize.body }]}>Gérer les menus</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    onPress={() => router.push(`/(restaurant)/orders`)}
+                    style={styles.quickActionButton}
+                  >
+                    <Text style={[styles.quickActionIcon, { fontSize: fontSize.subtitle }]}>🕒</Text>
+                    <Text style={[styles.quickActionText, { fontSize: fontSize.body }]}>Voir les commandes</Text>
                   </TouchableOpacity>
                 </View>
-              </View>
-            ) : (
-              <View style={{ gap: 12 }}>
-                <View>
-                  <Text style={{ fontSize: 12, fontWeight: '500', color: '#6B7280' }}>Adresse:</Text>
-                  <Text style={{ fontSize: 14, color: '#111827' }}>
-                    {currentRestaurant.address}, {currentRestaurant.zipCode} {currentRestaurant.city}
-                  </Text>
-                </View>
-                
-                <View>
-                  <Text style={{ fontSize: 12, fontWeight: '500', color: '#6B7280' }}>Téléphone:</Text>
-                  <Text style={{ fontSize: 14, color: '#111827' }}>{currentRestaurant.phone}</Text>
-                </View>
-                
-                <View>
-                  <Text style={{ fontSize: 12, fontWeight: '500', color: '#6B7280' }}>Email:</Text>
-                  <Text style={{ fontSize: 14, color: '#111827' }}>{currentRestaurant.email}</Text>
-                </View>
-                
-                {currentRestaurant.website && (
-                  <View>
-                    <Text style={{ fontSize: 12, fontWeight: '500', color: '#6B7280' }}>Site web:</Text>
-                    <Text style={{ fontSize: 14, color: '#3B82F6' }}>{currentRestaurant.website}</Text>
-                  </View>
-                )}
-                
-                <View>
-                  <Text style={{ fontSize: 12, fontWeight: '500', color: '#6B7280' }}>Cuisine:</Text>
-                  <Text style={{ fontSize: 14, color: '#111827', textTransform: 'capitalize' }}>
-                    {currentRestaurant.cuisine}
-                  </Text>
-                </View>
-                
-                <View>
-                  <Text style={{ fontSize: 12, fontWeight: '500', color: '#6B7280' }}>Gamme de prix:</Text>
-                  <Text style={{ fontSize: 14, color: '#111827' }}>
-                    {'€'.repeat(currentRestaurant.priceRange)}
-                  </Text>
-                </View>
-                
-                <View>
-                  <Text style={{ fontSize: 12, fontWeight: '500', color: '#6B7280' }}>Note moyenne:</Text>
-                  <Text style={{ fontSize: 14, color: '#111827' }}>
-                    ⭐ {currentRestaurant.rating || 0} ({currentRestaurant.reviewCount || 0} avis)
-                  </Text>
-                </View>
-                
-                {currentRestaurant.accepts_meal_vouchers && (
-                  <View>
-                    <Text style={{ fontSize: 12, fontWeight: '500', color: '#6B7280' }}>Titres-restaurant:</Text>
-                    <Text style={{ fontSize: 14, color: '#059669', fontWeight: '500' }}>Acceptés</Text>
-                    {currentRestaurant.meal_voucher_info && (
-                      <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
-                        {currentRestaurant.meal_voucher_info}
-                      </Text>
-                    )}
-                  </View>
-                )}
-                
-                {currentRestaurant.description && (
-                  <View>
-                    <Text style={{ fontSize: 12, fontWeight: '500', color: '#6B7280' }}>Description:</Text>
-                    <Text style={{ fontSize: 14, color: '#111827' }}>{currentRestaurant.description}</Text>
-                  </View>
-                )}
-              </View>
-            )}
-          </Card>
-
-          {/* Horaires d'ouverture */}
-          {currentRestaurant.opening_hours && currentRestaurant.opening_hours.length > 0 && (
-            <Card style={{ marginBottom: 16 }}>
-              <Text style={{ fontSize: 16, fontWeight: '600', color: '#111827', marginBottom: 12 }}>
-                Horaires d'ouverture
-              </Text>
-              
-              <View style={{ gap: 8 }}>
-                {currentRestaurant.opening_hours.map((hours) => (
-                  <View key={hours.dayOfWeek} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text style={{ fontWeight: '500', color: '#111827', width: 60 }}>
-                      {['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'][hours.dayOfWeek]}
-                    </Text>
-                    <View style={{ flex: 1, marginLeft: 16 }}>
-                      {hours.isClosed ? (
-                        <Text style={{ color: '#6B7280' }}>Fermé</Text>
-                      ) : hours.periods && hours.periods.length > 0 ? (
-                        <View>
-                          {hours.periods.map((period, idx) => (
-                            <View key={idx}>
-                              <Text style={{ color: '#111827', fontSize: 14 }}>
-                                {period.startTime} - {period.endTime}
-                                {period.name && (
-                                  <Text style={{ color: '#6B7280', fontSize: 12 }}> ({period.name})</Text>
-                                )}
-                              </Text>
-                            </View>
-                          ))}
-                        </View>
-                      ) : (
-                        <Text style={{ color: '#6B7280' }}>Non défini</Text>
-                      )}
-                    </View>
-                  </View>
-                ))}
-              </View>
-            </Card>
+              </Card>
+            </View>
           )}
 
-          {/* Statistiques */}
-          <Card style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', color: '#111827', marginBottom: 12 }}>
-              Statistiques
-            </Text>
-            
-            <View style={{ gap: 8 }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={{ color: '#6B7280' }}>Paiements Stripe</Text>
-                <View style={{ 
-                  paddingHorizontal: 8, 
-                  paddingVertical: 4, 
-                  borderRadius: 12,
-                  backgroundColor: currentRestaurant.is_stripe_active ? '#D1FAE5' : '#FEE2E2'
-                }}>
-                  <Text style={{ 
-                    fontSize: 12, 
-                    fontWeight: '500',
-                    color: currentRestaurant.is_stripe_active ? '#059669' : '#DC2626'
-                  }}>
-                    {currentRestaurant.is_stripe_active ? 'Actif' : 'Inactif'}
+          {/* Sections mobiles (affichées uniquement en mobile/tablette portrait) */}
+          {!isTabletLandscape && (
+            <>
+              {/* Horaires d'ouverture */}
+              {currentRestaurant.opening_hours && currentRestaurant.opening_hours.length > 0 && (
+                <Card style={[responsiveStyles.card, { marginBottom: cardSpacing }]}>
+                  <Text style={[styles.sectionTitle, { fontSize: fontSize.subtitle, marginBottom: cardSpacing * 0.75 }]}>
+                    Horaires d'ouverture
                   </Text>
-                </View>
-              </View>
-              
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={{ color: '#6B7280' }}>Créé le</Text>
-                <Text style={{ color: '#111827' }}>
-                  {new Date(currentRestaurant.createdAt).toLocaleDateString()}
-                </Text>
-              </View>
-              
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={{ color: '#6B7280' }}>Dernière modif.</Text>
-                <Text style={{ color: '#111827' }}>
-                  {new Date(currentRestaurant.updatedAt).toLocaleDateString()}
-                </Text>
-              </View>
-            </View>
-          </Card>
+                  
+                  <View style={{ gap: cardSpacing * 0.5 }}>
+                    {currentRestaurant.opening_hours.map((hours) => (
+                      <View key={hours.dayOfWeek} style={styles.scheduleRow}>
+                        <Text style={[styles.dayLabel, { fontSize: fontSize.body }]}>
+                          {['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'][hours.dayOfWeek]}
+                        </Text>
+                        <View style={styles.scheduleInfo}>
+                          {hours.isClosed ? (
+                            <Text style={[styles.closedText, { fontSize: fontSize.small }]}>Fermé</Text>
+                          ) : hours.periods && hours.periods.length > 0 ? (
+                            <View>
+                              {hours.periods.map((period, idx) => (
+                                <View key={idx}>
+                                  <Text style={[styles.scheduleTime, { fontSize: fontSize.small }]}>
+                                    {period.startTime} - {period.endTime}
+                                    {period.name && (
+                                      <Text style={[styles.schedulePeriod, { fontSize: fontSize.small }]}> ({period.name})</Text>
+                                    )}
+                                  </Text>
+                                </View>
+                              ))}
+                            </View>
+                          ) : (
+                            <Text style={[styles.notDefinedText, { fontSize: fontSize.small }]}>Non défini</Text>
+                          )}
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                </Card>
+              )}
 
-          {/* Actions rapides */}
-          <Card>
-            <Text style={{ fontSize: 16, fontWeight: '600', color: '#111827', marginBottom: 12 }}>
-              Actions rapides
-            </Text>
-            
-            <View style={{ gap: 8 }}>
-              <TouchableOpacity
-                onPress={() => router.push(`/(restaurant)/qrcodes`)}
-                style={{ 
-                  flexDirection: 'row', 
-                  alignItems: 'center', 
-                  paddingVertical: 12,
-                  paddingHorizontal: 16,
-                  backgroundColor: '#F9FAFB',
-                  borderRadius: 8
-                }}
-              >
-                <Text style={{ fontSize: 20, marginRight: 12 }}>👥</Text>
-                <Text style={{ color: '#374151', fontWeight: '500' }}>Gérer les tables</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                onPress={() => router.push(`/(restaurant)/menu`)}
-                style={{ 
-                  flexDirection: 'row', 
-                  alignItems: 'center', 
-                  paddingVertical: 12,
-                  paddingHorizontal: 16,
-                  backgroundColor: '#F9FAFB',
-                  borderRadius: 8
-                }}
-              >
-                <Text style={{ fontSize: 20, marginRight: 12 }}>⚙️</Text>
-                <Text style={{ color: '#374151', fontWeight: '500' }}>Gérer les menus</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                onPress={() => router.push(`/(restaurant)/orders`)}
-                style={{ 
-                  flexDirection: 'row', 
-                  alignItems: 'center', 
-                  paddingVertical: 12,
-                  paddingHorizontal: 16,
-                  backgroundColor: '#F9FAFB',
-                  borderRadius: 8
-                }}
-              >
-                <Text style={{ fontSize: 20, marginRight: 12 }}>🕒</Text>
-                <Text style={{ color: '#374151', fontWeight: '500' }}>Voir les commandes</Text>
-              </TouchableOpacity>
-            </View>
-          </Card>
+              {/* Statistiques */}
+              <Card style={[responsiveStyles.card, { marginBottom: cardSpacing }]}>
+                <Text style={[styles.sectionTitle, { fontSize: fontSize.subtitle, marginBottom: cardSpacing * 0.75 }]}>
+                  Statistiques
+                </Text>
+                
+                <View style={{ gap: cardSpacing * 0.5 }}>
+                  <View style={styles.statRow}>
+                    <Text style={[styles.statLabel, { fontSize: fontSize.small }]}>Paiements Stripe</Text>
+                    <View style={[
+                      styles.statusIndicator,
+                      { backgroundColor: currentRestaurant.is_stripe_active ? COLORS.surface.golden : '#FEE2E2' }
+                    ]}>
+                      <Text style={[
+                        styles.statusText,
+                        { 
+                          fontSize: fontSize.small,
+                          color: currentRestaurant.is_stripe_active ? COLORS.success : COLORS.error 
+                        }
+                      ]}>
+                        {currentRestaurant.is_stripe_active ? 'Actif' : 'Inactif'}
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  <View style={styles.statRow}>
+                    <Text style={[styles.statLabel, { fontSize: fontSize.small }]}>Créé le</Text>
+                    <Text style={[styles.statValue, { fontSize: fontSize.small }]}>
+                      {new Date(currentRestaurant.createdAt).toLocaleDateString()}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.statRow}>
+                    <Text style={[styles.statLabel, { fontSize: fontSize.small }]}>Dernière modif.</Text>
+                    <Text style={[styles.statValue, { fontSize: fontSize.small }]}>
+                      {new Date(currentRestaurant.updatedAt).toLocaleDateString()}
+                    </Text>
+                  </View>
+                </View>
+              </Card>
+
+              {/* Actions rapides */}
+              <Card style={responsiveStyles.card}>
+                <Text style={[styles.sectionTitle, { fontSize: fontSize.subtitle, marginBottom: cardSpacing * 0.75 }]}>
+                  Actions rapides
+                </Text>
+                
+                <View style={{ gap: cardSpacing * 0.5 }}>
+                  <TouchableOpacity
+                    onPress={() => router.push(`/(restaurant)/qrcodes`)}
+                    style={styles.quickActionButton}
+                  >
+                    <Text style={[styles.quickActionIcon, { fontSize: fontSize.subtitle }]}>👥</Text>
+                    <Text style={[styles.quickActionText, { fontSize: fontSize.body }]}>Gérer les tables</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    onPress={() => router.push(`/(restaurant)/menu`)}
+                    style={styles.quickActionButton}
+                  >
+                    <Text style={[styles.quickActionIcon, { fontSize: fontSize.subtitle }]}>⚙️</Text>
+                    <Text style={[styles.quickActionText, { fontSize: fontSize.body }]}>Gérer les menus</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    onPress={() => router.push(`/(restaurant)/orders`)}
+                    style={styles.quickActionButton}
+                  >
+                    <Text style={[styles.quickActionIcon, { fontSize: fontSize.subtitle }]}>🕒</Text>
+                    <Text style={[styles.quickActionText, { fontSize: fontSize.body }]}>Voir les commandes</Text>
+                  </TouchableOpacity>
+                </View>
+              </Card>
+            </>
+          )}
         </View>
       </ScrollView>
 
@@ -895,30 +850,24 @@ const RestaurantDetailPage = () => {
         animationType="slide"
         onRequestClose={() => setShowCloseModal(false)}
       >
-        <View style={{ 
-          flex: 1, 
-          backgroundColor: 'rgba(0, 0, 0, 0.5)', 
-          justifyContent: 'center', 
-          alignItems: 'center',
-          padding: 20
-        }}>
-          <View style={{ 
-            backgroundColor: 'white', 
-            borderRadius: 12, 
-            padding: 20, 
-            width: '100%',
-            maxWidth: 400
-          }}>
-            <Text style={{ fontSize: 18, fontWeight: '600', color: '#111827', marginBottom: 8 }}>
+        <View style={styles.modalOverlay}>
+          <View style={[
+            styles.modalContainer,
+            { 
+              margin: containerPadding,
+              maxWidth: screenType === 'desktop' ? 500 : undefined 
+            }
+          ]}>
+            <Text style={[styles.modalTitle, { fontSize: fontSize.subtitle }]}>
               ⚠️ Fermer temporairement
             </Text>
             
-            <Text style={{ color: '#6B7280', marginBottom: 16, lineHeight: 20 }}>
+            <Text style={[styles.modalDescription, { fontSize: fontSize.body }]}>
               Cette action fermera votre restaurant aux nouvelles commandes. Vous pourrez le rouvrir à tout moment.
             </Text>
             
-            <View style={{ marginBottom: 16 }}>
-              <Text style={{ fontSize: 12, fontWeight: '500', color: '#374151', marginBottom: 4 }}>
+            <View style={{ marginBottom: cardSpacing }}>
+              <Text style={[styles.inputLabel, { fontSize: fontSize.small }]}>
                 Raison de la fermeture *
               </Text>
               <TextInput
@@ -926,66 +875,42 @@ const RestaurantDetailPage = () => {
                 onChangeText={(text) => setCloseForm({...closeForm, reason: text})}
                 multiline
                 numberOfLines={3}
-                style={{ 
-                  borderWidth: 1, 
-                  borderColor: '#D1D5DB', 
-                  borderRadius: 8, 
-                  paddingHorizontal: 12, 
-                  paddingVertical: 10,
-                  backgroundColor: 'white',
-                  textAlignVertical: 'top'
-                }}
+                style={[styles.textInputMultiline, { fontSize: fontSize.body }]}
                 placeholder="Ex: Vacances, travaux, problème technique..."
               />
             </View>
             
-            <View style={{ marginBottom: 20 }}>
-              <Text style={{ fontSize: 12, fontWeight: '500', color: '#374151', marginBottom: 4 }}>
+            <View style={{ marginBottom: cardSpacing * 1.25 }}>
+              <Text style={[styles.inputLabel, { fontSize: fontSize.small }]}>
                 Durée (optionnel)
               </Text>
-              <View style={{ 
-                borderWidth: 1, 
-                borderColor: '#D1D5DB', 
-                borderRadius: 8, 
-                backgroundColor: 'white'
-              }}>
-                {/* Ici vous pourriez utiliser un Picker ou des TouchableOpacity pour les options */}
-                <TextInput
-                  value={closeForm.duration}
-                  onChangeText={(text) => setCloseForm({...closeForm, duration: text})}
-                  style={{ paddingHorizontal: 12, paddingVertical: 10 }}
-                  placeholder="Heures (ex: 24 pour 1 jour)"
-                  keyboardType="numeric"
-                />
-              </View>
+              <TextInput
+                value={closeForm.duration}
+                onChangeText={(text) => setCloseForm({...closeForm, duration: text})}
+                style={[styles.textInput, { fontSize: fontSize.body }]}
+                placeholder="Heures (ex: 24 pour 1 jour)"
+                keyboardType="numeric"
+              />
             </View>
             
-            <View style={{ flexDirection: 'row', gap: 12 }}>
+            <View style={[styles.modalActions, { gap: cardSpacing * 0.75 }]}>
               <TouchableOpacity
                 onPress={() => setShowCloseModal(false)}
-                style={{ 
-                  flex: 1, 
-                  backgroundColor: '#6B7280', 
-                  paddingVertical: 12, 
-                  borderRadius: 8,
-                  alignItems: 'center'
-                }}
+                style={[styles.cancelButton, responsiveStyles.button]}
               >
-                <Text style={{ color: 'white', fontWeight: '500' }}>Annuler</Text>
+                <Text style={[styles.buttonText, { fontSize: fontSize.body }]}>Annuler</Text>
               </TouchableOpacity>
               
               <TouchableOpacity
                 onPress={handleCloseRestaurant}
                 disabled={!closeForm.reason.trim() || isClosing}
-                style={{ 
-                  flex: 1, 
-                  backgroundColor: !closeForm.reason.trim() || isClosing ? '#DC2626AA' : '#DC2626', 
-                  paddingVertical: 12, 
-                  borderRadius: 8,
-                  alignItems: 'center'
-                }}
+                style={[
+                  styles.confirmCloseButton, 
+                  responsiveStyles.button,
+                  { opacity: !closeForm.reason.trim() || isClosing ? 0.6 : 1 }
+                ]}
               >
-                <Text style={{ color: 'white', fontWeight: '500' }}>
+                <Text style={[styles.buttonText, { fontSize: fontSize.body }]}>
                   {isClosing ? 'Fermeture...' : 'Fermer le restaurant'}
                 </Text>
               </TouchableOpacity>
@@ -995,6 +920,460 @@ const RestaurantDetailPage = () => {
       </Modal>
     </View>
   );
+};
+
+// =============================================================================
+// STYLES AVEC LE SYSTÈME DESIGNSYSTEM.TS
+// =============================================================================
+
+const styles = {
+  // Layout principal
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  
+  // Layouts responsifs
+  mobileLayout: {
+    flexDirection: 'column' as const,
+  },
+  tabletLayout: {
+    flexDirection: 'row' as const,
+    gap: 24,
+    alignItems: 'flex-start' as const,
+  },
+  mainColumn: {
+    flex: 2,
+    minWidth: 0,
+  },
+  sideColumn: {
+    flex: 1,
+    minWidth: 300,
+    maxWidth: 450,
+  },
+  fullWidth: {
+    width: '100%',
+  },
+  
+  // États d'erreur
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+  },
+  errorTitle: {
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.primary,
+    marginBottom: 8,
+    textAlign: 'center' as const,
+  },
+  errorText: {
+    color: COLORS.text.secondary,
+    marginBottom: 16,
+    textAlign: 'center' as const,
+  },
+  errorButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: BORDER_RADIUS.lg,
+    ...SHADOWS.button,
+  },
+  errorButtonText: {
+    color: COLORS.text.inverse,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+  },
+  
+  // Badge de statut
+  statusBadge: {
+    alignSelf: 'flex-start' as const,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  statusBadgeText: {
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+  },
+  
+  // Alertes
+  alertCard: {
+    backgroundColor: '#FEF2F2',
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.error,
+    ...SHADOWS.card,
+  },
+  alertTitle: {
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: '#991B1B',
+    marginBottom: 4,
+  },
+  alertText: {
+    color: '#7F1D1D',
+  },
+  alertDate: {
+    color: '#991B1B',
+    marginTop: 4,
+  },
+  
+  // Boutons d'action
+  actionButtonsContainer: {
+    flexDirection: 'row' as const,
+  },
+  reopenButton: {
+    flex: 1,
+    backgroundColor: COLORS.success,
+    alignItems: 'center' as const,
+  },
+  closeButton: {
+    flex: 1,
+    backgroundColor: COLORS.error,
+    alignItems: 'center' as const,
+  },
+  imageButton: {
+    backgroundColor: COLORS.primary,
+    alignItems: 'center' as const,
+  },
+  saveButton: {
+    flex: 1,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center' as const,
+  },
+  cancelButton: {
+    flex: 1,
+    backgroundColor: COLORS.text.secondary,
+    alignItems: 'center' as const,
+  },
+  buttonText: {
+    color: COLORS.text.inverse,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+  },
+  
+  // Titres de section
+  sectionTitle: {
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.primary,
+  },
+  
+  // Image du restaurant
+  restaurantImage: {
+    width: '100%',
+    borderRadius: BORDER_RADIUS.lg,
+  },
+  imagePlaceholder: {
+    width: '100%',
+    backgroundColor: COLORS.border.light,
+    borderRadius: BORDER_RADIUS.lg,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+  },
+  placeholderIcon: {
+    marginBottom: 8,
+  },
+  placeholderText: {
+    color: COLORS.text.secondary,
+  },
+  
+  // Formulaires
+  inputLabel: {
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    color: COLORS.text.primary,
+    marginBottom: 4,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: COLORS.border.default,
+    borderRadius: BORDER_RADIUS.lg,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: COLORS.surface,
+    color: COLORS.text.primary,
+  },
+  textInputMultiline: {
+    borderWidth: 1,
+    borderColor: COLORS.border.default,
+    borderRadius: BORDER_RADIUS.lg,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: COLORS.surface,
+    color: COLORS.text.primary,
+    textAlignVertical: 'top' as const,
+    minHeight: 80,
+  },
+  
+  // Badge de statut utilisant COMPONENT_STYLES
+  statusBadge: {
+    ...COMPONENT_STYLES.statusBadge.base,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  statusBadgeText: {
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+  },
+  
+  // Alerte
+  alertCard: {
+    backgroundColor: '#FEF2F2',
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.error,
+  },
+  alertTitle: {
+    fontWeight: '600',
+    color: '#991B1B',
+    marginBottom: 4,
+  },
+  alertText: {
+    color: '#7F1D1D',
+  },
+  alertDate: {
+    color: '#991B1B',
+    marginTop: 4,
+  },
+  
+  // Boutons d'action avec styles prédéfinis
+  reopenButton: {
+    ...responsiveStyles.button,
+    ...responsiveStyles.buttonPrimary,
+    backgroundColor: COLORS.success,
+    alignItems: 'center' as const,
+  },
+  closeButton: {
+    ...responsiveStyles.button,
+    backgroundColor: COLORS.error,
+    alignItems: 'center' as const,
+  },
+  imageButton: {
+    ...responsiveStyles.button,
+    ...responsiveStyles.buttonPrimary,
+    alignItems: 'center' as const,
+  },
+  saveButton: {
+    ...responsiveStyles.button,
+    ...responsiveStyles.buttonPrimary,
+    alignItems: 'center' as const,
+  },
+  cancelButton: {
+    ...responsiveStyles.button,
+    backgroundColor: COLORS.text.secondary,
+    alignItems: 'center' as const,
+  },
+    // Boutons d'action
+  actionButtonsContainer: {
+    flexDirection: 'row' as const,
+  },
+  
+  // Formulaires avec styles prédéfinis
+  textInput: {
+    ...COMPONENT_STYLES.input.base,
+  },
+  
+  buttonText: {
+    color: COLORS.text.inverse,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+  },
+  
+  // Titres de section avec styles prédéfinis
+  sectionTitle: {
+    ...responsiveStyles.textSubtitle,
+  },
+  
+  // Titres de section
+  sectionTitle: {
+    fontWeight: '600',
+    color: COLORS.text.primary,
+  },
+  
+  // Image du restaurant
+  restaurantImage: {
+    width: '100%',
+    borderRadius: BORDER_RADIUS.lg,
+  },
+  imagePlaceholder: {
+    width: '100%',
+    backgroundColor: COLORS.neutral[100],
+    borderRadius: BORDER_RADIUS.lg,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+  },
+  placeholderIcon: {
+    marginBottom: 8,
+  },
+  placeholderText: {
+    color: COLORS.text.secondary,
+  },
+  
+  // Formulaires
+  inputLabel: {
+    fontWeight: '500',
+    color: COLORS.text.primary,
+    marginBottom: 4,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: COLORS.border.medium,
+    borderRadius: BORDER_RADIUS.lg,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: COLORS.surface.primary,
+    color: COLORS.text.primary,
+  },
+  textInputMultiline: {
+    borderWidth: 1,
+    borderColor: COLORS.border.medium,
+    borderRadius: BORDER_RADIUS.lg,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: COLORS.surface.primary,
+    color: COLORS.text.primary,
+    textAlignVertical: 'top' as const,
+    minHeight: 80,
+  },
+  
+  // Lignes de formulaire
+  addressRowMobile: {
+    flexDirection: 'column' as const,
+  },
+  addressRowTablet: {
+    flexDirection: 'row' as const,
+  },
+  contactRow: {
+    flexDirection: 'row' as const,
+  },
+  editActions: {
+    flexDirection: 'row' as const,
+  },
+  
+  // Informations d'affichage
+  infoLabel: {
+    fontWeight: '500',
+    color: COLORS.text.secondary,
+  },
+  infoValue: {
+    color: COLORS.text.primary,
+  },
+  websiteLink: {
+    color: COLORS.primary,
+  },
+  priceRange: {
+    color: COLORS.secondary,
+    fontWeight: '600',
+  },
+  mealVoucherAccepted: {
+    color: COLORS.success,
+    fontWeight: '500',
+  },
+  mealVoucherInfo: {
+    color: COLORS.text.secondary,
+    marginTop: 2,
+  },
+  
+  // Horaires
+  scheduleRow: {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
+  },
+  dayLabel: {
+    fontWeight: '500',
+    color: COLORS.text.primary,
+    minWidth: 60,
+  },
+  scheduleInfo: {
+    flex: 1,
+    marginLeft: 16,
+  },
+  closedText: {
+    color: COLORS.text.secondary,
+  },
+  scheduleTime: {
+    color: COLORS.text.primary,
+  },
+  schedulePeriod: {
+    color: COLORS.text.secondary,
+  },
+  notDefinedText: {
+    color: COLORS.text.secondary,
+  },
+  
+  // Statistiques
+  statRow: {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
+  },
+  statLabel: {
+    color: COLORS.text.secondary,
+  },
+  statValue: {
+    color: COLORS.text.primary,
+  },
+  statusIndicator: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusText: {
+    fontWeight: '500',
+  },
+  
+  // Actions rapides
+  quickActionButton: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: COLORS.surface.golden,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border.golden,
+  },
+  quickActionIcon: {
+    marginRight: 12,
+  },
+  quickActionText: {
+    color: COLORS.text.primary,
+    fontWeight: '500',
+  },
+  
+  // Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: COLORS.overlay,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+  },
+  modalContainer: {
+    backgroundColor: COLORS.surface.primary,
+    borderRadius: BORDER_RADIUS.xl,
+    padding: 20,
+    width: '100%',
+    maxWidth: 400,
+    shadowColor: COLORS.shadow.dark,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalTitle: {
+    fontWeight: '600',
+    color: COLORS.text.primary,
+    marginBottom: 8,
+  },
+  modalDescription: {
+    color: COLORS.text.secondary,
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  modalActions: {
+    flexDirection: 'row' as const,
+  },
+  confirmCloseButton: {
+    flex: 1,
+    backgroundColor: COLORS.error,
+    alignItems: 'center' as const,
+  },
 };
 
 export default RestaurantDetailPage;
