@@ -13,7 +13,7 @@ class MenuItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = MenuItem
         fields = [
-            'id', 'name', 'description', 'price', 'is_available',
+            'id', 'menu', 'name', 'description', 'price', 'is_available',
             'category', 'category_name', 'category_icon',
             'subcategory', 'subcategory_name',
             'allergens', 'allergen_display',
@@ -29,8 +29,10 @@ class MenuItemSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Les allergènes doivent être une liste")
         
         valid_allergens = [
-            'gluten', 'milk', 'eggs', 'fish', 'shellfish',
-            'nuts', 'peanuts', 'soy', 'sesame', 'sulfites'
+            'gluten', 'crustaceans', 'eggs', 'fish',
+            'peanuts', 'soy', 'milk', 'nuts',
+            'celery', 'mustard', 'sesame', 'sulfites',
+            'lupin', 'mollusks'
         ]
         
         invalid_allergens = [a for a in value if a not in valid_allergens]

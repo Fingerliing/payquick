@@ -137,7 +137,7 @@ export default function MenuDetailScreen() {
         
         <Button
           title="Ajouter un plat"
-          onPress={() => router.push(`/menu/item/add?menuId=${menu.id}`)}
+          onPress={() => router.push(`/menu/item/add?menuId=${menu.id}&restaurantId=${menu.restaurant}`)}
           variant="primary"
           fullWidth
           style={{ backgroundColor: '#10B981' }}

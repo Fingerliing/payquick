@@ -3,15 +3,24 @@ export interface MenuItem {
   name: string;
   description: string;
   price: string;
-  category: string;
+  category: string; // ID de la catégorie
+  subcategory?: string; // ID de la sous-catégorie (optionnel)
   is_available: boolean;
   menu: number;
   allergens: string[];
   is_vegetarian: boolean;
   is_vegan: boolean;
   is_gluten_free: boolean;
+  preparation_time?: number; // Temps de préparation en minutes
+  
+  // Champs calculés/enrichis depuis le backend
+  category_name?: string;
+  category_icon?: string;
+  subcategory_name?: string;
   allergen_display?: string[];
   dietary_tags?: string[];
+  
+  // Métadonnées
   created_at?: string;
   updated_at?: string;
 }
@@ -49,12 +58,14 @@ export interface CreateMenuItemRequest {
   name: string;
   description: string;
   price: string;
-  category: string;
+  category: string; // ID de la catégorie (obligatoire)
+  subcategory?: string; // ID de la sous-catégorie (optionnel)
   menu: number;
   allergens: string[];
   is_vegetarian: boolean;
   is_vegan: boolean;
   is_gluten_free: boolean;
+  preparation_time?: number;
 }
 
 export interface UpdateMenuItemRequest {
@@ -62,17 +73,20 @@ export interface UpdateMenuItemRequest {
   description?: string;
   price?: string;
   category?: string;
+  subcategory?: string;
   is_available?: boolean;
   allergens?: string[];
   is_vegetarian?: boolean;
   is_vegan?: boolean;
   is_gluten_free?: boolean;
+  preparation_time?: number;
 }
 
 // Types pour les réponses API spécifiques
 export interface MenuToggleResponse {
   id: number;
   is_available: boolean;
+  message?: string;
 }
 
 export interface MenuItemToggleResponse {
@@ -80,12 +94,110 @@ export interface MenuItemToggleResponse {
   is_available: boolean;
 }
 
-// Énumération pour les catégories (optionnel mais utile)
-export enum MenuItemCategory {
-  ENTREE = 'Entrée',
-  PLAT = 'Plat principal',
-  DESSERT = 'Dessert',
-  BOISSON = 'Boisson',
-  APERITIF = 'Apéritif',
-  FROMAGE = 'Fromage'
+// Types pour les filtres et recherches
+export interface MenuItemFilters {
+  category?: string;
+  subcategory?: string;
+  is_available?: boolean;
+  is_vegetarian?: boolean;
+  is_vegan?: boolean;
+  is_gluten_free?: boolean;
+  allergen_free?: string[]; // Liste des allergènes à exclure
+  max_price?: number;
+  min_price?: number;
+  search?: string; // Recherche textuelle
+}
+
+export interface DietaryOptionsFilters {
+  vegetarian?: boolean;
+  vegan?: boolean;
+  gluten_free?: boolean;
+}
+
+// Énumération pour les allergènes reconnus (basée sur la réglementation européenne)
+export enum AllergenType {
+  GLUTEN = 'gluten',
+  CRUSTACEANS = 'crustaceans',
+  EGGS = 'eggs',
+  FISH = 'fish',
+  PEANUTS = 'peanuts',
+  SOYBEANS = 'soybeans',
+  MILK = 'milk',
+  NUTS = 'nuts',
+  CELERY = 'celery',
+  MUSTARD = 'mustard',
+  SESAME = 'sesame',
+  SULPHITES = 'sulphites',
+  LUPIN = 'lupin',
+  MOLLUSCS = 'molluscs'
+}
+
+// Types pour les options diététiques
+export interface DietaryTags {
+  is_vegetarian: boolean;
+  is_vegan: boolean;
+  is_gluten_free: boolean;
+  allergen_count: number;
+  allergens: string[];
+}
+
+// Types pour l'affichage groupé par catégorie
+export interface MenuItemsByCategory {
+  category: {
+    id: string;
+    name: string;
+    icon?: string;
+    color?: string;
+    order: number;
+  };
+  subcategories?: Array<{
+    id: string;
+    name: string;
+    order: number;
+    items: MenuItem[];
+  }>;
+  items: MenuItem[]; // Items sans sous-catégorie
+  total_items: number;
+}
+
+export interface GroupedMenu {
+  menu: Menu;
+  categories: MenuItemsByCategory[];
+  total_items: number;
+  dietary_summary: {
+    vegetarian_count: number;
+    vegan_count: number;
+    gluten_free_count: number;
+  };
+}
+
+// Types pour les statistiques de menu
+export interface MenuStatistics {
+  total_items: number;
+  available_items: number;
+  categories_used: number;
+  subcategories_used: number;
+  dietary_breakdown: {
+    vegetarian: number;
+    vegan: number;
+    gluten_free: number;
+  };
+  allergen_breakdown: Record<string, number>;
+  price_range: {
+    min: number;
+    max: number;
+    average: number;
+  };
+}
+
+// Types d'erreur spécifiques aux menus
+export interface MenuItemValidationError {
+  field: keyof CreateMenuItemRequest;
+  message: string;
+  code?: string;
+}
+
+export interface MenuValidationErrors {
+  errors: MenuItemValidationError[];
+  general_errors?: string[];
 }
