@@ -13,6 +13,9 @@ import {
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Image } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // UI
 import { Header } from '@/components/ui/Header';
@@ -70,6 +73,7 @@ export default function AddMenuItemScreen() {
   const screenType = useScreenType();
   const R = createResponsiveStyles(screenType);
   const insets = useSafeAreaInsets();
+  const [photo, setPhoto] = useState<{ uri: string; name: string; type: string } | null>(null);
 
   // Responsive styles instance
   const styles = useMemo(() => createStyles(screenType), [screenType]);
@@ -250,7 +254,7 @@ export default function AddMenuItemScreen() {
       Alert.alert('Erreur', 'Le prix doit être un nombre valide');
       return;
     }
-    if (!selectedCategory) {
+    if (!selectedCategory || !selectedCategory.id) {
       Alert.alert('Erreur', 'Veuillez sélectionner une catégorie');
       return;
     }
@@ -258,42 +262,103 @@ export default function AddMenuItemScreen() {
       Alert.alert('Erreur', 'Menu non spécifié');
       return;
     }
-
+  
     setIsCreating(true);
     try {
-      const payload: any = {
+      // ✅ SOLUTION: Utiliser fetch avec auth headers comme pour les restaurants
+      const form = new FormData();
+      
+      // Données texte
+      form.append('name', name.trim());
+      form.append('description', description.trim());
+      form.append('price', String(Number(parseFloat(price).toFixed(2))));
+      form.append('menu', String(parseInt(String(menuId), 10)));
+      
+      if (selectedCategory.id) {
+        form.append('category', String(selectedCategory.id));
+      }
+      if (selectedSubCategory?.id) {
+        form.append('subcategory', String(selectedSubCategory.id));
+      }
+      
+      form.append('allergens', JSON.stringify(selectedAllergens));
+      form.append('is_vegetarian', String(isVegetarian));
+      form.append('is_vegan', String(isVegan));
+      form.append('is_gluten_free', String(isGlutenFree));
+      
+      // Image avec le format React Native (comme restaurant)
+      if (photo) {
+        form.append('image', {
+          uri: photo.uri,
+          type: photo.type,
+          name: photo.name,
+        } as any);
+      }
+  
+      // Récupérer le token d'authentification
+      const token = await AsyncStorage.getItem('access_token') || 
+                    await AsyncStorage.getItem('auth_token') || 
+                    await AsyncStorage.getItem('token');
+      
+      if (!token) {
+        Alert.alert('Erreur', 'Token d\'authentification manquant');
+        return;
+      }
+  
+      // Construire l'URL complète
+      const baseURL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
+      const url = `${baseURL}/api/v1/menu-items/`;
+  
+      console.log('🔤 Création du menu item avec fetch direct:', {
         name: name.trim(),
-        description: description.trim(),
-        price: Number(parseFloat(price).toFixed(2)),
-        menu: parseInt(String(menuId), 10),
-        category: selectedCategory.id,
-        allergens: selectedAllergens,
-        is_vegetarian: isVegetarian,
-        is_vegan: isVegan,
-        is_gluten_free: isGlutenFree,
-      };
-      if (selectedSubCategory?.id) payload.subcategory = selectedSubCategory.id; // ✅ conditional
-
-      await menuService.menuItems.createMenuItem(payload);
-      Alert.alert('Succès', 'Plat ajouté avec succès');
-      router.back();
-    } catch (error: any) {
-      console.error('createMenuItem error:', error);
-      let message = "Impossible d'ajouter le plat";
-      const data = error?.response?.data;
-      if (data) {
-        if (typeof data === 'string') message = data;
-        else if (data.detail) message = data.detail;
-        else if (typeof data === 'object') {
-          const parts: string[] = [];
-          for (const [field, v] of Object.entries(data)) {
-            if (Array.isArray(v)) parts.push(`${field}: ${v.join(', ')}`);
-            else if (typeof v === 'string') parts.push(`${field}: ${v}`);
+        hasImage: !!photo,
+        menuId: String(menuId),
+        categoryId: String(selectedCategory.id),
+        url
+      });
+  
+      // Utiliser fetch direct avec les headers d'authentification
+      const response = await fetch(url, {
+        method: 'POST',
+        body: form,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          // PAS de Content-Type - FormData le gère automatiquement
+        }
+      });
+  
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Erreur serveur:', errorData);
+        
+        let message = "Impossible d'ajouter le plat";
+        if (errorData.details && typeof errorData.details === 'object') {
+          const parts = [];
+          for (const [field, messages] of Object.entries(errorData.details)) {
+            if (Array.isArray(messages)) {
+              parts.push(`${field}: ${messages.join(', ')}`);
+            } else if (typeof messages === 'string') {
+              parts.push(`${field}: ${messages}`);
+            }
           }
           if (parts.length) message = parts.join('\n');
+        } else if (errorData.message) {
+          message = errorData.message;
         }
+        
+        Alert.alert('Erreur', message);
+        return;
       }
-      Alert.alert('Erreur', message);
+  
+      const result = await response.json();
+      console.log('✅ Menu item créé:', result);
+      
+      Alert.alert('Succès', 'Plat ajouté avec succès');
+      router.back();
+      
+    } catch (error: any) {
+      console.error('❌ Erreur création plat:', error);
+      Alert.alert('Erreur', error.message || "Impossible d'ajouter le plat");
     } finally {
       setIsCreating(false);
     }
@@ -410,6 +475,87 @@ export default function AddMenuItemScreen() {
     </TouchableOpacity>
   );
 
+  // helper: ouvrir la galerie
+  const pickFromLibrary = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission requise', 'Donnez accès à vos photos pour continuer.');
+      return;
+    }
+    
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.8,
+    });
+    
+    if (!res.canceled && res.assets && res.assets[0]) {
+      const asset = res.assets[0];
+      // Properly determine MIME type
+      const uri = asset.uri;
+      const extension = uri.split('.').pop()?.toLowerCase() || 'jpg';
+      
+      let mimeType = 'image/jpeg'; // default
+      switch (extension) {
+        case 'png':
+          mimeType = 'image/png';
+          break;
+        case 'webp':
+          mimeType = 'image/webp';
+          break;
+        case 'jpg':
+        case 'jpeg':
+        default:
+          mimeType = 'image/jpeg';
+          break;
+      }
+      
+      setPhoto({
+        uri: asset.uri,
+        name: `menu-item-${Date.now()}.${extension}`,
+        type: mimeType,
+      });
+    }
+  };
+
+  // helper: ouvrir la caméra
+  const takePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission requise', 'Donnez accès à la caméra pour continuer.');
+      return;
+    }
+    
+    const res = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      quality: 0.8,
+    });
+    
+    if (!res.canceled && res.assets && res.assets[0]) {
+      const asset = res.assets[0];
+      const uri = asset.uri;
+      const extension = uri.split('.').pop()?.toLowerCase() || 'jpg';
+      
+      let mimeType = 'image/jpeg'; // default for camera
+      switch (extension) {
+        case 'png':
+          mimeType = 'image/png';
+          break;
+        case 'jpg':
+        case 'jpeg':
+        default:
+          mimeType = 'image/jpeg';
+          break;
+      }
+      
+      setPhoto({
+        uri: asset.uri,
+        name: `menu-item-camera-${Date.now()}.${extension}`,
+        type: mimeType,
+      });
+    }
+  };
+
   return (
     <KeyboardAvoidingView
       style={[styles.container, { paddingTop: insets.top }]}
@@ -469,6 +615,74 @@ export default function AddMenuItemScreen() {
             </Card>
           </View>
 
+          {/* Photo du plat */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Photo du plat</Text>
+            <Card style={styles.card}>
+              {photo ? (
+                <View style={{ gap: getResponsiveValue(SPACING.sm, screenType) }}>
+                  <Image
+                    source={{ uri: photo.uri }}
+                    style={styles.photoImage}
+                    resizeMode="cover"
+                  />
+                  <Text style={styles.photoInfo}>
+                    {photo.name} • {photo.type}
+                  </Text>
+                  <View style={styles.photoActions}>
+                    <Button 
+                      title="Remplacer" 
+                      onPress={pickFromLibrary} 
+                      variant="secondary" 
+                      style={styles.photoButton}
+                      leftIcon="images-outline"
+                    />
+                    <Button 
+                      title="Photo" 
+                      onPress={takePhoto} 
+                      variant="secondary" 
+                      style={styles.photoButton}
+                      leftIcon="camera-outline"
+                    />
+                    <Button 
+                      title="Supprimer" 
+                      onPress={() => setPhoto(null)} 
+                      variant="destructive" 
+                      style={styles.photoButtonDelete}
+                      leftIcon="trash-outline"
+                    />
+                  </View>
+                </View>
+              ) : (
+                <View style={{ gap: getResponsiveValue(SPACING.sm, screenType) }}>
+                  <View style={styles.photoPlaceholder}>
+                    <Text style={styles.photoPlaceholderIcon}>📷</Text>
+                    <Text style={styles.photoPlaceholderText}>Aucune photo sélectionnée</Text>
+                    <Text style={styles.photoPlaceholderSubtext}>
+                      Ajoutez une photo pour rendre votre plat plus attrayant
+                    </Text>
+                  </View>
+                  <View style={styles.photoActions}>
+                    <Button 
+                      title="Choisir une photo" 
+                      onPress={pickFromLibrary} 
+                      variant="primary" 
+                      style={styles.photoButton}
+                      leftIcon="images-outline"
+                    />
+                    <Button 
+                      title="Prendre une photo" 
+                      onPress={takePhoto} 
+                      variant="secondary" 
+                      style={styles.photoButton}
+                      leftIcon="camera-outline"
+                    />
+                  </View>
+                </View>
+              )}
+            </Card>
+          </View>
+
           {/* Catégories */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Catégorisation</Text>
@@ -511,7 +725,7 @@ export default function AddMenuItemScreen() {
         </ScrollView>
       </View>
 
-      {/* MODALES — Sélection catégorie */}
+      {/* MODALES – Sélection catégorie */}
       <Modal visible={showCategoryModal} transparent animationType="slide" onRequestClose={() => setShowCategoryModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContainer, layout.modalMaxWidth ? { alignSelf: 'center', width: layout.modalMaxWidth } : null ]}>
@@ -555,7 +769,7 @@ export default function AddMenuItemScreen() {
         </View>
       </Modal>
 
-      {/* MODALE — Création catégorie */}
+      {/* MODALE – Création catégorie */}
       <Modal visible={showCreateCategoryModal} transparent animationType="slide" onRequestClose={() => setShowCreateCategoryModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContainer, layout.modalMaxWidth ? { alignSelf: 'center', width: layout.modalMaxWidth } : null ]}>
@@ -604,7 +818,7 @@ export default function AddMenuItemScreen() {
         </View>
       </Modal>
 
-      {/* MODALES — Sélection & création sous-catégorie */}
+      {/* MODALES – Sélection & création sous-catégorie */}
       <Modal visible={showSubCategoryModal} transparent animationType="slide" onRequestClose={() => setShowSubCategoryModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContainer, layout.modalMaxWidth ? { alignSelf: 'center', width: layout.modalMaxWidth } : null ]}>
@@ -769,11 +983,11 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop') => {
     allergenList: {
       flexDirection: 'row' as const,
       flexWrap: 'wrap' as const,
-      justifyContent: 'space-between' as const, // <- plus de gap ici
+      justifyContent: 'space-between' as const,
     },
     
     allergenCol: {
-      width: '48%' as const,   // force 2 colonnes
+      width: '48%' as const,
       marginBottom: 8,
     },
     
@@ -785,7 +999,7 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop') => {
       borderColor: COLORS.border.default,
       borderRadius: BORDER_RADIUS.md,
       padding: 10,
-      width: '100%' as const,  // prend toute la colonne
+      width: '100%' as const,
       minHeight: COMPONENT_CONSTANTS.minTouchTarget,
     },
 
@@ -793,6 +1007,73 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop') => {
       borderColor: COLORS.error,
       backgroundColor: '#FEE2E2',
     },
+
+    // Styles pour la section photo
+    photoImage: {
+      width: '100%' as const,
+      height: gv(200),
+      borderRadius: BORDER_RADIUS.md,
+      borderWidth: 1,
+      borderColor: COLORS.border.light,
+    },
+    
+    photoInfo: {
+      fontSize: gv(TYPOGRAPHY.fontSize.xs),
+      color: COLORS.text.secondary,
+      textAlign: 'center' as const,
+      fontStyle: 'italic' as const,
+    },
+    
+    photoActions: {
+      flexDirection: 'row' as const,
+      gap: gv(SPACING.sm),
+      flexWrap: 'wrap' as const,
+    },
+    
+    photoButton: {
+      flex: 1,
+      minWidth: 120,
+    },
+    
+    photoButtonDelete: {
+      flexBasis: 'auto' as const,
+      minWidth: 100,
+    },
+    
+    photoPlaceholder: {
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      backgroundColor: COLORS.border.light,
+      borderRadius: BORDER_RADIUS.md,
+      borderWidth: 2,
+      borderColor: COLORS.border.default,
+      borderStyle: 'dashed' as const,
+      paddingVertical: gv(SPACING['3xl']),
+      paddingHorizontal: gv(SPACING.lg),
+    },
+    
+    photoPlaceholderIcon: {
+      fontSize: screenType === 'mobile' ? 48 : 64,
+      marginBottom: gv(SPACING.sm),
+      opacity: 0.5,
+    },
+    
+    photoPlaceholderText: {
+      fontSize: gv(TYPOGRAPHY.fontSize.base),
+      fontWeight: '500' as const,
+      color: COLORS.text.secondary,
+      textAlign: 'center' as const,
+      marginBottom: gv(SPACING.xs),
+    },
+    
+    photoPlaceholderSubtext: {
+      fontSize: gv(TYPOGRAPHY.fontSize.sm),
+      color: COLORS.text.light,
+      textAlign: 'center' as const,
+      lineHeight: Math.round(gv(TYPOGRAPHY.fontSize.sm) * 1.4),
+      maxWidth: 280,
+    },
+
     // Modals
     modalOverlay: {
       flex: 1 as const,

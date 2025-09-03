@@ -141,10 +141,23 @@ class ApiClient {
     data?: any,
     config?: AxiosRequestConfig
   ): Promise<T> {
+    // ✅ CORRECTION: Gérer FormData spécialement
+    let requestConfig = { ...config };
+    
+    if (data instanceof FormData) {
+      // Pour FormData, ne pas définir Content-Type - Axios le gère automatiquement
+      requestConfig.headers = {
+        ...requestConfig.headers,
+        // Ne PAS définir Content-Type pour FormData
+      };
+      // Supprimer le Content-Type par défaut s'il existe
+      delete requestConfig.headers?.['Content-Type'];
+    }
+
     const response = await this.client.post<ApiResponse<T> | T>(
       this.buildUrl(url),
       data,
-      config
+      requestConfig
     );
     return this.extractData<T>(response);
   }

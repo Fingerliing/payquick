@@ -7,6 +7,7 @@ from api.models import Menu, MenuItem
 from api.serializers import MenuSerializer, MenuItemSerializer
 from api.permissions import IsRestaurateur, IsOwnerOrReadOnly
 from drf_spectacular.utils import extend_schema, OpenApiResponse
+from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 
 @extend_schema(tags=["Menu • Menus"])
 class MenuViewSet(viewsets.ModelViewSet):
@@ -123,6 +124,7 @@ class MenuItemViewSet(viewsets.ModelViewSet):
     """
     serializer_class = MenuItemSerializer
     permission_classes = [IsAuthenticated, IsRestaurateur]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_queryset(self):
         try:
@@ -130,6 +132,45 @@ class MenuItemViewSet(viewsets.ModelViewSet):
         except AttributeError:
             # Si l'utilisateur n'a pas de restaurateur_profile
             return MenuItem.objects.none()
+        
+    def create(self, request, *args, **kwargs):
+        """Création d'un menu item avec gestion d'images et validation complète"""
+        try:
+            # Log des données reçues pour debug
+            print(f"📥 Données reçues: {request.data}")
+            print(f"📁 Fichiers reçus: {request.FILES}")
+            
+            # Vérifier si on a une image
+            if 'image' in request.FILES:
+                image_file = request.FILES['image']
+                print(f"🖼️ Image reçue: {image_file.name} ({image_file.size} bytes, {image_file.content_type})")
+            
+            serializer = self.get_serializer(data=request.data)
+            if serializer.is_valid():
+                try:
+                    self.perform_create(serializer)
+                    headers = self.get_success_headers(serializer.data)
+                    return Response(
+                        serializer.data, 
+                        status=status.HTTP_201_CREATED, 
+                        headers=headers
+                    )
+                except Exception as e:
+                    print(f"❌ Erreur lors de la sauvegarde: {e}")
+                    return Response({
+                        'error': 'Erreur lors de la création du plat',
+                        'details': str(e)
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            else:
+                print(f"❌ Erreurs de validation: {serializer.errors}")
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                
+        except Exception as e:
+            print(f"❌ Erreur générale: {e}")
+            return Response({
+                'error': 'Erreur inattendue',
+                'details': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
     @extend_schema(
         summary="Activer ou désactiver un item",

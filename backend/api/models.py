@@ -623,6 +623,11 @@ class MenuItem(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    image = models.ImageField(
+        upload_to='menu_items/%Y/%m/',
+        blank=True, null=True,
+        verbose_name="Photo du plat"
+    )
     
     class Meta:
         ordering = ['category', 'name']
