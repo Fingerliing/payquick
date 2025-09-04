@@ -239,26 +239,37 @@ const MenuItemCard = React.memo(({
         <View style={styles.menuItemCol}>
           {/* Header avec nom et prix */}
           <View style={styles.menuItemHeaderRow}>
-            {hasImage ? (
-              <TouchableOpacity
-                onPress={() => setShowImageModal(true)}
-                accessibilityRole="button"
-                accessibilityLabel={`Voir la photo de ${item.name}`}
-                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-              >
-                <Text
-                  style={[styles.menuItemName, { textDecorationLine: 'underline' }]}
-                  numberOfLines={2}
+            {/* Groupe nom + icône photo */}
+            <View style={{ flexDirection: "row", alignItems: "center", flexShrink: 1 }}>
+              {hasImage ? (
+                <TouchableOpacity
+                  onPress={() => setShowImageModal(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Voir la photo de ${item.name}`}
+                  hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                  style={{ flexDirection: "row", alignItems: "center" }}
                 >
+                  <Text
+                    style={styles.menuItemName}
+                    numberOfLines={2}
+                  >
+                    {item.name}
+                  </Text>
+                  <Ionicons
+                    name="camera"
+                    size={16}
+                    color="#1E2A78"
+                    style={{ marginLeft: 4 }}
+                  />
+                </TouchableOpacity>
+              ) : (
+                <Text style={styles.menuItemName} numberOfLines={2}>
                   {item.name}
                 </Text>
-              </TouchableOpacity>
-            ) : (
-              <Text style={styles.menuItemName} numberOfLines={2}>
-                {item.name}
-              </Text>
-            )}
+              )}
+            </View>
 
+            {/* Prix aligné à droite */}
             <Text style={styles.menuItemPrice}>
               {parseFloat(item.price).toFixed(2)}€
             </Text>
