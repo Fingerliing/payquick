@@ -494,13 +494,11 @@ export default function ModernClientMenuScreen() {
   const itemsByCategory = useMemo(() => {
     const grouped = filteredItems.reduce((acc, item) => {
       const categoryName = item.category_name || 'Autres';
-      if (!acc[categoryName]) {
-        acc[categoryName] = [];
-      }
+      if (!acc[categoryName]) acc[categoryName] = [];
       acc[categoryName].push(item);
       return acc;
     }, {} as Record<string, MenuItem[]>);
-
+  
     return Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b));
   }, [filteredItems]);
 
@@ -576,23 +574,66 @@ export default function ModernClientMenuScreen() {
   const activeFiltersCount = Object.values(filters).filter(Boolean).length;
 
   // Render section de catégorie
-  const renderCategorySection = useCallback(([categoryName, items]: [string, MenuItem[]]) => (
-    <View key={categoryName} style={styles.categorySection}>
-      <Text style={styles.sectionTitle}>{categoryName}</Text>
-      <View style={styles.grid}>
-        {items.map((item) => (
-          <MenuItemCard
-            key={item.id}
-            item={item}
-            onAddToCart={handleAddToCart}
-            styles={styles}
-            showAllergens={expandedAllergens.has(item.id.toString())}
-            onToggleAllergens={() => toggleAllergens(item.id.toString())}
-          />
-        ))}
-      </View>
-    </View>
-  ), [styles, handleAddToCart, expandedAllergens, toggleAllergens]);
+  const renderCategorySection = useCallback(
+    ([categoryName, items]: [string, MenuItem[]]) => {
+      const groups = items.reduce((acc, item) => {
+        const sub =
+          (item as any).subcategory_name?.trim() ??
+          (item as any).sub_category_name?.trim() ??
+          '__noSub';
+        if (!acc[sub]) acc[sub] = [];
+        acc[sub].push(item);
+        return acc;
+      }, {} as Record<string, MenuItem[]>);
+  
+      const subNames = Object.keys(groups)
+        .filter(k => k !== '__noSub')
+        .sort((a, b) => a.localeCompare(b));
+  
+      const hasSubcategories = subNames.length > 0;
+  
+      return (
+        <View key={categoryName} style={styles.categorySection}>
+          <Text style={styles.sectionTitle}>{categoryName}</Text>
+  
+          {groups['__noSub'] && (
+            <View style={styles.grid}>
+              {groups['__noSub'].map(item => (
+                <MenuItemCard
+                  key={item.id}
+                  item={item}
+                  onAddToCart={handleAddToCart}
+                  styles={styles}
+                  showAllergens={expandedAllergens.has(item.id.toString())}
+                  onToggleAllergens={() => toggleAllergens(item.id.toString())}
+                />
+              ))}
+            </View>
+          )}
+  
+          {hasSubcategories &&
+            subNames.map(subName => (
+              <View key={subName} style={styles.subCategorySection}>
+                <Text style={styles.subSectionTitle}>{subName}</Text>
+                <View style={styles.grid}>
+                  {groups[subName].map(item => (
+                    <MenuItemCard
+                      key={item.id}
+                      item={item}
+                      onAddToCart={handleAddToCart}
+                      styles={styles}
+                      showAllergens={expandedAllergens.has(item.id.toString())}
+                      onToggleAllergens={() => toggleAllergens(item.id.toString())}
+                    />
+                  ))}
+                </View>
+              </View>
+            ))}
+        </View>
+      );
+    },
+    [styles, handleAddToCart, expandedAllergens, toggleAllergens]
+  );
 
   if (isLoading) {
     return (

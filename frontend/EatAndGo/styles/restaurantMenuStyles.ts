@@ -513,6 +513,16 @@ export const createRestaurantMenuStyles = (screenType: ScreenType) => {
       marginBottom: gv(SPACING.md),
     },
 
+    subCategorySection: {
+      marginTop: 12,
+    },
+    subSectionTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: '#374151',
+      marginBottom: 8,
+    },
+
     // ===========================================
     // ÉTATS VIDES
     // ===========================================
