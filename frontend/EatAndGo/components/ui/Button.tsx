@@ -174,7 +174,7 @@ export const Button: React.FC<ButtonProps> = ({
         />
       ) : (
         <>
-          <Text style={textStyle}>{title}</Text>
+          <Text style={textStyle}>{title || ''}</Text>
           {rightIcon && rightIcon}
         </>
       )}

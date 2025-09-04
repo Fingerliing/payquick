@@ -616,6 +616,7 @@ export default function AddMenuItemScreen() {
           </View>
 
           {/* Photo du plat */}
+          {/* Photo du plat */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Photo du plat</Text>
             <Card style={styles.card}>
@@ -635,21 +636,21 @@ export default function AddMenuItemScreen() {
                       onPress={pickFromLibrary} 
                       variant="secondary" 
                       style={styles.photoButton}
-                      leftIcon="images-outline"
+                      leftIcon={<Ionicons name="images-outline" size={20} color={COLORS.text.primary} />}
                     />
                     <Button 
                       title="Photo" 
                       onPress={takePhoto} 
                       variant="secondary" 
                       style={styles.photoButton}
-                      leftIcon="camera-outline"
+                      leftIcon={<Ionicons name="camera-outline" size={20} color={COLORS.text.primary} />}
                     />
                     <Button 
                       title="Supprimer" 
                       onPress={() => setPhoto(null)} 
                       variant="destructive" 
                       style={styles.photoButtonDelete}
-                      leftIcon="trash-outline"
+                      leftIcon={<Ionicons name="trash-outline" size={20} color={COLORS.error} />}
                     />
                   </View>
                 </View>
@@ -668,14 +669,14 @@ export default function AddMenuItemScreen() {
                       onPress={pickFromLibrary} 
                       variant="primary" 
                       style={styles.photoButton}
-                      leftIcon="images-outline"
+                      leftIcon={<Ionicons name="images-outline" size={20} color={COLORS.text.inverse} />}
                     />
                     <Button 
                       title="Prendre une photo" 
                       onPress={takePhoto} 
                       variant="secondary" 
                       style={styles.photoButton}
-                      leftIcon="camera-outline"
+                      leftIcon={<Ionicons name="camera-outline" size={20} color={COLORS.text.primary} />}
                     />
                   </View>
                 </View>
