@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,11 +10,15 @@ import {
   Image,
   Modal,
   Switch,
+  SafeAreaView,
+  useWindowDimensions,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useRestaurant } from '@/contexts/RestaurantContext';
 import { Header } from '@/components/ui/Header';
 import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
 import { Loading } from '@/components/ui/Loading';
 import { UpdateRestaurantData, CuisineType } from '@/types/restaurant';
 import * as ImagePicker from 'expo-image-picker';
@@ -27,42 +31,10 @@ import {
   BORDER_RADIUS,
   TYPOGRAPHY,
   SHADOWS,
-  COMPONENT_STYLES,
 } from '@/utils/designSystem';
 
-const RestaurantDetailPage = () => {
-  const params = useLocalSearchParams();
-  const id = Array.isArray(params.id) ? params.id[0] : params.id;
-  
-  const { 
-    currentRestaurant, 
-    isLoading, 
-    error, 
-    loadRestaurant, 
-    updateRestaurant,
-    clearCurrentRestaurant 
-  } = useRestaurant();
-
-  // Configuration responsive avec le système designSystem.ts
-  const screenType = useScreenType();
-  const responsiveStyles = createResponsiveStyles(screenType);
-  const isTabletLandscape = screenType === 'tablet';
-
-  // Valeurs responsive avec getResponsiveValue
-  const containerPadding = getResponsiveValue(SPACING.container, screenType);
-  const cardSpacing = getResponsiveValue(SPACING.lg, screenType);
-  const imageHeight = getResponsiveValue(
-    { mobile: 200, tablet: 250, desktop: 300 },
-    screenType
-  );
-  const fontSize = {
-    title: getResponsiveValue(TYPOGRAPHY.fontSize['2xl'], screenType),
-    subtitle: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
-    body: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
-    small: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
-  };
-
-  // États locaux pour l'édition
+// Hook personnalisé pour la gestion de l'édition
+const useRestaurantEditing = (restaurant: any) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<UpdateRestaurantData>({
     name: '',
@@ -78,9 +50,109 @@ const RestaurantDetailPage = () => {
     accepts_meal_vouchers: false,
     meal_voucher_info: ''
   });
+
+  useEffect(() => {
+    if (restaurant && !isEditing) {
+      setEditForm({
+        name: restaurant.name || '',
+        description: restaurant.description || '',
+        address: restaurant.address || '',
+        city: restaurant.city || '',
+        zipCode: restaurant.zipCode || '',
+        phone: restaurant.phone || '',
+        email: restaurant.email || '',
+        website: restaurant.website || '',
+        cuisine: restaurant.cuisine || 'french',
+        priceRange: restaurant.priceRange || 2,
+        accepts_meal_vouchers: restaurant.accepts_meal_vouchers || false,
+        meal_voucher_info: restaurant.meal_voucher_info || ''
+      });
+    }
+  }, [restaurant, isEditing]);
+
+  const updateField = useCallback((field: keyof UpdateRestaurantData, value: any) => {
+    setEditForm(prev => ({ ...prev, [field]: value }));
+  }, []);
+
+  return {
+    isEditing,
+    setIsEditing,
+    editForm,
+    setEditForm,
+    updateField
+  };
+};
+
+// Hook personnalisé pour la fermeture temporaire
+const useTemporaryClose = () => {
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [closeForm, setCloseForm] = useState({ reason: '', duration: '' });
   const [isClosing, setIsClosing] = useState(false);
+
+  const resetCloseForm = useCallback(() => {
+    setCloseForm({ reason: '', duration: '' });
+  }, []);
+
+  return {
+    showCloseModal,
+    setShowCloseModal,
+    closeForm,
+    setCloseForm,
+    isClosing,
+    setIsClosing,
+    resetCloseForm
+  };
+};
+
+const RestaurantDetailPage = () => {
+  const params = useLocalSearchParams();
+  const id = Array.isArray(params.id) ? params.id[0] : params.id;
+  
+  const { 
+    currentRestaurant, 
+    isLoading, 
+    error, 
+    loadRestaurant, 
+    updateRestaurant,
+    clearCurrentRestaurant 
+  } = useRestaurant();
+
+  // Hooks responsifs
+  const screenType = useScreenType();
+  const { width } = useWindowDimensions();
+  const styles = createResponsiveStyles(screenType);
+
+  // Configuration responsive
+  const layoutConfig = {
+    containerPadding: getResponsiveValue(SPACING.container, screenType),
+    cardSpacing: getResponsiveValue(SPACING.lg, screenType),
+    imageHeight: getResponsiveValue(
+      { mobile: 200, tablet: 250, desktop: 300 },
+      screenType
+    ),
+    isTabletLandscape: screenType === 'tablet' && width > 1000,
+    maxContentWidth: screenType === 'desktop' ? 1200 : undefined,
+  };
+
+  const fontSize = {
+    title: getResponsiveValue(TYPOGRAPHY.fontSize['2xl'], screenType),
+    subtitle: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
+    body: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
+    small: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+  };
+
+  // Hooks personnalisés
+  const { isEditing, setIsEditing, editForm, updateField } = useRestaurantEditing(currentRestaurant);
+  const { 
+    showCloseModal, 
+    setShowCloseModal, 
+    closeForm, 
+    setCloseForm, 
+    isClosing, 
+    setIsClosing,
+    resetCloseForm 
+  } = useTemporaryClose();
+
   const [refreshing, setRefreshing] = useState(false);
 
   // Charger le restaurant au montage
@@ -91,28 +163,8 @@ const RestaurantDetailPage = () => {
     return () => clearCurrentRestaurant();
   }, [id]);
 
-  // Initialiser le formulaire d'édition
-  useEffect(() => {
-    if (currentRestaurant && !isEditing) {
-      setEditForm({
-        name: currentRestaurant.name || '',
-        description: currentRestaurant.description || '',
-        address: currentRestaurant.address || '',
-        city: currentRestaurant.city || '',
-        zipCode: currentRestaurant.zipCode || '',
-        phone: currentRestaurant.phone || '',
-        email: currentRestaurant.email || '',
-        website: currentRestaurant.website || '',
-        cuisine: currentRestaurant.cuisine || 'french',
-        priceRange: currentRestaurant.priceRange || 2,
-        accepts_meal_vouchers: currentRestaurant.accepts_meal_vouchers || false,
-        meal_voucher_info: currentRestaurant.meal_voucher_info || ''
-      });
-    }
-  }, [currentRestaurant, isEditing]);
-
-  // Gestionnaires d'événements
-  const handleEditSubmit = async () => {
+  // Gestionnaires d'événements mémorisés
+  const handleEditSubmit = useCallback(async () => {
     if (!id || typeof id !== 'string') {
       Alert.alert('Erreur', 'ID du restaurant invalide');
       return;
@@ -126,9 +178,9 @@ const RestaurantDetailPage = () => {
       console.error('Erreur lors de la mise à jour:', error);
       Alert.alert('Erreur', 'Impossible de mettre à jour le restaurant');
     }
-  };
+  }, [id, editForm, updateRestaurant]);
 
-  const handleCloseRestaurant = async () => {
+  const handleCloseRestaurant = useCallback(async () => {
     if (!id || typeof id !== 'string') {
       Alert.alert('Erreur', 'ID du restaurant invalide');
       return;
@@ -153,7 +205,7 @@ const RestaurantDetailPage = () => {
       if (response.ok) {
         await loadRestaurant(id);
         setShowCloseModal(false);
-        setCloseForm({ reason: '', duration: '' });
+        resetCloseForm();
         Alert.alert('Succès', 'Restaurant fermé temporairement');
       }
     } catch (error) {
@@ -162,9 +214,9 @@ const RestaurantDetailPage = () => {
     } finally {
       setIsClosing(false);
     }
-  };
+  }, [id, closeForm, loadRestaurant, resetCloseForm]);
 
-  const handleReopenRestaurant = async () => {
+  const handleReopenRestaurant = useCallback(async () => {
     if (!id || typeof id !== 'string') {
       Alert.alert('Erreur', 'ID du restaurant invalide');
       return;
@@ -183,9 +235,9 @@ const RestaurantDetailPage = () => {
       console.error('Erreur lors de la réouverture:', error);
       Alert.alert('Erreur', 'Impossible de rouvrir le restaurant');
     }
-  };
+  }, [id, loadRestaurant]);
 
-  const handleImagePicker = async () => {
+  const handleImagePicker = useCallback(async () => {
     if (!id || typeof id !== 'string') {
       Alert.alert('Erreur', 'ID du restaurant invalide');
       return;
@@ -229,9 +281,9 @@ const RestaurantDetailPage = () => {
     } catch (error) {
       console.error('Erreur sélection image:', error);
     }
-  };
+  }, [id, loadRestaurant]);
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     if (!id || typeof id !== 'string') return;
     
     setRefreshing(true);
@@ -242,41 +294,12 @@ const RestaurantDetailPage = () => {
     } finally {
       setRefreshing(false);
     }
-  };
+  }, [id, loadRestaurant]);
 
-  // États de chargement et d'erreur
-  if (isLoading) {
-    return (
-      <View style={styles.container}>
-        <Header title="Restaurant" showBackButton onBackPress={() => router.back()} />
-        <Loading fullScreen text="Chargement du restaurant..." />
-      </View>
-    );
-  }
-
-  if (error || !currentRestaurant) {
-    return (
-      <View style={styles.container}>
-        <Header title="Restaurant" showBackButton onBackPress={() => router.back()} />
-        <View style={[styles.errorContainer, { padding: containerPadding }]}>
-          <Text style={[styles.errorTitle, { fontSize: fontSize.subtitle }]}>
-            Restaurant non trouvé
-          </Text>
-          <Text style={[styles.errorText, { fontSize: fontSize.body }]}>
-            Ce restaurant n'existe pas ou vous n'y avez pas accès.
-          </Text>
-          <TouchableOpacity 
-            onPress={() => router.back()}
-            style={[styles.errorButton, responsiveStyles.button]}
-          >
-            <Text style={[styles.errorButtonText, { fontSize: fontSize.body }]}>Retour</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
-
-  const getStatusBadge = () => {
+  // État de statut mémorisé
+  const statusBadge = useMemo(() => {
+    if (!currentRestaurant) return null;
+    
     if (currentRestaurant.isManuallyOverridden) {
       return { text: 'Fermé temporairement', color: COLORS.error, backgroundColor: '#FEE2E2' };
     }
@@ -285,562 +308,590 @@ const RestaurantDetailPage = () => {
       return { text: 'Ouvert aux commandes', color: COLORS.success, backgroundColor: '#D1FAE5' };
     }
     
-    return { text: 'Configuration requise', color: COLORS.text.secondary, backgroundColor: COLORS.neutral[100] };
-  };
+    return { text: 'Configuration requise', color: COLORS.text.secondary, backgroundColor: COLORS.variants.secondary[100] };
+  }, [currentRestaurant]);
 
-  const statusBadge = getStatusBadge();
+  // Styles dynamiques pour l'optimisation
+  const dynamicStyles = useMemo(() => ({
+    container: {
+      flex: 1,
+      backgroundColor: COLORS.background,
+    },
+
+    content: {
+      maxWidth: layoutConfig.maxContentWidth,
+      alignSelf: 'center' as const,
+      width: '100%' as const,
+      paddingHorizontal: layoutConfig.containerPadding,
+    },
+
+    scrollContent: {
+      paddingVertical: layoutConfig.containerPadding,
+      paddingBottom: layoutConfig.containerPadding + 20,
+    },
+
+    // Layout responsive
+    layoutContainer: {
+      flexDirection: layoutConfig.isTabletLandscape ? 'row' as const : 'column' as const,
+      gap: layoutConfig.cardSpacing,
+      alignItems: 'flex-start' as const,
+    },
+
+    mainColumn: {
+      flex: layoutConfig.isTabletLandscape ? 2 : 1,
+      width: '100%' as const,
+    },
+
+    sideColumn: {
+      flex: 1,
+      minWidth: 300,
+      maxWidth: 450,
+      width: '100%' as const,
+    },
+
+    // Badge de statut
+    statusBadge: {
+      alignSelf: 'flex-start' as const,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: BORDER_RADIUS.full,
+      marginBottom: layoutConfig.cardSpacing,
+      backgroundColor: statusBadge?.backgroundColor || COLORS.variants.secondary[100],
+    },
+
+    statusBadgeText: {
+      fontWeight: TYPOGRAPHY.fontWeight.medium,
+      color: statusBadge?.color || COLORS.text.secondary,
+      fontSize: fontSize.small,
+    },
+
+    // Cartes
+    card: {
+      ...styles.card,
+      marginBottom: layoutConfig.cardSpacing,
+    },
+
+    alertCard: {
+      borderLeftWidth: 4,
+      borderLeftColor: COLORS.error,
+      marginBottom: layoutConfig.cardSpacing,
+      ...styles.card,
+    },
+
+    // Sections
+    sectionTitle: {
+      fontSize: fontSize.subtitle,
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      color: COLORS.text.primary,
+      marginBottom: layoutConfig.cardSpacing * 0.75,
+    },
+
+    // Image
+    restaurantImage: {
+      width: '100%' as const,
+      height: layoutConfig.imageHeight,
+      borderRadius: BORDER_RADIUS.lg,
+    },
+
+    imagePlaceholder: {
+      width: '100%' as const,
+      height: layoutConfig.imageHeight,
+      backgroundColor: COLORS.border.light,
+      borderRadius: BORDER_RADIUS.lg,
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+    },
+
+    // Formulaires
+    inputLabel: {
+      fontWeight: TYPOGRAPHY.fontWeight.medium,
+      color: COLORS.text.primary,
+      marginBottom: 4,
+      fontSize: fontSize.small,
+    },
+
+    textInput: {
+      borderWidth: 1,
+      borderColor: COLORS.border.default,
+      borderRadius: BORDER_RADIUS.lg,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      backgroundColor: COLORS.surface,
+      color: COLORS.text.primary,
+      fontSize: fontSize.body,
+    },
+
+    textInputMultiline: {
+      borderWidth: 1,
+      borderColor: COLORS.border.default,
+      borderRadius: BORDER_RADIUS.lg,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      backgroundColor: COLORS.surface,
+      color: COLORS.text.primary,
+      textAlignVertical: 'top' as const,
+      minHeight: 80,
+      fontSize: fontSize.body,
+    },
+
+    // Actions
+    actionButtonsContainer: {
+      flexDirection: 'row' as const,
+      marginBottom: layoutConfig.cardSpacing,
+      gap: layoutConfig.cardSpacing / 2,
+    },
+
+    // Informations
+    infoRow: {
+      marginBottom: layoutConfig.cardSpacing * 0.75,
+    },
+
+    infoLabel: {
+      fontWeight: TYPOGRAPHY.fontWeight.medium,
+      color: COLORS.text.secondary,
+      fontSize: fontSize.small,
+    },
+
+    infoValue: {
+      color: COLORS.text.primary,
+      fontSize: fontSize.body,
+      marginTop: 2,
+    },
+
+    // Horaires
+    scheduleRow: {
+      flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
+      alignItems: 'center' as const,
+      paddingVertical: layoutConfig.cardSpacing * 0.25,
+    },
+
+    dayLabel: {
+      fontWeight: TYPOGRAPHY.fontWeight.medium,
+      color: COLORS.text.primary,
+      minWidth: 60,
+      fontSize: fontSize.body,
+    },
+
+    scheduleInfo: {
+      flex: 1,
+      marginLeft: 16,
+    },
+
+    scheduleTime: {
+      color: COLORS.text.primary,
+      fontSize: fontSize.small,
+    },
+
+    // Modal
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: COLORS.overlay,
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+      padding: layoutConfig.containerPadding,
+    },
+
+    modalContainer: {
+      backgroundColor: COLORS.surface,
+      borderRadius: BORDER_RADIUS.xl,
+      padding: 20,
+      width: '100%' as const,
+      maxWidth: screenType === 'desktop' ? 500 : undefined,
+      ...SHADOWS.card,
+    },
+
+    modalTitle: {
+      fontSize: fontSize.subtitle,
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      color: COLORS.text.primary,
+      marginBottom: layoutConfig.cardSpacing,
+    },
+
+    modalActions: {
+      flexDirection: 'row' as const,
+      gap: layoutConfig.cardSpacing * 0.75,
+      marginTop: layoutConfig.cardSpacing,
+    },
+
+    // Quick action buttons
+    quickActionButton: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      padding: layoutConfig.cardSpacing * 0.75,
+      backgroundColor: 'transparent' as const,
+      borderRadius: BORDER_RADIUS.lg,
+    },
+
+    quickActionIcon: {
+      fontSize: 20,
+      marginRight: 12,
+    },
+
+    quickActionText: {
+      fontSize: fontSize.body,
+      color: COLORS.text.primary,
+      fontWeight: TYPOGRAPHY.fontWeight.medium,
+    },
+  }), [
+    layoutConfig, 
+    fontSize, 
+    statusBadge, 
+    styles, 
+    screenType
+  ]);
+
+  // États de chargement et d'erreur
+  if (isLoading) {
+    return (
+      <SafeAreaView style={dynamicStyles.container}>
+        <Header title="Restaurant" showBackButton onLeftPress={() => router.back()} />
+        <Loading fullScreen text="Chargement du restaurant..." />
+      </SafeAreaView>
+    );
+  }
+
+  if (error || !currentRestaurant) {
+    return (
+      <SafeAreaView style={dynamicStyles.container}>
+        <Header title="Restaurant" showBackButton onLeftPress={() => router.back()} />
+        <View style={[dynamicStyles.content, { flex: 1, justifyContent: 'center', alignItems: 'center' }]}>
+          <Text style={[dynamicStyles.sectionTitle, { textAlign: 'center', marginBottom: 8 }]}>
+            Restaurant non trouvé
+          </Text>
+          <Text style={[dynamicStyles.infoValue, { textAlign: 'center', marginBottom: 20 }]}>
+            Ce restaurant n'existe pas ou vous n'y avez pas accès.
+          </Text>
+          <Button
+            title="Retour"
+            onPress={() => router.back()}
+            variant="primary"
+            fullWidth
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={dynamicStyles.container}>
       <Header 
         title={currentRestaurant.name} 
         showBackButton
-        onBackPress={() => router.back()}
+        onLeftPress={() => router.back()}
         rightIcon={isEditing ? "checkmark" : "create-outline"}
         onRightPress={isEditing ? handleEditSubmit : () => setIsEditing(true)}
       />
 
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        style={styles.scrollView}
-        contentContainerStyle={{ 
-          padding: containerPadding,
-          paddingBottom: containerPadding + 20 
-        }}
+        showsVerticalScrollIndicator={false}
       >
-        {/* Layout principal responsive avec votre système */}
-        <View style={[
-          isTabletLandscape ? styles.tabletLayout : styles.mobileLayout
-        ]}>
-          {/* Colonne principale */}
-          <View style={[
-            isTabletLandscape ? styles.mainColumn : styles.fullWidth
-          ]}>
+        <View style={dynamicStyles.content}>
+          <View style={dynamicStyles.scrollContent}>
+            
             {/* Badge de statut */}
-            <View style={{ marginBottom: cardSpacing }}>
-              <View style={[
-                styles.statusBadge,
-                { backgroundColor: statusBadge.backgroundColor }
-              ]}>
-                <Text style={[
-                  styles.statusBadgeText,
-                  { color: statusBadge.color, fontSize: fontSize.small }
-                ]}>
-                  {statusBadge.text}
-                </Text>
-              </View>
+            <View style={dynamicStyles.statusBadge}>
+              <Text style={dynamicStyles.statusBadgeText}>
+                {statusBadge?.text || 'Statut inconnu'}
+              </Text>
             </View>
 
             {/* Alerte fermeture temporaire */}
             {currentRestaurant.isManuallyOverridden && (
-              <Card style={[styles.alertCard, { marginBottom: cardSpacing }]}>
-                <Text style={[styles.alertTitle, { fontSize: fontSize.body }]}>
+              <Card style={dynamicStyles.alertCard}>
+                <Text style={[dynamicStyles.infoValue, { fontWeight: '600', color: '#991B1B', marginBottom: 4 }]}>
                   ⚠️ Restaurant fermé temporairement
                 </Text>
-                <Text style={[styles.alertText, { fontSize: fontSize.small }]}>
+                <Text style={[dynamicStyles.infoValue, { color: '#7F1D1D' }]}>
                   {currentRestaurant.manualOverrideReason}
                 </Text>
                 {currentRestaurant.manualOverrideUntil && (
-                  <Text style={[styles.alertDate, { fontSize: fontSize.small }]}>
+                  <Text style={[dynamicStyles.infoValue, { color: '#991B1B', marginTop: 4 }]}>
                     Jusqu'au: {new Date(currentRestaurant.manualOverrideUntil).toLocaleString()}
                   </Text>
                 )}
               </Card>
             )}
 
-            {/* Boutons d'action avec système responsive */}
-            <View style={[
-              styles.actionButtonsContainer,
-              { marginBottom: cardSpacing, gap: cardSpacing / 2 }
-            ]}>
+            {/* Boutons d'action */}
+            <View style={dynamicStyles.actionButtonsContainer}>
               {currentRestaurant.isManuallyOverridden ? (
-                <TouchableOpacity
+                <Button
+                  title="Rouvrir"
                   onPress={handleReopenRestaurant}
-                  style={[styles.reopenButton, responsiveStyles.button]}
-                >
-                  <Text style={[styles.buttonText, { fontSize: fontSize.body }]}>Rouvrir</Text>
-                </TouchableOpacity>
+                  variant="primary"
+                  fullWidth
+                  leftIcon={<Ionicons name="checkmark-circle-outline" size={20} color={COLORS.text.inverse} />}
+                />
               ) : (
-                <TouchableOpacity
+                <Button
+                  title="Fermer temporairement"
                   onPress={() => setShowCloseModal(true)}
-                  style={[styles.closeButton, responsiveStyles.button]}
-                >
-                  <Text style={[styles.buttonText, { fontSize: fontSize.body }]}>Fermer temporairement</Text>
-                </TouchableOpacity>
+                  variant="destructive"
+                  fullWidth
+                  leftIcon={<Ionicons name="close-circle-outline" size={20} color={COLORS.error} />}
+                />
               )}
             </View>
 
-            {/* Image du restaurant optimisée */}
-            <Card style={[responsiveStyles.card, { marginBottom: cardSpacing }]}>
-              <Text style={[styles.sectionTitle, { fontSize: fontSize.subtitle, marginBottom: cardSpacing * 0.75 }]}>
-                Image du restaurant
-              </Text>
+            {/* Layout principal responsive */}
+            <View style={dynamicStyles.layoutContainer}>
               
-              {currentRestaurant.image_url ? (
-                <View>
-                  <Image 
-                    source={{ uri: currentRestaurant.image_url }} 
-                    style={[
-                      styles.restaurantImage,
-                      { height: imageHeight }
-                    ]}
-                    resizeMode="cover"
-                  />
-                  <TouchableOpacity
-                    onPress={handleImagePicker}
-                    style={[styles.imageButton, responsiveStyles.button, { marginTop: cardSpacing * 0.75 }]}
-                  >
-                    <Text style={[styles.buttonText, { fontSize: fontSize.body }]}>Changer l'image</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <View>
-                  <View style={[
-                    styles.imagePlaceholder,
-                    { height: imageHeight }
-                  ]}>
-                    <Text style={[styles.placeholderIcon, { fontSize: screenType === 'mobile' ? 48 : 64 }]}>📷</Text>
-                    <Text style={[styles.placeholderText, { fontSize: fontSize.body }]}>Aucune image</Text>
-                  </View>
-                  <TouchableOpacity
-                    onPress={handleImagePicker}
-                    style={[styles.imageButton, responsiveStyles.button, { marginTop: cardSpacing * 0.75 }]}
-                  >
-                    <Text style={[styles.buttonText, { fontSize: fontSize.body }]}>Ajouter une image</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </Card>
-
-            {/* Informations générales */}
-            <Card style={[responsiveStyles.card, { marginBottom: cardSpacing }]}>
-              <Text style={[styles.sectionTitle, { fontSize: fontSize.subtitle, marginBottom: cardSpacing * 0.75 }]}>
-                Informations générales
-              </Text>
-              
-              {isEditing ? (
-                <View style={{ gap: cardSpacing * 0.75 }}>
-                  <View>
-                    <Text style={[styles.inputLabel, { fontSize: fontSize.small }]}>
-                      Nom du restaurant
-                    </Text>
-                    <TextInput
-                      value={editForm.name}
-                      onChangeText={(text) => setEditForm({...editForm, name: text})}
-                      style={[styles.textInput, { fontSize: fontSize.body }]}
-                      placeholder="Nom du restaurant"
-                    />
-                  </View>
+              {/* Colonne principale */}
+              <View style={dynamicStyles.mainColumn}>
+                
+                {/* Image du restaurant */}
+                <Card style={dynamicStyles.card}>
+                  <Text style={dynamicStyles.sectionTitle}>
+                    Image du restaurant
+                  </Text>
                   
-                  <View>
-                    <Text style={[styles.inputLabel, { fontSize: fontSize.small }]}>
-                      Description
-                    </Text>
-                    <TextInput
-                      value={editForm.description}
-                      onChangeText={(text) => setEditForm({...editForm, description: text})}
-                      multiline
-                      numberOfLines={3}
-                      style={[styles.textInputMultiline, { fontSize: fontSize.body }]}
-                      placeholder="Description du restaurant"
-                    />
-                  </View>
-                  
-                  <View>
-                    <Text style={[styles.inputLabel, { fontSize: fontSize.small }]}>
-                      Adresse
-                    </Text>
-                    <TextInput
-                      value={editForm.address}
-                      onChangeText={(text) => setEditForm({...editForm, address: text})}
-                      style={[styles.textInput, { fontSize: fontSize.body }]}
-                      placeholder="Adresse"
-                    />
-                  </View>
-                  
-                  <View style={[
-                    screenType === 'mobile' ? styles.addressRowMobile : styles.addressRowTablet,
-                    { gap: cardSpacing * 0.5 }
-                  ]}>
-                    <View style={{ flex: screenType === 'mobile' ? 1 : 2 }}>
-                      <Text style={[styles.inputLabel, { fontSize: fontSize.small }]}>
-                        Ville
-                      </Text>
-                      <TextInput
-                        value={editForm.city}
-                        onChangeText={(text) => setEditForm({...editForm, city: text})}
-                        style={[styles.textInput, { fontSize: fontSize.body }]}
-                        placeholder="Ville"
-                      />
-                    </View>
-                    
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.inputLabel, { fontSize: fontSize.small }]}>
-                        Code postal
-                      </Text>
-                      <TextInput
-                        value={editForm.zipCode}
-                        onChangeText={(text) => setEditForm({...editForm, zipCode: text})}
-                        style={[styles.textInput, { fontSize: fontSize.body }]}
-                        placeholder="Code postal"
-                        keyboardType="numeric"
-                      />
-                    </View>
-                  </View>
-                  
-                  <View style={[
-                    styles.contactRow,
-                    { gap: cardSpacing * 0.5 }
-                  ]}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.inputLabel, { fontSize: fontSize.small }]}>
-                        Téléphone
-                      </Text>
-                      <TextInput
-                        value={editForm.phone}
-                        onChangeText={(text) => setEditForm({...editForm, phone: text})}
-                        style={[styles.textInput, { fontSize: fontSize.body }]}
-                        placeholder="Téléphone"
-                        keyboardType="phone-pad"
-                      />
-                    </View>
-                    
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.inputLabel, { fontSize: fontSize.small }]}>
-                        Email
-                      </Text>
-                      <TextInput
-                        value={editForm.email}
-                        onChangeText={(text) => setEditForm({...editForm, email: text})}
-                        style={[styles.textInput, { fontSize: fontSize.body }]}
-                        placeholder="Email"
-                        keyboardType="email-address"
-                      />
-                    </View>
-                  </View>
-                  
-                  {/* Actions d'édition */}
-                  <View style={[styles.editActions, { gap: cardSpacing * 0.5 }]}>
-                    <TouchableOpacity
-                      onPress={() => setIsEditing(false)}
-                      style={[styles.cancelButton, responsiveStyles.button]}
-                    >
-                      <Text style={[styles.buttonText, { fontSize: fontSize.body }]}>Annuler</Text>
-                    </TouchableOpacity>
-                    
-                    <TouchableOpacity
-                      onPress={handleEditSubmit}
-                      style={[styles.saveButton, responsiveStyles.button]}
-                    >
-                      <Text style={[styles.buttonText, { fontSize: fontSize.body }]}>Sauvegarder</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ) : (
-                <View style={{ gap: cardSpacing * 0.75 }}>
-                  <View>
-                    <Text style={[styles.infoLabel, { fontSize: fontSize.small }]}>Adresse:</Text>
-                    <Text style={[styles.infoValue, { fontSize: fontSize.body }]}>
-                      {currentRestaurant.address}, {currentRestaurant.zipCode} {currentRestaurant.city}
-                    </Text>
-                  </View>
-                  
-                  <View>
-                    <Text style={[styles.infoLabel, { fontSize: fontSize.small }]}>Téléphone:</Text>
-                    <Text style={[styles.infoValue, { fontSize: fontSize.body }]}>{currentRestaurant.phone}</Text>
-                  </View>
-                  
-                  <View>
-                    <Text style={[styles.infoLabel, { fontSize: fontSize.small }]}>Email:</Text>
-                    <Text style={[styles.infoValue, { fontSize: fontSize.body }]}>{currentRestaurant.email}</Text>
-                  </View>
-                  
-                  {currentRestaurant.website && (
+                  {currentRestaurant.image_url ? (
                     <View>
-                      <Text style={[styles.infoLabel, { fontSize: fontSize.small }]}>Site web:</Text>
-                      <Text style={[styles.websiteLink, { fontSize: fontSize.body }]}>{currentRestaurant.website}</Text>
+                      <Image 
+                        source={{ uri: currentRestaurant.image_url }} 
+                        style={dynamicStyles.restaurantImage}
+                        resizeMode="cover"
+                      />
+                      <View style={{ marginTop: layoutConfig.cardSpacing * 0.75 }}>
+                        <Button
+                          title="Changer l'image"
+                          onPress={handleImagePicker}
+                          variant="outline"
+                          leftIcon={<Ionicons name="camera-outline" size={20} color={COLORS.primary} />}
+                          fullWidth
+                        />
+                      </View>
+                    </View>
+                  ) : (
+                    <View>
+                      <View style={dynamicStyles.imagePlaceholder}>
+                        <Ionicons 
+                          name="camera-outline" 
+                          size={screenType === 'mobile' ? 48 : 64} 
+                          color={COLORS.text.secondary} 
+                        />
+                        <Text style={[dynamicStyles.infoValue, { marginTop: 8 }]}>Aucune image</Text>
+                      </View>
+                      <View style={{ marginTop: layoutConfig.cardSpacing * 0.75 }}>
+                        <Button
+                          title="Ajouter une image"
+                          onPress={handleImagePicker}
+                          variant="primary"
+                          leftIcon={<Ionicons name="add-outline" size={20} color={COLORS.text.inverse} />}
+                          fullWidth
+                        />
+                      </View>
                     </View>
                   )}
+                </Card>
+
+                {/* Informations générales */}
+                <Card style={dynamicStyles.card}>
+                  <Text style={dynamicStyles.sectionTitle}>
+                    Informations générales
+                  </Text>
                   
-                  <View>
-                    <Text style={[styles.infoLabel, { fontSize: fontSize.small }]}>Cuisine:</Text>
-                    <Text style={[styles.infoValue, { fontSize: fontSize.body, textTransform: 'capitalize' }]}>
-                      {currentRestaurant.cuisine}
-                    </Text>
-                  </View>
-                  
-                  <View>
-                    <Text style={[styles.infoLabel, { fontSize: fontSize.small }]}>Gamme de prix:</Text>
-                    <Text style={[styles.priceRange, { fontSize: fontSize.body }]}>
-                      {'€'.repeat(currentRestaurant.priceRange)}
-                    </Text>
-                  </View>
-                  
-                  <View>
-                    <Text style={[styles.infoLabel, { fontSize: fontSize.small }]}>Note moyenne:</Text>
-                    <Text style={[styles.infoValue, { fontSize: fontSize.body }]}>
-                      ⭐ {currentRestaurant.rating || 0} ({currentRestaurant.reviewCount || 0} avis)
-                    </Text>
-                  </View>
-                  
-                  {currentRestaurant.accepts_meal_vouchers && (
-                    <View>
-                      <Text style={[styles.infoLabel, { fontSize: fontSize.small }]}>Titres-restaurant:</Text>
-                      <Text style={[styles.mealVoucherAccepted, { fontSize: fontSize.body }]}>Acceptés</Text>
-                      {currentRestaurant.meal_voucher_info && (
-                        <Text style={[styles.mealVoucherInfo, { fontSize: fontSize.small }]}>
-                          {currentRestaurant.meal_voucher_info}
+                  {isEditing ? (
+                    <View style={{ gap: layoutConfig.cardSpacing * 0.75 }}>
+                      <View>
+                        <Text style={dynamicStyles.inputLabel}>Nom du restaurant</Text>
+                        <TextInput
+                          value={editForm.name}
+                          onChangeText={(text) => updateField('name', text)}
+                          style={dynamicStyles.textInput}
+                          placeholder="Nom du restaurant"
+                        />
+                      </View>
+                      
+                      <View>
+                        <Text style={dynamicStyles.inputLabel}>Description</Text>
+                        <TextInput
+                          value={editForm.description}
+                          onChangeText={(text) => updateField('description', text)}
+                          multiline
+                          numberOfLines={3}
+                          style={dynamicStyles.textInputMultiline}
+                          placeholder="Description du restaurant"
+                        />
+                      </View>
+                      
+                      <View>
+                        <Text style={dynamicStyles.inputLabel}>Adresse</Text>
+                        <TextInput
+                          value={editForm.address}
+                          onChangeText={(text) => updateField('address', text)}
+                          style={dynamicStyles.textInput}
+                          placeholder="Adresse"
+                        />
+                      </View>
+                      
+                      <View style={{ 
+                        flexDirection: screenType === 'mobile' ? 'column' : 'row',
+                        gap: layoutConfig.cardSpacing * 0.5
+                      }}>
+                        <View style={{ flex: screenType === 'mobile' ? 1 : 2 }}>
+                          <Text style={dynamicStyles.inputLabel}>Ville</Text>
+                          <TextInput
+                            value={editForm.city}
+                            onChangeText={(text) => updateField('city', text)}
+                            style={dynamicStyles.textInput}
+                            placeholder="Ville"
+                          />
+                        </View>
+                        
+                        <View style={{ flex: 1 }}>
+                          <Text style={dynamicStyles.inputLabel}>Code postal</Text>
+                          <TextInput
+                            value={editForm.zipCode}
+                            onChangeText={(text) => updateField('zipCode', text)}
+                            style={dynamicStyles.textInput}
+                            placeholder="Code postal"
+                            keyboardType="numeric"
+                          />
+                        </View>
+                      </View>
+                      
+                      <View style={{ 
+                        flexDirection: 'row',
+                        gap: layoutConfig.cardSpacing * 0.5
+                      }}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={dynamicStyles.inputLabel}>Téléphone</Text>
+                          <TextInput
+                            value={editForm.phone}
+                            onChangeText={(text) => updateField('phone', text)}
+                            style={dynamicStyles.textInput}
+                            placeholder="Téléphone"
+                            keyboardType="phone-pad"
+                          />
+                        </View>
+                        
+                        <View style={{ flex: 1 }}>
+                          <Text style={dynamicStyles.inputLabel}>Email</Text>
+                          <TextInput
+                            value={editForm.email}
+                            onChangeText={(text) => updateField('email', text)}
+                            style={dynamicStyles.textInput}
+                            placeholder="Email"
+                            keyboardType="email-address"
+                          />
+                        </View>
+                      </View>
+                      
+                      {/* Actions d'édition */}
+                      <View style={{ 
+                        flexDirection: 'row',
+                        gap: layoutConfig.cardSpacing * 0.5,
+                        marginTop: layoutConfig.cardSpacing * 0.5
+                      }}>
+                        <View style={{ flex: 1 }}>
+                          <Button
+                            title="Annuler"
+                            onPress={() => setIsEditing(false)}
+                            variant="outline"
+                            fullWidth
+                          />
+                        </View>
+                        
+                        <View style={{ flex: 1 }}>
+                          <Button
+                            title="Sauvegarder"
+                            onPress={handleEditSubmit}
+                            variant="primary"
+                            leftIcon={<Ionicons name="save-outline" size={20} color={COLORS.text.inverse} />}
+                            fullWidth
+                          />
+                        </View>
+                      </View>
+                    </View>
+                  ) : (
+                    <View style={{ gap: layoutConfig.cardSpacing * 0.75 }}>
+                      <View style={dynamicStyles.infoRow}>
+                        <Text style={dynamicStyles.infoLabel}>Adresse:</Text>
+                        <Text style={dynamicStyles.infoValue}>
+                          {currentRestaurant.address}, {currentRestaurant.zipCode} {currentRestaurant.city}
                         </Text>
+                      </View>
+                      
+                      <View style={dynamicStyles.infoRow}>
+                        <Text style={dynamicStyles.infoLabel}>Téléphone:</Text>
+                        <Text style={dynamicStyles.infoValue}>{currentRestaurant.phone}</Text>
+                      </View>
+                      
+                      <View style={dynamicStyles.infoRow}>
+                        <Text style={dynamicStyles.infoLabel}>Email:</Text>
+                        <Text style={dynamicStyles.infoValue}>{currentRestaurant.email}</Text>
+                      </View>
+                      
+                      {currentRestaurant.website && (
+                        <View style={dynamicStyles.infoRow}>
+                          <Text style={dynamicStyles.infoLabel}>Site web:</Text>
+                          <Text style={[dynamicStyles.infoValue, { color: COLORS.primary }]}>
+                            {currentRestaurant.website}
+                          </Text>
+                        </View>
+                      )}
+                      
+                      <View style={dynamicStyles.infoRow}>
+                        <Text style={dynamicStyles.infoLabel}>Cuisine:</Text>
+                        <Text style={[dynamicStyles.infoValue, { textTransform: 'capitalize' }]}>
+                          {currentRestaurant.cuisine}
+                        </Text>
+                      </View>
+                      
+                      <View style={dynamicStyles.infoRow}>
+                        <Text style={dynamicStyles.infoLabel}>Gamme de prix:</Text>
+                        <Text style={[dynamicStyles.infoValue, { color: COLORS.secondary, fontWeight: '600' }]}>
+                          {'€'.repeat(currentRestaurant.priceRange)}
+                        </Text>
+                      </View>
+                      
+                      <View style={dynamicStyles.infoRow}>
+                        <Text style={dynamicStyles.infoLabel}>Note moyenne:</Text>
+                        <Text style={dynamicStyles.infoValue}>
+                          ⭐ {currentRestaurant.rating || 0} ({currentRestaurant.reviewCount || 0} avis)
+                        </Text>
+                      </View>
+                      
+                      {currentRestaurant.accepts_meal_vouchers && (
+                        <View style={dynamicStyles.infoRow}>
+                          <Text style={dynamicStyles.infoLabel}>Titres-restaurant:</Text>
+                          <Text style={[dynamicStyles.infoValue, { color: COLORS.success, fontWeight: '500' }]}>
+                            Acceptés
+                          </Text>
+                          {currentRestaurant.meal_voucher_info && (
+                            <Text style={[dynamicStyles.infoValue, { fontSize: fontSize.small, marginTop: 2 }]}>
+                              {currentRestaurant.meal_voucher_info}
+                            </Text>
+                          )}
+                        </View>
+                      )}
+                      
+                      {currentRestaurant.description && (
+                        <View style={dynamicStyles.infoRow}>
+                          <Text style={dynamicStyles.infoLabel}>Description:</Text>
+                          <Text style={dynamicStyles.infoValue}>{currentRestaurant.description}</Text>
+                        </View>
                       )}
                     </View>
                   )}
-                  
-                  {currentRestaurant.description && (
-                    <View>
-                      <Text style={[styles.infoLabel, { fontSize: fontSize.small }]}>Description:</Text>
-                      <Text style={[styles.infoValue, { fontSize: fontSize.body }]}>{currentRestaurant.description}</Text>
-                    </View>
-                  )}
-                </View>
-              )}
-            </Card>
-          </View>
-
-          {/* Colonne secondaire (tablette paysage uniquement) */}
-          {isTabletLandscape && (
-            <View style={styles.sideColumn}>
-              {/* Horaires d'ouverture */}
-              {currentRestaurant.opening_hours && currentRestaurant.opening_hours.length > 0 && (
-                <Card style={[responsiveStyles.card, { marginBottom: cardSpacing }]}>
-                  <Text style={[styles.sectionTitle, { fontSize: fontSize.subtitle, marginBottom: cardSpacing * 0.75 }]}>
-                    Horaires d'ouverture
-                  </Text>
-                  
-                  <View style={{ gap: cardSpacing * 0.5 }}>
-                    {currentRestaurant.opening_hours.map((hours) => (
-                      <View key={hours.dayOfWeek} style={styles.scheduleRow}>
-                        <Text style={[styles.dayLabel, { fontSize: fontSize.body }]}>
-                          {['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'][hours.dayOfWeek]}
-                        </Text>
-                        <View style={styles.scheduleInfo}>
-                          {hours.isClosed ? (
-                            <Text style={[styles.closedText, { fontSize: fontSize.small }]}>Fermé</Text>
-                          ) : hours.periods && hours.periods.length > 0 ? (
-                            <View>
-                              {hours.periods.map((period, idx) => (
-                                <View key={idx}>
-                                  <Text style={[styles.scheduleTime, { fontSize: fontSize.small }]}>
-                                    {period.startTime} - {period.endTime}
-                                    {period.name && (
-                                      <Text style={[styles.schedulePeriod, { fontSize: fontSize.small }]}> ({period.name})</Text>
-                                    )}
-                                  </Text>
-                                </View>
-                              ))}
-                            </View>
-                          ) : (
-                            <Text style={[styles.notDefinedText, { fontSize: fontSize.small }]}>Non défini</Text>
-                          )}
-                        </View>
-                      </View>
-                    ))}
-                  </View>
                 </Card>
+              </View>
+
+              {/* Colonne secondaire (tablette paysage uniquement) */}
+              {layoutConfig.isTabletLandscape && (
+                <View style={dynamicStyles.sideColumn}>
+                  {renderSideContent()}
+                </View>
               )}
 
-              {/* Statistiques */}
-              <Card style={[responsiveStyles.card, { marginBottom: cardSpacing }]}>
-                <Text style={[styles.sectionTitle, { fontSize: fontSize.subtitle, marginBottom: cardSpacing * 0.75 }]}>
-                  Statistiques
-                </Text>
-                
-                <View style={{ gap: cardSpacing * 0.5 }}>
-                  <View style={styles.statRow}>
-                    <Text style={[styles.statLabel, { fontSize: fontSize.small }]}>Paiements Stripe</Text>
-                    <View style={[
-                      styles.statusIndicator,
-                      { backgroundColor: currentRestaurant.is_stripe_active ? COLORS.surface.golden : '#FEE2E2' }
-                    ]}>
-                      <Text style={[
-                        styles.statusText,
-                        { 
-                          fontSize: fontSize.small,
-                          color: currentRestaurant.is_stripe_active ? COLORS.success : COLORS.error 
-                        }
-                      ]}>
-                        {currentRestaurant.is_stripe_active ? 'Actif' : 'Inactif'}
-                      </Text>
-                    </View>
-                  </View>
-                  
-                  <View style={styles.statRow}>
-                    <Text style={[styles.statLabel, { fontSize: fontSize.small }]}>Créé le</Text>
-                    <Text style={[styles.statValue, { fontSize: fontSize.small }]}>
-                      {new Date(currentRestaurant.createdAt).toLocaleDateString()}
-                    </Text>
-                  </View>
-                  
-                  <View style={styles.statRow}>
-                    <Text style={[styles.statLabel, { fontSize: fontSize.small }]}>Dernière modif.</Text>
-                    <Text style={[styles.statValue, { fontSize: fontSize.small }]}>
-                      {new Date(currentRestaurant.updatedAt).toLocaleDateString()}
-                    </Text>
-                  </View>
-                </View>
-              </Card>
-
-              {/* Actions rapides */}
-              <Card style={responsiveStyles.card}>
-                <Text style={[styles.sectionTitle, { fontSize: fontSize.subtitle, marginBottom: cardSpacing * 0.75 }]}>
-                  Actions rapides
-                </Text>
-                
-                <View style={{ gap: cardSpacing * 0.5 }}>
-                  <TouchableOpacity
-                    onPress={() => router.push(`/(restaurant)/qrcodes`)}
-                    style={styles.quickActionButton}
-                  >
-                    <Text style={[styles.quickActionIcon, { fontSize: fontSize.subtitle }]}>👥</Text>
-                    <Text style={[styles.quickActionText, { fontSize: fontSize.body }]}>Gérer les tables</Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity
-                    onPress={() => router.push(`/(restaurant)/menu`)}
-                    style={styles.quickActionButton}
-                  >
-                    <Text style={[styles.quickActionIcon, { fontSize: fontSize.subtitle }]}>⚙️</Text>
-                    <Text style={[styles.quickActionText, { fontSize: fontSize.body }]}>Gérer les menus</Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity
-                    onPress={() => router.push(`/(restaurant)/orders`)}
-                    style={styles.quickActionButton}
-                  >
-                    <Text style={[styles.quickActionIcon, { fontSize: fontSize.subtitle }]}>🕒</Text>
-                    <Text style={[styles.quickActionText, { fontSize: fontSize.body }]}>Voir les commandes</Text>
-                  </TouchableOpacity>
-                </View>
-              </Card>
+              {/* Sections mobiles (si pas tablette paysage) */}
+              {!layoutConfig.isTabletLandscape && renderSideContent()}
+              
             </View>
-          )}
-
-          {/* Sections mobiles (affichées uniquement en mobile/tablette portrait) */}
-          {!isTabletLandscape && (
-            <>
-              {/* Horaires d'ouverture */}
-              {currentRestaurant.opening_hours && currentRestaurant.opening_hours.length > 0 && (
-                <Card style={[responsiveStyles.card, { marginBottom: cardSpacing }]}>
-                  <Text style={[styles.sectionTitle, { fontSize: fontSize.subtitle, marginBottom: cardSpacing * 0.75 }]}>
-                    Horaires d'ouverture
-                  </Text>
-                  
-                  <View style={{ gap: cardSpacing * 0.5 }}>
-                    {currentRestaurant.opening_hours.map((hours) => (
-                      <View key={hours.dayOfWeek} style={styles.scheduleRow}>
-                        <Text style={[styles.dayLabel, { fontSize: fontSize.body }]}>
-                          {['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'][hours.dayOfWeek]}
-                        </Text>
-                        <View style={styles.scheduleInfo}>
-                          {hours.isClosed ? (
-                            <Text style={[styles.closedText, { fontSize: fontSize.small }]}>Fermé</Text>
-                          ) : hours.periods && hours.periods.length > 0 ? (
-                            <View>
-                              {hours.periods.map((period, idx) => (
-                                <View key={idx}>
-                                  <Text style={[styles.scheduleTime, { fontSize: fontSize.small }]}>
-                                    {period.startTime} - {period.endTime}
-                                    {period.name && (
-                                      <Text style={[styles.schedulePeriod, { fontSize: fontSize.small }]}> ({period.name})</Text>
-                                    )}
-                                  </Text>
-                                </View>
-                              ))}
-                            </View>
-                          ) : (
-                            <Text style={[styles.notDefinedText, { fontSize: fontSize.small }]}>Non défini</Text>
-                          )}
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-                </Card>
-              )}
-
-              {/* Statistiques */}
-              <Card style={[responsiveStyles.card, { marginBottom: cardSpacing }]}>
-                <Text style={[styles.sectionTitle, { fontSize: fontSize.subtitle, marginBottom: cardSpacing * 0.75 }]}>
-                  Statistiques
-                </Text>
-                
-                <View style={{ gap: cardSpacing * 0.5 }}>
-                  <View style={styles.statRow}>
-                    <Text style={[styles.statLabel, { fontSize: fontSize.small }]}>Paiements Stripe</Text>
-                    <View style={[
-                      styles.statusIndicator,
-                      { backgroundColor: currentRestaurant.is_stripe_active ? COLORS.surface.golden : '#FEE2E2' }
-                    ]}>
-                      <Text style={[
-                        styles.statusText,
-                        { 
-                          fontSize: fontSize.small,
-                          color: currentRestaurant.is_stripe_active ? COLORS.success : COLORS.error 
-                        }
-                      ]}>
-                        {currentRestaurant.is_stripe_active ? 'Actif' : 'Inactif'}
-                      </Text>
-                    </View>
-                  </View>
-                  
-                  <View style={styles.statRow}>
-                    <Text style={[styles.statLabel, { fontSize: fontSize.small }]}>Créé le</Text>
-                    <Text style={[styles.statValue, { fontSize: fontSize.small }]}>
-                      {new Date(currentRestaurant.createdAt).toLocaleDateString()}
-                    </Text>
-                  </View>
-                  
-                  <View style={styles.statRow}>
-                    <Text style={[styles.statLabel, { fontSize: fontSize.small }]}>Dernière modif.</Text>
-                    <Text style={[styles.statValue, { fontSize: fontSize.small }]}>
-                      {new Date(currentRestaurant.updatedAt).toLocaleDateString()}
-                    </Text>
-                  </View>
-                </View>
-              </Card>
-
-              {/* Actions rapides */}
-              <Card style={responsiveStyles.card}>
-                <Text style={[styles.sectionTitle, { fontSize: fontSize.subtitle, marginBottom: cardSpacing * 0.75 }]}>
-                  Actions rapides
-                </Text>
-                
-                <View style={{ gap: cardSpacing * 0.5 }}>
-                  <TouchableOpacity
-                    onPress={() => router.push(`/(restaurant)/qrcodes`)}
-                    style={styles.quickActionButton}
-                  >
-                    <Text style={[styles.quickActionIcon, { fontSize: fontSize.subtitle }]}>👥</Text>
-                    <Text style={[styles.quickActionText, { fontSize: fontSize.body }]}>Gérer les tables</Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity
-                    onPress={() => router.push(`/(restaurant)/menu`)}
-                    style={styles.quickActionButton}
-                  >
-                    <Text style={[styles.quickActionIcon, { fontSize: fontSize.subtitle }]}>⚙️</Text>
-                    <Text style={[styles.quickActionText, { fontSize: fontSize.body }]}>Gérer les menus</Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity
-                    onPress={() => router.push(`/(restaurant)/orders`)}
-                    style={styles.quickActionButton}
-                  >
-                    <Text style={[styles.quickActionIcon, { fontSize: fontSize.subtitle }]}>🕒</Text>
-                    <Text style={[styles.quickActionText, { fontSize: fontSize.body }]}>Voir les commandes</Text>
-                  </TouchableOpacity>
-                </View>
-              </Card>
-            </>
-          )}
+          </View>
         </View>
       </ScrollView>
 
@@ -851,24 +902,18 @@ const RestaurantDetailPage = () => {
         animationType="slide"
         onRequestClose={() => setShowCloseModal(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={[
-            styles.modalContainer,
-            { 
-              margin: containerPadding,
-              maxWidth: screenType === 'desktop' ? 500 : undefined 
-            }
-          ]}>
-            <Text style={[styles.modalTitle, { fontSize: fontSize.subtitle }]}>
+        <View style={dynamicStyles.modalOverlay}>
+          <View style={dynamicStyles.modalContainer}>
+            <Text style={dynamicStyles.modalTitle}>
               ⚠️ Fermer temporairement
             </Text>
             
-            <Text style={[styles.modalDescription, { fontSize: fontSize.body }]}>
+            <Text style={[dynamicStyles.infoValue, { marginBottom: layoutConfig.cardSpacing }]}>
               Cette action fermera votre restaurant aux nouvelles commandes. Vous pourrez le rouvrir à tout moment.
             </Text>
             
-            <View style={{ marginBottom: cardSpacing }}>
-              <Text style={[styles.inputLabel, { fontSize: fontSize.small }]}>
+            <View style={{ marginBottom: layoutConfig.cardSpacing }}>
+              <Text style={dynamicStyles.inputLabel}>
                 Raison de la fermeture *
               </Text>
               <TextInput
@@ -876,505 +921,173 @@ const RestaurantDetailPage = () => {
                 onChangeText={(text) => setCloseForm({...closeForm, reason: text})}
                 multiline
                 numberOfLines={3}
-                style={[styles.textInputMultiline, { fontSize: fontSize.body }]}
+                style={dynamicStyles.textInputMultiline}
                 placeholder="Ex: Vacances, travaux, problème technique..."
               />
             </View>
             
-            <View style={{ marginBottom: cardSpacing * 1.25 }}>
-              <Text style={[styles.inputLabel, { fontSize: fontSize.small }]}>
+            <View style={{ marginBottom: layoutConfig.cardSpacing }}>
+              <Text style={dynamicStyles.inputLabel}>
                 Durée (optionnel)
               </Text>
               <TextInput
                 value={closeForm.duration}
                 onChangeText={(text) => setCloseForm({...closeForm, duration: text})}
-                style={[styles.textInput, { fontSize: fontSize.body }]}
+                style={dynamicStyles.textInput}
                 placeholder="Heures (ex: 24 pour 1 jour)"
                 keyboardType="numeric"
               />
             </View>
             
-            <View style={[styles.modalActions, { gap: cardSpacing * 0.75 }]}>
-              <TouchableOpacity
-                onPress={() => setShowCloseModal(false)}
-                style={[styles.cancelButton, responsiveStyles.button]}
-              >
-                <Text style={[styles.buttonText, { fontSize: fontSize.body }]}>Annuler</Text>
-              </TouchableOpacity>
+            <View style={dynamicStyles.modalActions}>
+              <View style={{ flex: 1 }}>
+                <Button
+                  title="Annuler"
+                  onPress={() => setShowCloseModal(false)}
+                  variant="outline"
+                  fullWidth
+                />
+              </View>
               
-              <TouchableOpacity
-                onPress={handleCloseRestaurant}
-                disabled={!closeForm.reason.trim() || isClosing}
-                style={[
-                  styles.confirmCloseButton, 
-                  responsiveStyles.button,
-                  { opacity: !closeForm.reason.trim() || isClosing ? 0.6 : 1 }
-                ]}
-              >
-                <Text style={[styles.buttonText, { fontSize: fontSize.body }]}>
-                  {isClosing ? 'Fermeture...' : 'Fermer le restaurant'}
-                </Text>
-              </TouchableOpacity>
+              <View style={{ flex: 1 }}>
+                <Button
+                  title={isClosing ? 'Fermeture...' : 'Fermer le restaurant'}
+                  onPress={handleCloseRestaurant}
+                  disabled={!closeForm.reason.trim() || isClosing}
+                  loading={isClosing}
+                  variant="destructive"
+                  fullWidth
+                />
+              </View>
             </View>
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
-};
 
-// =============================================================================
-// STYLES AVEC LE SYSTÈME DESIGNSYSTEM.TS
-// =============================================================================
+  // Fonction pour rendre le contenu de la colonne secondaire
+  function renderSideContent() {
+    if (!currentRestaurant) return null;
+    return (
+      <>
+        {/* Horaires d'ouverture */}
+        {currentRestaurant.opening_hours && currentRestaurant.opening_hours.length > 0 && (
+          <Card style={dynamicStyles.card}>
+            <Text style={dynamicStyles.sectionTitle}>
+              Horaires d'ouverture
+            </Text>
+            
+            <View style={{ gap: layoutConfig.cardSpacing * 0.5 }}>
+              {currentRestaurant.opening_hours.map((hours: any) => (
+                <View key={hours.dayOfWeek} style={dynamicStyles.scheduleRow}>
+                  <Text style={dynamicStyles.dayLabel}>
+                    {['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'][hours.dayOfWeek]}
+                  </Text>
+                  <View style={dynamicStyles.scheduleInfo}>
+                    {hours.isClosed ? (
+                      <Text style={[dynamicStyles.scheduleTime, { color: COLORS.text.secondary }]}>Fermé</Text>
+                    ) : hours.periods && hours.periods.length > 0 ? (
+                      <View>
+                        {hours.periods.map((period: any, idx: number) => (
+                          <View key={idx}>
+                            <Text style={dynamicStyles.scheduleTime}>
+                              {period.startTime} - {period.endTime}
+                              {period.name && (
+                                <Text style={[dynamicStyles.scheduleTime, { color: COLORS.text.secondary }]}>
+                                  {' '}({period.name})
+                                </Text>
+                              )}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    ) : (
+                      <Text style={[dynamicStyles.scheduleTime, { color: COLORS.text.secondary }]}>Non défini</Text>
+                    )}
+                  </View>
+                </View>
+              ))}
+            </View>
+          </Card>
+        )}
 
-const styles = {
-  // Layout principal
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  
-  // Layouts responsifs
-  mobileLayout: {
-    flexDirection: 'column' as const,
-  },
-  tabletLayout: {
-    flexDirection: 'row' as const,
-    gap: 24,
-    alignItems: 'flex-start' as const,
-  },
-  mainColumn: {
-    flex: 2,
-    minWidth: 0,
-  },
-  sideColumn: {
-    flex: 1,
-    minWidth: 300,
-    maxWidth: 450,
-  },
-  fullWidth: {
-    width: '100%',
-  },
-  
-  // États d'erreur
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
-  },
-  errorTitle: {
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.primary,
-    marginBottom: 8,
-    textAlign: 'center' as const,
-  },
-  errorText: {
-    color: COLORS.text.secondary,
-    marginBottom: 16,
-    textAlign: 'center' as const,
-  },
-  errorButton: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: BORDER_RADIUS.lg,
-    ...SHADOWS.button,
-  },
-  errorButtonText: {
-    color: COLORS.text.inverse,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
-  },
-  
-  // Badge de statut
-  statusBadge: {
-    alignSelf: 'flex-start' as const,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: BORDER_RADIUS.full,
-  },
-  statusBadgeText: {
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
-  },
-  
-  // Alertes
-  alertCard: {
-    backgroundColor: '#FEF2F2',
-    borderLeftWidth: 4,
-    borderLeftColor: COLORS.error,
-    ...SHADOWS.card,
-  },
-  alertTitle: {
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: '#991B1B',
-    marginBottom: 4,
-  },
-  alertText: {
-    color: '#7F1D1D',
-  },
-  alertDate: {
-    color: '#991B1B',
-    marginTop: 4,
-  },
-  
-  // Boutons d'action
-  actionButtonsContainer: {
-    flexDirection: 'row' as const,
-  },
-  reopenButton: {
-    flex: 1,
-    backgroundColor: COLORS.success,
-    alignItems: 'center' as const,
-  },
-  closeButton: {
-    flex: 1,
-    backgroundColor: COLORS.error,
-    alignItems: 'center' as const,
-  },
-  imageButton: {
-    backgroundColor: COLORS.primary,
-    alignItems: 'center' as const,
-  },
-  saveButton: {
-    flex: 1,
-    backgroundColor: COLORS.primary,
-    alignItems: 'center' as const,
-  },
-  cancelButton: {
-    flex: 1,
-    backgroundColor: COLORS.text.secondary,
-    alignItems: 'center' as const,
-  },
-  buttonText: {
-    color: COLORS.text.inverse,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
-  },
-  
-  // Titres de section
-  sectionTitle: {
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.primary,
-  },
-  
-  // Image du restaurant
-  restaurantImage: {
-    width: '100%',
-    borderRadius: BORDER_RADIUS.lg,
-  },
-  imagePlaceholder: {
-    width: '100%',
-    backgroundColor: COLORS.border.light,
-    borderRadius: BORDER_RADIUS.lg,
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
-  },
-  placeholderIcon: {
-    marginBottom: 8,
-  },
-  placeholderText: {
-    color: COLORS.text.secondary,
-  },
-  
-  // Formulaires
-  inputLabel: {
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
-    color: COLORS.text.primary,
-    marginBottom: 4,
-  },
-  textInput: {
-    borderWidth: 1,
-    borderColor: COLORS.border.default,
-    borderRadius: BORDER_RADIUS.lg,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: COLORS.surface,
-    color: COLORS.text.primary,
-  },
-  textInputMultiline: {
-    borderWidth: 1,
-    borderColor: COLORS.border.default,
-    borderRadius: BORDER_RADIUS.lg,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: COLORS.surface,
-    color: COLORS.text.primary,
-    textAlignVertical: 'top' as const,
-    minHeight: 80,
-  },
-  
-  // Badge de statut utilisant COMPONENT_STYLES
-  statusBadge: {
-    ...COMPONENT_STYLES.statusBadge.base,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  statusBadgeText: {
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
-  },
-  
-  // Alerte
-  alertCard: {
-    backgroundColor: '#FEF2F2',
-    borderLeftWidth: 4,
-    borderLeftColor: COLORS.error,
-  },
-  alertTitle: {
-    fontWeight: '600',
-    color: '#991B1B',
-    marginBottom: 4,
-  },
-  alertText: {
-    color: '#7F1D1D',
-  },
-  alertDate: {
-    color: '#991B1B',
-    marginTop: 4,
-  },
-  
-  // Boutons d'action avec styles prédéfinis
-  reopenButton: {
-    ...responsiveStyles.button,
-    ...responsiveStyles.buttonPrimary,
-    backgroundColor: COLORS.success,
-    alignItems: 'center' as const,
-  },
-  closeButton: {
-    ...responsiveStyles.button,
-    backgroundColor: COLORS.error,
-    alignItems: 'center' as const,
-  },
-  imageButton: {
-    ...responsiveStyles.button,
-    ...responsiveStyles.buttonPrimary,
-    alignItems: 'center' as const,
-  },
-  saveButton: {
-    ...responsiveStyles.button,
-    ...responsiveStyles.buttonPrimary,
-    alignItems: 'center' as const,
-  },
-  cancelButton: {
-    ...responsiveStyles.button,
-    backgroundColor: COLORS.text.secondary,
-    alignItems: 'center' as const,
-  },
-    // Boutons d'action
-  actionButtonsContainer: {
-    flexDirection: 'row' as const,
-  },
-  
-  // Formulaires avec styles prédéfinis
-  textInput: {
-    ...COMPONENT_STYLES.input.base,
-  },
-  
-  buttonText: {
-    color: COLORS.text.inverse,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
-  },
-  
-  // Titres de section avec styles prédéfinis
-  sectionTitle: {
-    ...responsiveStyles.textSubtitle,
-  },
-  
-  // Titres de section
-  sectionTitle: {
-    fontWeight: '600',
-    color: COLORS.text.primary,
-  },
-  
-  // Image du restaurant
-  restaurantImage: {
-    width: '100%',
-    borderRadius: BORDER_RADIUS.lg,
-  },
-  imagePlaceholder: {
-    width: '100%',
-    backgroundColor: COLORS.neutral[100],
-    borderRadius: BORDER_RADIUS.lg,
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
-  },
-  placeholderIcon: {
-    marginBottom: 8,
-  },
-  placeholderText: {
-    color: COLORS.text.secondary,
-  },
-  
-  // Formulaires
-  inputLabel: {
-    fontWeight: '500',
-    color: COLORS.text.primary,
-    marginBottom: 4,
-  },
-  textInput: {
-    borderWidth: 1,
-    borderColor: COLORS.border.medium,
-    borderRadius: BORDER_RADIUS.lg,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: COLORS.surface.primary,
-    color: COLORS.text.primary,
-  },
-  textInputMultiline: {
-    borderWidth: 1,
-    borderColor: COLORS.border.medium,
-    borderRadius: BORDER_RADIUS.lg,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: COLORS.surface.primary,
-    color: COLORS.text.primary,
-    textAlignVertical: 'top' as const,
-    minHeight: 80,
-  },
-  
-  // Lignes de formulaire
-  addressRowMobile: {
-    flexDirection: 'column' as const,
-  },
-  addressRowTablet: {
-    flexDirection: 'row' as const,
-  },
-  contactRow: {
-    flexDirection: 'row' as const,
-  },
-  editActions: {
-    flexDirection: 'row' as const,
-  },
-  
-  // Informations d'affichage
-  infoLabel: {
-    fontWeight: '500',
-    color: COLORS.text.secondary,
-  },
-  infoValue: {
-    color: COLORS.text.primary,
-  },
-  websiteLink: {
-    color: COLORS.primary,
-  },
-  priceRange: {
-    color: COLORS.secondary,
-    fontWeight: '600',
-  },
-  mealVoucherAccepted: {
-    color: COLORS.success,
-    fontWeight: '500',
-  },
-  mealVoucherInfo: {
-    color: COLORS.text.secondary,
-    marginTop: 2,
-  },
-  
-  // Horaires
-  scheduleRow: {
-    flexDirection: 'row' as const,
-    justifyContent: 'space-between' as const,
-    alignItems: 'center' as const,
-  },
-  dayLabel: {
-    fontWeight: '500',
-    color: COLORS.text.primary,
-    minWidth: 60,
-  },
-  scheduleInfo: {
-    flex: 1,
-    marginLeft: 16,
-  },
-  closedText: {
-    color: COLORS.text.secondary,
-  },
-  scheduleTime: {
-    color: COLORS.text.primary,
-  },
-  schedulePeriod: {
-    color: COLORS.text.secondary,
-  },
-  notDefinedText: {
-    color: COLORS.text.secondary,
-  },
-  
-  // Statistiques
-  statRow: {
-    flexDirection: 'row' as const,
-    justifyContent: 'space-between' as const,
-    alignItems: 'center' as const,
-  },
-  statLabel: {
-    color: COLORS.text.secondary,
-  },
-  statValue: {
-    color: COLORS.text.primary,
-  },
-  statusIndicator: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusText: {
-    fontWeight: '500',
-  },
-  
-  // Actions rapides
-  quickActionButton: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: COLORS.surface.golden,
-    borderRadius: BORDER_RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.border.golden,
-  },
-  quickActionIcon: {
-    marginRight: 12,
-  },
-  quickActionText: {
-    color: COLORS.text.primary,
-    fontWeight: '500',
-  },
-  
-  // Modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: COLORS.overlay,
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
-  },
-  modalContainer: {
-    backgroundColor: COLORS.surface.primary,
-    borderRadius: BORDER_RADIUS.xl,
-    padding: 20,
-    width: '100%',
-    maxWidth: 400,
-    shadowColor: COLORS.shadow.dark,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  modalTitle: {
-    fontWeight: '600',
-    color: COLORS.text.primary,
-    marginBottom: 8,
-  },
-  modalDescription: {
-    color: COLORS.text.secondary,
-    marginBottom: 16,
-    lineHeight: 20,
-  },
-  modalActions: {
-    flexDirection: 'row' as const,
-  },
-  confirmCloseButton: {
-    flex: 1,
-    backgroundColor: COLORS.error,
-    alignItems: 'center' as const,
-  },
+        {/* Statistiques */}
+        <Card style={dynamicStyles.card}>
+          <Text style={dynamicStyles.sectionTitle}>
+            Statistiques
+          </Text>
+          
+          <View style={{ gap: layoutConfig.cardSpacing * 0.5 }}>
+            <View style={dynamicStyles.scheduleRow}>
+              <Text style={dynamicStyles.infoLabel}>Paiements Stripe</Text>
+              <View style={{
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                borderRadius: 12,
+                backgroundColor: currentRestaurant.is_stripe_active ? '#D1FAE5' : '#FEE2E2',
+              }}>
+                <Text style={{
+                  fontSize: fontSize.small,
+                  color: currentRestaurant.is_stripe_active ? COLORS.success : COLORS.error,
+                  fontWeight: '500'
+                }}>
+                  {currentRestaurant.is_stripe_active ? 'Actif' : 'Inactif'}
+                </Text>
+              </View>
+            </View>
+            
+            <View style={dynamicStyles.scheduleRow}>
+              <Text style={dynamicStyles.infoLabel}>Créé le</Text>
+              <Text style={[dynamicStyles.infoValue, { fontSize: fontSize.small }]}>
+                {new Date(currentRestaurant.createdAt).toLocaleDateString()}
+              </Text>
+            </View>
+            
+            <View style={dynamicStyles.scheduleRow}>
+              <Text style={dynamicStyles.infoLabel}>Dernière modif.</Text>
+              <Text style={[dynamicStyles.infoValue, { fontSize: fontSize.small }]}>
+                {new Date(currentRestaurant.updatedAt).toLocaleDateString()}
+              </Text>
+            </View>
+          </View>
+        </Card>
+
+        {/* Actions rapides */}
+        <Card style={dynamicStyles.card}>
+          <Text style={dynamicStyles.sectionTitle}>
+            Actions rapides
+          </Text>
+          
+          <View style={{ gap: layoutConfig.cardSpacing * 0.5 }}>
+            <Button
+              title="Gérer les tables"
+              onPress={() => router.push(`/(restaurant)/qrcodes`)}
+              variant="ghost"
+              leftIcon={<Text style={dynamicStyles.quickActionIcon}>👥</Text>}
+              fullWidth
+            />
+            
+            <Button
+              title="Gérer les menus"
+              onPress={() => router.push(`/(restaurant)/menu`)}
+              variant="ghost"
+              leftIcon={<Text style={dynamicStyles.quickActionIcon}>⚙️</Text>}
+              fullWidth
+            />
+            
+            <Button
+              title="Voir les commandes"
+              onPress={() => router.push(`/(restaurant)/orders`)}
+              variant="ghost"
+              leftIcon={<Text style={dynamicStyles.quickActionIcon}>🕒</Text>}
+              fullWidth
+            />
+          </View>
+        </Card>
+      </>
+    );
+  }
 };
 
 export default RestaurantDetailPage;
