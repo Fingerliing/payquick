@@ -19,7 +19,7 @@ export function useStripeDeepLink() {
             router.push('./stripe/refresh');
             break;
           case 'cancel':
-            router.replace('/(tabs)');
+            router.replace('/(restaurant)');
             break;
         }
       }

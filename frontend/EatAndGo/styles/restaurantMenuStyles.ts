@@ -20,8 +20,8 @@ export const createRestaurantMenuStyles = (screenType: ScreenType) => {
     // LAYOUT PRINCIPAL
     // ===========================================
     page: { 
-      flex: 1, 
-      backgroundColor: COLORS.background 
+      flex: 1,
+      backgroundColor: COLORS.background,
     },
 
     container: { 

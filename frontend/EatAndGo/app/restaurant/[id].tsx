@@ -26,7 +26,8 @@ import {
   SPACING, 
   BORDER_RADIUS,
   TYPOGRAPHY,
-  SHADOWS 
+  SHADOWS,
+  COMPONENT_STYLES,
 } from '@/utils/designSystem';
 
 const RestaurantDetailPage = () => {

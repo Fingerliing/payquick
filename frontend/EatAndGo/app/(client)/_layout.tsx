@@ -26,8 +26,8 @@ export default function ClientLayout() {
         COMPONENT_CONSTANTS.tabBarHeight,
         screenType
       ) + insets.bottom, // ✅ Ajouter la safe area du bas
-      paddingBottom: Math.max(screenType === 'mobile' ? 8 : 12, insets.bottom), // ✅ Safe area bottom
-      paddingTop: screenType === 'mobile' ? 8 : 12,
+      paddingBottom: Math.max(screenType === 'mobile' ? 4 : 6, insets.bottom), // ✅ Safe area bottom
+      paddingTop: screenType === 'mobile' ? 4 : 6,
       paddingLeft: insets.left, // ✅ Safe area gauche
       paddingRight: insets.right, // ✅ Safe area droite
       backgroundColor: COLORS.surface,
@@ -48,7 +48,6 @@ export default function ClientLayout() {
       marginTop: screenType === 'mobile' ? 2 : 4,
     },
     iconStyle: {
-      marginBottom: screenType === 'mobile' ? 2 : 4,
     },
   };
 
