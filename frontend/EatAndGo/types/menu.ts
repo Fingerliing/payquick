@@ -13,6 +13,21 @@ export interface MenuItem {
   is_gluten_free: boolean;
   preparation_time?: number; // Temps de préparation en minutes
   
+  // === GESTION D'IMAGES ===
+  image_url?: string; // URL de l'image principale
+  image_alt?: string; // Texte alternatif pour l'accessibilité
+  thumbnail_url?: string; // URL de la miniature (généré automatiquement)
+  has_image: boolean; // Indicateur si l'item a une image
+  
+  // Métadonnées d'image (optionnelles, pour optimisation)
+  image_metadata?: {
+    width?: number;
+    height?: number;
+    file_size?: number; // En bytes
+    format?: 'jpg' | 'png' | 'webp';
+    uploaded_at?: string;
+  };
+
   // Champs calculés/enrichis depuis le backend
   category_name?: string;
   category_icon?: string;

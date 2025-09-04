@@ -5,24 +5,29 @@ import {
   ViewStyle, 
   Pressable, 
   PressableProps,
-  Platform 
 } from 'react-native';
-import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '@/styles/tokens';
-import { useResponsive } from '@/utils/responsive';
 
-// Types pour une meilleure gestion TypeScript
-type SpacingKey = keyof typeof SPACING;
-type SpacingValue = typeof SPACING[SpacingKey];
+// Unified design system imports
+import {
+  useScreenType,
+  getResponsiveValue,
+  COLORS,
+  SPACING,
+  BORDER_RADIUS,
+  SHADOWS,
+  TYPOGRAPHY,
+  COMPONENT_CONSTANTS,
+} from '@/utils/designSystem';
 
 interface CardProps extends Omit<PressableProps, 'style'> {
   children: React.ReactNode;
-  variant?: 'default' | 'elevated' | 'outlined' | 'filled' | 'glass';
-  padding?: SpacingKey | number;
-  margin?: SpacingKey | number;
-  style?: ViewStyle;
+  variant?: 'default' | 'elevated' | 'outlined' | 'surface' | 'premium';
+  padding?: keyof typeof SPACING | number;
+  margin?: keyof typeof SPACING | number;
+  style?: ViewStyle | ViewStyle[];
   pressable?: boolean;
   fullWidth?: boolean;
-  borderRadius?: keyof typeof RADIUS;
+  borderRadius?: keyof typeof BORDER_RADIUS;
   shadow?: keyof typeof SHADOWS;
   backgroundColor?: string;
 }
@@ -30,7 +35,7 @@ interface CardProps extends Omit<PressableProps, 'style'> {
 export const Card: React.FC<CardProps> = ({
   children,
   variant = 'default',
-  padding = 'md',
+  padding = 'lg',
   margin,
   style,
   pressable = false,
@@ -40,63 +45,29 @@ export const Card: React.FC<CardProps> = ({
   backgroundColor,
   ...props
 }) => {
-  const { getSpacing, isMobile, isTablet } = useResponsive();
+  const screenType = useScreenType();
   
-  // ✅ FONCTION HELPER POUR GÉRER LES VALEURS SPACING CORRIGÉE
-  const getSpacingValue = (spacingKey: SpacingKey | number): number => {
+  // Helper pour obtenir les valeurs d'espacement responsive
+  const getSpacingValue = (spacingKey: keyof typeof SPACING | number): number => {
     if (typeof spacingKey === 'number') {
       return spacingKey;
     }
     
     const spacingValue = SPACING[spacingKey];
-    
-    // Si c'est un nombre simple (xs, sm, md, lg, xl, xxl, xxxl)
-    if (typeof spacingValue === 'number') {
-      return getSpacing(spacingValue, spacingValue * 1.25, spacingValue * 1.5);
-    }
-    
-    // Si c'est un objet, on vérifie ses propriétés avec des assertions de type
-    if (spacingValue && typeof spacingValue === 'object') {
-      // Type assertion pour les objets responsive avec mobile/tablet/desktop
-      const responsiveSpacing = spacingValue as any;
-      
-      if ('mobile' in responsiveSpacing && typeof responsiveSpacing.mobile === 'number') {
-        const mobile = responsiveSpacing.mobile;
-        const tablet = responsiveSpacing.tablet || mobile * 1.25;
-        const desktop = responsiveSpacing.desktop || mobile * 1.5;
-        return getSpacing(mobile, tablet, desktop);
-      }
-      
-      // Type assertion pour les objets avec sm/md/lg (buttonHeight, inputHeight)
-      if ('md' in responsiveSpacing && typeof responsiveSpacing.md === 'number') {
-        const md = responsiveSpacing.md;
-        return getSpacing(md, md * 1.25, md * 1.5);
-      }
-      
-      // Pour les objets avec sm/md/lg comme buttonHeight
-      if ('sm' in responsiveSpacing && 'md' in responsiveSpacing && 'lg' in responsiveSpacing) {
-        const sm = responsiveSpacing.sm || 36;
-        const md = responsiveSpacing.md || 48;
-        const lg = responsiveSpacing.lg || 56;
-        return getSpacing(sm, md, lg);
-      }
-    }
-    
-    // Fallback sûr
-    return getSpacing(SPACING.md, SPACING.lg, SPACING.xl);
+    return getResponsiveValue(spacingValue, screenType) as number;
   };
 
-  // ✅ CALCUL DU PADDING ET MARGE SIMPLIFIÉS
+  // Calcul des valeurs d'espacement
   const paddingValue = getSpacingValue(padding);
   const marginValue = margin ? getSpacingValue(margin) : 0;
 
-  // ✅ STYLES PAR VARIANTE AVEC NOUVELLES COULEURS
+  // Styles par variante avec le système de design unifié
   const getVariantStyles = (): ViewStyle => {
-    const baseRadius = borderRadius ? RADIUS[borderRadius] : RADIUS.card;
+    const baseRadius = borderRadius ? BORDER_RADIUS[borderRadius] : BORDER_RADIUS.lg;
     const baseShadow = shadow ? SHADOWS[shadow] : undefined;
     
     const baseStyle: ViewStyle = {
-      borderRadius: getSpacing(baseRadius, baseRadius + 2, baseRadius + 4),
+      borderRadius: baseRadius,
       padding: paddingValue,
       margin: marginValue,
       width: fullWidth ? '100%' : undefined,
@@ -106,49 +77,56 @@ export const Card: React.FC<CardProps> = ({
       case 'elevated':
         return {
           ...baseStyle,
-          backgroundColor: backgroundColor || COLORS.surface.elevated,
-          ...(baseShadow || SHADOWS.md),
+          backgroundColor: backgroundColor || COLORS.surface,
+          ...(baseShadow || SHADOWS.lg),
         };
 
       case 'outlined':
         return {
           ...baseStyle,
-          backgroundColor: backgroundColor || COLORS.surface.primary,
-          borderWidth: getSpacing(1, 1.5, 2),
+          backgroundColor: backgroundColor || COLORS.surface,
+          borderWidth: 1,
+          borderColor: COLORS.border.default,
+        };
+
+      case 'surface':
+        return {
+          ...baseStyle,
+          backgroundColor: backgroundColor || COLORS.background,
+          borderWidth: 1,
           borderColor: COLORS.border.light,
         };
 
-      case 'filled':
+      case 'premium':
         return {
           ...baseStyle,
-          backgroundColor: backgroundColor || COLORS.primary_pale,
+          backgroundColor: backgroundColor || COLORS.goldenSurface,
           borderWidth: 1,
-          borderColor: COLORS.primary_light,
-        };
-
-      case 'glass':
-        return {
-          ...baseStyle,
-          backgroundColor: backgroundColor || 'rgba(255, 255, 255, 0.8)',
-          ...(Platform.OS === 'ios' ? {
-            backdropFilter: 'blur(10px)',
-          } : {}),
-          ...(baseShadow || SHADOWS.sm),
+          borderColor: COLORS.border.golden,
+          ...(baseShadow || SHADOWS.premiumCard),
         };
 
       default:
         return {
           ...baseStyle,
-          backgroundColor: backgroundColor || COLORS.surface.primary,
+          backgroundColor: backgroundColor || COLORS.surface,
           ...(baseShadow || SHADOWS.card),
         };
     }
   };
 
-  const cardStyle: ViewStyle = {
-    ...getVariantStyles(),
-    ...style,
+  // Helper pour fusionner les styles correctement
+  const combineStyles = (baseStyle: ViewStyle, additionalStyle?: ViewStyle | ViewStyle[]): ViewStyle => {
+    if (!additionalStyle) return baseStyle;
+    
+    if (Array.isArray(additionalStyle)) {
+      return Object.assign({}, baseStyle, ...additionalStyle);
+    }
+    
+    return { ...baseStyle, ...additionalStyle };
   };
+
+  const cardStyle = combineStyles(getVariantStyles(), style);
 
   // États d'interaction pour les cartes pressables
   const getPressableStyle = ({ pressed }: { pressed: boolean }): ViewStyle => ({
@@ -162,7 +140,7 @@ export const Card: React.FC<CardProps> = ({
       <Pressable 
         style={getPressableStyle}
         android_ripple={{
-          color: COLORS.states.pressed,
+          color: COLORS.overlay,
           borderless: false,
         }}
         {...props}
@@ -175,49 +153,56 @@ export const Card: React.FC<CardProps> = ({
   return <View style={cardStyle}>{children}</View>;
 };
 
-// ✅ VARIANTES SPÉCIALISÉES DE CARTES
+// Variantes spécialisées de cartes
 
 // Card pour les éléments de menu/produits
 export const ProductCard: React.FC<CardProps & {
   featured?: boolean;
   discount?: number;
 }> = ({ featured, discount, children, ...props }) => {
-  // ✅ Fusionner les styles en un seul objet ViewStyle
-  const combinedStyle: ViewStyle = {
-    ...(featured && {
-      borderColor: COLORS.secondary,
-      borderWidth: 2,
-    }),
-    ...(discount && {
-      position: 'relative' as const,
-    }),
-    ...(props.style as ViewStyle),
-  };
+  const screenType = useScreenType();
+  
+  const additionalStyles: ViewStyle = {};
+  
+  if (featured) {
+    additionalStyles.borderColor = COLORS.secondary;
+    additionalStyles.borderWidth = 2;
+  }
+  
+  if (discount) {
+    additionalStyles.position = 'relative';
+  }
+
+  const combinedStyle = props.style 
+    ? Array.isArray(props.style) 
+      ? [...props.style, additionalStyles]
+      : [props.style, additionalStyles]
+    : additionalStyles;
 
   return (
     <Card
       {...props}
-      variant={featured ? 'filled' : 'default'}
+      variant={featured ? 'premium' : 'default'}
       style={combinedStyle}
     >
       {discount && (
         <View style={{
           position: 'absolute',
-          top: -8,
-          right: -8,
+          top: -getResponsiveValue(SPACING.sm, screenType),
+          right: -getResponsiveValue(SPACING.sm, screenType),
           backgroundColor: COLORS.secondary,
-          borderRadius: RADIUS.full,
-          width: 32,
-          height: 32,
+          borderRadius: BORDER_RADIUS.full,
+          width: getResponsiveValue({ mobile: 32, tablet: 36, desktop: 40 }, screenType),
+          height: getResponsiveValue({ mobile: 32, tablet: 36, desktop: 40 }, screenType),
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 1,
           ...SHADOWS.sm,
         }}>
           <Text style={{
-            fontSize: 10,
+            fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
             fontWeight: TYPOGRAPHY.fontWeight.bold,
-            color: COLORS.text.primary,
+            color: COLORS.text.inverse,
           }}>
             -{discount}%
           </Text>
@@ -233,16 +218,20 @@ export const RestaurantCard: React.FC<CardProps & {
   isOpen?: boolean;
   rating?: number;
 }> = ({ isOpen, rating, children, ...props }) => {
-  const { getSpacing } = useResponsive();
+  const screenType = useScreenType();
   
-  // ✅ Fusionner les styles en un seul objet ViewStyle
-  const combinedStyle: ViewStyle = {
-    ...(!isOpen && {
-      opacity: 0.7,
-      backgroundColor: COLORS.neutral[100],
-    }),
-    ...(props.style as ViewStyle),
-  };
+  const additionalStyles: ViewStyle = {};
+  
+  if (!isOpen) {
+    additionalStyles.opacity = 0.7;
+    additionalStyles.backgroundColor = COLORS.border.light;
+  }
+
+  const combinedStyle = props.style 
+    ? Array.isArray(props.style) 
+      ? [...props.style, additionalStyles]
+      : [props.style, additionalStyles]
+    : additionalStyles;
   
   return (
     <Card
@@ -254,24 +243,24 @@ export const RestaurantCard: React.FC<CardProps & {
         {/* Badge de statut */}
         <View style={{
           position: 'absolute',
-          top: -getSpacing(SPACING.md),
-          right: -getSpacing(SPACING.md),
+          top: -getResponsiveValue(SPACING.md, screenType),
+          right: -getResponsiveValue(SPACING.md, screenType),
           flexDirection: 'row',
-          gap: getSpacing(SPACING.xs, SPACING.sm),
+          gap: getResponsiveValue(SPACING.xs, screenType),
           zIndex: 1,
         }}>
           {rating && (
             <View style={{
               backgroundColor: COLORS.success,
-              borderRadius: RADIUS.sm,
-              paddingHorizontal: getSpacing(SPACING.xs, SPACING.sm),
-              paddingVertical: getSpacing(2, 3),
-              ...SHADOWS.xs,
+              borderRadius: BORDER_RADIUS.sm,
+              paddingHorizontal: getResponsiveValue(SPACING.xs, screenType),
+              paddingVertical: getResponsiveValue({ mobile: 2, tablet: 3, desktop: 4 }, screenType),
+              ...SHADOWS.sm,
             }}>
               <Text style={{
-                fontSize: 10,
+                fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
                 fontWeight: TYPOGRAPHY.fontWeight.bold,
-                color: COLORS.text.white,
+                color: COLORS.text.inverse,
               }}>
                 ⭐ {rating}
               </Text>
@@ -280,15 +269,15 @@ export const RestaurantCard: React.FC<CardProps & {
           
           <View style={{
             backgroundColor: isOpen ? COLORS.success : COLORS.error,
-            borderRadius: RADIUS.sm,
-            paddingHorizontal: getSpacing(SPACING.xs, SPACING.sm),
-            paddingVertical: getSpacing(2, 3),
-            ...SHADOWS.xs,
+            borderRadius: BORDER_RADIUS.sm,
+            paddingHorizontal: getResponsiveValue(SPACING.xs, screenType),
+            paddingVertical: getResponsiveValue({ mobile: 2, tablet: 3, desktop: 4 }, screenType),
+            ...SHADOWS.sm,
           }}>
             <Text style={{
-              fontSize: 10,
+              fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
               fontWeight: TYPOGRAPHY.fontWeight.bold,
-              color: COLORS.text.white,
+              color: COLORS.text.inverse,
             }}>
               {isOpen ? 'OUVERT' : 'FERMÉ'}
             </Text>
@@ -306,6 +295,8 @@ export const OrderCard: React.FC<CardProps & {
   status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
   priority?: 'low' | 'normal' | 'high' | 'urgent';
 }> = ({ status, priority, children, ...props }) => {
+  const screenType = useScreenType();
+  
   const getStatusColor = () => {
     switch (status) {
       case 'pending': return COLORS.warning;
@@ -314,7 +305,7 @@ export const OrderCard: React.FC<CardProps & {
       case 'ready': return COLORS.success;
       case 'delivered': return COLORS.success;
       case 'cancelled': return COLORS.error;
-      default: return COLORS.neutral[400];
+      default: return COLORS.text.light;
     }
   };
 
@@ -322,22 +313,23 @@ export const OrderCard: React.FC<CardProps & {
     if (!priority || priority === 'normal') return {};
     
     const colors = {
-      low: COLORS.neutral[300],
+      low: COLORS.text.light,
       high: COLORS.warning,
       urgent: COLORS.error,
     };
     
     return {
-      borderLeftWidth: 4,
+      borderLeftWidth: getResponsiveValue({ mobile: 3, tablet: 4, desktop: 5 }, screenType),
       borderLeftColor: colors[priority],
     };
   };
 
-  // ✅ Fusionner les styles en un seul objet ViewStyle
-  const combinedStyle: ViewStyle = {
-    ...getPriorityStyle(),
-    ...(props.style as ViewStyle),
-  };
+  const additionalStyles = getPriorityStyle();
+  const combinedStyle = props.style 
+    ? Array.isArray(props.style) 
+      ? [...props.style, additionalStyles]
+      : [props.style, additionalStyles]
+    : additionalStyles;
 
   return (
     <Card
@@ -351,12 +343,12 @@ export const OrderCard: React.FC<CardProps & {
           top: 0,
           left: 0,
           right: 0,
-          height: 3,
+          height: getResponsiveValue({ mobile: 3, tablet: 4, desktop: 5 }, screenType),
           backgroundColor: getStatusColor(),
-          borderRadius: RADIUS.xs,
+          borderRadius: BORDER_RADIUS.sm,
         }} />
         
-        <View style={{ paddingTop: SPACING.sm }}>
+        <View style={{ paddingTop: getResponsiveValue(SPACING.sm, screenType) }}>
           {children}
         </View>
       </View>
@@ -368,21 +360,27 @@ export const OrderCard: React.FC<CardProps & {
 export const StatCard: React.FC<CardProps & {
   trend?: 'up' | 'down' | 'stable';
 }> = ({ trend, children, ...props }) => {
+  const screenType = useScreenType();
+  
   const getTrendColor = () => {
     switch (trend) {
       case 'up': return COLORS.success;
       case 'down': return COLORS.error;
       case 'stable': return COLORS.warning;
-      default: return COLORS.neutral[400];
+      default: return COLORS.text.light;
     }
   };
 
-  // ✅ Fusionner les styles en un seul objet ViewStyle
-  const combinedStyle: ViewStyle = {
+  const additionalStyles: ViewStyle = {
     position: 'relative',
     overflow: 'hidden',
-    ...(props.style as ViewStyle),
   };
+
+  const combinedStyle = props.style 
+    ? Array.isArray(props.style) 
+      ? [...props.style, additionalStyles]
+      : [props.style, additionalStyles]
+    : additionalStyles;
 
   return (
     <Card
@@ -397,12 +395,45 @@ export const StatCard: React.FC<CardProps & {
           right: 0,
           width: 0,
           height: 0,
-          borderLeftWidth: 20,
-          borderTopWidth: 20,
+          borderLeftWidth: getResponsiveValue({ mobile: 16, tablet: 20, desktop: 24 }, screenType),
+          borderTopWidth: getResponsiveValue({ mobile: 16, tablet: 20, desktop: 24 }, screenType),
           borderLeftColor: 'transparent',
           borderTopColor: getTrendColor(),
         }} />
       )}
+      {children}
+    </Card>
+  );
+};
+
+// Card premium avec effets dorés (pour les éléments spéciaux)
+export const PremiumCard: React.FC<CardProps & {
+  glowEffect?: boolean;
+}> = ({ glowEffect, children, ...props }) => {
+  const screenType = useScreenType();
+  
+  const additionalStyles: ViewStyle = {};
+  
+  if (glowEffect) {
+    additionalStyles.shadowColor = COLORS.variants.secondary[300];
+    additionalStyles.shadowOffset = { width: 0, height: 8 };
+    additionalStyles.shadowOpacity = 0.3;
+    additionalStyles.shadowRadius = 20;
+    additionalStyles.elevation = 8;
+  }
+
+  const combinedStyle = props.style 
+    ? Array.isArray(props.style) 
+      ? [...props.style, additionalStyles]
+      : [props.style, additionalStyles]
+    : additionalStyles;
+
+  return (
+    <Card
+      {...props}
+      variant="premium"
+      style={combinedStyle}
+    >
       {children}
     </Card>
   );
