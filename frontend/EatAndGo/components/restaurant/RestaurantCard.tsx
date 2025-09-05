@@ -49,7 +49,7 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
     
     // Construction d'URL absolue depuis image relative
     if (restaurant.image) {
-      if (restaurant.image.startsWith('http')) {
+      if (typeof restaurant.image === 'string' && restaurant.image.startsWith('http')) {
         return restaurant.image;
       }
       // Utiliser une variable d'environnement au lieu d'IP hardcodée
