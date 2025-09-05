@@ -231,10 +231,16 @@ export const useScreenType = () => {
 
 // HELPER POUR OBTENIR UNE VALEUR RESPONSIVE
 export const getResponsiveValue = <T>(
-  values: { mobile: T; tablet: T; desktop: T },
+  values: T | { mobile: T; tablet: T; desktop: T },
   screenType: 'mobile' | 'tablet' | 'desktop'
 ): T => {
-  return values[screenType];
+  // Si c'est un objet avec des propriétés mobile/tablet/desktop
+  if (values && typeof values === 'object' && 'mobile' in values) {
+    return (values as { mobile: T; tablet: T; desktop: T })[screenType];
+  }
+  
+  // Sinon, retourne la valeur directement (comportement original)
+  return values as T;
 };
 
 // HELPER POUR CRÉER DES STYLES RESPONSIVE

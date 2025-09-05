@@ -39,8 +39,6 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
   };
 
   const containerStyle: ViewStyle = {
-    marginHorizontal: 16,
-    marginBottom: 12,
   };
 
   const imageStyle: ImageStyle = {
