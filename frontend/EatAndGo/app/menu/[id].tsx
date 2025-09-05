@@ -36,6 +36,7 @@ export default function MenuDetailScreen() {
   const [menu, setMenu] = useState<Menu | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [togglingItemId, setTogglingItemId] = useState<number | null>(null);
+  const [deletingItemId, setDeletingItemId] = useState<number | null>(null);
 
   useEffect(() => {
     loadMenu();
@@ -81,6 +82,38 @@ export default function MenuDetailScreen() {
       Alert.alert('Erreur', 'Impossible de modifier le statut du plat');
     } finally {
       setTogglingItemId(null);
+    }
+  };
+
+  const handleDeleteItem = async (item: MenuItem) => {
+    Alert.alert(
+      'Supprimer le plat',
+      `Êtes-vous sûr de vouloir supprimer "${item.name}" ?\n\nCette action est irréversible.`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { text: 'Supprimer', style: 'destructive', onPress: () => confirmDeleteItem(item) },
+      ],
+      { cancelable: true }
+    );
+  };
+  
+  const confirmDeleteItem = async (item: MenuItem) => {
+    setDeletingItemId(item.id);
+    try {
+      await menuService.menuItems.deleteMenuItem(item.id);
+      setMenu(prevMenu => {
+        if (!prevMenu) return null;
+        return {
+          ...prevMenu,
+          items: prevMenu.items.filter(i => i.id !== item.id)
+        };
+      });
+      Alert.alert('Succès', `Le plat "${item.name}" a été supprimé avec succès`);
+    } catch (error) {
+      console.error('Erreur lors de la suppression:', error);
+      Alert.alert('Erreur', 'Impossible de supprimer le plat. Veuillez réessayer.');
+    } finally {
+      setDeletingItemId(null);
     }
   };
 
@@ -252,6 +285,7 @@ export default function MenuDetailScreen() {
   // Rendu d'un élément de menu
   const renderMenuItem = ({ item }: { item: MenuItem }) => {
     const isToggling = togglingItemId === item.id;
+    const isDeleting = deletingItemId === item.id;
     const dietaryTags = [];
     
     if (item.is_vegetarian) dietaryTags.push('Végétarien');
@@ -289,7 +323,9 @@ export default function MenuDetailScreen() {
         {/* Métadonnées */}
         <View style={dynamicStyles.itemMeta}>
           <View style={dynamicStyles.categoryBadge}>
-            <Text style={dynamicStyles.categoryText}>{item.category_name}</Text>
+            <Text style={dynamicStyles.categoryText}>
+              {item.category_name || item.category || 'Sans catégorie'}
+            </Text>
           </View>
           
           <View style={[
@@ -312,29 +348,44 @@ export default function MenuDetailScreen() {
 
         {/* Actions */}
         <View style={dynamicStyles.itemActions}>
-          <Button
-            title={item.is_available ? "Désactiver" : "Activer"}
-            onPress={() => handleToggleItemAvailability(item)}
-            variant={item.is_available ? "destructive" : "primary"}
-            size="sm"
-            style={{ flex: 1 }}
-            loading={isToggling}
-            leftIcon={
-              isToggling ? (
-                <ActivityIndicator 
-                  size="small" 
-                  color={COLORS.text.inverse} 
-                  style={{ marginRight: -4 }}
-                />
-              ) : (
-                <Ionicons 
-                  name={item.is_available ? "pause-circle-outline" : "play-circle-outline"} 
-                  size={16} 
-                  color={COLORS.text.inverse} 
-                />
-              )
-            }
-          />
+        <TouchableOpacity
+          onPress={() => handleToggleItemAvailability(item)}
+          disabled={isToggling || isDeleting}
+          style={{
+            flex: 1,
+            backgroundColor: item.is_available ? COLORS.error : COLORS.primary,
+            paddingVertical: 8,
+            paddingHorizontal: 12,
+            borderRadius: 6,
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexDirection: 'row',
+            opacity: (isToggling || isDeleting) ? 0.5 : 1,
+          }}
+        >
+          {isToggling ? (
+            <Ionicons 
+              name="hourglass-outline" 
+              size={16} 
+              color={COLORS.text.inverse}
+              style={{ marginRight: 6 }} 
+            />
+          ) : (
+            <Ionicons 
+              name={item.is_available ? "pause-circle-outline" : "play-circle-outline"} 
+              size={16} 
+              color={COLORS.text.inverse}
+              style={{ marginRight: 6 }} 
+            />
+          )}
+          <Text style={{
+            color: COLORS.text.inverse,
+            fontSize: 14,
+            fontWeight: '500'
+          }}>
+            {isToggling ? 'En cours...' : item.is_available ? 'Désactiver' : 'Activer'}
+          </Text>
+        </TouchableOpacity>
           
           <Button
             title="Modifier"
@@ -342,8 +393,41 @@ export default function MenuDetailScreen() {
             variant="outline"
             size="sm"
             style={{ flex: 1 }}
+            disabled={isToggling || isDeleting}
             leftIcon={<Ionicons name="create-outline" size={16} color={COLORS.primary} />}
           />
+
+          <TouchableOpacity
+            onPress={() => handleDeleteItem(item)}
+            disabled={isToggling || isDeleting}
+            style={[
+              {
+                backgroundColor: COLORS.error,
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                borderRadius: BORDER_RADIUS.md,
+                alignItems: 'center',
+                justifyContent: 'center',
+                minWidth: 44,
+                minHeight: 36, // Pour maintenir la cohérence avec les autres boutons
+              },
+              (isToggling || isDeleting) && { opacity: 0.5 }
+            ]}
+            activeOpacity={0.7}
+          >
+            {isDeleting ? (
+              <ActivityIndicator 
+                size="small" 
+                color={COLORS.text.inverse} 
+              />
+            ) : (
+              <Ionicons 
+                name="trash-outline" 
+                size={16} 
+                color={COLORS.text.inverse} 
+              />
+            )}
+          </TouchableOpacity>
         </View>
       </Card>
     );

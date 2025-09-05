@@ -127,7 +127,7 @@ export function MenuCard({
       </View>
 
       <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-        {/* Bouton toggle principal */}
+        {/* Bouton toggle principal avec icône */}
         <TouchableOpacity
           onPress={onToggle}
           disabled={isToggling}
@@ -135,32 +135,42 @@ export function MenuCard({
             flex: 1,
             backgroundColor: menuIsAvailable ? '#EF4444' : '#10B981',
             paddingVertical: 8,
+            paddingHorizontal: 12,
             borderRadius: 6,
             alignItems: 'center',
+            justifyContent: 'center',
+            flexDirection: 'row',
             opacity: isToggling ? 0.5 : 1,
           }}
         >
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            {isToggling && (
-              <Ionicons 
-                name="hourglass-outline" 
-                size={14} 
-                color="white" 
-                style={{ marginRight: 4 }} 
-              />
-            )}
-            <Text style={{ color: 'white', fontSize: 14, fontWeight: '500' }}>
-              {isToggling 
-                ? 'En cours...' 
-                : menuIsAvailable 
-                  ? 'Désactiver' 
-                  : 'Activer'
-              }
-            </Text>
-          </View>
+          {/* Icône du bouton toggle */}
+          {isToggling ? (
+            <Ionicons 
+              name="hourglass-outline" 
+              size={14} 
+              color="white" 
+              style={{ marginRight: 6 }} 
+            />
+          ) : (
+            <Ionicons 
+              name={menuIsAvailable ? "pause-circle-outline" : "play-circle-outline"} 
+              size={14} 
+              color="white" 
+              style={{ marginRight: 6 }} 
+            />
+          )}
+          
+          <Text style={{ color: 'white', fontSize: 14, fontWeight: '500' }}>
+            {isToggling 
+              ? 'En cours...' 
+              : menuIsAvailable 
+                ? 'Désactiver' 
+                : 'Activer'
+            }
+          </Text>
         </TouchableOpacity>
 
-        {/* Bouton supprimer */}
+        {/* Bouton supprimer avec icône corbeille */}
         <TouchableOpacity
           onPress={onDelete}
           disabled={isToggling}
@@ -170,6 +180,8 @@ export function MenuCard({
             paddingVertical: 8,
             borderRadius: 6,
             alignItems: 'center',
+            justifyContent: 'center',
+            minWidth: 44,
             opacity: isToggling ? 0.5 : 1,
           }}
         >
