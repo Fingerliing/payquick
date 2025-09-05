@@ -1,20 +1,43 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Alert } from 'react-native';
+import { View, Text, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// UI Components
 import { Header } from '@/components/ui/Header';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Loading } from '@/components/ui/Loading';
+
+// Services & Types
 import { menuService } from '@/services/menuService';
-import { Menu } from '@/types/menu';
+import { Menu, UpdateMenuRequest } from '@/types/menu';
+
+// Design System
+import {
+  useScreenType,
+  getResponsiveValue,
+  createResponsiveStyles,
+  COLORS,
+  SPACING,
+  BORDER_RADIUS,
+  SHADOWS,
+  TYPOGRAPHY,
+  COMPONENT_CONSTANTS,
+} from '@/utils/designSystem';
 
 export default function EditMenuScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const screenType = useScreenType();
+  const styles = createResponsiveStyles(screenType);
+  const insets = useSafeAreaInsets();
+  
+  // État
   const [menu, setMenu] = useState<Menu | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
 
@@ -49,7 +72,11 @@ export default function EditMenuScreen() {
 
     setIsSaving(true);
     try {
-      const updatedMenu = await menuService.updateMenu(parseInt(id), { name: name.trim() });
+      const updateData: UpdateMenuRequest = { 
+        name: name.trim(),
+      };
+      
+      const updatedMenu = await menuService.updateMenu(parseInt(id), updateData);
       setMenu(updatedMenu);
       Alert.alert('Succès', 'Menu mis à jour avec succès');
     } catch (error) {
@@ -61,7 +88,7 @@ export default function EditMenuScreen() {
   };
 
   // Fonction pour déterminer si le menu est disponible (gestion legacy)
-  const isMenuAvailable = () => {
+  const isMenuAvailable = (): boolean => {
     if (typeof menu?.is_available === 'boolean') {
       return menu.is_available;
     }
@@ -110,27 +137,142 @@ export default function EditMenuScreen() {
     }
   };
 
+  // Styles dynamiques avec SafeArea intégrée
+  const dynamicStyles = {
+    container: {
+      flex: 1,
+      backgroundColor: COLORS.background,
+      paddingBottom: insets.bottom, // SafeArea bottom
+    },
+    scrollContainer: {
+      flexGrow: 1,
+      paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
+      paddingTop: getResponsiveValue(SPACING.lg, screenType),
+      paddingBottom: Math.max(getResponsiveValue(SPACING.lg, screenType), insets.bottom),
+    },
+    cardSpacing: {
+      marginBottom: getResponsiveValue(SPACING.lg, screenType),
+    },
+    sectionTitle: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.semibold as any,
+      color: COLORS.text.primary,
+      marginBottom: getResponsiveValue(SPACING.md, screenType),
+    },
+    statusBadge: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      padding: getResponsiveValue(SPACING.md, screenType),
+      borderRadius: BORDER_RADIUS.lg,
+      marginBottom: getResponsiveValue(SPACING.md, screenType),
+    },
+    statusBadgeAvailable: {
+      backgroundColor: COLORS.variants.primary[100],
+      borderWidth: 1,
+      borderColor: COLORS.success,
+    },
+    statusBadgeUnavailable: {
+      backgroundColor: '#FEE2E2',
+      borderWidth: 1,
+      borderColor: COLORS.error,
+    },
+    statusText: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.medium as any,
+      textAlign: 'center' as const,
+      marginLeft: getResponsiveValue(SPACING.xs, screenType),
+    },
+    statusTextAvailable: {
+      color: COLORS.success,
+    },
+    statusTextUnavailable: {
+      color: COLORS.error,
+    },
+    inputContainer: {
+      gap: getResponsiveValue(SPACING.md, screenType),
+    },
+    infoText: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+      color: COLORS.text.secondary,
+      lineHeight: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType) * 1.4,
+    },
+    statisticsContainer: {
+      flexDirection: 'row' as const,
+      justifyContent: 'space-around' as const,
+      paddingVertical: getResponsiveValue(SPACING.md, screenType),
+    },
+    statisticItem: {
+      alignItems: 'center' as const,
+      flex: 1,
+    },
+    statisticValue: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize['2xl'], screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.bold as any,
+      color: COLORS.text.primary,
+      marginBottom: getResponsiveValue(SPACING.xs, screenType),
+    },
+    statisticLabel: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
+      color: COLORS.text.light,
+      textAlign: 'center' as const,
+      lineHeight: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType) * 1.3,
+    },
+    buttonGroup: {
+      gap: getResponsiveValue(SPACING.sm, screenType),
+    },
+    emptyState: {
+      flex: 1,
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+      padding: getResponsiveValue(SPACING['2xl'], screenType),
+      paddingBottom: insets.bottom + getResponsiveValue(SPACING['2xl'], screenType),
+    },
+    emptyStateText: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
+      color: COLORS.text.light,
+      textAlign: 'center' as const,
+      marginBottom: getResponsiveValue(SPACING.lg, screenType),
+    },
+    actionButtonsContainer: {
+      paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
+      paddingTop: getResponsiveValue(SPACING.lg, screenType),
+      paddingBottom: Math.max(getResponsiveValue(SPACING.lg, screenType), insets.bottom),
+      backgroundColor: COLORS.surface,
+      borderTopWidth: 1,
+      borderTopColor: COLORS.border.light,
+      ...SHADOWS.sm,
+    },
+  };
+
   if (isLoading) {
     return <Loading fullScreen text="Chargement du menu..." />;
   }
 
   if (!menu) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
+      <View style={dynamicStyles.container}>
         <Header 
           title="Modifier le menu"
           leftIcon="arrow-back"
           onLeftPress={() => router.back()}
+          includeSafeArea={true}
         />
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ fontSize: 18, color: '#6B7280', textAlign: 'center' }}>
+        <View style={dynamicStyles.emptyState}>
+          <Ionicons 
+            name="restaurant-outline" 
+            size={64} 
+            color={COLORS.text.light} 
+            style={{ marginBottom: getResponsiveValue(SPACING.md, screenType) }}
+          />
+          <Text style={dynamicStyles.emptyStateText}>
             Menu non trouvé
           </Text>
           <Button
             title="Retour"
             onPress={() => router.back()}
             variant="outline"
-            style={{ marginTop: 16 }}
+            leftIcon={<Ionicons name="arrow-back" size={20} color={COLORS.primary} />}
           />
         </View>
       </View>
@@ -138,157 +280,181 @@ export default function EditMenuScreen() {
   }
 
   const menuAvailable = isMenuAvailable();
+  const availableItems = menu.items?.filter(item => item.is_available !== false).length || 0;
+  const unavailableItems = menu.items?.filter(item => item.is_available === false).length || 0;
+  const totalItems = menu.items?.length || 0;
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
+    <View style={dynamicStyles.container}>
       <Header 
         title="Modifier le menu"
         leftIcon="arrow-back"
         onLeftPress={() => router.back()}
         rightIcon="checkmark-outline"
         onRightPress={handleSave}
+        includeSafeArea={true}
       />
       
-      <ScrollView style={{ flex: 1, padding: 16 }}>
+      <ScrollView 
+        contentContainerStyle={dynamicStyles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Statut du menu */}
+        <Card variant="outlined" style={dynamicStyles.cardSpacing}>
+          <View style={[
+            dynamicStyles.statusBadge,
+            menuAvailable ? dynamicStyles.statusBadgeAvailable : dynamicStyles.statusBadgeUnavailable
+          ]}>
+            <Ionicons 
+              name={menuAvailable ? "checkmark-circle" : "pause-circle"} 
+              size={24} 
+              color={menuAvailable ? COLORS.success : COLORS.error} 
+            />
+            <Text style={[
+              dynamicStyles.statusText,
+              menuAvailable ? dynamicStyles.statusTextAvailable : dynamicStyles.statusTextUnavailable
+            ]}>
+              {menuAvailable
+                ? 'Ce menu est actuellement visible par les clients'
+                : "Ce menu n'est pas visible par les clients"}
+            </Text>
+          </View>
+        </Card>
+
         {/* Informations du menu */}
-        <Card style={{ marginBottom: 16 }}>
-          <Text style={{ fontSize: 18, fontWeight: '600', color: '#111827', marginBottom: 16 }}>
+        <Card style={dynamicStyles.cardSpacing}>
+          <Text style={dynamicStyles.sectionTitle}>
             Informations du menu
           </Text>
           
-          <Input
-            label="Nom du menu *"
-            placeholder="Nom du menu"
-            value={name}
-            onChangeText={setName}
-            maxLength={100}
-          />
+          <View style={dynamicStyles.inputContainer}>
+            <Input
+              label="Nom du menu *"
+              placeholder="Nom du menu"
+              value={name}
+              onChangeText={setName}
+              maxLength={100}
+            />
 
-          <Input
-            label="Description"
-            placeholder="Description du menu (optionnel)"
-            value={description}
-            onChangeText={setDescription}
-            multiline
-            numberOfLines={4}
-          />
-
-          <Text style={{ fontSize: 14, color: '#6B7280', marginTop: 12 }}>
-            Créé le {new Date(menu.created_at).toLocaleDateString('fr-FR', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit'
-            })}
-            {'\n'}
-            {menu.items?.length || 0} plat(s) dans ce menu
-          </Text>
-        </Card>
-
-        {/* État actuel */}
-        <Card style={{ marginBottom: 16 }}>
-          <View
-            style={{
-              backgroundColor: menuAvailable ? '#D1FAE5' : '#FEE2E2',
-              padding: 12,
-              borderRadius: 8,
-              marginBottom: 16,
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 14,
-                color: menuAvailable ? '#065F46' : '#991B1B',
-                textAlign: 'center',
-                fontWeight: '500',
-              }}
-            >
-              {menuAvailable
-                ? '✅ Ce menu est actuellement visible par les clients'
-                : "⏸️ Ce menu n'est pas visible par les clients"}
+            <Text style={dynamicStyles.infoText}>
+              Créé le {new Date(menu.created_at).toLocaleDateString('fr-FR', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
+              {'\n'}
+              {totalItems} plat(s) dans ce menu
             </Text>
           </View>
         </Card>
 
         {/* Actions sur le menu */}
-        <Card style={{ marginBottom: 16 }}>
-          <Text style={{ fontSize: 18, fontWeight: '600', color: '#111827', marginBottom: 16 }}>
+        <Card style={dynamicStyles.cardSpacing}>
+          <Text style={dynamicStyles.sectionTitle}>
             Actions
           </Text>
           
-          {/* Toggle principal */}
-          <Button
-            title={menuAvailable ? 'Désactiver ce menu' : 'Activer ce menu'}
-            onPress={handleToggleAvailability}
-            loading={isToggling}
-            variant={menuAvailable ? 'secondary' : 'primary'}
-            fullWidth
-            leftIcon={menuAvailable ? 'pause-circle-outline' : 'play-circle-outline'}
-            style={{
-              marginBottom: 12,
-              backgroundColor: menuAvailable ? '#EF4444' : '#10B981',
-            }}
-          />
+          <View style={dynamicStyles.buttonGroup}>
+            {/* Toggle principal avec icône et style adaptatif */}
+            <Button
+              title={menuAvailable ? 'Désactiver ce menu' : 'Activer ce menu'}
+              onPress={handleToggleAvailability}
+              loading={isToggling}
+              variant={menuAvailable ? 'destructive' : 'primary'}
+              fullWidth
+              leftIcon={
+                isToggling ? (
+                  <ActivityIndicator 
+                    size="small" 
+                    color={COLORS.text.inverse} 
+                    style={{ marginRight: -4 }} 
+                  />
+                ) : (
+                  <Ionicons 
+                    name={menuAvailable ? 'pause-circle-outline' : 'play-circle-outline'} 
+                    size={20} 
+                    color={COLORS.text.inverse} 
+                  />
+                )
+              }
+            />
 
-          <Button
-            title="Gérer les plats"
-            onPress={() => router.push(`/menu/${menu.id}` as any)}
-            variant="outline"
-            fullWidth
-            leftIcon="restaurant-outline"
-          />
+            <Button
+              title="Gérer les plats"
+              onPress={() => router.push(`/menu/${menu.id}` as any)}
+              variant="outline"
+              fullWidth
+              leftIcon={<Ionicons name="restaurant-outline" size={20} color={COLORS.primary} />}
+            />
+          </View>
         </Card>
 
         {/* Statistiques du menu */}
-        {menu.items && menu.items.length > 0 && (
-          <Card style={{ marginBottom: 32 }}>
-            <Text style={{ fontSize: 18, fontWeight: '600', color: '#111827', marginBottom: 16 }}>
+        {totalItems > 0 && (
+          <Card variant="premium" style={dynamicStyles.cardSpacing}>
+            <Text style={[dynamicStyles.sectionTitle, { color: COLORS.text.golden }]}>
               Statistiques
             </Text>
             
-            <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
-              <View style={{ alignItems: 'center' }}>
-                <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827' }}>
-                  {menu.items.length}
+            <View style={dynamicStyles.statisticsContainer}>
+              <View style={dynamicStyles.statisticItem}>
+                <Text style={dynamicStyles.statisticValue}>
+                  {totalItems}
                 </Text>
-                <Text style={{ fontSize: 12, color: '#6B7280', textAlign: 'center' }}>
+                <Text style={dynamicStyles.statisticLabel}>
                   Plats{'\n'}totaux
                 </Text>
               </View>
               
-              <View style={{ alignItems: 'center' }}>
-                <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#10B981' }}>
-                  {menu.items.filter(item => item.is_available !== false).length}
+              <View style={dynamicStyles.statisticItem}>
+                <Text style={[dynamicStyles.statisticValue, { color: COLORS.success }]}>
+                  {availableItems}
                 </Text>
-                <Text style={{ fontSize: 12, color: '#6B7280', textAlign: 'center' }}>
+                <Text style={dynamicStyles.statisticLabel}>
                   Plats{'\n'}disponibles
                 </Text>
               </View>
               
-              <View style={{ alignItems: 'center' }}>
-                <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#EF4444' }}>
-                  {menu.items.filter(item => item.is_available === false).length}
+              <View style={dynamicStyles.statisticItem}>
+                <Text style={[dynamicStyles.statisticValue, { color: COLORS.error }]}>
+                  {unavailableItems}
                 </Text>
-                <Text style={{ fontSize: 12, color: '#6B7280', textAlign: 'center' }}>
+                <Text style={dynamicStyles.statisticLabel}>
                   Plats{'\n'}indisponibles
                 </Text>
               </View>
             </View>
           </Card>
         )}
+      </ScrollView>
 
-        {/* Bouton de sauvegarde principal */}
+      {/* Actions fixes en bas avec SafeArea */}
+      <View style={dynamicStyles.actionButtonsContainer}>
         <Button
           title="Sauvegarder les modifications"
           onPress={handleSave}
           loading={isSaving}
           variant="primary"
           fullWidth
-          leftIcon="checkmark-circle-outline"
-          style={{ backgroundColor: '#059669' }}
+          leftIcon={
+            isSaving ? (
+              <ActivityIndicator 
+                size="small" 
+                color={COLORS.text.inverse} 
+                style={{ marginRight: -4 }} 
+              />
+            ) : (
+              <Ionicons 
+                name="checkmark-circle-outline" 
+                size={20} 
+                color={COLORS.text.inverse} 
+              />
+            )
+          }
         />
-      </ScrollView>
+      </View>
     </View>
   );
 }
