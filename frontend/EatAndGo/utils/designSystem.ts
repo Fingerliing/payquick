@@ -122,6 +122,15 @@ export const TYPOGRAPHY = {
   },
 } as const;
 
+export const getLineHeight = (
+  fontSizeToken: keyof typeof TYPOGRAPHY.fontSize,
+  screenType: 'mobile' | 'tablet' | 'desktop',
+  factor: keyof typeof TYPOGRAPHY.lineHeight = 'normal'
+) => {
+  const size = getResponsiveValue(TYPOGRAPHY.fontSize[fontSizeToken], screenType);
+  return Math.round(size * TYPOGRAPHY.lineHeight[factor]);
+};
+
 // ESPACEMENTS RESPONSIVE
 export const SPACING = {
   // Espacements de base (en points)
@@ -231,16 +240,10 @@ export const useScreenType = () => {
 
 // HELPER POUR OBTENIR UNE VALEUR RESPONSIVE
 export const getResponsiveValue = <T>(
-  values: T | { mobile: T; tablet: T; desktop: T },
+  values: { mobile: T; tablet: T; desktop: T },
   screenType: 'mobile' | 'tablet' | 'desktop'
 ): T => {
-  // Si c'est un objet avec des propriétés mobile/tablet/desktop
-  if (values && typeof values === 'object' && 'mobile' in values) {
-    return (values as { mobile: T; tablet: T; desktop: T })[screenType];
-  }
-  
-  // Sinon, retourne la valeur directement (comportement original)
-  return values as T;
+  return values[screenType];
 };
 
 // HELPER POUR CRÉER DES STYLES RESPONSIVE

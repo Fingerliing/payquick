@@ -1,14 +1,28 @@
-import React from 'react';
-import { View, Text, Image, TouchableOpacity, ViewStyle, TextStyle, ImageStyle } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Restaurant } from '@/types/restaurant';
 import { Card } from '../ui/Card';
+
+// Import du design system unifié
+import {
+  useScreenType,
+  getResponsiveValue,
+  createResponsiveStyles,
+  COLORS,
+  SPACING,
+  TYPOGRAPHY,
+  BORDER_RADIUS,
+  SHADOWS,
+  getLineHeight,
+} from '@/utils/designSystem';
 
 interface RestaurantCardProps {
   restaurant: Restaurant;
   onPress: () => void;
   showDistance?: boolean;
   distance?: number;
+  variant?: 'default' | 'featured' | 'compact';
 }
 
 export const RestaurantCard: React.FC<RestaurantCardProps> = ({
@@ -16,182 +30,314 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
   onPress,
   showDistance = false,
   distance,
+  variant = 'default',
 }) => {
-  // 🔧 FIX: Fonction pour obtenir la bonne URL d'image (même logique que [id].tsx)
-  const getRestaurantImageUri = (restaurant: Restaurant): string => {
-    // 1. Priorité à image_url (URL absolue calculée côté backend)
+  const screenType = useScreenType();
+  const responsiveStyles = createResponsiveStyles(screenType);
+  const [imageError, setImageError] = useState(false);
+
+  // Fonction améliorée pour obtenir l'URL d'image
+  const getRestaurantImageUri = (): string => {
+    if (imageError) {
+      return 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=250&q=80';
+    }
+
+    // Priorité à image_url calculée côté backend
     if ((restaurant as any).image_url) {
       return (restaurant as any).image_url;
     }
     
-    // 2. Si pas d'image_url, construire l'URL absolue depuis image
+    // Construction d'URL absolue depuis image relative
     if (restaurant.image) {
-      // Si c'est déjà une URL absolue
       if (restaurant.image.startsWith('http')) {
         return restaurant.image;
       }
-      // Si c'est une URL relative, la rendre absolue
-      return `http://192.168.1.163:8000${restaurant.image}`;
+      // Utiliser une variable d'environnement au lieu d'IP hardcodée
+      const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.163:8000';
+      return `${baseUrl}${restaurant.image}`;
     }
     
-    // 3. Fallback vers image par défaut avec bons paramètres
-    return 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=400&h=250&q=80';
+    // Image par défaut
+    return 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=250&q=80';
   };
 
-  const containerStyle: ViewStyle = {
+  const getPriceRangeText = (priceRange: number): string => {
+    return '€'.repeat(Math.max(1, Math.min(4, priceRange)));
   };
 
-  const imageStyle: ImageStyle = {
-    width: '100%',
-    height: 160,
-    borderRadius: 8,
-    backgroundColor: '#F3F4F6',
+  const getStatusColor = (): string => {
+    return restaurant.isActive ? COLORS.success : COLORS.error;
   };
 
-  const contentStyle: ViewStyle = {
-    padding: 12,
+  const getStatusText = (): string => {
+    return restaurant.isActive ? 'Ouvert' : 'Fermé';
   };
 
-  const headerStyle: ViewStyle = {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-  };
+  // Styles responsifs
+  const styles = StyleSheet.create({
+    container: {
+      backgroundColor: variant === 'featured' ? COLORS.goldenSurface : COLORS.surface,
+      borderRadius: BORDER_RADIUS.lg,
+      overflow: 'hidden',
+      borderWidth: variant === 'featured' ? 2 : 1,
+      borderColor: variant === 'featured' ? COLORS.border.golden : COLORS.border.light,
+      ...(variant === 'featured' ? SHADOWS.premiumCard : SHADOWS.card),
+    },
 
-  const titleStyle: TextStyle = {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    flex: 1,
-    marginRight: 8,
-  };
+    imageContainer: {
+      position: 'relative',
+      backgroundColor: COLORS.border.light,
+    },
 
-  const ratingContainerStyle: ViewStyle = {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEF3C7',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  };
+    image: {
+      width: '100%',
+      height: variant === 'compact' ? 120 : 160,
+      backgroundColor: COLORS.border.light,
+    },
 
-  const ratingStyle: TextStyle = {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#D97706',
-    marginLeft: 2,
-  };
+    imagePlaceholder: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: COLORS.border.light,
+    },
 
-  const infoRowStyle: ViewStyle = {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  };
+    statusIndicator: {
+      position: 'absolute',
+      top: getResponsiveValue(SPACING.sm, screenType),
+      right: getResponsiveValue(SPACING.sm, screenType),
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+      paddingHorizontal: getResponsiveValue(SPACING.xs, screenType),
+      paddingVertical: 4,
+      borderRadius: BORDER_RADIUS.full,
+      ...SHADOWS.sm,
+    },
 
-  const infoTextStyle: TextStyle = {
-    fontSize: 12,
-    color: '#6B7280',
-    marginLeft: 4,
-  };
+    statusDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      marginRight: 4,
+    },
 
-  const priceRangeStyle: TextStyle = {
-    fontSize: 12,
-    color: '#059669',
-    fontWeight: '500',
-  };
+    statusText: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.medium,
+      color: COLORS.text.primary,
+    },
 
-  const getPriceRangeText = (priceRange: number) => {
-    return '€'.repeat(priceRange);
-  };
+    content: {
+      padding: getResponsiveValue(SPACING.md, screenType),
+    },
 
-  const getStatusColor = () => {
-    return restaurant.isActive ? '#10B981' : '#EF4444';
-  };
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: getResponsiveValue(SPACING.sm, screenType),
+    },
 
-  // 🐛 DEBUG - logs temporaires (à supprimer après le fix)
-  console.log(`🏠 RestaurantCard Debug - ${restaurant.name}:`, {
-    image: restaurant.image,
-    image_url: (restaurant as any).image_url,
-    finalUri: getRestaurantImageUri(restaurant)
+    title: {
+      flex: 1,
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.md, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      color: COLORS.text.primary,
+      lineHeight: getLineHeight('md', screenType, 'tight'),
+      marginRight: getResponsiveValue(SPACING.sm, screenType),
+    },
+
+    ratingContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: COLORS.variants.secondary[100],
+      paddingHorizontal: getResponsiveValue(SPACING.xs, screenType),
+      paddingVertical: 3,
+      borderRadius: BORDER_RADIUS.sm,
+    },
+
+    ratingText: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.medium,
+      color: COLORS.variants.secondary[700],
+      marginLeft: 2,
+    },
+
+    infoRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 6,
+    },
+
+    infoText: {
+      flex: 1,
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+      color: COLORS.text.secondary,
+      marginLeft: 6,
+      lineHeight: getLineHeight('sm', screenType, 'normal'),
+    },
+
+    priceRange: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+      color: COLORS.success,
+      fontWeight: TYPOGRAPHY.fontWeight.medium,
+      marginLeft: getResponsiveValue(SPACING.sm, screenType),
+    },
+
+    footer: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: getResponsiveValue(SPACING.xs, screenType),
+    },
+
+    reviewCount: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+      color: COLORS.text.light,
+      fontWeight: TYPOGRAPHY.fontWeight.normal,
+    },
+
+    distanceContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: COLORS.variants.primary[100],
+      paddingHorizontal: getResponsiveValue(SPACING.xs, screenType),
+      paddingVertical: 2,
+      borderRadius: BORDER_RADIUS.sm,
+    },
+
+    distanceText: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
+      color: COLORS.primary,
+      fontWeight: TYPOGRAPHY.fontWeight.medium,
+      marginLeft: 2,
+    },
   });
 
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
-      <Card style={containerStyle} padding={0}>
+    <TouchableOpacity 
+      onPress={onPress} 
+      activeOpacity={0.7}
+      style={styles.container}
+    >
+      {/* Image avec gestion d'erreur améliorée */}
+      <View style={styles.imageContainer}>
         <Image
-          source={{ uri: getRestaurantImageUri(restaurant) }}
-          style={imageStyle}
+          source={{ uri: getRestaurantImageUri() }}
+          style={styles.image}
           resizeMode="cover"
-          onError={(error) => {
-            console.log(`❌ Erreur image RestaurantCard - ${restaurant.name}:`, error.nativeEvent.error);
-            console.log('URL utilisée:', getRestaurantImageUri(restaurant));
-          }}
-          onLoad={() => {
-            console.log(`✅ Image RestaurantCard chargée - ${restaurant.name}`);
-          }}
+          onError={() => setImageError(true)}
         />
         
-        <View style={contentStyle}>
-          <View style={headerStyle}>
-            <Text style={titleStyle} numberOfLines={1}>
-              {restaurant.name}
-            </Text>
-            
-            <View style={ratingContainerStyle}>
-              <Ionicons name="star" size={12} color="#D97706" />
-              <Text style={ratingStyle}>
-                {typeof restaurant.rating === 'number' ? restaurant.rating.toFixed(1) : '0.0'}
-              </Text>
-            </View>
+        {/* Placeholder si image en erreur */}
+        {imageError && (
+          <View style={styles.imagePlaceholder}>
+            <Ionicons 
+              name="restaurant-outline" 
+              size={32} 
+              color={COLORS.text.light} 
+            />
           </View>
+        )}
 
-          <View style={infoRowStyle}>
-            <Ionicons name="location-outline" size={14} color="#6B7280" />
-            <Text style={infoTextStyle} numberOfLines={1}>
-              {restaurant.address}, {restaurant.city}
-            </Text>
-          </View>
-
-          <View style={infoRowStyle}>
-            <Ionicons name="restaurant-outline" size={14} color="#6B7280" />
-            <Text style={infoTextStyle}>{restaurant.cuisine}</Text>
-            <Text style={[priceRangeStyle, { marginLeft: 8 }]}>
-              {getPriceRangeText(restaurant.priceRange)}
-            </Text>
-          </View>
-
-          {showDistance && distance !== undefined && (
-            <View style={infoRowStyle}>
-              <Ionicons name="walk-outline" size={14} color="#6B7280" />
-              <Text style={infoTextStyle}>
-                {typeof distance === 'number' ? distance.toFixed(1) : '0.0'} km
+        {/* Indicateur de statut en overlay */}
+        <View style={styles.statusIndicator}>
+          <View 
+            style={[
+              styles.statusDot,
+              { backgroundColor: getStatusColor() }
+            ]} 
+          />
+          <Text style={styles.statusText}>
+            {getStatusText()}
+          </Text>
+        </View>
+      </View>
+      
+      {/* Contenu de la carte */}
+      <View style={styles.content}>
+        {/* En-tête avec nom et note */}
+        <View style={styles.header}>
+          <Text style={styles.title} numberOfLines={2}>
+            {restaurant.name}
+          </Text>
+          
+          {typeof restaurant.rating === 'number' && restaurant.rating > 0 && (
+            <View style={styles.ratingContainer}>
+              <Ionicons name="star" size={12} color={COLORS.variants.secondary[700]} />
+              <Text style={styles.ratingText}>
+                {restaurant.rating.toFixed(1)}
               </Text>
             </View>
           )}
+        </View>
 
-          <View style={[infoRowStyle, { justifyContent: 'space-between' }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <View
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 4,
-                  backgroundColor: getStatusColor(),
-                  marginRight: 4,
-                }}
-              />
-              <Text style={infoTextStyle}>
-                {restaurant.isActive ? 'Ouvert' : 'Fermé'}
-              </Text>
-            </View>
-            
-            <Text style={infoTextStyle}>
-              {restaurant.reviewCount} avis
+        {/* Localisation */}
+        <View style={styles.infoRow}>
+          <Ionicons 
+            name="location-outline" 
+            size={14} 
+            color={COLORS.text.secondary} 
+          />
+          <Text style={styles.infoText} numberOfLines={1}>
+            {restaurant.address}, {restaurant.city}
+          </Text>
+        </View>
+
+        {/* Type de cuisine et gamme de prix */}
+        <View style={styles.infoRow}>
+          <Ionicons 
+            name="restaurant-outline" 
+            size={14} 
+            color={COLORS.text.secondary} 
+          />
+          <Text style={styles.infoText} numberOfLines={1}>
+            {restaurant.cuisine}
+          </Text>
+          <Text style={styles.priceRange}>
+            {getPriceRangeText(restaurant.priceRange)}
+          </Text>
+        </View>
+
+        {/* Distance si affichée */}
+        {showDistance && distance !== undefined && (
+          <View style={styles.infoRow}>
+            <Ionicons 
+              name="walk-outline" 
+              size={14} 
+              color={COLORS.text.secondary} 
+            />
+            <Text style={styles.infoText}>
+              {typeof distance === 'number' ? distance.toFixed(1) : '0.0'} km
             </Text>
           </View>
+        )}
+
+        {/* Pied avec nombre d'avis et éventuellement distance */}
+        <View style={styles.footer}>
+          <Text style={styles.reviewCount}>
+            {restaurant.reviewCount} avis
+          </Text>
+          
+          {showDistance && distance !== undefined && (
+            <View style={styles.distanceContainer}>
+              <Ionicons 
+                name="time-outline" 
+                size={12} 
+                color={COLORS.primary} 
+              />
+              <Text style={styles.distanceText}>
+                {Math.ceil((distance || 0) * 12)} min
+              </Text>
+            </View>
+          )}
         </View>
-      </Card>
+      </View>
     </TouchableOpacity>
   );
 };
