@@ -18,6 +18,9 @@ urlpatterns = [
     
     # Gestion des catégories de menu
     path('menu/', include('api.urls.v1.category_urls')),
+
+    # Gestion des menus du jour
+    path('daily-menus/', include('api.urls.v1.daily_menu_urls')),
     
     # Commandes et paiements
     path('orders/', include('api.urls.v1.order_urls')),
