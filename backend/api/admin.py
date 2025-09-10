@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Restaurant, RestaurateurProfile, MenuCategory, MenuSubCategory
+from .models import Restaurant, RestaurateurProfile, MenuCategory, MenuSubCategory, DailyMenu, DailyMenuItem, DailyMenuTemplate
 
 class RestaurantAdmin(admin.ModelAdmin):
     list_display = ('name', 'owner', 'owner_stripe_validated', 'is_stripe_active', 'can_receive_orders')
@@ -85,3 +85,35 @@ class MenuSubCategoryAdmin(admin.ModelAdmin):
     def restaurant_name(self, obj):
         return obj.category.restaurant.name
     restaurant_name.short_description = 'Restaurant'
+
+@admin.register(DailyMenu)
+class DailyMenuAdmin(admin.ModelAdmin):
+    list_display = ['restaurant', 'title', 'date', 'is_active', 'total_items_count', 'created_at']
+    list_filter = ['is_active', 'date', 'restaurant']
+    search_fields = ['title', 'restaurant__name']
+    ordering = ['-date', '-created_at']
+    
+    fieldsets = [
+        ('Informations principales', {
+            'fields': ['restaurant', 'date', 'title', 'description']
+        }),
+        ('Configuration', {
+            'fields': ['is_active', 'special_price']
+        }),
+        ('Métadonnées', {
+            'fields': ['created_by'],
+            'classes': ['collapse']
+        })
+    ]
+
+@admin.register(DailyMenuItem)
+class DailyMenuItemAdmin(admin.ModelAdmin):
+    list_display = ['daily_menu', 'menu_item', 'effective_price', 'is_available', 'display_order']
+    list_filter = ['is_available', 'daily_menu__date', 'daily_menu__restaurant']
+    search_fields = ['menu_item__name', 'daily_menu__title']
+
+@admin.register(DailyMenuTemplate)
+class DailyMenuTemplateAdmin(admin.ModelAdmin):
+    list_display = ['restaurant', 'name', 'day_of_week', 'usage_count', 'is_active']
+    list_filter = ['is_active', 'day_of_week', 'restaurant']
+    search_fields = ['name', 'restaurant__name']

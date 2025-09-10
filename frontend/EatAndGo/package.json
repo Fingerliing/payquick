@@ -23,6 +23,7 @@
     "@stripe/stripe-react-native": "^0.50.3",
     "@types/qrcode": "^1.5.5",
     "axios": "^1.10.0",
+    "date-fns": "^4.1.0",
     "expo": "~53.0.17",
     "expo-blur": "~14.1.5",
     "expo-camera": "^16.1.11",
