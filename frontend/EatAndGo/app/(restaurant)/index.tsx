@@ -6,19 +6,15 @@ import {
   RefreshControl,
   TouchableOpacity,
   StyleSheet,
-  TextStyle,
-  ViewStyle,
   Dimensions,
 } from 'react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRestaurant } from '@/contexts/RestaurantContext';
 import { useOrder } from '@/contexts/OrderContext';
 import { Header } from '@/components/ui/Header';
-import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Loading } from '@/components/ui/Loading';
 import { RestaurantCard } from '@/components/restaurant/RestaurantCard';
-import StripeAccountStatus from '@/components/stripe/StripeAccountStatus';
 import { ValidationPending } from '@/components/restaurant/ValidationPending';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';

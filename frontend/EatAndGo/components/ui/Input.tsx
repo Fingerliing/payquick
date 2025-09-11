@@ -116,7 +116,7 @@ export const Input = forwardRef<TextInput, InputProps>(({
         <TextInput
           ref={ref}
           style={textInputStyle}
-          placeholderTextColor={COLORS.text.light}
+          placeholderTextColor={COLORS.text.white}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           {...props}
