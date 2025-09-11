@@ -33,12 +33,14 @@ import { useResponsive } from '@/utils/responsive';
 
 interface Props {
   restaurantId: string;
+  selectedDate?: Date;
   onNavigateToCreate: () => void;
   onNavigateToEdit: (menuId: string) => void;
 }
 
 export const DailyMenuManager: React.FC<Props> = ({
   restaurantId,
+  selectedDate = new Date(),
   onNavigateToCreate,
   onNavigateToEdit,
 }) => {
@@ -46,7 +48,7 @@ export const DailyMenuManager: React.FC<Props> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isTogglingItem, setIsTogglingItem] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  // const [selectedDate, setSelectedDate] = useState(new Date());
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
   // Hooks responsive
@@ -61,6 +63,7 @@ export const DailyMenuManager: React.FC<Props> = ({
   const loadDailyMenu = async () => {
     try {
       setIsLoading(true);
+      const dateString = format(selectedDate, 'yyyy-MM-dd');
       const menu = await dailyMenuService.getTodayMenu(Number(restaurantId));
       setDailyMenu(menu);
       // Expand all categories by default on desktop
@@ -106,18 +109,31 @@ export const DailyMenuManager: React.FC<Props> = ({
 
   const duplicateYesterday = async () => {
     Alert.alert(
-      'Dupliquer le menu d\'hier',
-      'Voulez-vous copier le menu d\'hier pour aujourd\'hui ?',
+      'Dupliquer le menu précédent',
+      `Voulez-vous copier le menu du ${format(subDays(selectedDate, 1), 'dd MMMM', { locale: fr })} ?`,
       [
         { text: 'Annuler', style: 'cancel' },
         {
           text: 'Dupliquer',
           onPress: async () => {
             try {
-              const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');
-              // Implémenter la logique de duplication
-              Alert.alert('Succès', 'Menu dupliqué avec succès');
-              await loadDailyMenu();
+              const previousDate = format(subDays(selectedDate, 1), 'yyyy-MM-dd');
+              const currentDate = format(selectedDate, 'yyyy-MM-dd');
+              
+              // Récupérer le menu de la veille
+              const previousMenu = await dailyMenuService.getMenuByDate(
+                Number(restaurantId),
+                previousDate
+              );
+              
+              if (previousMenu) {
+                // Dupliquer vers la date sélectionnée
+                await dailyMenuService.duplicateMenu(previousMenu.id, currentDate);
+                Alert.alert('Succès', 'Menu dupliqué avec succès');
+                await loadDailyMenu();
+              } else {
+                Alert.alert('Information', 'Aucun menu trouvé pour la date précédente');
+              }
             } catch (error) {
               Alert.alert('Erreur', 'Impossible de dupliquer le menu');
             }
@@ -126,6 +142,31 @@ export const DailyMenuManager: React.FC<Props> = ({
       ]
     );
   };
+
+  const renderHeader = () => (
+    <View style={styles.header}>
+      <LinearGradient
+        colors={[COLORS.surface, COLORS.goldenSurface]}
+        style={styles.headerGradient}
+      >
+        <View style={styles.headerContent}>
+          <Text style={styles.title}>
+            ✨ Menu du Jour
+          </Text>
+          <Text style={styles.dateText}>
+            {format(selectedDate, 'EEEE dd MMMM yyyy', { locale: fr })}
+          </Text>
+        </View>
+        {dailyMenu?.special_price && (
+          <View style={styles.specialPriceBadge}>
+            <Text style={styles.specialMenuPrice}>
+              Menu Complet : {dailyMenu.special_price}€
+            </Text>
+          </View>
+        )}
+      </LinearGradient>
+    </View>
+  );
 
   const renderQuickActions = () => (
     <View style={styles.quickActions}>
@@ -282,34 +323,48 @@ export const DailyMenuManager: React.FC<Props> = ({
     );
   };
 
-  const renderEmptyState = () => (
-    <View style={styles.noMenuContainer}>
-      <LinearGradient
-        colors={COLORS.gradients.subtleGold}
-        style={styles.emptyStateGradient}
-      >
-        <Ionicons name="restaurant" size={64} color={COLORS.variants.secondary[400]} />
-        <Text style={styles.noMenuTitle}>Aucun menu du jour</Text>
-        <Text style={styles.noMenuSubtitle}>
-          Créez votre premier menu du jour pour attirer plus de clients
-        </Text>
-        <TouchableOpacity 
-          style={styles.createButton} 
-          onPress={onNavigateToCreate}
+  const renderEmptyState = () => {
+    const isDateToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+    const isFutureDate = selectedDate > new Date();
+    
+    return (
+      <View style={styles.noMenuContainer}>
+        <LinearGradient
+          colors={COLORS.gradients.subtleGold}
+          style={styles.emptyStateGradient}
         >
-          <LinearGradient
-            colors={COLORS.gradients.goldenHorizontal}
-            style={styles.createButtonGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
+          <Ionicons name="restaurant" size={64} color={COLORS.variants.secondary[400]} />
+          <Text style={styles.noMenuTitle}>
+            {isFutureDate ? 'Menu non configuré' : 'Aucun menu du jour'}
+          </Text>
+          <Text style={styles.noMenuSubtitle}>
+            {isDateToday 
+              ? 'Créez votre menu du jour pour attirer plus de clients'
+              : isFutureDate
+              ? `Planifiez le menu pour le ${format(selectedDate, 'dd MMMM', { locale: fr })}`
+              : `Aucun menu n'était disponible le ${format(selectedDate, 'dd MMMM', { locale: fr })}`
+            }
+          </Text>
+          <TouchableOpacity 
+            style={styles.createButton} 
+            onPress={onNavigateToCreate}
           >
-            <Ionicons name="add-circle" size={24} color={COLORS.surface} />
-            <Text style={styles.createButtonText}>Créer un menu du jour</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-      </LinearGradient>
-    </View>
-  );
+            <LinearGradient
+              colors={COLORS.gradients.goldenHorizontal}
+              style={styles.createButtonGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              <Ionicons name="add-circle" size={24} color={COLORS.surface} />
+              <Text style={styles.createButtonText}>
+                {isFutureDate ? 'Planifier ce menu' : 'Créer un menu du jour'}
+              </Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </LinearGradient>
+      </View>
+    );
+  };
 
   if (isLoading) {
     return (

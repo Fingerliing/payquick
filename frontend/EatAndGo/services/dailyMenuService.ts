@@ -213,6 +213,71 @@ export class DailyMenuService {
   async applyTemplate(templateId: number, date: string): Promise<DailyMenu> {
     return apiClient.post(`/api/v1/daily-menus/templates/${templateId}/apply/`, { date });
   }
+
+  // === MÉTHODES POUR LE CALENDRIER ===
+
+  /**
+   * Récupère le menu d'une date spécifique pour un restaurant
+   */
+  async getMenuByDate(restaurantId: number, date: string): Promise<DailyMenu> {
+    return apiClient.get(`/api/v1/daily-menus/by-date/?restaurant_id=${restaurantId}&date=${date}`);
+  }
+
+  /**
+   * Récupère les menus d'une période pour un restaurant
+   */
+  async getMenusByDateRange(
+    restaurantId: number, 
+    startDate: string, 
+    endDate: string
+  ): Promise<DailyMenu[]> {
+    return apiClient.get(
+      `/api/v1/daily-menus/range/?restaurant_id=${restaurantId}&start_date=${startDate}&end_date=${endDate}`
+    );
+  }
+
+  /**
+   * Vérifie si un menu existe pour une date donnée
+   */
+  async checkMenuExists(restaurantId: number, date: string): Promise<{ exists: boolean; menu_id?: string }> {
+    try {
+      const menu = await this.getMenuByDate(restaurantId, date);
+      return { exists: true, menu_id: menu.id };
+    } catch (error) {
+      return { exists: false };
+    }
+  }
+
+  /**
+   * Copie un menu vers une nouvelle date
+   */
+  async copyMenuToDate(sourceMenuId: string, targetDate: string): Promise<DailyMenu> {
+    return apiClient.post(`/api/v1/daily-menus/${sourceMenuId}/copy/`, {
+      target_date: targetDate
+    });
+  }
+
+  /**
+   * Récupère le calendrier des menus du mois
+   */
+  async getMonthlyCalendar(
+    restaurantId: number, 
+    year: number, 
+    month: number
+  ): Promise<{
+    dates_with_menu: string[];
+    menu_summaries: {
+      date: string;
+      menu_id: string;
+      title: string;
+      items_count: number;
+      is_active: boolean;
+    }[];
+  }> {
+    return apiClient.get(
+      `/api/v1/daily-menus/calendar/?restaurant_id=${restaurantId}&year=${year}&month=${month}`
+    );
+  }
 }
 
 export const dailyMenuService = new DailyMenuService();

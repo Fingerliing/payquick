@@ -10,12 +10,15 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
 // UI Components
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
+import { Loading } from '@/components/ui/Loading';
+import { Header } from '@/components/ui/Header';
 
 // Services & Types
 import { dailyMenuService, DailyMenu, DailyMenuItem } from '@/services/dailyMenuService';
@@ -205,7 +208,7 @@ export default function EditDailyMenuScreen() {
   };
 
   if (isLoading) {
-    return <Loading message="Chargement du menu..." />;
+    return <Loading />;
   }
 
   if (!dailyMenu) {
@@ -244,7 +247,7 @@ export default function EditDailyMenuScreen() {
             value={title}
             onChangeText={setTitle}
             placeholder="Ex: Menu du jour"
-            leftIcon={<Ionicons name="restaurant" size={20} color={COLORS.text.secondary} />}
+            leftIcon="restaurant"
           />
           
           <Input
@@ -254,7 +257,7 @@ export default function EditDailyMenuScreen() {
             placeholder="Ex: Entrée + Plat + Dessert"
             multiline
             numberOfLines={3}
-            leftIcon={<Ionicons name="document-text" size={20} color={COLORS.text.secondary} />}
+            leftIcon="document-text"
           />
           
           <Input
@@ -263,7 +266,7 @@ export default function EditDailyMenuScreen() {
             onChangeText={setSpecialPrice}
             keyboardType="numeric"
             placeholder="Ex: 19.90"
-            leftIcon={<Ionicons name="pricetag" size={20} color={COLORS.text.secondary} />}
+            leftIcon="pricetag"
           />
           
           <View style={styles.switchContainer}>
