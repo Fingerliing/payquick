@@ -10,7 +10,6 @@ import {
   RefreshControl,
   ActivityIndicator,
   FlatList,
-  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { format, subDays } from 'date-fns';
@@ -36,6 +35,7 @@ interface Props {
   selectedDate?: Date;
   onNavigateToCreate: () => void;
   onNavigateToEdit: (menuId: string) => void;
+  onMenuUpdated?: () => void;
 }
 
 export const DailyMenuManager: React.FC<Props> = ({
@@ -43,6 +43,7 @@ export const DailyMenuManager: React.FC<Props> = ({
   selectedDate = new Date(),
   onNavigateToCreate,
   onNavigateToEdit,
+  onMenuUpdated,
 }) => {
   const [dailyMenu, setDailyMenu] = useState<DailyMenu | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -90,6 +91,7 @@ export const DailyMenuManager: React.FC<Props> = ({
     try {
       await dailyMenuService.quickToggleItem(dailyMenu.id, itemId);
       await loadDailyMenu();
+      onMenuUpdated?.();
     } catch (error) {
       Alert.alert('Erreur', 'Impossible de modifier la disponibilité du plat');
     } finally {
@@ -131,6 +133,7 @@ export const DailyMenuManager: React.FC<Props> = ({
                 await dailyMenuService.duplicateMenu(previousMenu.id, currentDate);
                 Alert.alert('Succès', 'Menu dupliqué avec succès');
                 await loadDailyMenu();
+                onMenuUpdated?.();
               } else {
                 Alert.alert('Information', 'Aucun menu trouvé pour la date précédente');
               }

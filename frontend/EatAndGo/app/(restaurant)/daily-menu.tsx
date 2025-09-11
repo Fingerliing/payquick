@@ -1,17 +1,19 @@
-import { useState } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { 
   View, 
   StyleSheet, 
   Modal, 
   Text, 
   TouchableOpacity,
+  ActivityIndicator,
+  Animated
 } from 'react-native';
 import { router } from 'expo-router';
 import { Header } from '@/components/ui/Header';
 import { DailyMenuManager } from '@/components/menu/DailyMenuManager';
 import { useRestaurant } from '@/contexts/RestaurantContext';
 import { Ionicons } from '@expo/vector-icons';
-import { format, addDays, subDays, startOfWeek, endOfWeek, isSameDay, isToday } from 'date-fns';
+import { format, addDays, subDays, startOfWeek, endOfWeek, isSameDay, isToday, startOfMonth, endOfMonth } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { LinearGradient } from 'expo-linear-gradient';
 import { 
@@ -23,8 +25,31 @@ import {
   useScreenType,
   getResponsiveValue,
   createResponsiveStyles,
+  ANIMATIONS,
 } from '@/utils/designSystem';
 import { useResponsive } from '@/utils/responsive';
+import { dailyMenuService, DailyMenu } from '@/services/dailyMenuService';
+
+// Types pour le cache et les indicateurs
+interface MenuCacheEntry {
+  menu: DailyMenu | null;
+  timestamp: number;
+  isLoading?: boolean;
+}
+
+interface MonthlyMenuIndicators {
+  [date: string]: {
+    hasMenu: boolean;
+    menuId?: string;
+    title?: string;
+    itemsCount?: number;
+    isActive?: boolean;
+  };
+}
+
+// Configuration du cache
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const PRELOAD_DAYS = 3; // Nombre de jours à précharger avant et après
 
 export default function DailyMenuScreen() {
   const { currentRestaurant } = useRestaurant();
@@ -32,16 +57,213 @@ export default function DailyMenuScreen() {
   const responsive = useResponsive();
   const styles = createStyles(screenType, responsive);
   
-  // États
+  // États principaux
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showCalendar, setShowCalendar] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  
+  // Cache et optimisations
+  const menuCache = useRef<Map<string, MenuCacheEntry>>(new Map());
+  const [monthlyIndicators, setMonthlyIndicators] = useState<MonthlyMenuIndicators>({});
+  const [isLoadingIndicators, setIsLoadingIndicators] = useState(false);
+  const preloadQueue = useRef<Set<string>>(new Set());
+  const fadeAnim = useRef(new Animated.Value(1)).current;
   
   // Vérification du restaurant sélectionné
   if (!currentRestaurant) {
     router.replace('/(restaurant)/select' as any);
     return null;
   }
+
+  // ==================== GESTION DU CACHE ====================
+  
+  /**
+   * Récupère un menu depuis le cache ou l'API
+   */
+  const getMenuFromCacheOrFetch = useCallback(async (date: Date): Promise<DailyMenu | null> => {
+    const dateKey = format(date, 'yyyy-MM-dd');
+    const cached = menuCache.current.get(dateKey);
+    
+    // Vérifier si le cache est valide
+    if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
+      console.log(`📦 Menu trouvé dans le cache pour ${dateKey}`);
+      return cached.menu;
+    }
+    
+    // Si déjà en cours de chargement, attendre
+    if (cached?.isLoading) {
+      console.log(`⏳ Chargement déjà en cours pour ${dateKey}`);
+      return new Promise((resolve) => {
+        const checkInterval = setInterval(() => {
+          const updatedCache = menuCache.current.get(dateKey);
+          if (!updatedCache?.isLoading) {
+            clearInterval(checkInterval);
+            resolve(updatedCache?.menu || null);
+          }
+        }, 100);
+      });
+    }
+    
+    // Marquer comme en cours de chargement
+    menuCache.current.set(dateKey, {
+      menu: null,
+      timestamp: Date.now(),
+      isLoading: true
+    });
+    
+    try {
+      console.log(`🌐 Chargement du menu depuis l'API pour ${dateKey}`);
+      const menu = await dailyMenuService.getMenuByDate(
+        Number(currentRestaurant.id),
+        dateKey
+      );
+      
+      // Mettre à jour le cache
+      menuCache.current.set(dateKey, {
+        menu,
+        timestamp: Date.now(),
+        isLoading: false
+      });
+      
+      return menu;
+    } catch (error) {
+      // Même en cas d'erreur, on cache le résultat null
+      menuCache.current.set(dateKey, {
+        menu: null,
+        timestamp: Date.now(),
+        isLoading: false
+      });
+      return null;
+    }
+  }, [currentRestaurant.id]);
+
+  /**
+   * Invalide le cache pour une date spécifique
+   */
+  const invalidateCache = useCallback((date?: Date) => {
+    if (date) {
+      const dateKey = format(date, 'yyyy-MM-dd');
+      menuCache.current.delete(dateKey);
+      console.log(`🗑️ Cache invalidé pour ${dateKey}`);
+    } else {
+      menuCache.current.clear();
+      console.log('🗑️ Tout le cache a été vidé');
+    }
+  }, []);
+
+  // ==================== PRÉCHARGEMENT INTELLIGENT ====================
+  
+  /**
+   * Précharge les menus des jours adjacents
+   */
+  const preloadAdjacentMenus = useCallback(async (centerDate: Date) => {
+    const datesToPreload: Date[] = [];
+    
+    // Générer les dates à précharger (avant et après)
+    for (let i = 1; i <= PRELOAD_DAYS; i++) {
+      datesToPreload.push(subDays(centerDate, i));
+      datesToPreload.push(addDays(centerDate, i));
+    }
+    
+    // Précharger en arrière-plan
+    datesToPreload.forEach(async (date) => {
+      const dateKey = format(date, 'yyyy-MM-dd');
+      
+      // Éviter les doublons
+      if (preloadQueue.current.has(dateKey)) return;
+      preloadQueue.current.add(dateKey);
+      
+      // Vérifier si pas déjà en cache
+      const cached = menuCache.current.get(dateKey);
+      if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
+        preloadQueue.current.delete(dateKey);
+        return;
+      }
+      
+      try {
+        console.log(`🔄 Préchargement du menu pour ${dateKey}`);
+        await getMenuFromCacheOrFetch(date);
+      } catch (error) {
+        console.log(`❌ Erreur préchargement pour ${dateKey}:`, error);
+      } finally {
+        preloadQueue.current.delete(dateKey);
+      }
+    });
+  }, [getMenuFromCacheOrFetch]);
+
+  // ==================== INDICATEURS VISUELS ====================
+  
+  /**
+   * Charge les indicateurs de menus pour le mois en cours
+   */
+  const loadMonthlyIndicators = useCallback(async (month: Date) => {
+    if (isLoadingIndicators) return;
+    
+    setIsLoadingIndicators(true);
+    try {
+      console.log(`📅 Chargement des indicateurs pour ${format(month, 'MMMM yyyy', { locale: fr })}`);
+      
+      const response = await dailyMenuService.getMonthlyCalendar(
+        Number(currentRestaurant.id),
+        month.getFullYear(),
+        month.getMonth() + 1 // L'API attend un mois de 1 à 12
+      );
+      
+      // Transformer la réponse en map d'indicateurs
+      const indicators: MonthlyMenuIndicators = {};
+      
+      response.menu_summaries.forEach(summary => {
+        indicators[summary.date] = {
+          hasMenu: true,
+          menuId: summary.menu_id,
+          title: summary.title,
+          itemsCount: summary.items_count,
+          isActive: summary.is_active
+        };
+      });
+      
+      setMonthlyIndicators(prev => ({
+        ...prev,
+        ...indicators
+      }));
+      
+      console.log(`✅ ${response.menu_summaries.length} menus trouvés pour le mois`);
+    } catch (error) {
+      console.error('Erreur lors du chargement des indicateurs:', error);
+    } finally {
+      setIsLoadingIndicators(false);
+    }
+  }, [currentRestaurant.id, isLoadingIndicators]);
+
+  // ==================== EFFETS ====================
+  
+  // Charger les indicateurs quand le mois change
+  useEffect(() => {
+    loadMonthlyIndicators(currentMonth);
+  }, [currentMonth, loadMonthlyIndicators]);
+  
+  // Précharger les menus adjacents quand la date change
+  useEffect(() => {
+    preloadAdjacentMenus(selectedDate);
+  }, [selectedDate, preloadAdjacentMenus]);
+  
+  // Animation de transition lors du changement de date
+  useEffect(() => {
+    Animated.sequence([
+      Animated.timing(fadeAnim, {
+        toValue: 0.3,
+        duration: ANIMATIONS.duration.fast,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: ANIMATIONS.duration.fast,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [selectedDate]);
+
+  // ==================== HANDLERS ====================
 
   const handleNavigateToCreate = () => {
     router.push({
@@ -60,14 +282,18 @@ export default function DailyMenuScreen() {
     });
   };
 
-  const handleDateSelect = (date: Date) => {
+  const handleDateSelect = async (date: Date) => {
     setSelectedDate(date);
     setShowCalendar(false);
+    
+    // Précharger immédiatement les jours adjacents
+    preloadAdjacentMenus(date);
   };
 
   const navigateToToday = () => {
-    setSelectedDate(new Date());
-    setCurrentMonth(new Date());
+    const today = new Date();
+    setSelectedDate(today);
+    setCurrentMonth(today);
   };
 
   const navigateToPreviousDay = () => {
@@ -78,23 +304,7 @@ export default function DailyMenuScreen() {
     setSelectedDate(prev => addDays(prev, 1));
   };
 
-  // Génération des jours du mois pour le calendrier
-  const generateCalendarDays = () => {
-    const start = startOfWeek(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1), { weekStartsOn: 1 });
-    const end = endOfWeek(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0), { weekStartsOn: 1 });
-    
-    const days = [];
-    let currentDate = start;
-    
-    while (currentDate <= end) {
-      days.push(new Date(currentDate));
-      currentDate = addDays(currentDate, 1);
-    }
-    
-    return days;
-  };
-
-  const changeMonth = (direction: 'prev' | 'next') => {
+  const changeMonth = async (direction: 'prev' | 'next') => {
     setCurrentMonth(prev => {
       const newMonth = new Date(prev);
       if (direction === 'prev') {
@@ -102,59 +312,75 @@ export default function DailyMenuScreen() {
       } else {
         newMonth.setMonth(newMonth.getMonth() + 1);
       }
+      // Charger les indicateurs du nouveau mois
+      loadMonthlyIndicators(newMonth);
       return newMonth;
     });
   };
 
-  // Composant de navigation rapide par date
-  const DateNavigator = () => (
-    <View style={styles.dateNavigator}>
-      <TouchableOpacity 
-        style={styles.navButton} 
-        onPress={navigateToPreviousDay}
-      >
-        <Ionicons name="chevron-back" size={20} color={COLORS.text.golden} />
-      </TouchableOpacity>
-      
-      <TouchableOpacity 
-        style={styles.dateDisplay}
-        onPress={() => setShowCalendar(true)}
-      >
-        <LinearGradient
-          colors={COLORS.gradients.subtleGold}
-          style={styles.dateGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <Ionicons name="calendar" size={16} color={COLORS.text.golden} />
-          <Text style={styles.dateText}>
-            {isToday(selectedDate) 
-              ? "Aujourd'hui" 
-              : format(selectedDate, 'EEEE dd MMMM', { locale: fr })}
-          </Text>
-          <Ionicons name="chevron-down" size={16} color={COLORS.text.golden} />
-        </LinearGradient>
-      </TouchableOpacity>
-      
-      <TouchableOpacity 
-        style={styles.navButton} 
-        onPress={navigateToNextDay}
-      >
-        <Ionicons name="chevron-forward" size={20} color={COLORS.text.golden} />
-      </TouchableOpacity>
-      
-      {!isToday(selectedDate) && (
-        <TouchableOpacity 
-          style={styles.todayButton}
-          onPress={navigateToToday}
-        >
-          <Text style={styles.todayButtonText}>Aujourd'hui</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
+  // ==================== COMPOSANTS ====================
 
-  // Modal du calendrier
+  // Composant de navigation rapide par date avec indicateur
+  const DateNavigator = () => {
+    const dateKey = format(selectedDate, 'yyyy-MM-dd');
+    const hasMenu = monthlyIndicators[dateKey]?.hasMenu;
+    
+    return (
+      <View style={styles.dateNavigator}>
+        <TouchableOpacity 
+          style={styles.navButton} 
+          onPress={navigateToPreviousDay}
+        >
+          <Ionicons name="chevron-back" size={20} color={COLORS.text.golden} />
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.dateDisplay}
+          onPress={() => setShowCalendar(true)}
+        >
+          <LinearGradient
+            colors={COLORS.gradients.subtleGold}
+            style={styles.dateGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <View style={styles.dateDisplayContent}>
+              <Ionicons name="calendar" size={16} color={COLORS.text.golden} />
+              <Text style={styles.dateText}>
+                {isToday(selectedDate) 
+                  ? "Aujourd'hui" 
+                  : format(selectedDate, 'EEEE dd MMMM', { locale: fr })}
+              </Text>
+              {hasMenu && (
+                <View style={styles.menuIndicatorBadge}>
+                  <Ionicons name="restaurant" size={12} color={COLORS.surface} />
+                </View>
+              )}
+              <Ionicons name="chevron-down" size={16} color={COLORS.text.golden} />
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.navButton} 
+          onPress={navigateToNextDay}
+        >
+          <Ionicons name="chevron-forward" size={20} color={COLORS.text.golden} />
+        </TouchableOpacity>
+        
+        {!isToday(selectedDate) && (
+          <TouchableOpacity 
+            style={styles.todayButton}
+            onPress={navigateToToday}
+          >
+            <Text style={styles.todayButtonText}>Aujourd'hui</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
+
+  // Modal du calendrier avec indicateurs
   const CalendarModal = () => {
     const calendarDays = generateCalendarDays();
     const weekDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
@@ -180,9 +406,18 @@ export default function DailyMenuScreen() {
                 <Ionicons name="chevron-back" size={24} color={COLORS.primary} />
               </TouchableOpacity>
               
-              <Text style={styles.monthTitle}>
-                {format(currentMonth, 'MMMM yyyy', { locale: fr })}
-              </Text>
+              <View style={styles.monthTitleContainer}>
+                <Text style={styles.monthTitle}>
+                  {format(currentMonth, 'MMMM yyyy', { locale: fr })}
+                </Text>
+                {isLoadingIndicators && (
+                  <ActivityIndicator 
+                    size="small" 
+                    color={COLORS.variants.secondary[500]}
+                    style={styles.monthLoader}
+                  />
+                )}
+              </View>
               
               <TouchableOpacity 
                 onPress={() => changeMonth('next')}
@@ -203,6 +438,10 @@ export default function DailyMenuScreen() {
                 const isCurrentMonth = day.getMonth() === currentMonth.getMonth();
                 const isSelected = isSameDay(day, selectedDate);
                 const isTodayDate = isToday(day);
+                const dateKey = format(day, 'yyyy-MM-dd');
+                const menuInfo = monthlyIndicators[dateKey];
+                const hasMenu = menuInfo?.hasMenu;
+                const isActiveMenu = menuInfo?.isActive;
                 
                 return (
                   <TouchableOpacity
@@ -223,9 +462,37 @@ export default function DailyMenuScreen() {
                     ]}>
                       {day.getDate()}
                     </Text>
+                    
+                    {/* Indicateur de menu */}
+                    {hasMenu && isCurrentMonth && (
+                      <View style={styles.dayIndicatorContainer}>
+                        <View style={[
+                          styles.dayMenuIndicator,
+                          !isActiveMenu && styles.dayMenuIndicatorInactive,
+                          isSelected && styles.dayMenuIndicatorSelected
+                        ]} />
+                        {menuInfo.itemsCount && menuInfo.itemsCount > 0 && (
+                          <Text style={styles.dayMenuCount}>
+                            {menuInfo.itemsCount}
+                          </Text>
+                        )}
+                      </View>
+                    )}
                   </TouchableOpacity>
                 );
               })}
+            </View>
+            
+            {/* Légende */}
+            <View style={styles.calendarLegend}>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: COLORS.variants.secondary[500] }]} />
+                <Text style={styles.legendText}>Menu actif</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: COLORS.text.light }]} />
+                <Text style={styles.legendText}>Menu inactif</Text>
+              </View>
             </View>
             
             <View style={styles.calendarFooter}>
@@ -260,6 +527,37 @@ export default function DailyMenuScreen() {
     );
   };
 
+  // Génération des jours du mois pour le calendrier
+  const generateCalendarDays = () => {
+    const start = startOfWeek(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1), { weekStartsOn: 1 });
+    const end = endOfWeek(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0), { weekStartsOn: 1 });
+    
+    const days = [];
+    let currentDate = start;
+    
+    while (currentDate <= end) {
+      days.push(new Date(currentDate));
+      currentDate = addDays(currentDate, 1);
+    }
+    
+    return days;
+  };
+
+  // Statistiques de cache (pour debug)
+  const CacheStats = () => {
+    if (!__DEV__) return null;
+    
+    return (
+      <View style={styles.cacheStats}>
+        <Text style={styles.cacheStatsText}>
+          📦 Cache: {menuCache.current.size} menus | 
+          ⏳ File: {preloadQueue.current.size} | 
+          📍 Indicateurs: {Object.keys(monthlyIndicators).length}
+        </Text>
+      </View>
+    );
+  };
+
   return (
     <View style={styles.container}>
       <Header
@@ -271,12 +569,22 @@ export default function DailyMenuScreen() {
       
       <DateNavigator />
       
-      <DailyMenuManager
-        restaurantId={String(currentRestaurant.id)}
-        selectedDate={selectedDate}
-        onNavigateToCreate={handleNavigateToCreate}
-        onNavigateToEdit={handleNavigateToEdit}
-      />
+      {__DEV__ && <CacheStats />}
+      
+      <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+        <DailyMenuManager
+          restaurantId={String(currentRestaurant.id)}
+          selectedDate={selectedDate}
+          onNavigateToCreate={handleNavigateToCreate}
+          onNavigateToEdit={handleNavigateToEdit}
+          onMenuUpdated={() => {
+            // Invalider le cache pour cette date
+            invalidateCache(selectedDate);
+            // Recharger les indicateurs
+            loadMonthlyIndicators(currentMonth);
+          }}
+        />
+      </Animated.View>
       
       <CalendarModal />
     </View>
@@ -311,12 +619,14 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
       marginHorizontal: getResponsiveValue(SPACING.sm, screenType),
     },
     dateGradient: {
+      borderRadius: BORDER_RADIUS.lg,
+    },
+    dateDisplayContent: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
       paddingVertical: getResponsiveValue(SPACING.sm, screenType),
       paddingHorizontal: getResponsiveValue(SPACING.md, screenType),
-      borderRadius: BORDER_RADIUS.lg,
     },
     dateText: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
@@ -324,6 +634,15 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
       color: COLORS.text.golden,
       marginHorizontal: getResponsiveValue(SPACING.xs, screenType),
       textTransform: 'capitalize',
+    },
+    menuIndicatorBadge: {
+      width: 20,
+      height: 20,
+      borderRadius: BORDER_RADIUS.full,
+      backgroundColor: COLORS.variants.secondary[500],
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginLeft: getResponsiveValue(SPACING.xs, screenType),
     },
     todayButton: {
       backgroundColor: COLORS.variants.secondary[100],
@@ -350,8 +669,8 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
     calendarContainer: {
       backgroundColor: COLORS.surface,
       borderRadius: BORDER_RADIUS.xl,
-      width: responsive.isMobile ? '100%' : Math.min(400, responsive.width * 0.9),
-      maxWidth: 400,
+      width: responsive.isMobile ? '100%' : Math.min(450, responsive.width * 0.9),
+      maxWidth: 450,
       ...SHADOWS.xl,
     },
     calendarHeader: {
@@ -365,11 +684,18 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
     monthNavButton: {
       padding: getResponsiveValue(SPACING.sm, screenType),
     },
+    monthTitleContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
     monthTitle: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
       fontWeight: TYPOGRAPHY.fontWeight.bold,
       color: COLORS.primary,
       textTransform: 'capitalize',
+    },
+    monthLoader: {
+      marginLeft: getResponsiveValue(SPACING.sm, screenType),
     },
     weekDaysRow: {
       flexDirection: 'row',
@@ -395,6 +721,7 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
       alignItems: 'center',
       justifyContent: 'center',
       padding: getResponsiveValue(SPACING.xs, screenType),
+      position: 'relative',
     },
     dayButtonOtherMonth: {
       opacity: 0.3,
@@ -423,6 +750,56 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
       color: COLORS.variants.secondary[600],
       fontWeight: TYPOGRAPHY.fontWeight.bold,
     },
+    
+    // Indicateurs de menu dans le calendrier
+    dayIndicatorContainer: {
+      position: 'absolute',
+      bottom: 2,
+      alignItems: 'center',
+    },
+    dayMenuIndicator: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: COLORS.variants.secondary[500],
+    },
+    dayMenuIndicatorInactive: {
+      backgroundColor: COLORS.text.light,
+    },
+    dayMenuIndicatorSelected: {
+      backgroundColor: COLORS.surface,
+    },
+    dayMenuCount: {
+      fontSize: 8,
+      color: COLORS.text.secondary,
+      marginTop: 1,
+    },
+    
+    // Légende du calendrier
+    calendarLegend: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      paddingVertical: getResponsiveValue(SPACING.sm, screenType),
+      borderTopWidth: 1,
+      borderTopColor: COLORS.border.light,
+    },
+    legendItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginHorizontal: getResponsiveValue(SPACING.md, screenType),
+    },
+    legendDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      marginRight: getResponsiveValue(SPACING.xs, screenType),
+    },
+    legendText: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
+      color: COLORS.text.secondary,
+    },
+    
+    // Footer du calendrier
     calendarFooter: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -460,6 +837,19 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
       fontWeight: TYPOGRAPHY.fontWeight.medium,
       color: COLORS.text.primary,
+    },
+    
+    // Stats de cache (debug)
+    cacheStats: {
+      backgroundColor: COLORS.goldenSurface,
+      padding: getResponsiveValue(SPACING.xs, screenType),
+      borderBottomWidth: 1,
+      borderBottomColor: COLORS.border.golden,
+    },
+    cacheStatsText: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
+      color: COLORS.text.secondary,
+      textAlign: 'center',
     },
   });
 };
