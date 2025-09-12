@@ -143,7 +143,7 @@ export default function QRCodesScreen() {
         const localUri = asset.localUri || asset.uri;
         if (localUri) {
           const base64 = await FileSystem.readAsStringAsync(localUri, {
-            encoding: FileSystem.EncodingType.Base64,
+            encoding: "base64",
           });
           setLogoBase64(`data:image/png;base64,${base64}`);
         }
