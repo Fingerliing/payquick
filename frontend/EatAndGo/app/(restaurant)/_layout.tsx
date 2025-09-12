@@ -4,9 +4,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStripeDeepLink } from '@/app/hooks/useStripeDeepLink';
 import { Redirect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
   const { isAuthenticated, isLoading, isRestaurateur, hasValidatedProfile } = useAuth();
+  const insets = useSafeAreaInsets();
   
   useStripeDeepLink();
 
@@ -21,11 +23,16 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#3B82F6',
+        tabBarActiveTintColor: '#D4AF37', // Couleur dorée pour l'actif
         tabBarInactiveTintColor: '#6B7280',
         tabBarStyle: {
           backgroundColor: '#FFFFFF',
           borderTopColor: '#E5E7EB',
+          paddingBottom: Math.max(5, insets.bottom), // Safe area bottom
+          paddingTop: 5,
+          paddingLeft: insets.left, // Safe area gauche
+          paddingRight: insets.right, // Safe area droite
+          height: 60 + Math.max(0, insets.bottom), // Ajuster la hauteur avec safe area
         },
         headerShown: false,
       }}
@@ -66,7 +73,23 @@ export default function TabLayout() {
           ),
         }}
       />
-      
+
+      {isRestaurateur && hasValidatedProfile && (
+        <Tabs.Screen
+          name="daily-menu"
+          options={{
+            title: 'Menu du Jour',
+            tabBarIcon: ({ color, size, focused }) => (
+              <Ionicons 
+                name={focused ? "today" : "today-outline"} 
+                size={size} 
+                color={color} 
+              />
+            ),
+          }}
+        />
+      )}
+
       <Tabs.Screen
         name="qrcodes"
         options={{

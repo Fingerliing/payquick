@@ -981,17 +981,31 @@ export default function DashboardScreen() {
               </View>
               
               <View style={styles.quickActionsGrid}>
+                {/* Menu du Jour - Action premium en premier */}
                 <TouchableOpacity
                   style={[styles.actionCard, styles.actionCardPremium]}
+                  onPress={() => router.push('/(restaurant)/daily-menu' as any)}
+                >
+                  <View style={[styles.actionIcon, { backgroundColor: COLORS.variants.secondary[100] }]}>
+                    <Ionicons name="today" size={20} color={COLORS.secondary} />
+                  </View>
+                  <Text style={styles.actionTitle}>Menu du Jour</Text>
+                  <Text style={styles.actionDescription}>Gérer le menu d'aujourd'hui</Text>
+                </TouchableOpacity>
+                
+                {/* Créer un restaurant */}
+                <TouchableOpacity
+                  style={[styles.actionCard, safeRestaurants.length === 0 && styles.actionCardPremium]}
                   onPress={() => router.push('/restaurant/create')}
                 >
                   <View style={styles.actionIcon}>
                     <Ionicons name="add-circle" size={20} color={COLORS.primary} />
                   </View>
                   <Text style={styles.actionTitle}>Créer un restaurant</Text>
-                  <Text style={styles.actionDescription}>Nouveau établissement</Text>
+                  <Text style={styles.actionDescription}>Nouvel établissement</Text>
                 </TouchableOpacity>
                 
+                {/* QR Codes */}
                 <TouchableOpacity
                   style={styles.actionCard}
                   onPress={() => router.navigate('/(restaurant)/qrcodes')}
@@ -1003,6 +1017,7 @@ export default function DashboardScreen() {
                   <Text style={styles.actionDescription}>Générer et gérer</Text>
                 </TouchableOpacity>
 
+                {/* Gérer les menus */}
                 <TouchableOpacity
                   style={styles.actionCard}
                   onPress={() => router.navigate('/(restaurant)/menu')}
@@ -1014,6 +1029,7 @@ export default function DashboardScreen() {
                   <Text style={styles.actionDescription}>Plats et prix</Text>
                 </TouchableOpacity>
                 
+                {/* Voir les commandes */}
                 <TouchableOpacity
                   style={styles.actionCard}
                   onPress={() => router.navigate('/(restaurant)/orders')}
@@ -1023,6 +1039,18 @@ export default function DashboardScreen() {
                   </View>
                   <Text style={styles.actionTitle}>Voir les commandes</Text>
                   <Text style={styles.actionDescription}>Gestion et suivi</Text>
+                </TouchableOpacity>
+                
+                {/* Statistiques - Nouvelle action */}
+                <TouchableOpacity
+                  style={styles.actionCard}
+                  onPress={() => router.navigate('/(restaurant)/stats' as any)}
+                >
+                  <View style={styles.actionIcon}>
+                    <Ionicons name="stats-chart" size={20} color={COLORS.primary} />
+                  </View>
+                  <Text style={styles.actionTitle}>Statistiques</Text>
+                  <Text style={styles.actionDescription}>Performances</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1051,7 +1079,7 @@ export default function DashboardScreen() {
                   />
                   <Button
                     title="Guide d'utilisation"
-                    onPress={() => router.push('/help')}
+                    onPress={() => router.push('/help' as any)}
                     variant="outline"
                     fullWidth={isMobile}
                   />
