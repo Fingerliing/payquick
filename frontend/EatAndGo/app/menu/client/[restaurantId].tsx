@@ -24,6 +24,7 @@ import { restaurantService } from '@/services/restaurantService';
 import { Header } from '@/components/ui/Header';
 import { Loading } from '@/components/ui/Loading';
 import { Button } from '@/components/ui/Button';
+import { DailyMenuDisplay } from '@/components/menu/DailyMenuDisplay';
 
 // Types
 import { Menu, MenuItem } from '@/types/menu';
@@ -224,17 +225,6 @@ const MenuItemCard = React.memo(({
   return (
     <View style={[styles.card, styles.gridItem]}>
       <View style={styles.menuItemRow}>
-        {/* Thumbnail — supprimé pour ne pas afficher l'image directement */}
-        {/* {hasImage && (
-          <View style={styles.menuItemThumb}>
-            <Image 
-              source={{ uri: item.image_url! }} 
-              style={styles.menuItemThumb}
-              resizeMode="cover"
-            />
-          </View>
-        )} */}
-
         {/* Content Column */}
         <View style={styles.menuItemCol}>
           {/* Header avec nom et prix */}
@@ -388,6 +378,15 @@ const MenuItemCard = React.memo(({
   );
 });
 
+// Section Separator Component
+const SectionSeparator = React.memo(({ title, styles }: { title: string; styles: any }) => (
+  <View style={styles.sectionSeparator}>
+    <View style={styles.separatorLine} />
+    <Text style={styles.separatorText}>{title}</Text>
+    <View style={styles.separatorLine} />
+  </View>
+));
+
 // =============================================================================
 // COMPOSANT PRINCIPAL
 // =============================================================================
@@ -503,7 +502,7 @@ export default function ModernClientMenuScreen() {
   }, [filteredItems]);
 
   // Handlers
-  const handleAddToCart = useCallback((item: MenuItem) => {
+  const handleAddToCart = useCallback((item: MenuItem | any) => {
     if (!isCartForRestaurant(parseInt(restaurantId))) {
       Alert.alert(
         'Changer de restaurant',
@@ -518,17 +517,20 @@ export default function ModernClientMenuScreen() {
     }
   }, [restaurantId, isCartForRestaurant]);
 
-  const proceedAddToCart = useCallback((item: MenuItem) => {
-    addToCart({
-      id: `${item.id}-${Date.now()}`,
-      menuItemId: item.id,
+  const proceedAddToCart = useCallback((item: MenuItem | any) => {
+    // Support for both regular menu items and daily menu items
+    const itemData = {
+      id: `${item.id || item.menuItemId}-${Date.now()}`,
+      menuItemId: item.id || item.menuItemId,
       name: item.name,
       description: item.description,
-      price: parseFloat(item.price),
+      price: typeof item.price === 'string' ? parseFloat(item.price) : item.price,
       restaurantId: parseInt(restaurantId),
-      restaurantName: restaurant?.name || '',
+      restaurantName: item.restaurantName || restaurant?.name || '',
       specialInstructions: '',
-    });
+    };
+
+    addToCart(itemData);
 
     Alert.alert('Ajouté au panier', `${item.name} a été ajouté à votre commande`);
   }, [addToCart, restaurantId, restaurant?.name]);
@@ -670,6 +672,17 @@ export default function ModernClientMenuScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.container}>
+          {/* Daily Menu Display - Affiché en premier s'il y en a un */}
+          <DailyMenuDisplay
+            restaurantId={parseInt(restaurantId)}
+            restaurantName={restaurant.name}
+            onAddToCart={handleAddToCart}
+            isInRestaurantView={true}
+          />
+
+          {/* Séparateur entre menu du jour et menu classique */}
+          <SectionSeparator title="Menu à la carte" styles={styles} />
+
           {/* Sticky Navigation */}
           <StickyNavigation
             categories={categories}
