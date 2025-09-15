@@ -65,7 +65,7 @@ export default function DailyMenuScreen() {
   // Cache et optimisations
   const menuCache = useRef<Map<string, MenuCacheEntry>>(new Map());
   const [monthlyIndicators, setMonthlyIndicators] = useState<MonthlyMenuIndicators>({});
-  const [isLoadingIndicators, setIsLoadingIndicators] = useState(false);
+  const isLoadingIndicatorsRef = useRef(false);
   const preloadQueue = useRef<Set<string>>(new Set());
   const fadeAnim = useRef(new Animated.Value(1)).current;
   
@@ -197,9 +197,9 @@ export default function DailyMenuScreen() {
    * Charge les indicateurs de menus pour le mois en cours
    */
   const loadMonthlyIndicators = useCallback(async (month: Date) => {
-    if (isLoadingIndicators) return;
+    if (isLoadingIndicatorsRef.current) return;
     
-    setIsLoadingIndicators(true);
+    isLoadingIndicatorsRef.current = true;
     try {
       console.log(`📅 Chargement des indicateurs pour ${format(month, 'MMMM yyyy', { locale: fr })}`);
       
@@ -231,9 +231,9 @@ export default function DailyMenuScreen() {
     } catch (error) {
       console.error('Erreur lors du chargement des indicateurs:', error);
     } finally {
-      setIsLoadingIndicators(false);
+      isLoadingIndicatorsRef.current = false;
     }
-  }, [currentRestaurant.id, isLoadingIndicators]);
+  }, [currentRestaurant.id]);
 
   // ==================== EFFETS ====================
   
@@ -410,7 +410,7 @@ export default function DailyMenuScreen() {
                 <Text style={styles.monthTitle}>
                   {format(currentMonth, 'MMMM yyyy', { locale: fr })}
                 </Text>
-                {isLoadingIndicators && (
+                {isLoadingIndicatorsRef.current && (
                   <ActivityIndicator 
                     size="small" 
                     color={COLORS.variants.secondary[500]}
