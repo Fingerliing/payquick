@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -51,7 +52,8 @@ export default function CreateDailyMenuScreen() {
   const { restaurantId } = useLocalSearchParams<{ restaurantId: string }>();
   const screenType = useScreenType();
   const responsive = useResponsive();
-  const styles = createStyles(screenType, responsive);
+  const insets = useSafeAreaInsets();
+  const styles = createStyles(screenType, responsive, insets);
 
   // États
   const [isLoading, setIsLoading] = useState(false);
@@ -348,7 +350,7 @@ export default function CreateDailyMenuScreen() {
   );
 }
 
-const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: any) => {
+const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: any, insets: any) => {
   const responsiveStyles = createResponsiveStyles(screenType);
   
   return StyleSheet.create({
@@ -361,7 +363,7 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
     },
     scrollContent: {
       padding: getResponsiveValue(SPACING.container, screenType),
-      paddingBottom: 100,
+      paddingBottom: 100 + insets.bottom, // Ajouter la safe area bottom
     },
     loadingContainer: {
       flex: 1,
@@ -518,7 +520,7 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
     },
     footerGradient: {
       padding: getResponsiveValue(SPACING.lg, screenType),
-      paddingBottom: getResponsiveValue(SPACING.xl, screenType),
+      paddingBottom: getResponsiveValue(SPACING.xl, screenType) + insets.bottom, // Ajouter la safe area bottom
     },
   });
 };
