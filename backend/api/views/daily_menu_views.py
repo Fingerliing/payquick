@@ -7,6 +7,7 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Q, Count, Sum, Avg
 from django.utils import timezone
 from datetime import timedelta, datetime
+from calendar import monthrange
 from api.models import (
     DailyMenu, DailyMenuItem, DailyMenuTemplate, Restaurant, MenuItem
 )
@@ -16,7 +17,6 @@ from api.serializers.daily_menu_serializers import (
 )
 from api.permissions import IsRestaurateur, IsValidatedRestaurateur
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
-
 
 @extend_schema(tags=["Daily Menu • Menus du Jour"])
 class DailyMenuViewSet(viewsets.ModelViewSet):
@@ -295,6 +295,247 @@ class DailyMenuViewSet(viewsets.ModelViewSet):
             'reason': 'nouveau'
         } for item in never_used]
 
+    @extend_schema(
+        summary="Menu par date",
+        description="Récupère le menu d'une date spécifique pour un restaurant",
+        parameters=[
+            OpenApiParameter(name="restaurant_id", type=str, required=True, location="query"),
+            OpenApiParameter(name="date", type=str, required=True, location="query", description="Format: YYYY-MM-DD")
+        ]
+    )
+    @action(detail=False, methods=['get'], url_path='by-date')
+    def by_date(self, request):
+        """Récupère le menu d'une date spécifique"""
+        restaurant_id = request.query_params.get('restaurant_id')
+        date = request.query_params.get('date')
+        
+        if not restaurant_id or not date:
+            return Response(
+                {'error': 'restaurant_id et date sont requis'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Vérifier que le restaurant appartient au restaurateur
+        restaurant = get_object_or_404(
+            Restaurant,
+            id=restaurant_id,
+            owner=request.user.restaurateur_profile
+        )
+        
+        try:
+            target_date = datetime.strptime(date, '%Y-%m-%d').date()
+            daily_menu = DailyMenu.objects.get(restaurant=restaurant, date=target_date)
+            serializer = DailyMenuDetailSerializer(daily_menu)
+            return Response(serializer.data)
+        except ValueError:
+            return Response(
+                {'error': 'Format de date invalide (attendu: YYYY-MM-DD)'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except DailyMenu.DoesNotExist:
+            return Response(
+                {'message': f'Aucun menu trouvé pour le {target_date}'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+    @extend_schema(
+        summary="Menus par période",
+        description="Récupère les menus d'une période pour un restaurant",
+        parameters=[
+            OpenApiParameter(name="restaurant_id", type=str, required=True, location="query"),
+            OpenApiParameter(name="start_date", type=str, required=True, location="query", description="Format: YYYY-MM-DD"),
+            OpenApiParameter(name="end_date", type=str, required=True, location="query", description="Format: YYYY-MM-DD")
+        ]
+    )
+    @action(detail=False, methods=['get'])
+    def range(self, request):
+        """Récupère les menus d'une période"""
+        restaurant_id = request.query_params.get('restaurant_id')
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        
+        if not all([restaurant_id, start_date, end_date]):
+            return Response(
+                {'error': 'restaurant_id, start_date et end_date sont requis'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Vérifier que le restaurant appartient au restaurateur
+        restaurant = get_object_or_404(
+            Restaurant,
+            id=restaurant_id,
+            owner=request.user.restaurateur_profile
+        )
+        
+        try:
+            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+            
+            if start_date > end_date:
+                return Response(
+                    {'error': 'La date de début doit être antérieure à la date de fin'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            menus = DailyMenu.objects.filter(
+                restaurant=restaurant,
+                date__range=[start_date, end_date]
+            ).order_by('date')
+            
+            serializer = DailyMenuListSerializer(menus, many=True)
+            return Response(serializer.data)
+            
+        except ValueError:
+            return Response(
+                {'error': 'Format de date invalide (attendu: YYYY-MM-DD)'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+    @extend_schema(
+        summary="Calendrier mensuel",
+        description="Récupère le calendrier des menus du mois",
+        parameters=[
+            OpenApiParameter(name="restaurant_id", type=str, required=True, location="query"),
+            OpenApiParameter(name="year", type=int, required=True, location="query"),
+            OpenApiParameter(name="month", type=int, required=True, location="query", description="1-12")
+        ]
+    )
+    @action(detail=False, methods=['get'])
+    def calendar(self, request):
+        """Récupère le calendrier des menus du mois"""
+        restaurant_id = request.query_params.get('restaurant_id')
+        year = request.query_params.get('year')
+        month = request.query_params.get('month')
+        
+        if not all([restaurant_id, year, month]):
+            return Response(
+                {'error': 'restaurant_id, year et month sont requis'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Vérifier que le restaurant appartient au restaurateur
+        restaurant = get_object_or_404(
+            Restaurant,
+            id=restaurant_id,
+            owner=request.user.restaurateur_profile
+        )
+        
+        try:
+            year = int(year)
+            month = int(month)
+            
+            if not (1 <= month <= 12):
+                return Response(
+                    {'error': 'Le mois doit être entre 1 et 12'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Premier et dernier jour du mois
+            from calendar import monthrange
+            _, last_day = monthrange(year, month)
+            start_date = datetime(year, month, 1).date()
+            end_date = datetime(year, month, last_day).date()
+            
+            menus = DailyMenu.objects.filter(
+                restaurant=restaurant,
+                date__range=[start_date, end_date]
+            ).order_by('date')
+            
+            dates_with_menu = [menu.date.isoformat() for menu in menus]
+            menu_summaries = [{
+                'date': menu.date.isoformat(),
+                'menu_id': str(menu.id),
+                'title': menu.title,
+                'items_count': menu.total_items_count,
+                'is_active': menu.is_active
+            } for menu in menus]
+            
+            return Response({
+                'dates_with_menu': dates_with_menu,
+                'menu_summaries': menu_summaries
+            })
+            
+        except ValueError:
+            return Response(
+                {'error': 'Année et mois doivent être des entiers valides'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+    @extend_schema(
+        summary="Copier un menu vers une nouvelle date",
+        description="Copie un menu vers une nouvelle date",
+        request={
+            'application/json': {
+                'type': 'object',
+                'properties': {
+                    'target_date': {
+                        'type': 'string',
+                        'format': 'date',
+                        'description': 'Date cible au format YYYY-MM-DD'
+                    }
+                },
+                'required': ['target_date']
+            }
+        }
+    )
+    @action(detail=True, methods=['post'])
+    def copy(self, request, pk=None):
+        """Copie un menu vers une nouvelle date"""
+        source_menu = self.get_object()
+        target_date = request.data.get('target_date')
+        
+        if not target_date:
+            return Response(
+                {'error': 'target_date est requise'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            target_date = datetime.strptime(target_date, '%Y-%m-%d').date()
+        except ValueError:
+            return Response(
+                {'error': 'Format de date invalide (attendu: YYYY-MM-DD)'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Vérifier que la date n'est pas trop ancienne
+        if target_date < timezone.now().date() - timedelta(days=1):
+            return Response(
+                {'error': 'Impossible de copier vers une date antérieure à hier'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Vérifier qu'il n'existe pas déjà un menu pour cette date
+        if DailyMenu.objects.filter(restaurant=source_menu.restaurant, date=target_date).exists():
+            return Response(
+                {'error': f'Un menu du jour existe déjà pour le {target_date}'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Créer le nouveau menu (même logique que duplicate)
+        new_menu = DailyMenu.objects.create(
+            restaurant=source_menu.restaurant,
+            date=target_date,
+            title=source_menu.title,
+            description=source_menu.description,
+            special_price=source_menu.special_price,
+            is_active=source_menu.is_active,
+            created_by=request.user
+        )
+        
+        # Copier tous les items
+        for source_item in source_menu.daily_menu_items.all():
+            DailyMenuItem.objects.create(
+                daily_menu=new_menu,
+                menu_item=source_item.menu_item,
+                special_price=source_item.special_price,
+                display_order=source_item.display_order,
+                special_note=source_item.special_note,
+                is_available=source_item.is_available
+            )
+        
+        serializer = DailyMenuDetailSerializer(new_menu)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 @extend_schema(tags=["Daily Menu • API Publique"])
 class PublicDailyMenuViewSet(viewsets.ReadOnlyModelViewSet):

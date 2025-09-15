@@ -267,7 +267,7 @@ export default function DailyMenuScreen() {
 
   const handleNavigateToCreate = () => {
     router.push({
-      pathname: '/(restaurant)/daily-menu/create' as any,
+      pathname: '/menu/daily-menu/create' as any,
       params: { 
         restaurantId: currentRestaurant.id,
         date: format(selectedDate, 'yyyy-MM-dd')
@@ -277,7 +277,7 @@ export default function DailyMenuScreen() {
 
   const handleNavigateToEdit = (menuId: string) => {
     router.push({
-      pathname: '/(restaurant)/daily-menu/edit/[id]' as any,
+      pathname: '/menu/daily-menu/edit/[id]' as any,
       params: { id: menuId, restaurantId: currentRestaurant.id }
     });
   };
