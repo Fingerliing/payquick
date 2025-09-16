@@ -1,801 +1,689 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
+  StyleSheet,
   ScrollView,
-  Pressable,
   SafeAreaView,
   Alert,
+  TextInput,
+  Pressable,
   ActivityIndicator,
-  useWindowDimensions,
+  Switch,
+  Modal,
+  Platform,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useStripe } from '@stripe/stripe-react-native';
-import { useAuth } from '@/contexts/AuthContext';
-import { useCart } from '@/contexts/CartContext';
+import { Ionicons } from '@expo/vector-icons';
+import { StripeProvider, useStripe } from '@stripe/stripe-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// UI kit
 import { Header } from '@/components/ui/Header';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { StatusBadge } from '@/components/common/StatusBadge';
-import { paymentService } from '@/services/paymentService';
+import { Receipt } from '@/components/receipt/Receipt';
+
+// Services
 import { orderService } from '@/services/orderService';
-import { OrderDetail } from '@/types/order';
+import { paymentService } from '@/services/paymentService';
+import { receiptService } from '@/services/receiptService';
 
-// Constantes de design responsive
-const BREAKPOINTS = {
-  mobile: 0,
-  tablet: 768,
-  desktop: 1024,
-};
+// Contexts
+import { useCart } from '@/contexts/CartContext';
+import { useAuth } from '@/contexts/AuthContext';
 
-// Couleurs de la charte
-const COLORS = {
-  primary: '#1E2A78',    // Bleu principal
-  secondary: '#FFC845',  // Jaune/Orange
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444',
-  background: '#F9FAFB',
-  surface: '#FFFFFF',
-  text: {
-    primary: '#111827',
-    secondary: '#6B7280',
-    light: '#9CA3AF',
-  },
-  border: '#E5E7EB',
-  shadow: 'rgba(0, 0, 0, 0.1)',
-};
+// Design system
+import {
+  useScreenType,
+  getResponsiveValue,
+  COLORS,
+  SPACING,
+  BORDER_RADIUS,
+} from '@/utils/designSystem';
 
-// Hook pour détecter le type d'écran
-const useScreenType = () => {
-  const { width } = useWindowDimensions();
-  
-  if (width >= BREAKPOINTS.desktop) return 'desktop';
-  if (width >= BREAKPOINTS.tablet) return 'tablet';
-  return 'mobile';
-};
+const STRIPE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || '';
 
-interface PaymentMethod {
-  id: string;
-  title: string;
-  description: string;
-  icon: string;
-  badge?: string;
-  recommended?: boolean;
+// ==== Types
+export interface OrderItem {
+  id?: number | string;
+  name: string;
+  quantity: number;
+  total_price: number; // €
 }
+
+export interface OrderDetail {
+  id: number | string;
+  order_number?: string;
+  restaurant_name?: string;
+  table_number?: string | number | null;
+  items?: OrderItem[];
+  total_amount: number; // €
+  payment_status?: 'unpaid' | 'paid' | 'cash_pending' | string;
+  payment_method?: 'online' | 'cash' | string;
+  customer_email?: string | null;
+  tip_amount?: number;
+}
+
+// ==== Helpers
+const formatCurrency = (v: number) => `${v.toFixed(2)} €`;
+const isEmail = (v: string) => /^(?:[^\s@]+@[^\s@]+\.[^\s@]+)$/i.test(v.trim());
 
 export default function PaymentScreen() {
   const { orderId } = useLocalSearchParams<{ orderId: string }>();
-  const { initPaymentSheet, presentPaymentSheet } = useStripe();
-  const { user, isAuthenticated } = useAuth();
   const { clearCart } = useCart();
-  const screenType = useScreenType();
-  const styles = createStyles(screenType);
-  
+  const { user } = useAuth();
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
+
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [processingPayment, setProcessingPayment] = useState(false);
-  const [selectedMethod, setSelectedMethod] = useState<string>('online');
+  const [processing, setProcessing] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'online' | 'cash'>('online');
 
-  const paymentMethods: PaymentMethod[] = [
-    {
-      id: 'online',
-      title: 'Paiement en ligne',
-      description: 'Carte bancaire via Stripe (sécurisé)',
-      icon: 'card-outline',
-      badge: 'Soutenez le développeur',
-      recommended: true,
-    },
-    {
-      id: 'cash',
-      title: 'Payer en caisse',
-      description: 'Payez directement au restaurant',
-      icon: 'storefront-outline',
-    },
-  ];
+  const [tipAmount, setTipAmount] = useState(0);
+  const [selectedTipPercent, setSelectedTipPercent] = useState<number | null>(null);
+  const [customTipInput, setCustomTipInput] = useState('');
 
-  // Récupération réelle de la commande avec le service existant
+  const [customerEmail, setCustomerEmail] = useState(user?.email || '');
+  const [wantReceipt, setWantReceipt] = useState(true);
+  const [showReceiptPreview, setShowReceiptPreview] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
+
+  const screenType = useScreenType();
+  const TIP_PERCENTAGES = [5, 10, 15, 20];
+
   useEffect(() => {
-    const fetchOrder = async () => {
-      if (!orderId) {
-        Alert.alert('Erreur', 'ID de commande manquant');
-        router.back();
-        return;
-      }
-
-      try {
-        console.log('🔄 Fetching order:', orderId);
-        
-        const orderData = await orderService.getOrderById(Number(orderId));
-        console.log('✅ Order fetched:', orderData);
-        
-        setOrder(orderData);
-      } catch (error: any) {
-        console.error('❌ Error fetching order:', error);
-        Alert.alert('Erreur', error.message || 'Impossible de charger la commande');
-        router.back();
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchOrder();
+    loadOrder();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId]);
 
-  const initializePaymentSheet = async () => {
+  const loadOrder = async () => {
     try {
-      if (!order) return null;
-  
-      const paymentIntent = await paymentService.createPaymentIntent(order.id.toString());
-  
-      const { error } = await initPaymentSheet({
-        merchantDisplayName: 'Eat&Go',
-        paymentIntentClientSecret: paymentIntent.client_secret,
-        style: 'automatic',
-        allowsDelayedPaymentMethods: false,
-        defaultBillingDetails: {
-          name: user?.first_name ? `${user.first_name} ${user.username}` : undefined,
-          email: user?.email,
-        },
-      });
-  
-      if (error) {
-        console.error('Erreur initialisation PaymentSheet:', error);
-        return null;
-      }
-  
-      return paymentIntent;
+      setLoading(true);
+      const data = await orderService.getOrderById(Number(orderId));
+      setOrder(data as unknown as OrderDetail);
+      
+      // Email mémorisé
+      const savedEmail = await AsyncStorage.getItem('customerEmail');
+      if (savedEmail && !customerEmail) setCustomerEmail(savedEmail);
     } catch (error) {
-      console.error('Erreur lors de l\'initialisation du paiement:', error);
-      return null;
+      console.error('Error loading order:', error);
+      Alert.alert('Erreur', "Impossible de charger la commande");
+      router.back();
+    } finally {
+      setLoading(false);
     }
   };
 
-  const showDeveloperInfo = () => {
-    Alert.alert(
-      'Information développeur',
-      'Le développeur touche un petit pourcentage de la commande si elle est réglée depuis l\'application.',
-      [{ text: 'Compris', style: 'default' }]
-    );
+  const handleTipPercentage = (percent: number) => {
+    if (!order) return;
+    if (selectedTipPercent === percent) {
+      setSelectedTipPercent(null);
+      setTipAmount(0);
+      setCustomTipInput('');
+    } else {
+      setSelectedTipPercent(percent);
+      const tip = Math.round(order.total_amount * (percent / 100) * 100) / 100;
+      setTipAmount(tip);
+      setCustomTipInput(tip.toFixed(2));
+    }
+  };
+
+  const handleCustomTip = (text: string) => {
+    setCustomTipInput(text);
+    const amount = parseFloat(text.replace(',', '.'));
+    if (!isNaN(amount)) {
+      setTipAmount(Math.max(0, Math.round(amount * 100) / 100));
+      setSelectedTipPercent(null);
+    } else {
+      setTipAmount(0);
+      setSelectedTipPercent(null);
+    }
+  };
+
+  const totalWithTip = useMemo(
+    () => (order?.total_amount || 0) + (tipAmount || 0),
+    [order?.total_amount, tipAmount]
+  );
+
+  const initializePayment = async () => {
+    if (paymentMethod !== 'online' || !order) return false;
+
+    try {
+      // Important: s'assurer que le PaymentIntent inclut le pourboire.
+      // On tente d'envoyer tip/total, avec repli si l'API existante ne l'accepte pas.
+      let clientSecret: string | undefined;
+      try {
+        const res = await (paymentService as any).createPaymentIntent(orderId, {
+          tip_amount: tipAmount, // en €; adapter si le backend attend des cents
+          total_with_tip: totalWithTip,
+        });
+        clientSecret = res?.client_secret;
+      } catch (e) {
+        // fallback compat: API sans payload additionnel
+        const res = await paymentService.createPaymentIntent(orderId as string);
+        clientSecret = (res as any)?.client_secret;
+      }
+
+      if (!clientSecret) throw new Error('Client secret manquant');
+
+      const { error } = await initPaymentSheet({
+        merchantDisplayName: order.restaurant_name || 'Restaurant',
+        paymentIntentClientSecret: clientSecret,
+        allowsDelayedPaymentMethods: false,
+        defaultBillingDetails: { email: customerEmail || undefined },
+        appearance: {
+          colors: {
+            primary: COLORS.primary,
+            background: COLORS.surface,
+            componentBackground: COLORS.background,
+            primaryText: COLORS.text.primary,
+          },
+          shapes: {
+            borderRadius: 12,
+            borderWidth: 1,
+          },
+        },
+      });
+
+      if (error) {
+        console.error('Error initializing payment sheet:', error);
+        throw error;
+      }
+      return true;
+    } catch (error) {
+      console.error('Error initializing payment:', error);
+      Alert.alert('Erreur', "Impossible d'initialiser le paiement");
+      return false;
+    }
   };
 
   const handleOnlinePayment = async () => {
     if (!order) return;
+    if (!STRIPE_PUBLISHABLE_KEY) {
+      Alert.alert('Configuration Stripe manquante',
+        "La clé publique Stripe n'est pas configurée. Contactez le support.");
+      return;
+    }
+    if (wantReceipt && customerEmail && !isEmail(customerEmail)) {
+      Alert.alert('Email invalide', "Veuillez saisir une adresse email valide ou désactivez l'envoi du ticket.");
+      return;
+    }
 
-    setProcessingPayment(true);
-    
+    setProcessing(true);
     try {
-      const paymentIntent = await initializePaymentSheet();
-      if (!paymentIntent) {
-        Alert.alert('Erreur', 'Impossible d\'initialiser le paiement');
-        return;
-      }
+      if (customerEmail) await AsyncStorage.setItem('customerEmail', customerEmail.trim());
+
+      const initialized = await initializePayment();
+      if (!initialized) { setProcessing(false); return; }
 
       const { error } = await presentPaymentSheet();
-
       if (error) {
-        if (error.code !== 'Canceled') {
-          Alert.alert('Erreur de paiement', error.message);
+        if ((error as any).code === 'Canceled') {
+          console.log('Payment canceled by user');
+        } else {
+          Alert.alert('Erreur de paiement', (error as any).message || 'Paiement refusé');
         }
+        setProcessing(false);
         return;
       }
 
-      await updateOrderPaymentStatus('online');
-      
-      Alert.alert(
-        'Paiement réussi ! 🎉',
-        'Votre commande a été payée avec succès. Merci d\'avoir soutenu le développeur !',
-        [
-          {
-            text: 'Voir ma commande',
-            onPress: () => {
-              clearCart();
-              router.replace(`/order/${order.id}`);
-            },
-          },
-        ]
-      );
-
+      await handlePaymentSuccess('online');
     } catch (error) {
-      console.error('Erreur lors du paiement:', error);
-      Alert.alert('Erreur', 'Une erreur est survenue lors du paiement');
-    } finally {
-      setProcessingPayment(false);
+      console.error('Payment error:', error);
+      Alert.alert('Erreur', 'Le paiement a échoué');
+      setProcessing(false);
     }
   };
 
   const handleCashPayment = async () => {
     if (!order) return;
-
     Alert.alert(
-      'Paiement en caisse',
-      'Votre commande a été transmise au restaurant. Vous pourrez payer directement en caisse.',
+      'Paiement en espèces',
+      'Confirmez-vous le paiement en espèces au restaurant ?',
       [
+        { text: 'Annuler', style: 'cancel' },
         {
           text: 'Confirmer',
           onPress: async () => {
+            setProcessing(true);
             try {
-              await updateOrderPaymentStatus('cash');
-              clearCart();
-              router.replace(`/order/${order.id}`);
-            } catch (error: any) {
-              Alert.alert('Erreur', error.message || 'Erreur lors de la confirmation');
+              await paymentService.updatePaymentStatus(orderId as string, 'cash_pending');
+              if (customerEmail) await AsyncStorage.setItem('customerEmail', customerEmail.trim());
+              await handlePaymentSuccess('cash');
+            } catch (error) {
+              console.error('Error confirming cash payment:', error);
+              Alert.alert('Erreur', 'Impossible de confirmer le paiement');
+              setProcessing(false);
             }
           },
         },
-        { text: 'Annuler', style: 'cancel' },
       ]
     );
   };
 
-  const updateOrderPaymentStatus = async (paymentMethod: string) => {
+  const handlePaymentSuccess = async (method: 'online' | 'cash') => {
     try {
-      console.log('🔄 Updating payment status:', { orderId: order!.id, paymentMethod });
-      
-      const updatedOrder = await orderService.markAsPaid(Number(order!.id), paymentMethod);
-      
-      console.log('✅ Payment status updated:', updatedOrder);
-      
-      setOrder(updatedOrder);
-    } catch (error: any) {
-      console.error('❌ Error updating payment status:', error);
-      throw new Error(error.message || 'Erreur lors de la mise à jour du paiement');
+      // Source de vérité: la commande
+      await orderService.updateOrderStatus(Number(orderId), method === 'online' ? 'paid' : 'cash_pending');
+      await orderService.markAsPaid(Number(orderId), method);
+
+      if (wantReceipt && customerEmail && isEmail(customerEmail)) {
+        try {
+          await receiptService.sendReceiptByEmail({ order_id: Number(orderId), email: customerEmail.trim(), format: 'pdf', language: 'fr' } as any);
+        } catch (e) {
+          console.warn('Receipt email failed, continuing:', e);
+        }
+      }
+
+      clearCart();
+      setPaymentSuccess(true);
+
+      Alert.alert(
+        'Paiement réussi !',
+        method === 'online'
+          ? 'Votre paiement a été confirmé.'
+          : 'Votre commande est confirmée. Vous paierez au restaurant.',
+        [
+          {
+            text: wantReceipt && customerEmail ? 'Voir le ticket' : 'OK',
+            onPress: () => {
+              if (wantReceipt && customerEmail) setShowReceiptPreview(true);
+              else router.replace(`/order/${orderId}`);
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Post-payment steps error:', error);
+      router.replace(`/order/${orderId}`);
+    } finally {
+      setProcessing(false);
     }
   };
 
-  const renderPaymentMethod = (method: PaymentMethod) => (
-    <Pressable
-      key={method.id}
-      onPress={() => setSelectedMethod(method.id)}
-      style={[
-        styles.paymentMethod,
-        selectedMethod === method.id && styles.selectedPaymentMethod,
-        method.recommended && styles.recommendedMethod,
-      ]}
-    >
-      <View style={styles.methodContent}>
-        <View style={styles.methodLeft}>
-          <View style={[
-            styles.radioButton,
-            selectedMethod === method.id && styles.radioButtonSelected,
-          ]}>
-            {selectedMethod === method.id && (
-              <View style={styles.radioButtonInner} />
-            )}
-          </View>
-          
-          <View style={styles.methodIcon}>
-            <Ionicons 
-              name={method.icon as any} 
-              size={24} 
-              color={selectedMethod === method.id ? COLORS.primary : COLORS.text.secondary} 
-            />
-          </View>
-          
-          <View style={styles.methodInfo}>
-            <View style={styles.methodTitleContainer}>
-              <Text style={[
-                styles.methodTitle,
-                selectedMethod === method.id && styles.selectedMethodTitle,
-              ]}>
-                {method.title}
-              </Text>
-              {method.recommended && (
-                <View style={styles.recommendedBadge}>
-                  <Text style={styles.recommendedText}>Recommandé</Text>
-                </View>
-              )}
-            </View>
-            <Text style={styles.methodDescription}>
-              {method.description}
-            </Text>
-            {method.badge && (
-              <Text style={styles.methodBadge}>
-                {method.badge}
-              </Text>
-            )}
-          </View>
-        </View>
-        
-        {selectedMethod === method.id && (
-          <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
-        )}
-      </View>
-    </Pressable>
-  );
-
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <Header 
-          title="Paiement" 
-          leftIcon="arrow-back" 
-          onLeftPress={() => router.back()} 
-        />
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Chargement...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (!order) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <Header 
-          title="Paiement" 
-          leftIcon="arrow-back" 
-          onLeftPress={() => router.back()} 
-        />
-        <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={48} color={COLORS.text.secondary} />
-          <Text style={styles.errorText}>Commande introuvable</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  const handlePayment = () => {
-    if (selectedMethod === 'online') {
-      handleOnlinePayment();
-    } else {
-      handleCashPayment();
-    }
-  };
-
-  return (
-    <SafeAreaView style={styles.container}>
-      <Header 
-        title="Paiement" 
-        leftIcon="arrow-back" 
-        onLeftPress={() => router.back()} 
-      />
-
-      <ScrollView 
-        style={styles.content} 
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.mainLayout}>
-          {/* Colonne principale */}
-          <View style={styles.mainColumn}>
-            {/* Résumé de la commande */}
-            <Card style={styles.orderSummary}>
-              <View style={styles.orderHeader}>
-                <View style={styles.orderInfo}>
-                  <Text style={styles.orderTitle}>
-                    Commande #{order.order_number || order.id}
-                  </Text>
-                  <Text style={styles.restaurantName}>
-                    {order.restaurant_name || 'Restaurant'}
-                  </Text>
-                  {order.table_number && (
-                    <Text style={styles.tableNumber}>
-                      Table {order.table_number}
-                    </Text>
-                  )}
-                </View>
-                <StatusBadge status={order.status} />
-              </View>
-
-              <View style={styles.orderItems}>
-                {order.items.map((item) => (
-                  <View key={item.id} style={styles.orderItem}>
-                    <Text style={styles.itemName}>
-                      {item.quantity}x {item.menu_item_name || 'Article'}
-                    </Text>
-                    <Text style={styles.itemPrice}>
-                      {parseFloat(item.total_price || '0').toFixed(2)} €
-                    </Text>
-                  </View>
-                ))}
-              </View>
-
-              <View style={styles.totalContainer}>
-                <Text style={styles.totalLabel}>Total à payer</Text>
-                <Text style={styles.totalAmount}>
-                  {parseFloat(order.total_amount || order.subtotal || '0').toFixed(2)} €
-                </Text>
-              </View>
-            </Card>
-
-            {/* Méthodes de paiement */}
-            <Card style={styles.paymentMethodsCard}>
-              <Text style={styles.sectionTitle}>
-                Choisissez votre mode de paiement
-              </Text>
-              
-              <View style={styles.paymentMethods}>
-                {paymentMethods.map(renderPaymentMethod)}
-              </View>
-            </Card>
-          </View>
-
-          {/* Colonne secondaire (messages) */}
-          <View style={styles.sideColumn}>
-            {/* Message d'encouragement pour le paiement en ligne */}
-            {selectedMethod === 'online' && (
-              <Card style={styles.developerMessage}>
-                <View style={styles.messageHeader}>
-                  <Ionicons name="heart" size={20} color={COLORS.secondary} />
-                  <Text style={styles.messageTitle}>Soutenez le développeur</Text>
-                  <Pressable 
-                    onPress={showDeveloperInfo}
-                    style={styles.infoButton}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <Ionicons name="information-circle-outline" size={18} color={COLORS.primary} />
-                  </Pressable>
-                </View>
-                <Text style={styles.messageText}>
-                  En choisissant le paiement en ligne, vous soutenez le développeur 
-                  dans le maintien et l'amélioration de cette application. Merci ! 🙏
-                </Text>
-              </Card>
-            )}
-
-            {/* Message pour le paiement en caisse */}
-            {selectedMethod === 'cash' && (
-              <Card style={styles.infoMessage}>
-                <View style={styles.messageHeader}>
-                  <Ionicons name="information-circle" size={20} color={COLORS.primary} />
-                  <Text style={styles.messageTitle}>Paiement en caisse</Text>
-                </View>
-                <Text style={styles.messageText}>
-                  Votre commande sera transmise au restaurant. Vous pourrez payer 
-                  directement à votre table ou au comptoir.
-                </Text>
-              </Card>
-            )}
-
-            {/* Informations de sécurité */}
-            <Card style={styles.securityInfo}>
-              <View style={styles.messageHeader}>
-                <Ionicons name="shield-checkmark" size={20} color={COLORS.success} />
-                <Text style={styles.messageTitle}>Paiement sécurisé</Text>
-              </View>
-              <Text style={styles.messageText}>
-                Vos données de paiement sont protégées par un chiffrement de niveau bancaire. 
-                Nous ne stockons jamais vos informations de carte de crédit.
-              </Text>
-            </Card>
-          </View>
-        </View>
-      </ScrollView>
-
-      {/* Bouton de paiement */}
-      <View style={styles.footer}>
-        <Button
-          title={
-            processingPayment 
-              ? 'Traitement...' 
-              : selectedMethod === 'online' 
-                ? `Payer ${parseFloat(order.total_amount || order.subtotal || '0').toFixed(2)} €` 
-                : 'Confirmer la commande'
-          }
-          onPress={handlePayment}
-          fullWidth
-          disabled={processingPayment}
-          loading={processingPayment}
-          style={{ 
-            backgroundColor: selectedMethod === 'online' ? COLORS.secondary : COLORS.primary,
-            minHeight: 52,
-          }}
-        />
-      </View>
-    </SafeAreaView>
-  );
-}
-
-// Fonction pour créer les styles responsive
-const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop') => {
-  const isTabletOrLarger = screenType !== 'mobile';
-  const isDesktop = screenType === 'desktop';
-  
-  return {
-    container: {
-      flex: 1,
-      backgroundColor: COLORS.background,
-    },
-    content: {
-      flex: 1,
-    },
-    contentContainer: {
-      padding: isTabletOrLarger ? 24 : 16,
-      paddingBottom: 32,
-    },
-    
-    // Layout principal responsive
-    mainLayout: {
-      flexDirection: (isTabletOrLarger ? 'row' : 'column') as 'row' | 'column',
-      maxWidth: isDesktop ? 1200 : undefined,
-      alignSelf: 'center' as const,
-      width: '100%' as '100%'
-    },
-    mainColumn: {
-      flex: isTabletOrLarger ? 2 : 1,
-    },
-    sideColumn: {
-      flex: 1,
-      minWidth: isTabletOrLarger ? 300 : undefined,
-      gap: 16,
-    },
-    
-    // États
-    loadingContainer: {
-      flex: 1,
-      justifyContent: 'center' as const,
-      alignItems: 'center' as const,
-    },
-    loadingText: {
-      marginTop: 16,
-      fontSize: 16,
-      color: COLORS.text.secondary,
-    },
-    errorContainer: {
-      flex: 1,
-      justifyContent: 'center' as const,
-      alignItems: 'center' as const,
-      padding: 40,
-    },
-    errorText: {
-      fontSize: 16,
-      color: COLORS.text.secondary,
-      marginTop: 16,
-    },
-
-    // Résumé de commande
-    orderSummary: {
-      marginBottom: 16,
-      shadowColor: COLORS.shadow,
+  // ==== Styles (responsive via design system)
+  const styles = StyleSheet.create({
+    container: { flex: 1, backgroundColor: COLORS.background },
+    scrollContent: { padding: getResponsiveValue(SPACING.container, screenType) },
+    card: {
+      marginBottom: getResponsiveValue(SPACING.md, screenType),
+      padding: getResponsiveValue(SPACING.lg, screenType),
+      backgroundColor: COLORS.surface,
+      borderRadius: BORDER_RADIUS.lg,
+      shadowColor: COLORS.shadow.default,
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.1,
-      shadowRadius: 8,
-      elevation: 3,
-    },
-    orderHeader: {
-      flexDirection: isTabletOrLarger ? 'row' as const : 'column' as const,
-      justifyContent: 'space-between' as const,
-      alignItems: isTabletOrLarger ? 'flex-start' as const : 'stretch' as const,
-      marginBottom: 16,
-      gap: isTabletOrLarger ? 0 : 12,
-    },
-    orderInfo: {
-      flex: 1,
-    },
-    orderTitle: {
-      fontSize: isTabletOrLarger ? 24 : 20,
-      fontWeight: 'bold' as const,
-      color: COLORS.text.primary,
-      marginBottom: 4,
-    },
-    restaurantName: {
-      fontSize: isTabletOrLarger ? 18 : 16,
-      color: COLORS.text.secondary,
-      marginBottom: 2,
-    },
-    tableNumber: {
-      fontSize: 14,
-      color: COLORS.text.secondary,
-    },
-    orderItems: {
-      marginBottom: 16,
-    },
-    orderItem: {
-      flexDirection: 'row' as const,
-      justifyContent: 'space-between' as const,
-      alignItems: 'center' as const,
-      paddingVertical: 8,
-      borderBottomWidth: 1,
-      borderBottomColor: COLORS.border,
-    },
-    itemName: {
-      fontSize: 14,
-      color: COLORS.text.primary,
-      flex: 1,
-    },
-    itemPrice: {
-      fontSize: 14,
-      fontWeight: '500' as const,
-      color: COLORS.text.primary,
-    },
-    totalContainer: {
-      flexDirection: 'row' as const,
-      justifyContent: 'space-between' as const,
-      alignItems: 'center' as const,
-      paddingTop: 16,
-      borderTopWidth: 2,
-      borderTopColor: COLORS.border,
-    },
-    totalLabel: {
-      fontSize: isTabletOrLarger ? 20 : 18,
-      fontWeight: 'bold' as const,
-      color: COLORS.text.primary,
-    },
-    totalAmount: {
-      fontSize: isTabletOrLarger ? 24 : 20,
-      fontWeight: 'bold' as const,
-      color: COLORS.secondary,
-    },
-
-    // Méthodes de paiement
-    paymentMethodsCard: {
-      marginBottom: 16,
-      shadowColor: COLORS.shadow,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 8,
+      shadowRadius: 4,
       elevation: 3,
     },
     sectionTitle: {
-      fontSize: isTabletOrLarger ? 20 : 18,
-      fontWeight: 'bold' as const,
+      fontSize: getResponsiveValue({ mobile: 18, tablet: 20, desktop: 22 }, screenType),
+      fontWeight: '600',
       color: COLORS.text.primary,
-      marginBottom: 16,
+      marginBottom: getResponsiveValue(SPACING.md, screenType),
     },
-    paymentMethods: {
-      gap: 12,
+    orderSummary: { gap: getResponsiveValue(SPACING.sm, screenType) },
+    summaryRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginVertical: getResponsiveValue(SPACING.xs, screenType) / 2,
     },
-    paymentMethod: {
-      borderWidth: 2,
-      borderColor: COLORS.border,
-      borderRadius: 12,
-      padding: 16,
-      backgroundColor: COLORS.surface,
-      shadowColor: COLORS.shadow,
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
-      shadowRadius: 4,
-      elevation: 2,
-    },
-    selectedPaymentMethod: {
-      borderColor: COLORS.primary,
-      backgroundColor: '#F8F9FF',
-    },
-    recommendedMethod: {
-      borderColor: COLORS.success,
-    },
-    methodContent: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      justifyContent: 'space-between' as const,
-    },
-    methodLeft: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      flex: 1,
-    },
-    radioButton: {
-      width: 20,
-      height: 20,
-      borderRadius: 10,
-      borderWidth: 2,
-      borderColor: COLORS.border,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-      marginRight: 12,
-    },
-    radioButtonSelected: {
-      borderColor: COLORS.primary,
-    },
-    radioButtonInner: {
-      width: 10,
-      height: 10,
-      borderRadius: 5,
-      backgroundColor: COLORS.primary,
-    },
-    methodIcon: {
-      marginRight: 12,
-    },
-    methodInfo: {
-      flex: 1,
-    },
-    methodTitleContainer: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      marginBottom: 4,
-      flexWrap: 'wrap' as const,
-    },
-    methodTitle: {
-      fontSize: 16,
-      fontWeight: '600' as const,
-      color: COLORS.text.primary,
-    },
-    selectedMethodTitle: {
-      color: COLORS.primary,
-    },
-    recommendedBadge: {
-      backgroundColor: COLORS.success,
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-      borderRadius: 10,
-      marginLeft: 8,
-    },
-    recommendedText: {
-      fontSize: 10,
-      color: '#fff',
-      fontWeight: '500' as const,
-    },
-    methodDescription: {
-      fontSize: 14,
+    summaryLabel: {
+      fontSize: getResponsiveValue({ mobile: 14, tablet: 15, desktop: 16 }, screenType),
       color: COLORS.text.secondary,
-      marginBottom: 4,
     },
-    methodBadge: {
-      fontSize: 12,
-      color: COLORS.secondary,
-      fontWeight: '500' as const,
-      fontStyle: 'italic' as const,
-    },
-
-    // Messages
-    developerMessage: {
-      backgroundColor: '#FFF7F0',
-      borderColor: COLORS.secondary,
-      borderWidth: 1,
-      shadowColor: COLORS.shadow,
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
-      shadowRadius: 4,
-      elevation: 2,
-    },
-    infoMessage: {
-      backgroundColor: '#F8F9FF',
-      borderColor: COLORS.primary,
-      borderWidth: 1,
-      shadowColor: COLORS.shadow,
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
-      shadowRadius: 4,
-      elevation: 2,
-    },
-    securityInfo: {
-      backgroundColor: '#F0FDF9',
-      borderColor: COLORS.success,
-      borderWidth: 1,
-      shadowColor: COLORS.shadow,
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
-      shadowRadius: 4,
-      elevation: 2,
-    },
-    messageHeader: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      marginBottom: 8,
-    },
-    messageTitle: {
-      fontSize: 16,
-      fontWeight: '600' as const,
-      marginLeft: 8,
+    summaryValue: {
+      fontSize: getResponsiveValue({ mobile: 14, tablet: 15, desktop: 16 }, screenType),
       color: COLORS.text.primary,
-      flex: 1,
     },
-    infoButton: {
-      padding: 4,
-      borderRadius: 12,
-      backgroundColor: 'rgba(255, 255, 255, 0.5)',
-      marginLeft: 8,
-    },
-    messageText: {
-      fontSize: 14,
-      color: COLORS.text.secondary,
-      lineHeight: 20,
-    },
-
-    // Footer
-    footer: {
-      padding: isTabletOrLarger ? 24 : 16,
-      backgroundColor: COLORS.surface,
+    itemsList: {
+      marginTop: getResponsiveValue(SPACING.sm, screenType),
+      paddingTop: getResponsiveValue(SPACING.sm, screenType),
       borderTopWidth: 1,
-      borderTopColor: COLORS.border,
-      shadowColor: COLORS.shadow,
-      shadowOffset: { width: 0, height: -2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 8,
-      elevation: 8,
+      borderTopColor: COLORS.border.light,
     },
-  };
-};
+    item: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginVertical: getResponsiveValue(SPACING.xs, screenType) / 2,
+    },
+    itemName: {
+      flex: 1,
+      fontSize: getResponsiveValue({ mobile: 13, tablet: 14, desktop: 15 }, screenType),
+      color: COLORS.text.secondary,
+    },
+    itemPrice: {
+      fontSize: getResponsiveValue({ mobile: 13, tablet: 14, desktop: 15 }, screenType),
+      color: COLORS.text.secondary,
+    },
+    paymentMethods: { flexDirection: 'row', gap: getResponsiveValue(SPACING.sm, screenType) },
+    paymentMethodButton: {
+      flex: 1,
+      padding: getResponsiveValue(SPACING.md, screenType),
+      borderRadius: BORDER_RADIUS.md,
+      borderWidth: 2,
+      borderColor: COLORS.border.light,
+      alignItems: 'center',
+      gap: getResponsiveValue(SPACING.xs, screenType),
+    },
+    paymentMethodSelected: { borderColor: COLORS.primary, backgroundColor: COLORS.primary + '10' },
+    paymentMethodLabel: {
+      fontSize: getResponsiveValue({ mobile: 14, tablet: 15, desktop: 16 }, screenType),
+      fontWeight: '500',
+      color: COLORS.text.primary,
+    },
+    tipSection: { gap: getResponsiveValue(SPACING.sm, screenType) },
+    tipButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: getResponsiveValue(SPACING.xs, screenType) },
+    tipButton: {
+      flex: 1,
+      minWidth: '22%',
+      paddingVertical: getResponsiveValue(SPACING.sm, screenType),
+      paddingHorizontal: getResponsiveValue(SPACING.xs, screenType),
+      borderRadius: BORDER_RADIUS.md,
+      borderWidth: 1,
+      borderColor: COLORS.border.light,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    tipButtonSelected: { backgroundColor: COLORS.secondary + '20', borderColor: COLORS.secondary },
+    tipButtonText: {
+      fontSize: getResponsiveValue({ mobile: 14, tablet: 15, desktop: 16 }, screenType),
+      fontWeight: '500',
+      color: COLORS.text.secondary,
+    },
+    tipButtonTextSelected: { color: COLORS.secondary },
+    customTipContainer: { flexDirection: 'row', alignItems: 'center', gap: getResponsiveValue(SPACING.sm, screenType) },
+    customTipInput: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: COLORS.border.light,
+      borderRadius: BORDER_RADIUS.md,
+      paddingHorizontal: getResponsiveValue(SPACING.sm, screenType),
+      paddingVertical: getResponsiveValue(SPACING.xs, screenType),
+      fontSize: getResponsiveValue({ mobile: 14, tablet: 15, desktop: 16 }, screenType),
+    },
+    receiptSection: { gap: getResponsiveValue(SPACING.sm, screenType) },
+    emailInput: {
+      borderWidth: 1,
+      borderColor: COLORS.border.light,
+      borderRadius: BORDER_RADIUS.md,
+      paddingHorizontal: getResponsiveValue(SPACING.sm, screenType),
+      paddingVertical: getResponsiveValue(SPACING.sm, screenType),
+      fontSize: getResponsiveValue({ mobile: 16, tablet: 17, desktop: 18 }, screenType),
+    },
+    receiptOption: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: getResponsiveValue(SPACING.xs, screenType) },
+    receiptOptionText: { fontSize: getResponsiveValue({ mobile: 14, tablet: 15, desktop: 16 }, screenType), color: COLORS.text.primary },
+    totalSection: { paddingTop: getResponsiveValue(SPACING.md, screenType), borderTopWidth: 2, borderTopColor: COLORS.text.primary },
+    totalRow: { flexDirection: 'row', justifyContent: 'space-between', marginVertical: getResponsiveValue(SPACING.xs, screenType) },
+    totalLabel: {
+      fontSize: getResponsiveValue({ mobile: 18, tablet: 20, desktop: 22 }, screenType),
+      fontWeight: 'bold',
+      color: COLORS.text.primary,
+    },
+    totalAmount: {
+      fontSize: getResponsiveValue({ mobile: 18, tablet: 20, desktop: 22 }, screenType),
+      fontWeight: 'bold',
+      color: COLORS.secondary,
+    },
+    payButton: { backgroundColor: COLORS.secondary, paddingVertical: getResponsiveValue(SPACING.lg, screenType) },
+    payButtonText: {
+      fontSize: getResponsiveValue({ mobile: 18, tablet: 20, desktop: 22 }, screenType),
+      fontWeight: 'bold',
+      color: '#000',
+    },
+    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    successContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: getResponsiveValue(SPACING.xl, screenType) },
+    successIcon: { marginBottom: getResponsiveValue(SPACING.lg, screenType) },
+    successTitle: {
+      fontSize: getResponsiveValue({ mobile: 24, tablet: 28, desktop: 32 }, screenType),
+      fontWeight: 'bold',
+      color: COLORS.success,
+      marginBottom: getResponsiveValue(SPACING.md, screenType),
+      textAlign: 'center',
+    },
+    successMessage: {
+      fontSize: getResponsiveValue({ mobile: 16, tablet: 18, desktop: 20 }, screenType),
+      color: COLORS.text.secondary,
+      textAlign: 'center',
+      marginBottom: getResponsiveValue(SPACING.xl, screenType),
+    },
+    helperText: { textAlign: 'center', marginTop: 16, color: COLORS.text.secondary, fontSize: 12 },
+  });
+
+  const iconSize = getResponsiveValue({ mobile: 24, tablet: 28, desktop: 32 }, screenType);
+  const canPayOnline = Boolean(STRIPE_PUBLISHABLE_KEY);
+  const emailIsValidOrEmpty = !customerEmail || isEmail(customerEmail);
+
+  // ==== Loading state
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Header title="Paiement" leftIcon="arrow-back" onLeftPress={() => router.back()} />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={{ marginTop: 16, color: COLORS.text.secondary }}>Chargement de la commande...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // ==== Success state
+  if (paymentSuccess) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Header title="Paiement réussi" />
+        <View style={styles.successContainer}>
+          <View style={styles.successIcon}>
+            <Ionicons name="checkmark-circle" size={80} color={COLORS.success} />
+          </View>
+          <Text style={styles.successTitle}>Paiement confirmé !</Text>
+          <Text style={styles.successMessage}>
+            {paymentMethod === 'online'
+              ? 'Votre paiement a été traité avec succès.'
+              : 'Votre commande est confirmée. Vous paierez au restaurant.'}
+            {wantReceipt && customerEmail && '\n\nVotre ticket a été envoyé par email.'}
+          </Text>
+
+          <Button title="Voir le ticket" onPress={() => setShowReceiptPreview(true)} fullWidth style={{ marginBottom: 12 }} />
+          <Button title="Retour à la commande" onPress={() => router.replace(`/order/${orderId}`)} variant="outline" fullWidth />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <StripeProvider publishableKey={STRIPE_PUBLISHABLE_KEY}>
+      <SafeAreaView style={styles.container}>
+        <Header title="Paiement" leftIcon="arrow-back" onLeftPress={() => router.back()} />
+
+        <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {/* Résumé de la commande */}
+          <Card style={styles.card}>
+            <Text style={styles.sectionTitle}>Résumé de la commande</Text>
+            <View style={styles.orderSummary}>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>N° Commande</Text>
+                <Text style={styles.summaryValue}>{order?.order_number}</Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Restaurant</Text>
+                <Text style={styles.summaryValue}>{order?.restaurant_name}</Text>
+              </View>
+              {!!order?.table_number && (
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Table</Text>
+                  <Text style={styles.summaryValue}>{order?.table_number}</Text>
+                </View>
+              )}
+
+              <View style={styles.itemsList}>
+                {order?.items?.map((item, index) => (
+                  <View key={`${item.id ?? index}`} style={styles.item}>
+                    <Text style={styles.itemName}>{item.quantity}x {item.name}</Text>
+                    <Text style={styles.itemPrice}>{formatCurrency(item.total_price)}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          </Card>
+
+          {/* Méthode de paiement */}
+          <Card style={styles.card}>
+            <Text style={styles.sectionTitle}>Méthode de paiement</Text>
+            <View style={styles.paymentMethods}>
+              <Pressable
+                style={[styles.paymentMethodButton, paymentMethod === 'online' && styles.paymentMethodSelected]}
+                onPress={() => setPaymentMethod('online')}
+              >
+                <Ionicons name="card" size={iconSize} color={paymentMethod === 'online' ? COLORS.primary : COLORS.text.secondary} />
+                <Text style={styles.paymentMethodLabel}>Carte bancaire</Text>
+              </Pressable>
+
+              <Pressable
+                style={[styles.paymentMethodButton, paymentMethod === 'cash' && styles.paymentMethodSelected]}
+                onPress={() => setPaymentMethod('cash')}
+              >
+                <Ionicons name="cash" size={iconSize} color={paymentMethod === 'cash' ? COLORS.primary : COLORS.text.secondary} />
+                <Text style={styles.paymentMethodLabel}>Espèces</Text>
+              </Pressable>
+            </View>
+          </Card>
+
+          {/* Pourboire */}
+          <Card style={styles.card}>
+            <Text style={styles.sectionTitle}>Pourboire (optionnel)</Text>
+            <View style={styles.tipSection}>
+              <View style={styles.tipButtons}>
+                {TIP_PERCENTAGES.map((percent) => (
+                  <Pressable
+                    key={percent}
+                    style={[styles.tipButton, selectedTipPercent === percent && styles.tipButtonSelected]}
+                    onPress={() => handleTipPercentage(percent)}
+                  >
+                    <Text style={[styles.tipButtonText, selectedTipPercent === percent && styles.tipButtonTextSelected]}>
+                      {percent}%
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              <View style={styles.customTipContainer}>
+                <Text style={styles.summaryLabel}>Montant libre :</Text>
+                <TextInput
+                  style={styles.customTipInput}
+                  value={customTipInput}
+                  onChangeText={handleCustomTip}
+                  placeholder="0.00"
+                  keyboardType={Platform.OS === 'ios' ? 'decimal-pad' : 'numeric'}
+                  returnKeyType="done"
+                />
+                <Text style={styles.summaryLabel}>€</Text>
+              </View>
+            </View>
+          </Card>
+
+          {/* Ticket de caisse */}
+          <Card style={styles.card}>
+            <Text style={styles.sectionTitle}>Ticket de caisse</Text>
+            <View style={styles.receiptSection}>
+              <TextInput
+                style={[styles.emailInput, !emailIsValidOrEmpty && { borderColor: 'tomato' }]}
+                value={customerEmail}
+                onChangeText={setCustomerEmail}
+                placeholder="Votre adresse email"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+
+              <View style={styles.receiptOption}>
+                <Text style={styles.receiptOptionText}>Recevoir le ticket par email</Text>
+                <Switch
+                  value={wantReceipt}
+                  onValueChange={(val) => setWantReceipt(val)}
+                  disabled={!!customerEmail && !emailIsValidOrEmpty}
+                  trackColor={{ false: COLORS.border.light, true: COLORS.primary }}
+                  thumbColor={wantReceipt ? COLORS.surface : COLORS.text.light}
+                />
+              </View>
+            </View>
+          </Card>
+
+          {/* Total */}
+          <Card style={styles.card}>
+            <View style={styles.totalSection}>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Sous-total</Text>
+                <Text style={styles.summaryValue}>{formatCurrency(order?.total_amount || 0)}</Text>
+              </View>
+              {tipAmount > 0 && (
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Pourboire {selectedTipPercent ? `(${selectedTipPercent}%)` : ''}</Text>
+                  <Text style={styles.summaryValue}>{formatCurrency(tipAmount)}</Text>
+                </View>
+              )}
+              <View style={styles.totalRow}>
+                <Text style={styles.totalLabel}>Total à payer</Text>
+                <Text style={styles.totalAmount}>{formatCurrency(totalWithTip)}</Text>
+              </View>
+            </View>
+          </Card>
+
+          {/* Bouton de paiement */}
+          <Button
+            title={
+              processing
+                ? 'Traitement en cours...'
+                : paymentMethod === 'online'
+                ? `Payer ${formatCurrency(totalWithTip).replace(' €', ' €')}`
+                : 'Confirmer la commande'
+            }
+            onPress={paymentMethod === 'online' ? handleOnlinePayment : handleCashPayment}
+            fullWidth
+            style={styles.payButton}
+            textStyle={styles.payButtonText}
+            disabled={processing || (paymentMethod === 'online' && !canPayOnline)}
+            loading={processing}
+          />
+
+          <Text style={styles.helperText}>
+            {paymentMethod === 'online'
+              ? canPayOnline
+                ? 'Paiement sécurisé par Stripe'
+                : "Paiement en ligne indisponible (clé Stripe manquante)"
+              : 'Vous paierez directement au restaurant'}
+          </Text>
+        </ScrollView>
+
+        {/* Modal Receipt Preview */}
+        <Modal
+          visible={showReceiptPreview}
+          animationType="slide"
+          onRequestClose={() => {
+            setShowReceiptPreview(false);
+            if (paymentSuccess) router.replace(`/order/${orderId}`);
+          }}
+        >
+          <Receipt
+            orderId={orderId as string}
+            order={{
+              ...(order as any),
+              tip_amount: tipAmount,
+              customer_email: customerEmail,
+              payment_method: paymentMethod,
+              payment_date: new Date().toISOString(),
+            }}
+            showActions
+            onClose={() => {
+              setShowReceiptPreview(false);
+              if (paymentSuccess) router.replace(`/order/${orderId}`);
+            }}
+            autoSendEmail={wantReceipt}
+            customerEmail={customerEmail}
+          />
+        </Modal>
+      </SafeAreaView>
+    </StripeProvider>
+  );
+}

@@ -1,8 +1,9 @@
 from rest_framework import serializers
 from api.models import Order, OrderItem, TableSession
 from django.utils import timezone
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from django.db import transaction
+
 
 class OrderItemSerializer(serializers.ModelSerializer):
     menu_item_name = serializers.CharField(source='menu_item.name', read_only=True)
@@ -19,7 +20,8 @@ class OrderItemSerializer(serializers.ModelSerializer):
             'category', 'quantity', 'unit_price', 'total_price', 'customizations', 
             'special_instructions', 'allergen_display', 'dietary_tags', 'created_at'
         ]
-        read_only_fields = ['id', 'total_price', 'created_at']
+        # 👉 Le serveur calcule les prix : ne pas accepter depuis le client
+        read_only_fields = ['id', 'unit_price', 'total_price', 'created_at']
 
     def validate_quantity(self, value):
         """Validation de la quantité"""
@@ -45,6 +47,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(f"Personnalisation non autorisée: {key}")
         
         return value
+
 
 class OrderListSerializer(serializers.ModelSerializer):
     """Pour l'affichage liste (écran cuisine/comptoir)"""
@@ -79,6 +82,7 @@ class OrderListSerializer(serializers.ModelSerializer):
         if obj.user:
             return obj.user.get_full_name() or obj.user.username
         return obj.customer_name or f"Client {obj.order_number}"
+
 
 class OrderDetailSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
@@ -122,7 +126,14 @@ class OrderDetailSerializer(serializers.ModelSerializer):
         return obj.get_preparation_time()
 
 class OrderCreateSerializer(serializers.ModelSerializer):
-    items = OrderItemSerializer(many=True, write_only=True)
+    """Serializer pour créer une commande - Version fonctionnelle corrigée"""
+    
+    items = serializers.ListField(
+        child=serializers.DictField(),
+        write_only=True,
+        allow_empty=False,
+        help_text="Liste des items"
+    )
     
     class Meta:
         model = Order
@@ -131,64 +142,147 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             'phone', 'payment_method', 'notes', 'items'
         ]
     
+    def validate_items(self, value):
+        """Validation des items"""
+        if not value:
+            raise serializers.ValidationError("Au moins un item requis")
+        
+        from api.models import MenuItem
+        
+        validated_items = []
+        
+        for i, item in enumerate(value):
+            # Vérifier menu_item
+            if 'menu_item' not in item:
+                raise serializers.ValidationError(f"Item {i}: menu_item requis")
+            
+            # Vérifier quantity
+            if 'quantity' not in item:
+                raise serializers.ValidationError(f"Item {i}: quantity requis")
+            
+            try:
+                menu_item_id = int(item['menu_item'])
+                menu_item = MenuItem.objects.select_related('menu__restaurant').get(id=menu_item_id)
+                
+                if menu_item.price is None:
+                    raise serializers.ValidationError(f"Item {i}: Prix non défini pour {menu_item.name}")
+                
+            except (ValueError, TypeError):
+                raise serializers.ValidationError(f"Item {i}: menu_item doit être un entier")
+            except MenuItem.DoesNotExist:
+                raise serializers.ValidationError(f"Item {i}: MenuItem {menu_item_id} introuvable")
+            
+            try:
+                quantity = int(item['quantity'])
+                if quantity <= 0:
+                    raise serializers.ValidationError(f"Item {i}: quantité doit être positive")
+                if quantity > 50:
+                    raise serializers.ValidationError(f"Item {i}: quantité max 50")
+            except (ValueError, TypeError):
+                raise serializers.ValidationError(f"Item {i}: quantity doit être un entier")
+            
+            validated_item = {
+                'menu_item': menu_item,
+                'menu_item_id': menu_item_id,
+                'quantity': quantity,
+                'customizations': item.get('customizations', {}),
+                'special_instructions': item.get('special_instructions', ''),
+            }
+            
+            if not isinstance(validated_item['customizations'], dict):
+                raise serializers.ValidationError(f"Item {i}: customizations doit être un objet")
+            
+            if not isinstance(validated_item['special_instructions'], str):
+                validated_item['special_instructions'] = str(validated_item['special_instructions'])
+            
+            validated_items.append(validated_item)
+        
+        return validated_items
+    
     def validate(self, data):
-        """Validations spécifiques au sur place"""
+        """Validations globales"""
         if data['order_type'] == 'dine_in' and not data.get('table_number'):
             raise serializers.ValidationError("Numéro de table requis pour commande sur place")
         
         if not data.get('customer_name') and not self.context['request'].user.is_authenticated:
-            raise serializers.ValidationError("Nom du client requis pour commande anonyme")
+            raise serializers.ValidationError("Nom du client requis")
         
-        # Vérifier disponibilité des items
         restaurant = data['restaurant']
-        items_data = data.get('items', [])
-        
-        if not items_data:
-            raise serializers.ValidationError("Au moins un item requis")
-        
-        for item_data in items_data:
-            menu_item = item_data['menu_item']
+        for item in data['items']:
+            menu_item = item['menu_item']
             if menu_item.menu.restaurant != restaurant:
-                raise serializers.ValidationError(f"L'item {menu_item.name} n'appartient pas à ce restaurant")
+                raise serializers.ValidationError(f"Item {menu_item.name} n'appartient pas à ce restaurant")
+            
             if not menu_item.is_available:
-                raise serializers.ValidationError(f"{menu_item.name} n'est plus disponible")
+                raise serializers.ValidationError(f"Item {menu_item.name} non disponible")
+            
             if not menu_item.menu.is_available:
-                raise serializers.ValidationError(f"Le menu contenant {menu_item.name} n'est pas disponible")
+                raise serializers.ValidationError(f"Menu contenant {menu_item.name} non disponible")
         
         return data
     
     @transaction.atomic
     def create(self, validated_data):
+        """Créer la commande avec validations renforcées"""
         items_data = validated_data.pop('items')
         request = self.context['request']
         
-        # Assigner l'utilisateur si connecté
         if request.user.is_authenticated:
             validated_data['user'] = request.user
         
-        # Calculer les montants
         subtotal = Decimal('0.00')
-        order_items = []
+        order_items_data = []
         
-        for item_data in items_data:
+        # ✅ CORRECTION: Validation renforcée des items
+        for i, item_data in enumerate(items_data):
             menu_item = item_data['menu_item']
             quantity = item_data['quantity']
-            unit_price = menu_item.price
-            total_price = quantity * unit_price
+            
+            # ✅ CORRECTION: S'assurer que quantity n'est jamais None
+            if quantity is None:
+                raise serializers.ValidationError(f"Item {i}: La quantité ne peut pas être None")
+            
+            if not isinstance(quantity, int) or quantity <= 0:
+                raise serializers.ValidationError(f"Item {i}: La quantité doit être un entier positif")
+            
+            # ✅ CORRECTION: S'assurer que le prix n'est jamais None
+            if menu_item.price is None:
+                raise serializers.ValidationError(f"Item {i}: Le prix du menu item {menu_item.name} n'est pas défini")
+            
+            try:
+                unit_price = Decimal(str(menu_item.price))
+                quantity_decimal = Decimal(str(quantity))
+                total_price = unit_price * quantity_decimal
+            except (ValueError, TypeError) as e:
+                raise serializers.ValidationError(f"Item {i}: Erreur de calcul du prix - {str(e)}")
+            
             subtotal += total_price
             
-            order_items.append({
-                **item_data,
+            # ✅ CORRECTION: Validation des données avant ajout
+            order_item_data = {
+                'menu_item': menu_item,
+                'quantity': int(quantity),  # Convertir explicitement en int
+                'customizations': item_data.get('customizations', {}),
+                'special_instructions': item_data.get('special_instructions', ''),
                 'unit_price': unit_price,
                 'total_price': total_price
-            })
+            }
+            
+            # Validation finale des types
+            if not isinstance(order_item_data['quantity'], int):
+                raise serializers.ValidationError(f"Item {i}: Type de quantité invalide après conversion")
+            
+            if order_item_data['quantity'] <= 0:
+                raise serializers.ValidationError(f"Item {i}: Quantité doit être positive après validation")
+            
+            order_items_data.append(order_item_data)
         
-        # Calculer taxe (TVA 10% restauration)
+        # Calcul des taxes et total
         tax_rate = Decimal('0.10')
         tax_amount = subtotal * tax_rate
         total_amount = subtotal + tax_amount
         
-        # Créer commande
+        # Créer la commande
         order = Order.objects.create(
             **validated_data,
             subtotal=subtotal,
@@ -196,13 +290,21 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             total_amount=total_amount
         )
         
-        # Le signal post_save générera automatiquement:
-        # - order_number
-        # - estimated_ready_time
-        
-        # Créer items
-        for item_data in order_items:
-            OrderItem.objects.create(order=order, **item_data)
+        # Créer les OrderItem avec validation supplémentaire
+        for item_data in order_items_data:
+            try:
+                # ✅ CORRECTION: Validation finale avant création
+                if item_data['quantity'] is None or item_data['quantity'] <= 0:
+                    raise ValueError(f"Quantité invalide pour {item_data['menu_item'].name}: {item_data['quantity']}")
+                
+                if item_data['unit_price'] is None:
+                    raise ValueError(f"Prix invalide pour {item_data['menu_item'].name}: {item_data['unit_price']}")
+                
+                order_item = OrderItem.objects.create(order=order, **item_data)
+                
+            except Exception as e:
+                # Si une erreur se produit, annuler toute la transaction
+                raise serializers.ValidationError(f"Erreur lors de la création de l'item {item_data['menu_item'].name}: {str(e)}")
         
         return order
 
@@ -246,6 +348,7 @@ class OrderStatusUpdateSerializer(serializers.ModelSerializer):
         
         return super().update(instance, validated_data)
 
+
 class OrderPaymentSerializer(serializers.ModelSerializer):
     """Pour marquer une commande comme payée"""
     class Meta:
@@ -264,6 +367,7 @@ class OrderPaymentSerializer(serializers.ModelSerializer):
         validated_data['payment_status'] = 'paid'
         return super().update(instance, validated_data)
 
+
 class OrderStatsSerializer(serializers.Serializer):
     """Pour les statistiques des commandes"""
     total_orders = serializers.IntegerField()
@@ -278,6 +382,7 @@ class OrderStatsSerializer(serializers.Serializer):
     total_revenue = serializers.DecimalField(max_digits=10, decimal_places=2)
     average_order_value = serializers.DecimalField(max_digits=10, decimal_places=2)
     average_preparation_time = serializers.IntegerField()  # en minutes
+
 
 class TableSessionSerializer(serializers.ModelSerializer):
     """Serializer pour les sessions de table"""
@@ -301,6 +406,7 @@ class TableSessionSerializer(serializers.ModelSerializer):
         """Retourne les commandes de la session"""
         orders = obj.orders.all()
         return OrderListSerializer(orders, many=True, context=self.context).data
+
 
 class OrderWithTableInfoSerializer(serializers.ModelSerializer):
     """Serializer étendu avec informations de table"""
@@ -348,6 +454,7 @@ class OrderWithTableInfoSerializer(serializers.ModelSerializer):
         if obj.user:
             return obj.user.get_full_name() or obj.user.username
         return obj.customer_name or f"Client {obj.order_number}"
+
 
 class TableOrdersSerializer(serializers.Serializer):
     """Serializer pour toutes les commandes d'une table"""

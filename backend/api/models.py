@@ -918,7 +918,6 @@ class Order(models.Model):
             self.order_sequence = 1
             self.is_main_order = True
     
-    # ✅ AJOUT: Méthode manquante can_be_cancelled
     def can_be_cancelled(self):
         """Vérifie si une commande peut être annulée"""
         # Ne peut plus être annulée si déjà servie ou annulée
@@ -934,7 +933,6 @@ class Order(models.Model):
         # Peut être annulée si pending, confirmed ou ready depuis peu
         return True
     
-    # ✅ AJOUT: Méthode manquante get_preparation_time
     def get_preparation_time(self):
         """Calcule le temps de préparation estimé en minutes"""
         if not self.items.exists():
@@ -942,9 +940,17 @@ class Order(models.Model):
         
         total_time = 0
         for item in self.items.all():
+            # ✅ CORRECTION: Vérifier que quantity n'est pas None
+            quantity = item.quantity
+            if quantity is None or quantity <= 0:
+                continue  # Ignorer les items avec quantité invalide
+            
             # Utiliser preparation_time du MenuItem si disponible
             prep_time = getattr(item.menu_item, 'preparation_time', 5)
-            total_time += prep_time * item.quantity
+            if prep_time is None:
+                prep_time = 5  # Valeur par défaut si preparation_time est None
+            
+            total_time += prep_time * quantity
         
         # Ajouter un temps de base et un buffer
         base_time = 5
@@ -1158,17 +1164,83 @@ class OrderItem(models.Model):
     total_price = models.DecimalField(max_digits=10, decimal_places=2)
     
     # Personnalisations
-    customizations = models.JSONField(default=dict, blank=True)  # Ex: {"sauce": "mayo", "cuisson": "bien cuit"}
+    customizations = models.JSONField(default=dict, blank=True)
     special_instructions = models.TextField(blank=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
     
+    def clean(self):
+        """Validation avant sauvegarde"""
+        super().clean()
+        
+        if self.quantity is None:
+            raise ValidationError("La quantité ne peut pas être None")
+        if not isinstance(self.quantity, int) or self.quantity <= 0:
+            raise ValidationError("La quantité doit être un entier positif")
+
+        # Vérifier que unit_price n'est pas None
+        if self.unit_price is None:
+            raise ValidationError("Le prix unitaire ne peut pas être None")
+        
+        try:
+            from decimal import Decimal
+            unit_price_decimal = Decimal(str(self.unit_price))
+            if unit_price_decimal < 0:
+                raise ValidationError("Le prix unitaire ne peut pas être négatif")
+        except (ValueError, TypeError):
+            raise ValidationError("Le prix unitaire doit être un nombre décimal valide")
+        
+        # Recalculer total_price si pas déjà défini ou incohérent
+        if self.unit_price is not None and self.quantity is not None:
+            calculated_total = Decimal(str(self.quantity)) * Decimal(str(self.unit_price))
+            if self.total_price is None or abs(float(self.total_price) - float(calculated_total)) > 0.01:
+                self.total_price = calculated_total
+            
+            # Recalculer total_price si pas déjà défini
+            if self.total_price is None:
+                self.total_price = self.quantity * self.unit_price
+    
     def save(self, *args, **kwargs):
-        self.total_price = self.quantity * self.unit_price
+        # Validation complète avant sauvegarde
+        try:
+            # Vérifications de sécurité
+            if self.unit_price is None:
+                raise ValueError(f"Prix unitaire None pour OrderItem du menu_item {self.menu_item_id}")
+            
+            if self.quantity is None:
+                raise ValueError(f"Quantité None pour OrderItem du menu_item {self.menu_item_id}")
+            
+            # Conversion sécurisée en Decimal
+            from decimal import Decimal, InvalidOperation
+            
+            try:
+                unit_price_decimal = Decimal(str(self.unit_price))
+                quantity_decimal = Decimal(str(self.quantity))
+            except (InvalidOperation, TypeError, ValueError) as e:
+                raise ValueError(f"Erreur conversion pour OrderItem: unit_price={self.unit_price}, quantity={self.quantity}, erreur: {e}")
+            
+            # Calcul sécurisé du total
+            calculated_total = quantity_decimal * unit_price_decimal
+            
+            # Mettre à jour total_price seulement si pas déjà défini ou si incohérent
+            if self.total_price is None or abs(float(self.total_price) - float(calculated_total)) > 0.01:
+                self.total_price = calculated_total
+                
+        except Exception as e:
+            # Log l'erreur pour debug
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Erreur dans OrderItem.save(): {str(e)}", exc_info=True)
+            raise e
+        
+        # Validation Django
+        self.full_clean()
+        
+        # Sauvegarde
         super().save(*args, **kwargs)
     
     def __str__(self):
-        return f"{self.quantity}x {self.menu_item.name}"
+        return f"{self.quantity}x {self.menu_item.name if self.menu_item else 'Item supprimé'}"
 
 class DailyMenu(models.Model):
     """
