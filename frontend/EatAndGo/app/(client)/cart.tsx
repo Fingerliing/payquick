@@ -8,7 +8,6 @@ import {
   Alert,
   ScrollView,
   useWindowDimensions,
-  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -61,36 +60,6 @@ export default function CartScreen() {
 
   const currentTableNumber = tableNumber || cart.tableNumber;
 
-  const [tipAmount, setTipAmount] = useState(0);
-  const [selectedTipPercent, setSelectedTipPercent] = useState<number | null>(null);
-
-  const TIP_PERCENTAGES = [5, 10, 15, 20];
-
-  const handleTipPercentage = (percent: number) => {
-    if (selectedTipPercent === percent) {
-      // Désélectionner si déjà sélectionné
-      setSelectedTipPercent(null);
-      setTipAmount(0);
-    } else {
-      setSelectedTipPercent(percent);
-      const tip = Math.round((cart.total || 0) * percent / 100 * 100) / 100;
-      setTipAmount(tip);
-    }
-  };
-  
-  const handleCustomTip = (customAmount: string) => {
-    const amount = parseFloat(customAmount) || 0;
-    setTipAmount(amount);
-    setSelectedTipPercent(null);
-  };
-  
-  const clearTip = () => {
-    setTipAmount(0);
-    setSelectedTipPercent(null);
-  };
-
-  const totalWithTip = (cart.total || 0) + tipAmount;
-
   const orderButtonStyle = {
     backgroundColor: COLORS.secondary,
   };
@@ -103,163 +72,6 @@ export default function CartScreen() {
       screenType
     ),
   };
-
-  const tipStyles = {
-    tipSection: {
-      marginTop: getResponsiveValue(SPACING.md, screenType),
-      padding: getResponsiveValue(SPACING.lg, screenType),
-      backgroundColor: COLORS.surface,
-      borderRadius: BORDER_RADIUS.lg,
-      borderWidth: 1,
-      borderColor: COLORS.border.light,
-    },
-  
-    tipHeader: {
-      flexDirection: 'row' as const,
-      justifyContent: 'space-between' as const,
-      alignItems: 'center' as const,
-      marginBottom: getResponsiveValue(SPACING.sm, screenType),
-    },
-  
-    tipTitle: {
-      fontSize: getResponsiveValue(
-        { mobile: 16, tablet: 18, desktop: 20 },
-        screenType
-      ),
-      fontWeight: '600' as const,
-      color: COLORS.text.primary,
-    },
-  
-    tipOptional: {
-      fontSize: getResponsiveValue(
-        { mobile: 12, tablet: 13, desktop: 14 },
-        screenType
-      ),
-      color: COLORS.text.secondary,
-      fontStyle: 'italic' as const,
-    },
-  
-    tipButtons: {
-      flexDirection: 'row' as const,
-      flexWrap: 'wrap' as const,
-      gap: getResponsiveValue(SPACING.xs, screenType),
-      marginBottom: getResponsiveValue(SPACING.sm, screenType),
-    },
-  
-    tipButton: {
-      flex: 1,
-      minWidth: screenType === 'mobile' ? '22%' as const : '20%' as const,
-      paddingVertical: getResponsiveValue(SPACING.sm, screenType),
-      paddingHorizontal: getResponsiveValue(SPACING.xs, screenType),
-      borderRadius: BORDER_RADIUS.md,
-      borderWidth: 1,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-    },
-  
-    tipButtonSelected: {
-      backgroundColor: COLORS.secondary + '20',
-      borderColor: COLORS.secondary,
-    },
-  
-    tipButtonDefault: {
-      backgroundColor: COLORS.background,
-      borderColor: COLORS.border.light,
-    },
-  
-    tipButtonText: {
-      fontSize: getResponsiveValue(
-        { mobile: 14, tablet: 15, desktop: 16 },
-        screenType
-      ),
-      fontWeight: '500' as const,
-    },
-  
-    tipButtonTextSelected: {
-      color: COLORS.secondary,
-    },
-  
-    tipButtonTextDefault: {
-      color: COLORS.text.secondary,
-    },
-  
-    customTipContainer: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      gap: getResponsiveValue(SPACING.sm, screenType),
-      marginBottom: getResponsiveValue(SPACING.sm, screenType),
-    },
-  
-    customTipInput: {
-      flex: 1,
-      borderWidth: 1,
-      borderColor: COLORS.border.light,
-      borderRadius: BORDER_RADIUS.md,
-      paddingHorizontal: getResponsiveValue(SPACING.sm, screenType),
-      paddingVertical: getResponsiveValue(SPACING.xs, screenType),
-      backgroundColor: COLORS.surface,
-      fontSize: getResponsiveValue(
-        { mobile: 14, tablet: 15, desktop: 16 },
-        screenType
-      ),
-      color: COLORS.text.primary,
-    },
-  
-    customTipLabel: {
-      fontSize: getResponsiveValue(
-        { mobile: 14, tablet: 15, desktop: 16 },
-        screenType
-      ),
-      color: COLORS.text.secondary,
-      minWidth: getResponsiveValue(
-        { mobile: 80, tablet: 90, desktop: 100 },
-        screenType
-      ),
-    },
-  
-    tipSummary: {
-      flexDirection: 'row' as const,
-      justifyContent: 'space-between' as const,
-      alignItems: 'center' as const,
-      paddingTop: getResponsiveValue(SPACING.sm, screenType),
-      borderTopWidth: 1,
-      borderTopColor: COLORS.border.light,
-    },
-  
-    tipSummaryText: {
-      fontSize: getResponsiveValue(
-        { mobile: 14, tablet: 15, desktop: 16 },
-        screenType
-      ),
-      color: COLORS.text.secondary,
-    },
-  
-    tipAmount: {
-      fontSize: getResponsiveValue(
-        { mobile: 14, tablet: 15, desktop: 16 },
-        screenType
-      ),
-      fontWeight: '600' as const,
-      color: COLORS.secondary,
-    },
-  
-    clearTipButton: {
-      paddingHorizontal: getResponsiveValue(SPACING.sm, screenType),
-      paddingVertical: getResponsiveValue(SPACING.xs, screenType),
-      borderRadius: BORDER_RADIUS.sm,
-      backgroundColor: COLORS.background,
-      borderWidth: 1,
-      borderColor: COLORS.border.light,
-    },
-  
-    clearTipText: {
-      fontSize: getResponsiveValue(
-        { mobile: 12, tablet: 13, desktop: 14 },
-        screenType
-      ),
-      color: COLORS.text.secondary,
-    },
-  };  
 
   const styles = {
     container: {
@@ -590,13 +402,13 @@ export default function CartScreen() {
       alignItems: 'center' as const,
       marginBottom: getResponsiveValue(SPACING.lg, screenType),
       paddingTop: getResponsiveValue(SPACING.sm, screenType),
-      borderTopWidth: 1,
-      borderTopColor: COLORS.border.light,
+      borderTopWidth: 2,
+      borderTopColor: COLORS.border.default,
     },
 
     totalLabel: {
       fontSize: getResponsiveValue(
-        { mobile: 18, tablet: 20, desktop: 24 },
+        { mobile: 20, tablet: 22, desktop: 26 },
         screenType
       ),
       fontWeight: '700' as const,
@@ -605,7 +417,7 @@ export default function CartScreen() {
 
     totalAmount: {
       fontSize: getResponsiveValue(
-        { mobile: 18, tablet: 20, desktop: 24 },
+        { mobile: 20, tablet: 22, desktop: 26 },
         screenType
       ),
       fontWeight: '700' as const,
@@ -683,146 +495,6 @@ export default function CartScreen() {
     { mobile: 18, tablet: 20, desktop: 22 },
     screenType
   );
-
-  const TipSection = () => {
-    const [customTipInput, setCustomTipInput] = useState('');
-  
-    return (
-      <View style={tipStyles.tipSection}>
-        <View style={tipStyles.tipHeader}>
-          <Text style={tipStyles.tipTitle}>Pourboire</Text>
-          <Text style={tipStyles.tipOptional}>(optionnel)</Text>
-        </View>
-  
-        {/* Boutons pourcentage prédéfinis */}
-        <View style={tipStyles.tipButtons}>
-          {TIP_PERCENTAGES.map((percent) => (
-            <Pressable
-              key={percent}
-              style={[
-                tipStyles.tipButton,
-                selectedTipPercent === percent 
-                  ? tipStyles.tipButtonSelected 
-                  : tipStyles.tipButtonDefault
-              ]}
-              onPress={() => handleTipPercentage(percent)}
-              android_ripple={{ color: COLORS.secondary + '20', borderless: false }}
-            >
-              <Text style={[
-                tipStyles.tipButtonText,
-                selectedTipPercent === percent 
-                  ? tipStyles.tipButtonTextSelected 
-                  : tipStyles.tipButtonTextDefault
-              ]}>
-                {percent}%
-              </Text>
-            </Pressable>
-          ))}
-          
-          {/* Bouton effacer */}
-          {(tipAmount > 0 || selectedTipPercent !== null) && (
-            <Pressable
-              style={tipStyles.clearTipButton}
-              onPress={clearTip}
-              android_ripple={{ color: COLORS.border.light, borderless: false }}
-            >
-              <Text style={tipStyles.clearTipText}>Effacer</Text>
-            </Pressable>
-          )}
-        </View>
-  
-        {/* Input montant personnalisé */}
-        <View style={tipStyles.customTipContainer}>
-          <Text style={tipStyles.customTipLabel}>Montant libre :</Text>
-          <TextInput
-            style={tipStyles.customTipInput}
-            value={customTipInput}
-            onChangeText={(text) => {
-              setCustomTipInput(text);
-              handleCustomTip(text);
-            }}
-            placeholder="0.00"
-            keyboardType="decimal-pad"
-            returnKeyType="done"
-          />
-          <Text style={tipStyles.customTipLabel}>€</Text>
-        </View>
-  
-        {/* Résumé du pourboire */}
-        {tipAmount > 0 && (
-          <View style={tipStyles.tipSummary}>
-            <Text style={tipStyles.tipSummaryText}>
-              Pourboire {selectedTipPercent ? `(${selectedTipPercent}%)` : '(montant libre)'}
-            </Text>
-            <Text style={tipStyles.tipAmount}>
-              {tipAmount.toFixed(2)} €
-            </Text>
-          </View>
-        )}
-      </View>
-    );
-  };
-
-  const summaryTotalStyles = {
-    summaryTotal: {
-      paddingTop: getResponsiveValue(SPACING.sm, screenType),
-      borderTopWidth: 1,
-      borderTopColor: COLORS.border.light,
-    },
-  
-    summaryRow: {
-      flexDirection: 'row' as const,
-      justifyContent: 'space-between' as const,
-      alignItems: 'center' as const,
-      marginBottom: getResponsiveValue(SPACING.xs, screenType),
-    },
-  
-    subtotalLabel: {
-      fontSize: getResponsiveValue(
-        { mobile: 16, tablet: 18, desktop: 20 },
-        screenType
-      ),
-      fontWeight: '500' as const,
-      color: COLORS.text.secondary,
-    },
-  
-    subtotalAmount: {
-      fontSize: getResponsiveValue(
-        { mobile: 16, tablet: 18, desktop: 20 },
-        screenType
-      ),
-      fontWeight: '500' as const,
-      color: COLORS.text.secondary,
-    },
-  
-    totalRow: {
-      flexDirection: 'row' as const,
-      justifyContent: 'space-between' as const,
-      alignItems: 'center' as const,
-      marginTop: getResponsiveValue(SPACING.sm, screenType),
-      paddingTop: getResponsiveValue(SPACING.sm, screenType),
-      borderTopWidth: 2,
-      borderTopColor: COLORS.border.default,
-    },
-  
-    totalLabel: {
-      fontSize: getResponsiveValue(
-        { mobile: 20, tablet: 22, desktop: 26 },
-        screenType
-      ),
-      fontWeight: '700' as const,
-      color: COLORS.text.primary,
-    },
-  
-    totalAmount: {
-      fontSize: getResponsiveValue(
-        { mobile: 20, tablet: 22, desktop: 26 },
-        screenType
-      ),
-      fontWeight: '700' as const,
-      color: COLORS.secondary,
-    },
-  };  
 
   const handleQuantityChange = (itemId: string, newQuantity: number) => {
     if (newQuantity < 1) {
@@ -1197,49 +869,29 @@ export default function CartScreen() {
           {/* Summary dans la colonne de droite */}
           <View style={styles.rightColumn}>
             <Card style={styles.summaryCardGrid}>
-            <View style={summaryTotalStyles.summaryTotal}>
-              <View style={summaryTotalStyles.summaryRow}>
-                <Text style={summaryTotalStyles.subtotalLabel}>Sous-total</Text>
-                <Text style={summaryTotalStyles.subtotalAmount}>
+              <View style={styles.summaryTotal}>
+                <Text style={styles.totalLabel}>Total</Text>
+                <Text style={styles.totalAmount}>
                   {(cart.total || 0).toFixed(2)} €
                 </Text>
               </View>
-              
-              {tipAmount > 0 && (
-                <View style={summaryTotalStyles.summaryRow}>
-                  <Text style={summaryTotalStyles.subtotalLabel}>
-                    Pourboire {selectedTipPercent ? `(${selectedTipPercent}%)` : ''}
-                  </Text>
-                  <Text style={summaryTotalStyles.subtotalAmount}>
-                    {tipAmount.toFixed(2)} €
-                  </Text>
-                </View>
-              )}
-              
-              <View style={summaryTotalStyles.totalRow}>
-                <Text style={summaryTotalStyles.totalLabel}>Total</Text>
-                <Text style={summaryTotalStyles.totalAmount}>
-                  {totalWithTip.toFixed(2)} €
-                </Text>
-              </View>
-            </View>
-          <TipSection />
+
               <View style={styles.buttonGroup}>
-              <Button
-                title={
-                  isCreatingOrder 
-                    ? "Création en cours..." 
-                    : hasActiveTableOrders 
-                      ? "Passer commande (nouvelle session)" 
-                      : "Passer commande"
-                }
-                onPress={handleCheckout}
-                fullWidth
-                style={orderButtonStyle}
-                textStyle={orderButtonTextStyle}
-                disabled={isSubmitting || isCreatingOrder}
-                loading={isCreatingOrder}
-              />
+                <Button
+                  title={
+                    isCreatingOrder 
+                      ? "Création en cours..." 
+                      : hasActiveTableOrders 
+                        ? "Passer commande (nouvelle session)" 
+                        : "Passer commande"
+                  }
+                  onPress={handleCheckout}
+                  fullWidth
+                  style={orderButtonStyle}
+                  textStyle={orderButtonTextStyle}
+                  disabled={isSubmitting || isCreatingOrder}
+                  loading={isCreatingOrder}
+                />
                 
                 {hasActiveTableOrders && currentTableNumber && (
                   <Button
@@ -1295,170 +947,148 @@ export default function CartScreen() {
           <View style={styles.scrollContent}>
             {/* Restaurant Info */}
             <Card style={styles.infoCard}>
-            <View style={styles.restaurantHeader}>
-              <View style={styles.restaurantInfo}>
-                <Text style={styles.restaurantName}>
-                  {String(cart.restaurantName || 'Restaurant')}
-                </Text>
-                {currentTableNumber ? (
-                  <Text style={styles.tableInfo}>
-                    Table {String(currentTableNumber)}
+              <View style={styles.restaurantHeader}>
+                <View style={styles.restaurantInfo}>
+                  <Text style={styles.restaurantName}>
+                    {String(cart.restaurantName || 'Restaurant')}
                   </Text>
-                ) : null}
-              </View>
-              <View>
-                <Text style={[styles.tableInfo, styles.itemCount]}>
-                  {String(cart.itemCount || 0)} {(cart.itemCount || 0) > 1 ? 'articles' : 'article'}
-                </Text>
-                {isLoadingTableOrders && currentTableNumber ? (
-                  <Text style={[styles.statusText, { color: COLORS.warning }]}>
-                    Vérification des commandes...
+                  {currentTableNumber ? (
+                    <Text style={styles.tableInfo}>
+                      Table {String(currentTableNumber)}
+                    </Text>
+                  ) : null}
+                </View>
+                <View>
+                  <Text style={[styles.tableInfo, styles.itemCount]}>
+                    {String(cart.itemCount || 0)} {(cart.itemCount || 0) > 1 ? 'articles' : 'article'}
                   </Text>
-                ) : null}
-              </View>
-            </View>
-          </Card>
-
-          {/* Alert commandes existantes */}
-          {hasActiveTableOrders && tableOrders && currentTableNumber && (
-            <Card style={styles.alertCard}>
-              <View style={styles.alertContent}>
-                <Ionicons name="information-circle" size={24} color={COLORS.warning} />
-                <View style={styles.alertText}>
-                  <Text style={styles.alertTitle}>
-                    Commandes en cours sur cette table
-                  </Text>
-                  <Text style={styles.alertMessage}>
-                    {String(tableOrders?.active_orders?.length || 0)} commande(s) en cours. Vous pouvez ajouter votre commande à la session existante.
-                  </Text>
-                  <View style={styles.alertButtons}>
-                    <Button
-                      title="Voir les commandes"
-                      variant="outline"
-                      size="sm"
-                      onPress={() => {
-                        router.push(`/table/${String(currentTableNumber)}/orders?restaurantId=${String(cart.restaurantId)}`);
-                      }}
-                      style={{ borderColor: COLORS.warning, flex: 1 }}
-                    />
-                    <Button
-                      title="Actualiser"
-                      variant="outline"
-                      size="sm"
-                      onPress={refreshTableOrders}
-                      disabled={isLoadingTableOrders}
-                      style={{ borderColor: COLORS.warning }}
-                      leftIcon="refresh"
-                    />
-                  </View>
+                  {isLoadingTableOrders && currentTableNumber ? (
+                    <Text style={[styles.statusText, { color: COLORS.warning }]}>
+                      Vérification des commandes...
+                    </Text>
+                  ) : null}
                 </View>
               </View>
             </Card>
-          )}
 
-          {/* Cart Items */}
-          <FlatList
-            data={cart.items}
-            renderItem={renderCartItem}
-            keyExtractor={(item: CartItem) => String(item.id)}
-            scrollEnabled={false}
-            showsVerticalScrollIndicator={false}
-          />
+            {/* Alert commandes existantes */}
+            {hasActiveTableOrders && tableOrders && currentTableNumber && (
+              <Card style={styles.alertCard}>
+                <View style={styles.alertContent}>
+                  <Ionicons name="information-circle" size={24} color={COLORS.warning} />
+                  <View style={styles.alertText}>
+                    <Text style={styles.alertTitle}>
+                      Commandes en cours sur cette table
+                    </Text>
+                    <Text style={styles.alertMessage}>
+                      {String(tableOrders?.active_orders?.length || 0)} commande(s) en cours. Vous pouvez ajouter votre commande à la session existante.
+                    </Text>
+                    <View style={styles.alertButtons}>
+                      <Button
+                        title="Voir les commandes"
+                        variant="outline"
+                        size="sm"
+                        onPress={() => {
+                          router.push(`/table/${String(currentTableNumber)}/orders?restaurantId=${String(cart.restaurantId)}`);
+                        }}
+                        style={{ borderColor: COLORS.warning, flex: 1 }}
+                      />
+                      <Button
+                        title="Actualiser"
+                        variant="outline"
+                        size="sm"
+                        onPress={refreshTableOrders}
+                        disabled={isLoadingTableOrders}
+                        style={{ borderColor: COLORS.warning }}
+                        leftIcon="refresh"
+                      />
+                    </View>
+                  </View>
+                </View>
+              </Card>
+            )}
 
-          {/* Order Summary */}
-          <Card style={styles.summaryCard}>
-            <View style={summaryTotalStyles.summaryTotal}>
-              <View style={summaryTotalStyles.summaryRow}>
-                <Text style={summaryTotalStyles.subtotalLabel}>Sous-total</Text>
-                <Text style={summaryTotalStyles.subtotalAmount}>
+            {/* Cart Items */}
+            <FlatList
+              data={cart.items}
+              renderItem={renderCartItem}
+              keyExtractor={(item: CartItem) => String(item.id)}
+              scrollEnabled={false}
+              showsVerticalScrollIndicator={false}
+            />
+
+            {/* Order Summary */}
+            <Card style={styles.summaryCard}>
+              <View style={styles.summaryTotal}>
+                <Text style={styles.totalLabel}>Total</Text>
+                <Text style={styles.totalAmount}>
                   {(cart.total || 0).toFixed(2)} €
                 </Text>
               </View>
-              
-              {tipAmount > 0 && (
-                <View style={summaryTotalStyles.summaryRow}>
-                  <Text style={summaryTotalStyles.subtotalLabel}>
-                    Pourboire {selectedTipPercent ? `(${selectedTipPercent}%)` : ''}
-                  </Text>
-                  <Text style={summaryTotalStyles.subtotalAmount}>
-                    {tipAmount.toFixed(2)} €
-                  </Text>
-                </View>
-              )}
-              
-              <View style={summaryTotalStyles.totalRow}>
-                <Text style={summaryTotalStyles.totalLabel}>Total</Text>
-                <Text style={summaryTotalStyles.totalAmount}>
-                  {totalWithTip.toFixed(2)} €
-                </Text>
-              </View>
-            </View>
 
-            <TipSection />
-
-            <View style={styles.buttonGroup}>
-              <Button
-                title={
-                  isCreatingOrder 
-                    ? "Création en cours..." 
-                    : hasActiveTableOrders 
-                      ? "Passer commande (nouvelle session)" 
-                      : "Passer commande"
-                }
-                onPress={handleCheckout}
-                fullWidth
-                style={orderButtonStyle}
-                textStyle={orderButtonTextStyle}
-                disabled={isSubmitting || isCreatingOrder}
-                loading={isCreatingOrder}
-              />
-              
-              {hasActiveTableOrders && currentTableNumber && (
+              <View style={styles.buttonGroup}>
                 <Button
-                  title={isSubmitting ? "Ajout en cours..." : "Ajouter à la session en cours"}
-                  onPress={addToExistingSession}
+                  title={
+                    isCreatingOrder 
+                      ? "Création en cours..." 
+                      : hasActiveTableOrders 
+                        ? "Passer commande (nouvelle session)" 
+                        : "Passer commande"
+                  }
+                  onPress={handleCheckout}
                   fullWidth
-                  variant="outline"
-                  style={{ 
-                    borderColor: COLORS.secondary,
-                    backgroundColor: 'transparent' 
-                  }}
-                  textStyle={{ 
-                    color: COLORS.secondary,
-                    fontWeight: '600' as const 
-                  }}
+                  style={orderButtonStyle}
+                  textStyle={orderButtonTextStyle}
                   disabled={isSubmitting || isCreatingOrder}
-                  loading={isSubmitting}
+                  loading={isCreatingOrder}
                 />
-              )}
-            </View>
+                
+                {hasActiveTableOrders && currentTableNumber && (
+                  <Button
+                    title={isSubmitting ? "Ajout en cours..." : "Ajouter à la session en cours"}
+                    onPress={addToExistingSession}
+                    fullWidth
+                    variant="outline"
+                    style={{ 
+                      borderColor: COLORS.secondary,
+                      backgroundColor: 'transparent' 
+                    }}
+                    textStyle={{ 
+                      color: COLORS.secondary,
+                      fontWeight: '600' as const 
+                    }}
+                    disabled={isSubmitting || isCreatingOrder}
+                    loading={isSubmitting}
+                  />
+                )}
+              </View>
 
-            <View style={styles.statusIndicators}>
-              {!isCreatingOrder && !isSubmitting ? (
-                <>
-                  <Text style={[styles.statusText, { color: COLORS.text.secondary }]}>
-                    {isAuthenticated 
-                      ? '🔒 Commande avec votre compte client' 
-                      : '👤 Commande en tant qu\'invité'
-                    }
+              <View style={styles.statusIndicators}>
+                {!isCreatingOrder && !isSubmitting ? (
+                  <>
+                    <Text style={[styles.statusText, { color: COLORS.text.secondary }]}>
+                      {isAuthenticated 
+                        ? '🔒 Commande avec votre compte client' 
+                        : '👤 Commande en tant qu\'invité'
+                      }
+                    </Text>
+                    {hasActiveTableOrders && currentTableNumber ? (
+                      <Text style={[styles.statusText, { color: COLORS.text.light }]}>
+                        Cette table a des commandes en cours
+                      </Text>
+                    ) : (
+                      <Text style={[styles.statusText, { color: COLORS.text.light }]}>
+                        Paiement sécurisé à l'étape suivante
+                      </Text>
+                    )}
+                  </>
+                ) : (
+                  <Text style={[styles.statusText, { color: COLORS.warning }]}>
+                    {isCreatingOrder ? 'Création de la commande...' : 'Ajout à la session...'}
                   </Text>
-                  {hasActiveTableOrders && currentTableNumber ? (
-                    <Text style={[styles.statusText, { color: COLORS.text.light }]}>
-                      Cette table a des commandes en cours
-                    </Text>
-                  ) : (
-                    <Text style={[styles.statusText, { color: COLORS.text.light }]}>
-                      Paiement sécurisé à l'étape suivante
-                    </Text>
-                  )}
-                </>
-              ) : (
-                <Text style={[styles.statusText, { color: COLORS.warning }]}>
-                  {isCreatingOrder ? 'Création de la commande...' : 'Ajout à la session...'}
-                </Text>
-              )}
-            </View>
-          </Card>
+                )}
+              </View>
+            </Card>
           </View>
         </ScrollView>
       )}
