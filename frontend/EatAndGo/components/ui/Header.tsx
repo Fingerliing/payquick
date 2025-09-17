@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 interface HeaderProps {
   title: string;
+  subtitle?: string;
   showBackButton?: boolean;
   leftIcon?: string;
   rightIcon?: string;
@@ -23,6 +24,7 @@ export const Header: React.FC<HeaderProps> = (props) => {
   const { logout } = useAuth();
   const {
     title,
+    subtitle,
     showBackButton = false,
     leftIcon,
     rightIcon,
@@ -85,7 +87,7 @@ export const Header: React.FC<HeaderProps> = (props) => {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 8, // Un peu d'espace pour éviter la collision avec les boutons
+    paddingHorizontal: 8,
   };
   
   return (
@@ -119,15 +121,35 @@ export const Header: React.FC<HeaderProps> = (props) => {
         
         {/* Titre */}
         <View style={titleContainerStyle}>
-          <Text style={{
-            fontSize: screenType === 'desktop' ? 20 : screenType === 'tablet' ? 18 : 16,
-            fontWeight: '600',
-            color: COLORS.text.primary,
-            textAlign: 'center',
-            lineHeight: screenType === 'desktop' ? 24 : screenType === 'tablet' ? 22 : 20,
-          }}>
+          <Text
+            numberOfLines={1}
+            accessibilityRole="header"
+            style={{
+              fontSize: screenType === 'desktop' ? 20 : screenType === 'tablet' ? 18 : 16,
+              fontWeight: '600',
+              color: COLORS.text.primary,
+              textAlign: 'center',
+              lineHeight: screenType === 'desktop' ? 24 : screenType === 'tablet' ? 22 : 20,
+            }}
+          >
             {title}
           </Text>
+
+          {!!subtitle && (
+            <Text
+              numberOfLines={1}
+              style={{
+                marginTop: 2,
+                fontSize: screenType === 'desktop' ? 14 : screenType === 'tablet' ? 13 : 12,
+                fontWeight: '400',
+                color: COLORS.text.secondary ?? COLORS.text.primary,
+                textAlign: 'center',
+                lineHeight: screenType === 'desktop' ? 18 : screenType === 'tablet' ? 17 : 16,
+              }}
+            >
+              {subtitle}
+            </Text>
+          )}
         </View>
         
         {/* Bouton droit */}

@@ -275,7 +275,7 @@ export default function DashboardScreen() {
   const styles = {
     container: {
       flex: 1,
-      backgroundColor: COLORS.background.secondary,
+      backgroundColor: COLORS.secondary,
     },
     
     // Header moderne avec gradient

@@ -5,22 +5,35 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { useTableOrders } from '@/hooks/useTableOrders';
-import { OrderWithTableInfo } from '@/services/tableOrderService';
+import { TableOrdersResponse ,OrderWithTableInfo } from '@/services/tableOrderService';
 
 interface TableOrdersProps {
   restaurantId: number;
   tableNumber: string;
+  data?: TableOrdersResponse;
+  isLoading?: boolean;
+  error?: string | null;
+  refetch?: () => Promise<void>;
   onAddOrder?: () => void;
   onOrderPress?: (order: OrderWithTableInfo) => void;
 }
 
-export function TableOrders({ 
-  restaurantId, 
-  tableNumber, 
+export function TableOrders({
+  restaurantId,
+  tableNumber,
+  data: dataProp,
+  isLoading: isLoadingProp,
+  error: errorProp,
+  refetch: refetchProp,
   onAddOrder,
-  onOrderPress 
+  onOrderPress,
 }: TableOrdersProps) {
-  const { data, isLoading, error, refetch, endSession } = useTableOrders(restaurantId, tableNumber);
+  const internal = useTableOrders(restaurantId, tableNumber);
+  const data = dataProp ?? internal.data;
+  const isLoading = isLoadingProp ?? internal.isLoading;
+  const error = errorProp ?? internal.error;
+  const refetch = refetchProp ?? internal.refetch;
+  const endSession = internal.endSession;
   const [refreshing, setRefreshing] = useState(false);
 
   const handleRefresh = async () => {
