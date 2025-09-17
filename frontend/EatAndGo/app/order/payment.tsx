@@ -49,7 +49,7 @@ export interface OrderItem {
   id?: number | string;
   name: string;
   quantity: number;
-  total_price: number; // €
+  total_price: number | string; // Permettre string car les APIs peuvent renvoyer des strings
 }
 
 export interface OrderDetail {
@@ -58,15 +58,25 @@ export interface OrderDetail {
   restaurant_name?: string;
   table_number?: string | number | null;
   items?: OrderItem[];
-  total_amount: number; // €
+  total_amount: number | string; // Permettre string aussi
   payment_status?: 'unpaid' | 'paid' | 'cash_pending' | string;
   payment_method?: 'online' | 'cash' | string;
   customer_email?: string | null;
-  tip_amount?: number;
+  tip_amount?: number | string;
 }
 
 // ==== Helpers
-const formatCurrency = (v: number) => `${v.toFixed(2)} €`;
+const safeParseFloat = (value: any, fallback = 0): number => {
+  if (typeof value === 'number' && !isNaN(value)) return value;
+  const parsed = parseFloat(String(value || fallback));
+  return isNaN(parsed) ? fallback : parsed;
+};
+
+const formatCurrency = (v: number | string | null | undefined) => {
+  const num = safeParseFloat(v);
+  return `${num.toFixed(2)} €`;
+};
+
 const isEmail = (v: string) => /^(?:[^\s@]+@[^\s@]+\.[^\s@]+)$/i.test(v.trim());
 
 export default function PaymentScreen() {
@@ -123,7 +133,8 @@ export default function PaymentScreen() {
       setCustomTipInput('');
     } else {
       setSelectedTipPercent(percent);
-      const tip = Math.round(order.total_amount * (percent / 100) * 100) / 100;
+      const orderAmount = safeParseFloat(order.total_amount);
+      const tip = Math.round(orderAmount * (percent / 100) * 100) / 100;
       setTipAmount(tip);
       setCustomTipInput(tip.toFixed(2));
     }
@@ -132,7 +143,7 @@ export default function PaymentScreen() {
   const handleCustomTip = (text: string) => {
     setCustomTipInput(text);
     const amount = parseFloat(text.replace(',', '.'));
-    if (!isNaN(amount)) {
+    if (!isNaN(amount) && amount >= 0) {
       setTipAmount(Math.max(0, Math.round(amount * 100) / 100));
       setSelectedTipPercent(null);
     } else {
@@ -141,10 +152,11 @@ export default function PaymentScreen() {
     }
   };
 
-  const totalWithTip = useMemo(
-    () => (order?.total_amount || 0) + (tipAmount || 0),
-    [order?.total_amount, tipAmount]
-  );
+  const totalWithTip = useMemo(() => {
+    const orderAmount = safeParseFloat(order?.total_amount);
+    const tip = safeParseFloat(tipAmount);
+    return Math.round((orderAmount + tip) * 100) / 100;
+  }, [order?.total_amount, tipAmount]);
 
   const initializePayment = async () => {
     if (paymentMethod !== 'online' || !order) return false;
@@ -155,8 +167,8 @@ export default function PaymentScreen() {
       let clientSecret: string | undefined;
       try {
         const res = await (paymentService as any).createPaymentIntent(orderId, {
-          tip_amount: tipAmount, // en €; adapter si le backend attend des cents
-          total_with_tip: totalWithTip,
+          tip_amount: safeParseFloat(tipAmount), // Utiliser la fonction sécurisée
+          total_with_tip: safeParseFloat(totalWithTip),
         });
         clientSecret = res?.client_secret;
       } catch (e) {
@@ -305,7 +317,10 @@ export default function PaymentScreen() {
   // ==== Styles (responsive via design system)
   const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: COLORS.background },
-    scrollContent: { padding: getResponsiveValue(SPACING.container, screenType) },
+    scrollContent: { 
+      padding: getResponsiveValue(SPACING.container, screenType),
+      paddingBottom: getResponsiveValue(SPACING.xl, screenType) + (Platform.OS === 'ios' ? 20 : 30), // Ajout d'espace supplémentaire en bas
+    },
     card: {
       marginBottom: getResponsiveValue(SPACING.md, screenType),
       padding: getResponsiveValue(SPACING.lg, screenType),
@@ -448,7 +463,14 @@ export default function PaymentScreen() {
       textAlign: 'center',
       marginBottom: getResponsiveValue(SPACING.xl, screenType),
     },
-    helperText: { textAlign: 'center', marginTop: 16, color: COLORS.text.secondary, fontSize: 12 },
+    helperText: { 
+      textAlign: 'center', 
+      marginTop: getResponsiveValue(SPACING.md, screenType),
+      marginBottom: getResponsiveValue(SPACING.lg, screenType), // Ajout d'une marge en bas
+      color: COLORS.text.secondary, 
+      fontSize: getResponsiveValue({ mobile: 12, tablet: 13, desktop: 14 }, screenType),
+      paddingHorizontal: getResponsiveValue(SPACING.md, screenType), // Ajout de padding horizontal
+    },
   });
 
   const iconSize = getResponsiveValue({ mobile: 24, tablet: 28, desktop: 32 }, screenType);
@@ -497,7 +519,12 @@ export default function PaymentScreen() {
       <SafeAreaView style={styles.container}>
         <Header title="Paiement" leftIcon="arrow-back" onLeftPress={() => router.back()} />
 
-        <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          style={styles.container} 
+          contentContainerStyle={styles.scrollContent} 
+          showsVerticalScrollIndicator={false}
+          contentInsetAdjustmentBehavior="automatic" // iOS: ajustement automatique pour la safe area
+        >
           {/* Résumé de la commande */}
           <Card style={styles.card}>
             <Text style={styles.sectionTitle}>Résumé de la commande</Text>
@@ -615,7 +642,7 @@ export default function PaymentScreen() {
             <View style={styles.totalSection}>
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Sous-total</Text>
-                <Text style={styles.summaryValue}>{formatCurrency(order?.total_amount || 0)}</Text>
+                <Text style={styles.summaryValue}>{formatCurrency(order?.total_amount)}</Text>
               </View>
               {tipAmount > 0 && (
                 <View style={styles.summaryRow}>
@@ -636,7 +663,7 @@ export default function PaymentScreen() {
               processing
                 ? 'Traitement en cours...'
                 : paymentMethod === 'online'
-                ? `Payer ${formatCurrency(totalWithTip).replace(' €', ' €')}`
+                ? `Payer ${formatCurrency(totalWithTip)}`
                 : 'Confirmer la commande'
             }
             onPress={paymentMethod === 'online' ? handleOnlinePayment : handleCashPayment}

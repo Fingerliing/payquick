@@ -1,14 +1,27 @@
 import React from 'react';
 import { View, Text, ViewStyle, TextStyle } from 'react-native';
-import { OrderSummary as OrderSummaryType } from '@/types/order';
 import { Card } from '@/components/ui/Card';
 
+// Type pour le résumé de commande (cohérent avec les types backend)
+export interface OrderSummary {
+  subtotal: string;        // Montant décimal en string (cohérent avec l'API)
+  discount?: string;       // Remise optionnelle
+  tax_amount: string;      // Taxes (nom cohérent avec OrderDetail.tax_amount)
+  total_amount: string;    // Total (nom cohérent avec OrderDetail.total_amount)
+}
+
 interface OrderSummaryProps {
-  summary: OrderSummaryType;
+  summary: OrderSummary;
   style?: ViewStyle;
 }
 
 export const OrderSummary: React.FC<OrderSummaryProps> = ({ summary, style }) => {
+  // Helper pour parser et formater les montants
+  const formatAmount = (amount: string): string => {
+    const num = parseFloat(amount || '0');
+    return num.toFixed(2);
+  };
+
   const containerStyle: ViewStyle = {
     ...style,
   };
@@ -53,6 +66,9 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({ summary, style }) =>
     fontWeight: '700',
   };
 
+  // Vérifier s'il y a une remise
+  const hasDiscount = summary.discount && parseFloat(summary.discount) > 0;
+
   return (
     <Card style={containerStyle}>
       <Text style={{ fontSize: 16, fontWeight: '600', color: '#111827', marginBottom: 12 }}>
@@ -61,33 +77,26 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({ summary, style }) =>
 
       <View style={rowStyle}>
         <Text style={labelStyle}>Sous-total</Text>
-        <Text style={valueStyle}>{summary.subtotal.toFixed(2)} €</Text>
+        <Text style={valueStyle}>{formatAmount(summary.subtotal)} €</Text>
       </View>
 
-      {summary.discount > 0 && (
+      {hasDiscount && (
         <View style={rowStyle}>
           <Text style={labelStyle}>Remise</Text>
           <Text style={[valueStyle, { color: '#10B981' }]}>
-            -{summary.discount.toFixed(2)} €
+            -{formatAmount(summary.discount!)} €
           </Text>
         </View>
       )}
 
       <View style={rowStyle}>
         <Text style={labelStyle}>Taxes</Text>
-        <Text style={valueStyle}>{summary.tax.toFixed(2)} €</Text>
+        <Text style={valueStyle}>{formatAmount(summary.tax_amount)} €</Text>
       </View>
-
-      {summary.deliveryFee > 0 && (
-        <View style={rowStyle}>
-          <Text style={labelStyle}>Frais de livraison</Text>
-          <Text style={valueStyle}>{summary.deliveryFee.toFixed(2)} €</Text>
-        </View>
-      )}
 
       <View style={totalRowStyle}>
         <Text style={totalLabelStyle}>Total</Text>
-        <Text style={totalValueStyle}>{summary.total.toFixed(2)} €</Text>
+        <Text style={totalValueStyle}>{formatAmount(summary.total_amount)} €</Text>
       </View>
     </Card>
   );

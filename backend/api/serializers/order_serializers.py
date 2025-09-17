@@ -277,16 +277,14 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             
             order_items_data.append(order_item_data)
         
-        # Calcul des taxes et total
-        tax_rate = Decimal('0.10')
-        tax_amount = subtotal * tax_rate
-        total_amount = subtotal + tax_amount
+        # Calcul du total
+        total_amount = subtotal
         
         # Créer la commande
         order = Order.objects.create(
             **validated_data,
             subtotal=subtotal,
-            tax_amount=tax_amount,
+            tax_amount=Decimal('0.00'),
             total_amount=total_amount
         )
         
