@@ -272,8 +272,8 @@ export class ClientOrderService {
       console.log('📤 Final payload being sent (backend aligned):', JSON.stringify(payload, null, 2));
 
       const response = await apiClient.post('/api/v1/orders/', payload);
-      console.log('✅ Order created successfully:', response.data);
-      return response.data;
+      console.log('✅ Order created successfully:', response);
+      return response;
       
     } catch (err: any) {
       console.error('❌ Order creation failed:', err);
@@ -326,7 +326,7 @@ export class ClientOrderService {
         throw new Error(errorMessage);
       }
       
-      // Si pas de response.data, c'est probablement une erreur réseau
+      // Si pas de response, c'est probablement une erreur réseau
       throw new Error(err?.message || 'Erreur de connexion au serveur');
     }
   }
@@ -369,8 +369,8 @@ export class ClientOrderService {
         }
         
         const response = await apiClient.post('/api/v1/orders/', testCase.payload);
-        console.log(`✅ ${testCase.name} succeeded:`, response.data);
-        return { success: true, testCase: testCase.name, data: response.data };
+        console.log(`✅ ${testCase.name} succeeded:`, response);
+        return { success: true, testCase: testCase.name, data: response};
         
       } catch (error: unknown) {
         logAPIError(error, `Debug test: ${testCase.name}`);

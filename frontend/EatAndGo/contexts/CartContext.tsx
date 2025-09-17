@@ -30,7 +30,6 @@ interface ExtendedCartContextType extends CartContextType {
   refreshTableOrders: () => Promise<void>;
   hasActiveTableOrders: boolean;
   canAddOrderToTable: boolean;
-  // ✅ CORRIGÉ: Type de retour cohérent avec l'implémentation
   addOrderToTable: (orderData: CreateOrderRequest) => Promise<OrderWithTableInfo>;
 }
 
@@ -164,7 +163,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // ✅ CORRIGÉ: Signature cohérente avec l'interface
   const addOrderToTable = async (orderData: CreateOrderRequest): Promise<OrderWithTableInfo> => {
     if (!cart.restaurantId || !cart.tableNumber) {
       throw new Error('Restaurant et table requis pour passer une commande');
