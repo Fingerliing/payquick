@@ -157,6 +157,9 @@ class CreateCheckoutSessionView(APIView):
 @extend_schema(exclude=True)
 @method_decorator(csrf_exempt, name='dispatch')
 class StripeWebhookView(APIView):
+    """
+    Webhook Stripe pour gérer les paiements normaux et divisés
+    """
     permission_classes = []
 
     def post(self, request):
@@ -164,69 +167,264 @@ class StripeWebhookView(APIView):
         sig_header = request.META.get("HTTP_STRIPE_SIGNATURE")
 
         try:
+            # Vérifier la signature du webhook
             event = stripe.Webhook.construct_event(
                 payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
             )
-        except (ValueError, stripe.error.SignatureVerificationError):
+        except (ValueError, stripe.error.SignatureVerificationError) as e:
+            logger.warning(f"Invalid webhook signature: {e}")
             return HttpResponse(status=400)
 
-        etype = event.get("type")
+        event_type = event.get("type")
+        logger.info(f"Processing webhook event: {event_type}")
 
-        # a) Paiement via Checkout (existant)
-        if etype == "checkout.session.completed":
-            session = event["data"]["object"]
-            order_id = (session.get("metadata") or {}).get("order_id")
-            if order_id:
-                try:
-                    order = Order.objects.get(id=order_id)
-                    if not getattr(order, "is_paid", False):
-                        order.is_paid = True
-                        order.payment_status = "paid"  # si tu as ce champ
-                        order.save(update_fields=["is_paid", "payment_status"])
-                        # TODO: notifier via WS le restaurateur
-                except Order.DoesNotExist:
-                    pass
+        try:
+            # Traitement selon le type d'événement
+            if event_type == "payment_intent.succeeded":
+                self._handle_payment_intent_succeeded(event)
+            elif event_type == "payment_intent.payment_failed":
+                self._handle_payment_intent_failed(event)
+            elif event_type == "checkout.session.completed":
+                self._handle_checkout_session_completed(event)
+            else:
+                logger.info(f"Unhandled event type: {event_type}")
 
-        # b) Paiement invité via PaymentIntent (mode PaymentSheet)
-        elif etype == "payment_intent.succeeded":
-            pi = event["data"]["object"]
-            metadata = pi.get("metadata") or {}
-            draft_id = metadata.get("draft_order_id")
-            if draft_id:
-                try:
-                    draft = DraftOrder.objects.get(id=draft_id)
-                    # Créer la commande finale payée
-                    order = _create_order_from_draft(draft, paid=True)
-                    draft.status = "pi_succeeded"
-                    draft.save(update_fields=["status"])
-                    # TODO: notifier via WS (room restaurant:{id})
-                except DraftOrder.DoesNotExist:
-                    pass
-                except Exception:
-                    # en cas d'erreur de création, ne pas renvoyer 4xx au webhook (réessaies Stripe)
-                    pass
-
-        elif etype == "payment_intent.payment_failed":
-            pi = event["data"]["object"]
-            metadata = pi.get("metadata") or {}
-            draft_id = metadata.get("draft_order_id")
-            if draft_id:
-                DraftOrder.objects.filter(id=draft_id).update(status="failed")
-
-        # c) Vérification d'identité (existant)
-        elif etype == "identity.verification_session.verified":
-            session = event["data"]["object"]
-            rest_id = (session.get("metadata") or {}).get("restaurateur_id")
-            if rest_id:
-                try:
-                    restaurateur = RestaurateurProfile.objects.get(id=rest_id)
-                    restaurateur.stripe_verified = True
-                    restaurateur.save(update_fields=["stripe_verified"])
-                except RestaurateurProfile.DoesNotExist:
-                    pass
+        except Exception as e:
+            logger.error(f"Error processing webhook event {event_type}: {e}")
+            # Ne pas retourner d'erreur pour éviter que Stripe retente le webhook
+            # sauf si c'est vraiment critique
 
         return HttpResponse(status=200)
 
+    def _handle_payment_intent_succeeded(self, event):
+        """Traiter un PaymentIntent réussi"""
+        payment_intent = event["data"]["object"]
+        payment_intent_id = payment_intent["id"]
+        metadata = payment_intent.get("metadata", {})
+        
+        logger.info(f"Payment intent succeeded: {payment_intent_id}")
+        logger.debug(f"Metadata: {metadata}")
+
+        # Vérifier si c'est un paiement divisé
+        is_split_payment = metadata.get("split_payment") == "true"
+        
+        if is_split_payment:
+            self._handle_split_payment_success(payment_intent, metadata)
+        else:
+            self._handle_regular_payment_success(payment_intent, metadata)
+
+    def _handle_split_payment_success(self, payment_intent, metadata):
+        """Traiter un paiement divisé réussi"""
+        order_id = metadata.get("order_id")
+        portion_id = metadata.get("portion_id")
+        is_remaining_payment = metadata.get("remaining_payment") == "true"
+        
+        if not order_id:
+            logger.error("No order_id in split payment metadata")
+            return
+
+        try:
+            order = Order.objects.get(id=order_id)
+            
+            if not hasattr(order, 'split_payment_session'):
+                logger.error(f"No split payment session for order {order_id}")
+                return
+            
+            session = order.split_payment_session
+            
+            if is_remaining_payment:
+                # Paiement de toutes les portions restantes
+                self._handle_remaining_payment_success(session, payment_intent["id"])
+            elif portion_id:
+                # Paiement d'une portion spécifique
+                self._handle_single_portion_success(session, portion_id, payment_intent["id"])
+            else:
+                logger.error("Split payment without portion_id or remaining_payment flag")
+                
+        except Order.DoesNotExist:
+            logger.error(f"Order {order_id} not found for split payment")
+        except Exception as e:
+            logger.error(f"Error handling split payment success: {e}")
+
+    def _handle_single_portion_success(self, session, portion_id, payment_intent_id):
+        """Traiter le succès d'une portion individuelle"""
+        try:
+            portion = session.portions.get(id=portion_id)
+            
+            if portion.is_paid:
+                logger.warning(f"Portion {portion_id} already marked as paid")
+                return
+            
+            # Marquer la portion comme payée
+            portion.mark_as_paid(
+                payment_intent_id=payment_intent_id,
+                payment_method='online'
+            )
+            
+            logger.info(f"Portion {portion_id} marked as paid")
+            
+            # Vérifier si toutes les portions sont payées
+            if session.is_completed and session.status != 'completed':
+                session.mark_as_completed()
+                logger.info(f"Split payment session {session.id} completed")
+                
+                # Envoyer notifications si nécessaire
+                self._send_completion_notifications(session.order)
+                
+        except SplitPaymentPortion.DoesNotExist:
+            logger.error(f"Portion {portion_id} not found")
+        except Exception as e:
+            logger.error(f"Error handling single portion success: {e}")
+
+    def _handle_remaining_payment_success(self, session, payment_intent_id):
+        """Traiter le succès du paiement du montant restant"""
+        try:
+            unpaid_portions = session.portions.filter(is_paid=False)
+            
+            if not unpaid_portions.exists():
+                logger.warning("No unpaid portions found for remaining payment")
+                return
+            
+            # Marquer toutes les portions restantes comme payées
+            for portion in unpaid_portions:
+                portion.mark_as_paid(
+                    payment_intent_id=payment_intent_id,
+                    payment_method='online'
+                )
+            
+            logger.info(f"All remaining portions marked as paid for session {session.id}")
+            
+            # La session devrait être automatiquement complétée par le signal
+            if session.status != 'completed':
+                session.mark_as_completed()
+                
+            # Envoyer notifications
+            self._send_completion_notifications(session.order)
+            
+        except Exception as e:
+            logger.error(f"Error handling remaining payment success: {e}")
+
+    def _handle_regular_payment_success(self, payment_intent, metadata):
+        """Traiter un paiement normal (non divisé)"""
+        order_id = metadata.get("order_id")
+        
+        if not order_id:
+            logger.error("No order_id in regular payment metadata")
+            return
+
+        try:
+            order = Order.objects.get(id=order_id)
+            
+            if order.payment_status == 'paid':
+                logger.warning(f"Order {order_id} already marked as paid")
+                return
+            
+            # Marquer la commande comme payée
+            order.payment_status = 'paid'
+            order.save()
+            
+            logger.info(f"Order {order_id} marked as paid")
+            
+            # Envoyer notifications
+            self._send_payment_success_notifications(order)
+            
+        except Order.DoesNotExist:
+            logger.error(f"Order {order_id} not found")
+        except Exception as e:
+            logger.error(f"Error handling regular payment success: {e}")
+
+    def _handle_payment_intent_failed(self, event):
+        """Traiter un échec de PaymentIntent"""
+        payment_intent = event["data"]["object"]
+        payment_intent_id = payment_intent["id"]
+        metadata = payment_intent.get("metadata", {})
+        
+        logger.warning(f"Payment intent failed: {payment_intent_id}")
+        
+        order_id = metadata.get("order_id")
+        is_split_payment = metadata.get("split_payment") == "true"
+        
+        if order_id:
+            try:
+                order = Order.objects.get(id=order_id)
+                
+                if is_split_payment:
+                    # Pour les paiements divisés, on ne change pas le statut global
+                    # car d'autres portions peuvent encore être payées
+                    logger.info(f"Split payment portion failed for order {order_id}")
+                else:
+                    # Pour un paiement normal, marquer comme échoué
+                    order.payment_status = 'failed'
+                    order.save()
+                    logger.info(f"Order {order_id} marked as payment failed")
+                
+                # Envoyer notifications d'échec
+                self._send_payment_failure_notifications(order, is_split_payment)
+                
+            except Order.DoesNotExist:
+                logger.error(f"Order {order_id} not found for failed payment")
+            except Exception as e:
+                logger.error(f"Error handling payment failure: {e}")
+
+    def _handle_checkout_session_completed(self, event):
+        """Traiter une session checkout complétée (pour compatibilité)"""
+        session = event["data"]["object"]
+        metadata = session.get("metadata", {})
+        order_id = metadata.get("order_id")
+        
+        if order_id:
+            try:
+                order = Order.objects.get(id=order_id)
+                if order.payment_status != 'paid':
+                    order.payment_status = 'paid'
+                    order.save()
+                    logger.info(f"Order {order_id} marked as paid via checkout session")
+            except Order.DoesNotExist:
+                logger.error(f"Order {order_id} not found for checkout session")
+
+    def _send_completion_notifications(self, order):
+        """Envoyer les notifications de finalisation de commande"""
+        try:
+            # Ici vous pouvez ajouter la logique pour :
+            # - Envoyer un email de confirmation au client
+            # - Notifier le restaurant que la commande est payée
+            # - Envoyer des notifications push
+            # - Déclencher des webhooks tiers
+            
+            logger.info(f"Split payment completed for order {order.id}")
+            
+            # Exemple d'intégration avec un système de notifications
+            # notification_service.send_order_paid_notification(order)
+            
+        except Exception as e:
+            logger.error(f"Error sending completion notifications: {e}")
+
+    def _send_payment_success_notifications(self, order):
+        """Envoyer les notifications de paiement réussi"""
+        try:
+            logger.info(f"Regular payment completed for order {order.id}")
+            
+            # Notifications similaires aux paiements divisés
+            # notification_service.send_payment_success_notification(order)
+            
+        except Exception as e:
+            logger.error(f"Error sending payment success notifications: {e}")
+
+    def _send_payment_failure_notifications(self, order, is_split_payment=False):
+        """Envoyer les notifications d'échec de paiement"""
+        try:
+            payment_type = "split" if is_split_payment else "regular"
+            logger.warning(f"{payment_type.title()} payment failed for order {order.id}")
+            
+            # Ici vous pouvez ajouter la logique pour :
+            # - Notifier le client de l'échec
+            # - Proposer des alternatives de paiement
+            # - Alerter le support si nécessaire
+            
+            # notification_service.send_payment_failure_notification(order, is_split_payment)
+            
+        except Exception as e:
+            logger.error(f"Error sending payment failure notifications: {e}")
 
 # ---------- 3. Création du compte Stripe Connect ----------
 @extend_schema(
