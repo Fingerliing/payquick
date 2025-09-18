@@ -6,11 +6,17 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import (
+    extend_schema, 
+    OpenApiParameter, 
+    OpenApiResponse, 
+    OpenApiExample
+)
+from drf_spectacular.types import OpenApiTypes
 from decimal import Decimal
 import uuid
 
-from core.models import Order, SplitPaymentSession, SplitPaymentPortion
+from api.models import Order, SplitPaymentSession, SplitPaymentPortion
 from api.serializers.split_payment_serializers import (
     SplitPaymentSessionSerializer,
     CreateSplitPaymentSessionSerializer,
@@ -27,8 +33,83 @@ stripe.api_key = settings.STRIPE_SECRET_KEY
 @extend_schema(
     tags=["Paiement Divisé"],
     summary="Créer une session de paiement divisé",
+    description="""
+    Crée une nouvelle session de paiement divisé pour une commande existante.
+    
+    **Fonctionnalités :**
+    - Division en parts égales ou montants personnalisés
+    - Support des pourboires
+    - Validation automatique des montants
+    - Gestion des permissions utilisateur
+    
+    **Types de division :**
+    - `equal` : Divise le montant total en parts égales
+    - `custom` : Permet de spécifier des montants personnalisés
+    - `by_item` : Division par article (fonctionnalité future)
+    """,
+    parameters=[
+        OpenApiParameter(
+            name='order_id', 
+            description='ID de la commande à diviser', 
+            required=True, 
+            type=OpenApiTypes.INT, 
+            location=OpenApiParameter.PATH
+        )
+    ],
     request=CreateSplitPaymentSessionSerializer,
-    responses={201: SplitPaymentSessionSerializer}
+    responses={
+        201: OpenApiResponse(
+            response=SplitPaymentSessionSerializer,
+            description="Session créée avec succès"
+        ),
+        400: OpenApiResponse(
+            description="Erreur de validation",
+            examples=[
+                OpenApiExample(
+                    "Session déjà existante",
+                    value={"error": "Une session de paiement divisé existe déjà pour cette commande"}
+                ),
+                OpenApiExample(
+                    "Montants incorrects", 
+                    value={"portions": ["Le total des portions ne correspond pas au montant de la commande"]}
+                )
+            ]
+        ),
+        403: OpenApiResponse(
+            description="Non autorisé",
+            examples=[OpenApiExample("Accès refusé", value={"error": "Non autorisé"})]
+        ),
+        404: OpenApiResponse(
+            description="Commande non trouvée",
+            examples=[OpenApiExample("Commande introuvable", value={"error": "Commande non trouvée"})]
+        )
+    },
+    examples=[
+        OpenApiExample(
+            "Division en 3 parts égales",
+            value={
+                "split_type": "equal",
+                "tip_amount": "5.00",
+                "portions": [
+                    {"name": "Alice", "amount": "15.00"},
+                    {"name": "Bob", "amount": "15.00"},
+                    {"name": "Charlie", "amount": "15.00"}
+                ]
+            }
+        ),
+        OpenApiExample(
+            "Montants personnalisés",
+            value={
+                "split_type": "custom",
+                "tip_amount": "0.00",
+                "portions": [
+                    {"name": "Alice", "amount": "20.00"},
+                    {"name": "Bob", "amount": "10.00"},
+                    {"name": "Charlie", "amount": "15.00"}
+                ]
+            }
+        )
+    ]
 )
 class CreateSplitPaymentSessionView(APIView):
     """Créer une session de paiement divisé pour une commande"""
@@ -145,11 +226,68 @@ class GetSplitPaymentSessionView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-
 @extend_schema(
     tags=["Paiement Divisé"],
     summary="Créer un PaymentIntent pour une portion",
-    request=PayPortionSerializer
+    description="""
+    Génère un PaymentIntent Stripe pour payer une portion spécifique du paiement divisé.
+    
+    **Processus :**
+    1. Validation de la portion (non payée, appartient à la session)
+    2. Création du PaymentIntent Stripe avec le montant de la portion
+    3. Retour du client_secret pour le frontend
+    
+    **Intégration Frontend :**
+    Utilisez le `client_secret` retourné avec Stripe Elements ou Payment Sheet.
+    """,
+    parameters=[
+        OpenApiParameter(
+            name='order_id',
+            description='ID de la commande',
+            required=True,
+            type=OpenApiTypes.INT,
+            location=OpenApiParameter.PATH
+        )
+    ],
+    request=PayPortionSerializer,
+    responses={
+        200: OpenApiResponse(
+            description="PaymentIntent créé avec succès",
+            examples=[
+                OpenApiExample(
+                    "Succès",
+                    value={
+                        "client_secret": "pi_1234567890_secret_abcdef",
+                        "payment_intent_id": "pi_1234567890",
+                        "amount": 15.00
+                    }
+                )
+            ]
+        ),
+        400: OpenApiResponse(
+            description="Erreur de validation",
+            examples=[
+                OpenApiExample(
+                    "Portion déjà payée",
+                    value={"error": "Cette portion est déjà payée"}
+                ),
+                OpenApiExample(
+                    "Portion introuvable",
+                    value={"error": "Portion non trouvée"}
+                )
+            ]
+        ),
+        403: OpenApiResponse(
+            description="Non autorisé",
+            examples=[OpenApiExample("Accès refusé", value={"error": "Non autorisé"})]
+        )
+    },
+    examples=[
+        OpenApiExample(
+            "Payer une portion",
+            value={"portion_id": "550e8400-e29b-41d4-a716-446655440000"}
+        )
+    ]
 )
 class PayPortionView(APIView):
     """Créer un PaymentIntent Stripe pour payer une portion spécifique"""
@@ -435,7 +573,65 @@ class ConfirmRemainingPaymentsView(APIView):
 @extend_schema(
     tags=["Paiement Divisé"],
     summary="Vérifier le statut du paiement divisé",
-    responses={200: SplitPaymentStatusSerializer}
+    description="""
+    Retourne l'état actuel d'une session de paiement divisé.
+    
+    **Informations fournies :**
+    - Statut de completion (toutes les portions payées ou non)
+    - Montant restant à payer
+    - Nombre de portions non payées
+    - Pourcentage de progression
+    - Montant total déjà payé
+    
+    **Utilisation :**
+    Idéal pour les mises à jour en temps réel dans l'interface utilisateur.
+    """,
+    parameters=[
+        OpenApiParameter(
+            name='order_id',
+            description='ID de la commande',
+            required=True,
+            type=OpenApiTypes.INT,
+            location=OpenApiParameter.PATH
+        )
+    ],
+    responses={
+        200: OpenApiResponse(
+            response=SplitPaymentStatusSerializer,
+            description="Statut récupéré avec succès",
+            examples=[
+                OpenApiExample(
+                    "Paiement en cours",
+                    value={
+                        "is_completed": False,
+                        "remaining_amount": "30.00",
+                        "remaining_portions": 2,
+                        "total_paid": "15.00",
+                        "progress_percentage": 33.33
+                    }
+                ),
+                OpenApiExample(
+                    "Paiement terminé",
+                    value={
+                        "is_completed": True,
+                        "remaining_amount": "0.00",
+                        "remaining_portions": 0,
+                        "total_paid": "45.00",
+                        "progress_percentage": 100.0
+                    }
+                )
+            ]
+        ),
+        404: OpenApiResponse(
+            description="Session non trouvée",
+            examples=[
+                OpenApiExample(
+                    "Pas de session",
+                    value={"error": "Aucune session de paiement divisé trouvée"}
+                )
+            ]
+        )
+    }
 )
 class SplitPaymentStatusView(APIView):
     """Vérifier le statut d'un paiement divisé"""

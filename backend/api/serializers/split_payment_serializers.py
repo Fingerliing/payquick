@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from core.models import SplitPaymentSession, SplitPaymentPortion, Order
+from api.models import SplitPaymentSession, SplitPaymentPortion, Order
 from decimal import Decimal
 
 class SplitPaymentPortionSerializer(serializers.ModelSerializer):

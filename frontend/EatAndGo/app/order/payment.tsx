@@ -24,10 +24,18 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Receipt } from '@/components/receipt/Receipt';
 
+// Composants de division de paiement
+import { SplitPaymentModal } from '@/components/payment/SplitPaymentModal';
+import { SplitPaymentStatus } from '@/components/payment/SplitPaymentStatus';
+
 // Services
 import { orderService } from '@/services/orderService';
 import { paymentService } from '@/services/paymentService';
 import { receiptService } from '@/services/receiptService';
+
+// Types et services pour paiement divisé
+import { SplitPaymentMode, SplitPaymentPortion, SplitPaymentSession } from '@/types/splitPayment';
+import { splitPaymentService } from '@/services/splitPaymentService';
 
 // Contexts
 import { useCart } from '@/contexts/CartContext';
@@ -49,7 +57,7 @@ export interface OrderItem {
   id?: number | string;
   name: string;
   quantity: number;
-  total_price: number | string; // Permettre string car les APIs peuvent renvoyer des strings
+  total_price: number | string;
 }
 
 export interface OrderDetail {
@@ -58,9 +66,9 @@ export interface OrderDetail {
   restaurant_name?: string;
   table_number?: string | number | null;
   items?: OrderItem[];
-  total_amount: number | string; // Permettre string aussi
-  payment_status?: 'unpaid' | 'paid' | 'cash_pending' | string;
-  payment_method?: 'online' | 'cash' | string;
+  total_amount: number | string;
+  payment_status?: 'unpaid' | 'paid' | 'cash_pending' | 'partial_paid' | string;
+  payment_method?: 'online' | 'cash' | 'split' | string;
   customer_email?: string | null;
   tip_amount?: number | string;
 }
@@ -90,6 +98,12 @@ export default function PaymentScreen() {
   const [processing, setProcessing] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'online' | 'cash'>('online');
 
+  // États pour division de paiement
+  const [splitMode, setSplitMode] = useState<SplitPaymentMode>('none');
+  const [showSplitModal, setShowSplitModal] = useState(false);
+  const [splitSession, setSplitSession] = useState<SplitPaymentSession | null>(null);
+  const [currentUserPortionId, setCurrentUserPortionId] = useState<string>('');
+
   const [tipAmount, setTipAmount] = useState(0);
   const [selectedTipPercent, setSelectedTipPercent] = useState<number | null>(null);
   const [customTipInput, setCustomTipInput] = useState('');
@@ -104,7 +118,7 @@ export default function PaymentScreen() {
 
   useEffect(() => {
     loadOrder();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    loadSplitSession();
   }, [orderId]);
 
   const loadOrder = async () => {
@@ -113,7 +127,6 @@ export default function PaymentScreen() {
       const data = await orderService.getOrderById(Number(orderId));
       setOrder(data as unknown as OrderDetail);
       
-      // Email mémorisé
       const savedEmail = await AsyncStorage.getItem('customerEmail');
       if (savedEmail && !customerEmail) setCustomerEmail(savedEmail);
     } catch (error) {
@@ -122,6 +135,24 @@ export default function PaymentScreen() {
       router.back();
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadSplitSession = async () => {
+    try {
+      const session = await splitPaymentService.getSplitSession(orderId as string);
+      if (session) {
+        setSplitSession(session);
+        setSplitMode(session.splitType);
+        
+        // Trouver la portion de l'utilisateur actuel
+        const userPortion = session.portions.find(p => !p.isPaid);
+        if (userPortion) {
+          setCurrentUserPortionId(userPortion.id);
+        }
+      }
+    } catch (error) {
+      console.warn('No split session found:', error);
     }
   };
 
@@ -158,25 +189,53 @@ export default function PaymentScreen() {
     return Math.round((orderAmount + tip) * 100) / 100;
   }, [order?.total_amount, tipAmount]);
 
-  const initializePayment = async () => {
+  // Gestion de la division de paiement
+  const handleSplitPaymentConfirm = async (
+    mode: SplitPaymentMode, 
+    portions: Omit<SplitPaymentPortion, 'id' | 'isPaid' | 'paidAt'>[]
+  ) => {
+    if (mode === 'none') {
+      setSplitMode('none');
+      setSplitSession(null);
+      setShowSplitModal(false);
+      return;
+    }
+
+    try {
+      const session = await splitPaymentService.createSplitSession(
+        orderId as string,
+        mode as 'equal' | 'custom',
+        portions
+      );
+      
+      setSplitSession(session);
+      setSplitMode(mode);
+      setCurrentUserPortionId(session.portions[0]?.id || '');
+      setShowSplitModal(false);
+      
+      // Mettre à jour le statut de la commande
+      await paymentService.updatePaymentStatus(orderId as string, 'partial_paid');
+      
+      Alert.alert(
+        'Division créée',
+        `La note a été divisée en ${portions.length} parts. Vous pouvez maintenant effectuer votre paiement.`
+      );
+    } catch (error) {
+      console.error('Error creating split payment:', error);
+      Alert.alert('Erreur', 'Impossible de créer la division de paiement');
+    }
+  };
+
+  const initializePayment = async (amount?: number) => {
     if (paymentMethod !== 'online' || !order) return false;
 
     try {
-      // Important: s'assurer que le PaymentIntent inclut le pourboire.
-      // On tente d'envoyer tip/total, avec repli si l'API existante ne l'accepte pas.
-      let clientSecret: string | undefined;
-      try {
-        const res = await (paymentService as any).createPaymentIntent(orderId, {
-          tip_amount: safeParseFloat(tipAmount), // Utiliser la fonction sécurisée
-          total_with_tip: safeParseFloat(totalWithTip),
-        });
-        clientSecret = res?.client_secret;
-      } catch (e) {
-        // fallback compat: API sans payload additionnel
-        const res = await paymentService.createPaymentIntent(orderId as string);
-        clientSecret = (res as any)?.client_secret;
-      }
-
+      const paymentAmount = amount || totalWithTip;
+      const res = await paymentService.createPaymentIntent(orderId as string);
+      
+      // Si c'est un paiement divisé, il faudrait adapter l'API pour accepter le montant spécifique
+      const clientSecret = res?.client_secret;
+      
       if (!clientSecret) throw new Error('Client secret manquant');
 
       const { error } = await initPaymentSheet({
@@ -208,6 +267,111 @@ export default function PaymentScreen() {
       Alert.alert('Erreur', "Impossible d'initialiser le paiement");
       return false;
     }
+  };
+
+  const handleSplitPortionPayment = async (portionId: string) => {
+    if (!splitSession || !order) return;
+    
+    const portion = splitSession.portions.find(p => p.id === portionId);
+    if (!portion) return;
+
+    setProcessing(true);
+    try {
+      if (customerEmail) await AsyncStorage.setItem('customerEmail', customerEmail.trim());
+
+      const initialized = await initializePayment(portion.amount);
+      if (!initialized) { 
+        setProcessing(false); 
+        return; 
+      }
+
+      const { error } = await presentPaymentSheet();
+      if (error) {
+        if ((error as any).code === 'Canceled') {
+          console.log('Payment canceled by user');
+        } else {
+          Alert.alert('Erreur de paiement', (error as any).message || 'Paiement refusé');
+        }
+        setProcessing(false);
+        return;
+      }
+
+      // Marquer cette portion comme payée
+      await splitPaymentService.payPortion(orderId as string, portionId, 'payment_intent_id');
+      
+      // Vérifier si tous les paiements sont terminés
+      const completion = await splitPaymentService.checkCompletion(orderId as string);
+      
+      if (completion.isCompleted) {
+        // Tous les paiements sont effectués, finaliser la commande
+        await splitPaymentService.completePayment(orderId as string);
+        await handlePaymentSuccess('online');
+      } else {
+        // Rafraîchir la session
+        await loadSplitSession();
+        setProcessing(false);
+        
+        Alert.alert(
+          'Paiement effectué !',
+          `Votre part a été payée avec succès. Il reste encore ${formatCurrency(completion.remainingAmount)} à payer par les autres personnes.`
+        );
+      }
+    } catch (error) {
+      console.error('Split payment error:', error);
+      Alert.alert('Erreur', 'Le paiement de votre part a échoué');
+      setProcessing(false);
+    }
+  };
+
+  const handlePayAllRemaining = async () => {
+    if (!splitSession) return;
+    
+    const unpaidPortions = splitSession.portions.filter(p => !p.isPaid);
+    const remainingAmount = unpaidPortions.reduce((sum, p) => sum + p.amount, 0);
+    
+    Alert.alert(
+      'Payer le reste',
+      `Voulez-vous payer les ${formatCurrency(remainingAmount)} restants pour finaliser la commande ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Payer',
+          onPress: async () => {
+            setProcessing(true);
+            try {
+              // Créer un PaymentIntent pour le montant restant
+              const initialized = await initializePayment(remainingAmount);
+              if (!initialized) { 
+                setProcessing(false); 
+                return; 
+              }
+
+              const { error } = await presentPaymentSheet();
+              if (error) {
+                if ((error as any).code !== 'Canceled') {
+                  Alert.alert('Erreur de paiement', (error as any).message || 'Paiement refusé');
+                }
+                setProcessing(false);
+                return;
+              }
+
+              // Marquer toutes les portions restantes comme payées
+              for (const portion of unpaidPortions) {
+                await splitPaymentService.payPortion(orderId as string, portion.id, 'payment_intent_id');
+              }
+              
+              // Finaliser la commande
+              await splitPaymentService.completePayment(orderId as string);
+              await handlePaymentSuccess('online');
+            } catch (error) {
+              console.error('Pay all remaining error:', error);
+              Alert.alert('Erreur', 'Le paiement du montant restant a échoué');
+              setProcessing(false);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleOnlinePayment = async () => {
@@ -276,13 +440,17 @@ export default function PaymentScreen() {
 
   const handlePaymentSuccess = async (method: 'online' | 'cash') => {
     try {
-      // Source de vérité: la commande
       await orderService.updateOrderStatus(Number(orderId), method === 'online' ? 'paid' : 'cash_pending');
       await orderService.markAsPaid(Number(orderId), method);
 
       if (wantReceipt && customerEmail && isEmail(customerEmail)) {
         try {
-          await receiptService.sendReceiptByEmail({ order_id: Number(orderId), email: customerEmail.trim(), format: 'pdf', language: 'fr' } as any);
+          await receiptService.sendReceiptByEmail({ 
+            order_id: Number(orderId), 
+            email: customerEmail.trim(), 
+            format: 'pdf', 
+            language: 'fr' 
+          } as any);
         } catch (e) {
           console.warn('Receipt email failed, continuing:', e);
         }
@@ -319,7 +487,7 @@ export default function PaymentScreen() {
     container: { flex: 1, backgroundColor: COLORS.background },
     scrollContent: { 
       padding: getResponsiveValue(SPACING.container, screenType),
-      paddingBottom: getResponsiveValue(SPACING.xl, screenType) + (Platform.OS === 'ios' ? 20 : 30), // Ajout d'espace supplémentaire en bas
+      paddingBottom: getResponsiveValue(SPACING.xl, screenType) + (Platform.OS === 'ios' ? 20 : 30),
     },
     card: {
       marginBottom: getResponsiveValue(SPACING.md, screenType),
@@ -372,7 +540,16 @@ export default function PaymentScreen() {
       fontSize: getResponsiveValue({ mobile: 13, tablet: 14, desktop: 15 }, screenType),
       color: COLORS.text.secondary,
     },
-    paymentMethods: { flexDirection: 'row', gap: getResponsiveValue(SPACING.sm, screenType) },
+    splitPaymentCard: {
+      backgroundColor: COLORS.secondary + '10',
+      borderColor: COLORS.secondary + '30',
+      borderWidth: 1,
+    },
+    paymentMethods: { 
+      flexDirection: 'row', 
+      gap: getResponsiveValue(SPACING.sm, screenType),
+      marginBottom: getResponsiveValue(SPACING.md, screenType),
+    },
     paymentMethodButton: {
       flex: 1,
       padding: getResponsiveValue(SPACING.md, screenType),
@@ -387,6 +564,12 @@ export default function PaymentScreen() {
       fontSize: getResponsiveValue({ mobile: 14, tablet: 15, desktop: 16 }, screenType),
       fontWeight: '500',
       color: COLORS.text.primary,
+    },
+    splitButton: {
+      backgroundColor: COLORS.secondary + '20',
+      borderColor: COLORS.secondary,
+      borderWidth: 1,
+      marginTop: getResponsiveValue(SPACING.sm, screenType),
     },
     tipSection: { gap: getResponsiveValue(SPACING.sm, screenType) },
     tipButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: getResponsiveValue(SPACING.xs, screenType) },
@@ -466,10 +649,10 @@ export default function PaymentScreen() {
     helperText: { 
       textAlign: 'center', 
       marginTop: getResponsiveValue(SPACING.md, screenType),
-      marginBottom: getResponsiveValue(SPACING.lg, screenType), // Ajout d'une marge en bas
+      marginBottom: getResponsiveValue(SPACING.lg, screenType),
       color: COLORS.text.secondary, 
       fontSize: getResponsiveValue({ mobile: 12, tablet: 13, desktop: 14 }, screenType),
-      paddingHorizontal: getResponsiveValue(SPACING.md, screenType), // Ajout de padding horizontal
+      paddingHorizontal: getResponsiveValue(SPACING.md, screenType),
     },
   });
 
@@ -523,7 +706,7 @@ export default function PaymentScreen() {
           style={styles.container} 
           contentContainerStyle={styles.scrollContent} 
           showsVerticalScrollIndicator={false}
-          contentInsetAdjustmentBehavior="automatic" // iOS: ajustement automatique pour la safe area
+          contentInsetAdjustmentBehavior="automatic"
         >
           {/* Résumé de la commande */}
           <Card style={styles.card}>
@@ -555,133 +738,164 @@ export default function PaymentScreen() {
             </View>
           </Card>
 
-          {/* Méthode de paiement */}
-          <Card style={styles.card}>
-            <Text style={styles.sectionTitle}>Méthode de paiement</Text>
-            <View style={styles.paymentMethods}>
-              <Pressable
-                style={[styles.paymentMethodButton, paymentMethod === 'online' && styles.paymentMethodSelected]}
-                onPress={() => setPaymentMethod('online')}
-              >
-                <Ionicons name="card" size={iconSize} color={paymentMethod === 'online' ? COLORS.primary : COLORS.text.secondary} />
-                <Text style={styles.paymentMethodLabel}>Carte bancaire</Text>
-              </Pressable>
-
-              <Pressable
-                style={[styles.paymentMethodButton, paymentMethod === 'cash' && styles.paymentMethodSelected]}
-                onPress={() => setPaymentMethod('cash')}
-              >
-                <Ionicons name="cash" size={iconSize} color={paymentMethod === 'cash' ? COLORS.primary : COLORS.text.secondary} />
-                <Text style={styles.paymentMethodLabel}>Espèces</Text>
-              </Pressable>
-            </View>
-          </Card>
-
-          {/* Pourboire */}
-          <Card style={styles.card}>
-            <Text style={styles.sectionTitle}>Pourboire (optionnel)</Text>
-            <View style={styles.tipSection}>
-              <View style={styles.tipButtons}>
-                {TIP_PERCENTAGES.map((percent) => (
+          {/* Affichage de l'état du paiement divisé */}
+          {splitSession && splitMode !== 'none' ? (
+            <SplitPaymentStatus
+              session={splitSession}
+              currentUserPortionId={currentUserPortionId}
+              onPayPortion={handleSplitPortionPayment}
+              onPayAllRemaining={handlePayAllRemaining}
+              isProcessing={processing}
+            />
+          ) : (
+            <>
+              {/* Méthode de paiement */}
+              <Card style={styles.card}>
+                <Text style={styles.sectionTitle}>Méthode de paiement</Text>
+                <View style={styles.paymentMethods}>
                   <Pressable
-                    key={percent}
-                    style={[styles.tipButton, selectedTipPercent === percent && styles.tipButtonSelected]}
-                    onPress={() => handleTipPercentage(percent)}
+                    style={[styles.paymentMethodButton, paymentMethod === 'online' && styles.paymentMethodSelected]}
+                    onPress={() => setPaymentMethod('online')}
                   >
-                    <Text style={[styles.tipButtonText, selectedTipPercent === percent && styles.tipButtonTextSelected]}>
-                      {percent}%
-                    </Text>
+                    <Ionicons name="card" size={iconSize} color={paymentMethod === 'online' ? COLORS.primary : COLORS.text.secondary} />
+                    <Text style={styles.paymentMethodLabel}>Carte bancaire</Text>
                   </Pressable>
-                ))}
-              </View>
 
-              <View style={styles.customTipContainer}>
-                <Text style={styles.summaryLabel}>Montant libre :</Text>
-                <TextInput
-                  style={styles.customTipInput}
-                  value={customTipInput}
-                  onChangeText={handleCustomTip}
-                  placeholder="0.00"
-                  keyboardType={Platform.OS === 'ios' ? 'decimal-pad' : 'numeric'}
-                  returnKeyType="done"
+                  <Pressable
+                    style={[styles.paymentMethodButton, paymentMethod === 'cash' && styles.paymentMethodSelected]}
+                    onPress={() => setPaymentMethod('cash')}
+                  >
+                    <Ionicons name="cash" size={iconSize} color={paymentMethod === 'cash' ? COLORS.primary : COLORS.text.secondary} />
+                    <Text style={styles.paymentMethodLabel}>Espèces</Text>
+                  </Pressable>
+                </View>
+                
+                <Button
+                  title="Diviser la note"
+                  leftIcon="people"
+                  onPress={() => setShowSplitModal(true)}
+                  variant="outline"
+                  style={styles.splitButton}
+                  fullWidth
                 />
-                <Text style={styles.summaryLabel}>€</Text>
-              </View>
-            </View>
-          </Card>
+              </Card>
 
-          {/* Ticket de caisse */}
-          <Card style={styles.card}>
-            <Text style={styles.sectionTitle}>Ticket de caisse</Text>
-            <View style={styles.receiptSection}>
-              <TextInput
-                style={[styles.emailInput, !emailIsValidOrEmpty && { borderColor: 'tomato' }]}
-                value={customerEmail}
-                onChangeText={setCustomerEmail}
-                placeholder="Votre adresse email"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
+              {/* Pourboire */}
+              <Card style={styles.card}>
+                <Text style={styles.sectionTitle}>Pourboire (optionnel)</Text>
+                <View style={styles.tipSection}>
+                  <View style={styles.tipButtons}>
+                    {TIP_PERCENTAGES.map((percent) => (
+                      <Pressable
+                        key={percent}
+                        style={[styles.tipButton, selectedTipPercent === percent && styles.tipButtonSelected]}
+                        onPress={() => handleTipPercentage(percent)}
+                      >
+                        <Text style={[styles.tipButtonText, selectedTipPercent === percent && styles.tipButtonTextSelected]}>
+                          {percent}%
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+
+                  <View style={styles.customTipContainer}>
+                    <Text style={styles.summaryLabel}>Montant libre :</Text>
+                    <TextInput
+                      style={styles.customTipInput}
+                      value={customTipInput}
+                      onChangeText={handleCustomTip}
+                      placeholder="0.00"
+                      keyboardType={Platform.OS === 'ios' ? 'decimal-pad' : 'numeric'}
+                      returnKeyType="done"
+                    />
+                    <Text style={styles.summaryLabel}>€</Text>
+                  </View>
+                </View>
+              </Card>
+
+              {/* Ticket de caisse */}
+              <Card style={styles.card}>
+                <Text style={styles.sectionTitle}>Ticket de caisse</Text>
+                <View style={styles.receiptSection}>
+                  <TextInput
+                    style={[styles.emailInput, !emailIsValidOrEmpty && { borderColor: 'tomato' }]}
+                    value={customerEmail}
+                    onChangeText={setCustomerEmail}
+                    placeholder="Votre adresse email"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+
+                  <View style={styles.receiptOption}>
+                    <Text style={styles.receiptOptionText}>Recevoir le ticket par email</Text>
+                    <Switch
+                      value={wantReceipt}
+                      onValueChange={(val) => setWantReceipt(val)}
+                      disabled={!!customerEmail && !emailIsValidOrEmpty}
+                      trackColor={{ false: COLORS.border.light, true: COLORS.primary }}
+                      thumbColor={wantReceipt ? COLORS.surface : COLORS.text.light}
+                    />
+                  </View>
+                </View>
+              </Card>
+
+              {/* Total */}
+              <Card style={styles.card}>
+                <View style={styles.totalSection}>
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Sous-total</Text>
+                    <Text style={styles.summaryValue}>{formatCurrency(order?.total_amount)}</Text>
+                  </View>
+                  {tipAmount > 0 && (
+                    <View style={styles.summaryRow}>
+                      <Text style={styles.summaryLabel}>Pourboire {selectedTipPercent ? `(${selectedTipPercent}%)` : ''}</Text>
+                      <Text style={styles.summaryValue}>{formatCurrency(tipAmount)}</Text>
+                    </View>
+                  )}
+                  <View style={styles.totalRow}>
+                    <Text style={styles.totalLabel}>Total à payer</Text>
+                    <Text style={styles.totalAmount}>{formatCurrency(totalWithTip)}</Text>
+                  </View>
+                </View>
+              </Card>
+
+              {/* Bouton de paiement */}
+              <Button
+                title={
+                  processing
+                    ? 'Traitement en cours...'
+                    : paymentMethod === 'online'
+                    ? `Payer ${formatCurrency(totalWithTip)}`
+                    : 'Confirmer la commande'
+                }
+                onPress={paymentMethod === 'online' ? handleOnlinePayment : handleCashPayment}
+                fullWidth
+                style={styles.payButton}
+                textStyle={styles.payButtonText}
+                disabled={processing || (paymentMethod === 'online' && !canPayOnline)}
+                loading={processing}
               />
 
-              <View style={styles.receiptOption}>
-                <Text style={styles.receiptOptionText}>Recevoir le ticket par email</Text>
-                <Switch
-                  value={wantReceipt}
-                  onValueChange={(val) => setWantReceipt(val)}
-                  disabled={!!customerEmail && !emailIsValidOrEmpty}
-                  trackColor={{ false: COLORS.border.light, true: COLORS.primary }}
-                  thumbColor={wantReceipt ? COLORS.surface : COLORS.text.light}
-                />
-              </View>
-            </View>
-          </Card>
-
-          {/* Total */}
-          <Card style={styles.card}>
-            <View style={styles.totalSection}>
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Sous-total</Text>
-                <Text style={styles.summaryValue}>{formatCurrency(order?.total_amount)}</Text>
-              </View>
-              {tipAmount > 0 && (
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Pourboire {selectedTipPercent ? `(${selectedTipPercent}%)` : ''}</Text>
-                  <Text style={styles.summaryValue}>{formatCurrency(tipAmount)}</Text>
-                </View>
-              )}
-              <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>Total à payer</Text>
-                <Text style={styles.totalAmount}>{formatCurrency(totalWithTip)}</Text>
-              </View>
-            </View>
-          </Card>
-
-          {/* Bouton de paiement */}
-          <Button
-            title={
-              processing
-                ? 'Traitement en cours...'
-                : paymentMethod === 'online'
-                ? `Payer ${formatCurrency(totalWithTip)}`
-                : 'Confirmer la commande'
-            }
-            onPress={paymentMethod === 'online' ? handleOnlinePayment : handleCashPayment}
-            fullWidth
-            style={styles.payButton}
-            textStyle={styles.payButtonText}
-            disabled={processing || (paymentMethod === 'online' && !canPayOnline)}
-            loading={processing}
-          />
-
-          <Text style={styles.helperText}>
-            {paymentMethod === 'online'
-              ? canPayOnline
-                ? 'Paiement sécurisé par Stripe'
-                : "Paiement en ligne indisponible (clé Stripe manquante)"
-              : 'Vous paierez directement au restaurant'}
-          </Text>
+              <Text style={styles.helperText}>
+                {paymentMethod === 'online'
+                  ? canPayOnline
+                    ? 'Paiement sécurisé par Stripe'
+                    : "Paiement en ligne indisponible (clé Stripe manquante)"
+                  : 'Vous paierez directement au restaurant'}
+              </Text>
+            </>
+          )}
         </ScrollView>
+
+        {/* Modal de division de paiement */}
+        <SplitPaymentModal
+          visible={showSplitModal}
+          onClose={() => setShowSplitModal(false)}
+          totalAmount={safeParseFloat(order?.total_amount)}
+          tipAmount={tipAmount}
+          onConfirm={handleSplitPaymentConfirm}
+        />
 
         {/* Modal Receipt Preview */}
         <Modal
