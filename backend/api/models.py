@@ -809,8 +809,11 @@ class Order(models.Model):
     ]
     
     PAYMENT_STATUS_CHOICES = [
+        ('unpaid', 'Non payé'),
         ('pending', 'En Attente'),
         ('paid', 'Payé'),
+        ('partial_paid', 'Partiellement payé'),
+        ('cash_pending', 'En attente espèces'),
         ('failed', 'Échoué'),
     ]
     
@@ -830,14 +833,14 @@ class Order(models.Model):
     customer_name = models.CharField(max_length=100, blank=True)
     phone = models.CharField(max_length=20, blank=True)
     
-    # NOUVEAU: Support pour regroupement de commandes
+    # Support pour regroupement de commandes
     table_session_id = models.UUIDField(default=uuid.uuid4, editable=False, help_text="Identifie une session de table pour regrouper les commandes")
     order_sequence = models.PositiveIntegerField(default=1, help_text="Numéro de séquence pour cette table/session")
     is_main_order = models.BooleanField(default=True, help_text="Première commande de la session de table")
     
     # Statuts
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending')
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='unpaid')
     payment_method = models.CharField(max_length=50, blank=True)
     
     # Montants
@@ -855,10 +858,14 @@ class Order(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # Champs pour commandes invités
     source = models.CharField(max_length=10, default="user")
     guest_contact_name = models.CharField(max_length=120, blank=True, null=True)
     guest_phone = models.CharField(max_length=32, blank=True, null=True)
     guest_email = models.EmailField(blank=True, null=True)
+    
+    # Paiement divisé
+    is_split_payment = models.BooleanField(default=False)
     
     class Meta:
         ordering = ['-created_at']
@@ -867,6 +874,9 @@ class Order(models.Model):
             models.Index(fields=['table_session_id']),
             models.Index(fields=['restaurant', 'created_at']),
         ]
+    
+    def __str__(self):
+        return f"Order #{self.order_number} - {self.get_payment_status_display()}"
     
     def save(self, *args, **kwargs):
         if not self.order_number:
@@ -940,7 +950,7 @@ class Order(models.Model):
         
         total_time = 0
         for item in self.items.all():
-            # ✅ CORRECTION: Vérifier que quantity n'est pas None
+            # Vérifier que quantity n'est pas None
             quantity = item.quantity
             if quantity is None or quantity <= 0:
                 continue  # Ignorer les items avec quantité invalide
@@ -1015,9 +1025,66 @@ class Order(models.Model):
             elapsed = timezone.now() - oldest_order.created_at
             return int(elapsed.total_seconds() / 60)
         return 0
+    
+    @property
+    def has_split_payment(self):
+        """Vérifie si cette commande a un paiement divisé"""
+        return hasattr(self, 'split_payment_session')
+
+    @property
+    def split_payment_progress(self):
+        """Retourne le progrès du paiement divisé (0-100)"""
+        if not self.has_split_payment:
+            return 100 if self.payment_status == 'paid' else 0
+            
+        session = self.split_payment_session
+        total_with_tip = session.total_amount + session.tip_amount
+        paid_amount = session.total_paid
+        
+        if total_with_tip <= 0:
+            return 100
+            
+        progress = (paid_amount / total_with_tip) * 100
+        return min(100, max(0, progress))
 
 
-# Nouveau modèle pour suivre les sessions de table
+# Manager personnalisé pour les commandes
+class OrderManager(models.Manager):
+    def for_table(self, restaurant, table_number):
+        """Toutes les commandes pour une table donnée"""
+        return self.filter(
+            restaurant=restaurant,
+            table_number=table_number
+        ).order_by('-created_at')
+    
+    def active_for_table(self, restaurant, table_number):
+        """Commandes actives pour une table"""
+        return self.for_table(restaurant, table_number).filter(
+            status__in=['pending', 'confirmed', 'preparing', 'ready']
+        )
+    
+    def by_table_session(self, session_id):
+        """Commandes par session de table"""
+        return self.filter(table_session_id=session_id).order_by('created_at')
+    
+    def table_statistics(self, restaurant, table_number):
+        """Statistiques pour une table"""
+        orders = self.for_table(restaurant, table_number)
+        
+        return {
+            'total_orders': orders.count(),
+            'total_revenue': orders.aggregate(
+                total=models.Sum('total_amount')
+            )['total'] or 0,
+            'average_order_value': orders.aggregate(
+                avg=models.Avg('total_amount')
+            )['avg'] or 0,
+            'active_orders': orders.filter(
+                status__in=['pending', 'confirmed', 'preparing', 'ready']
+            ).count()
+        }
+Order.add_to_class('objects', OrderManager())
+
 class TableSession(models.Model):
     """Modèle pour suivre les sessions de table et regrouper les commandes"""
     
@@ -1087,47 +1154,7 @@ class TableSession(models.Model):
         ).count()
         
         return active_orders < 5  # Limite configurable
-
-
-# Nouveau manager pour les commandes avec méthodes utilitaires
-class OrderManager(models.Manager):
-    def for_table(self, restaurant, table_number):
-        """Toutes les commandes pour une table donnée"""
-        return self.filter(
-            restaurant=restaurant,
-            table_number=table_number
-        ).order_by('-created_at')
-    
-    def active_for_table(self, restaurant, table_number):
-        """Commandes actives pour une table"""
-        return self.for_table(restaurant, table_number).filter(
-            status__in=['pending', 'confirmed', 'preparing', 'ready']
-        )
-    
-    def by_table_session(self, session_id):
-        """Commandes par session de table"""
-        return self.filter(table_session_id=session_id).order_by('created_at')
-    
-    def table_statistics(self, restaurant, table_number):
-        """Statistiques pour une table"""
-        orders = self.for_table(restaurant, table_number)
         
-        return {
-            'total_orders': orders.count(),
-            'total_revenue': orders.aggregate(
-                total=models.Sum('total_amount')
-            )['total'] or 0,
-            'average_order_value': orders.aggregate(
-                avg=models.Avg('total_amount')
-            )['avg'] or 0,
-            'active_orders': orders.filter(
-                status__in=['pending', 'confirmed', 'preparing', 'ready']
-            ).count()
-        }
-
-# Ajouter le manager personnalisé au modèle Order
-Order.add_to_class('objects', OrderManager())
-
 def default_expires_at():
     return timezone.now() + timedelta(minutes=15)
 
@@ -1600,3 +1627,136 @@ class DailyMenuTemplateItem(models.Model):
     
     def __str__(self):
         return f"{self.template.name} - {self.menu_item.name}"
+
+class SplitPaymentSession(models.Model):
+    """Session de paiement divisé pour une commande"""
+    
+    SPLIT_TYPES = [
+        ('equal', 'Équitable'),
+        ('custom', 'Personnalisé'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('completed', 'Terminée'),
+        ('cancelled', 'Annulée'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    order = models.OneToOneField(
+        'Order', 
+        on_delete=models.CASCADE, 
+        related_name='split_payment_session'
+    )
+    split_type = models.CharField(max_length=10, choices=SPLIT_TYPES)
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    tip_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='active')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    
+    created_by = models.ForeignKey(
+        User, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='created_split_sessions'
+    )
+
+    class Meta:
+        db_table = 'split_payment_sessions'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Split Payment #{self.order.id} - {self.split_type}"
+
+    @property
+    def is_completed(self):
+        """Vérifier si tous les paiements sont effectués"""
+        return self.status == 'completed' or (
+            self.portions.exists() and 
+            not self.portions.filter(is_paid=False).exists()
+        )
+
+    @property
+    def total_paid(self):
+        """Montant total déjà payé"""
+        return self.portions.filter(is_paid=True).aggregate(
+            total=models.Sum('amount')
+        )['total'] or 0
+
+    @property
+    def remaining_amount(self):
+        """Montant restant à payer"""
+        total_with_tip = self.total_amount + self.tip_amount
+        return total_with_tip - self.total_paid
+
+    @property
+    def remaining_portions_count(self):
+        """Nombre de portions non payées"""
+        return self.portions.filter(is_paid=False).count()
+
+    def mark_as_completed(self):
+        """Marquer la session comme terminée"""
+        self.status = 'completed'
+        self.completed_at = timezone.now()
+        self.save()
+
+        # Marquer la commande comme payée
+        if hasattr(self.order, 'payment_status'):
+            self.order.payment_status = 'paid'
+            self.order.save()
+
+
+class SplitPaymentPortion(models.Model):
+    """Une portion d'un paiement divisé"""
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    session = models.ForeignKey(
+        SplitPaymentSession, 
+        on_delete=models.CASCADE,
+        related_name='portions'
+    )
+    name = models.CharField(max_length=100, blank=True, default='')
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    
+    is_paid = models.BooleanField(default=False)
+    payment_intent_id = models.CharField(max_length=255, blank=True, null=True)
+    payment_method = models.CharField(max_length=50, blank=True, default='online')
+    
+    paid_at = models.DateTimeField(null=True, blank=True)
+    paid_by = models.ForeignKey(
+        User, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='paid_portions'
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'split_payment_portions'
+        ordering = ['created_at']
+
+    def __str__(self):
+        status = "Payé" if self.is_paid else "En attente"
+        name = self.name or "Anonyme"
+        return f"{name} - {self.amount}€ ({status})"
+
+    def mark_as_paid(self, payment_intent_id=None, user=None, payment_method='online'):
+        """Marquer cette portion comme payée"""
+        self.is_paid = True
+        self.paid_at = timezone.now()
+        self.payment_intent_id = payment_intent_id
+        self.paid_by = user
+        self.payment_method = payment_method
+        self.save()
+
+        # Vérifier si toutes les portions de la session sont payées
+        session = self.session
+        if not session.portions.filter(is_paid=False).exists():
+            session.mark_as_completed()
