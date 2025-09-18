@@ -42,11 +42,20 @@ export const SplitPaymentStatus: React.FC<SplitPaymentStatusProps> = ({
 
   const formatCurrency = (amount: number) => `${amount.toFixed(2)} €`;
 
+  const safeParseFloat = (value: any, fallback = 0): number => {
+    if (typeof value === 'number' && !isNaN(value)) return value;
+    const parsed = parseFloat(String(value || fallback));
+    return isNaN(parsed) ? fallback : parsed;
+  };
+  
   const paidPortions = session.portions.filter(p => p.isPaid);
   const unpaidPortions = session.portions.filter(p => !p.isPaid);
-  const totalPaid = paidPortions.reduce((sum, p) => sum + p.amount, 0);
-  const totalRemaining = unpaidPortions.reduce((sum, p) => sum + p.amount, 0);
-  const progress = (totalPaid / (session.totalAmount + session.tipAmount)) * 100;
+  const totalPaid = paidPortions.reduce((sum, p) => sum + safeParseFloat(p.amount), 0);
+  const totalRemaining = unpaidPortions.reduce((sum, p) => sum + safeParseFloat(p.amount), 0);
+  
+  // Calcul sécurisé du progrès
+  const sessionTotal = safeParseFloat(session.totalAmount) + safeParseFloat(session.tipAmount);
+  const progress = sessionTotal > 0 ? (totalPaid / sessionTotal) * 100 : 0;
 
   const customStyles: { [key: string]: any } = {
     container: {
