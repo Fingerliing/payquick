@@ -25,6 +25,7 @@ urlpatterns = [
     # Commandes et paiements
     path('orders/', include('api.urls.v1.order_urls')),
     path('payments/', include('api.urls.v1.payment_urls')),
+    path('split-payments/', include('api.urls.v1.split_payment_urls')),
     
     # Tables et QR codes
     path('qrcode/', include('api.urls.v1.qrcode_urls')),
