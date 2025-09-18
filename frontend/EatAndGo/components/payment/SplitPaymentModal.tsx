@@ -34,6 +34,29 @@ interface SplitPaymentModalProps {
   onConfirm: (mode: SplitPaymentMode, portions: Omit<SplitPaymentPortion, 'id' | 'isPaid' | 'paidAt'>[]) => void;
 }
 
+// Fonction utilitaire pour distribuer équitablement les centimes
+const distributeAmountEvenly = (totalAmount: number, numberOfPeople: number): number[] => {
+  // Convertir en centimes pour éviter les problèmes de précision
+  const totalCents = Math.round(totalAmount * 100);
+  const baseCentsPerPerson = Math.floor(totalCents / numberOfPeople);
+  const remainingCents = totalCents % numberOfPeople;
+  
+  const portions: number[] = [];
+  
+  for (let i = 0; i < numberOfPeople; i++) {
+    // Les premiers "remainingCents" personnes reçoivent un centime supplémentaire
+    const portionCents = baseCentsPerPerson + (i < remainingCents ? 1 : 0);
+    portions.push(portionCents / 100); // Reconvertir en euros
+  }
+  
+  return portions;
+};
+
+// Fonction utilitaire pour vérifier si les montants correspondent (tolérance de 0.01€)
+const amountsMatch = (amount1: number, amount2: number, tolerance: number = 0.01): boolean => {
+  return Math.abs(amount1 - amount2) <= tolerance;
+};
+
 export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
   visible,
   onClose,
@@ -51,7 +74,7 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
   const screenType = useScreenType();
   const totalWithTip = totalAmount + tipAmount;
 
-  // Styles définis avec typage explicite
+  // Styles définis avec typage explicite (styles conservés identiques)
   const modalStyle: ViewStyle = {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -219,8 +242,30 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
     backgroundColor: COLORS.secondary + '08',
     borderWidth: 2,
     borderColor: COLORS.secondary + '20',
-    alignItems: 'center',
     padding: getResponsiveValue(SPACING.md, screenType),
+  };
+
+  const portionItemStyle: ViewStyle = {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: getResponsiveValue(SPACING.xs, screenType),
+    paddingHorizontal: getResponsiveValue(SPACING.sm, screenType),
+    backgroundColor: COLORS.surface + '50',
+    borderRadius: BORDER_RADIUS.md,
+    marginVertical: 2,
+  };
+
+  const portionNameStyle: TextStyle = {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.md, screenType),
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    color: COLORS.text.primary,
+  };
+
+  const portionAmountStyle: TextStyle = {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.md, screenType),
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.secondary,
   };
 
   const equalAmountTextStyle: TextStyle = {
@@ -228,13 +273,7 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
     fontWeight: TYPOGRAPHY.fontWeight.bold,
     color: COLORS.secondary,
     textAlign: 'center',
-  };
-
-  const equalAmountSubtextStyle: TextStyle = {
-    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
-    color: COLORS.text.secondary,
-    textAlign: 'center',
-    marginTop: getResponsiveValue(SPACING.xs, screenType) / 2,
+    marginBottom: getResponsiveValue(SPACING.sm, screenType),
   };
 
   const customPortionItemStyle: ViewStyle = {
@@ -345,17 +384,14 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
     elevation: 5,
   };
 
-  const actionButtonStyle: ViewStyle = {
-    borderRadius: BORDER_RADIUS.xl,
-    ...SHADOWS.md,
-  };
-
   const iconSize = getResponsiveValue({ mobile: 20, tablet: 22, desktop: 24 }, screenType);
   const formatCurrency = (amount: number) => `${amount.toFixed(2)} €`;
 
-  const equalAmount = useMemo(() => {
+  // Calcul amélioré des montants équitables avec distribution intelligente des centimes
+  const equalPortions = useMemo(() => {
     const people = parseInt(numberOfPeople) || 1;
-    return totalWithTip / people;
+    if (people < 2) return [];
+    return distributeAmountEvenly(totalWithTip, people);
   }, [totalWithTip, numberOfPeople]);
 
   const customTotal = useMemo(() => {
@@ -365,10 +401,19 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
     }, 0);
   }, [customPortions]);
 
+  // Validation améliorée avec tolérance de 0.01€ (comme le backend)
   const customValidation = useMemo(() => {
+    if (customTotal === 0) return { isValid: false, message: 'Veuillez saisir les montants' };
+    
+    if (amountsMatch(customTotal, totalWithTip)) {
+      return { isValid: true, message: 'Répartition parfaite !' };
+    }
+    
     const difference = Math.abs(customTotal - totalWithTip);
-    if (difference < 0.01) return { isValid: true, message: 'Répartition parfaite !' };
-    if (customTotal > totalWithTip) return { isValid: false, message: `Excédent de ${formatCurrency(difference)}` };
+    if (customTotal > totalWithTip) {
+      return { isValid: false, message: `Excédent de ${formatCurrency(difference)}` };
+    }
+    
     return { isValid: false, message: `Manque ${formatCurrency(difference)}` };
   }, [customTotal, totalWithTip]);
 
@@ -401,9 +446,9 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
         return;
       }
 
-      const portions = Array.from({ length: people }, (_, i) => ({
+      const portions = equalPortions.map((amount, i) => ({
         name: `Personne ${i + 1}`,
-        amount: equalAmount,
+        amount,
       }));
 
       onConfirm(mode, portions);
@@ -521,7 +566,7 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
             </View>
           </Card>
 
-          {/* Division équitable avec design amélioré */}
+          {/* Division équitable avec distribution intelligente des centimes */}
           {mode === 'equal' && (
             <Card style={{ gap: getResponsiveValue(SPACING.md, screenType) }}>
               <View style={{ gap: getResponsiveValue(SPACING.sm, screenType) }}>
@@ -540,16 +585,31 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
               
               <Card style={equalAmountCardStyle}>
                 <Text style={equalAmountTextStyle}>
-                  {formatCurrency(equalAmount)}
+                  Répartition équitable
                 </Text>
-                <Text style={equalAmountSubtextStyle}>
-                  par personne
-                </Text>
+                
+                {equalPortions.length > 0 && (
+                  <View style={{ gap: getResponsiveValue(SPACING.xs, screenType) }}>
+                    {equalPortions.map((amount, index) => (
+                      <View key={index} style={portionItemStyle}>
+                        <Text style={portionNameStyle}>Personne {index + 1}</Text>
+                        <Text style={portionAmountStyle}>{formatCurrency(amount)}</Text>
+                      </View>
+                    ))}
+                    
+                    <View style={[portionItemStyle, { backgroundColor: COLORS.primary + '08', borderWidth: 1, borderColor: COLORS.primary + '20' }]}>
+                      <Text style={[portionNameStyle, { fontWeight: TYPOGRAPHY.fontWeight.bold }]}>Total</Text>
+                      <Text style={[portionAmountStyle, { color: COLORS.primary }]}>
+                        {formatCurrency(equalPortions.reduce((sum, amount) => sum + amount, 0))}
+                      </Text>
+                    </View>
+                  </View>
+                )}
               </Card>
             </Card>
           )}
 
-          {/* Division personnalisée avec design amélioré */}
+          {/* Division personnalisée avec validation améliorée */}
           {mode === 'custom' && (
             <Card style={{ gap: getResponsiveValue(SPACING.md, screenType) }}>
               <Text style={sectionTitleStyle}>Montants personnalisés</Text>
@@ -600,7 +660,7 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
                 <Text style={addButtonTextStyle}>Ajouter une personne</Text>
               </TouchableOpacity>
 
-              {/* Validation avec design amélioré */}
+              {/* Validation avec tolérance améliorée */}
               {customTotal > 0 && (
                 <Card style={[
                   validationCardStyle,
@@ -612,6 +672,11 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
                   ]}>
                     {customValidation.message}
                   </Text>
+                  {customValidation.isValid && (
+                    <Text style={[validationTextStyle, successTextStyle, { fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType), marginTop: 4 }]}>
+                      Total : {formatCurrency(customTotal)} (tolérance ±0,01 €)
+                    </Text>
+                  )}
                 </Card>
               )}
             </Card>
