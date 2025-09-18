@@ -8,6 +8,9 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  TouchableOpacity,
+  ViewStyle,
+  TextStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@/components/ui/Button';
@@ -18,6 +21,8 @@ import {
   COLORS,
   SPACING,
   BORDER_RADIUS,
+  SHADOWS,
+  TYPOGRAPHY,
 } from '@/utils/designSystem';
 import { SplitPaymentMode, SplitPaymentPortion } from '@/types/splitPayment';
 
@@ -46,231 +51,306 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
   const screenType = useScreenType();
   const totalWithTip = totalAmount + tipAmount;
 
-  const styles = {
-    modal: {
-      flex: 1,
-      backgroundColor: COLORS.background,
-    },
-    
-    header: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      justifyContent: 'space-between' as const,
-      padding: getResponsiveValue(SPACING.lg, screenType),
-      backgroundColor: COLORS.surface,
-      borderBottomWidth: 1,
-      borderBottomColor: COLORS.border.light,
-    },
-    
-    headerTitle: {
-      fontSize: getResponsiveValue({ mobile: 20, tablet: 24, desktop: 28 }, screenType),
-      fontWeight: '600' as const,
-      color: COLORS.text.primary,
-    },
-    
-    content: {
-      flex: 1,
-      padding: getResponsiveValue(SPACING.md, screenType),
-    },
-    
-    totalCard: {
-      backgroundColor: COLORS.primary + '10',
-      borderColor: COLORS.primary + '30',
-      borderWidth: 1,
-      marginBottom: getResponsiveValue(SPACING.lg, screenType),
-    },
-    
-    totalRow: {
-      flexDirection: 'row' as const,
-      justifyContent: 'space-between' as const,
-      alignItems: 'center' as const,
-      marginBottom: getResponsiveValue(SPACING.xs, screenType),
-    },
-    
-    totalLabel: {
-      fontSize: getResponsiveValue({ mobile: 16, tablet: 18, desktop: 20 }, screenType),
-      color: COLORS.text.secondary,
-    },
-    
-    totalValue: {
-      fontSize: getResponsiveValue({ mobile: 16, tablet: 18, desktop: 20 }, screenType),
-      fontWeight: '600' as const,
-      color: COLORS.text.primary,
-    },
-    
-    grandTotal: {
-      fontSize: getResponsiveValue({ mobile: 18, tablet: 20, desktop: 24 }, screenType),
-      fontWeight: 'bold' as const,
-      color: COLORS.primary,
-    },
-    
-    modeCard: {
-      marginBottom: getResponsiveValue(SPACING.md, screenType),
-    },
-    
-    modeTitle: {
-      fontSize: getResponsiveValue({ mobile: 18, tablet: 20, desktop: 22 }, screenType),
-      fontWeight: '600' as const,
-      color: COLORS.text.primary,
-      marginBottom: getResponsiveValue(SPACING.md, screenType),
-    },
-    
-    modeButtons: {
-      flexDirection: 'row' as const,
-      gap: getResponsiveValue(SPACING.sm, screenType),
-      marginBottom: getResponsiveValue(SPACING.md, screenType),
-    },
-    
-    modeButton: {
-      flex: 1,
-      padding: getResponsiveValue(SPACING.md, screenType),
-      borderRadius: BORDER_RADIUS.md,
-      borderWidth: 2,
-      borderColor: COLORS.border.light,
-      alignItems: 'center' as const,
-      gap: getResponsiveValue(SPACING.xs, screenType),
-    },
-    
-    modeButtonActive: {
-      borderColor: COLORS.primary,
-      backgroundColor: COLORS.primary + '10',
-    },
-    
-    modeButtonText: {
-      fontSize: getResponsiveValue({ mobile: 14, tablet: 16, desktop: 18 }, screenType),
-      fontWeight: '500' as const,
-      color: COLORS.text.primary,
-    },
-    
-    modeButtonTextActive: {
-      color: COLORS.primary,
-    },
-    
-    equalSplitCard: {
-      marginBottom: getResponsiveValue(SPACING.md, screenType),
-    },
-    
-    inputContainer: {
-      gap: getResponsiveValue(SPACING.sm, screenType),
-    },
-    
-    inputLabel: {
-      fontSize: getResponsiveValue({ mobile: 16, tablet: 18, desktop: 20 }, screenType),
-      fontWeight: '500' as const,
-      color: COLORS.text.primary,
-      marginBottom: getResponsiveValue(SPACING.xs, screenType),
-    },
-    
-    numberInput: {
-      borderWidth: 1,
-      borderColor: COLORS.border.light,
-      borderRadius: BORDER_RADIUS.md,
-      paddingHorizontal: getResponsiveValue(SPACING.sm, screenType),
-      paddingVertical: getResponsiveValue(SPACING.sm, screenType),
-      fontSize: getResponsiveValue({ mobile: 16, tablet: 18, desktop: 20 }, screenType),
-      backgroundColor: COLORS.surface,
-      textAlign: 'center' as const,
-    },
-    
-    equalAmountText: {
-      fontSize: getResponsiveValue({ mobile: 16, tablet: 18, desktop: 20 }, screenType),
-      fontWeight: '600' as const,
-      color: COLORS.secondary,
-      textAlign: 'center' as const,
-      marginTop: getResponsiveValue(SPACING.sm, screenType),
-    },
-    
-    customPortionItem: {
-      flexDirection: 'row' as const,
-      gap: getResponsiveValue(SPACING.sm, screenType),
-      alignItems: 'center' as const,
-      marginBottom: getResponsiveValue(SPACING.sm, screenType),
-    },
-    
-    customPortionIndex: {
-      width: getResponsiveValue({ mobile: 24, tablet: 28, desktop: 32 }, screenType),
-      height: getResponsiveValue({ mobile: 24, tablet: 28, desktop: 32 }, screenType),
-      borderRadius: getResponsiveValue({ mobile: 12, tablet: 14, desktop: 16 }, screenType),
-      backgroundColor: COLORS.secondary,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-    },
-    
-    customPortionIndexText: {
-      fontSize: getResponsiveValue({ mobile: 12, tablet: 14, desktop: 16 }, screenType),
-      fontWeight: 'bold' as const,
-      color: COLORS.text.primary,
-    },
-    
-    customPortionInputs: {
-      flex: 1,
-      gap: getResponsiveValue(SPACING.xs, screenType),
-    },
-    
-    customPortionInput: {
-      borderWidth: 1,
-      borderColor: COLORS.border.light,
-      borderRadius: BORDER_RADIUS.sm,
-      paddingHorizontal: getResponsiveValue(SPACING.sm, screenType),
-      paddingVertical: getResponsiveValue(SPACING.xs, screenType),
-      fontSize: getResponsiveValue({ mobile: 14, tablet: 16, desktop: 18 }, screenType),
-      backgroundColor: COLORS.surface,
-    },
-    
-    addPortionButton: {
-      alignItems: 'center' as const,
-      padding: getResponsiveValue(SPACING.sm, screenType),
-      borderWidth: 2,
-      borderColor: COLORS.border.light,
-      borderStyle: 'dashed' as const,
-      borderRadius: BORDER_RADIUS.md,
-      marginTop: getResponsiveValue(SPACING.sm, screenType),
-    },
-    
-    addPortionText: {
-      fontSize: getResponsiveValue({ mobile: 14, tablet: 16, desktop: 18 }, screenType),
-      color: COLORS.text.secondary,
-      marginTop: getResponsiveValue(SPACING.xs, screenType),
-    },
-    
-    validationCard: {
-      backgroundColor: COLORS.warning + '10',
-      borderColor: COLORS.warning + '30',
-      borderWidth: 1,
-      marginBottom: getResponsiveValue(SPACING.md, screenType),
-    },
-    
-    validationText: {
-      fontSize: getResponsiveValue({ mobile: 14, tablet: 16, desktop: 18 }, screenType),
-      color: COLORS.warning,
-      textAlign: 'center' as const,
-    },
-    
-    successCard: {
-      backgroundColor: COLORS.success + '10',
-      borderColor: COLORS.success + '30',
-      borderWidth: 1,
-      marginBottom: getResponsiveValue(SPACING.md, screenType),
-    },
-    
-    successText: {
-      fontSize: getResponsiveValue({ mobile: 14, tablet: 16, desktop: 18 }, screenType),
-      color: COLORS.success,
-      textAlign: 'center' as const,
-    },
-    
-    actionsContainer: {
-      flexDirection: 'row' as const,
-      gap: getResponsiveValue(SPACING.sm, screenType),
-      padding: getResponsiveValue(SPACING.lg, screenType),
-      backgroundColor: COLORS.surface,
-      borderTopWidth: 1,
-      borderTopColor: COLORS.border.light,
-    },
+  // Styles définis avec typage explicite
+  const modalStyle: ViewStyle = {
+    flex: 1,
+    backgroundColor: COLORS.background,
   };
 
-  const iconSize = getResponsiveValue({ mobile: 20, tablet: 24, desktop: 28 }, screenType);
+  const headerStyle: ViewStyle = {
+    backgroundColor: COLORS.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border.light,
+    shadowColor: COLORS.shadow?.light || '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  };
 
+  const headerContentStyle: ViewStyle = {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: getResponsiveValue(SPACING.lg, screenType),
+  };
+
+  const headerTitleStyle: TextStyle = {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xl, screenType),
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
+  };
+
+  const headerSubtitleStyle: TextStyle = {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+    color: COLORS.text.secondary,
+    marginTop: getResponsiveValue(SPACING.xs, screenType) / 2,
+  };
+
+  const contentStyle: ViewStyle = {
+    flex: 1,
+    padding: getResponsiveValue(SPACING.container, screenType),
+  };
+
+  const totalCardStyle: ViewStyle = {
+    ...SHADOWS.lg,
+    backgroundColor: COLORS.primary + '08',
+    borderWidth: 2,
+    borderColor: COLORS.primary + '20',
+    marginBottom: getResponsiveValue(SPACING.xl, screenType),
+    position: 'relative',
+  };
+
+  const totalRowStyle: ViewStyle = {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: getResponsiveValue(SPACING.xs, screenType),
+  };
+
+  const totalLabelStyle: TextStyle = {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.md, screenType),
+    color: COLORS.text.secondary,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+  };
+
+  const totalValueStyle: TextStyle = {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.md, screenType),
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.primary,
+  };
+
+  const grandTotalRowStyle: ViewStyle = {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: getResponsiveValue(SPACING.xs, screenType),
+    paddingTop: getResponsiveValue(SPACING.sm, screenType),
+    borderTopWidth: 2,
+    borderTopColor: COLORS.primary + '30',
+    marginTop: getResponsiveValue(SPACING.sm, screenType),
+  };
+
+  const grandTotalStyle: TextStyle = {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xl, screenType),
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.primary,
+  };
+
+  const sectionTitleStyle: TextStyle = {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
+    marginBottom: getResponsiveValue(SPACING.md, screenType),
+    textAlign: 'center',
+  };
+
+  const modeGridStyle: ViewStyle = {
+    flexDirection: 'row',
+    gap: getResponsiveValue(SPACING.sm, screenType),
+  };
+
+  const modeButtonStyle: ViewStyle = {
+    flex: 1,
+    alignItems: 'center',
+    padding: getResponsiveValue(SPACING.md, screenType),
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 2,
+    borderColor: COLORS.border.light,
+    backgroundColor: COLORS.surface,
+    gap: getResponsiveValue(SPACING.sm, screenType),
+    minHeight: getResponsiveValue({ mobile: 80, tablet: 90, desktop: 100 }, screenType),
+    justifyContent: 'center',
+    ...SHADOWS.sm,
+  };
+
+  const modeButtonActiveStyle: ViewStyle = {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primary + '08',
+    ...SHADOWS.md,
+    transform: [{ scale: 1.02 }],
+  };
+
+  const modeIconStyle: ViewStyle = {
+    width: getResponsiveValue({ mobile: 32, tablet: 36, desktop: 40 }, screenType),
+    height: getResponsiveValue({ mobile: 32, tablet: 36, desktop: 40 }, screenType),
+    borderRadius: getResponsiveValue({ mobile: 16, tablet: 18, desktop: 20 }, screenType),
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.border.light,
+  };
+
+  const modeIconActiveStyle: ViewStyle = {
+    backgroundColor: COLORS.primary,
+  };
+
+  const modeButtonTextStyle: TextStyle = {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    color: COLORS.text.secondary,
+    textAlign: 'center',
+  };
+
+  const modeButtonTextActiveStyle: TextStyle = {
+    color: COLORS.primary,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+  };
+
+  const inputLabelStyle: TextStyle = {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.md, screenType),
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    color: COLORS.text.primary,
+  };
+
+  const numberInputStyle: TextStyle = {
+    borderWidth: 2,
+    borderColor: COLORS.border.light,
+    borderRadius: BORDER_RADIUS.lg,
+    paddingHorizontal: getResponsiveValue(SPACING.md, screenType),
+    paddingVertical: getResponsiveValue(SPACING.sm, screenType),
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    backgroundColor: COLORS.surface,
+    textAlign: 'center',
+    color: COLORS.text.primary,
+  };
+
+  const equalAmountCardStyle: ViewStyle = {
+    backgroundColor: COLORS.secondary + '08',
+    borderWidth: 2,
+    borderColor: COLORS.secondary + '20',
+    alignItems: 'center',
+    padding: getResponsiveValue(SPACING.md, screenType),
+  };
+
+  const equalAmountTextStyle: TextStyle = {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xl, screenType),
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.secondary,
+    textAlign: 'center',
+  };
+
+  const equalAmountSubtextStyle: TextStyle = {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+    color: COLORS.text.secondary,
+    textAlign: 'center',
+    marginTop: getResponsiveValue(SPACING.xs, screenType) / 2,
+  };
+
+  const customPortionItemStyle: ViewStyle = {
+    flexDirection: 'row',
+    gap: getResponsiveValue(SPACING.sm, screenType),
+    alignItems: 'center',
+    marginBottom: getResponsiveValue(SPACING.sm, screenType),
+    padding: getResponsiveValue(SPACING.sm, screenType),
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border.light,
+    ...SHADOWS.sm,
+  };
+
+  const portionIndexStyle: ViewStyle = {
+    width: getResponsiveValue({ mobile: 32, tablet: 36, desktop: 40 }, screenType),
+    height: getResponsiveValue({ mobile: 32, tablet: 36, desktop: 40 }, screenType),
+    borderRadius: getResponsiveValue({ mobile: 16, tablet: 18, desktop: 20 }, screenType),
+    backgroundColor: COLORS.secondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...SHADOWS.sm,
+  };
+
+  const portionIndexTextStyle: TextStyle = {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.surface,
+  };
+
+  const portionInputsStyle: ViewStyle = {
+    flex: 1,
+    gap: getResponsiveValue(SPACING.xs, screenType),
+  };
+
+  const customInputStyle: TextStyle = {
+    borderWidth: 1,
+    borderColor: COLORS.border.light,
+    borderRadius: BORDER_RADIUS.md,
+    paddingHorizontal: getResponsiveValue(SPACING.sm, screenType),
+    paddingVertical: getResponsiveValue(SPACING.xs, screenType),
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.md, screenType),
+    backgroundColor: COLORS.background,
+    color: COLORS.text.primary,
+  };
+
+  const addButtonStyle: ViewStyle = {
+    alignItems: 'center',
+    padding: getResponsiveValue(SPACING.md, screenType),
+    borderWidth: 2,
+    borderColor: COLORS.border.light,
+    borderRadius: BORDER_RADIUS.lg,
+    backgroundColor: COLORS.surface + '50',
+    marginTop: getResponsiveValue(SPACING.sm, screenType),
+  };
+
+  const addButtonTextStyle: TextStyle = {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.md, screenType),
+    color: COLORS.text.secondary,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    marginTop: getResponsiveValue(SPACING.xs, screenType) / 2,
+  };
+
+  const validationCardStyle: ViewStyle = {
+    padding: getResponsiveValue(SPACING.md, screenType),
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 2,
+    alignItems: 'center',
+    ...SHADOWS.md,
+  };
+
+  const warningCardStyle: ViewStyle = {
+    backgroundColor: COLORS.warning + '08',
+    borderColor: COLORS.warning + '40',
+  };
+
+  const successCardStyle: ViewStyle = {
+    backgroundColor: COLORS.success + '08',
+    borderColor: COLORS.success + '40',
+  };
+
+  const validationTextStyle: TextStyle = {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.md, screenType),
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    textAlign: 'center',
+  };
+
+  const warningTextStyle: TextStyle = {
+    color: COLORS.warning,
+  };
+
+  const successTextStyle: TextStyle = {
+    color: COLORS.success,
+  };
+
+  const actionsContainerStyle: ViewStyle = {
+    flexDirection: 'row',
+    gap: getResponsiveValue(SPACING.md, screenType),
+    padding: getResponsiveValue(SPACING.lg, screenType),
+    backgroundColor: COLORS.surface,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border.light,
+    shadowColor: COLORS.shadow?.light || '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
+  };
+
+  const actionButtonStyle: ViewStyle = {
+    borderRadius: BORDER_RADIUS.xl,
+    ...SHADOWS.md,
+  };
+
+  const iconSize = getResponsiveValue({ mobile: 20, tablet: 22, desktop: 24 }, screenType);
   const formatCurrency = (amount: number) => `${amount.toFixed(2)} €`;
 
   const equalAmount = useMemo(() => {
@@ -287,7 +367,7 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
 
   const customValidation = useMemo(() => {
     const difference = Math.abs(customTotal - totalWithTip);
-    if (difference < 0.01) return { isValid: true, message: 'Répartition correcte' };
+    if (difference < 0.01) return { isValid: true, message: 'Répartition parfaite !' };
     if (customTotal > totalWithTip) return { isValid: false, message: `Excédent de ${formatCurrency(difference)}` };
     return { isValid: false, message: `Manque ${formatCurrency(difference)}` };
   }, [customTotal, totalWithTip]);
@@ -353,173 +433,202 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
     (mode === 'equal' && parseInt(numberOfPeople) >= 2) ||
     (mode === 'custom' && customValidation.isValid && customPortions.filter(p => parseFloat(p.amount) > 0).length >= 2);
 
+  const renderModeButton = (
+    modeValue: SplitPaymentMode,
+    title: string,
+    icon: string,
+    description: string
+  ) => (
+    <TouchableOpacity
+      style={[
+        modeButtonStyle,
+        mode === modeValue && modeButtonActiveStyle,
+      ]}
+      onPress={() => setMode(modeValue)}
+      activeOpacity={0.7}
+    >
+      <View style={[
+        modeIconStyle,
+        mode === modeValue && modeIconActiveStyle,
+      ]}>
+        <Ionicons
+          name={icon as any}
+          size={iconSize}
+          color={mode === modeValue ? COLORS.surface : COLORS.text.secondary}
+        />
+      </View>
+      <Text style={[
+        modeButtonTextStyle,
+        mode === modeValue && modeButtonTextActiveStyle,
+      ]}>
+        {title}
+      </Text>
+    </TouchableOpacity>
+  );
+
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView 
-        style={styles.modal} 
+        style={modalStyle} 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Diviser la note</Text>
-          <Button
-            title=""
-            leftIcon="close"
-            onPress={onClose}
-            variant="ghost"
-            size="sm"
-          />
+        {/* Header amélioré */}
+        <View style={headerStyle}>
+          <View style={headerContentStyle}>
+            <View style={{ flex: 1 }}>
+              <Text style={headerTitleStyle}>Diviser la note</Text>
+              <Text style={headerSubtitleStyle}>
+                Choisissez comment répartir le paiement
+              </Text>
+            </View>
+            <Button
+              title=""
+              leftIcon="close"
+              onPress={onClose}
+              variant="ghost"
+              size="sm"
+            />
+          </View>
         </View>
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Total à diviser */}
-          <Card style={styles.totalCard}>
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Sous-total</Text>
-              <Text style={styles.totalValue}>{formatCurrency(totalAmount)}</Text>
+        <ScrollView style={contentStyle} showsVerticalScrollIndicator={false}>
+          {/* Total avec effet visuel amélioré */}
+          <Card style={totalCardStyle}>
+            <View style={totalRowStyle}>
+              <Text style={totalLabelStyle}>Sous-total</Text>
+              <Text style={totalValueStyle}>{formatCurrency(totalAmount)}</Text>
             </View>
             {tipAmount > 0 && (
-              <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>Pourboire</Text>
-                <Text style={styles.totalValue}>{formatCurrency(tipAmount)}</Text>
+              <View style={totalRowStyle}>
+                <Text style={totalLabelStyle}>Pourboire</Text>
+                <Text style={totalValueStyle}>{formatCurrency(tipAmount)}</Text>
               </View>
             )}
-            <View style={[styles.totalRow, { paddingTop: getResponsiveValue(SPACING.sm, screenType), borderTopWidth: 1, borderTopColor: COLORS.border.light }]}>
-              <Text style={styles.totalLabel}>Total à diviser</Text>
-              <Text style={styles.grandTotal}>{formatCurrency(totalWithTip)}</Text>
+            <View style={grandTotalRowStyle}>
+              <Text style={totalLabelStyle}>Total à diviser</Text>
+              <Text style={grandTotalStyle}>{formatCurrency(totalWithTip)}</Text>
             </View>
           </Card>
 
-          {/* Mode de division */}
-          <Card style={styles.modeCard}>
-            <Text style={styles.modeTitle}>Comment diviser ?</Text>
+          {/* Sélection du mode avec design amélioré */}
+          <Card style={{ marginBottom: getResponsiveValue(SPACING.xl, screenType) }}>
+            <Text style={sectionTitleStyle}>Comment diviser ?</Text>
             
-            <View style={styles.modeButtons}>
-              <Button
-                title="Paiement unique"
-                leftIcon="person"
-                onPress={() => setMode('none')}
-                variant={mode === 'none' ? 'primary' : 'outline'}
-                style={{ flex: 1 }}
-                size="sm"
-              />
-              
-              <Button
-                title="Équitable"
-                leftIcon="people"
-                onPress={() => setMode('equal')}
-                variant={mode === 'equal' ? 'primary' : 'outline'}
-                style={{ flex: 1 }}
-                size="sm"
-              />
-              
-              <Button
-                title="Personnalisé"
-                leftIcon="calculator"
-                onPress={() => setMode('custom')}
-                variant={mode === 'custom' ? 'primary' : 'outline'}
-                style={{ flex: 1 }}
-                size="sm"
-              />
+            <View style={modeGridStyle}>
+              {renderModeButton('none', 'Paiement unique', 'person', 'Une seule personne paie')}
+              {renderModeButton('equal', 'Équitable', 'people', 'Parts égales pour tous')}
+              {renderModeButton('custom', 'Personnalisé', 'calculator', 'Montants sur mesure')}
             </View>
           </Card>
 
-          {/* Division équitable */}
+          {/* Division équitable avec design amélioré */}
           {mode === 'equal' && (
-            <Card style={styles.equalSplitCard}>
-              <Text style={styles.inputLabel}>Nombre de personnes</Text>
-              <TextInput
-                style={styles.numberInput}
-                value={numberOfPeople}
-                onChangeText={setNumberOfPeople}
-                keyboardType="number-pad"
-                placeholder="2"
-              />
-              <Text style={styles.equalAmountText}>
-                {formatCurrency(equalAmount)} par personne
-              </Text>
+            <Card style={{ gap: getResponsiveValue(SPACING.md, screenType) }}>
+              <View style={{ gap: getResponsiveValue(SPACING.sm, screenType) }}>
+                <Text style={inputLabelStyle}>Nombre de personnes</Text>
+                <View>
+                  <TextInput
+                    style={numberInputStyle}
+                    value={numberOfPeople}
+                    onChangeText={setNumberOfPeople}
+                    keyboardType="number-pad"
+                    placeholder="2"
+                    placeholderTextColor={COLORS.text.light}
+                  />
+                </View>
+              </View>
+              
+              <Card style={equalAmountCardStyle}>
+                <Text style={equalAmountTextStyle}>
+                  {formatCurrency(equalAmount)}
+                </Text>
+                <Text style={equalAmountSubtextStyle}>
+                  par personne
+                </Text>
+              </Card>
             </Card>
           )}
 
-          {/* Division personnalisée */}
+          {/* Division personnalisée avec design amélioré */}
           {mode === 'custom' && (
-            <Card style={styles.modeCard}>
-              <Text style={styles.modeTitle}>Montants personnalisés</Text>
+            <Card style={{ gap: getResponsiveValue(SPACING.md, screenType) }}>
+              <Text style={sectionTitleStyle}>Montants personnalisés</Text>
               
-              <View style={styles.inputContainer}>
-                {customPortions.map((portion, index) => (
-                  <View key={index} style={styles.customPortionItem}>
-                    <View style={styles.customPortionIndex}>
-                      <Text style={styles.customPortionIndexText}>{index + 1}</Text>
-                    </View>
-                    
-                    <View style={styles.customPortionInputs}>
-                      <TextInput
-                        style={styles.customPortionInput}
-                        value={portion.name}
-                        onChangeText={(text) => updateCustomPortion(index, 'name', text)}
-                        placeholder={`Personne ${index + 1}`}
-                        maxLength={20}
-                      />
-                      <TextInput
-                        style={styles.customPortionInput}
-                        value={portion.amount}
-                        onChangeText={(text) => updateCustomPortion(index, 'amount', text)}
-                        placeholder="0.00"
-                        keyboardType="decimal-pad"
-                      />
-                    </View>
-
-                    {customPortions.length > 2 && (
-                      <Button
-                        title=""
-                        leftIcon="trash-outline"
-                        onPress={() => removeCustomPortion(index)}
-                        variant="ghost"
-                        size="sm"
-                        style={{ padding: getResponsiveValue(SPACING.xs, screenType) }}
-                      />
-                    )}
+              {customPortions.map((portion, index) => (
+                <View key={index} style={customPortionItemStyle}>
+                  <View style={portionIndexStyle}>
+                    <Text style={portionIndexTextStyle}>{index + 1}</Text>
                   </View>
-                ))}
-                
-                <Button
-                  title="Ajouter une personne"
-                  leftIcon="add"
-                  onPress={addCustomPortion}
-                  variant="outline"
-                  style={styles.addPortionButton}
-                  size="sm"
-                />
-              </View>
+                  
+                  <View style={portionInputsStyle}>
+                    <TextInput
+                      style={customInputStyle}
+                      value={portion.name}
+                      onChangeText={(text) => updateCustomPortion(index, 'name', text)}
+                      placeholder={`Personne ${index + 1}`}
+                      placeholderTextColor={COLORS.text.light}
+                      maxLength={20}
+                    />
+                    <TextInput
+                      style={customInputStyle}
+                      value={portion.amount}
+                      onChangeText={(text) => updateCustomPortion(index, 'amount', text)}
+                      placeholder="0,00 €"
+                      placeholderTextColor={COLORS.text.light}
+                      keyboardType="decimal-pad"
+                    />
+                  </View>
 
-              {/* Validation */}
-              {customValidation.isValid ? (
-                <Card style={styles.successCard}>
-                  <Text style={styles.successText}>{customValidation.message}</Text>
-                </Card>
-              ) : customTotal > 0 && (
-                <Card style={styles.validationCard}>
-                  <Text style={styles.validationText}>{customValidation.message}</Text>
+                  {customPortions.length > 2 && (
+                    <Button
+                      title=""
+                      leftIcon="trash-outline"
+                      onPress={() => removeCustomPortion(index)}
+                      variant="ghost"
+                      size="sm"
+                    />
+                  )}
+                </View>
+              ))}
+              
+              <TouchableOpacity
+                style={addButtonStyle}
+                onPress={addCustomPortion}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="add-circle" size={iconSize + 4} color={COLORS.text.secondary} />
+                <Text style={addButtonTextStyle}>Ajouter une personne</Text>
+              </TouchableOpacity>
+
+              {/* Validation avec design amélioré */}
+              {customTotal > 0 && (
+                <Card style={[
+                  validationCardStyle,
+                  customValidation.isValid ? successCardStyle : warningCardStyle,
+                ]}>
+                  <Text style={[
+                    validationTextStyle,
+                    customValidation.isValid ? successTextStyle : warningTextStyle,
+                  ]}>
+                    {customValidation.message}
+                  </Text>
                 </Card>
               )}
             </Card>
           )}
         </ScrollView>
 
-        {/* Actions */}
-        <View style={styles.actionsContainer}>
+        {/* Actions avec design amélioré */}
+        <View style={actionsContainerStyle}>
           <Button
             title="Annuler"
             onPress={onClose}
             variant="outline"
-            style={{ flex: 1 }}
           />
           <Button
             title={mode === 'none' ? 'Paiement unique' : 'Diviser la note'}
             onPress={handleConfirm}
             disabled={!canConfirm}
-            style={{ flex: 2 }}
           />
         </View>
       </KeyboardAvoidingView>
