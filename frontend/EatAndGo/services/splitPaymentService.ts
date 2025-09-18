@@ -70,11 +70,16 @@ export class SplitPaymentService {
         completedAt: response.completed_at,
         isCompleted: response.is_completed || false
       };
-    } catch (error) {
-      // Si l'erreur est 404, la session n'existe pas
-      if ((error as any)?.response?.status === 404) {
+    } catch (error: any) {
+      // Vérifier si c'est une erreur 404 en utilisant la structure de l'ApiError
+      if (error?.code === 404 || 
+          error?.response?.status === 404 || 
+          error?.details?.status?.[0] === 'not_found') {
+        // C'est normal, pas de session existe - retourner null silencieusement
         return null;
       }
+      
+      // Pour toute autre erreur, la logger et la propager
       console.error('Error getting split session:', error);
       throw new Error('Impossible de récupérer la session de paiement divisé');
     }
@@ -107,7 +112,11 @@ export class SplitPaymentService {
   /**
    * Marquer une portion comme payée
    */
-  async payPortion(orderId: string, portionId: string, paymentIntentId: string): Promise<void> {
+  async confirmPortionPayment(
+    orderId: string, 
+    portionId: string, 
+    paymentIntentId: string
+  ): Promise<void> {
     try {
       await apiClient.post(`/api/v1/split-payments/confirm-portion/${orderId}/`, {
         portion_id: portionId,
@@ -120,13 +129,13 @@ export class SplitPaymentService {
   }
 
   /**
-   * Créer un PaymentIntent pour toutes les portions restantes
+   * Créer un PaymentIntent pour payer toutes les portions restantes
    */
   async createRemainingPaymentIntent(orderId: string): Promise<{
     client_secret: string;
     payment_intent_id: string;
     amount: number;
-    portion_ids: string[];
+    portions: string[];
   }> {
     try {
       const response = await apiClient.post(`/api/v1/split-payments/pay-remaining/${orderId}/`);
@@ -135,25 +144,28 @@ export class SplitPaymentService {
         client_secret: response.client_secret,
         payment_intent_id: response.payment_intent_id,
         amount: response.amount,
-        portion_ids: response.portion_ids
+        portions: response.portions
       };
     } catch (error) {
       console.error('Error creating remaining payment intent:', error);
-      throw new Error('Impossible de créer le paiement pour le montant restant');
+      throw new Error('Impossible de créer le paiement pour les portions restantes');
     }
   }
 
   /**
-   * Marquer toutes les portions restantes comme payées
+   * Confirmer le paiement de toutes les portions restantes
    */
-  async payRemainingPortions(orderId: string, paymentIntentId: string): Promise<void> {
+  async confirmRemainingPayments(
+    orderId: string, 
+    paymentIntentId: string
+  ): Promise<void> {
     try {
       await apiClient.post(`/api/v1/split-payments/confirm-remaining/${orderId}/`, {
         payment_intent_id: paymentIntentId
       });
     } catch (error) {
       console.error('Error confirming remaining payments:', error);
-      throw new Error('Impossible de confirmer les paiements restants');
+      throw new Error('Impossible de confirmer le paiement des portions restantes');
     }
   }
 
