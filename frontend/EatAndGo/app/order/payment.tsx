@@ -438,8 +438,9 @@ export default function PaymentScreen() {
 
   const handlePaymentSuccess = async (method: 'online' | 'cash') => {
     try {
-      await orderService.updateOrderStatus(Number(orderId), method === 'online' ? 'paid' : 'cash_pending');
-      await orderService.markAsPaid(Number(orderId), method);
+      if (method === 'online') {
+        await paymentService.updatePaymentStatus(orderId as string, 'paid');
+      }
 
       if (wantReceipt && customerEmail && isEmail(customerEmail)) {
         try {

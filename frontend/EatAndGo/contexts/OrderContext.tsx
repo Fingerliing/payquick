@@ -4,6 +4,7 @@ import { orderService } from "@/services/orderService";
 // --- Types (uniquement en 'type' import) ---
 import type { OrderList, OrderDetail, CreateOrderRequest } from "@/types/order";
 import type { OrderSearchFilters } from "@/types/common";
+import { paymentService } from "@/services/paymentService";
 
 // --------------------
 // Types & état local
@@ -37,6 +38,7 @@ type Ctx = OrderState & {
   createOrder: (payload: CreateOrderRequest) => Promise<OrderDetail>;
   updateOrderStatus: (id: number, status: string) => Promise<OrderDetail>;
   markAsPaid: (id: number, paymentMethod?: string) => Promise<OrderDetail>;
+  reportClientPayment: (id: number, paymentMethod?: string) => Promise<OrderDetail>;
   fetchStats: (filters?: Partial<OrderSearchFilters>) => Promise<void>;
 };
 
@@ -178,6 +180,20 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
     return updated;
   };
 
+  const reportClientPayment = async (id: number, paymentMethod?: string) => {
+    // Si paiement en ligne : appeler updatePaymentStatus('paid') après succès Stripe
+    if (paymentMethod === 'online') {
+      await paymentService.updatePaymentStatus(String(id), 'paid');
+    } else {
+      // Cash (ou inconnu côté client) : déclarer "en attente de caisse"
+      await paymentService.updatePaymentStatus(String(id), 'cash_pending');
+    }
+    const order = await orderService.getOrderById(id);
+    dispatch({ type: "SET_CURRENT_ORDER", payload: order });
+    await fetchOrders();
+    return order;
+  };
+
   const fetchStats: Ctx["fetchStats"] = async (filters) => {
     const resp = await orderService.getOrderStats(filters);
     dispatch({ type: "SET_STATS", payload: unwrapStats(resp) });
@@ -191,6 +207,7 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
     createOrder,
     updateOrderStatus,
     markAsPaid,
+    reportClientPayment,
     fetchStats,
   };
 
