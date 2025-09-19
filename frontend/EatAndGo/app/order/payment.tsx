@@ -440,8 +440,9 @@ export default function PaymentScreen() {
     try {
       if (method === 'online') {
         await paymentService.updatePaymentStatus(orderId as string, 'paid');
+      } else {
+        await paymentService.updatePaymentStatus(orderId as string, 'cash_pending');
       }
-
       if (wantReceipt && customerEmail && isEmail(customerEmail)) {
         try {
           await receiptService.sendReceiptByEmail({ 
