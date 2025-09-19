@@ -472,6 +472,10 @@ export default function PaymentScreen() {
               else router.replace(`/order/${orderId}`);
             },
           },
+          {
+            text: 'Continuer',
+            onPress: () => router.replace(`/order/${orderId}`),
+          },
         ]
       );
     } catch (error) {
@@ -784,6 +788,46 @@ export default function PaymentScreen() {
             />
           </View>
         </View>
+        
+        {/* Receipt Modal - doit être inclus dans la vue de succès */}
+        <Modal
+          visible={showReceiptPreview}
+          animationType="slide"
+          onRequestClose={() => {
+            setShowReceiptPreview(false);
+            router.replace(`/order/${orderId}`);
+          }}
+        >
+          <Receipt
+            orderId={orderId as string}
+            order={order ? {
+              id: order.id,
+              order_number: order.order_number || `ORD-${orderId}`,
+              order_type: 'dine_in',
+              table_number: order.table_number,
+              items: order.items?.map(item => ({
+                name: item.name,
+                price: safeParseFloat(item.total_price) / (item.quantity || 1),
+                quantity: item.quantity || 1,
+                total_price: safeParseFloat(item.total_price),
+                customizations: {}
+              })) || [],
+              total_amount: safeParseFloat(order.total_amount),
+              restaurant_name: order.restaurant_name,
+              tip_amount: tipAmount,
+              customer_email: customerEmail,
+              payment_method: paymentMethod,
+              payment_date: new Date().toISOString(),
+            } : undefined}
+            showActions
+            onClose={() => {
+              setShowReceiptPreview(false);
+              router.replace(`/order/${orderId}`);
+            }}
+            autoSendEmail={false}
+            customerEmail={customerEmail}
+          />
+        </Modal>
       </SafeAreaView>
     );
   }
@@ -1061,33 +1105,6 @@ export default function PaymentScreen() {
           tipAmount={tipAmount}
           onConfirm={handleSplitPaymentConfirm}
         />
-
-        <Modal
-          visible={showReceiptPreview}
-          animationType="slide"
-          onRequestClose={() => {
-            setShowReceiptPreview(false);
-            if (paymentSuccess) router.replace(`/order/${orderId}`);
-          }}
-        >
-          <Receipt
-            orderId={orderId as string}
-            order={{
-              ...(order as any),
-              tip_amount: tipAmount,
-              customer_email: customerEmail,
-              payment_method: paymentMethod,
-              payment_date: new Date().toISOString(),
-            }}
-            showActions
-            onClose={() => {
-              setShowReceiptPreview(false);
-              if (paymentSuccess) router.replace(`/order/${orderId}`);
-            }}
-            autoSendEmail={wantReceipt}
-            customerEmail={customerEmail}
-          />
-        </Modal>
       </SafeAreaView>
     </StripeProvider>
   );
