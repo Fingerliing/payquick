@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   SafeAreaView,
-  Alert,
   TextInput,
   Pressable,
   ActivityIndicator,
@@ -24,6 +23,7 @@ import { Header } from '@/components/ui/Header';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Receipt } from '@/components/receipt/Receipt';
+import { Alert, AlertWithAction, useAlert } from '@/components/ui/Alert';
 
 // Split payment components
 import { SplitPaymentModal } from '@/components/payment/SplitPaymentModal';
@@ -119,6 +119,16 @@ interface PaymentMethod {
   disabled?: boolean;
 }
 
+interface ConfirmationAlert {
+  visible: boolean;
+  title: string;
+  message: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  confirmText?: string;
+  cancelText?: string;
+}
+
 // ==== Helpers
 const safeParseFloat = (value: any, fallback = 0): number => {
   if (typeof value === 'number' && !isNaN(value)) return value;
@@ -139,6 +149,17 @@ export default function PaymentScreen() {
   const { user } = useAuth();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const screenType = useScreenType();
+  
+  // Alert hook
+  const {
+    alertState,
+    showAlert,
+    hideAlert,
+    showSuccess,
+    showError,
+    showWarning,
+    showInfo,
+  } = useAlert();
 
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -159,6 +180,9 @@ export default function PaymentScreen() {
   const [wantReceipt, setWantReceipt] = useState(true);
   const [showReceiptPreview, setShowReceiptPreview] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+
+  // Confirmation dialog state
+  const [confirmationAlert, setConfirmationAlert] = useState<ConfirmationAlert | null>(null);
 
   const TIP_PERCENTAGES = [5, 10, 15, 20];
 
@@ -197,7 +221,7 @@ export default function PaymentScreen() {
       if (savedEmail && !customerEmail) setCustomerEmail(savedEmail);
     } catch (error) {
       console.error('Error loading order:', error);
-      Alert.alert('Erreur', "Impossible de charger la commande");
+      showError("Impossible de charger la commande", "Erreur");
       router.back();
     } finally {
       setLoading(false);
@@ -254,7 +278,7 @@ export default function PaymentScreen() {
     return Math.round((orderAmount + tip) * 100) / 100;
   }, [order?.total_amount, tipAmount]);
 
-  // Split payment handlers (simplified for brevity)
+  // Split payment handlers
   const handleSplitPaymentConfirm = async (
     mode: SplitPaymentMode, 
     portions: Omit<SplitPaymentPortion, 'id' | 'isPaid' | 'paidAt'>[]
@@ -262,7 +286,7 @@ export default function PaymentScreen() {
     console.log('handleSplitPaymentConfirm called with:', { mode, portions });
     
     if (!order) {
-      Alert.alert('Erreur', 'Commande non trouvée');
+      showError('Commande non trouvée', 'Erreur');
       return;
     }
   
@@ -297,10 +321,9 @@ export default function PaymentScreen() {
       setShowSplitModal(false);
   
       // Afficher un message de confirmation
-      Alert.alert(
-        'Paiement divisé créé !', 
+      showSuccess(
         `La note a été divisée en ${session.portions.length} parts. Vous pouvez maintenant payer votre part.`,
-        [{ text: 'OK' }]
+        'Paiement divisé créé !'
       );
   
       console.log('Split payment setup completed successfully');
@@ -313,7 +336,7 @@ export default function PaymentScreen() {
         ? error.message 
         : 'Une erreur est survenue lors de la création du paiement divisé';
         
-      Alert.alert('Erreur', errorMessage);
+      showError(errorMessage, 'Erreur');
     } finally {
       setProcessing(false);
     }
@@ -324,11 +347,10 @@ export default function PaymentScreen() {
 
     try {
       // Important: s'assurer que le PaymentIntent inclut le pourboire.
-      // On tente d'envoyer tip/total, avec repli si l'API existante ne l'accepte pas.
       let clientSecret: string | undefined;
       try {
         const res = await (paymentService as any).createPaymentIntent(orderId, {
-          tip_amount: safeParseFloat(tipAmount), // Utiliser la fonction sécurisée
+          tip_amount: safeParseFloat(tipAmount),
           total_with_tip: safeParseFloat(totalWithTip),
         });
         clientSecret = res?.client_secret;
@@ -366,21 +388,25 @@ export default function PaymentScreen() {
       return true;
     } catch (error) {
       console.error('Error initializing payment:', error);
-      Alert.alert('Erreur', "Impossible d'initialiser le paiement");
+      showError("Impossible d'initialiser le paiement", "Erreur");
       return false;
     }
   };
 
-
   const handleOnlinePayment = async () => {
     if (!order) return;
     if (!STRIPE_PUBLISHABLE_KEY) {
-      Alert.alert('Configuration Stripe manquante',
-        "La clé publique Stripe n'est pas configurée. Contactez le support.");
+      showError(
+        "La clé publique Stripe n'est pas configurée. Contactez le support.",
+        'Configuration Stripe manquante'
+      );
       return;
     }
     if (wantReceipt && customerEmail && !isEmail(customerEmail)) {
-      Alert.alert('Email invalide', "Veuillez saisir une adresse email valide ou désactivez l'envoi du ticket.");
+      showError(
+        "Veuillez saisir une adresse email valide ou désactivez l'envoi du ticket.",
+        'Email invalide'
+      );
       return;
     }
 
@@ -396,7 +422,7 @@ export default function PaymentScreen() {
         if ((error as any).code === 'Canceled') {
           console.log('Payment canceled by user');
         } else {
-          Alert.alert('Erreur de paiement', (error as any).message || 'Paiement refusé');
+          showError((error as any).message || 'Paiement refusé', 'Erreur de paiement');
         }
         setProcessing(false);
         return;
@@ -405,35 +431,35 @@ export default function PaymentScreen() {
       await handlePaymentSuccess('online');
     } catch (error) {
       console.error('Payment error:', error);
-      Alert.alert('Erreur', 'Le paiement a échoué');
+      showError('Le paiement a échoué', 'Erreur');
       setProcessing(false);
     }
   };
 
   const handleCashPayment = async () => {
     if (!order) return;
-    Alert.alert(
-      'Paiement en espèces',
-      'Confirmez-vous le paiement en espèces au restaurant ?',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Confirmer',
-          onPress: async () => {
-            setProcessing(true);
-            try {
-              await paymentService.updatePaymentStatus(orderId as string, 'cash_pending');
-              if (customerEmail) await AsyncStorage.setItem('customerEmail', customerEmail.trim());
-              await handlePaymentSuccess('cash');
-            } catch (error) {
-              console.error('Error confirming cash payment:', error);
-              Alert.alert('Erreur', 'Impossible de confirmer le paiement');
-              setProcessing(false);
-            }
-          },
-        },
-      ]
-    );
+    
+    setConfirmationAlert({
+      visible: true,
+      title: 'Paiement en espèces',
+      message: 'Confirmez-vous le paiement en espèces au restaurant ?',
+      onConfirm: async () => {
+        setConfirmationAlert(null);
+        setProcessing(true);
+        try {
+          await paymentService.updatePaymentStatus(orderId as string, 'cash_pending');
+          if (customerEmail) await AsyncStorage.setItem('customerEmail', customerEmail.trim());
+          await handlePaymentSuccess('cash');
+        } catch (error) {
+          console.error('Error confirming cash payment:', error);
+          showError('Impossible de confirmer le paiement', 'Erreur');
+          setProcessing(false);
+        }
+      },
+      onCancel: () => setConfirmationAlert(null),
+      confirmText: 'Confirmer',
+      cancelText: 'Annuler'
+    });
   };
 
   const handlePaymentSuccess = async (method: 'online' | 'cash') => {
@@ -459,25 +485,16 @@ export default function PaymentScreen() {
       clearCart();
       setPaymentSuccess(true);
 
-      Alert.alert(
-        'Paiement réussi !',
-        method === 'online'
-          ? 'Votre paiement a été confirmé.'
-          : 'Votre commande est confirmée. Vous paierez au restaurant.',
-        [
-          {
-            text: wantReceipt && customerEmail ? 'Voir le ticket' : 'OK',
-            onPress: () => {
-              if (wantReceipt && customerEmail) setShowReceiptPreview(true);
-              else router.replace(`/order/${orderId}`);
-            },
-          },
-          {
-            text: 'Continuer',
-            onPress: () => router.replace(`/order/${orderId}`),
-          },
-        ]
-      );
+      const successMessage = method === 'online'
+        ? 'Votre paiement a été confirmé.'
+        : 'Votre commande est confirmée. Vous paierez au restaurant.';
+      
+      const fullMessage = wantReceipt && customerEmail 
+        ? `${successMessage}\n\nVotre ticket a été envoyé par email.`
+        : successMessage;
+
+      showSuccess(fullMessage, 'Paiement réussi !');
+
     } catch (error) {
       console.error('Post-payment steps error:', error);
       router.replace(`/order/${orderId}`);
@@ -490,8 +507,10 @@ export default function PaymentScreen() {
     if (!order) return;
     
     if (!STRIPE_PUBLISHABLE_KEY) {
-      Alert.alert('Configuration Stripe manquante',
-        "La clé publique Stripe n'est pas configurée. Contactez le support.");
+      showError(
+        "La clé publique Stripe n'est pas configurée. Contactez le support.",
+        'Configuration Stripe manquante'
+      );
       return;
     }
   
@@ -529,7 +548,7 @@ export default function PaymentScreen() {
   
       if (initError) {
         console.error('Error initializing payment sheet:', initError);
-        Alert.alert('Erreur', "Impossible d'initialiser le paiement");
+        showError("Impossible d'initialiser le paiement", "Erreur");
         setProcessing(false);
         return;
       }
@@ -541,7 +560,7 @@ export default function PaymentScreen() {
         if ((paymentError as any).code === 'Canceled') {
           console.log('Payment canceled by user');
         } else {
-          Alert.alert('Erreur de paiement', (paymentError as any).message || 'Paiement refusé');
+          showError((paymentError as any).message || 'Paiement refusé', 'Erreur de paiement');
         }
         setProcessing(false);
         return;
@@ -581,30 +600,20 @@ export default function PaymentScreen() {
           }
         }
   
-        Alert.alert(
-          'Paiement réussi !',
+        showSuccess(
           'Tous les paiements ont été effectués. La commande est maintenant complète.',
-          [
-            {
-              text: wantReceipt && customerEmail ? 'Voir le ticket' : 'OK',
-              onPress: () => {
-                if (wantReceipt && customerEmail) setShowReceiptPreview(true);
-                else router.replace(`/order/${orderId}`);
-              },
-            },
-          ]
+          'Paiement réussi !'
         );
       } else {
-        Alert.alert(
-          'Paiement réussi !',
+        showSuccess(
           `Votre part a été payée avec succès. Il reste ${completionStatus.remainingPortions} portion(s) à payer.`,
-          [{ text: 'OK' }]
+          'Paiement réussi !'
         );
       }
   
     } catch (error) {
       console.error('Error paying portion:', error);
-      Alert.alert('Erreur', 'Le paiement de cette portion a échoué');
+      showError('Le paiement de cette portion a échoué', 'Erreur');
     } finally {
       setProcessing(false);
     }
@@ -614,130 +623,122 @@ export default function PaymentScreen() {
     if (!order || !splitSession) return;
     
     if (!STRIPE_PUBLISHABLE_KEY) {
-      Alert.alert('Configuration Stripe manquante',
-        "La clé publique Stripe n'est pas configurée. Contactez le support.");
+      showError(
+        "La clé publique Stripe n'est pas configurée. Contactez le support.",
+        'Configuration Stripe manquante'
+      );
       return;
     }
   
     const unpaidPortions = splitSession.portions.filter(p => !p.isPaid);
     if (unpaidPortions.length === 0) {
-      Alert.alert('Information', 'Toutes les portions sont déjà payées');
+      showInfo('Toutes les portions sont déjà payées', 'Information');
       return;
     }
   
     const totalRemaining = unpaidPortions.reduce((sum, p) => sum + p.amount, 0);
   
-    Alert.alert(
-      'Payer toutes les portions restantes',
-      `Vous allez payer ${formatCurrency(totalRemaining)} pour ${unpaidPortions.length} portion(s). Confirmez-vous ?`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Confirmer',
-          onPress: async () => {
-            setProcessing(true);
-            try {
-              console.log('Creating payment intent for remaining portions');
-              
-              // Créer le PaymentIntent pour toutes les portions restantes
-              const paymentData = await splitPaymentService.createRemainingPaymentIntent(
-                orderId as string
-              );
-              
-              console.log('Payment intent created for remaining portions:', paymentData);
-  
-              // Initialiser Stripe Payment Sheet
-              const { error: initError } = await initPaymentSheet({
-                merchantDisplayName: order.restaurant_name || 'Restaurant',
-                paymentIntentClientSecret: paymentData.client_secret,
-                allowsDelayedPaymentMethods: false,
-                defaultBillingDetails: { email: customerEmail || undefined },
-                appearance: {
-                  colors: {
-                    primary: COLORS.primary,
-                    background: COLORS.surface,
-                    componentBackground: COLORS.background,
-                    primaryText: COLORS.text.primary,
-                  },
-                  shapes: {
-                    borderRadius: 12,
-                    borderWidth: 1,
-                  },
-                },
-              });
-  
-              if (initError) {
-                console.error('Error initializing payment sheet:', initError);
-                Alert.alert('Erreur', "Impossible d'initialiser le paiement");
-                setProcessing(false);
-                return;
-              }
-  
-              // Présenter le Payment Sheet
-              const { error: paymentError } = await presentPaymentSheet();
-              
-              if (paymentError) {
-                if ((paymentError as any).code === 'Canceled') {
-                  console.log('Payment canceled by user');
-                } else {
-                  Alert.alert('Erreur de paiement', (paymentError as any).message || 'Paiement refusé');
-                }
-                setProcessing(false);
-                return;
-              }
-  
-              // Confirmer le paiement côté backend
-              await splitPaymentService.confirmRemainingPayments(
-                orderId as string,
-                paymentData.payment_intent_id
-              );
-  
-              console.log('All remaining payments confirmed successfully');
-  
-              // Finaliser la commande
-              await splitPaymentService.completePayment(orderId as string);
-              await orderService.updateOrderStatus(Number(orderId), 'paid');
-              
-              // Recharger la session pour mettre à jour l'état
-              await loadSplitSession();
-  
-              // Envoyer le reçu si demandé
-              if (wantReceipt && customerEmail && isEmail(customerEmail)) {
-                try {
-                  await receiptService.sendReceiptByEmail({ 
-                    order_id: Number(orderId), 
-                    email: customerEmail.trim(), 
-                    format: 'pdf', 
-                    language: 'fr' 
-                  } as any);
-                } catch (e) {
-                  console.warn('Receipt email failed, continuing:', e);
-                }
-              }
-  
-              Alert.alert(
-                'Paiement réussi !',
-                'Tous les paiements ont été effectués. La commande est maintenant complète.',
-                [
-                  {
-                    text: wantReceipt && customerEmail ? 'Voir le ticket' : 'OK',
-                    onPress: () => {
-                      if (wantReceipt && customerEmail) setShowReceiptPreview(true);
-                      else router.replace(`/order/${orderId}`);
-                    },
-                  },
-                ]
-              );
-  
-            } catch (error) {
-              console.error('Error paying remaining portions:', error);
-              Alert.alert('Erreur', 'Le paiement des portions restantes a échoué');
-              setProcessing(false);
+    setConfirmationAlert({
+      visible: true,
+      title: 'Payer toutes les portions restantes',
+      message: `Vous allez payer ${formatCurrency(totalRemaining)} pour ${unpaidPortions.length} portion(s). Confirmez-vous ?`,
+      onConfirm: async () => {
+        setConfirmationAlert(null);
+        setProcessing(true);
+        try {
+          console.log('Creating payment intent for remaining portions');
+          
+          // Créer le PaymentIntent pour toutes les portions restantes
+          const paymentData = await splitPaymentService.createRemainingPaymentIntent(
+            orderId as string
+          );
+          
+          console.log('Payment intent created for remaining portions:', paymentData);
+
+          // Initialiser Stripe Payment Sheet
+          const { error: initError } = await initPaymentSheet({
+            merchantDisplayName: order.restaurant_name || 'Restaurant',
+            paymentIntentClientSecret: paymentData.client_secret,
+            allowsDelayedPaymentMethods: false,
+            defaultBillingDetails: { email: customerEmail || undefined },
+            appearance: {
+              colors: {
+                primary: COLORS.primary,
+                background: COLORS.surface,
+                componentBackground: COLORS.background,
+                primaryText: COLORS.text.primary,
+              },
+              shapes: {
+                borderRadius: 12,
+                borderWidth: 1,
+              },
+            },
+          });
+
+          if (initError) {
+            console.error('Error initializing payment sheet:', initError);
+            showError("Impossible d'initialiser le paiement", "Erreur");
+            setProcessing(false);
+            return;
+          }
+
+          // Présenter le Payment Sheet
+          const { error: paymentError } = await presentPaymentSheet();
+          
+          if (paymentError) {
+            if ((paymentError as any).code === 'Canceled') {
+              console.log('Payment canceled by user');
+            } else {
+              showError((paymentError as any).message || 'Paiement refusé', 'Erreur de paiement');
             }
-          },
-        },
-      ]
-    );
+            setProcessing(false);
+            return;
+          }
+
+          // Confirmer le paiement côté backend
+          await splitPaymentService.confirmRemainingPayments(
+            orderId as string,
+            paymentData.payment_intent_id
+          );
+
+          console.log('All remaining payments confirmed successfully');
+
+          // Finaliser la commande
+          await splitPaymentService.completePayment(orderId as string);
+          await orderService.updateOrderStatus(Number(orderId), 'paid');
+          
+          // Recharger la session pour mettre à jour l'état
+          await loadSplitSession();
+
+          // Envoyer le reçu si demandé
+          if (wantReceipt && customerEmail && isEmail(customerEmail)) {
+            try {
+              await receiptService.sendReceiptByEmail({ 
+                order_id: Number(orderId), 
+                email: customerEmail.trim(), 
+                format: 'pdf', 
+                language: 'fr' 
+              } as any);
+            } catch (e) {
+              console.warn('Receipt email failed, continuing:', e);
+            }
+          }
+
+          showSuccess(
+            'Tous les paiements ont été effectués. La commande est maintenant complète.',
+            'Paiement réussi !'
+          );
+
+        } catch (error) {
+          console.error('Error paying remaining portions:', error);
+          showError('Le paiement des portions restantes a échoué', 'Erreur');
+          setProcessing(false);
+        }
+      },
+      onCancel: () => setConfirmationAlert(null),
+      confirmText: 'Confirmer',
+      cancelText: 'Annuler'
+    });
   };
 
   // Create responsive styles
@@ -789,7 +790,7 @@ export default function PaymentScreen() {
           </View>
         </View>
         
-        {/* Receipt Modal - doit être inclus dans la vue de succès */}
+        {/* Receipt Modal */}
         <Modal
           visible={showReceiptPreview}
           animationType="slide"
@@ -836,6 +837,48 @@ export default function PaymentScreen() {
     <StripeProvider publishableKey={STRIPE_PUBLISHABLE_KEY}>
       <SafeAreaView style={styles.container}>
         <Header title="Paiement" leftIcon="arrow-back" onLeftPress={() => router.back()} />
+
+        {/* Alert Display */}
+        {alertState && (
+          <View style={styles.alertContainer}>
+            <Alert
+              variant={alertState.variant}
+              title={alertState.title}
+              message={alertState.message}
+              onPress={hideAlert}
+            />
+          </View>
+        )}
+
+        {/* Confirmation Dialog */}
+        {confirmationAlert && (
+          <Modal
+            visible={confirmationAlert.visible}
+            transparent
+            animationType="fade"
+            onRequestClose={confirmationAlert.onCancel}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.confirmationDialog}>
+                <AlertWithAction
+                  variant="warning"
+                  title={confirmationAlert.title}
+                  message={confirmationAlert.message}
+                  showIcon={true}
+                  primaryButton={{
+                    text: confirmationAlert.confirmText || 'Confirmer',
+                    onPress: confirmationAlert.onConfirm,
+                    variant: 'primary'
+                  }}
+                  secondaryButton={{
+                    text: confirmationAlert.cancelText || 'Annuler',
+                    onPress: confirmationAlert.onCancel
+                  }}
+                />
+              </View>
+            </View>
+          </Modal>
+        )}
 
         <View style={styles.content}>
           <ScrollView 
@@ -1129,6 +1172,29 @@ function createStyles(screenType: 'mobile' | 'tablet' | 'desktop') {
     scrollContent: {
       padding: isTabletOrLarger ? 24 : 16,
       paddingBottom: 40,
+    },
+    
+    // Alert Container
+    alertContainer: {
+      paddingHorizontal: isTabletOrLarger ? 24 : 16,
+      paddingTop: 8,
+      zIndex: 1000,
+    },
+
+    // Confirmation Dialog
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: COLORS.overlay,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+    confirmationDialog: {
+      backgroundColor: COLORS.surface,
+      borderRadius: 16,
+      padding: 20,
+      width: '100%',
+      maxWidth: 400,
     },
     
     // Layout

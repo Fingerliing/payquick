@@ -10,6 +10,7 @@ import {
   Dimensions,
   useWindowDimensions,
   Animated,
+  Modal,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,6 +21,7 @@ import { OrderDetail, OrderItem } from '@/types/order';
 import { Header } from '@/components/ui/Header';
 import { Card } from '@/components/ui/Card';
 import { StatusBadge } from '@/components/common/StatusBadge';
+import { Receipt } from '@/components/receipt/Receipt';
 
 // Design System aligné sur l'existant
 const BREAKPOINTS = {
@@ -213,16 +215,18 @@ const OrderItemCard = React.memo(({ item, index }: { item: OrderItem; index: num
   );
 });
 
-// Actions pour restaurateurs avec animations
+// Actions pour restaurateurs avec bouton ticket de caisse
 const RestaurantActions = React.memo(({ 
   order, 
   onStatusUpdate, 
   onMarkAsPaid,
+  onShowReceipt,
   isUpdating 
 }: {
   order: OrderDetail;
   onStatusUpdate: (status: string) => void;
   onMarkAsPaid: (paymentMethod: string) => void;
+  onShowReceipt: () => void;
   isUpdating: boolean;
 }) => {
   const screenType = useScreenType();
@@ -230,6 +234,7 @@ const RestaurantActions = React.memo(({
   
   const canUpdateStatus = ['pending', 'confirmed', 'preparing', 'ready'].includes(order.status);
   const canMarkAsPaid = order.payment_status !== 'paid' && order.status !== 'cancelled';
+  const canShowReceipt = order.payment_status === 'paid' || order.status === 'served';
 
   const statusFlow = {
     'pending': { next: 'confirmed', label: 'Confirmer', icon: 'checkmark-circle' },
@@ -308,20 +313,43 @@ const RestaurantActions = React.memo(({
             </LinearGradient>
           </Pressable>
         )}
+
+        {/* Bouton Ticket de caisse pour restaurateurs */}
+        {canShowReceipt && (
+          <Pressable
+            style={({ pressed }) => [
+              styles.actionButton,
+              styles.receiptButton,
+              pressed && styles.buttonPressed
+            ]}
+            onPress={onShowReceipt}
+            disabled={isUpdating}
+          >
+            <LinearGradient
+              colors={['#D4AF37', '#B8941F']}
+              style={styles.buttonGradient}
+            >
+              <Ionicons name="receipt" size={18} color="#fff" />
+              <Text style={styles.actionButtonText}>Ticket de caisse</Text>
+            </LinearGradient>
+          </Pressable>
+        )}
       </View>
     </LinearGradient>
   );
 });
 
-// Bouton de paiement client avec design premium
-const ClientPaymentButton = React.memo(({ order }: { order: OrderDetail }) => {
+// Bouton de paiement client avec option ticket de caisse
+const ClientPaymentButton = React.memo(({ order, onShowReceipt }: { 
+  order: OrderDetail; 
+  onShowReceipt: () => void;
+}) => {
   const screenType = useScreenType();
   const styles = createStyles(screenType);
   const { scaleValue, scaleIn, scaleOut } = useScaleAnimation();
   
   const shouldShowPayButton = order.payment_status !== 'paid' && order.status !== 'cancelled';
-  
-  if (!shouldShowPayButton) return null;
+  const canShowReceipt = order.payment_status === 'paid';
 
   const handlePayPress = () => {
     router.push(`/order/payment?orderId=${order.id}`);
@@ -329,32 +357,52 @@ const ClientPaymentButton = React.memo(({ order }: { order: OrderDetail }) => {
 
   return (
     <View style={styles.paymentSection}>
-      <Animated.View style={{ transform: [{ scale: scaleValue }] }}>
+      {/* Bouton de paiement principal */}
+      {shouldShowPayButton && (
+        <Animated.View style={{ transform: [{ scale: scaleValue }] }}>
+          <Pressable
+            style={styles.payButtonContainer}
+            onPress={handlePayPress}
+            onPressIn={scaleIn}
+            onPressOut={scaleOut}
+          >
+            <LinearGradient
+              colors={['#D4AF37', '#B8941F']}
+              style={styles.payButtonGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <View style={styles.payButtonContent}>
+                <Ionicons name="card" size={24} color="#fff" />
+                <View>
+                  <Text style={styles.payButtonText}>Payer maintenant</Text>
+                  <Text style={styles.payButtonAmount}>{order.total_amount || order.subtotal}€</Text>
+                </View>
+              </View>
+              <View style={styles.payButtonArrow}>
+                <Ionicons name="arrow-forward" size={20} color="#fff" />
+              </View>
+            </LinearGradient>
+          </Pressable>
+        </Animated.View>
+      )}
+
+      {/* Bouton ticket de caisse pour clients (si payé) */}
+      {canShowReceipt && (
         <Pressable
-          style={styles.payButtonContainer}
-          onPress={handlePayPress}
-          onPressIn={scaleIn}
-          onPressOut={scaleOut}
+          style={styles.receiptButtonClient}
+          onPress={onShowReceipt}
         >
           <LinearGradient
-            colors={['#D4AF37', '#B8941F']}
-            style={styles.payButtonGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
+            colors={['#FFFFFF', '#F8FAFC']}
+            style={styles.receiptButtonGradient}
           >
-            <View style={styles.payButtonContent}>
-              <Ionicons name="card" size={24} color="#fff" />
-              <View>
-                <Text style={styles.payButtonText}>Payer maintenant</Text>
-                <Text style={styles.payButtonAmount}>{order.total_amount || order.subtotal}€</Text>
-              </View>
-            </View>
-            <View style={styles.payButtonArrow}>
-              <Ionicons name="arrow-forward" size={20} color="#fff" />
-            </View>
+            <Ionicons name="receipt-outline" size={20} color={COLORS.primary} />
+            <Text style={styles.receiptButtonText}>Voir le ticket de caisse</Text>
+            <Ionicons name="chevron-forward" size={16} color={COLORS.text.secondary} />
           </LinearGradient>
         </Pressable>
-      </Animated.View>
+      )}
     </View>
   );
 });
@@ -471,6 +519,38 @@ const OrderTimeline = React.memo(({ order }: { order: OrderDetail }) => {
   );
 });
 
+// Modal Receipt Component
+const ReceiptModal = React.memo(({ 
+  visible, 
+  onClose, 
+  order 
+}: { 
+  visible: boolean; 
+  onClose: () => void; 
+  order: OrderDetail;
+}) => {
+  const screenType = useScreenType();
+  const styles = createStyles(screenType);
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
+      <SafeAreaView style={styles.modalContainer}>
+        <Receipt
+          orderId={String(order.id)}
+          order={order}
+          showActions={true}
+          onClose={onClose}
+        />
+      </SafeAreaView>
+    </Modal>
+  );
+});
+
 // Composant principal amélioré
 export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -483,6 +563,7 @@ export default function OrderDetailScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
 
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
 
@@ -558,6 +639,11 @@ export default function OrderDetailScreen() {
     }
   };
 
+  // Afficher le ticket de caisse
+  const handleShowReceipt = () => {
+    setShowReceiptModal(true);
+  };
+
   // État de chargement
   if (isLoading) {
     return (
@@ -566,7 +652,6 @@ export default function OrderDetailScreen() {
           title="Détails de la commande" 
           showBackButton
         />
-        {/* Remplacé par View avec backgroundColor au lieu de LinearGradient */}
         <View style={styles.loadingContainer}>
           <View style={styles.loadingContent}>
             <ActivityIndicator size="large" color={COLORS.primary} />
@@ -771,18 +856,29 @@ export default function OrderDetailScreen() {
                   order={order}
                   onStatusUpdate={handleStatusUpdate}
                   onMarkAsPaid={handleMarkAsPaid}
+                  onShowReceipt={handleShowReceipt}
                   isUpdating={isUpdating}
                 />
               )}
 
               {/* Bouton de paiement pour les clients */}
               {isClient && (
-                <ClientPaymentButton order={order} />
+                <ClientPaymentButton 
+                  order={order} 
+                  onShowReceipt={handleShowReceipt}
+                />
               )}
             </View>
           </View>
         </ScrollView>
       </Animated.View>
+
+      {/* Modal Receipt */}
+      <ReceiptModal
+        visible={showReceiptModal}
+        onClose={() => setShowReceiptModal(false)}
+        order={order}
+      />
     </SafeAreaView>
   );
 }
@@ -821,7 +917,7 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop') => {
       minWidth: isTabletOrLarger ? 320 : undefined,
     },
     
-    // États améliorés - loadingContainer maintenant avec backgroundColor au lieu de LinearGradient
+    // États améliorés
     loadingContainer: {
       flex: 1,
       justifyContent: 'center' as const,
@@ -1377,6 +1473,15 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop') => {
         elevation: 6,
       }
     },
+    receiptButton: {
+      ...COLORS.shadow.golden && {
+        shadowColor: COLORS.secondary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 6,
+      }
+    },
     buttonPressed: {
       transform: [{ scale: 0.95 }],
     },
@@ -1389,6 +1494,7 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop') => {
     // Bouton de paiement client premium
     paymentSection: {
       marginBottom: 16,
+      gap: 12,
     },
     payButtonContainer: {
       borderRadius: 16,
@@ -1402,7 +1508,7 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop') => {
       }
     },
     payButtonGradient: {
-      padding: 10,
+      padding: 20,
     },
     payButtonContent: {
       flexDirection: 'row' as const,
@@ -1425,6 +1531,41 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop') => {
       right: 20,
       top: '50%' as '50%',
       marginTop: -10,
+    },
+
+    // Bouton ticket client
+    receiptButtonClient: {
+      borderRadius: 12,
+      overflow: 'hidden' as const,
+      ...COLORS.shadow.default && {
+        shadowColor: COLORS.shadow.default,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 1,
+        shadowRadius: 4,
+        elevation: 2,
+      }
+    },
+    receiptButtonGradient: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'space-between' as const,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderWidth: 1,
+      borderColor: COLORS.border.light,
+    },
+    receiptButtonText: {
+      fontSize: 15,
+      fontWeight: '600' as const,
+      color: COLORS.text.primary,
+      flex: 1,
+      marginLeft: 8,
+    },
+
+    // Modal styles
+    modalContainer: {
+      flex: 1,
+      backgroundColor: COLORS.background,
     },
   };
 };

@@ -6,7 +6,6 @@ import {
   Pressable,
   ScrollView,
   ActivityIndicator,
-  Alert,
   Modal,
   TextInput,
   Platform,
@@ -16,7 +15,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-// ⚠️ On n'utilise plus le type ReceiptData du service côté UI, pour éviter le décalage de schémas
+import { Alert, useAlert } from '@/components/ui/Alert';
 import { receiptService, ReceiptData as ServiceReceipt } from '@/services/receiptService';
 import {
   useScreenType,
@@ -28,28 +27,39 @@ import {
 
 interface ReceiptProps {
   orderId: string;
-  order?: any; // payload brut éventuel déjà disponible
+  order?: any;
   showActions?: boolean;
   onClose?: () => void;
   autoSendEmail?: boolean;
   customerEmail?: string;
 }
 
-// Schéma de données attendu par le composant (UI)
+// Schéma de données conforme aux normes françaises
+interface ProcessedReceiptItem {
+  name: string;
+  description?: string;
+  price: number; // Prix unitaire HT
+  price_ttc: number; // Prix unitaire TTC
+  quantity: number;
+  total_price_ht: number; // Total HT pour cet article
+  total_price_ttc: number; // Total TTC pour cet article
+  tva_rate: number; // Taux de TVA (ex: 0.20 pour 20%)
+  tva_amount: number; // Montant TVA pour cet article
+  customizations?: Record<string, string | string[]>;
+}
+
 interface ReceiptViewData {
   order: {
     id?: number | string;
     order_number: string;
     order_type?: 'dine_in' | 'takeaway' | string;
     table_number?: string | number | null;
-    items: Array<{
-      name: string;
-      price: number;
-      quantity: number;
-      total_price: number;
-      customizations?: Record<string, string | string[]>;
-    }>;
-    total_amount: number; // TTC hors pourboire
+    sequential_number?: string; // Numéro séquentiel obligatoire en France
+    items: ProcessedReceiptItem[];
+    subtotal_ht: number; // Sous-total HT
+    subtotal_ttc: number; // Sous-total TTC
+    total_tva: number; // Total TVA
+    total_amount: number; // Total TTC final (avec pourboire)
   };
   restaurantInfo: {
     name: string;
@@ -59,19 +69,26 @@ interface ReceiptViewData {
     phone?: string;
     email?: string;
     siret?: string;
-    tva?: string;
+    tva_number?: string; // Numéro de TVA intracommunautaire
+    legal_form?: string; // Forme juridique (SARL, SAS, etc.)
   };
   paymentInfo: {
     method?: string;
-    amount?: number; // total TTC (hors pourboire)
+    amount?: number;
     tip?: number;
     transactionId?: string;
-    paidAt: string; // ISO
+    paidAt: string; // ISO format
+    sequential_receipt_number?: string; // Numéro séquentiel du ticket
   };
   customerInfo?: {
     name?: string;
     email?: string;
     phone?: string;
+  };
+  legalInfo: {
+    warranty_notice?: string; // Mention garantie légale si applicable
+    tva_notice?: string; // Mention TVA non applicable si exonéré
+    receipt_notice?: string; // Mention sur la conservation du ticket
   };
 }
 
@@ -92,37 +109,103 @@ export const Receipt: React.FC<ReceiptProps> = ({
 
   const screenType = useScreenType();
 
+  const {
+    alertState,
+    showAlert,
+    hideAlert,
+    showSuccess,
+    showError,
+    showWarning,
+    showInfo,
+  } = useAlert();
+
   useEffect(() => {
     loadReceiptData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId]);
 
   useEffect(() => {
     if (autoSendEmail && customerEmail && receiptData) {
       handleSendEmail(customerEmail);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoSendEmail, customerEmail, receiptData]);
 
-  // ---- Mapping service -> UI ----
+  // Fonction pour mieux récupérer le nom des articles
+
+  const getItemName = (item: any): string => {
+    console.log('item', item);
+    // Priorité : name > title > menu_item_name > menu_item.name > product_name > item_name > description tronquée
+    if (item.name && item.name.trim()) return item.name.trim();
+    if (item.title && item.title.trim()) return item.title.trim();
+    if (item.menu_item_name && item.menu_item_name.trim()) return item.menu_item_name.trim(); // Added this line
+    if (item.menu_item?.name && item.menu_item.name.trim()) return item.menu_item.name.trim();
+    if (item.product_name && item.product_name.trim()) return item.product_name.trim();
+    if (item.item_name && item.item_name.trim()) return item.item_name.trim();
+    if (item.description && item.description.trim()) {
+      // Tronquer la description à 50 caractères max
+      return item.description.trim().substring(0, 50) + (item.description.length > 50 ? '...' : '');
+    }
+    return 'Article sans nom';
+  };
+
+  // Calcul correct de la TVA selon les normes françaises
+  const calculateTVA = (priceTTC: number, tvaRate: number = 0.20) => {
+    const priceHT = priceTTC / (1 + tvaRate);
+    const tvaAmount = priceTTC - priceHT;
+    return {
+      priceHT: Math.round(priceHT * 100) / 100,
+      tvaAmount: Math.round(tvaAmount * 100) / 100
+    };
+  };
+
+  // Mapping service -> UI avec calculs TVA conformes
   const mapServiceToView = (data: ServiceReceipt): ReceiptViewData => {
-    const items: ReceiptViewData['order']['items'] = (data as any).items || (data as any).order_items || [];
-    const totalAmount: number = (data as any).total_amount ?? 0;
+    const rawItems = (data as any).items || (data as any).order_items || [];
+    const DEFAULT_TVA_RATE = 0.20; // 20% pour la restauration
+
+    const processedItems: ProcessedReceiptItem[] = rawItems.map((item: any): ProcessedReceiptItem => {
+      const name = getItemName(item);
+      const quantity = Number(item.quantity ?? 1);
+      const priceTTC = Number(item.price ?? item.unit_price ?? 0);
+      const tvaRate = Number(item.tva_rate ?? item.tax_rate ?? DEFAULT_TVA_RATE);
+      
+      const { priceHT, tvaAmount: unitTvaAmount } = calculateTVA(priceTTC, tvaRate);
+      const totalTTC = priceTTC * quantity;
+      const totalHT = priceHT * quantity;
+      const totalTvaAmount = unitTvaAmount * quantity;
+
+      return {
+        name,
+        description: item.description,
+        price: priceHT,
+        price_ttc: priceTTC,
+        quantity,
+        total_price_ht: Math.round(totalHT * 100) / 100,
+        total_price_ttc: Math.round(totalTTC * 100) / 100,
+        tva_rate: tvaRate,
+        tva_amount: Math.round(totalTvaAmount * 100) / 100,
+        customizations: item.customizations,
+      };
+    });
+
+    // Calculs totaux
+    const subtotalHT = processedItems.reduce((sum: number, item) => sum + item.total_price_ht, 0);
+    const subtotalTTC = processedItems.reduce((sum: number, item) => sum + item.total_price_ttc, 0);
+    const totalTVA = processedItems.reduce((sum: number, item) => sum + item.tva_amount, 0);
+    const tipAmount = Number((data as any).tip_amount ?? 0);
+    const totalAmount = subtotalTTC + tipAmount;
 
     return {
       order: {
         id: (data as any).order_id ?? (data as any).id,
-        order_number: (data as any).order_number ?? '—',
+        order_number: (data as any).order_number ?? 'N/A',
         order_type: (data as any).order_type,
         table_number: (data as any).table_number ?? null,
-        items: items.map((it: any) => ({
-          name: it.name ?? it.title ?? '—',
-          price: Number(it.price ?? it.unit_price ?? 0),
-          quantity: Number(it.quantity ?? 1),
-          total_price: Number(it.total_price ?? it.total ?? (Number(it.price ?? 0) * Number(it.quantity ?? 1))),
-          customizations: it.customizations,
-        })),
-        total_amount: Number(totalAmount),
+        sequential_number: (data as any).sequential_number ?? (data as any).order_number,
+        items: processedItems,
+        subtotal_ht: Math.round(subtotalHT * 100) / 100,
+        subtotal_ttc: Math.round(subtotalTTC * 100) / 100,
+        total_tva: Math.round(totalTVA * 100) / 100,
+        total_amount: Math.round(totalAmount * 100) / 100,
       },
       restaurantInfo: {
         name: (data as any).restaurant_name ?? 'Restaurant',
@@ -132,39 +215,79 @@ export const Receipt: React.FC<ReceiptProps> = ({
         phone: (data as any).restaurant_phone,
         email: (data as any).restaurant_email,
         siret: (data as any).restaurant_siret,
-        tva: (data as any).restaurant_tva,
+        tva_number: (data as any).restaurant_tva_number,
+        legal_form: (data as any).restaurant_legal_form,
       },
       paymentInfo: {
         method: (data as any).payment_method ?? 'cash',
-        amount: Number(totalAmount),
-        tip: Number((data as any).tip_amount ?? 0),
+        amount: Math.round(totalAmount * 100) / 100,
+        tip: tipAmount,
         transactionId: (data as any).transaction_id,
         paidAt: (data as any).paid_at ?? new Date().toISOString(),
+        sequential_receipt_number: (data as any).sequential_receipt_number,
       },
       customerInfo: {
         name: (data as any).customer_name,
         email: (data as any).customer_email,
         phone: (data as any).customer_phone,
       },
+      legalInfo: {
+        warranty_notice: (data as any).warranty_notice,
+        tva_notice: (data as any).tva_notice,
+        receipt_notice: 'Ticket à conserver comme justificatif',
+      },
     };
   };
 
-  // ---- Mapping ordre brut -> UI ----
+  // Mapping ordre brut -> UI
   const mapOrderPropToView = (ord: any): ReceiptViewData => {
+    console.log('ord', ord);
+    const rawItems = ord.items ?? [];
+    const DEFAULT_TVA_RATE = 0.20;
+
+    const processedItems: ProcessedReceiptItem[] = rawItems.map((item: any): ProcessedReceiptItem => {
+      const name = getItemName(item);
+      const quantity = Number(item.quantity ?? 1);
+      const priceTTC = Number(item.price ?? item.unit_price ?? 0);
+      const tvaRate = Number(item.tva_rate ?? DEFAULT_TVA_RATE);
+      
+      const { priceHT, tvaAmount: unitTvaAmount } = calculateTVA(priceTTC, tvaRate);
+      const totalTTC = priceTTC * quantity;
+      const totalHT = priceHT * quantity;
+      const totalTvaAmount = unitTvaAmount * quantity;
+
+      return {
+        name,
+        description: item.description,
+        price: priceHT,
+        price_ttc: priceTTC,
+        quantity,
+        total_price_ht: Math.round(totalHT * 100) / 100,
+        total_price_ttc: Math.round(totalTTC * 100) / 100,
+        tva_rate: tvaRate,
+        tva_amount: Math.round(totalTvaAmount * 100) / 100,
+        customizations: item.customizations,
+      };
+    });
+
+    const subtotalHT = processedItems.reduce((sum: number, item) => sum + item.total_price_ht, 0);
+    const subtotalTTC = processedItems.reduce((sum: number, item) => sum + item.total_price_ttc, 0);
+    const totalTVA = processedItems.reduce((sum: number, item) => sum + item.tva_amount, 0);
+    const tipAmount = Number(ord.tip_amount ?? 0);
+    const totalAmount = subtotalTTC + tipAmount;
+
     return {
       order: {
         id: ord.id ?? ord.order_id,
-        order_number: ord.order_number ?? ord.number ?? '—',
+        order_number: ord.order_number ?? ord.number ?? 'N/A',
         order_type: ord.order_type,
         table_number: ord.table_number ?? null,
-        items: (ord.items ?? []).map((it: any) => ({
-          name: it.name ?? it.title ?? '—',
-          price: Number(it.price ?? it.unit_price ?? 0),
-          quantity: Number(it.quantity ?? 1),
-          total_price: Number(it.total_price ?? it.total ?? (Number(it.price ?? 0) * Number(it.quantity ?? 1))),
-          customizations: it.customizations,
-        })),
-        total_amount: Number(ord.total_amount ?? 0),
+        sequential_number: ord.sequential_number ?? ord.order_number,
+        items: processedItems,
+        subtotal_ht: Math.round(subtotalHT * 100) / 100,
+        subtotal_ttc: Math.round(subtotalTTC * 100) / 100,
+        total_tva: Math.round(totalTVA * 100) / 100,
+        total_amount: Math.round(totalAmount * 100) / 100,
       },
       restaurantInfo: {
         name: ord.restaurant_name ?? 'Restaurant',
@@ -174,50 +297,145 @@ export const Receipt: React.FC<ReceiptProps> = ({
         phone: ord.restaurant_phone,
         email: ord.restaurant_email,
         siret: ord.restaurant_siret,
-        tva: ord.restaurant_tva,
+        tva_number: ord.restaurant_tva_number,
+        legal_form: ord.restaurant_legal_form,
       },
       paymentInfo: {
         method: ord.payment_method ?? 'cash',
-        amount: Number(ord.total_amount ?? 0),
-        tip: Number(ord.tip_amount ?? 0),
+        amount: Math.round(totalAmount * 100) / 100,
+        tip: tipAmount,
         transactionId: ord.transaction_id,
         paidAt: ord.payment_date ?? new Date().toISOString(),
+        sequential_receipt_number: ord.sequential_receipt_number,
       },
       customerInfo: {
         name: ord.customer_name,
         email: ord.customer_email,
         phone: ord.customer_phone,
       },
+      legalInfo: {
+        warranty_notice: ord.warranty_notice,
+        tva_notice: ord.tva_notice,
+        receipt_notice: 'Ticket à conserver comme justificatif',
+      },
     };
   };
 
+  // Génération HTML conforme aux normes françaises
   const buildReceiptHTML = (data: ReceiptViewData) => {
-    // Fallback léger si le service ne renvoie pas directement du HTML
+    console.log('data', data);
     const lines: string[] = [];
-    lines.push(`<h1 style=\"font-family:system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;\">Ticket N° ${data.order.order_number}</h1>`);
-    lines.push(`<div><strong>${data.restaurantInfo.name || ''}</strong><br/>${[data.restaurantInfo.address, [data.restaurantInfo.postal_code, data.restaurantInfo.city].filter(Boolean).join(' ')]
-      .filter(Boolean).join('<br/>')}</div>`);
-    lines.push(`<hr/>`);
-    lines.push(`<div>Date: ${formatDate(data.paymentInfo.paidAt)}${data.order.table_number ? ` · Table: ${data.order.table_number}` : ''}</div>`);
-    lines.push(`<table style=\"width:100%;border-collapse:collapse;margin-top:8px\">`);
-    lines.push(`<thead><tr><th align=\"left\">Article</th><th align=\"right\">Qté</th><th align=\"right\">Prix</th><th align=\"right\">Total</th></tr></thead>`);
-    lines.push('<tbody>');
-    for (const it of data.order.items) {
-      lines.push(`<tr><td>${it.name}</td><td align=\"right\">${it.quantity}</td><td align=\"right\">${it.price.toFixed(2)} €</td><td align=\"right\">${it.total_price.toFixed(2)} €</td></tr>`);
+    const dateFormatted = formatDate(data.paymentInfo.paidAt);
+    
+    lines.push('<!DOCTYPE html>');
+    lines.push('<html><head><meta charset="utf-8"/><title>Ticket de caisse</title></head>');
+    lines.push('<body style="font-family: \'Courier New\', monospace; font-size: 12px; line-height: 1.2; max-width: 300px; margin: 0; padding: 10px;">');
+    
+    // En-tête restaurant (obligatoire)
+    lines.push(`<div style="text-align: center; border-bottom: 1px dashed #000; padding-bottom: 8px; margin-bottom: 8px;">`);
+    lines.push(`<strong style="font-size: 14px;">${data.restaurantInfo.name}</strong><br/>`);
+    if (data.restaurantInfo.address) {
+      lines.push(`${data.restaurantInfo.address}<br/>`);
     }
-    lines.push('</tbody></table>');
-    const subtotal = Number(data.order.total_amount || 0);
-    const tip = Number(data.paymentInfo.tip || 0);
-    const total = subtotal + tip;
-    lines.push(`<hr/><div style=\"text-align:right\">Sous-total: ${subtotal.toFixed(2)} €</div>`);
-    if (tip > 0) lines.push(`<div style=\"text-align:right\">Pourboire: ${tip.toFixed(2)} €</div>`);
-    lines.push(`<div style=\"font-weight:700;text-align:right\">TOTAL TTC: ${total.toFixed(2)} €</div>`);
-    return `<!DOCTYPE html><html><head><meta charset=\"utf-8\"/></head><body>${lines.join('')}</body></html>`;
+    if (data.restaurantInfo.postal_code && data.restaurantInfo.city) {
+      lines.push(`${data.restaurantInfo.postal_code} ${data.restaurantInfo.city}<br/>`);
+    }
+    if (data.restaurantInfo.phone) {
+      lines.push(`Tél: ${data.restaurantInfo.phone}<br/>`);
+    }
+    if (data.restaurantInfo.siret) {
+      lines.push(`SIRET: ${data.restaurantInfo.siret}<br/>`);
+    }
+    if (data.restaurantInfo.tva_number) {
+      lines.push(`TVA: ${data.restaurantInfo.tva_number}<br/>`);
+    }
+    lines.push('</div>');
+
+    // Informations obligatoires du ticket
+    lines.push('<div style="margin-bottom: 8px;">');
+    lines.push(`<strong>TICKET N° ${data.paymentInfo.sequential_receipt_number || data.order.order_number}</strong><br/>`);
+    lines.push(`Date: ${dateFormatted}<br/>`);
+    if (data.order.table_number) {
+      lines.push(`Table: ${data.order.table_number}<br/>`);
+    }
+    lines.push(`Type: ${data.order.order_type === 'dine_in' ? 'Sur place' : 'À emporter'}<br/>`);
+    if (data.paymentInfo.method) {
+      const paymentLabel = data.paymentInfo.method === 'cash' ? 'Espèces' : 
+                           data.paymentInfo.method === 'card' ? 'Carte bancaire' : 
+                           data.paymentInfo.method;
+      lines.push(`Paiement: ${paymentLabel}<br/>`);
+    }
+    lines.push('</div>');
+
+    // Détail des articles (obligatoire)
+    lines.push('<div style="border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 4px 0; margin: 8px 0;">');
+    
+    for (const item of data.order.items) {
+      lines.push(`<div style="margin-bottom: 2px;">`);
+      lines.push(`<div>${item.name}</div>`);
+      lines.push(`<div style="display: flex; justify-content: space-between;">`);
+      lines.push(`<span>${item.quantity} x ${item.price_ttc.toFixed(2)}€</span>`);
+      lines.push(`<span><strong>${item.total_price_ttc.toFixed(2)}€</strong></span>`);
+      lines.push('</div>');
+      
+      // Affichage du taux de TVA pour chaque article (obligatoire)
+      lines.push(`<div style="font-size: 10px; color: #666;">TVA ${(item.tva_rate * 100).toFixed(1)}%: ${item.tva_amount.toFixed(2)}€</div>`);
+      
+      if (item.customizations) {
+        const customText = Object.entries(item.customizations)
+          .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`)
+          .join(' | ');
+        if (customText) {
+          lines.push(`<div style="font-size: 10px; font-style: italic; color: #666;">${customText}</div>`);
+        }
+      }
+      lines.push('</div>');
+    }
+    lines.push('</div>');
+
+    // Récapitulatif des totaux (obligatoire)
+    lines.push('<div style="text-align: right; line-height: 1.4;">');
+    lines.push(`Sous-total HT: ${data.order.subtotal_ht.toFixed(2)}€<br/>`);
+    lines.push(`TVA totale: ${data.order.total_tva.toFixed(2)}€<br/>`);
+    lines.push(`<strong>Sous-total TTC: ${data.order.subtotal_ttc.toFixed(2)}€</strong><br/>`);
+    
+    if (data.paymentInfo.tip && data.paymentInfo.tip > 0) {
+      lines.push(`Pourboire: ${data.paymentInfo.tip.toFixed(2)}€<br/>`);
+    }
+    
+    lines.push(`<div style="border-top: 1px solid #000; padding-top: 4px; margin-top: 4px; font-size: 14px;">`);
+    lines.push(`<strong>TOTAL TTC: ${data.order.total_amount.toFixed(2)}€</strong>`);
+    lines.push('</div>');
+    lines.push('</div>');
+
+    // Code-barres simulé
+    if (data.order.order_number) {
+      lines.push('<div style="text-align: center; margin: 12px 0; font-family: monospace; font-size: 18px; letter-spacing: 1px;">');
+      lines.push(`||||| ${data.order.order_number} |||||`);
+      lines.push('</div>');
+    }
+
+    // Mentions légales obligatoires
+    lines.push('<div style="font-size: 10px; text-align: center; border-top: 1px dashed #000; padding-top: 8px; margin-top: 8px;">');
+    lines.push('MERCI DE VOTRE VISITE<br/>');
+    lines.push('À BIENTÔT<br/><br/>');
+    lines.push(`${data.legalInfo.receipt_notice}<br/>`);
+    
+    if (data.legalInfo.warranty_notice) {
+      lines.push(`<br/>${data.legalInfo.warranty_notice}`);
+    }
+    
+    if (data.legalInfo.tva_notice) {
+      lines.push(`<br/>${data.legalInfo.tva_notice}`);
+    }
+    lines.push('</div>');
+
+    lines.push('</body></html>');
+    return lines.join('');
   };
 
   const toHTMLFromService = (payload: any): string => {
     try {
-      // Certaines versions exposent generateReceiptData au lieu de generateReceiptHTML
       const result = (receiptService as any).generateReceiptData
         ? (receiptService as any).generateReceiptData(payload)
         : (receiptService as any).generateReceiptHTML?.(payload);
@@ -234,13 +452,11 @@ export const Receipt: React.FC<ReceiptProps> = ({
       setLoading(true);
 
       if (order) {
-        // Utiliser le payload existant
         const data = mapOrderPropToView(order);
         setReceiptData(data);
         const htmlCandidate = toHTMLFromService({ ...(order as any) });
         setReceiptHTML(htmlCandidate || buildReceiptHTML(data));
       } else {
-        // Récupérer depuis l'API puis mapper vers l'UI
         const serviceData = await receiptService.generateReceiptData(Number(orderId));
         const data = mapServiceToView(serviceData);
         setReceiptData(data);
@@ -249,7 +465,7 @@ export const Receipt: React.FC<ReceiptProps> = ({
       }
     } catch (error) {
       console.error('Error loading receipt:', error);
-      Alert.alert('Erreur', "Impossible de charger le ticket");
+      showError("Impossible de charger le ticket", "Erreur");
     } finally {
       setLoading(false);
     }
@@ -270,12 +486,11 @@ export const Receipt: React.FC<ReceiptProps> = ({
           printWindow.print();
         }
       } else {
-        // Expo: Print.printAsync n'accepte pas l'option `base64` et ne renvoie pas d'URI
         await Print.printAsync({ html });
       }
     } catch (error) {
       console.error('Error printing:', error);
-      Alert.alert('Erreur', "Impossible d'imprimer le ticket");
+      showError("Impossible d'imprimer le ticket", "Erreur");
     }
   };
 
@@ -291,12 +506,13 @@ export const Receipt: React.FC<ReceiptProps> = ({
         a.download = `ticket_${number}.pdf`;
         a.click();
         URL.revokeObjectURL(url);
+        showSuccess('PDF téléchargé avec succès');
       } else {
-        Alert.alert('Info', 'PDF téléchargé avec succès');
+        showInfo('PDF téléchargé avec succès');
       }
     } catch (error) {
       console.error('Error downloading PDF:', error);
-      Alert.alert('Erreur', 'Impossible de télécharger le PDF');
+      showError('Impossible de télécharger le PDF', 'Erreur');
     }
   };
 
@@ -304,7 +520,7 @@ export const Receipt: React.FC<ReceiptProps> = ({
     const targetEmail = emailAddress || email;
 
     if (!targetEmail || !targetEmail.includes('@')) {
-      Alert.alert('Erreur', 'Veuillez entrer une adresse email valide');
+      showError('Veuillez entrer une adresse email valide', 'Erreur');
       return;
     }
 
@@ -315,25 +531,36 @@ export const Receipt: React.FC<ReceiptProps> = ({
         email: targetEmail,
         format: 'pdf',
         language: 'fr',
-        } as any);
+      } as any);
       
       if ((result as any).success) {
-        Alert.alert('Succès', `Ticket envoyé à ${targetEmail}`);
+        showSuccess(`Ticket envoyé à ${targetEmail}`, 'Succès');
         setShowEmailModal(false);
         setEmail('');
       } else {
-        Alert.alert('Erreur', (result as any).message ?? 'Erreur inconnue');
+        showError((result as any).message ?? 'Erreur inconnue', 'Erreur');
       }
     } catch (error) {
       console.error('Error sending email:', error);
-      Alert.alert('Erreur', "Impossible d'envoyer le ticket");
+      showError("Impossible d'envoyer le ticket", "Erreur");
     } finally {
       setSendingEmail(false);
     }
   };
 
-  // Helpers d'affichage (on garde local pour que l'UI ne dépende pas du service)
+  const handleShare = async () => {
+    try {
+      const html = receiptHTML || (receiptData ? buildReceiptHTML(receiptData) : '');
+      const file = await Print.printToFileAsync({ html });
+      await Sharing.shareAsync(file.uri);
+    } catch (error) {
+      console.error('Error sharing:', error);
+      showError("Impossible de partager le ticket", "Erreur");
+    }
+  };
+
   const formatPrice = (price: number) => `${Number(price || 0).toFixed(2)} €`;
+  
   const formatDate = (date: string) => {
     try {
       return new Date(date).toLocaleString('fr-FR', {
@@ -373,6 +600,11 @@ export const Receipt: React.FC<ReceiptProps> = ({
     content: {
       flex: 1,
       padding: getResponsiveValue(SPACING.container, screenType),
+    },
+    alertContainer: {
+      paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
+      paddingTop: 8,
+      zIndex: 1000,
     },
     receiptPreview: {
       backgroundColor: COLORS.surface,
@@ -428,6 +660,9 @@ export const Receipt: React.FC<ReceiptProps> = ({
     },
     item: {
       marginVertical: getResponsiveValue(SPACING.sm, screenType),
+      paddingBottom: getResponsiveValue(SPACING.sm, screenType),
+      borderBottomWidth: 1,
+      borderBottomColor: COLORS.border.light,
     },
     itemHeader: {
       flexDirection: 'row',
@@ -448,6 +683,12 @@ export const Receipt: React.FC<ReceiptProps> = ({
     itemDetails: {
       fontSize: getResponsiveValue({ mobile: 12, tablet: 13, desktop: 14 }, screenType),
       color: COLORS.text.secondary,
+      marginLeft: getResponsiveValue(SPACING.sm, screenType),
+    },
+    tvaDetails: {
+      fontSize: getResponsiveValue({ mobile: 11, tablet: 12, desktop: 13 }, screenType),
+      color: COLORS.text.secondary,
+      fontStyle: 'italic',
       marginLeft: getResponsiveValue(SPACING.sm, screenType),
     },
     totalsSection: {
@@ -567,6 +808,13 @@ export const Receipt: React.FC<ReceiptProps> = ({
       textAlign: 'center',
       lineHeight: 18,
     },
+    legalNotice: {
+      fontSize: getResponsiveValue({ mobile: 10, tablet: 11, desktop: 12 }, screenType),
+      color: COLORS.text.secondary,
+      textAlign: 'center',
+      fontStyle: 'italic',
+      marginTop: getResponsiveValue(SPACING.sm, screenType),
+    },
   });
 
   const iconSize = getResponsiveValue({ mobile: 20, tablet: 22, desktop: 24 }, screenType);
@@ -588,25 +836,33 @@ export const Receipt: React.FC<ReceiptProps> = ({
     );
   }
 
-  const { order: orderData, restaurantInfo, paymentInfo } = receiptData;
-
-  const subtotal = Number(orderData.total_amount || 0);
-  const tip = Number(paymentInfo.tip || 0);
-  const total = subtotal + tip;
-  const tvaRate = 0.2;
-  const tvaAmount = total * tvaRate / (1 + tvaRate);
+  const { order: orderData, restaurantInfo, paymentInfo, legalInfo } = receiptData;
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Ticket N° {orderData.order_number}</Text>
+        <Text style={styles.headerTitle}>
+          Ticket N° {paymentInfo.sequential_receipt_number || orderData.order_number}
+        </Text>
         {onClose && (
           <Pressable style={styles.closeButton} onPress={onClose}>
             <Ionicons name="close" size={iconSize} color={COLORS.text.secondary} />
           </Pressable>
         )}
       </View>
+
+      {/* Alert Display */}
+      {alertState && (
+        <View style={styles.alertContainer}>
+          <Alert
+            variant={alertState.variant}
+            title={alertState.title}
+            message={alertState.message}
+            onPress={hideAlert}
+          />
+        </View>
+      )}
 
       {/* Content */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -615,19 +871,26 @@ export const Receipt: React.FC<ReceiptProps> = ({
           <View style={styles.receiptHeader}>
             <Text style={styles.restaurantName}>{restaurantInfo.name}</Text>
             <Text style={styles.restaurantInfo}>
-              {(restaurantInfo.address || '').trim()} {'\n'}
-              {[restaurantInfo.postal_code, restaurantInfo.city].filter(Boolean).join(' ')}{' '}\n
-              {restaurantInfo.phone ? `Tél: ${restaurantInfo.phone}\n` : ''}
-              {restaurantInfo.email || ''}
-              {restaurantInfo.siret ? `\nSIRET: ${restaurantInfo.siret}` : ''}
+              {[
+                restaurantInfo.address?.trim(),
+                [restaurantInfo.postal_code, restaurantInfo.city].filter(Boolean).join(' '),
+                restaurantInfo.phone ? `Tél: ${restaurantInfo.phone}` : '',
+                restaurantInfo.email || '',
+                restaurantInfo.siret ? `SIRET: ${restaurantInfo.siret}` : '',
+                restaurantInfo.tva_number ? `TVA: ${restaurantInfo.tva_number}` : ''
+              ]
+                .filter(Boolean)
+                .join('\n')}
             </Text>
           </View>
 
           {/* Order Info */}
           <View>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>N° Commande:</Text>
-              <Text style={styles.infoValue}>{orderData.order_number}</Text>
+              <Text style={styles.infoLabel}>N° Ticket:</Text>
+              <Text style={styles.infoValue}>
+                {paymentInfo.sequential_receipt_number || orderData.order_number}
+              </Text>
             </View>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Date:</Text>
@@ -645,61 +908,89 @@ export const Receipt: React.FC<ReceiptProps> = ({
                 {orderData.order_type === 'dine_in' ? 'Sur place' : 'À emporter'}
               </Text>
             </View>
+            {paymentInfo.method && (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Paiement:</Text>
+                <Text style={styles.infoValue}>
+                  {paymentInfo.method === 'cash' ? 'Espèces' : 
+                   paymentInfo.method === 'card' ? 'Carte bancaire' : 
+                   paymentInfo.method}
+                </Text>
+              </View>
+            )}
           </View>
 
-          {/* Items */}
+          {/* Items avec détail TVA */}
           <View style={styles.itemsSection}>
             {(orderData.items || []).map((item, index) => (
               <View key={index} style={styles.item}>
                 <View style={styles.itemHeader}>
                   <Text style={styles.itemName}>{item.name}</Text>
-                  <Text style={styles.itemPrice}>{formatPrice(item.total_price)}</Text>
+                  <Text style={styles.itemPrice}>{formatPrice(item.total_price_ttc)}</Text>
                 </View>
                 <Text style={styles.itemDetails}>
-                  {item.quantity} x {formatPrice(item.price)}
+                  {item.quantity} x {formatPrice(item.price_ttc)} TTC
                 </Text>
-                {!!item.customizations && (
+                <Text style={styles.tvaDetails}>
+                  TVA {(item.tva_rate * 100).toFixed(1)}%: {formatPrice(item.tva_amount)}
+                </Text>
+                {item.customizations && Object.keys(item.customizations).length > 0 && (
                   <Text style={styles.itemDetails}>
-                    {Object.entries(item.customizations).map(([key, value]) =>
-                      `${key}: ${Array.isArray(value) ? value.join(', ') : value}`
-                    ).join(' | ')}
+                    {Object.entries(item.customizations)
+                      .map(([key, value]) => 
+                        `${key}: ${Array.isArray(value) ? value.join(', ') : value}`
+                      )
+                      .join(' | ')}
                   </Text>
                 )}
               </View>
             ))}
           </View>
 
-          {/* Totals */}
+          {/* Totals conformes */}
           <View style={styles.totalsSection}>
             <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Sous-total:</Text>
-              <Text style={styles.totalValue}>{formatPrice(subtotal)}</Text>
+              <Text style={styles.totalLabel}>Sous-total HT:</Text>
+              <Text style={styles.totalValue}>{formatPrice(orderData.subtotal_ht)}</Text>
             </View>
-            {tip > 0 && (
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>TVA totale:</Text>
+              <Text style={styles.totalValue}>{formatPrice(orderData.total_tva)}</Text>
+            </View>
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Sous-total TTC:</Text>
+              <Text style={styles.totalValue}>{formatPrice(orderData.subtotal_ttc)}</Text>
+            </View>
+            {paymentInfo.tip && paymentInfo.tip > 0 && (
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>Pourboire:</Text>
-                <Text style={styles.totalValue}>{formatPrice(tip)}</Text>
+                <Text style={styles.totalValue}>{formatPrice(paymentInfo.tip)}</Text>
               </View>
             )}
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>TVA (20%):</Text>
-              <Text style={styles.totalValue}>{formatPrice(tvaAmount)}</Text>
-            </View>
             <View style={styles.finalTotalRow}>
               <Text style={styles.finalTotalLabel}>TOTAL TTC:</Text>
-              <Text style={styles.finalTotalValue}>{formatPrice(total)}</Text>
+              <Text style={styles.finalTotalValue}>{formatPrice(orderData.total_amount)}</Text>
             </View>
           </View>
 
           {/* Barcode */}
           <View style={styles.barcode}>
-            <Text style={styles.barcodeText}>*{orderData.order_number}*</Text>
+            <Text style={styles.barcodeText}>
+              *{paymentInfo.sequential_receipt_number || orderData.order_number}*
+            </Text>
           </View>
 
-          {/* Footer */}
+          {/* Footer avec mentions légales */}
           <View style={styles.footer}>
             <Text style={styles.thankYou}>MERCI DE VOTRE VISITE !</Text>
-            <Text style={styles.footerInfo}>À bientôt{'\n'}Ticket à conserver comme justificatif</Text>
+            <Text style={styles.footerInfo}>À bientôt</Text>
+            <Text style={styles.legalNotice}>{legalInfo.receipt_notice}</Text>
+            {legalInfo.warranty_notice && (
+              <Text style={styles.legalNotice}>{legalInfo.warranty_notice}</Text>
+            )}
+            {legalInfo.tva_notice && (
+              <Text style={styles.legalNotice}>{legalInfo.tva_notice}</Text>
+            )}
           </View>
         </Card>
       </ScrollView>
@@ -719,16 +1010,7 @@ export const Receipt: React.FC<ReceiptProps> = ({
             </View>
             {Platform.OS !== 'web' && (
               <View style={styles.actionButton}>
-                <Button title="Partager" onPress={async () => {
-                  try {
-                    const html = receiptHTML || (receiptData ? buildReceiptHTML(receiptData) : '');
-                    const file = await Print.printToFileAsync({ html });
-                    await Sharing.shareAsync(file.uri);
-                  } catch (error) {
-                    console.error('Error sharing:', error);
-                    Alert.alert('Erreur', "Impossible de partager le ticket");
-                  }
-                }} leftIcon="share" variant="outline" fullWidth />
+                <Button title="Partager" onPress={handleShare} leftIcon="share" variant="outline" fullWidth />
               </View>
             )}
           </View>
