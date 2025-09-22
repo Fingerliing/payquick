@@ -136,7 +136,7 @@ export const Receipt: React.FC<ReceiptProps> = ({
     // Priorité : name > title > menu_item_name > menu_item.name > product_name > item_name > description tronquée
     if (item.name && item.name.trim()) return item.name.trim();
     if (item.title && item.title.trim()) return item.title.trim();
-    if (item.menu_item_name && item.menu_item_name.trim()) return item.menu_item_name.trim(); // Added this line
+    if (item.menu_item_name && item.menu_item_name.trim()) return item.menu_item_name.trim();
     if (item.menu_item?.name && item.menu_item.name.trim()) return item.menu_item.name.trim();
     if (item.product_name && item.product_name.trim()) return item.product_name.trim();
     if (item.item_name && item.item_name.trim()) return item.item_name.trim();

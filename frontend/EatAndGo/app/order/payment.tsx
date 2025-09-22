@@ -18,6 +18,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { StripeProvider, useStripe } from '@stripe/stripe-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Types importés
+import type { 
+  OrderDetail, 
+  OrderItem,
+} from '@/types/order';
+import type { MonetaryAmount } from '@/types/common';
+
 // UI components
 import { Header } from '@/components/ui/Header';
 import { Button } from '@/components/ui/Button';
@@ -88,29 +95,16 @@ const getResponsiveValue = (values: any, screenType: string) => {
   return values;
 };
 
-// ==== Types
-export interface OrderItem {
-  id?: number | string;
-  name: string;
-  quantity: number;
-  total_price: number | string;
+// ==== Types locaux étendus
+interface PaymentOrderDetail extends OrderDetail {
+  tip_amount?: MonetaryAmount;
+  customer_email?: string | null;
 }
 
-export interface OrderDetail {
-  id: number | string;
-  order_number?: string;
-  restaurant_name?: string;
-  table_number?: string | number | null;
-  items?: OrderItem[];
-  total_amount: number | string;
-  payment_status?: 'unpaid' | 'paid' | 'cash_pending' | 'partial_paid' | string;
-  payment_method?: 'online' | 'cash' | 'split' | string;
-  customer_email?: string | null;
-  tip_amount?: number | string;
-}
+type PaymentMethodType = 'online' | 'cash';
 
 interface PaymentMethod {
-  id: string;
+  id: PaymentMethodType;
   title: string;
   description: string;
   icon: keyof typeof Ionicons.glyphMap;
@@ -130,18 +124,32 @@ interface ConfirmationAlert {
 }
 
 // ==== Helpers
-const safeParseFloat = (value: any, fallback = 0): number => {
+const safeParseAmount = (value: MonetaryAmount | number | null | undefined, fallback = 0): number => {
+  if (value === null || value === undefined) return fallback;
   if (typeof value === 'number' && !isNaN(value)) return value;
-  const parsed = parseFloat(String(value || fallback));
+  const parsed = parseFloat(String(value));
   return isNaN(parsed) ? fallback : parsed;
 };
 
-const formatCurrency = (v: number | string | null | undefined) => {
-  const num = safeParseFloat(v);
+const formatCurrency = (value: MonetaryAmount | number | null | undefined): string => {
+  const num = safeParseAmount(value);
   return `${num.toFixed(2)} €`;
 };
 
-const isEmail = (v: string) => /^(?:[^\s@]+@[^\s@]+\.[^\s@]+)$/i.test(v.trim());
+const isValidEmail = (email: string): boolean => {
+  return /^(?:[^\s@]+@[^\s@]+\.[^\s@]+)$/i.test(email.trim());
+};
+
+// Helper pour obtenir le nom d'un item
+const getItemName = (item: OrderItem): string => {
+  return item.menu_item_name || 'Article sans nom';
+};
+
+// Helper pour obtenir le prix unitaire d'un item
+const getItemUnitPrice = (item: OrderItem): number => {
+  const totalPrice = safeParseAmount(item.total_price);
+  return totalPrice / (item.quantity || 1);
+};
 
 export default function PaymentScreen() {
   const { orderId } = useLocalSearchParams<{ orderId: string }>();
@@ -161,10 +169,10 @@ export default function PaymentScreen() {
     showInfo,
   } = useAlert();
 
-  const [order, setOrder] = useState<OrderDetail | null>(null);
+  const [order, setOrder] = useState<PaymentOrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'online' | 'cash'>('online');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('online');
 
   // Split payment states
   const [splitMode, setSplitMode] = useState<SplitPaymentMode>('none');
@@ -215,7 +223,7 @@ export default function PaymentScreen() {
     try {
       setLoading(true);
       const data = await orderService.getOrderById(Number(orderId));
-      setOrder(data as unknown as OrderDetail);
+      setOrder(data);
       
       const savedEmail = await AsyncStorage.getItem('customerEmail');
       if (savedEmail && !customerEmail) setCustomerEmail(savedEmail);
@@ -253,7 +261,7 @@ export default function PaymentScreen() {
       setCustomTipInput('');
     } else {
       setSelectedTipPercent(percent);
-      const orderAmount = safeParseFloat(order.total_amount);
+      const orderAmount = safeParseAmount(order.total_amount);
       const tip = Math.round(orderAmount * (percent / 100) * 100) / 100;
       setTipAmount(tip);
       setCustomTipInput(tip.toFixed(2));
@@ -273,8 +281,8 @@ export default function PaymentScreen() {
   };
 
   const totalWithTip = useMemo(() => {
-    const orderAmount = safeParseFloat(order?.total_amount);
-    const tip = safeParseFloat(tipAmount);
+    const orderAmount = safeParseAmount(order?.total_amount);
+    const tip = safeParseAmount(tipAmount);
     return Math.round((orderAmount + tip) * 100) / 100;
   }, [order?.total_amount, tipAmount]);
 
@@ -350,8 +358,8 @@ export default function PaymentScreen() {
       let clientSecret: string | undefined;
       try {
         const res = await (paymentService as any).createPaymentIntent(orderId, {
-          tip_amount: safeParseFloat(tipAmount),
-          total_with_tip: safeParseFloat(totalWithTip),
+          tip_amount: tipAmount.toString(),
+          total_with_tip: totalWithTip.toString(),
         });
         clientSecret = res?.client_secret;
       } catch (e) {
@@ -402,7 +410,7 @@ export default function PaymentScreen() {
       );
       return;
     }
-    if (wantReceipt && customerEmail && !isEmail(customerEmail)) {
+    if (wantReceipt && customerEmail && !isValidEmail(customerEmail)) {
       showError(
         "Veuillez saisir une adresse email valide ou désactivez l'envoi du ticket.",
         'Email invalide'
@@ -462,14 +470,14 @@ export default function PaymentScreen() {
     });
   };
 
-  const handlePaymentSuccess = async (method: 'online' | 'cash') => {
+  const handlePaymentSuccess = async (method: PaymentMethodType) => {
     try {
       if (method === 'online') {
         await paymentService.updatePaymentStatus(orderId as string, 'paid');
       } else {
         await paymentService.updatePaymentStatus(orderId as string, 'cash_pending');
       }
-      if (wantReceipt && customerEmail && isEmail(customerEmail)) {
+      if (wantReceipt && customerEmail && isValidEmail(customerEmail)) {
         try {
           await receiptService.sendReceiptByEmail({ 
             order_id: Number(orderId), 
@@ -587,7 +595,7 @@ export default function PaymentScreen() {
         await orderService.updateOrderStatus(Number(orderId), 'paid');
         
         // Envoyer le reçu si demandé
-        if (wantReceipt && customerEmail && isEmail(customerEmail)) {
+        if (wantReceipt && customerEmail && isValidEmail(customerEmail)) {
           try {
             await receiptService.sendReceiptByEmail({ 
               order_id: Number(orderId), 
@@ -711,7 +719,7 @@ export default function PaymentScreen() {
           await loadSplitSession();
 
           // Envoyer le reçu si demandé
-          if (wantReceipt && customerEmail && isEmail(customerEmail)) {
+          if (wantReceipt && customerEmail && isValidEmail(customerEmail)) {
             try {
               await receiptService.sendReceiptByEmail({ 
                 order_id: Number(orderId), 
@@ -743,7 +751,6 @@ export default function PaymentScreen() {
 
   // Create responsive styles
   const styles = createStyles(screenType);
-  const iconSize = getResponsiveValue({ mobile: 24, tablet: 28, desktop: 32 }, screenType);
 
   // ==== Loading state
   if (loading) {
@@ -799,35 +806,35 @@ export default function PaymentScreen() {
             router.replace(`/order/${orderId}`);
           }}
         >
-          <Receipt
-            orderId={orderId as string}
-            order={order ? {
-              id: order.id,
-              order_number: order.order_number || `ORD-${orderId}`,
-              order_type: 'dine_in',
-              table_number: order.table_number,
-              items: order.items?.map(item => ({
-                name: item.name,
-                price: safeParseFloat(item.total_price) / (item.quantity || 1),
-                quantity: item.quantity || 1,
-                total_price: safeParseFloat(item.total_price),
-                customizations: {}
-              })) || [],
-              total_amount: safeParseFloat(order.total_amount),
-              restaurant_name: order.restaurant_name,
-              tip_amount: tipAmount,
-              customer_email: customerEmail,
-              payment_method: paymentMethod,
-              payment_date: new Date().toISOString(),
-            } : undefined}
-            showActions
-            onClose={() => {
-              setShowReceiptPreview(false);
-              router.replace(`/order/${orderId}`);
-            }}
-            autoSendEmail={false}
-            customerEmail={customerEmail}
-          />
+        <Receipt
+          orderId={orderId as string}
+          order={order ? {
+            id: order.id,
+            order_number: order.order_number || `ORD-${orderId}`,
+            order_type: order.order_type,
+            table_number: order.table_number,
+            items: order.items?.map(item => ({
+              name: getItemName(item),
+              price: getItemUnitPrice(item),
+              quantity: item.quantity,
+              total_price: safeParseAmount(item.total_price),
+              customizations: item.customizations || {}
+            })) || [],
+            total_amount: safeParseAmount(order.total_amount),
+            restaurant_name: order.restaurant_name,
+            tip_amount: tipAmount,
+            customer_email: customerEmail,
+            payment_method: paymentMethod,
+            payment_date: new Date().toISOString(),
+          } : undefined}
+          showActions
+          onClose={() => {
+            setShowReceiptPreview(false);
+            router.replace(`/order/${orderId}`);
+          }}
+          autoSendEmail={false}
+          customerEmail={customerEmail}
+        />
         </Modal>
       </SafeAreaView>
     );
@@ -918,7 +925,7 @@ export default function PaymentScreen() {
                       <View key={`${item.id ?? index}`} style={styles.orderItem}>
                         <View style={styles.itemInfo}>
                           <Text style={styles.itemQuantity}>{item.quantity}×</Text>
-                          <Text style={styles.itemName}>{item.name}</Text>
+                          <Text style={styles.itemName}>{getItemName(item)}</Text>
                         </View>
                         <Text style={styles.itemPrice}>{formatCurrency(item.total_price)}</Text>
                       </View>
@@ -952,7 +959,7 @@ export default function PaymentScreen() {
                               paymentMethod === method.id && styles.selectedPaymentMethod,
                               method.recommended && styles.recommendedMethod,
                             ]}
-                            onPress={() => !method.disabled && setPaymentMethod(method.id as 'online' | 'cash')}
+                            onPress={() => !method.disabled && setPaymentMethod(method.id)}
                             disabled={method.disabled}
                           >
                             <View style={styles.methodContent}>
@@ -1063,7 +1070,7 @@ export default function PaymentScreen() {
                         <TextInput
                           style={[
                             styles.emailInput,
-                            !customerEmail || isEmail(customerEmail) ? {} : styles.emailInputError
+                            !customerEmail || isValidEmail(customerEmail) ? {} : styles.emailInputError
                           ]}
                           value={customerEmail}
                           onChangeText={setCustomerEmail}
@@ -1079,7 +1086,7 @@ export default function PaymentScreen() {
                         <Switch
                           value={wantReceipt}
                           onValueChange={setWantReceipt}
-                          disabled={!!customerEmail && !isEmail(customerEmail)}
+                          disabled={!!customerEmail && !isValidEmail(customerEmail)}
                           trackColor={{ false: COLORS.border.light, true: COLORS.primary }}
                           thumbColor={wantReceipt ? COLORS.surface : COLORS.text.light}
                         />
@@ -1144,7 +1151,7 @@ export default function PaymentScreen() {
         <SplitPaymentModal
           visible={showSplitModal}
           onClose={() => setShowSplitModal(false)}
-          totalAmount={safeParseFloat(order?.total_amount)}
+          totalAmount={safeParseAmount(order?.total_amount)}
           tipAmount={tipAmount}
           onConfirm={handleSplitPaymentConfirm}
         />

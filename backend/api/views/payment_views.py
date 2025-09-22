@@ -317,16 +317,24 @@ class StripeWebhookView(APIView):
             if order.payment_status == 'paid':
                 logger.warning(f"Order {order_id} already marked as paid")
                 return
+        
+            from api.serializers.order_serializers import OrderPaymentSerializer
             
-            # Marquer la commande comme payée
-            order.payment_status = 'paid'
-            order.save()
+            serializer = OrderPaymentSerializer(
+                order, 
+                data={
+                    'payment_method': 'online',
+                    'payment_status': 'paid'
+                }, 
+                partial=True
+            )
             
-            logger.info(f"Order {order_id} marked as paid")
-            
-            # Envoyer notifications
-            self._send_payment_success_notifications(order)
-            
+            if serializer.is_valid():
+                serializer.save()
+                logger.info(f"Order {order_id} marked as paid with method 'online'")
+            else:
+                logger.error(f"Serializer errors: {serializer.errors}")
+                
         except Order.DoesNotExist:
             logger.error(f"Order {order_id} not found")
         except Exception as e:
@@ -595,6 +603,11 @@ class CreatePaymentIntentView(APIView):
     tags=["Paiement Mobile"],
     summary="Mettre à jour le statut de paiement",
 )
+
+@extend_schema(
+    tags=["Paiement Mobile"],
+    summary="Mettre à jour le statut de paiement",
+)
 class UpdatePaymentStatusView(APIView):
     permission_classes = [IsAuthenticated]
     
@@ -631,19 +644,38 @@ class UpdatePaymentStatusView(APIView):
                 {'error': str(e)}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-    def post(self, request):
-        """Crée un PaymentIntent pour l'app mobile (PaymentSheet)"""
-        order_id = request.data.get('order_id')
-        order = Order.objects.get(id=order_id)
-        
-        intent = stripe.PaymentIntent.create(
-            amount=int(order.total_amount * 100),  # centimes
-            currency='eur',
-            metadata={'order_id': str(order.id)},
-            automatic_payment_methods={'enabled': True}
-        )
-        
-        return Response({
-            'client_secret': intent.client_secret,
-            'payment_intent_id': intent.id
-        })
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, order_id):
+        try:
+            order = Order.objects.get(id=order_id)
+            
+            # Vérifier l'autorisation
+            if order.user and order.user != request.user:
+                return Response(
+                    {'error': 'Not authorized'}, 
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            payment_status = request.data.get('payment_status')
+            if payment_status not in ['paid', 'cash_pending', 'failed']:
+                return Response(
+                    {'error': 'Invalid payment status'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            order.payment_status = payment_status
+            order.save()
+            
+            return Response({'success': True})
+            
+        except Order.DoesNotExist:
+            return Response(
+                {'error': 'Order not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {'error': str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
