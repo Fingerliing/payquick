@@ -634,6 +634,57 @@ class MenuItem(models.Model):
         verbose_name = "Plat"
         verbose_name_plural = "Plats"
 
+        # TVA
+    VAT_CATEGORIES = [
+        ('FOOD', 'Aliments (sur place ou à emporter)'),
+        ('DRINK_SOFT', 'Boissons sans alcool'),
+        ('DRINK_ALCOHOL', 'Boissons alcoolisées'),
+        ('PACKAGED', 'Produits préemballés'),
+    ]
+    
+    VAT_RATES = {
+        'FOOD': 0.10,              # 10% restauration (sur place et à emporter)
+        'DRINK_SOFT': 0.10,        # 10% boissons non alcoolisées
+        'DRINK_ALCOHOL': 0.20,     # 20% boissons alcoolisées
+        'PACKAGED': 0.055,         # 5,5% produits préemballés
+    }
+    
+    vat_category = models.CharField(
+        max_length=20,
+        choices=VAT_CATEGORIES,
+        default='FOOD',
+        verbose_name="Catégorie TVA"
+    )
+    
+    vat_rate = models.DecimalField(
+        max_digits=4,
+        decimal_places=3,
+        default=0.10,
+        verbose_name="Taux de TVA",
+        help_text="Taux de TVA applicable (ex: 0.10 pour 10%)"
+    )
+    
+    def save(self, *args, **kwargs):
+        # Auto-calcul du taux TVA basé sur la catégorie
+        if self.vat_category and not kwargs.get('skip_vat_calculation'):
+            self.vat_rate = Decimal(str(self.VAT_RATES.get(self.vat_category, 0.10)))
+        super().save(*args, **kwargs)
+    
+    @property
+    def price_excl_vat(self):
+        """Prix HT calculé depuis le prix TTC"""
+        return self.price / (1 + self.vat_rate)
+    
+    @property
+    def vat_amount(self):
+        """Montant de la TVA pour ce produit"""
+        return self.price - self.price_excl_vat
+    
+    @property
+    def vat_rate_display(self):
+        """Affichage du taux de TVA en pourcentage"""
+        return f"{(self.vat_rate * 100):.1f}%"
+
     def __str__(self):
         return f"{self.name} - {self.price:.2f}€"
 
@@ -866,6 +917,14 @@ class Order(models.Model):
     
     # Paiement divisé
     is_split_payment = models.BooleanField(default=False)
+
+        # Détail TVA
+    vat_details = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name="Détail TVA par taux",
+        help_text='{"10": {"ht": 45.45, "tva": 4.55, "ttc": 50}, ...}'
+    )
     
     class Meta:
         ordering = ['-created_at']
@@ -874,6 +933,32 @@ class Order(models.Model):
             models.Index(fields=['table_session_id']),
             models.Index(fields=['restaurant', 'created_at']),
         ]
+
+    def calculate_vat_breakdown(self):
+        """Calcule la répartition de la TVA par taux"""
+        vat_breakdown = {}
+        
+        for item in self.order_items.all():
+            vat_key = f"{(item.vat_rate * 100):.1f}"
+            if vat_key not in vat_breakdown:
+                vat_breakdown[vat_key] = {
+                    'ht': Decimal('0.00'),
+                    'tva': Decimal('0.00'),
+                    'ttc': Decimal('0.00')
+                }
+            
+            item_ht = item.total_price / (1 + item.vat_rate)
+            vat_breakdown[vat_key]['ht'] += item_ht
+            vat_breakdown[vat_key]['tva'] += item.vat_amount
+            vat_breakdown[vat_key]['ttc'] += item.total_price
+        
+        # Arrondir les valeurs
+        for vat_rate in vat_breakdown:
+            for key in vat_breakdown[vat_rate]:
+                vat_breakdown[vat_rate][key] = round(vat_breakdown[vat_rate][key], 2)
+        
+        self.vat_details = vat_breakdown
+        return vat_breakdown
     
     def __str__(self):
         return f"Order #{self.order_number} - {self.get_payment_status_display()}"
@@ -1195,6 +1280,32 @@ class OrderItem(models.Model):
     special_instructions = models.TextField(blank=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
+
+    # TVA
+    vat_rate = models.DecimalField(
+        max_digits=4,
+        decimal_places=3,
+        default=0.10,
+        verbose_name="Taux de TVA appliqué"
+    )
+    vat_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        verbose_name="Montant TVA"
+    )
+    
+    def save(self, *args, **kwargs):
+        # Récupérer le taux TVA du MenuItem
+        if self.menu_item and not self.vat_rate:
+            self.vat_rate = self.menu_item.vat_rate
+        
+        # Calculer le montant TVA
+        if self.total_price:
+            price_excl_vat = self.total_price / (1 + self.vat_rate)
+            self.vat_amount = self.total_price - price_excl_vat
+        
+        super().save(*args, **kwargs)
     
     def clean(self):
         """Validation avant sauvegarde"""

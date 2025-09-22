@@ -12,6 +12,20 @@ class MenuItemSerializer(serializers.ModelSerializer):
     allergen_display = serializers.ReadOnlyField()
     image = serializers.ImageField(required=False, allow_null=True)
     image_url = serializers.SerializerMethodField()
+    # Champs TVA
+    vat_category = serializers.ChoiceField(
+        choices=MenuItem.VAT_CATEGORIES,
+        required=False,
+        default='FOOD_ONSITE'
+    )
+    vat_rate = serializers.DecimalField(
+        max_digits=4,
+        decimal_places=3,
+        required=False
+    )
+    price_excl_vat = serializers.ReadOnlyField()
+    vat_amount = serializers.ReadOnlyField()
+    vat_rate_display = serializers.ReadOnlyField()
     
     class Meta:
         model = MenuItem
@@ -23,7 +37,9 @@ class MenuItemSerializer(serializers.ModelSerializer):
             'is_vegetarian', 'is_vegan', 'is_gluten_free',
             'dietary_tags', 'preparation_time',
             'image', 'image_url',
-            'created_at', 'updated_at'
+            'created_at', 'updated_at',
+            'vat_category', 'vat_rate', 'price_excl_vat', 
+            'vat_amount', 'vat_rate_display'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'dietary_tags', 'allergen_display', 'image_url']
     
