@@ -16,12 +16,13 @@ class MenuItemSerializer(serializers.ModelSerializer):
     vat_category = serializers.ChoiceField(
         choices=MenuItem.VAT_CATEGORIES,
         required=False,
-        default='FOOD_ONSITE'
+        default='FOOD'
     )
     vat_rate = serializers.DecimalField(
         max_digits=4,
         decimal_places=3,
-        required=False
+        required=False,
+        allow_null=True
     )
     price_excl_vat = serializers.ReadOnlyField()
     vat_amount = serializers.ReadOnlyField()
@@ -43,6 +44,16 @@ class MenuItemSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'dietary_tags', 'allergen_display', 'image_url']
     
+    def create(self, validated_data):
+        # Arrondir le vat_rate à 3 décimales si fourni
+        if 'vat_rate' in validated_data and validated_data['vat_rate']:
+            from decimal import Decimal, ROUND_HALF_UP
+            validated_data['vat_rate'] = Decimal(str(validated_data['vat_rate'])).quantize(
+                Decimal('0.001'), 
+                rounding=ROUND_HALF_UP
+            )
+        return super().create(validated_data)
+
     def get_image_url(self, obj):
         request = self.context.get('request')
         if obj.image and hasattr(obj.image, 'url') and request:

@@ -67,6 +67,13 @@ const DEFAULT_CATEGORY_COLORS = [
   '#EC4899', '#F43F5E',
 ];
 
+const VAT_TYPES = [
+  { id: 'FOOD', name: 'Nourriture', rate: 0.10, icon: '🍽️', description: 'Restauration sur place et à emporter' },
+  { id: 'DRINK_SOFT', name: 'Boissons soft', rate: 0.10, icon: '🥤', description: 'Boissons non alcoolisées' },
+  { id: 'DRINK_ALCOHOL', name: 'Boissons alcoolisées', rate: 0.20, icon: '🍺', description: 'Boissons alcoolisées' },
+  { id: 'PACKAGED', name: 'Produits préemballés', rate: 0.055, icon: '📦', description: 'Produits préemballés à emporter' },
+];
+
 export default function AddMenuItemScreen() {
   const { menuId, restaurantId } = useLocalSearchParams<{ menuId: string; restaurantId: string }>();
   const { width } = useWindowDimensions();
@@ -120,6 +127,10 @@ export default function AddMenuItemScreen() {
   // Create subcategory state
   const [newSubCategoryName, setNewSubCategoryName] = useState('');
   const [newSubCategoryDescription, setNewSubCategoryDescription] = useState('');
+
+  // VAT type state
+  const [selectedVatType, setSelectedVatType] = useState('FOOD'); // Par défaut
+  const [showVatTypeModal, setShowVatTypeModal] = useState(false);
 
   // Effects
   useEffect(() => {
@@ -264,8 +275,9 @@ export default function AddMenuItemScreen() {
     }
   
     setIsCreating(true);
+
+    const vatType = VAT_TYPES.find(t => t.id === selectedVatType);
     try {
-      // ✅ SOLUTION: Utiliser fetch avec auth headers comme pour les restaurants
       const form = new FormData();
       
       // Données texte
@@ -273,6 +285,7 @@ export default function AddMenuItemScreen() {
       form.append('description', description.trim());
       form.append('price', String(Number(parseFloat(price).toFixed(2))));
       form.append('menu', String(parseInt(String(menuId), 10)));
+      form.append('vat_category', selectedVatType);
       
       if (selectedCategory.id) {
         form.append('category', String(selectedCategory.id));
@@ -610,12 +623,39 @@ export default function AddMenuItemScreen() {
                     keyboardType="decimal-pad"
                     style={styles.input}
                   />
-                </View>
+                </View>             
               </View>
             </Card>
           </View>
 
-          {/* Photo du plat */}
+          {/* Section TVA */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Fiscalité</Text>
+            <Card style={styles.card}>
+              <View>
+                <Text style={styles.label}>Type de TVA *</Text>
+                <TouchableOpacity
+                  onPress={() => setShowVatTypeModal(true)}
+                  style={[styles.selector, styles.selectorSelected]}
+                >
+                  <Text style={{ fontSize: 20, marginRight: 12 }}>
+                    {VAT_TYPES.find(t => t.id === selectedVatType)?.icon}
+                  </Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.selectedText}>
+                      {VAT_TYPES.find(t => t.id === selectedVatType)?.name}
+                    </Text>
+                    <Text style={styles.description}>
+                      TVA: {(((VAT_TYPES.find(t => t.id === selectedVatType)?.rate ?? 0) * 100).toFixed(1))}% • 
+                      {VAT_TYPES.find(t => t.id === selectedVatType)?.description}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-down" size={20} color={COLORS.text.secondary} />
+                </TouchableOpacity>
+              </View>
+            </Card>
+          </View>
+
           {/* Photo du plat */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Photo du plat</Text>
@@ -882,6 +922,50 @@ export default function AddMenuItemScreen() {
             <View style={{ padding: layout.containerPadding }}>
               <Button title="Créer" onPress={handleCreateSubCategory} fullWidth />
             </View>
+          </View>
+        </View>
+      </Modal>
+      {/* Modal TVA Type */}
+      <Modal 
+        visible={showVatTypeModal} 
+        transparent 
+        animationType="slide" 
+        onRequestClose={() => setShowVatTypeModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContainer, layout.modalMaxWidth ? { alignSelf: 'center', width: layout.modalMaxWidth } : null]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Type de TVA</Text>
+              <TouchableOpacity onPress={() => setShowVatTypeModal(false)}>
+                <Ionicons name="close" size={22} color={COLORS.text.secondary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalContent}>
+              {VAT_TYPES.map(type => (
+                <TouchableOpacity
+                  key={type.id}
+                  onPress={() => {
+                    setSelectedVatType(type.id);
+                    setShowVatTypeModal(false);
+                  }}
+                  style={[
+                    styles.selector, 
+                    selectedVatType === type.id && styles.selectorSelected
+                  ]}
+                >
+                  <Text style={{ fontSize: 20, marginRight: 12 }}>{type.icon}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.selectedText}>{type.name}</Text>
+                    <Text style={styles.description}>
+                      TVA: {(type.rate * 100).toFixed(1)}% • {type.description}
+                    </Text>
+                  </View>
+                  {selectedVatType === type.id && (
+                    <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
         </View>
       </Modal>

@@ -6,6 +6,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 from datetime import timedelta
+from decimal import Decimal, ROUND_HALF_UP
 
 def validate_siret(value):
     if not value.isdigit():
@@ -643,10 +644,10 @@ class MenuItem(models.Model):
     ]
     
     VAT_RATES = {
-        'FOOD': 0.10,              # 10% restauration (sur place et à emporter)
-        'DRINK_SOFT': 0.10,        # 10% boissons non alcoolisées
-        'DRINK_ALCOHOL': 0.20,     # 20% boissons alcoolisées
-        'PACKAGED': 0.055,         # 5,5% produits préemballés
+        'FOOD': Decimal('0.100'),
+        'DRINK_SOFT': Decimal('0.100'),
+        'DRINK_ALCOHOL': Decimal('0.200'),
+        'PACKAGED': Decimal('0.055'),
     }
     
     vat_category = models.CharField(
@@ -665,11 +666,16 @@ class MenuItem(models.Model):
     )
     
     def save(self, *args, **kwargs):
-        # Auto-calcul du taux TVA basé sur la catégorie
+        # Déterminer le taux depuis la catégorie si demandé
         if self.vat_category and not kwargs.get('skip_vat_calculation'):
-            self.vat_rate = Decimal(str(self.VAT_RATES.get(self.vat_category, 0.10)))
+            self.vat_rate = self.VAT_RATES.get(self.vat_category, Decimal('0.100'))
+        # Arrondir systématiquement à 3 décimales
+        if self.vat_rate is not None:
+            self.vat_rate = Decimal(str(self.vat_rate)).quantize(Decimal('0.001'), rounding=ROUND_HALF_UP)
+        # Valider puis sauvegarder
+        self.full_clean()
         super().save(*args, **kwargs)
-    
+        
     @property
     def price_excl_vat(self):
         """Prix HT calculé depuis le prix TTC"""
@@ -713,10 +719,6 @@ class MenuItem(models.Model):
                 raise ValidationError(
                     "La sous-catégorie doit appartenir à la catégorie sélectionnée"
                 )
-
-    def save(self, *args, **kwargs):
-        self.full_clean()
-        super().save(*args, **kwargs)
 
     @property
     def allergen_display(self):
