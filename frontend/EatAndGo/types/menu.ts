@@ -1,3 +1,10 @@
+export enum VATCategory {
+  FOOD = 'FOOD',                     // Aliments (sur place et à emporter)
+  DRINK_SOFT = 'DRINK_SOFT',         // Boissons sans alcool
+  DRINK_ALCOHOL = 'DRINK_ALCOHOL',   // Boissons alcoolisées
+  PACKAGED = 'PACKAGED'              // Produits préemballés
+}
+
 export interface MenuItem {
   id: number;
   name: string;
@@ -38,6 +45,13 @@ export interface MenuItem {
   // Métadonnées
   created_at?: string;
   updated_at?: string;
+
+  // TVA
+  vat_category: VATCategory;
+  vat_rate: number;              // Taux de TVA (ex: 0.10 pour 10%)
+  price_excl_vat: number;         // Prix HT calculé
+  vat_amount: number;             // Montant TVA
+  vat_rate_display: string;       // Ex: "10.0%"
 }
 
 export interface Menu {

@@ -21,6 +21,17 @@ export interface OrderItem {
   special_instructions?: string;
 
   created_at?: string;               // ISO
+
+  vat_rate: number;
+  vat_amount: number;
+}
+
+export interface VATBreakdown {
+  [vatRate: string]: {
+    ht: number;
+    tva: number;
+    ttc: number;
+  };
 }
 
 // ------------------------------
@@ -94,6 +105,8 @@ export interface OrderDetail {
 
   created_at: string;                // ISO
   updated_at?: string;               // ISO
+
+  vat_details: VATBreakdown;
 }
 
 export interface OrderDetailWithPayment extends OrderDetail {
@@ -110,7 +123,6 @@ export interface CreateOrderItemInput {
   quantity: number;
   customizations?: Record<string, any>;
   special_instructions?: string;
-  // SUPPRIMÉ: unit_price - calculé automatiquement par le backend
 }
 
 // ------------------------------

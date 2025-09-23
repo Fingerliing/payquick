@@ -48,18 +48,21 @@ interface ProcessedReceiptItem {
   customizations?: Record<string, string | string[]>;
 }
 
+type VatDetailsMap = Record<string, { ht: number; tva: number }>;
+
 interface ReceiptViewData {
   order: {
     id?: number | string;
     order_number: string;
     order_type?: 'dine_in' | 'takeaway' | string;
     table_number?: string | number | null;
-    sequential_number?: string; // Numéro séquentiel obligatoire en France
+    sequential_number?: string; // Numéro séquentiel
     items: ProcessedReceiptItem[];
     subtotal_ht: number; // Sous-total HT
     subtotal_ttc: number; // Sous-total TTC
     total_tva: number; // Total TVA
     total_amount: number; // Total TTC final (avec pourboire)
+    vat_details?: VatDetailsMap; // <-- AJOUT
   };
   restaurantInfo: {
     name: string;
@@ -70,7 +73,7 @@ interface ReceiptViewData {
     email?: string;
     siret?: string;
     tva_number?: string; // Numéro de TVA intracommunautaire
-    legal_form?: string; // Forme juridique (SARL, SAS, etc.)
+    legal_form?: string; // Forme juridique
   };
   paymentInfo: {
     method?: string;
@@ -91,6 +94,51 @@ interface ReceiptViewData {
     receipt_notice?: string; // Mention sur la conservation du ticket
   };
 }
+
+// -------------------------
+// Helpers TVA demandés
+// -------------------------
+
+// Helper pour calculer la TVA selon le taux spécifique (à partir d'un total TTC)
+const calculateVATForItem = (item: { total_price: number | string; vat_rate?: number }) => {
+  const priceTTC = safeParseAmount(item.total_price);
+  const vatRate = item.vat_rate ?? 0.10; // 10% par défaut si manquant (exigence snippet)
+  const priceHT = priceTTC / (1 + vatRate);
+  const tvaAmount = priceTTC - priceHT;
+
+  return {
+    priceHT: Math.round(priceHT * 100) / 100,
+    tvaAmount: Math.round(tvaAmount * 100) / 100,
+    priceTTC: Math.round(priceTTC * 100) / 100,
+  };
+};
+
+// parse sécurisé (accepte string "12,34" ou "12.34")
+const safeParseAmount = (v: any): number => {
+  if (typeof v === 'number' && !Number.isNaN(v)) return v;
+  if (typeof v === 'string') {
+    const cleaned = v.replace(',', '.').replace(/[^\d.-]/g, '');
+    const n = Number(cleaned);
+    return Number.isNaN(n) ? 0 : n;
+  }
+  return 0;
+};
+
+// Calcul correct de la TVA selon les normes françaises (depuis un prix unitaire TTC)
+const calculateTVA = (priceTTC: number, tvaRate: number = 0.20) => {
+  const priceHT = priceTTC / (1 + tvaRate);
+  const tvaAmount = priceTTC - priceHT;
+  return {
+    priceHT: Math.round(priceHT * 100) / 100,
+    tvaAmount: Math.round(tvaAmount * 100) / 100,
+  };
+};
+
+// Normalise l'affichage du taux en clé string ("20" ou "5.5")
+const rateKey = (rate: number) => {
+  const pct = rate * 100;
+  return Number.isInteger(pct) ? String(pct) : pct.toFixed(1);
+};
 
 export const Receipt: React.FC<ReceiptProps> = ({
   orderId,
@@ -130,9 +178,7 @@ export const Receipt: React.FC<ReceiptProps> = ({
   }, [autoSendEmail, customerEmail, receiptData]);
 
   // Fonction pour mieux récupérer le nom des articles
-
   const getItemName = (item: any): string => {
-    console.log('item', item);
     // Priorité : name > title > menu_item_name > menu_item.name > product_name > item_name > description tronquée
     if (item.name && item.name.trim()) return item.name.trim();
     if (item.title && item.title.trim()) return item.title.trim();
@@ -141,20 +187,28 @@ export const Receipt: React.FC<ReceiptProps> = ({
     if (item.product_name && item.product_name.trim()) return item.product_name.trim();
     if (item.item_name && item.item_name.trim()) return item.item_name.trim();
     if (item.description && item.description.trim()) {
-      // Tronquer la description à 50 caractères max
       return item.description.trim().substring(0, 50) + (item.description.length > 50 ? '...' : '');
     }
     return 'Article sans nom';
   };
 
-  // Calcul correct de la TVA selon les normes françaises
-  const calculateTVA = (priceTTC: number, tvaRate: number = 0.20) => {
-    const priceHT = priceTTC / (1 + tvaRate);
-    const tvaAmount = priceTTC - priceHT;
-    return {
-      priceHT: Math.round(priceHT * 100) / 100,
-      tvaAmount: Math.round(tvaAmount * 100) / 100
-    };
+  // Agrège une map { "20": {ht,tva}, "10": {ht,tva}, ... } à partir des items
+  const buildVatDetails = (items: ProcessedReceiptItem[]): VatDetailsMap => {
+    const map: VatDetailsMap = {};
+    for (const it of items) {
+      const key = rateKey(it.tva_rate);
+      if (!map[key]) map[key] = { ht: 0, tva: 0 };
+      map[key].ht += it.total_price_ht;
+      map[key].tva += it.tva_amount;
+    }
+    // arrondir proprement
+    for (const k of Object.keys(map)) {
+      map[k] = {
+        ht: Math.round(map[k].ht * 100) / 100,
+        tva: Math.round(map[k].tva * 100) / 100,
+      };
+    }
+    return map;
   };
 
   // Mapping service -> UI avec calculs TVA conformes
@@ -167,7 +221,7 @@ export const Receipt: React.FC<ReceiptProps> = ({
       const quantity = Number(item.quantity ?? 1);
       const priceTTC = Number(item.price ?? item.unit_price ?? 0);
       const tvaRate = Number(item.tva_rate ?? item.tax_rate ?? DEFAULT_TVA_RATE);
-      
+
       const { priceHT, tvaAmount: unitTvaAmount } = calculateTVA(priceTTC, tvaRate);
       const totalTTC = priceTTC * quantity;
       const totalHT = priceHT * quantity;
@@ -193,6 +247,7 @@ export const Receipt: React.FC<ReceiptProps> = ({
     const totalTVA = processedItems.reduce((sum: number, item) => sum + item.tva_amount, 0);
     const tipAmount = Number((data as any).tip_amount ?? 0);
     const totalAmount = subtotalTTC + tipAmount;
+    const vat_details = buildVatDetails(processedItems);
 
     return {
       order: {
@@ -206,6 +261,7 @@ export const Receipt: React.FC<ReceiptProps> = ({
         subtotal_ttc: Math.round(subtotalTTC * 100) / 100,
         total_tva: Math.round(totalTVA * 100) / 100,
         total_amount: Math.round(totalAmount * 100) / 100,
+        vat_details, // <-- AJOUT
       },
       restaurantInfo: {
         name: (data as any).restaurant_name ?? 'Restaurant',
@@ -241,7 +297,6 @@ export const Receipt: React.FC<ReceiptProps> = ({
 
   // Mapping ordre brut -> UI
   const mapOrderPropToView = (ord: any): ReceiptViewData => {
-    console.log('ord', ord);
     const rawItems = ord.items ?? [];
     const DEFAULT_TVA_RATE = 0.20;
 
@@ -250,7 +305,7 @@ export const Receipt: React.FC<ReceiptProps> = ({
       const quantity = Number(item.quantity ?? 1);
       const priceTTC = Number(item.price ?? item.unit_price ?? 0);
       const tvaRate = Number(item.tva_rate ?? DEFAULT_TVA_RATE);
-      
+
       const { priceHT, tvaAmount: unitTvaAmount } = calculateTVA(priceTTC, tvaRate);
       const totalTTC = priceTTC * quantity;
       const totalHT = priceHT * quantity;
@@ -275,6 +330,7 @@ export const Receipt: React.FC<ReceiptProps> = ({
     const totalTVA = processedItems.reduce((sum: number, item) => sum + item.tva_amount, 0);
     const tipAmount = Number(ord.tip_amount ?? 0);
     const totalAmount = subtotalTTC + tipAmount;
+    const vat_details = buildVatDetails(processedItems);
 
     return {
       order: {
@@ -288,6 +344,7 @@ export const Receipt: React.FC<ReceiptProps> = ({
         subtotal_ttc: Math.round(subtotalTTC * 100) / 100,
         total_tva: Math.round(totalTVA * 100) / 100,
         total_amount: Math.round(totalAmount * 100) / 100,
+        vat_details, // <-- AJOUT
       },
       restaurantInfo: {
         name: ord.restaurant_name ?? 'Restaurant',
@@ -323,14 +380,13 @@ export const Receipt: React.FC<ReceiptProps> = ({
 
   // Génération HTML conforme aux normes françaises
   const buildReceiptHTML = (data: ReceiptViewData) => {
-    console.log('data', data);
     const lines: string[] = [];
     const dateFormatted = formatDate(data.paymentInfo.paidAt);
-    
+
     lines.push('<!DOCTYPE html>');
     lines.push('<html><head><meta charset="utf-8"/><title>Ticket de caisse</title></head>');
     lines.push('<body style="font-family: \'Courier New\', monospace; font-size: 12px; line-height: 1.2; max-width: 300px; margin: 0; padding: 10px;">');
-    
+
     // En-tête restaurant (obligatoire)
     lines.push(`<div style="text-align: center; border-bottom: 1px dashed #000; padding-bottom: 8px; margin-bottom: 8px;">`);
     lines.push(`<strong style="font-size: 14px;">${data.restaurantInfo.name}</strong><br/>`);
@@ -360,8 +416,8 @@ export const Receipt: React.FC<ReceiptProps> = ({
     }
     lines.push(`Type: ${data.order.order_type === 'dine_in' ? 'Sur place' : 'À emporter'}<br/>`);
     if (data.paymentInfo.method) {
-      const paymentLabel = data.paymentInfo.method === 'cash' ? 'Espèces' : 
-                           data.paymentInfo.method === 'card' ? 'Carte bancaire' : 
+      const paymentLabel = data.paymentInfo.method === 'cash' ? 'Espèces' :
+                           data.paymentInfo.method === 'card' ? 'Carte bancaire' :
                            data.paymentInfo.method;
       lines.push(`Paiement: ${paymentLabel}<br/>`);
     }
@@ -369,7 +425,7 @@ export const Receipt: React.FC<ReceiptProps> = ({
 
     // Détail des articles (obligatoire)
     lines.push('<div style="border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 4px 0; margin: 8px 0;">');
-    
+
     for (const item of data.order.items) {
       lines.push(`<div style="margin-bottom: 2px;">`);
       lines.push(`<div>${item.name}</div>`);
@@ -377,10 +433,10 @@ export const Receipt: React.FC<ReceiptProps> = ({
       lines.push(`<span>${item.quantity} x ${item.price_ttc.toFixed(2)}€</span>`);
       lines.push(`<span><strong>${item.total_price_ttc.toFixed(2)}€</strong></span>`);
       lines.push('</div>');
-      
+
       // Affichage du taux de TVA pour chaque article (obligatoire)
       lines.push(`<div style="font-size: 10px; color: #666;">TVA ${(item.tva_rate * 100).toFixed(1)}%: ${item.tva_amount.toFixed(2)}€</div>`);
-      
+
       if (item.customizations) {
         const customText = Object.entries(item.customizations)
           .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`)
@@ -398,15 +454,27 @@ export const Receipt: React.FC<ReceiptProps> = ({
     lines.push(`Sous-total HT: ${data.order.subtotal_ht.toFixed(2)}€<br/>`);
     lines.push(`TVA totale: ${data.order.total_tva.toFixed(2)}€<br/>`);
     lines.push(`<strong>Sous-total TTC: ${data.order.subtotal_ttc.toFixed(2)}€</strong><br/>`);
-    
+
     if (data.paymentInfo.tip && data.paymentInfo.tip > 0) {
       lines.push(`Pourboire: ${data.paymentInfo.tip.toFixed(2)}€<br/>`);
     }
-    
+
     lines.push(`<div style="border-top: 1px solid #000; padding-top: 4px; margin-top: 4px; font-size: 14px;">`);
     lines.push(`<strong>TOTAL TTC: ${data.order.total_amount.toFixed(2)}€</strong>`);
     lines.push('</div>');
     lines.push('</div>');
+
+    // Détail TVA agrégé (nouveau)
+    if (data.order.vat_details && Object.keys(data.order.vat_details).length > 0) {
+      lines.push('<div style="margin-top:8px;border-top:1px dashed #000;padding-top:6px;">');
+      lines.push('<strong>Détail TVA</strong><br/>');
+      for (const [rate, det] of Object.entries(data.order.vat_details)) {
+        lines.push(`TVA ${rate}% — Base HT: ${det.ht.toFixed(2)}€ | TVA: ${det.tva.toFixed(2)}€<br/>`);
+      }
+      const totalVat = Object.values(data.order.vat_details).reduce((s, d) => s + d.tva, 0);
+      lines.push(`<div style="margin-top:4px;"><strong>Total TVA: ${totalVat.toFixed(2)}€</strong></div>`);
+      lines.push('</div>');
+    }
 
     // Code-barres simulé
     if (data.order.order_number) {
@@ -420,11 +488,11 @@ export const Receipt: React.FC<ReceiptProps> = ({
     lines.push('MERCI DE VOTRE VISITE<br/>');
     lines.push('À BIENTÔT<br/><br/>');
     lines.push(`${data.legalInfo.receipt_notice}<br/>`);
-    
+
     if (data.legalInfo.warranty_notice) {
       lines.push(`<br/>${data.legalInfo.warranty_notice}`);
     }
-    
+
     if (data.legalInfo.tva_notice) {
       lines.push(`<br/>${data.legalInfo.tva_notice}`);
     }
@@ -532,7 +600,7 @@ export const Receipt: React.FC<ReceiptProps> = ({
         format: 'pdf',
         language: 'fr',
       } as any);
-      
+
       if ((result as any).success) {
         showSuccess(`Ticket envoyé à ${targetEmail}`, 'Succès');
         setShowEmailModal(false);
@@ -560,7 +628,8 @@ export const Receipt: React.FC<ReceiptProps> = ({
   };
 
   const formatPrice = (price: number) => `${Number(price || 0).toFixed(2)} €`;
-  
+  const formatCurrency = (n: number) => formatPrice(n); // alias pour la section TVA détaillée
+
   const formatDate = (date: string) => {
     try {
       return new Date(date).toLocaleString('fr-FR', {
@@ -573,6 +642,35 @@ export const Receipt: React.FC<ReceiptProps> = ({
     } catch {
       return date;
     }
+  };
+
+  // -------------------------
+  // Section TVA détaillée (UI)
+  // -------------------------
+  const VATBreakdownSection = ({ order }: { order: ReceiptViewData['order'] }) => {
+    const vatDetails = order.vat_details || {};
+    const totalVAT = Object.values(vatDetails).reduce((sum, d) => sum + d.tva, 0);
+
+    if (!vatDetails || Object.keys(vatDetails).length === 0) return null;
+
+    return (
+      <View style={styles.vatSection}>
+        <Text style={styles.sectionTitle}>Détail TVA</Text>
+        {Object.entries(vatDetails).map(([rate, details]) => (
+          <View key={rate} style={styles.vatRow}>
+            <Text style={styles.vatLabel}>TVA {rate}%</Text>
+            <View style={styles.vatDetails}>
+              <Text style={styles.vatAmount}>Base HT: {formatCurrency(details.ht)}</Text>
+              <Text style={styles.vatAmount}>TVA: {formatCurrency(details.tva)}</Text>
+            </View>
+          </View>
+        ))}
+        <View style={styles.vatTotalRow}>
+          <Text style={styles.vatTotalLabel}>Total TVA</Text>
+          <Text style={styles.vatTotalAmount}>{formatCurrency(totalVAT)}</Text>
+        </View>
+      </View>
+    );
   };
 
   const styles = StyleSheet.create({
@@ -691,6 +789,8 @@ export const Receipt: React.FC<ReceiptProps> = ({
       fontStyle: 'italic',
       marginLeft: getResponsiveValue(SPACING.sm, screenType),
     },
+
+    // Totaux
     totalsSection: {
       paddingTop: getResponsiveValue(SPACING.lg, screenType),
       borderTopWidth: 2,
@@ -727,6 +827,57 @@ export const Receipt: React.FC<ReceiptProps> = ({
       fontWeight: 'bold',
       color: COLORS.secondary,
     },
+
+    // Section TVA détaillée (styles nouveaux)
+    vatSection: {
+      marginTop: getResponsiveValue(SPACING.md, screenType),
+      paddingTop: getResponsiveValue(SPACING.md, screenType),
+      borderTopWidth: 1,
+      borderTopColor: COLORS.border.light,
+      gap: 6,
+    },
+    sectionTitle: {
+      fontSize: getResponsiveValue({ mobile: 15, tablet: 16, desktop: 17 }, screenType),
+      fontWeight: '600',
+      color: COLORS.text.primary,
+      marginBottom: 4,
+    },
+    vatRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    vatLabel: {
+      fontSize: getResponsiveValue({ mobile: 13, tablet: 14, desktop: 15 }, screenType),
+      color: COLORS.text.secondary,
+    },
+    vatDetails: {
+      flexDirection: 'row',
+      gap: 12,
+    },
+    vatAmount: {
+      fontSize: getResponsiveValue({ mobile: 13, tablet: 14, desktop: 15 }, screenType),
+      color: COLORS.text.primary,
+    },
+    vatTotalRow: {
+      marginTop: 6,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      borderTopWidth: 1,
+      borderTopColor: COLORS.border.light,
+      paddingTop: 6,
+    },
+    vatTotalLabel: {
+      fontSize: getResponsiveValue({ mobile: 14, tablet: 15, desktop: 16 }, screenType),
+      fontWeight: '600',
+      color: COLORS.text.secondary,
+    },
+    vatTotalAmount: {
+      fontSize: getResponsiveValue({ mobile: 14, tablet: 15, desktop: 16 }, screenType),
+      fontWeight: '600',
+      color: COLORS.text.primary,
+    },
+
     actionsContainer: {
       padding: getResponsiveValue(SPACING.lg, screenType),
       backgroundColor: COLORS.surface,
@@ -912,8 +1063,8 @@ export const Receipt: React.FC<ReceiptProps> = ({
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Paiement:</Text>
                 <Text style={styles.infoValue}>
-                  {paymentInfo.method === 'cash' ? 'Espèces' : 
-                   paymentInfo.method === 'card' ? 'Carte bancaire' : 
+                  {paymentInfo.method === 'cash' ? 'Espèces' :
+                   paymentInfo.method === 'card' ? 'Carte bancaire' :
                    paymentInfo.method}
                 </Text>
               </View>
@@ -937,7 +1088,7 @@ export const Receipt: React.FC<ReceiptProps> = ({
                 {item.customizations && Object.keys(item.customizations).length > 0 && (
                   <Text style={styles.itemDetails}>
                     {Object.entries(item.customizations)
-                      .map(([key, value]) => 
+                      .map(([key, value]) =>
                         `${key}: ${Array.isArray(value) ? value.join(', ') : value}`
                       )
                       .join(' | ')}
@@ -946,6 +1097,9 @@ export const Receipt: React.FC<ReceiptProps> = ({
               </View>
             ))}
           </View>
+
+          {/* --- Nouvelle section : Détail TVA agrégé --- */}
+          <VATBreakdownSection order={orderData} />
 
           {/* Totals conformes */}
           <View style={styles.totalsSection}>
