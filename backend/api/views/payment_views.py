@@ -384,6 +384,7 @@ class StripeWebhookView(APIView):
                 order = Order.objects.get(id=order_id)
                 if order.payment_status != 'paid':
                     order.payment_status = 'paid'
+                    order.payment_method = 'online'
                     order.save()
                     logger.info(f"Order {order_id} marked as paid via checkout session")
             except Order.DoesNotExist:

@@ -1065,6 +1065,10 @@ export const Receipt: React.FC<ReceiptProps> = ({
                 <Text style={styles.infoValue}>
                   {paymentInfo.method === 'cash' ? 'Espèces' :
                    paymentInfo.method === 'card' ? 'Carte bancaire' :
+                   paymentInfo.method === 'online' ? 'En ligne' :
+                   paymentInfo.method === 'credit' ? 'Crédit' :
+                   paymentInfo.method === 'check' ? 'Chèque' :
+                   paymentInfo.method === 'transfer' ? 'Virement' :
                    paymentInfo.method}
                 </Text>
               </View>
