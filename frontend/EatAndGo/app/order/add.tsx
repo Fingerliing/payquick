@@ -316,7 +316,7 @@ export default function AddOrderScreen() {
               title="Ajouter"
               onPress={() => addToCart(item)}
               variant="primary"
-              size="small"
+              size="sm"
               leftIcon="add-outline"
               disabled={!item.is_available}
             />
@@ -559,7 +559,7 @@ export default function AddOrderScreen() {
                     title="Vider le panier"
                     onPress={clearCart}
                     variant="outline"
-                    size="small"
+                    size="sm"
                     leftIcon="trash-outline"
                   />
                 </View>

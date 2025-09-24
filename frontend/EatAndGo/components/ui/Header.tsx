@@ -12,6 +12,7 @@ interface HeaderProps {
   showBackButton?: boolean;
   leftIcon?: string;
   rightIcon?: string;
+  rightBadge?: string;
   onLeftPress?: () => void;
   onRightPress?: () => void;
   backgroundColor?: string;
@@ -28,6 +29,7 @@ export const Header: React.FC<HeaderProps> = (props) => {
     showBackButton = false,
     leftIcon,
     rightIcon,
+    rightBadge,
     onLeftPress,
     onRightPress,
     backgroundColor = COLORS.surface,
@@ -170,6 +172,32 @@ export const Header: React.FC<HeaderProps> = (props) => {
               android_ripple={{ color: COLORS.border.default, borderless: true }}
             >
               <Ionicons name={rightIcon as any} size={24} color={COLORS.text.primary} />
+              {rightBadge && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: 2,
+                    right: 2,
+                    backgroundColor: COLORS.primary,
+                    borderRadius: 8,
+                    minWidth: 16,
+                    height: 16,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    paddingHorizontal: 4,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: '#fff',
+                      fontSize: 10,
+                      fontWeight: '600',
+                    }}
+                  >
+                    {rightBadge}
+                  </Text>
+                </View>
+              )}
             </Pressable>
           )}
         </View>
