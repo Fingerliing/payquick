@@ -50,8 +50,10 @@ export interface EmailReceiptRequest {
 
 export class ReceiptService {
   // Générer les données du ticket
-  async generateReceiptData(orderId: number): Promise<ReceiptData> {
-    return apiClient.get(`/api/v1/orders/${orderId}/receipt/`);
+  async generateReceiptData(orderId: any): Promise<ReceiptData> {
+    const _id = (orderId && typeof orderId === "object") ? orderId.id : orderId;
+  
+    return apiClient.get(`/api/v1/orders/${Number(_id)}/receipt/`);
   }
 
   // Envoyer le ticket par email
@@ -60,11 +62,10 @@ export class ReceiptService {
   }
 
   // Générer un PDF du ticket
-  async generateReceiptPDF(orderId: number): Promise<Blob> {
-    const response = await apiClient.get(`/api/v1/orders/${orderId}/receipt/pdf/`, {
-      responseType: 'blob'
-    });
-    return response;
+  async generateReceiptPDF(orderId: any): Promise<Blob> {
+    const _id = (orderId && typeof orderId === "object") ? orderId.id : orderId;
+  
+    return apiClient.get(`/api/v1/orders/${Number(_id)}/receipt/pdf/`, { responseType: "blob" });
   }
 
   // Formater le montant pour l'affichage
