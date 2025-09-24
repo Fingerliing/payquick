@@ -42,12 +42,15 @@ export class ClientOrderService {
       throw new Error('Order must contain at least one item');
     }
     
-    // Gérer table vs table_number
-    const tableNumber = args.table_number || String(args.table || '');
-    
-    if (args.order_type === 'dine_in' && (!tableNumber || tableNumber.trim() === '')) {
-      throw new Error('Valid table number is required for dine-in orders');
+    // 🔧 FIX: Gérer table_number selon le type de commande
+    let tableNumber = '';
+    if (args.order_type === 'dine_in') {
+      tableNumber = args.table_number || String(args.table || '');
+      if (!tableNumber || tableNumber.trim() === '') {
+        throw new Error('Valid table number is required for dine-in orders');
+      }
     }
+    // Pour takeaway, on ne définit pas de table_number (ou on le laisse vide)
 
     if (!args.customer_name || args.customer_name.trim().length === 0) {
       throw new Error('Customer name is required');
@@ -56,15 +59,23 @@ export class ClientOrderService {
     try {
       // Convertir les items du panier au format attendu par le backend
       const validatedItems: CreateOrderItemInput[] = args.items.map((item, index) => {
+        // 🔧 FIX: Debug de la structure des items
+        console.log(`Processing item ${index}:`, {
+          id: item.id,
+          menuItemId: item.menuItemId,
+          quantity: item.quantity,
+          allKeys: Object.keys(item)
+        });
+
         // Extraire l'ID du menu item
         let menuItemId: number;
         
-        if (typeof item.id === 'string' || typeof item.id === 'number') {
-          menuItemId = typeof item.id === 'string' ? parseInt(item.id, 10) : item.id;
-        } else if (typeof item.menuItemId === 'string' || typeof item.menuItemId === 'number') {
+        if (typeof item.menuItemId === 'string' || typeof item.menuItemId === 'number') {
           menuItemId = typeof item.menuItemId === 'string' ? parseInt(item.menuItemId, 10) : item.menuItemId;
+        } else if (typeof item.id === 'string' || typeof item.id === 'number') {
+          menuItemId = typeof item.id === 'string' ? parseInt(item.id, 10) : item.id;
         } else {
-          throw new Error(`Item at index ${index}: missing valid menu item ID`);
+          throw new Error(`Item at index ${index}: missing valid menu item ID. Available fields: ${Object.keys(item)}`);
         }
         
         if (isNaN(menuItemId) || menuItemId <= 0) {
@@ -86,11 +97,10 @@ export class ClientOrderService {
         };
       });
       
-      // Construire le payload final
+      // 🔧 FIX: Construire le payload avec gestion conditionnelle de table_number
       const payload: CreateOrderRequest = {
         restaurant: restaurantId,
         order_type: args.order_type,
-        table_number: tableNumber.trim(),
         customer_name: args.customer_name.trim(),
         phone: args.phone || "",
         payment_method: args.payment_method || "cash",
@@ -98,8 +108,19 @@ export class ClientOrderService {
         items: validatedItems,
       };
 
-      // Validation avec type guard
+      // Ajouter table_number seulement si nécessaire
+      if (args.order_type === 'dine_in') {
+        payload.table_number = tableNumber.trim();
+      }
+
+      // 🔧 FIX: Validation améliorée avec debug
+      console.log('🔍 Validating payload structure...');
+      console.log('Items count:', payload.items.length);
+      console.log('Restaurant ID:', payload.restaurant);
+      console.log('Order type:', payload.order_type);
+      
       if (!isValidCreateOrderRequest(payload)) {
+        console.error('❌ Payload validation failed:', payload);
         throw new Error('Payload does not match CreateOrderRequest interface');
       }
 
@@ -120,18 +141,30 @@ export class ClientOrderService {
           data: resp.data
         });
         
-        // Extraction d'erreur détaillée pour DRF
+        // 🔧 FIX: Extraction d'erreur améliorée
         const errorData = resp.data;
         let errorMessage = 'Erreur inconnue';
         
+        // Gestion spécifique des erreurs de validation Django REST Framework
         if (errorData.error) {
           errorMessage = Array.isArray(errorData.error) 
             ? errorData.error.join('\n') 
             : String(errorData.error);
-        } else if (errorData.errors) {
-          errorMessage = Array.isArray(errorData.errors) 
-            ? errorData.errors.join('\n') 
-            : String(errorData.errors);
+        } else if (errorData.details && errorData.details.error) {
+          errorMessage = Array.isArray(errorData.details.error) 
+            ? errorData.details.error.join('\n') 
+            : String(errorData.details.error);
+        } else if (errorData.validation_errors) {
+          // Erreurs de validation par champ
+          const fieldErrors = [];
+          for (const [field, messages] of Object.entries(errorData.validation_errors)) {
+            if (Array.isArray(messages)) {
+              fieldErrors.push(`${field}: ${messages.join(', ')}`);
+            } else {
+              fieldErrors.push(`${field}: ${messages}`);
+            }
+          }
+          errorMessage = fieldErrors.join('\n');
         } else if (errorData.non_field_errors) {
           errorMessage = Array.isArray(errorData.non_field_errors) 
             ? errorData.non_field_errors.join('\n') 

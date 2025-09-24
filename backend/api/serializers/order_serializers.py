@@ -3,6 +3,7 @@ from api.models import Order, OrderItem, TableSession
 from django.utils import timezone
 from decimal import Decimal, InvalidOperation
 from django.db import transaction
+from decimal import ROUND_HALF_UP
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
@@ -233,21 +234,32 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         subtotal = Decimal('0.00')
         order_items_data = []
         
-        # ✅ CORRECTION: Validation renforcée des items
+        # Validation renforcée des items
         for i, item_data in enumerate(items_data):
             menu_item = item_data['menu_item']
             quantity = item_data['quantity']
             
-            # ✅ CORRECTION: S'assurer que quantity n'est jamais None
+            # Validation de la quantité
             if quantity is None:
                 raise serializers.ValidationError(f"Item {i}: La quantité ne peut pas être None")
             
             if not isinstance(quantity, int) or quantity <= 0:
                 raise serializers.ValidationError(f"Item {i}: La quantité doit être un entier positif")
             
-            # ✅ CORRECTION: S'assurer que le prix n'est jamais None
+            # Validation du prix
             if menu_item.price is None:
                 raise serializers.ValidationError(f"Item {i}: Le prix du menu item {menu_item.name} n'est pas défini")
+            
+            # Validation et arrondi du vat_rate
+            vat_rate = menu_item.vat_rate or Decimal('0.10')
+            try:
+                # Arrondir le taux de TVA à 3 décimales
+                vat_rate = Decimal(str(vat_rate)).quantize(
+                    Decimal('0.001'), 
+                    rounding=ROUND_HALF_UP
+                )
+            except (ValueError, TypeError):
+                raise serializers.ValidationError(f"Item {i}: Taux de TVA invalide pour {menu_item.name}")
             
             try:
                 unit_price = Decimal(str(menu_item.price))
@@ -258,14 +270,15 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             
             subtotal += total_price
             
-            # ✅ CORRECTION: Validation des données avant ajout
+            # Construire les données de l'OrderItem avec vat_rate corrigé
             order_item_data = {
                 'menu_item': menu_item,
-                'quantity': int(quantity),  # Convertir explicitement en int
+                'quantity': int(quantity),
                 'customizations': item_data.get('customizations', {}),
                 'special_instructions': item_data.get('special_instructions', ''),
                 'unit_price': unit_price,
-                'total_price': total_price
+                'total_price': total_price,
+                'vat_rate': vat_rate  # Taux TVA arrondi
             }
             
             # Validation finale des types
@@ -291,14 +304,24 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         # Créer les OrderItem avec validation supplémentaire
         for item_data in order_items_data:
             try:
-                # ✅ CORRECTION: Validation finale avant création
+                # Validation finale avant création
                 if item_data['quantity'] is None or item_data['quantity'] <= 0:
                     raise ValueError(f"Quantité invalide pour {item_data['menu_item'].name}: {item_data['quantity']}")
                 
                 if item_data['unit_price'] is None:
                     raise ValueError(f"Prix invalide pour {item_data['menu_item'].name}: {item_data['unit_price']}")
                 
-                order_item = OrderItem.objects.create(order=order, **item_data)
+                # Créer avec vat_rate explicite pour éviter le calcul dans save()
+                order_item = OrderItem.objects.create(
+                    order=order, 
+                    menu_item=item_data['menu_item'],
+                    quantity=item_data['quantity'],
+                    customizations=item_data['customizations'],
+                    special_instructions=item_data['special_instructions'],
+                    unit_price=item_data['unit_price'],
+                    total_price=item_data['total_price'],
+                    vat_rate=item_data['vat_rate']
+                )
                 
             except Exception as e:
                 # Si une erreur se produit, annuler toute la transaction

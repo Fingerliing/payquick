@@ -1298,9 +1298,21 @@ class OrderItem(models.Model):
     )
     
     def save(self, *args, **kwargs):
-        # Récupérer le taux TVA du MenuItem
+        # Récupérer le taux TVA du MenuItem avec arrondi
         if self.menu_item and not self.vat_rate:
-            self.vat_rate = self.menu_item.vat_rate
+            menu_vat_rate = self.menu_item.vat_rate or Decimal('0.10')
+            # Arrondir à 3 décimales pour respecter la contrainte
+            self.vat_rate = Decimal(str(menu_vat_rate)).quantize(
+                Decimal('0.001'), 
+                rounding=ROUND_HALF_UP
+            )
+        
+        # S'assurer que vat_rate est toujours arrondi même si assigné directement
+        if self.vat_rate:
+            self.vat_rate = Decimal(str(self.vat_rate)).quantize(
+                Decimal('0.001'), 
+                rounding=ROUND_HALF_UP
+            )
         
         # Calculer le montant TVA
         if self.total_price:
@@ -1328,59 +1340,27 @@ class OrderItem(models.Model):
             if unit_price_decimal < 0:
                 raise ValidationError("Le prix unitaire ne peut pas être négatif")
         except (ValueError, TypeError):
-            raise ValidationError("Le prix unitaire doit être un nombre décimal valide")
+            raise ValidationError("Le prix unitaire doit être un nombre valide")
         
-        # Recalculer total_price si pas déjà défini ou incohérent
-        if self.unit_price is not None and self.quantity is not None:
-            calculated_total = Decimal(str(self.quantity)) * Decimal(str(self.unit_price))
-            if self.total_price is None or abs(float(self.total_price) - float(calculated_total)) > 0.01:
-                self.total_price = calculated_total
-            
-            # Recalculer total_price si pas déjà défini
-            if self.total_price is None:
-                self.total_price = self.quantity * self.unit_price
-    
-    def save(self, *args, **kwargs):
-        # Validation complète avant sauvegarde
-        try:
-            # Vérifications de sécurité
-            if self.unit_price is None:
-                raise ValueError(f"Prix unitaire None pour OrderItem du menu_item {self.menu_item_id}")
-            
-            if self.quantity is None:
-                raise ValueError(f"Quantité None pour OrderItem du menu_item {self.menu_item_id}")
-            
-            # Conversion sécurisée en Decimal
-            from decimal import Decimal, InvalidOperation
-            
+        # Valider que vat_rate respecte la contrainte
+        if self.vat_rate is not None:
             try:
-                unit_price_decimal = Decimal(str(self.unit_price))
-                quantity_decimal = Decimal(str(self.quantity))
-            except (InvalidOperation, TypeError, ValueError) as e:
-                raise ValueError(f"Erreur conversion pour OrderItem: unit_price={self.unit_price}, quantity={self.quantity}, erreur: {e}")
-            
-            # Calcul sécurisé du total
-            calculated_total = quantity_decimal * unit_price_decimal
-            
-            # Mettre à jour total_price seulement si pas déjà défini ou si incohérent
-            if self.total_price is None or abs(float(self.total_price) - float(calculated_total)) > 0.01:
-                self.total_price = calculated_total
-                
-        except Exception as e:
-            # Log l'erreur pour debug
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"Erreur dans OrderItem.save(): {str(e)}", exc_info=True)
-            raise e
+                # Vérifier que le vat_rate n'a pas plus de 3 décimales
+                vat_decimal = Decimal(str(self.vat_rate))
+                # Tester si l'arrondi à 3 décimales change la valeur
+                rounded_vat = vat_decimal.quantize(Decimal('0.001'), rounding=ROUND_HALF_UP)
+                if vat_decimal != rounded_vat:
+                    # Auto-correction si possible
+                    self.vat_rate = rounded_vat
+            except (ValueError, TypeError):
+                raise ValidationError("Le taux de TVA doit être un nombre valide")
+
+    class Meta:
+        verbose_name = "Article de commande"
+        verbose_name_plural = "Articles de commande"
         
-        # Validation Django
-        self.full_clean()
-        
-        # Sauvegarde
-        super().save(*args, **kwargs)
-    
     def __str__(self):
-        return f"{self.quantity}x {self.menu_item.name if self.menu_item else 'Item supprimé'}"
+        return f"{self.menu_item.name} x{self.quantity} - {self.total_price}€"
 
 class DailyMenu(models.Model):
     """
