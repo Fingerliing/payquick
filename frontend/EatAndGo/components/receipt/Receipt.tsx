@@ -62,7 +62,7 @@ interface ReceiptViewData {
     subtotal_ttc: number; // Sous-total TTC
     total_tva: number; // Total TVA
     total_amount: number; // Total TTC final (avec pourboire)
-    vat_details?: VatDetailsMap; // <-- AJOUT
+    vat_details?: VatDetailsMap;
   };
   restaurantInfo: {
     name: string;
@@ -96,21 +96,20 @@ interface ReceiptViewData {
 }
 
 // -------------------------
-// Helpers TVA demandés
+// Helpers de sécurité
 // -------------------------
 
-// Helper pour calculer la TVA selon le taux spécifique (à partir d'un total TTC)
-const calculateVATForItem = (item: { total_price: number | string; vat_rate?: number }) => {
-  const priceTTC = safeParseAmount(item.total_price);
-  const vatRate = item.vat_rate ?? 0.10; // 10% par défaut si manquant (exigence snippet)
-  const priceHT = priceTTC / (1 + vatRate);
-  const tvaAmount = priceTTC - priceHT;
+// Fonction de sécurisation pour s'assurer qu'on ne rend jamais null/undefined comme texte
+const safeText = (value: any): string => {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return value.toString();
+  return String(value);
+};
 
-  return {
-    priceHT: Math.round(priceHT * 100) / 100,
-    tvaAmount: Math.round(tvaAmount * 100) / 100,
-    priceTTC: Math.round(priceTTC * 100) / 100,
-  };
+// Fonction pour vérifier si une valeur existe avant de l'afficher
+const hasValue = (value: any): boolean => {
+  return value !== null && value !== undefined && value !== '' && value !== 0;
 };
 
 // parse sécurisé (accepte string "12,34" ou "12.34")
@@ -122,6 +121,20 @@ const safeParseAmount = (v: any): number => {
     return Number.isNaN(n) ? 0 : n;
   }
   return 0;
+};
+
+// Helper pour calculer la TVA selon le taux spécifique (à partir d'un total TTC)
+const calculateVATForItem = (item: { total_price: number | string; vat_rate?: number }) => {
+  const priceTTC = safeParseAmount(item.total_price);
+  const vatRate = item.vat_rate ?? 0.10; // 10% par défaut si manquant
+  const priceHT = priceTTC / (1 + vatRate);
+  const tvaAmount = priceTTC - priceHT;
+
+  return {
+    priceHT: Math.round(priceHT * 100) / 100,
+    tvaAmount: Math.round(tvaAmount * 100) / 100,
+    priceTTC: Math.round(priceTTC * 100) / 100,
+  };
 };
 
 // Calcul correct de la TVA selon les normes françaises (depuis un prix unitaire TTC)
@@ -138,6 +151,19 @@ const calculateTVA = (priceTTC: number, tvaRate: number = 0.20) => {
 const rateKey = (rate: number) => {
   const pct = rate * 100;
   return Number.isInteger(pct) ? String(pct) : pct.toFixed(1);
+};
+
+// Fonction helper pour les méthodes de paiement
+const getPaymentMethodLabel = (method: string): string => {
+  const labels: Record<string, string> = {
+    'cash': 'Espèces',
+    'card': 'Carte bancaire',
+    'online': 'En ligne',
+    'credit': 'Crédit',
+    'check': 'Chèque',
+    'transfer': 'Virement'
+  };
+  return labels[method] || safeText(method);
 };
 
 export const Receipt: React.FC<ReceiptProps> = ({
@@ -252,19 +278,19 @@ export const Receipt: React.FC<ReceiptProps> = ({
     return {
       order: {
         id: (data as any).order_id ?? (data as any).id,
-        order_number: (data as any).order_number ?? 'N/A',
+        order_number: safeText((data as any).order_number) || 'N/A',
         order_type: (data as any).order_type,
         table_number: (data as any).table_number ?? null,
-        sequential_number: (data as any).sequential_number ?? (data as any).order_number,
+        sequential_number: safeText((data as any).sequential_number) || safeText((data as any).order_number),
         items: processedItems,
         subtotal_ht: Math.round(subtotalHT * 100) / 100,
         subtotal_ttc: Math.round(subtotalTTC * 100) / 100,
         total_tva: Math.round(totalTVA * 100) / 100,
         total_amount: Math.round(totalAmount * 100) / 100,
-        vat_details, // <-- AJOUT
+        vat_details,
       },
       restaurantInfo: {
-        name: (data as any).restaurant_name ?? 'Restaurant',
+        name: safeText((data as any).restaurant_name) || 'Restaurant',
         address: (data as any).restaurant_address,
         city: (data as any).restaurant_city,
         postal_code: (data as any).restaurant_postal_code,
@@ -279,7 +305,7 @@ export const Receipt: React.FC<ReceiptProps> = ({
         amount: Math.round(totalAmount * 100) / 100,
         tip: tipAmount,
         transactionId: (data as any).transaction_id,
-        paidAt: (data as any).paid_at ?? new Date().toISOString(),
+        paidAt: safeText((data as any).paid_at) || new Date().toISOString(),
         sequential_receipt_number: (data as any).sequential_receipt_number,
       },
       customerInfo: {
@@ -335,19 +361,19 @@ export const Receipt: React.FC<ReceiptProps> = ({
     return {
       order: {
         id: ord.id ?? ord.order_id,
-        order_number: ord.order_number ?? ord.number ?? 'N/A',
+        order_number: safeText(ord.order_number ?? ord.number) || 'N/A',
         order_type: ord.order_type,
         table_number: ord.table_number ?? null,
-        sequential_number: ord.sequential_number ?? ord.order_number,
+        sequential_number: safeText(ord.sequential_number) || safeText(ord.order_number),
         items: processedItems,
         subtotal_ht: Math.round(subtotalHT * 100) / 100,
         subtotal_ttc: Math.round(subtotalTTC * 100) / 100,
         total_tva: Math.round(totalTVA * 100) / 100,
         total_amount: Math.round(totalAmount * 100) / 100,
-        vat_details, // <-- AJOUT
+        vat_details,
       },
       restaurantInfo: {
-        name: ord.restaurant_name ?? 'Restaurant',
+        name: safeText(ord.restaurant_name) || 'Restaurant',
         address: ord.restaurant_address,
         city: ord.restaurant_city,
         postal_code: ord.restaurant_postal_code,
@@ -362,7 +388,7 @@ export const Receipt: React.FC<ReceiptProps> = ({
         amount: Math.round(totalAmount * 100) / 100,
         tip: tipAmount,
         transactionId: ord.transaction_id,
-        paidAt: ord.payment_date ?? new Date().toISOString(),
+        paidAt: safeText(ord.payment_date) || new Date().toISOString(),
         sequential_receipt_number: ord.sequential_receipt_number,
       },
       customerInfo: {
@@ -389,36 +415,34 @@ export const Receipt: React.FC<ReceiptProps> = ({
 
     // En-tête restaurant (obligatoire)
     lines.push(`<div style="text-align: center; border-bottom: 1px dashed #000; padding-bottom: 8px; margin-bottom: 8px;">`);
-    lines.push(`<strong style="font-size: 14px;">${data.restaurantInfo.name}</strong><br/>`);
-    if (data.restaurantInfo.address) {
-      lines.push(`${data.restaurantInfo.address}<br/>`);
+    lines.push(`<strong style="font-size: 14px;">${safeText(data.restaurantInfo.name)}</strong><br/>`);
+    if (hasValue(data.restaurantInfo.address)) {
+      lines.push(`${safeText(data.restaurantInfo.address)}<br/>`);
     }
-    if (data.restaurantInfo.postal_code && data.restaurantInfo.city) {
-      lines.push(`${data.restaurantInfo.postal_code} ${data.restaurantInfo.city}<br/>`);
+    if (hasValue(data.restaurantInfo.postal_code) && hasValue(data.restaurantInfo.city)) {
+      lines.push(`${safeText(data.restaurantInfo.postal_code)} ${safeText(data.restaurantInfo.city)}<br/>`);
     }
-    if (data.restaurantInfo.phone) {
-      lines.push(`Tél: ${data.restaurantInfo.phone}<br/>`);
+    if (hasValue(data.restaurantInfo.phone)) {
+      lines.push(`Tél: ${safeText(data.restaurantInfo.phone)}<br/>`);
     }
-    if (data.restaurantInfo.siret) {
-      lines.push(`SIRET: ${data.restaurantInfo.siret}<br/>`);
+    if (hasValue(data.restaurantInfo.siret)) {
+      lines.push(`SIRET: ${safeText(data.restaurantInfo.siret)}<br/>`);
     }
-    if (data.restaurantInfo.tva_number) {
-      lines.push(`TVA: ${data.restaurantInfo.tva_number}<br/>`);
+    if (hasValue(data.restaurantInfo.tva_number)) {
+      lines.push(`TVA: ${safeText(data.restaurantInfo.tva_number)}<br/>`);
     }
     lines.push('</div>');
 
     // Informations obligatoires du ticket
     lines.push('<div style="margin-bottom: 8px;">');
-    lines.push(`<strong>TICKET N° ${data.paymentInfo.sequential_receipt_number || data.order.order_number}</strong><br/>`);
+    lines.push(`<strong>TICKET N° ${safeText(data.paymentInfo.sequential_receipt_number || data.order.order_number)}</strong><br/>`);
     lines.push(`Date: ${dateFormatted}<br/>`);
-    if (data.order.table_number) {
-      lines.push(`Table: ${data.order.table_number}<br/>`);
+    if (hasValue(data.order.table_number)) {
+      lines.push(`Table: ${safeText(data.order.table_number)}<br/>`);
     }
     lines.push(`Type: ${data.order.order_type === 'dine_in' ? 'Sur place' : 'À emporter'}<br/>`);
-    if (data.paymentInfo.method) {
-      const paymentLabel = data.paymentInfo.method === 'cash' ? 'Espèces' :
-                           data.paymentInfo.method === 'card' ? 'Carte bancaire' :
-                           data.paymentInfo.method;
+    if (hasValue(data.paymentInfo.method)) {
+      const paymentLabel = getPaymentMethodLabel(safeText(data.paymentInfo.method));
       lines.push(`Paiement: ${paymentLabel}<br/>`);
     }
     lines.push('</div>');
@@ -427,19 +451,27 @@ export const Receipt: React.FC<ReceiptProps> = ({
     lines.push('<div style="border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 4px 0; margin: 8px 0;">');
 
     for (const item of data.order.items) {
+      if (!item) continue;
+      
       lines.push(`<div style="margin-bottom: 2px;">`);
-      lines.push(`<div>${item.name}</div>`);
+      lines.push(`<div>${safeText(item.name)}</div>`);
       lines.push(`<div style="display: flex; justify-content: space-between;">`);
-      lines.push(`<span>${item.quantity} x ${item.price_ttc.toFixed(2)}€</span>`);
-      lines.push(`<span><strong>${item.total_price_ttc.toFixed(2)}€</strong></span>`);
+      lines.push(`<span>${item.quantity || 0} x ${(item.price_ttc || 0).toFixed(2)}€</span>`);
+      lines.push(`<span><strong>${(item.total_price_ttc || 0).toFixed(2)}€</strong></span>`);
       lines.push('</div>');
 
       // Affichage du taux de TVA pour chaque article (obligatoire)
-      lines.push(`<div style="font-size: 10px; color: #666;">TVA ${(item.tva_rate * 100).toFixed(1)}%: ${item.tva_amount.toFixed(2)}€</div>`);
+      lines.push(`<div style="font-size: 10px; color: #666;">TVA ${((item.tva_rate || 0) * 100).toFixed(1)}%: ${(item.tva_amount || 0).toFixed(2)}€</div>`);
 
-      if (item.customizations) {
+      if (item.customizations && typeof item.customizations === 'object') {
         const customText = Object.entries(item.customizations)
-          .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`)
+          .map(([key, value]) => {
+            const displayValue = Array.isArray(value) 
+              ? value.filter(hasValue).map(safeText).join(', ')
+              : safeText(value);
+            return `${safeText(key)}: ${displayValue}`;
+          })
+          .filter(text => text.includes(': ') && !text.endsWith(': '))
           .join(' | ');
         if (customText) {
           lines.push(`<div style="font-size: 10px; font-style: italic; color: #666;">${customText}</div>`);
@@ -451,35 +483,37 @@ export const Receipt: React.FC<ReceiptProps> = ({
 
     // Récapitulatif des totaux (obligatoire)
     lines.push('<div style="text-align: right; line-height: 1.4;">');
-    lines.push(`Sous-total HT: ${data.order.subtotal_ht.toFixed(2)}€<br/>`);
-    lines.push(`TVA totale: ${data.order.total_tva.toFixed(2)}€<br/>`);
-    lines.push(`<strong>Sous-total TTC: ${data.order.subtotal_ttc.toFixed(2)}€</strong><br/>`);
+    lines.push(`Sous-total HT: ${(data.order.subtotal_ht || 0).toFixed(2)}€<br/>`);
+    lines.push(`TVA totale: ${(data.order.total_tva || 0).toFixed(2)}€<br/>`);
+    lines.push(`<strong>Sous-total TTC: ${(data.order.subtotal_ttc || 0).toFixed(2)}€</strong><br/>`);
 
     if (data.paymentInfo.tip && data.paymentInfo.tip > 0) {
       lines.push(`Pourboire: ${data.paymentInfo.tip.toFixed(2)}€<br/>`);
     }
 
     lines.push(`<div style="border-top: 1px solid #000; padding-top: 4px; margin-top: 4px; font-size: 14px;">`);
-    lines.push(`<strong>TOTAL TTC: ${data.order.total_amount.toFixed(2)}€</strong>`);
+    lines.push(`<strong>TOTAL TTC: ${(data.order.total_amount || 0).toFixed(2)}€</strong>`);
     lines.push('</div>');
     lines.push('</div>');
 
-    // Détail TVA agrégé (nouveau)
+    // Détail TVA agrégé
     if (data.order.vat_details && Object.keys(data.order.vat_details).length > 0) {
       lines.push('<div style="margin-top:8px;border-top:1px dashed #000;padding-top:6px;">');
       lines.push('<strong>Détail TVA</strong><br/>');
       for (const [rate, det] of Object.entries(data.order.vat_details)) {
-        lines.push(`TVA ${rate}% — Base HT: ${det.ht.toFixed(2)}€ | TVA: ${det.tva.toFixed(2)}€<br/>`);
+        if (det) {
+          lines.push(`TVA ${safeText(rate)}% — Base HT: ${(det.ht || 0).toFixed(2)}€ | TVA: ${(det.tva || 0).toFixed(2)}€<br/>`);
+        }
       }
-      const totalVat = Object.values(data.order.vat_details).reduce((s, d) => s + d.tva, 0);
+      const totalVat = Object.values(data.order.vat_details).reduce((s, d) => s + (d?.tva || 0), 0);
       lines.push(`<div style="margin-top:4px;"><strong>Total TVA: ${totalVat.toFixed(2)}€</strong></div>`);
       lines.push('</div>');
     }
 
     // Code-barres simulé
-    if (data.order.order_number) {
+    if (hasValue(data.order.order_number)) {
       lines.push('<div style="text-align: center; margin: 12px 0; font-family: monospace; font-size: 18px; letter-spacing: 1px;">');
-      lines.push(`||||| ${data.order.order_number} |||||`);
+      lines.push(`||||| ${safeText(data.order.order_number)} |||||`);
       lines.push('</div>');
     }
 
@@ -487,14 +521,14 @@ export const Receipt: React.FC<ReceiptProps> = ({
     lines.push('<div style="font-size: 10px; text-align: center; border-top: 1px dashed #000; padding-top: 8px; margin-top: 8px;">');
     lines.push('MERCI DE VOTRE VISITE<br/>');
     lines.push('À BIENTÔT<br/><br/>');
-    lines.push(`${data.legalInfo.receipt_notice}<br/>`);
+    lines.push(`${safeText(data.legalInfo.receipt_notice)}<br/>`);
 
-    if (data.legalInfo.warranty_notice) {
-      lines.push(`<br/>${data.legalInfo.warranty_notice}`);
+    if (hasValue(data.legalInfo.warranty_notice)) {
+      lines.push(`<br/>${safeText(data.legalInfo.warranty_notice)}`);
     }
 
-    if (data.legalInfo.tva_notice) {
-      lines.push(`<br/>${data.legalInfo.tva_notice}`);
+    if (hasValue(data.legalInfo.tva_notice)) {
+      lines.push(`<br/>${safeText(data.legalInfo.tva_notice)}`);
     }
     lines.push('</div>');
 
@@ -571,7 +605,7 @@ export const Receipt: React.FC<ReceiptProps> = ({
         const a = document.createElement('a');
         a.href = url;
         const number = receiptData?.order.order_number ?? orderId;
-        a.download = `ticket_${number}.pdf`;
+        a.download = `ticket_${safeText(number)}.pdf`;
         a.click();
         URL.revokeObjectURL(url);
         showSuccess('PDF téléchargé avec succès');
@@ -628,10 +662,11 @@ export const Receipt: React.FC<ReceiptProps> = ({
   };
 
   const formatPrice = (price: number) => `${Number(price || 0).toFixed(2)} €`;
-  const formatCurrency = (n: number) => formatPrice(n); // alias pour la section TVA détaillée
+  const formatCurrency = (n: number) => formatPrice(n);
 
-  const formatDate = (date: string) => {
+  const formatDate = (date: string): string => {
     try {
+      if (!date) return 'Date non disponible';
       return new Date(date).toLocaleString('fr-FR', {
         day: '2-digit',
         month: '2-digit',
@@ -640,31 +675,37 @@ export const Receipt: React.FC<ReceiptProps> = ({
         minute: '2-digit',
       });
     } catch {
-      return date;
+      return safeText(date) || 'Date invalide';
     }
   };
 
-  // -------------------------
   // Section TVA détaillée (UI)
-  // -------------------------
   const VATBreakdownSection = ({ order }: { order: ReceiptViewData['order'] }) => {
     const vatDetails = order.vat_details || {};
-    const totalVAT = Object.values(vatDetails).reduce((sum, d) => sum + d.tva, 0);
+    const totalVAT = Object.values(vatDetails).reduce((sum, d) => sum + (d?.tva || 0), 0);
 
     if (!vatDetails || Object.keys(vatDetails).length === 0) return null;
 
     return (
       <View style={styles.vatSection}>
         <Text style={styles.sectionTitle}>Détail TVA</Text>
-        {Object.entries(vatDetails).map(([rate, details]) => (
-          <View key={rate} style={styles.vatRow}>
-            <Text style={styles.vatLabel}>TVA {rate}%</Text>
-            <View style={styles.vatDetails}>
-              <Text style={styles.vatAmount}>Base HT: {formatCurrency(details.ht)}</Text>
-              <Text style={styles.vatAmount}>TVA: {formatCurrency(details.tva)}</Text>
+        {Object.entries(vatDetails).map(([rate, details]) => {
+          if (!details) return null;
+          
+          return (
+            <View key={safeText(rate)} style={styles.vatRow}>
+              <Text style={styles.vatLabel}>TVA {safeText(rate)}%</Text>
+              <View style={styles.vatDetails}>
+                <Text style={styles.vatAmount}>
+                  Base HT: {formatCurrency(details.ht || 0)}
+                </Text>
+                <Text style={styles.vatAmount}>
+                  TVA: {formatCurrency(details.tva || 0)}
+                </Text>
+              </View>
             </View>
-          </View>
-        ))}
+          );
+        })}
         <View style={styles.vatTotalRow}>
           <Text style={styles.vatTotalLabel}>Total TVA</Text>
           <Text style={styles.vatTotalAmount}>{formatCurrency(totalVAT)}</Text>
@@ -729,11 +770,14 @@ export const Receipt: React.FC<ReceiptProps> = ({
       color: COLORS.text.primary,
       marginBottom: getResponsiveValue(SPACING.xs, screenType),
     },
+    restaurantInfoContainer: {
+      alignItems: 'center',
+      gap: 2,
+    },
     restaurantInfo: {
       fontSize: getResponsiveValue({ mobile: 12, tablet: 13, desktop: 14 }, screenType),
       color: COLORS.text.secondary,
       textAlign: 'center',
-      lineHeight: 18,
     },
     infoRow: {
       flexDirection: 'row',
@@ -789,8 +833,6 @@ export const Receipt: React.FC<ReceiptProps> = ({
       fontStyle: 'italic',
       marginLeft: getResponsiveValue(SPACING.sm, screenType),
     },
-
-    // Totaux
     totalsSection: {
       paddingTop: getResponsiveValue(SPACING.lg, screenType),
       borderTopWidth: 2,
@@ -827,8 +869,6 @@ export const Receipt: React.FC<ReceiptProps> = ({
       fontWeight: 'bold',
       color: COLORS.secondary,
     },
-
-    // Section TVA détaillée (styles nouveaux)
     vatSection: {
       marginTop: getResponsiveValue(SPACING.md, screenType),
       paddingTop: getResponsiveValue(SPACING.md, screenType),
@@ -877,7 +917,6 @@ export const Receipt: React.FC<ReceiptProps> = ({
       fontWeight: '600',
       color: COLORS.text.primary,
     },
-
     actionsContainer: {
       padding: getResponsiveValue(SPACING.lg, screenType),
       backgroundColor: COLORS.surface,
@@ -957,7 +996,6 @@ export const Receipt: React.FC<ReceiptProps> = ({
       fontSize: getResponsiveValue({ mobile: 12, tablet: 13, desktop: 14 }, screenType),
       color: COLORS.text.secondary,
       textAlign: 'center',
-      lineHeight: 18,
     },
     legalNotice: {
       fontSize: getResponsiveValue({ mobile: 10, tablet: 11, desktop: 12 }, screenType),
@@ -994,17 +1032,17 @@ export const Receipt: React.FC<ReceiptProps> = ({
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>
-          Ticket N° {paymentInfo.sequential_receipt_number || orderData.order_number}
+          Ticket N° {safeText(paymentInfo.sequential_receipt_number || orderData.order_number)}
         </Text>
-        {onClose && (
+        {onClose ? (
           <Pressable style={styles.closeButton} onPress={onClose}>
             <Ionicons name="close" size={iconSize} color={COLORS.text.secondary} />
           </Pressable>
-        )}
+        ) : null}
       </View>
 
       {/* Alert Display */}
-      {alertState && (
+      {alertState ? (
         <View style={styles.alertContainer}>
           <Alert
             variant={alertState.variant}
@@ -1013,26 +1051,39 @@ export const Receipt: React.FC<ReceiptProps> = ({
             onPress={hideAlert}
           />
         </View>
-      )}
+      ) : null}
 
       {/* Content */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <Card style={styles.receiptPreview}>
           {/* Restaurant Header */}
           <View style={styles.receiptHeader}>
-            <Text style={styles.restaurantName}>{restaurantInfo.name}</Text>
-            <Text style={styles.restaurantInfo}>
-              {[
-                restaurantInfo.address?.trim(),
-                [restaurantInfo.postal_code, restaurantInfo.city].filter(Boolean).join(' '),
-                restaurantInfo.phone ? `Tél: ${restaurantInfo.phone}` : '',
-                restaurantInfo.email || '',
-                restaurantInfo.siret ? `SIRET: ${restaurantInfo.siret}` : '',
-                restaurantInfo.tva_number ? `TVA: ${restaurantInfo.tva_number}` : ''
-              ]
-                .filter(Boolean)
-                .join('\n')}
-            </Text>
+            <Text style={styles.restaurantName}>{safeText(restaurantInfo.name)}</Text>
+            <View style={styles.restaurantInfoContainer}>
+              {hasValue(restaurantInfo.address) ? (
+                <Text style={styles.restaurantInfo}>{safeText(restaurantInfo.address?.trim())}</Text>
+              ) : null}
+              {(hasValue(restaurantInfo.postal_code) || hasValue(restaurantInfo.city)) ? (
+                <Text style={styles.restaurantInfo}>
+                  {[restaurantInfo.postal_code, restaurantInfo.city]
+                    .filter(hasValue)
+                    .map(safeText)
+                    .join(' ')}
+                </Text>
+              ) : null}
+              {hasValue(restaurantInfo.phone) ? (
+                <Text style={styles.restaurantInfo}>Tél: {safeText(restaurantInfo.phone)}</Text>
+              ) : null}
+              {hasValue(restaurantInfo.email) ? (
+                <Text style={styles.restaurantInfo}>{safeText(restaurantInfo.email)}</Text>
+              ) : null}
+              {hasValue(restaurantInfo.siret) ? (
+                <Text style={styles.restaurantInfo}>SIRET: {safeText(restaurantInfo.siret)}</Text>
+              ) : null}
+              {hasValue(restaurantInfo.tva_number) ? (
+                <Text style={styles.restaurantInfo}>TVA: {safeText(restaurantInfo.tva_number)}</Text>
+              ) : null}
+            </View>
           </View>
 
           {/* Order Info */}
@@ -1040,101 +1091,105 @@ export const Receipt: React.FC<ReceiptProps> = ({
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>N° Ticket:</Text>
               <Text style={styles.infoValue}>
-                {paymentInfo.sequential_receipt_number || orderData.order_number}
+                {safeText(paymentInfo.sequential_receipt_number || orderData.order_number)}
               </Text>
             </View>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Date:</Text>
               <Text style={styles.infoValue}>{formatDate(paymentInfo.paidAt)}</Text>
             </View>
-            {!!orderData.table_number && (
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Table:</Text>
-                <Text style={styles.infoValue}>{String(orderData.table_number)}</Text>
-              </View>
-            )}
+              {hasValue(orderData.table_number) ? (
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Table:</Text>
+                  <Text style={styles.infoValue}>{safeText(orderData.table_number)}</Text>
+                </View>
+              ) : null}
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Type:</Text>
               <Text style={styles.infoValue}>
                 {orderData.order_type === 'dine_in' ? 'Sur place' : 'À emporter'}
               </Text>
             </View>
-            {paymentInfo.method && (
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Paiement:</Text>
-                <Text style={styles.infoValue}>
-                  {paymentInfo.method === 'cash' ? 'Espèces' :
-                   paymentInfo.method === 'card' ? 'Carte bancaire' :
-                   paymentInfo.method === 'online' ? 'En ligne' :
-                   paymentInfo.method === 'credit' ? 'Crédit' :
-                   paymentInfo.method === 'check' ? 'Chèque' :
-                   paymentInfo.method === 'transfer' ? 'Virement' :
-                   paymentInfo.method}
-                </Text>
-              </View>
-            )}
-          </View>
+              {hasValue(paymentInfo.method) ? (
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Paiement:</Text>
+                  <Text style={styles.infoValue}>
+                    {getPaymentMethodLabel(safeText(paymentInfo.method))}
+                  </Text>
+                </View>
+              ) : null}
+           </View>
 
           {/* Items avec détail TVA */}
           <View style={styles.itemsSection}>
-            {(orderData.items || []).map((item, index) => (
-              <View key={index} style={styles.item}>
-                <View style={styles.itemHeader}>
-                  <Text style={styles.itemName}>{item.name}</Text>
-                  <Text style={styles.itemPrice}>{formatPrice(item.total_price_ttc)}</Text>
-                </View>
-                <Text style={styles.itemDetails}>
-                  {item.quantity} x {formatPrice(item.price_ttc)} TTC
-                </Text>
-                <Text style={styles.tvaDetails}>
-                  TVA {(item.tva_rate * 100).toFixed(1)}%: {formatPrice(item.tva_amount)}
-                </Text>
-                {item.customizations && Object.keys(item.customizations).length > 0 && (
+            {(orderData.items || []).map((item, index) => {
+              if (!item) return null;
+              
+              return (
+                <View key={index} style={styles.item}>
+                  <View style={styles.itemHeader}>
+                    <Text style={styles.itemName}>{safeText(item.name)}</Text>
+                    <Text style={styles.itemPrice}>
+                      {formatPrice(item.total_price_ttc || 0)}
+                    </Text>
+                  </View>
                   <Text style={styles.itemDetails}>
-                    {Object.entries(item.customizations)
-                      .map(([key, value]) =>
-                        `${key}: ${Array.isArray(value) ? value.join(', ') : value}`
-                      )
-                      .join(' | ')}
+                    {safeText(item.quantity || 0)} x {formatPrice(item.price_ttc || 0)} TTC
                   </Text>
-                )}
-              </View>
-            ))}
+                  <Text style={styles.tvaDetails}>
+                    TVA {((item.tva_rate || 0) * 100).toFixed(1)}%: {formatPrice(item.tva_amount || 0)}
+                  </Text>
+                    {item.customizations && Object.keys(item.customizations).length > 0 ? (
+                      <Text style={styles.itemDetails}>
+                        {Object.entries(item.customizations)
+                          .map(([key, value]) => {
+                            const displayValue = Array.isArray(value) 
+                              ? value.filter(hasValue).map(safeText).join(', ')
+                              : safeText(value);
+                            return `${safeText(key)}: ${displayValue}`;
+                          })
+                          .filter(text => text.includes(': ') && !text.endsWith(': '))
+                          .join(' | ')}
+                      </Text>
+                    ) : null}
+                </View>
+              );
+            })}
           </View>
 
-          {/* --- Nouvelle section : Détail TVA agrégé --- */}
+          {/* Nouvelle section : Détail TVA agrégé */}
           <VATBreakdownSection order={orderData} />
 
           {/* Totals conformes */}
           <View style={styles.totalsSection}>
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Sous-total HT:</Text>
-              <Text style={styles.totalValue}>{formatPrice(orderData.subtotal_ht)}</Text>
+              <Text style={styles.totalValue}>{formatPrice(orderData.subtotal_ht || 0)}</Text>
             </View>
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>TVA totale:</Text>
-              <Text style={styles.totalValue}>{formatPrice(orderData.total_tva)}</Text>
+              <Text style={styles.totalValue}>{formatPrice(orderData.total_tva || 0)}</Text>
             </View>
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Sous-total TTC:</Text>
-              <Text style={styles.totalValue}>{formatPrice(orderData.subtotal_ttc)}</Text>
+              <Text style={styles.totalValue}>{formatPrice(orderData.subtotal_ttc || 0)}</Text>
             </View>
-            {paymentInfo.tip && paymentInfo.tip > 0 && (
+            {paymentInfo.tip && paymentInfo.tip > 0 ? (
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>Pourboire:</Text>
                 <Text style={styles.totalValue}>{formatPrice(paymentInfo.tip)}</Text>
               </View>
-            )}
+            ) : null}
             <View style={styles.finalTotalRow}>
               <Text style={styles.finalTotalLabel}>TOTAL TTC:</Text>
-              <Text style={styles.finalTotalValue}>{formatPrice(orderData.total_amount)}</Text>
+              <Text style={styles.finalTotalValue}>{formatPrice(orderData.total_amount || 0)}</Text>
             </View>
           </View>
 
           {/* Barcode */}
           <View style={styles.barcode}>
             <Text style={styles.barcodeText}>
-              *{paymentInfo.sequential_receipt_number || orderData.order_number}*
+              *{safeText(paymentInfo.sequential_receipt_number || orderData.order_number)}*
             </Text>
           </View>
 
@@ -1142,38 +1197,63 @@ export const Receipt: React.FC<ReceiptProps> = ({
           <View style={styles.footer}>
             <Text style={styles.thankYou}>MERCI DE VOTRE VISITE !</Text>
             <Text style={styles.footerInfo}>À bientôt</Text>
-            <Text style={styles.legalNotice}>{legalInfo.receipt_notice}</Text>
-            {legalInfo.warranty_notice && (
-              <Text style={styles.legalNotice}>{legalInfo.warranty_notice}</Text>
-            )}
-            {legalInfo.tva_notice && (
-              <Text style={styles.legalNotice}>{legalInfo.tva_notice}</Text>
-            )}
+            {hasValue(legalInfo.receipt_notice) ? (
+              <Text style={styles.legalNotice}>{safeText(legalInfo.receipt_notice)}</Text>
+            ) : null}
+            {hasValue(legalInfo.warranty_notice) ? (
+              <Text style={styles.legalNotice}>{safeText(legalInfo.warranty_notice)}</Text>
+            ) : null}
+            {hasValue(legalInfo.tva_notice) ? (
+              <Text style={styles.legalNotice}>{safeText(legalInfo.tva_notice)}</Text>
+            ) : null}
           </View>
         </Card>
       </ScrollView>
 
-      {/* Actions */}
-      {showActions && (
+      {/* Actions */}    
+      {showActions ? (
         <View style={styles.actionsContainer}>
           <View style={styles.actionsGrid}>
             <View style={styles.actionButton}>
-              <Button title="Imprimer" onPress={handlePrint} leftIcon="print" fullWidth />
+              <Button 
+                title="Imprimer" 
+                onPress={handlePrint} 
+                leftIcon={<Ionicons name="print" size={20} color="#FFFFFF" />}
+                fullWidth 
+              />
             </View>
             <View style={styles.actionButton}>
-              <Button title="PDF" onPress={handleDownloadPDF} leftIcon="document" variant="outline" fullWidth />
+              <Button 
+                title="PDF" 
+                onPress={handleDownloadPDF} 
+                leftIcon={<Ionicons name="document" size={20} color="#3B82F6" />}
+                variant="outline" 
+                fullWidth 
+              />
             </View>
             <View style={styles.actionButton}>
-              <Button title="Email" onPress={() => setShowEmailModal(true)} leftIcon="mail" variant="outline" fullWidth />
+              <Button 
+                title="Email" 
+                onPress={() => setShowEmailModal(true)} 
+                leftIcon={<Ionicons name="mail" size={20} color="#3B82F6" />}
+                variant="outline" 
+                fullWidth 
+              />
             </View>
-            {Platform.OS !== 'web' && (
+            {Platform.OS !== 'web' ? (
               <View style={styles.actionButton}>
-                <Button title="Partager" onPress={handleShare} leftIcon="share" variant="outline" fullWidth />
+                <Button 
+                  title="Partager" 
+                  onPress={handleShare} 
+                  leftIcon={<Ionicons name="share" size={20} color="#3B82F6" />}
+                  variant="outline" 
+                  fullWidth 
+                />
               </View>
-            )}
+            ) : null}
           </View>
         </View>
-      )}
+      ) : null}
 
       {/* Email Modal */}
       <Modal visible={showEmailModal} transparent animationType="fade" onRequestClose={() => setShowEmailModal(false)}>

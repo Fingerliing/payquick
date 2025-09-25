@@ -6,12 +6,13 @@ import {
   ViewStyle,
   TextStyle,
   TouchableOpacityProps,
+  View,
 } from 'react-native';
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS, SHADOWS } from '@/styles/tokens';
 import { useResponsive } from '@/utils/responsive';
 
 interface ButtonProps extends Omit<TouchableOpacityProps, 'style'> {
-  title: string;
+  title?: string; // Rendre optionnel au cas où il y a seulement des icônes
   loading?: boolean;
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive';
   size?: 'sm' | 'md' | 'lg';
@@ -38,7 +39,15 @@ export const Button: React.FC<ButtonProps> = ({
   const { isMobile, getSpacing } = useResponsive();
   const isDisabled = disabled || loading;
 
-  // ✅ STYLES RESPONSIVES PAR TAILLE
+  // Fonction pour sécuriser le texte
+  const safeText = (text: any): string => {
+    if (!text) return '';
+    if (typeof text === 'string') return text;
+    if (typeof text === 'number') return text.toString();
+    return String(text);
+  };
+
+  // STYLES RESPONSIFS PAR TAILLE
   const getSizeStyles = () => {
     const paddingH = getSpacing(
       isMobile ? SPACING.md : SPACING.lg,
@@ -52,7 +61,8 @@ export const Button: React.FC<ButtonProps> = ({
           paddingVertical: SPACING.sm,
           paddingHorizontal: paddingH * 0.75,
           minHeight: 36,
-          ...TYPOGRAPHY.styles.buttonSmall,
+          fontSize: 14,
+          fontWeight: '600' as const,
         };
       case 'lg':
         return {
@@ -60,19 +70,20 @@ export const Button: React.FC<ButtonProps> = ({
           paddingHorizontal: paddingH * 1.25,
           minHeight: 56,
           fontSize: 18,
-          fontWeight: '600',
+          fontWeight: '600' as const,
         };
       default:
         return {
           paddingVertical: SPACING.md,
           paddingHorizontal: paddingH,
           minHeight: 48,
-          ...TYPOGRAPHY.styles.button,
+          fontSize: 16,
+          fontWeight: '600' as const,
         };
     }
   };
 
-  // ✅ STYLES PAR VARIANTE AVEC COULEURS IMPOSÉES
+  // STYLES PAR VARIANTE
   const getVariantStyles = () => {
     const baseStyle: ViewStyle = {
       flexDirection: 'row',
@@ -90,7 +101,11 @@ export const Button: React.FC<ButtonProps> = ({
             backgroundColor: COLORS.primary,
             ...SHADOWS.sm,
           },
-          text: { color: COLORS.text.white },
+          text: { 
+            color: COLORS.text.white || '#FFFFFF',
+            fontSize: getSizeStyles().fontSize,
+            fontWeight: getSizeStyles().fontWeight,
+          },
         };
 
       case 'secondary':
@@ -100,7 +115,11 @@ export const Button: React.FC<ButtonProps> = ({
             backgroundColor: COLORS.secondary,
             ...SHADOWS.sm,
           },
-          text: { color: COLORS.text.primary },
+          text: { 
+            color: COLORS.text.primary || '#000000',
+            fontSize: getSizeStyles().fontSize,
+            fontWeight: getSizeStyles().fontWeight,
+          },
         };
 
       case 'outline':
@@ -111,7 +130,11 @@ export const Button: React.FC<ButtonProps> = ({
             borderWidth: 1.5,
             borderColor: COLORS.primary,
           },
-          text: { color: COLORS.primary },
+          text: { 
+            color: COLORS.primary,
+            fontSize: getSizeStyles().fontSize,
+            fontWeight: getSizeStyles().fontWeight,
+          },
         };
 
       case 'ghost':
@@ -120,7 +143,11 @@ export const Button: React.FC<ButtonProps> = ({
             ...baseStyle,
             backgroundColor: 'transparent',
           },
-          text: { color: COLORS.primary },
+          text: { 
+            color: COLORS.primary,
+            fontSize: getSizeStyles().fontSize,
+            fontWeight: getSizeStyles().fontWeight,
+          },
         };
 
       case 'destructive':
@@ -131,13 +158,21 @@ export const Button: React.FC<ButtonProps> = ({
             borderWidth: 1.5,
             borderColor: COLORS.error,
           },
-          text: { color: COLORS.error },
+          text: { 
+            color: COLORS.error,
+            fontSize: getSizeStyles().fontSize,
+            fontWeight: getSizeStyles().fontWeight,
+          },
         };
 
       default:
         return {
           container: baseStyle,
-          text: { color: COLORS.text.primary },
+          text: { 
+            color: COLORS.text.primary || '#000000',
+            fontSize: getSizeStyles().fontSize,
+            fontWeight: getSizeStyles().fontWeight,
+          },
         };
     }
   };
@@ -158,6 +193,40 @@ export const Button: React.FC<ButtonProps> = ({
     ...(textStyleProp || {}),
   };
 
+  // Fonction pour rendre le contenu du bouton de manière sécurisée
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <ActivityIndicator 
+          size="small" 
+          color={styles.text.color}
+        />
+      );
+    }
+
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+        {leftIcon && (
+          <View style={{ marginRight: title ? SPACING.sm : 0 }}>
+            {leftIcon}
+          </View>
+        )}
+        
+        {title && (
+          <Text style={textStyle}>
+            {safeText(title)}
+          </Text>
+        )}
+        
+        {rightIcon && (
+          <View style={{ marginLeft: title ? SPACING.sm : 0 }}>
+            {rightIcon}
+          </View>
+        )}
+      </View>
+    );
+  };
+
   return (
     <TouchableOpacity
       style={containerStyle}
@@ -165,19 +234,7 @@ export const Button: React.FC<ButtonProps> = ({
       activeOpacity={0.8}
       {...props}
     >
-      {leftIcon && !loading && leftIcon}
-      
-      {loading ? (
-        <ActivityIndicator 
-          size="small" 
-          color={(textStyle.color as string) || (styles.text.color as string)}
-        />
-      ) : (
-        <>
-          <Text style={textStyle}>{title || ''}</Text>
-          {rightIcon && rightIcon}
-        </>
-      )}
+      {renderContent()}
     </TouchableOpacity>
   );
 };
