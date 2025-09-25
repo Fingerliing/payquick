@@ -135,51 +135,74 @@ class GetReceiptDataView(APIView):
         try:
             order = get_object_or_404(Order, id=order_id)
             
-            # Utiliser le serializer existant pour récupérer les données
-            serializer = OrderDetailSerializer(order)
-            order_data = serializer.data
-            
-            # Transformer en format receipt
+            # Construire les données du ticket directement depuis l'objet Order
             receipt_data = {
                 'order_id': order.id,
                 'order_number': order.order_number or f'ORD-{order.id}',
-                'restaurant_name': order_data.get('restaurant_name', 'Restaurant'),
-                'restaurant_address': order_data.get('restaurant', {}).get('address', ''),
-                'restaurant_phone': order_data.get('restaurant', {}).get('phone', ''),
-                'restaurant_email': order_data.get('restaurant', {}).get('email', ''),
-                'restaurant_siret': order_data.get('restaurant', {}).get('siret', ''),
                 
-                'customer_name': order_data.get('customer_name', ''),
-                'customer_email': order_data.get('customer_email', ''),
-                'customer_phone': order_data.get('phone', ''),
-                'table_number': order_data.get('table_number', ''),
+                # Restaurant info - accès direct aux attributs avec les bons noms de champs
+                'restaurant_name': order.restaurant.name if order.restaurant else 'Restaurant',
+                'restaurant_address': order.restaurant.address if order.restaurant else '',
+                'restaurant_city': order.restaurant.city if order.restaurant else '',
+                'restaurant_postal_code': order.restaurant.zip_code if order.restaurant else '',  # CORRECTION: zip_code au lieu de postal_code
+                'restaurant_phone': order.restaurant.phone if order.restaurant else '',
+                'restaurant_email': order.restaurant.email if order.restaurant else '',
+                'restaurant_siret': getattr(order.restaurant, 'siret', '') if order.restaurant else '',
+                'restaurant_tva_number': getattr(order.restaurant, 'tva_number', '') if order.restaurant else '',
+                'restaurant_legal_form': getattr(order.restaurant, 'legal_form', '') if order.restaurant else '',
                 
+                # Customer info - accès direct
+                'customer_name': getattr(order, 'customer_name', ''),
+                'customer_email': getattr(order, 'customer_email', ''),
+                'customer_phone': getattr(order, 'phone', ''),
+                'table_number': order.table_number or '',
+                
+                # Items - accès direct aux relations
                 'items': [
                     {
-                        'name': item.get('menu_item_name', 'Article'),
-                        'quantity': item.get('quantity', 1),
-                        'unit_price': float(item.get('unit_price', 0)),
-                        'total_price': float(item.get('total_price', 0)),
-                        'customizations': json.dumps(item.get('customizations', {})),
-                        'special_instructions': item.get('special_instructions', ''),
+                        'name': item.menu_item.name if hasattr(item, 'menu_item') and item.menu_item else 'Article',
+                        'menu_item_name': item.menu_item.name if hasattr(item, 'menu_item') and item.menu_item else 'Article',
+                        'quantity': int(item.quantity or 1),
+                        'price': float(item.unit_price or 0),
+                        'unit_price': float(item.unit_price or 0),
+                        'total_price': float(item.total_price or 0),
+                        'tva_rate': float(getattr(item, 'tva_rate', 0.20)),  # 20% par défaut
+                        'tax_rate': float(getattr(item, 'tva_rate', 0.20)),
+                        'customizations': self._safe_get_customizations(item),
+                        'special_instructions': getattr(item, 'special_instructions', ''),
+                        'description': getattr(item, 'description', ''),
                     }
-                    for item in order_data.get('items', [])
+                    for item in order.items.all()  # Utiliser .all() pour récupérer tous les items
                 ],
                 
-                'subtotal': float(order_data.get('subtotal', order_data.get('total_amount', 0))),
-                'tip_amount': float(order_data.get('tip_amount', 0)),
-                'tax_amount': float(order_data.get('tax_amount', 0)),
-                'total': float(order_data.get('total_amount', 0)),
+                # Totaux - accès direct
+                'subtotal': float(order.total_amount or 0),
+                'total_amount': float(order.total_amount or 0),
+                'tip_amount': float(getattr(order, 'tip_amount', 0)),
+                'tax_amount': float(getattr(order, 'tax_amount', 0)),
+                'total': float(order.total_amount or 0),
                 
-                'payment_method': order_data.get('payment_method', 'unknown'),
-                'payment_status': order_data.get('payment_status', 'pending'),
-                'payment_date': order_data.get('payment_date', order_data.get('created_at')),
+                # Payment info - accès direct
+                'payment_method': getattr(order, 'payment_method', 'cash'),
+                'payment_status': getattr(order, 'payment_status', 'pending'),
+                'payment_date': order.created_at.isoformat() if order.created_at else '',
+                'paid_at': order.created_at.isoformat() if order.created_at else '',
                 
-                'created_at': order_data.get('created_at'),
-                'served_at': order_data.get('served_at'),
+                # Timestamps
+                'created_at': order.created_at.isoformat() if order.created_at else '',
+                'served_at': order.served_at.isoformat() if hasattr(order, 'served_at') and order.served_at else '',
                 
-                'transaction_id': order_data.get('transaction_id'),
-                'notes': order_data.get('notes', ''),
+                # Optional fields
+                'transaction_id': getattr(order, 'transaction_id', ''),
+                'sequential_number': getattr(order, 'sequential_number', ''),
+                'sequential_receipt_number': getattr(order, 'sequential_receipt_number', ''),
+                'notes': getattr(order, 'notes', ''),
+                'order_type': getattr(order, 'order_type', 'dine_in'),
+                
+                # Legal notices
+                'warranty_notice': '',
+                'tva_notice': '',
+                'receipt_notice': 'Ticket à conserver comme justificatif',
             }
             
             return Response(receipt_data)
@@ -189,7 +212,24 @@ class GetReceiptDataView(APIView):
             return Response({
                 'error': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+    
+    def _safe_get_customizations(self, item):
+        """Récupérer les customizations de façon sécurisée"""
+        try:
+            if hasattr(item, 'customizations'):
+                customizations = item.customizations
+                if isinstance(customizations, str):
+                    # Si c'est déjà une string JSON, la retourner
+                    return customizations
+                elif isinstance(customizations, dict):
+                    # Si c'est un dict, le sérialiser en JSON
+                    return json.dumps(customizations)
+                else:
+                    # Autres types, convertir en string
+                    return str(customizations)
+            return '{}'
+        except Exception:
+            return '{}'
 @extend_schema(
     tags=["Receipts"],
     summary="Générer un PDF du ticket",

@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Print from 'expo-print';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -404,65 +406,187 @@ export const Receipt: React.FC<ReceiptProps> = ({
     };
   };
 
-  // Génération HTML conforme aux normes françaises
-  const buildReceiptHTML = (data: ReceiptViewData) => {
+  // Fonction helper pour tronquer le texte selon la largeur maximale
+  const truncateText = (text: string, maxLength: number): string => {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength - 3) + '...';
+  };
+
+  // Fonction pour formater le texte centré avec padding
+  const centerText = (text: string, width: number): string => {
+    const padding = Math.max(0, Math.floor((width - text.length) / 2));
+    return ' '.repeat(padding) + text;
+  };
+
+  // Fonction pour aligner à droite
+  const rightAlign = (text: string, width: number): string => {
+    const padding = Math.max(0, width - text.length);
+    return ' '.repeat(padding) + text;
+  };
+
+  // Fonction pour créer une ligne de séparation
+  const separator = (char: string, width: number): string => {
+    return char.repeat(width);
+  };
+
+  // Génération HTML optimisée pour imprimantes thermiques
+  const buildThermalReceiptHTML = (data: ReceiptViewData) => {
     const lines: string[] = [];
     const dateFormatted = formatDate(data.paymentInfo.paidAt);
+    
+    // Configuration pour imprimante thermique 80mm (48 caractères par ligne)
+    const RECEIPT_WIDTH = 48;
+    const CONTENT_WIDTH = 46; // Avec petites marges
 
     lines.push('<!DOCTYPE html>');
-    lines.push('<html><head><meta charset="utf-8"/><title>Ticket de caisse</title></head>');
-    lines.push('<body style="font-family: \'Courier New\', monospace; font-size: 12px; line-height: 1.2; max-width: 300px; margin: 0; padding: 10px;">');
+    lines.push('<html><head>');
+    lines.push('<meta charset="utf-8"/>');
+    lines.push('<title>Ticket</title>');
+    lines.push('<style>');
+    lines.push('@page {');
+    lines.push('  size: 80mm auto;'); // Largeur 80mm, hauteur automatique
+    lines.push('  margin: 0;');
+    lines.push('}');
+    lines.push('* {');
+    lines.push('  margin: 0;');
+    lines.push('  padding: 0;');
+    lines.push('  box-sizing: border-box;');
+    lines.push('}');
+    lines.push('body {');
+    lines.push('  font-family: "Courier New", monospace;');
+    lines.push('  font-size: 12px;');
+    lines.push('  line-height: 1.2;');
+    lines.push('  width: 80mm;');
+    lines.push('  margin: 0;');
+    lines.push('  padding: 2mm;');
+    lines.push('  color: #000;');
+    lines.push('  background: #fff;');
+    lines.push('}');
+    lines.push('.receipt {');
+    lines.push('  width: 100%;');
+    lines.push('}');
+    lines.push('.center {');
+    lines.push('  text-align: center;');
+    lines.push('}');
+    lines.push('.bold {');
+    lines.push('  font-weight: bold;');
+    lines.push('}');
+    lines.push('.line {');
+    lines.push('  white-space: pre;');
+    lines.push('  font-family: "Courier New", monospace;');
+    lines.push('  overflow: hidden;');
+    lines.push('}');
+    lines.push('.separator {');
+    lines.push('  border-top: 1px dashed #000;');
+    lines.push('  margin: 2px 0;');
+    lines.push('}');
+    lines.push('.separator-thick {');
+    lines.push('  border-top: 2px solid #000;');
+    lines.push('  margin: 3px 0;');
+    lines.push('}');
+    lines.push('.item-row {');
+    lines.push('  display: flex;');
+    lines.push('  justify-content: space-between;');
+    lines.push('  white-space: nowrap;');
+    lines.push('}');
+    lines.push('.item-name {');
+    lines.push('  flex: 1;');
+    lines.push('  overflow: hidden;');
+    lines.push('  text-overflow: ellipsis;');
+    lines.push('  padding-right: 5px;');
+    lines.push('}');
+    lines.push('.item-price {');
+    lines.push('  text-align: right;');
+    lines.push('  font-weight: bold;');
+    lines.push('}');
+    lines.push('.qty-detail {');
+    lines.push('  font-size: 10px;');
+    lines.push('  padding-left: 5px;');
+    lines.push('}');
+    lines.push('.vat-detail {');
+    lines.push('  font-size: 9px;');
+    lines.push('  padding-left: 5px;');
+    lines.push('  color: #333;');
+    lines.push('}');
+    lines.push('.total-row {');
+    lines.push('  display: flex;');
+    lines.push('  justify-content: space-between;');
+    lines.push('  margin: 1px 0;');
+    lines.push('}');
+    lines.push('.total-label {');
+    lines.push('  font-weight: normal;');
+    lines.push('}');
+    lines.push('.total-value {');
+    lines.push('  font-weight: bold;');
+    lines.push('  text-align: right;');
+    lines.push('}');
+    lines.push('.grand-total {');
+    lines.push('  font-size: 14px;');
+    lines.push('  font-weight: bold;');
+    lines.push('  margin: 3px 0;');
+    lines.push('}');
+    lines.push('.footer {');
+    lines.push('  margin-top: 5px;');
+    lines.push('  text-align: center;');
+    lines.push('  font-size: 10px;');
+    lines.push('}');
+    lines.push('.legal {');
+    lines.push('  font-size: 9px;');
+    lines.push('  margin-top: 3px;');
+    lines.push('}');
+    lines.push('</style>');
+    lines.push('</head>');
+    lines.push('<body>');
+    lines.push('<div class="receipt">');
 
-    // En-tête restaurant (obligatoire)
-    lines.push(`<div style="text-align: center; border-bottom: 1px dashed #000; padding-bottom: 8px; margin-bottom: 8px;">`);
-    lines.push(`<strong style="font-size: 14px;">${safeText(data.restaurantInfo.name)}</strong><br/>`);
+    // En-tête restaurant
+    lines.push('<div class="center bold">' + truncateText(safeText(data.restaurantInfo.name), CONTENT_WIDTH) + '</div>');
     if (hasValue(data.restaurantInfo.address)) {
-      lines.push(`${safeText(data.restaurantInfo.address)}<br/>`);
+      lines.push('<div class="center">' + truncateText(safeText(data.restaurantInfo.address), CONTENT_WIDTH) + '</div>');
     }
     if (hasValue(data.restaurantInfo.postal_code) && hasValue(data.restaurantInfo.city)) {
-      lines.push(`${safeText(data.restaurantInfo.postal_code)} ${safeText(data.restaurantInfo.city)}<br/>`);
+      lines.push('<div class="center">' + truncateText(`${safeText(data.restaurantInfo.postal_code)} ${safeText(data.restaurantInfo.city)}`, CONTENT_WIDTH) + '</div>');
     }
     if (hasValue(data.restaurantInfo.phone)) {
-      lines.push(`Tél: ${safeText(data.restaurantInfo.phone)}<br/>`);
+      lines.push('<div class="center">Tél: ' + safeText(data.restaurantInfo.phone) + '</div>');
     }
     if (hasValue(data.restaurantInfo.siret)) {
-      lines.push(`SIRET: ${safeText(data.restaurantInfo.siret)}<br/>`);
+      lines.push('<div class="center">SIRET: ' + safeText(data.restaurantInfo.siret) + '</div>');
     }
     if (hasValue(data.restaurantInfo.tva_number)) {
-      lines.push(`TVA: ${safeText(data.restaurantInfo.tva_number)}<br/>`);
+      lines.push('<div class="center">TVA: ' + safeText(data.restaurantInfo.tva_number) + '</div>');
     }
-    lines.push('</div>');
+    
+    lines.push('<div class="separator-thick"></div>');
 
-    // Informations obligatoires du ticket
-    lines.push('<div style="margin-bottom: 8px;">');
-    lines.push(`<strong>TICKET N° ${safeText(data.paymentInfo.sequential_receipt_number || data.order.order_number)}</strong><br/>`);
-    lines.push(`Date: ${dateFormatted}<br/>`);
+    // Informations du ticket
+    lines.push('<div class="center bold">TICKET N° ' + safeText(data.paymentInfo.sequential_receipt_number || data.order.order_number) + '</div>');
+    lines.push('<div class="center">' + dateFormatted + '</div>');
+    
     if (hasValue(data.order.table_number)) {
-      lines.push(`Table: ${safeText(data.order.table_number)}<br/>`);
+      lines.push('<div class="center">Table: ' + safeText(data.order.table_number) + '</div>');
     }
-    lines.push(`Type: ${data.order.order_type === 'dine_in' ? 'Sur place' : 'À emporter'}<br/>`);
-    if (hasValue(data.paymentInfo.method)) {
-      const paymentLabel = getPaymentMethodLabel(safeText(data.paymentInfo.method));
-      lines.push(`Paiement: ${paymentLabel}<br/>`);
-    }
-    lines.push('</div>');
+    lines.push('<div class="center">' + (data.order.order_type === 'dine_in' ? 'Sur place' : 'À emporter') + '</div>');
+    
+    lines.push('<div class="separator"></div>');
 
-    // Détail des articles (obligatoire)
-    lines.push('<div style="border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 4px 0; margin: 8px 0;">');
-
+    // Détail des articles
     for (const item of data.order.items) {
       if (!item) continue;
       
-      lines.push(`<div style="margin-bottom: 2px;">`);
-      lines.push(`<div>${safeText(item.name)}</div>`);
-      lines.push(`<div style="display: flex; justify-content: space-between;">`);
-      lines.push(`<span>${item.quantity || 0} x ${(item.price_ttc || 0).toFixed(2)}€</span>`);
-      lines.push(`<span><strong>${(item.total_price_ttc || 0).toFixed(2)}€</strong></span>`);
+      // Nom de l'article et prix total
+      lines.push('<div class="item-row">');
+      lines.push('  <span class="item-name">' + truncateText(safeText(item.name), 35) + '</span>');
+      lines.push('  <span class="item-price">' + (item.total_price_ttc || 0).toFixed(2) + '€</span>');
       lines.push('</div>');
-
-      // Affichage du taux de TVA pour chaque article (obligatoire)
-      lines.push(`<div style="font-size: 10px; color: #666;">TVA ${((item.tva_rate || 0) * 100).toFixed(1)}%: ${(item.tva_amount || 0).toFixed(2)}€</div>`);
-
+      
+      // Quantité et prix unitaire
+      lines.push('<div class="qty-detail">' + item.quantity + ' x ' + (item.price_ttc || 0).toFixed(2) + '€</div>');
+      
+      // TVA
+      lines.push('<div class="vat-detail">TVA ' + ((item.tva_rate || 0) * 100).toFixed(1) + '%: ' + (item.tva_amount || 0).toFixed(2) + '€</div>');
+      
+      // Personnalisations
       if (item.customizations && typeof item.customizations === 'object') {
         const customText = Object.entries(item.customizations)
           .map(([key, value]) => {
@@ -474,67 +598,97 @@ export const Receipt: React.FC<ReceiptProps> = ({
           .filter(text => text.includes(': ') && !text.endsWith(': '))
           .join(' | ');
         if (customText) {
-          lines.push(`<div style="font-size: 10px; font-style: italic; color: #666;">${customText}</div>`);
+          lines.push('<div class="qty-detail" style="font-style: italic;">' + truncateText(customText, CONTENT_WIDTH) + '</div>');
         }
       }
-      lines.push('</div>');
     }
-    lines.push('</div>');
 
-    // Récapitulatif des totaux (obligatoire)
-    lines.push('<div style="text-align: right; line-height: 1.4;">');
-    lines.push(`Sous-total HT: ${(data.order.subtotal_ht || 0).toFixed(2)}€<br/>`);
-    lines.push(`TVA totale: ${(data.order.total_tva || 0).toFixed(2)}€<br/>`);
-    lines.push(`<strong>Sous-total TTC: ${(data.order.subtotal_ttc || 0).toFixed(2)}€</strong><br/>`);
+    lines.push('<div class="separator"></div>');
+
+    // Totaux
+    lines.push('<div class="total-row">');
+    lines.push('  <span class="total-label">Sous-total HT:</span>');
+    lines.push('  <span class="total-value">' + (data.order.subtotal_ht || 0).toFixed(2) + '€</span>');
+    lines.push('</div>');
+    
+    lines.push('<div class="total-row">');
+    lines.push('  <span class="total-label">TVA totale:</span>');
+    lines.push('  <span class="total-value">' + (data.order.total_tva || 0).toFixed(2) + '€</span>');
+    lines.push('</div>');
+    
+    lines.push('<div class="total-row">');
+    lines.push('  <span class="total-label">Sous-total TTC:</span>');
+    lines.push('  <span class="total-value">' + (data.order.subtotal_ttc || 0).toFixed(2) + '€</span>');
+    lines.push('</div>');
 
     if (data.paymentInfo.tip && data.paymentInfo.tip > 0) {
-      lines.push(`Pourboire: ${data.paymentInfo.tip.toFixed(2)}€<br/>`);
+      lines.push('<div class="total-row">');
+      lines.push('  <span class="total-label">Pourboire:</span>');
+      lines.push('  <span class="total-value">' + data.paymentInfo.tip.toFixed(2) + '€</span>');
+      lines.push('</div>');
     }
 
-    lines.push(`<div style="border-top: 1px solid #000; padding-top: 4px; margin-top: 4px; font-size: 14px;">`);
-    lines.push(`<strong>TOTAL TTC: ${(data.order.total_amount || 0).toFixed(2)}€</strong>`);
+    lines.push('<div class="separator-thick"></div>');
+    
+    lines.push('<div class="total-row grand-total">');
+    lines.push('  <span>TOTAL TTC:</span>');
+    lines.push('  <span>' + (data.order.total_amount || 0).toFixed(2) + '€</span>');
     lines.push('</div>');
-    lines.push('</div>');
+    
+    lines.push('<div class="separator-thick"></div>');
 
     // Détail TVA agrégé
     if (data.order.vat_details && Object.keys(data.order.vat_details).length > 0) {
-      lines.push('<div style="margin-top:8px;border-top:1px dashed #000;padding-top:6px;">');
-      lines.push('<strong>Détail TVA</strong><br/>');
+      lines.push('<div style="font-size: 10px;">');
+      lines.push('<div class="bold">Détail TVA:</div>');
       for (const [rate, det] of Object.entries(data.order.vat_details)) {
         if (det) {
-          lines.push(`TVA ${safeText(rate)}% — Base HT: ${(det.ht || 0).toFixed(2)}€ | TVA: ${(det.tva || 0).toFixed(2)}€<br/>`);
+          lines.push('<div>TVA ' + safeText(rate) + '% - HT: ' + (det.ht || 0).toFixed(2) + '€ | TVA: ' + (det.tva || 0).toFixed(2) + '€</div>');
         }
       }
-      const totalVat = Object.values(data.order.vat_details).reduce((s, d) => s + (d?.tva || 0), 0);
-      lines.push(`<div style="margin-top:4px;"><strong>Total TVA: ${totalVat.toFixed(2)}€</strong></div>`);
       lines.push('</div>');
+      lines.push('<div class="separator"></div>');
     }
 
-    // Code-barres simulé
+    // Mode de paiement
+    if (hasValue(data.paymentInfo.method)) {
+      lines.push('<div class="center">Paiement: ' + getPaymentMethodLabel(safeText(data.paymentInfo.method)) + '</div>');
+    }
+
+    // Code-barres (représentation simplifiée)
     if (hasValue(data.order.order_number)) {
-      lines.push('<div style="text-align: center; margin: 12px 0; font-family: monospace; font-size: 18px; letter-spacing: 1px;">');
-      lines.push(`||||| ${safeText(data.order.order_number)} |||||`);
+      lines.push('<div class="center" style="margin: 5px 0; font-size: 16px; letter-spacing: 2px;">');
+      lines.push('||||| ' + safeText(data.order.order_number) + ' |||||');
       lines.push('</div>');
     }
 
-    // Mentions légales obligatoires
-    lines.push('<div style="font-size: 10px; text-align: center; border-top: 1px dashed #000; padding-top: 8px; margin-top: 8px;">');
-    lines.push('MERCI DE VOTRE VISITE<br/>');
-    lines.push('À BIENTÔT<br/><br/>');
-    lines.push(`${safeText(data.legalInfo.receipt_notice)}<br/>`);
-
+    // Pied de page
+    lines.push('<div class="footer">');
+    lines.push('<div class="bold">MERCI DE VOTRE VISITE</div>');
+    lines.push('<div>À BIENTÔT</div>');
+    lines.push('</div>');
+    
+    // Mentions légales
+    lines.push('<div class="legal center">');
+    lines.push(safeText(data.legalInfo.receipt_notice));
+    
     if (hasValue(data.legalInfo.warranty_notice)) {
-      lines.push(`<br/>${safeText(data.legalInfo.warranty_notice)}`);
+      lines.push('<br/>' + safeText(data.legalInfo.warranty_notice));
     }
-
+    
     if (hasValue(data.legalInfo.tva_notice)) {
-      lines.push(`<br/>${safeText(data.legalInfo.tva_notice)}`);
+      lines.push('<br/>' + safeText(data.legalInfo.tva_notice));
     }
     lines.push('</div>');
 
+    lines.push('</div>'); // .receipt
     lines.push('</body></html>');
-    return lines.join('');
+    
+    return lines.join('\n');
   };
+
+  // Remplacer l'ancienne fonction buildReceiptHTML par la version optimisée
+  const buildReceiptHTML = buildThermalReceiptHTML;
 
   const toHTMLFromService = (payload: any): string => {
     try {
@@ -593,28 +747,6 @@ export const Receipt: React.FC<ReceiptProps> = ({
     } catch (error) {
       console.error('Error printing:', error);
       showError("Impossible d'imprimer le ticket", "Erreur");
-    }
-  };
-
-  const handleDownloadPDF = async () => {
-    try {
-      const blob = await receiptService.generateReceiptPDF(Number(orderId));
-
-      if (Platform.OS === 'web') {
-        const url = URL.createObjectURL(blob as any);
-        const a = document.createElement('a');
-        a.href = url;
-        const number = receiptData?.order.order_number ?? orderId;
-        a.download = `ticket_${safeText(number)}.pdf`;
-        a.click();
-        URL.revokeObjectURL(url);
-        showSuccess('PDF téléchargé avec succès');
-      } else {
-        showInfo('PDF téléchargé avec succès');
-      }
-    } catch (error) {
-      console.error('Error downloading PDF:', error);
-      showError('Impossible de télécharger le PDF', 'Erreur');
     }
   };
 
@@ -961,7 +1093,18 @@ export const Receipt: React.FC<ReceiptProps> = ({
     },
     modalButtons: {
       flexDirection: 'row',
-      gap: getResponsiveValue(SPACING.sm, screenType),
+      gap: getResponsiveValue(SPACING.md, screenType),
+      marginTop: getResponsiveValue(SPACING.lg, screenType),
+      justifyContent: 'space-between',
+    },
+    modalCancelButton: {
+      flex: 1,
+      marginRight: getResponsiveValue(SPACING.xs, screenType),
+    },
+    
+    modalSendButton: {
+      flex: 1,
+      marginLeft: getResponsiveValue(SPACING.xs, screenType),
     },
     loadingContainer: {
       flex: 1,
@@ -1224,15 +1367,6 @@ export const Receipt: React.FC<ReceiptProps> = ({
             </View>
             <View style={styles.actionButton}>
               <Button 
-                title="PDF" 
-                onPress={handleDownloadPDF} 
-                leftIcon={<Ionicons name="document" size={20} color="#3B82F6" />}
-                variant="outline" 
-                fullWidth 
-              />
-            </View>
-            <View style={styles.actionButton}>
-              <Button 
                 title="Email" 
                 onPress={() => setShowEmailModal(true)} 
                 leftIcon={<Ionicons name="mail" size={20} color="#3B82F6" />}
@@ -1243,7 +1377,7 @@ export const Receipt: React.FC<ReceiptProps> = ({
             {Platform.OS !== 'web' ? (
               <View style={styles.actionButton}>
                 <Button 
-                  title="Partager" 
+                  title="Partager / Télécharger" 
                   onPress={handleShare} 
                   leftIcon={<Ionicons name="share" size={20} color="#3B82F6" />}
                   variant="outline" 
@@ -1270,10 +1404,25 @@ export const Receipt: React.FC<ReceiptProps> = ({
               autoCapitalize="none"
               autoCorrect={false}
             />
-
             <View style={styles.modalButtons}>
-              <Button title="Annuler" onPress={() => setShowEmailModal(false)} variant="outline" fullWidth disabled={sendingEmail} />
-              <Button title="Envoyer" onPress={() => handleSendEmail()} fullWidth loading={sendingEmail} disabled={sendingEmail} />
+              <View style={styles.modalCancelButton}>
+                <Button 
+                  title="Annuler" 
+                  onPress={() => setShowEmailModal(false)} 
+                  variant="outline" 
+                  fullWidth 
+                  disabled={sendingEmail} 
+                />
+              </View>
+              <View style={styles.modalSendButton}>
+                <Button 
+                  title={sendingEmail ? "Envoi..." : "Envoyer"} 
+                  onPress={() => handleSendEmail()} 
+                  fullWidth 
+                  loading={sendingEmail} 
+                  disabled={sendingEmail || !email.trim()} 
+                />
+              </View>
             </View>
           </View>
         </View>

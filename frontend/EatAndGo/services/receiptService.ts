@@ -52,7 +52,6 @@ export class ReceiptService {
   // Générer les données du ticket
   async generateReceiptData(orderId: any): Promise<ReceiptData> {
     const _id = (orderId && typeof orderId === "object") ? orderId.id : orderId;
-  
     return apiClient.get(`/api/v1/orders/${Number(_id)}/receipt/`);
   }
 
@@ -61,11 +60,46 @@ export class ReceiptService {
     return apiClient.post('/api/v1/receipts/send-email/', request);
   }
 
-  // Générer un PDF du ticket
+  // Générer un PDF du ticket - VERSION AMÉLIORÉE
   async generateReceiptPDF(orderId: any): Promise<Blob> {
     const _id = (orderId && typeof orderId === "object") ? orderId.id : orderId;
-  
-    return apiClient.get(`/api/v1/orders/${Number(_id)}/receipt/pdf/`, { responseType: "blob" });
+    
+    try {
+      // Tentative avec l'API dédiée
+      const response = await apiClient.get(`/api/v1/orders/${Number(_id)}/receipt/pdf/`, { 
+        responseType: "blob",
+        timeout: 30000 // Timeout de 30 secondes
+      });
+      
+      // Vérifier que la réponse est bien un blob
+      if (response instanceof Blob && response.size > 0) {
+        return response;
+      }
+      
+      throw new Error('Réponse PDF invalide du serveur');
+    } catch (error) {
+      console.warn('API PDF failed, will use fallback:', error);
+      throw error; // Laisser le composant gérer le fallback
+    }
+  }
+
+  // Alternative : générer PDF côté client si l'API ne fonctionne pas
+  async generateReceiptPDFFromHTML(html: string): Promise<Blob> {
+    try {
+      // Cette méthode pourrait utiliser jsPDF ou une autre librairie
+      // pour générer un PDF côté client
+      const response = await fetch('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+      return await response.blob();
+    } catch (error) {
+      throw new Error('Impossible de générer le PDF côté client');
+    }
+  }
+
+  // Méthode utilitaire pour valider un blob PDF
+  private isValidPDFBlob(blob: Blob): boolean {
+    return blob instanceof Blob && 
+           blob.size > 0 && 
+           blob.type.includes('pdf');
   }
 
   // Formater le montant pour l'affichage

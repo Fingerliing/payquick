@@ -10,6 +10,8 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
+      "UIFileSharingEnabled": true,
+      "LSSupportsOpeningDocumentsInPlace": true,
       "infoPlist": {
         "NSCameraUsageDescription": "Cette application utilise la caméra pour scanner les QR codes des restaurants."
       }
@@ -28,7 +30,9 @@
         }
       ],
       "permissions": [
-        "android.permission.CAMERA"
+        "android.permission.CAMERA",
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_EXTERNAL_STORAGE"
       ]
     },
     "web": {
@@ -51,6 +55,12 @@
         "expo-camera",
         {
           "cameraPermission": "Permettre à EatAndGo d'accéder à la caméra pour scanner les QR codes des menus de restaurant."
+        }
+      ],
+      [
+        "expo-document-picker",
+        {
+          "iCloudContainerEnvironment": "Production"
         }
       ]
     ],
