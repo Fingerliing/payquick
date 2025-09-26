@@ -4,11 +4,12 @@ import {
   Text,
   FlatList,
   Pressable,
-  SafeAreaView,
   Alert,
   ScrollView,
   useWindowDimensions,
+  Animated,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCart } from '@/contexts/CartContext';
@@ -26,7 +27,9 @@ import {
   getResponsiveValue, 
   COLORS, 
   SPACING, 
-  BORDER_RADIUS 
+  BORDER_RADIUS,
+  SHADOWS,
+  TYPOGRAPHY 
 } from '@/utils/designSystem';
 
 export default function CartScreen() {
@@ -53,26 +56,14 @@ export default function CartScreen() {
   // Configuration responsive
   const layoutConfig = {
     containerPadding: getResponsiveValue(SPACING.container, screenType),
-    maxContentWidth: screenType === 'desktop' ? 800 : undefined,
-    isTabletLandscape: screenType === 'tablet' && width > 1000,
-    useGridLayout: (screenType === 'tablet' || screenType === 'desktop') && width > 900,
+    maxContentWidth: screenType === 'desktop' ? 1200 : undefined,
+    isTabletLandscape: screenType === 'tablet' ? width > 1000 : false,
+    useGridLayout: (screenType === 'tablet' || screenType === 'desktop') ? width > 900 : false,
   };
 
   const currentTableNumber = tableNumber || cart.tableNumber;
 
-  const orderButtonStyle = {
-    backgroundColor: COLORS.secondary,
-  };
-
-  const orderButtonTextStyle = {
-    color: '#000000',
-    fontWeight: '700' as const,
-    fontSize: getResponsiveValue(
-      { mobile: 16, tablet: 18, desktop: 20 },
-      screenType
-    ),
-  };
-
+  // Styles améliorés avec des effets premium
   const styles = {
     container: {
       flex: 1,
@@ -88,113 +79,90 @@ export default function CartScreen() {
 
     scrollContent: {
       padding: layoutConfig.containerPadding,
+      paddingBottom: getResponsiveValue(SPACING['2xl'], screenType),
     },
 
     gridContainer: {
       flexDirection: layoutConfig.useGridLayout ? 'row' as const : 'column' as const,
       padding: layoutConfig.containerPadding,
-      gap: getResponsiveValue(SPACING.md, screenType),
+      gap: getResponsiveValue(SPACING.lg, screenType),
     },
 
     leftColumn: {
       flex: layoutConfig.useGridLayout ? 2 : 1,
-      paddingRight: layoutConfig.useGridLayout ? getResponsiveValue(SPACING.sm, screenType) : 0,
+      paddingRight: layoutConfig.useGridLayout ? getResponsiveValue(SPACING.md, screenType) : 0,
     },
 
     rightColumn: {
       flex: layoutConfig.useGridLayout ? 1 : 1,
-      minWidth: layoutConfig.useGridLayout ? 320 : undefined,
-      paddingLeft: layoutConfig.useGridLayout ? getResponsiveValue(SPACING.sm, screenType) : 0,
+      minWidth: layoutConfig.useGridLayout ? 360 : undefined,
+      paddingLeft: layoutConfig.useGridLayout ? getResponsiveValue(SPACING.md, screenType) : 0,
     },
 
-    // Styles pour mobile (avec margins)
+    // Cards avec design premium et gradients dorés
     infoCard: {
-      marginBottom: getResponsiveValue(SPACING.sm, screenType),
-      padding: getResponsiveValue(SPACING.lg, screenType),
+      marginBottom: getResponsiveValue(SPACING.md, screenType),
+      padding: getResponsiveValue(SPACING.xl, screenType),
       backgroundColor: COLORS.surface,
-      borderRadius: BORDER_RADIUS.lg,
-      shadowColor: COLORS.shadow.default,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
+      borderRadius: BORDER_RADIUS.xl,
+      ...SHADOWS.card,
       borderWidth: 1,
-      borderColor: COLORS.border.light,
+      borderColor: COLORS.variants.secondary[100],
+      // Effet doré subtil
+      borderTopWidth: 3,
+      borderTopColor: COLORS.variants.secondary[400],
     },
 
     alertCard: {
-      marginBottom: getResponsiveValue(SPACING.sm, screenType),
-      padding: getResponsiveValue(SPACING.lg, screenType),
-      backgroundColor: COLORS.warning + '10',
-      borderRadius: BORDER_RADIUS.lg,
-      borderWidth: 1,
-      borderColor: COLORS.warning + '40',
-      shadowColor: COLORS.shadow.default,
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
-      shadowRadius: 2,
-      elevation: 1,
+      marginBottom: getResponsiveValue(SPACING.md, screenType),
+      padding: getResponsiveValue(SPACING.xl, screenType),
+      backgroundColor: COLORS.variants.secondary[50],
+      borderRadius: BORDER_RADIUS.xl,
+      borderWidth: 2,
+      borderColor: COLORS.variants.secondary[200],
+      ...SHADOWS.lg,
+      // Effet d'avertissement premium
+      position: 'relative' as const,
+    },
+
+    alertGlow: {
+      position: 'absolute' as const,
+      top: -2,
+      left: -2,
+      right: -2,
+      bottom: -2,
+      borderRadius: BORDER_RADIUS.xl + 2,
+      backgroundColor: COLORS.variants.secondary[300] + '20',
+      zIndex: -1,
     },
 
     summaryCard: {
-      marginTop: getResponsiveValue(SPACING.sm, screenType),
+      marginTop: getResponsiveValue(SPACING.md, screenType),
       padding: getResponsiveValue(SPACING.xl, screenType),
       backgroundColor: COLORS.surface,
-      borderRadius: BORDER_RADIUS.lg,
-      shadowColor: COLORS.shadow.default,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
-      borderWidth: 1,
-      borderColor: COLORS.border.light,
+      borderRadius: BORDER_RADIUS.xl,
+      ...SHADOWS.premiumCard,
+      borderWidth: 2,
+      borderColor: COLORS.variants.secondary[200],
+      // Gradient border effect
+      borderTopWidth: 4,
+      borderTopColor: COLORS.variants.secondary[400],
+      position: 'relative' as const,
     },
 
-    // Styles pour grille (sans margins)
-    infoCardGrid: {
-      marginBottom: getResponsiveValue(SPACING.sm, screenType),
-      padding: getResponsiveValue(SPACING.lg, screenType),
-      backgroundColor: COLORS.surface,
-      borderRadius: BORDER_RADIUS.lg,
-      shadowColor: COLORS.shadow.default,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
-      borderWidth: 1,
-      borderColor: COLORS.border.light,
-    },
-
-    alertCardGrid: {
-      marginBottom: getResponsiveValue(SPACING.sm, screenType),
-      padding: getResponsiveValue(SPACING.lg, screenType),
-      backgroundColor: COLORS.warning + '10',
-      borderRadius: BORDER_RADIUS.lg,
-      borderWidth: 1,
-      borderColor: COLORS.warning + '40',
-      shadowColor: COLORS.shadow.default,
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
-      shadowRadius: 2,
-      elevation: 1,
-    },
-
-    summaryCardGrid: {
-      marginTop: getResponsiveValue(SPACING.sm, screenType),
-      padding: getResponsiveValue(SPACING.xl, screenType),
-      backgroundColor: COLORS.surface,
-      borderRadius: BORDER_RADIUS.lg,
-      shadowColor: COLORS.shadow.default,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
-      borderWidth: 1,
-      borderColor: COLORS.border.light,
+    summaryCardGlow: {
+      position: 'absolute' as const,
+      top: -3,
+      left: -3,
+      right: -3,
+      bottom: -3,
+      borderRadius: BORDER_RADIUS.xl + 3,
+      backgroundColor: COLORS.variants.secondary[300] + '15',
+      zIndex: -1,
     },
 
     cartItemsContainer: {
-      paddingHorizontal: layoutConfig.useGridLayout ? 0 : layoutConfig.containerPadding,
+      gap: getResponsiveValue(SPACING.sm, screenType),
     },
 
     cartItemCard: {
@@ -202,20 +170,33 @@ export default function CartScreen() {
       padding: getResponsiveValue(SPACING.lg, screenType),
       backgroundColor: COLORS.surface,
       borderRadius: BORDER_RADIUS.lg,
-      shadowColor: COLORS.shadow.default,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
+      ...SHADOWS.md,
       borderWidth: 1,
       borderColor: COLORS.border.light,
+      borderLeftWidth: 4,
+      borderLeftColor: COLORS.variants.secondary[300],
+      // Hover effect preparation
+      transform: [{ scale: 1 }],
     },
 
+    // Header avec gradient doré
     restaurantHeader: {
       flexDirection: screenType === 'mobile' ? 'column' as const : 'row' as const,
       justifyContent: 'space-between' as const,
       alignItems: screenType === 'mobile' ? 'flex-start' as const : 'center' as const,
-      gap: getResponsiveValue(SPACING.xs, screenType),
+      gap: getResponsiveValue(SPACING.sm, screenType),
+      position: 'relative' as const,
+    },
+
+    restaurantHeaderAccent: {
+      position: 'absolute' as const,
+      top: -getResponsiveValue(SPACING.xl, screenType),
+      left: -getResponsiveValue(SPACING.xl, screenType),
+      right: -getResponsiveValue(SPACING.xl, screenType),
+      height: 4,
+      backgroundColor: COLORS.variants.secondary[400],
+      borderTopLeftRadius: BORDER_RADIUS.xl,
+      borderTopRightRadius: BORDER_RADIUS.xl,
     },
 
     restaurantInfo: {
@@ -223,31 +204,47 @@ export default function CartScreen() {
     },
 
     restaurantName: {
-      fontSize: getResponsiveValue(
-        { mobile: 18, tablet: 22, desktop: 26 },
-        screenType
-      ),
-      fontWeight: '700' as const,
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize['2xl'], screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.bold as any,
       color: COLORS.text.primary,
       marginBottom: getResponsiveValue(SPACING.xs, screenType),
+      letterSpacing: -0.5,
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: getResponsiveValue(SPACING.sm, screenType),
     },
 
     tableInfo: {
-      fontSize: getResponsiveValue(
-        { mobile: 14, tablet: 16, desktop: 18 },
-        screenType
-      ),
-      color: COLORS.text.secondary,
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.medium as any,
+      color: COLORS.variants.primary[600],
+      backgroundColor: COLORS.variants.primary[50],
+      paddingHorizontal: getResponsiveValue(SPACING.sm, screenType),
+      paddingVertical: getResponsiveValue(SPACING.xs, screenType) / 2,
+      borderRadius: BORDER_RADIUS.md,
+      alignSelf: 'flex-start' as const,
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: getResponsiveValue(SPACING.xs, screenType),
     },
 
     itemCount: {
       textAlign: screenType === 'mobile' ? 'left' as const : 'right' as const,
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.md, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.semibold as any,
+      color: COLORS.text.secondary,
+      backgroundColor: COLORS.variants.secondary[100],
+      paddingHorizontal: getResponsiveValue(SPACING.md, screenType),
+      paddingVertical: getResponsiveValue(SPACING.xs, screenType),
+      borderRadius: BORDER_RADIUS.lg,
+      overflow: 'hidden' as const,
     },
 
+    // Items du panier avec design amélioré
     cartItemContainer: {
       flexDirection: screenType === 'mobile' ? 'column' as const : 'row' as const,
       alignItems: screenType === 'mobile' ? 'stretch' as const : 'flex-start' as const,
-      gap: getResponsiveValue(SPACING.sm, screenType),
+      gap: getResponsiveValue(SPACING.md, screenType),
     },
 
     cartItemInfo: {
@@ -255,113 +252,159 @@ export default function CartScreen() {
     },
 
     cartItemName: {
-      fontSize: getResponsiveValue(
-        { mobile: 16, tablet: 18, desktop: 20 },
-        screenType
-      ),
-      fontWeight: '600' as const,
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.bold as any,
       color: COLORS.text.primary,
       marginBottom: getResponsiveValue(SPACING.xs, screenType),
+      lineHeight: getResponsiveValue(
+        { mobile: 22, tablet: 24, desktop: 26 },
+        screenType
+      ),
     },
 
     cartItemPrice: {
-      fontSize: getResponsiveValue(
-        { mobile: 14, tablet: 15, desktop: 16 },
-        screenType
-      ),
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.md, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.medium as any,
       color: COLORS.text.secondary,
       marginBottom: getResponsiveValue(SPACING.xs, screenType),
     },
 
     customizations: {
-      marginTop: getResponsiveValue(SPACING.xs, screenType),
+      marginTop: getResponsiveValue(SPACING.sm, screenType),
+      padding: getResponsiveValue(SPACING.sm, screenType),
+      backgroundColor: COLORS.variants.secondary[50],
+      borderRadius: BORDER_RADIUS.md,
+      borderLeftWidth: 3,
+      borderLeftColor: COLORS.variants.secondary[300],
     },
 
     customizationText: {
-      fontSize: getResponsiveValue(
-        { mobile: 12, tablet: 13, desktop: 14 },
-        screenType
-      ),
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
       color: COLORS.text.secondary,
-      fontStyle: 'italic' as const,
+      fontWeight: TYPOGRAPHY.fontWeight.medium as any,
+      marginBottom: getResponsiveValue(SPACING.xs, screenType) / 2,
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 4,
     },
 
     specialInstructions: {
-      fontSize: getResponsiveValue(
-        { mobile: 12, tablet: 13, desktop: 14 },
-        screenType
-      ),
-      color: COLORS.warning,
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+      color: COLORS.variants.secondary[700],
+      fontWeight: TYPOGRAPHY.fontWeight.medium as any,
       fontStyle: 'italic' as const,
-      marginTop: getResponsiveValue(SPACING.xs, screenType),
+      marginTop: getResponsiveValue(SPACING.sm, screenType),
+      padding: getResponsiveValue(SPACING.sm, screenType),
+      backgroundColor: COLORS.variants.secondary[100],
+      borderRadius: BORDER_RADIUS.md,
+      borderLeftWidth: 3,
+      borderLeftColor: COLORS.variants.secondary[400],
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: getResponsiveValue(SPACING.sm, screenType),
     },
 
+    // Contrôles de quantité avec design moderne
     quantityContainer: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
       justifyContent: screenType === 'mobile' ? 'flex-start' as const : 'flex-end' as const,
-      gap: getResponsiveValue(SPACING.sm, screenType),
-      marginTop: screenType === 'mobile' ? getResponsiveValue(SPACING.sm, screenType) : 0,
+      gap: getResponsiveValue(SPACING.md, screenType),
+      marginTop: screenType === 'mobile' ? getResponsiveValue(SPACING.md, screenType) : 0,
+      backgroundColor: COLORS.variants.primary[50],
+      paddingHorizontal: getResponsiveValue(SPACING.sm, screenType),
+      paddingVertical: getResponsiveValue(SPACING.xs, screenType),
+      borderRadius: BORDER_RADIUS.xl,
     },
 
     quantityButton: {
       width: getResponsiveValue(
-        { mobile: 32, tablet: 36, desktop: 40 },
+        { mobile: 40, tablet: 44, desktop: 48 },
         screenType
       ),
       height: getResponsiveValue(
-        { mobile: 32, tablet: 36, desktop: 40 },
+        { mobile: 40, tablet: 44, desktop: 48 },
         screenType
       ),
       borderRadius: getResponsiveValue(
-        { mobile: 16, tablet: 18, desktop: 20 },
+        { mobile: 20, tablet: 22, desktop: 24 },
         screenType
       ),
-      backgroundColor: COLORS.background,
+      backgroundColor: COLORS.surface,
       justifyContent: 'center' as const,
       alignItems: 'center' as const,
+      ...SHADOWS.md,
+      borderWidth: 2,
+      borderColor: COLORS.variants.primary[200],
+    },
+
+    quantityButtonActive: {
+      backgroundColor: COLORS.variants.secondary[100],
+      borderColor: COLORS.variants.secondary[400],
+    },
+
+    quantityText: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.bold as any,
+      color: COLORS.text.primary,
+      minWidth: getResponsiveValue(
+        { mobile: 32, tablet: 36, desktop: 40 },
+        screenType
+      ),
+      textAlign: 'center' as const,
+      backgroundColor: COLORS.surface,
+      paddingHorizontal: getResponsiveValue(SPACING.sm, screenType),
+      paddingVertical: getResponsiveValue(SPACING.xs, screenType),
+      borderRadius: BORDER_RADIUS.md,
+      ...SHADOWS.sm,
+    },
+
+    // Prix et actions
+    priceActionsContainer: {
+      alignItems: screenType === 'mobile' ? 'flex-end' as const : 'flex-end' as const,
+      justifyContent: 'space-between' as const,
+      minHeight: screenType === 'mobile' ? undefined : 80,
+      gap: getResponsiveValue(SPACING.sm, screenType),
+    },
+
+    itemTotalPrice: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xl, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.bold as any,
+      color: COLORS.variants.secondary[600],
+      marginBottom: getResponsiveValue(SPACING.xs, screenType),
+      textAlign: 'right' as const,
+      backgroundColor: COLORS.variants.secondary[50],
+      paddingHorizontal: getResponsiveValue(SPACING.sm, screenType),
+      paddingVertical: getResponsiveValue(SPACING.xs, screenType),
+      borderRadius: BORDER_RADIUS.md,
+    },
+
+    deleteButton: {
+      padding: getResponsiveValue(SPACING.sm, screenType),
+      borderRadius: BORDER_RADIUS.lg,
+      backgroundColor: COLORS.surface,
+      ...SHADOWS.sm,
       borderWidth: 1,
       borderColor: COLORS.border.light,
     },
 
-    quantityText: {
-      fontSize: getResponsiveValue(
-        { mobile: 16, tablet: 18, desktop: 20 },
-        screenType
-      ),
-      fontWeight: '600' as const,
-      color: COLORS.text.primary,
-      minWidth: getResponsiveValue(
-        { mobile: 20, tablet: 24, desktop: 28 },
-        screenType
-      ),
-      textAlign: 'center' as const,
+    deleteButtonActive: {
+      backgroundColor: COLORS.error + '10',
+      borderColor: COLORS.error + '40',
     },
 
-    priceActionsContainer: {
-      alignItems: screenType === 'mobile' ? 'flex-end' as const : 'flex-end' as const,
-      justifyContent: 'space-between' as const,
-      minHeight: screenType === 'mobile' ? undefined : 60,
-    },
-
-    itemTotalPrice: {
-      fontSize: getResponsiveValue(
-        { mobile: 16, tablet: 18, desktop: 20 },
-        screenType
-      ),
-      fontWeight: '700' as const,
-      color: COLORS.secondary,
-      marginBottom: getResponsiveValue(SPACING.xs, screenType),
-    },
-
-    deleteButton: {
-      padding: getResponsiveValue(SPACING.xs, screenType),
-    },
-
+    // Alert amélioré
     alertContent: {
       flexDirection: 'row' as const,
       alignItems: 'flex-start' as const,
-      gap: getResponsiveValue(SPACING.sm, screenType),
+      gap: getResponsiveValue(SPACING.md, screenType),
+    },
+
+    alertIcon: {
+      marginTop: 2,
+      padding: getResponsiveValue(SPACING.xs, screenType),
+      backgroundColor: COLORS.variants.secondary[200],
+      borderRadius: BORDER_RADIUS.lg,
     },
 
     alertText: {
@@ -369,130 +412,190 @@ export default function CartScreen() {
     },
 
     alertTitle: {
-      fontSize: getResponsiveValue(
-        { mobile: 16, tablet: 18, desktop: 20 },
-        screenType
-      ),
-      fontWeight: '600' as const,
-      color: COLORS.warning,
-      marginBottom: getResponsiveValue(SPACING.xs, screenType),
-    },
-
-    alertMessage: {
-      fontSize: getResponsiveValue(
-        { mobile: 14, tablet: 15, desktop: 16 },
-        screenType
-      ),
-      color: COLORS.text.primary,
-      lineHeight: getResponsiveValue(
-        { mobile: 18, tablet: 20, desktop: 22 },
-        screenType
-      ),
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.bold as any,
+      color: COLORS.variants.secondary[800],
       marginBottom: getResponsiveValue(SPACING.sm, screenType),
-    },
-
-    alertButtons: {
-      flexDirection: screenType === 'mobile' ? 'column' as const : 'row' as const,
-      gap: getResponsiveValue(SPACING.xs, screenType),
-    },
-
-    summaryTotal: {
+      letterSpacing: -0.3,
       flexDirection: 'row' as const,
-      justifyContent: 'space-between' as const,
       alignItems: 'center' as const,
-      marginBottom: getResponsiveValue(SPACING.lg, screenType),
-      paddingTop: getResponsiveValue(SPACING.sm, screenType),
-      borderTopWidth: 2,
-      borderTopColor: COLORS.border.default,
-    },
-
-    totalLabel: {
-      fontSize: getResponsiveValue(
-        { mobile: 20, tablet: 22, desktop: 26 },
-        screenType
-      ),
-      fontWeight: '700' as const,
-      color: COLORS.text.primary,
-    },
-
-    totalAmount: {
-      fontSize: getResponsiveValue(
-        { mobile: 20, tablet: 22, desktop: 26 },
-        screenType
-      ),
-      fontWeight: '700' as const,
-      color: COLORS.secondary,
-    },
-
-    buttonGroup: {
       gap: getResponsiveValue(SPACING.sm, screenType),
     },
 
-    statusIndicators: {
-      marginTop: getResponsiveValue(SPACING.sm, screenType),
-      alignItems: 'center' as const,
-    },
-
-    statusText: {
-      fontSize: getResponsiveValue(
-        { mobile: 12, tablet: 13, desktop: 14 },
-        screenType
-      ),
-      textAlign: 'center' as const,
-      lineHeight: getResponsiveValue(
-        { mobile: 16, tablet: 18, desktop: 20 },
-        screenType
-      ),
-    },
-
-    emptyContainer: {
-      flex: 1,
-      justifyContent: 'center' as const,
-      alignItems: 'center' as const,
-      padding: getResponsiveValue(
-        { mobile: 40, tablet: 60, desktop: 80 },
-        screenType
-      ),
-    },
-
-    emptyIcon: {
-      marginBottom: getResponsiveValue(SPACING.lg, screenType),
-    },
-
-    emptyTitle: {
-      fontSize: getResponsiveValue(
-        { mobile: 24, tablet: 28, desktop: 32 },
-        screenType
-      ),
-      fontWeight: '700' as const,
+    alertMessage: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.md, screenType),
       color: COLORS.text.primary,
-      marginBottom: getResponsiveValue(SPACING.sm, screenType),
-      textAlign: 'center' as const,
-    },
-
-    emptyMessage: {
-      fontSize: getResponsiveValue(
-        { mobile: 16, tablet: 18, desktop: 20 },
-        screenType
-      ),
-      color: COLORS.text.secondary,
-      textAlign: 'center' as const,
       lineHeight: getResponsiveValue(
         { mobile: 22, tablet: 24, desktop: 26 },
         screenType
       ),
+      marginBottom: getResponsiveValue(SPACING.md, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.medium as any,
+    },
+
+    alertButtons: {
+      flexDirection: screenType === 'mobile' ? 'column' as const : 'row' as const,
+      gap: getResponsiveValue(SPACING.sm, screenType),
+    },
+
+    // Total avec design premium
+    summaryTotal: {
+      flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
+      alignItems: 'center' as const,
       marginBottom: getResponsiveValue(SPACING.xl, screenType),
+      paddingTop: getResponsiveValue(SPACING.lg, screenType),
+      borderTopWidth: 3,
+      borderTopColor: COLORS.variants.secondary[300],
+      position: 'relative' as const,
+    },
+
+    totalGradientLine: {
+      position: 'absolute' as const,
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 3,
+      backgroundColor: COLORS.variants.secondary[400],
+    },
+
+    totalLabel: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize['2xl'], screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.bold as any,
+      color: COLORS.text.primary,
+      letterSpacing: -0.5,
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: getResponsiveValue(SPACING.sm, screenType),
+    },
+
+    totalAmount: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize['3xl'], screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.extrabold as any,
+      color: COLORS.variants.secondary[600],
+      letterSpacing: -1,
+      textShadowColor: COLORS.variants.secondary[200],
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 2,
+    },
+
+    // Boutons avec design premium
+    buttonGroup: {
+      gap: getResponsiveValue(SPACING.md, screenType),
+    },
+
+    primaryOrderButton: {
+      backgroundColor: COLORS.variants.secondary[500],
+      ...SHADOWS.button,
+      borderRadius: BORDER_RADIUS.xl,
+      paddingVertical: getResponsiveValue(SPACING.lg, screenType),
+      position: 'relative' as const,
+      overflow: 'hidden' as const,
+    },
+
+    primaryOrderButtonText: {
+      color: COLORS.text.primary,
+      fontWeight: TYPOGRAPHY.fontWeight.bold,
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
+      letterSpacing: 0.5,
+    },
+
+    secondaryOrderButton: {
+      borderColor: COLORS.variants.secondary[400],
+      borderWidth: 2,
+      backgroundColor: 'transparent',
+      borderRadius: BORDER_RADIUS.xl,
+      paddingVertical: getResponsiveValue(SPACING.lg, screenType),
+    },
+
+    secondaryOrderButtonText: {
+      color: COLORS.variants.secondary[700],
+      fontWeight: TYPOGRAPHY.fontWeight.bold,
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.md, screenType),
+    },
+
+    // Status indicators améliorés
+    statusIndicators: {
+      marginTop: getResponsiveValue(SPACING.lg, screenType),
+      alignItems: 'center' as const,
+      gap: getResponsiveValue(SPACING.xs, screenType),
+    },
+
+    statusText: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+      textAlign: 'center' as const,
+      lineHeight: getResponsiveValue(
+        { mobile: 18, tablet: 20, desktop: 22 },
+        screenType
+      ),
+      fontWeight: TYPOGRAPHY.fontWeight.medium as any,
+      paddingHorizontal: getResponsiveValue(SPACING.md, screenType),
+      paddingVertical: getResponsiveValue(SPACING.xs, screenType),
+      backgroundColor: COLORS.variants.primary[50],
+      borderRadius: BORDER_RADIUS.lg,
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 4,
+    },
+
+    // Empty state avec design amélioré
+    emptyContainer: {
+      flex: 1,
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+      padding: getResponsiveValue(SPACING['3xl'], screenType),
+    },
+
+    emptyIconContainer: {
+      marginBottom: getResponsiveValue(SPACING.xl, screenType),
+      padding: getResponsiveValue(SPACING.xl, screenType),
+      backgroundColor: COLORS.variants.secondary[100],
+      borderRadius: BORDER_RADIUS.full,
+      ...SHADOWS.lg,
+    },
+
+    emptyTitle: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize['3xl'], screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.bold as any,
+      color: COLORS.text.primary,
+      marginBottom: getResponsiveValue(SPACING.md, screenType),
+      textAlign: 'center' as const,
+      letterSpacing: -0.5,
+    },
+
+    emptyMessage: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
+      color: COLORS.text.secondary,
+      textAlign: 'center' as const,
+      lineHeight: getResponsiveValue(
+        { mobile: 26, tablet: 28, desktop: 30 },
+        screenType
+      ),
+      marginBottom: getResponsiveValue(SPACING['2xl'], screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.medium as any,
+      maxWidth: 400,
     },
 
     emptyActions: {
       width: '100%' as const,
-      maxWidth: layoutConfig.useGridLayout ? 400 : undefined,
-      gap: getResponsiveValue(SPACING.md, screenType),
+      maxWidth: layoutConfig.useGridLayout ? 500 : undefined,
+      gap: getResponsiveValue(SPACING.lg, screenType),
+    },
+
+    iconWithText: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: getResponsiveValue(SPACING.xs, screenType),
     },
   };
 
   const iconSize = getResponsiveValue(
-    { mobile: 18, tablet: 20, desktop: 22 },
+    { mobile: 20, tablet: 22, desktop: 24 },
+    screenType
+  );
+
+  const smallIconSize = getResponsiveValue(
+    { mobile: 16, tablet: 18, desktop: 20 },
     screenType
   );
 
@@ -528,8 +631,9 @@ export default function CartScreen() {
       return;
     }
 
+    const ordersCount = tableOrders?.active_orders?.length || 0;
+    
     if (hasActiveTableOrders && tableOrders && currentTableNumber) {
-      const ordersCount = tableOrders?.active_orders?.length || 0;
       Alert.alert(
         'Commandes en cours',
         `Cette table a déjà ${String(ordersCount)} commande(s) en cours. Comment souhaitez-vous procéder ?`,
@@ -573,7 +677,7 @@ export default function CartScreen() {
         items: cart.items,
       };
 
-      console.log('🚀 Creating order from cart:', {
+      console.log('🛍️ Creating order from cart:', {
         restaurant: orderData.restaurant,
         order_type: orderData.order_type,
         table_number: orderData.table_number,
@@ -629,17 +733,18 @@ export default function CartScreen() {
   };
 
   const renderCustomizations = (customizations?: Record<string, any>) => {
-    if (!customizations || Object.keys(customizations).length === 0) return null;
-    
-    return (
+    return customizations && Object.keys(customizations).length > 0 ? (
       <View style={styles.customizations}>
         {Object.entries(customizations).map(([key, value]) => (
-          <Text key={key} style={styles.customizationText}>
-            {String(key)}: {Array.isArray(value) ? value.join(', ') : String(value)}
-          </Text>
+          <View key={key} style={styles.customizationText}>
+            <Ionicons name="ellipse" size={4} color={COLORS.text.secondary} />
+            <Text style={{ color: COLORS.text.secondary }}>
+              {String(key)}: {Array.isArray(value) ? value.join(', ') : String(value)}
+            </Text>
+          </View>
         ))}
       </View>
-    );
+    ) : null;
   };
 
   const renderCartItem: ListRenderItem<CartItem> = ({ item }) => (
@@ -656,19 +761,22 @@ export default function CartScreen() {
           {renderCustomizations(item.customizations)}
           
           {item.specialInstructions ? (
-            <Text style={styles.specialInstructions}>
-              Note: {String(item.specialInstructions)}
-            </Text>
+            <View style={styles.specialInstructions}>
+              <Ionicons name="chatbubble-outline" size={smallIconSize} color={COLORS.variants.secondary[700]} />
+              <Text style={{ color: COLORS.variants.secondary[700], fontStyle: 'italic' }}>
+                Note: {String(item.specialInstructions)}
+              </Text>
+            </View>
           ) : null}
         </View>
         
         <View style={styles.quantityContainer}>
           <Pressable
-            style={styles.quantityButton}
+            style={[styles.quantityButton, item.quantity > 1 ? styles.quantityButtonActive : {}]}
             onPress={() => handleQuantityChange(item.id, item.quantity - 1)}
-            android_ripple={{ color: COLORS.primary + '20', borderless: true }}
+            android_ripple={{ color: COLORS.variants.secondary[200], borderless: true }}
           >
-            <Ionicons name="remove" size={iconSize} color={COLORS.text.secondary} />
+            <Ionicons name="remove" size={iconSize} color={COLORS.variants.primary[600]} />
           </Pressable>
           
           <Text style={styles.quantityText}>
@@ -676,11 +784,11 @@ export default function CartScreen() {
           </Text>
           
           <Pressable
-            style={styles.quantityButton}
+            style={[styles.quantityButton, styles.quantityButtonActive]}
             onPress={() => handleQuantityChange(item.id, item.quantity + 1)}
-            android_ripple={{ color: COLORS.primary + '20', borderless: true }}
+            android_ripple={{ color: COLORS.variants.secondary[200], borderless: true }}
           >
-            <Ionicons name="add" size={iconSize} color={COLORS.text.secondary} />
+            <Ionicons name="add" size={iconSize} color={COLORS.variants.primary[600]} />
           </Pressable>
         </View>
         
@@ -689,7 +797,7 @@ export default function CartScreen() {
             {((item.price || 0) * (item.quantity || 0)).toFixed(2)} €
           </Text>
           <Pressable
-            style={styles.deleteButton}
+            style={[styles.deleteButton, styles.deleteButtonActive]}
             onPress={() => removeFromCart(item.id)}
             android_ripple={{ color: COLORS.error + '20', borderless: true }}
           >
@@ -704,10 +812,12 @@ export default function CartScreen() {
   if (cart.items.length === 0 && cart.restaurantId && currentTableNumber) {
     return (
       <SafeAreaView style={styles.container}>
-        <Header 
-          title={`Table ${String(currentTableNumber || '')}`}
-          leftIcon="arrow-back" 
-          onLeftPress={() => router.back()} 
+        <Header
+          title={`Panier (${String(cart.itemCount || 0)})`}
+          leftIcon="arrow-back"
+          onLeftPress={() => router.back()}
+          rightIcon="trash-outline"
+          onRightPress={handleClearCart}
         />
         
         <View style={styles.content}>
@@ -730,25 +840,25 @@ export default function CartScreen() {
   if (cart.items.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
-        <Header 
-          title="Panier" 
-          leftIcon="arrow-back" 
-          onLeftPress={() => router.back()} 
+        <Header
+          title="Panier"
+          leftIcon="arrow-back"
+          onLeftPress={() => router.back()}
         />
         
         <View style={styles.emptyContainer}>
-          <View style={styles.emptyIcon}>
+          <View style={styles.emptyIconContainer}>
             <Ionicons 
               name="bag-outline" 
               size={getResponsiveValue({ mobile: 80, tablet: 100, desktop: 120 }, screenType)} 
-              color={COLORS.text.light} 
+              color={COLORS.variants.secondary[600]} 
             />
           </View>
           <Text style={styles.emptyTitle}>
             Votre panier est vide
           </Text>
           <Text style={styles.emptyMessage}>
-            Scannez un QR code ou parcourez les restaurants pour commencer
+            Scannez un QR code ou parcourez les restaurants pour découvrir de délicieux plats
           </Text>
           
           <View style={styles.emptyActions}>
@@ -766,7 +876,7 @@ export default function CartScreen() {
               title="Parcourir les restaurants"
               onPress={() => router.push('/(client)/browse')}
               variant="outline"
-              leftIcon="restaurant-outline"
+              leftIcon={<Ionicons name="restaurant-outline" size={smallIconSize} color={COLORS.primary} />}
               fullWidth
             />
           </View>
@@ -778,9 +888,9 @@ export default function CartScreen() {
   // Panier avec des articles
   return (
     <SafeAreaView style={styles.container}>
-      <Header 
+      <Header
         title={`Panier (${String(cart.itemCount || 0)})`}
-        leftIcon="arrow-back" 
+        leftIcon="arrow-back"
         onLeftPress={() => router.back()}
         rightIcon="trash-outline"
         onRightPress={handleClearCart}
@@ -791,43 +901,57 @@ export default function CartScreen() {
         // Layout en grille pour tablette/desktop
         <View style={styles.gridContainer}>
           <View style={styles.leftColumn}>
-            {/* Restaurant Info */}
-            <Card style={styles.infoCardGrid}>
+            {/* Restaurant Info avec design premium */}
+            <Card style={styles.infoCard}>
+              <View style={styles.restaurantHeaderAccent} />
               <View style={styles.restaurantHeader}>
                 <View style={styles.restaurantInfo}>
-                  <Text style={styles.restaurantName}>
-                    {String(cart.restaurantName || 'Restaurant')}
-                  </Text>
-                  {currentTableNumber ? (
-                    <Text style={styles.tableInfo}>
-                      Table {String(currentTableNumber)}
+                  <View style={styles.restaurantName}>
+                    <Ionicons name="storefront" size={iconSize} color={COLORS.text.primary} />
+                    <Text style={{ fontSize: getResponsiveValue(TYPOGRAPHY.fontSize['2xl'], screenType), fontWeight: TYPOGRAPHY.fontWeight.bold as any, color: COLORS.text.primary }}>
+                      {String(cart.restaurantName || 'Restaurant')}
                     </Text>
+                  </View>
+                  {currentTableNumber ? (
+                    <View style={styles.tableInfo}>
+                      <Ionicons name="restaurant" size={smallIconSize} color={COLORS.variants.primary[600]} />
+                      <Text style={{ color: COLORS.variants.primary[600] }}>
+                        Table {String(currentTableNumber)}
+                      </Text>
+                    </View>
                   ) : null}
                 </View>
                 <View>
-                  <Text style={[styles.tableInfo, styles.itemCount]}>
+                  <Text style={styles.itemCount}>
                     {String(cart.itemCount || 0)} {(cart.itemCount || 0) > 1 ? 'articles' : 'article'}
                   </Text>
                   {isLoadingTableOrders && currentTableNumber ? (
-                    <Text style={[styles.statusText, { color: COLORS.warning }]}>
-                      Vérification des commandes...
-                    </Text>
+                    <View style={styles.statusText}>
+                      <Ionicons name="hourglass-outline" size={smallIconSize} color={COLORS.warning} />
+                      <Text style={{ color: COLORS.warning }}>Vérification des commandes...</Text>
+                    </View>
                   ) : null}
                 </View>
               </View>
             </Card>
 
-            {/* Alert commandes existantes */}
-            {hasActiveTableOrders && tableOrders && currentTableNumber && (
-              <Card style={styles.alertCardGrid}>
+            {/* Alert commandes existantes avec glow effect */}
+            {hasActiveTableOrders && tableOrders && currentTableNumber ? (
+              <Card style={styles.alertCard}>
+                <View style={styles.alertGlow} />
                 <View style={styles.alertContent}>
-                  <Ionicons name="information-circle" size={24} color={COLORS.warning} />
+                  <View style={styles.alertIcon}>
+                    <Ionicons name="information-circle" size={24} color={COLORS.variants.secondary[700]} />
+                  </View>
                   <View style={styles.alertText}>
-                    <Text style={styles.alertTitle}>
-                      Commandes en cours sur cette table
-                    </Text>
+                    <View style={styles.alertTitle}>
+                      <Ionicons name="warning" size={iconSize} color={COLORS.variants.secondary[800]} />
+                      <Text style={{ fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType), fontWeight: TYPOGRAPHY.fontWeight.bold as any, color: COLORS.variants.secondary[800] }}>
+                        Commandes en cours sur cette table
+                      </Text>
+                    </View>
                     <Text style={styles.alertMessage}>
-                      {String(tableOrders?.active_orders?.length || 0)} commande(s) en cours. Vous pouvez ajouter votre commande à la session existante.
+                      {String(tableOrders?.active_orders?.length || 0)} commande(s) en cours. Vous pouvez ajouter votre commande à la session existante ou créer une nouvelle session.
                     </Text>
                     <View style={styles.alertButtons}>
                       <Button
@@ -837,7 +961,8 @@ export default function CartScreen() {
                         onPress={() => {
                           router.push(`/table/${String(currentTableNumber)}/orders?restaurantId=${String(cart.restaurantId)}`);
                         }}
-                        style={{ borderColor: COLORS.warning }}
+                        style={{ borderColor: COLORS.variants.secondary[400], flex: 1 }}
+                        leftIcon={<Ionicons name="eye-outline" size={smallIconSize} color={COLORS.variants.secondary[400]} />}
                       />
                       <Button
                         title="Actualiser"
@@ -845,14 +970,14 @@ export default function CartScreen() {
                         size="sm"
                         onPress={refreshTableOrders}
                         disabled={isLoadingTableOrders}
-                        style={{ borderColor: COLORS.warning }}
-                        leftIcon="refresh"
+                        style={{ borderColor: COLORS.variants.secondary[400] }}
+                        leftIcon={<Ionicons name="refresh" size={smallIconSize} color={COLORS.variants.secondary[400]} />}
                       />
                     </View>
                   </View>
                 </View>
               </Card>
-            )}
+            ) : null}
 
             {/* Cart Items */}
             <View style={styles.cartItemsContainer}>
@@ -866,11 +991,18 @@ export default function CartScreen() {
             </View>
           </View>
 
-          {/* Summary dans la colonne de droite */}
+          {/* Summary dans la colonne de droite avec effet premium */}
           <View style={styles.rightColumn}>
-            <Card style={styles.summaryCardGrid}>
+            <Card style={styles.summaryCard}>
+              <View style={styles.summaryCardGlow} />
               <View style={styles.summaryTotal}>
-                <Text style={styles.totalLabel}>Total</Text>
+                <View style={styles.totalGradientLine} />
+                <View style={styles.totalLabel}>
+                  <Ionicons name="card" size={iconSize} color={COLORS.text.primary} />
+                  <Text style={{ fontSize: getResponsiveValue(TYPOGRAPHY.fontSize['2xl'], screenType), fontWeight: TYPOGRAPHY.fontWeight.bold as any, color: COLORS.text.primary }}>
+                    Total
+                  </Text>
+                </View>
                 <Text style={styles.totalAmount}>
                   {(cart.total || 0).toFixed(2)} €
                 </Text>
@@ -880,62 +1012,80 @@ export default function CartScreen() {
                 <Button
                   title={
                     isCreatingOrder 
-                      ? "Création en cours..." 
+                      ? "Création en cours..."
                       : hasActiveTableOrders 
                         ? "Passer commande (nouvelle session)" 
                         : "Passer commande"
                   }
                   onPress={handleCheckout}
                   fullWidth
-                  style={orderButtonStyle}
-                  textStyle={orderButtonTextStyle}
+                  style={styles.primaryOrderButton}
+                  textStyle={styles.primaryOrderButtonText}
                   disabled={isSubmitting || isCreatingOrder}
                   loading={isCreatingOrder}
+                  leftIcon={
+                    isCreatingOrder 
+                      ? <Ionicons name="hourglass-outline" size={smallIconSize} color={COLORS.text.primary} />
+                      : hasActiveTableOrders 
+                        ? <Ionicons name="add-circle" size={smallIconSize} color={COLORS.text.primary} />
+                        : <Ionicons name="checkmark-circle" size={smallIconSize} color={COLORS.text.primary} />
+                  }
                 />
                 
-                {hasActiveTableOrders && currentTableNumber && (
+                {hasActiveTableOrders && currentTableNumber ? (
                   <Button
                     title={isSubmitting ? "Ajout en cours..." : "Ajouter à la session en cours"}
                     onPress={addToExistingSession}
                     fullWidth
                     variant="outline"
-                    style={{ 
-                      borderColor: COLORS.secondary,
-                      backgroundColor: 'transparent' 
-                    }}
-                    textStyle={{ 
-                      color: COLORS.secondary,
-                      fontWeight: '600' as const 
-                    }}
+                    style={styles.secondaryOrderButton}
+                    textStyle={styles.secondaryOrderButtonText}
                     disabled={isSubmitting || isCreatingOrder}
                     loading={isSubmitting}
+                    leftIcon={
+                      isSubmitting 
+                        ? <Ionicons name="hourglass-outline" size={smallIconSize} color={COLORS.variants.secondary[700]} />
+                        : <Ionicons name="add" size={smallIconSize} color={COLORS.variants.secondary[700]} />
+                    }
                   />
-                )}
+                ) : null}
               </View>
 
               <View style={styles.statusIndicators}>
                 {!isCreatingOrder && !isSubmitting ? (
                   <>
-                    <Text style={[styles.statusText, { color: COLORS.text.secondary }]}>
-                      {isAuthenticated 
-                        ? '🔒 Commande avec votre compte client' 
-                        : '👤 Commande en tant qu\'invité'
-                      }
-                    </Text>
+                    <View style={styles.statusText}>
+                      <Ionicons 
+                        name={isAuthenticated ? "person" : "person-outline"} 
+                        size={smallIconSize} 
+                        color={COLORS.text.secondary} 
+                      />
+                      <Text style={{ color: COLORS.text.secondary }}>
+                        {isAuthenticated 
+                          ? 'Commande avec votre compte client' 
+                          : 'Commande en tant qu\'invité'
+                        }
+                      </Text>
+                    </View>
                     {hasActiveTableOrders && currentTableNumber ? (
-                      <Text style={[styles.statusText, { color: COLORS.text.light }]}>
-                        Cette table a des commandes en cours
-                      </Text>
+                      <View style={styles.statusText}>
+                        <Ionicons name="information-circle-outline" size={smallIconSize} color={COLORS.text.light} />
+                        <Text style={{ color: COLORS.text.light }}>Cette table a des commandes en cours</Text>
+                      </View>
                     ) : (
-                      <Text style={[styles.statusText, { color: COLORS.text.light }]}>
-                        Paiement sécurisé à l'étape suivante
-                      </Text>
+                      <View style={styles.statusText}>
+                        <Ionicons name="shield-checkmark" size={smallIconSize} color={COLORS.text.light} />
+                        <Text style={{ color: COLORS.text.light }}>Paiement sécurisé à l'étape suivante</Text>
+                      </View>
                     )}
                   </>
                 ) : (
-                  <Text style={[styles.statusText, { color: COLORS.warning }]}>
-                    {isCreatingOrder ? 'Création de la commande...' : 'Ajout à la session...'}
-                  </Text>
+                  <View style={styles.statusText}>
+                    <Ionicons name="flash" size={smallIconSize} color={COLORS.warning} />
+                    <Text style={{ color: COLORS.warning }}>
+                      {isCreatingOrder ? 'Création de la commande...' : 'Ajout à la session...'}
+                    </Text>
+                  </View>
                 )}
               </View>
             </Card>
@@ -947,39 +1097,53 @@ export default function CartScreen() {
           <View style={styles.scrollContent}>
             {/* Restaurant Info */}
             <Card style={styles.infoCard}>
+              <View style={styles.restaurantHeaderAccent} />
               <View style={styles.restaurantHeader}>
                 <View style={styles.restaurantInfo}>
-                  <Text style={styles.restaurantName}>
-                    {String(cart.restaurantName || 'Restaurant')}
-                  </Text>
-                  {currentTableNumber ? (
-                    <Text style={styles.tableInfo}>
-                      Table {String(currentTableNumber)}
+                  <View style={styles.restaurantName}>
+                    <Ionicons name="storefront" size={iconSize} color={COLORS.text.primary} />
+                    <Text style={{ fontSize: getResponsiveValue(TYPOGRAPHY.fontSize['2xl'], screenType), fontWeight: TYPOGRAPHY.fontWeight.bold as any, color: COLORS.text.primary }}>
+                      {String(cart.restaurantName || 'Restaurant')}
                     </Text>
+                  </View>
+                  {currentTableNumber ? (
+                    <View style={styles.tableInfo}>
+                      <Ionicons name="restaurant" size={smallIconSize} color={COLORS.variants.primary[600]} />
+                      <Text style={{ color: COLORS.variants.primary[600] }}>
+                        Table {String(currentTableNumber)}
+                      </Text>
+                    </View>
                   ) : null}
                 </View>
                 <View>
-                  <Text style={[styles.tableInfo, styles.itemCount]}>
+                  <Text style={styles.itemCount}>
                     {String(cart.itemCount || 0)} {(cart.itemCount || 0) > 1 ? 'articles' : 'article'}
                   </Text>
                   {isLoadingTableOrders && currentTableNumber ? (
-                    <Text style={[styles.statusText, { color: COLORS.warning }]}>
-                      Vérification des commandes...
-                    </Text>
+                    <View style={styles.statusText}>
+                      <Ionicons name="hourglass-outline" size={smallIconSize} color={COLORS.warning} />
+                      <Text style={{ color: COLORS.warning }}>Vérification des commandes...</Text>
+                    </View>
                   ) : null}
                 </View>
               </View>
             </Card>
 
             {/* Alert commandes existantes */}
-            {hasActiveTableOrders && tableOrders && currentTableNumber && (
+            {hasActiveTableOrders && tableOrders && currentTableNumber ? (
               <Card style={styles.alertCard}>
+                <View style={styles.alertGlow} />
                 <View style={styles.alertContent}>
-                  <Ionicons name="information-circle" size={24} color={COLORS.warning} />
+                  <View style={styles.alertIcon}>
+                    <Ionicons name="information-circle" size={24} color={COLORS.variants.secondary[700]} />
+                  </View>
                   <View style={styles.alertText}>
-                    <Text style={styles.alertTitle}>
-                      Commandes en cours sur cette table
-                    </Text>
+                    <View style={styles.alertTitle}>
+                      <Ionicons name="warning" size={iconSize} color={COLORS.variants.secondary[800]} />
+                      <Text style={{ fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType), fontWeight: TYPOGRAPHY.fontWeight.bold as any, color: COLORS.variants.secondary[800] }}>
+                        Commandes en cours sur cette table
+                      </Text>
+                    </View>
                     <Text style={styles.alertMessage}>
                       {String(tableOrders?.active_orders?.length || 0)} commande(s) en cours. Vous pouvez ajouter votre commande à la session existante.
                     </Text>
@@ -991,7 +1155,8 @@ export default function CartScreen() {
                         onPress={() => {
                           router.push(`/table/${String(currentTableNumber)}/orders?restaurantId=${String(cart.restaurantId)}`);
                         }}
-                        style={{ borderColor: COLORS.warning, flex: 1 }}
+                        style={{ borderColor: COLORS.variants.secondary[400], flex: 1 }}
+                        leftIcon={<Ionicons name="eye-outline" size={smallIconSize} color={COLORS.variants.secondary[400]} />}
                       />
                       <Button
                         title="Actualiser"
@@ -999,14 +1164,14 @@ export default function CartScreen() {
                         size="sm"
                         onPress={refreshTableOrders}
                         disabled={isLoadingTableOrders}
-                        style={{ borderColor: COLORS.warning }}
-                        leftIcon="refresh"
+                        style={{ borderColor: COLORS.variants.secondary[400] }}
+                        leftIcon={<Ionicons name="refresh" size={smallIconSize} color={COLORS.variants.secondary[400]} />}
                       />
                     </View>
                   </View>
                 </View>
               </Card>
-            )}
+            ) : null}
 
             {/* Cart Items */}
             <FlatList
@@ -1017,10 +1182,17 @@ export default function CartScreen() {
               showsVerticalScrollIndicator={false}
             />
 
-            {/* Order Summary */}
+            {/* Order Summary avec design premium */}
             <Card style={styles.summaryCard}>
+              <View style={styles.summaryCardGlow} />
               <View style={styles.summaryTotal}>
-                <Text style={styles.totalLabel}>Total</Text>
+                <View style={styles.totalGradientLine} />
+                <View style={styles.totalLabel}>
+                  <Ionicons name="card" size={iconSize} color={COLORS.text.primary} />
+                  <Text style={{ fontSize: getResponsiveValue(TYPOGRAPHY.fontSize['2xl'], screenType), fontWeight: TYPOGRAPHY.fontWeight.bold as any, color: COLORS.text.primary }}>
+                    Total
+                  </Text>
+                </View>
                 <Text style={styles.totalAmount}>
                   {(cart.total || 0).toFixed(2)} €
                 </Text>
@@ -1030,62 +1202,80 @@ export default function CartScreen() {
                 <Button
                   title={
                     isCreatingOrder 
-                      ? "Création en cours..." 
+                      ? "Création en cours..."
                       : hasActiveTableOrders 
                         ? "Passer commande (nouvelle session)" 
                         : "Passer commande"
                   }
                   onPress={handleCheckout}
                   fullWidth
-                  style={orderButtonStyle}
-                  textStyle={orderButtonTextStyle}
+                  style={styles.primaryOrderButton}
+                  textStyle={styles.primaryOrderButtonText}
                   disabled={isSubmitting || isCreatingOrder}
                   loading={isCreatingOrder}
+                  leftIcon={
+                    isCreatingOrder 
+                      ? <Ionicons name="hourglass-outline" size={smallIconSize} color={COLORS.text.primary} />
+                      : hasActiveTableOrders 
+                        ? <Ionicons name="add-circle" size={smallIconSize} color={COLORS.text.primary} />
+                        : <Ionicons name="checkmark-circle" size={smallIconSize} color={COLORS.text.primary} />
+                  }
                 />
                 
-                {hasActiveTableOrders && currentTableNumber && (
+                {hasActiveTableOrders && currentTableNumber ? (
                   <Button
                     title={isSubmitting ? "Ajout en cours..." : "Ajouter à la session en cours"}
                     onPress={addToExistingSession}
                     fullWidth
                     variant="outline"
-                    style={{ 
-                      borderColor: COLORS.secondary,
-                      backgroundColor: 'transparent' 
-                    }}
-                    textStyle={{ 
-                      color: COLORS.secondary,
-                      fontWeight: '600' as const 
-                    }}
+                    style={styles.secondaryOrderButton}
+                    textStyle={styles.secondaryOrderButtonText}
                     disabled={isSubmitting || isCreatingOrder}
                     loading={isSubmitting}
+                    leftIcon={
+                      isSubmitting 
+                        ? <Ionicons name="hourglass-outline" size={smallIconSize} color={COLORS.variants.secondary[700]} />
+                        : <Ionicons name="add" size={smallIconSize} color={COLORS.variants.secondary[700]} />
+                    }
                   />
-                )}
+                ) : null}
               </View>
 
               <View style={styles.statusIndicators}>
                 {!isCreatingOrder && !isSubmitting ? (
                   <>
-                    <Text style={[styles.statusText, { color: COLORS.text.secondary }]}>
-                      {isAuthenticated 
-                        ? '🔒 Commande avec votre compte client' 
-                        : '👤 Commande en tant qu\'invité'
-                      }
-                    </Text>
+                    <View style={styles.statusText}>
+                      <Ionicons 
+                        name={isAuthenticated ? "person" : "person-outline"} 
+                        size={smallIconSize} 
+                        color={COLORS.text.secondary} 
+                      />
+                      <Text style={{ color: COLORS.text.secondary }}>
+                        {isAuthenticated 
+                          ? 'Commande avec votre compte client' 
+                          : 'Commande en tant qu\'invité'
+                        }
+                      </Text>
+                    </View>
                     {hasActiveTableOrders && currentTableNumber ? (
-                      <Text style={[styles.statusText, { color: COLORS.text.light }]}>
-                        Cette table a des commandes en cours
-                      </Text>
+                      <View style={styles.statusText}>
+                        <Ionicons name="information-circle-outline" size={smallIconSize} color={COLORS.text.light} />
+                        <Text style={{ color: COLORS.text.light }}>Cette table a des commandes en cours</Text>
+                      </View>
                     ) : (
-                      <Text style={[styles.statusText, { color: COLORS.text.light }]}>
-                        Paiement sécurisé à l'étape suivante
-                      </Text>
+                      <View style={styles.statusText}>
+                        <Ionicons name="shield-checkmark" size={smallIconSize} color={COLORS.text.light} />
+                        <Text style={{ color: COLORS.text.light }}>Paiement sécurisé à l'étape suivante</Text>
+                      </View>
                     )}
                   </>
                 ) : (
-                  <Text style={[styles.statusText, { color: COLORS.warning }]}>
-                    {isCreatingOrder ? 'Création de la commande...' : 'Ajout à la session...'}
-                  </Text>
+                  <View style={styles.statusText}>
+                    <Ionicons name="flash" size={smallIconSize} color={COLORS.warning} />
+                    <Text style={{ color: COLORS.warning }}>
+                      {isCreatingOrder ? 'Création de la commande...' : 'Ajout à la session...'}
+                    </Text>
+                  </View>
                 )}
               </View>
             </Card>
