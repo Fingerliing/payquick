@@ -614,6 +614,7 @@ class UpdatePaymentStatusView(APIView):
     
     def post(self, request, order_id):
         try:
+            print(f"📥 Received payment update: {request.data}")
             order = Order.objects.get(id=order_id)
             
             # Vérifier l'autorisation
@@ -624,48 +625,27 @@ class UpdatePaymentStatusView(APIView):
                 )
             
             payment_status = request.data.get('payment_status')
+            payment_method = request.data.get('payment_method')  # Nouveau champ
+            print(f"🔄 Updating order {order_id}: status={payment_status}, method={payment_method}")
+            
             if payment_status not in ['paid', 'cash_pending', 'failed']:
                 return Response(
                     {'error': 'Invalid payment status'}, 
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
+            # Mettre à jour le statut
             order.payment_status = payment_status
-            order.save()
             
-            return Response({'success': True})
+            # Mettre à jour la méthode de paiement si fournie
+            if payment_method:
+                if payment_method not in ['cash', 'card', 'online']:
+                    return Response(
+                        {'error': 'Invalid payment method'}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                order.payment_method = payment_method
             
-        except Order.DoesNotExist:
-            return Response(
-                {'error': 'Order not found'}, 
-                status=status.HTTP_404_NOT_FOUND
-            )
-        except Exception as e:
-            return Response(
-                {'error': str(e)}, 
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-    permission_classes = [IsAuthenticated]
-    
-    def post(self, request, order_id):
-        try:
-            order = Order.objects.get(id=order_id)
-            
-            # Vérifier l'autorisation
-            if order.user and order.user != request.user:
-                return Response(
-                    {'error': 'Not authorized'}, 
-                    status=status.HTTP_403_FORBIDDEN
-                )
-            
-            payment_status = request.data.get('payment_status')
-            if payment_status not in ['paid', 'cash_pending', 'failed']:
-                return Response(
-                    {'error': 'Invalid payment status'}, 
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            order.payment_status = payment_status
             order.save()
             
             return Response({'success': True})

@@ -473,9 +473,9 @@ export default function PaymentScreen() {
   const handlePaymentSuccess = async (method: PaymentMethodType) => {
     try {
       if (method === 'online') {
-        await paymentService.updatePaymentStatus(orderId as string, 'paid');
+        await paymentService.updatePaymentStatus(orderId as string, 'paid', 'online');
       } else {
-        await paymentService.updatePaymentStatus(orderId as string, 'cash_pending');
+        await paymentService.updatePaymentStatus(orderId as string, 'cash_pending', 'cash');
       }
       if (wantReceipt && customerEmail && isValidEmail(customerEmail)) {
         try {

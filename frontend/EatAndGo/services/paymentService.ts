@@ -12,10 +12,12 @@ export class PaymentService {
     });
   }
 
-  async updatePaymentStatus(orderId: string, paymentStatus: string): Promise<void> {
-    await apiClient.post(`/api/v1/payments/update-status/${orderId}/`, {
-      payment_status: paymentStatus
-    });
+  async updatePaymentStatus(orderId: string, paymentStatus: string, paymentMethod?: string): Promise<void> {
+    const payload: any = { payment_status: paymentStatus };
+    if (paymentMethod) {
+      payload.payment_method = paymentMethod;
+    }
+    await apiClient.post(`/api/v1/payments/update-status/${orderId}/`, payload);
   }
 
   async createCheckoutSession(order_id: number): Promise<{ checkout_url: string }> {
