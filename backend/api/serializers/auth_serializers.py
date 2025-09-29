@@ -8,6 +8,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.validators import UniqueValidator
 import logging
+import phonenumbers
 from django.db import transaction
 
 logger = logging.getLogger(__name__)
@@ -499,3 +500,59 @@ class MeViewWithSerializer(APIView):
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+class InitiateRegistrationSerializer(serializers.Serializer):
+    """Serializer pour l'initiation de l'inscription"""
+    username = serializers.EmailField(required=True)  # Email
+    password = serializers.CharField(write_only=True, min_length=8)
+    nom = serializers.CharField(required=True, min_length=2)
+    role = serializers.ChoiceField(choices=['client', 'restaurateur'])
+    telephone = serializers.CharField(required=False, allow_blank=True)
+    siret = serializers.CharField(required=False, allow_blank=True)
+    admin_phone = serializers.CharField(required=False, allow_blank=True)  # Pour restaurateur
+    
+    def validate(self, data):
+        # Validation selon le rôle
+        if data['role'] == 'client':
+            if not data.get('telephone'):
+                raise serializers.ValidationError({
+                    'telephone': 'Le téléphone est obligatoire pour les clients.'
+                })
+        elif data['role'] == 'restaurateur':
+            if not data.get('siret'):
+                raise serializers.ValidationError({
+                    'siret': 'Le SIRET est obligatoire pour les restaurateurs.'
+                })
+            # Pour les restaurateurs, on peut utiliser un numéro admin différent
+            if not data.get('telephone') and not data.get('admin_phone'):
+                raise serializers.ValidationError({
+                    'telephone': 'Un numéro de téléphone est requis pour la vérification.'
+                })
+        
+        return data
+    
+    def validate_telephone(self, value):
+        if value:
+            try:
+                parsed = phonenumbers.parse(value, "FR")
+                if not phonenumbers.is_valid_number(parsed):
+                    raise serializers.ValidationError("Numéro de téléphone invalide.")
+            except phonenumbers.NumberParseException:
+                raise serializers.ValidationError("Format de numéro invalide.")
+        return value
+
+
+class VerifyRegistrationSerializer(serializers.Serializer):
+    """Serializer pour la vérification du code SMS"""
+    registration_id = serializers.UUIDField(required=True)
+    code = serializers.CharField(max_length=6, min_length=6)
+    
+    def validate_code(self, value):
+        if not value.isdigit():
+            raise serializers.ValidationError("Le code doit contenir uniquement des chiffres.")
+        return value
+
+
+class ResendCodeSerializer(serializers.Serializer):
+    """Serializer pour le renvoi du code"""
+    registration_id = serializers.UUIDField(required=True)
