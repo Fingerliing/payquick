@@ -327,42 +327,42 @@ export const createResponsiveStyles = (screenType: 'mobile' | 'tablet' | 'deskto
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize['2xl'], screenType),
       fontWeight: TYPOGRAPHY.fontWeight.bold,
       color: COLORS.text.primary,
-      lineHeight: TYPOGRAPHY.lineHeight.tight,
+      lineHeight: getLineHeight('2xl', screenType, 'tight'),
     },
     
     textTitleGolden: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize['2xl'], screenType),
       fontWeight: TYPOGRAPHY.fontWeight.bold,
       color: COLORS.text.golden,
-      lineHeight: TYPOGRAPHY.lineHeight.tight,
+      lineHeight: getLineHeight('2xl', screenType, 'tight'),
     },
     
     textSubtitle: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
       color: COLORS.text.primary,
-      lineHeight: TYPOGRAPHY.lineHeight.normal,
+      lineHeight: getLineHeight('lg', screenType, 'normal'),
     },
     
     textBody: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
       fontWeight: TYPOGRAPHY.fontWeight.normal,
       color: COLORS.text.secondary,
-      lineHeight: TYPOGRAPHY.lineHeight.normal,
+      lineHeight: getLineHeight('base', screenType, 'normal'),
     },
     
     textCaption: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
       fontWeight: TYPOGRAPHY.fontWeight.normal,
       color: COLORS.text.light,
-      lineHeight: TYPOGRAPHY.lineHeight.normal,
+      lineHeight: getLineHeight('sm', screenType, 'normal'),
     },
     
     textGoldenAccent: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
       color: COLORS.text.golden,
-      lineHeight: TYPOGRAPHY.lineHeight.normal,
+      lineHeight: getLineHeight('base', screenType, 'normal'),
     },
     
     // États
