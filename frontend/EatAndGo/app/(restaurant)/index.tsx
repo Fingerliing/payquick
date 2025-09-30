@@ -158,6 +158,7 @@ function getOrderNumber(order: OrderList | OrderDetail | RecentOrder): string {
   return 'N/A';
 }
 
+
 function getStatusColor(status?: string): string {
   switch (status?.toLowerCase()) {
     case 'pending':
@@ -184,6 +185,29 @@ function getStatusColor(status?: string): string {
       return COLORS.error;
     default:
       return COLORS.text.light;
+  }
+}
+
+function translateOrderStatus(status?: string): string {
+  switch (status?.toLowerCase()) {
+    case 'pending':
+      return 'En attente';
+    case 'confirmed':
+      return 'Confirmée';
+    case 'preparing':
+      return 'En préparation';
+    case 'ready':
+      return 'Prête';
+    case 'served':
+      return 'Servie';
+    case 'delivered':
+      return 'Livrée';
+    case 'completed':
+      return 'Terminée';
+    case 'cancelled':
+      return 'Annulée';
+    default:
+      return status || 'En attente';
   }
 }
 
@@ -941,7 +965,7 @@ export default function DashboardScreen() {
                           styles.orderStatus,
                           { color: getStatusColor(order.status) }
                         ]}>
-                          {order.status ?? 'En attente'}
+                          {translateOrderStatus(order.status)}
                         </Text>
                       </View>
                     </View>
