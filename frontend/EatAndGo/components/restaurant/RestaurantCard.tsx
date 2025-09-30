@@ -89,9 +89,12 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
       backgroundColor: COLORS.border.light,
     },
 
+
     image: {
       width: '100%',
-      height: variant === 'compact' ? 120 : 160,
+      height: variant === 'compact' 
+        ? getResponsiveValue({ mobile: 120, tablet: 140, desktop: 160 }, screenType)
+        : getResponsiveValue({ mobile: 160, tablet: 200, desktop: 240 }, screenType),
       backgroundColor: COLORS.border.light,
     },
 
