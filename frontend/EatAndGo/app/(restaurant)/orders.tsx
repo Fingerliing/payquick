@@ -5,12 +5,12 @@ import {
   FlatList,
   Pressable,
   RefreshControl,
-  SafeAreaView,
   ActivityIndicator,
   Alert,
   Modal,
   useWindowDimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -317,7 +317,7 @@ const RestaurantSelector = React.memo(({
                 <Pressable
                   style={[
                     styles.restaurantOption,
-                    item.id === String(selectedRestaurantId) && styles.restaurantOptionSelected
+                    item.id === String(selectedRestaurantId) ? styles.restaurantOptionSelected : null
                   ]}
                   onPress={() => {
                     onSelect(parseInt(item.id));
@@ -331,7 +331,7 @@ const RestaurantSelector = React.memo(({
                   <View style={{ flex: 1 }}>
                     <Text style={[
                       styles.restaurantOptionText,
-                      item.id === String(selectedRestaurantId) && styles.restaurantOptionTextSelected
+                      item.id === String(selectedRestaurantId) ? styles.restaurantOptionTextSelected : null
                     ]}>
                       {item.name}
                     </Text>
@@ -339,9 +339,9 @@ const RestaurantSelector = React.memo(({
                       {item.address}, {item.city}
                     </Text>
                   </View>
-                  {item.id === String(selectedRestaurantId) && (
+                  {item.id === String(selectedRestaurantId) ? (
                     <Ionicons name="checkmark-circle" size={iconSize} color={COLORS.secondary} />
-                  )}
+                  ) : null}
                 </Pressable>
               )}
             />
@@ -628,7 +628,7 @@ const OrderCard = React.memo(({
 
     return (
       <View style={styles.actions}>
-        {nextAction && (
+        {nextAction ? (
           <Button
             title={nextAction.label}
             onPress={() => handleStatusChange(nextAction.next)}
@@ -640,9 +640,9 @@ const OrderCard = React.memo(({
             leftIcon="arrow-forward"
             fullWidth={screenType === 'mobile'}
           />
-        )}
+        ) : null}
 
-        {item.payment_status !== 'paid' && !isCompleted && (
+        {item.payment_status !== 'paid' && !isCompleted ? (
           <Button
             title="Encaisser"
             onPress={handleMarkAsPaid}
@@ -657,9 +657,9 @@ const OrderCard = React.memo(({
             }}
             textStyle={{ color: COLORS.success }}
           />
-        )}
+        ) : null}
 
-        {isCompleted && onArchive && (
+        {isCompleted && onArchive ? (
           <Button
             title="Archiver"
             onPress={() => onArchive(item.id)}
@@ -674,15 +674,15 @@ const OrderCard = React.memo(({
             }}
             textStyle={{ color: COLORS.text.secondary }}
           />
-        )}
+        ) : null}
       </View>
     );
   };
 
   const cardStyle = {
     ...styles.card,
-    ...(displayInfo.isUrgent && styles.urgentCard),
-    ...(isArchived && styles.archivedCard),
+    ...(displayInfo.isUrgent ? styles.urgentCard : {}),
+    ...(isArchived ? styles.archivedCard : {}),
   };
 
   return (
@@ -692,11 +692,11 @@ const OrderCard = React.memo(({
           <View style={styles.orderInfo}>
             <View style={styles.titleRow}>
               <Text style={styles.title}>{displayInfo.title}</Text>
-              {displayInfo.isUrgent && !isArchived && (
+              {displayInfo.isUrgent && !isArchived ? (
                 <View style={[styles.badge, styles.urgentBadge]}>
                   <Ionicons name="warning" size={12} color={COLORS.error} />
                 </View>
-              )}
+              ) : null}
             </View>
             <Text style={styles.customerName}>
               {item.customer_display || 'Client anonyme'}
@@ -709,12 +709,12 @@ const OrderCard = React.memo(({
         </View>
 
         <View style={styles.details}>
-          {item.table_number && (
+          {item.table_number ? (
             <View style={styles.detailItem}>
               <Ionicons name="restaurant-outline" size={iconSize} color={COLORS.text.secondary} />
               <Text style={styles.detailText}>Table {item.table_number}</Text>
             </View>
-          )}
+          ) : null}
           
           <View style={styles.detailItem}>
             <Ionicons 
@@ -730,7 +730,7 @@ const OrderCard = React.memo(({
           <View style={styles.detailItem}>
             <Ionicons name="receipt-outline" size={iconSize} color={COLORS.text.secondary} />
             <Text style={styles.detailText}>
-              {item.items_count} article{item.items_count > 1 ? 's' : ''}
+              {item.items_count ?? 0} article{(item.items_count ?? 0) > 1 ? 's' : ''}
             </Text>
           </View>
 
@@ -749,14 +749,14 @@ const OrderCard = React.memo(({
           </View>
         </View>
 
-        {displayInfo.isActive && item.waiting_time && (
+        {displayInfo.isActive && item.waiting_time ? (
           <View style={styles.waitingTime}>
             <Ionicons name="time-outline" size={iconSize} color={COLORS.warning} />
             <Text style={styles.waitingTimeText}>
               Temps estimé : {item.waiting_time} min
             </Text>
           </View>
-        )}
+        ) : null}
 
         {renderActions()}
 
@@ -853,8 +853,8 @@ const StatusFilters = React.memo(({
           <Pressable
             style={[
               styles.filterButton,
-              currentFilter === item.key && styles.filterButtonActive,
-              item.key === 'archived' && styles.filterButtonArchive
+              currentFilter === item.key ? styles.filterButtonActive : null,
+              item.key === 'archived' ? styles.filterButtonArchive : null
             ]}
             onPress={() => onFilterChange(item.key)}
             android_ripple={{ 
@@ -864,8 +864,8 @@ const StatusFilters = React.memo(({
           >
             <Text style={[
               styles.filterButtonText,
-              currentFilter === item.key && styles.filterButtonTextActive,
-              item.key === 'archived' && currentFilter !== item.key && styles.filterButtonTextArchive
+              currentFilter === item.key ? styles.filterButtonTextActive : null,
+              item.key === 'archived' && currentFilter !== item.key ? styles.filterButtonTextArchive : null
             ]}>
               {item.label} ({item.count})
             </Text>
@@ -1229,7 +1229,7 @@ export default function RestaurantOrdersScreen() {
                 {filter === 'archived' ? 'Archives' : 'Commandes actives'} ({filteredOrders.length})
               </Text>
               <View style={styles.headerActions}>
-                {completedOrders.length > 0 && filter !== 'archived' && (
+                {completedOrders.length > 0 && filter !== 'archived' ? (
                   <Button
                     title={`Archiver (${completedOrders.length})`}
                     onPress={handleArchiveCompleted}
@@ -1242,7 +1242,7 @@ export default function RestaurantOrdersScreen() {
                     }}
                     textStyle={{ color: COLORS.text.secondary }}
                   />
-                )}
+                ) : null}
                 <Pressable onPress={handleRefresh} disabled={refreshing}>
                   <Ionicons 
                     name="refresh" 
@@ -1273,14 +1273,14 @@ export default function RestaurantOrdersScreen() {
         screenType={screenType}
       />
 
-      {error && (
+      {error ? (
         <View style={styles.errorBanner}>
           <Ionicons name="warning" size={16} color={COLORS.error} />
           <Text style={styles.errorBannerText}>{error}</Text>
         </View>
-      )}
+      ) : null}
 
-      {restaurantOrders.length > 0 && (
+      {restaurantOrders.length > 0 ? (
         <StatusFilters 
           currentFilter={filter}
           onFilterChange={setFilter}
@@ -1288,7 +1288,7 @@ export default function RestaurantOrdersScreen() {
           archivedCount={archivedOrders.size}
           screenType={screenType}
         />
-      )}
+      ) : null}
 
       {(isLoading || isLoadingRestaurants) && allOrders.length === 0 ? (
         <View style={styles.loadingContainer}>
