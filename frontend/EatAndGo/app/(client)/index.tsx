@@ -6,7 +6,8 @@ import {
   Pressable, 
   StatusBar,
   Platform,
-  useWindowDimensions
+  useWindowDimensions,
+  ScrollView
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -42,12 +43,12 @@ export default function ClientHome() {
     container: {
       flex: 1,
       backgroundColor: COLORS.background,
-      paddingTop: insets.top,
-      paddingBottom: insets.bottom,
     },
     
     scrollContainer: {
       flexGrow: 1,
+      paddingTop: insets.top,
+      paddingBottom: Math.max(insets.bottom, 20),
     },
     
     header: {
@@ -79,7 +80,6 @@ export default function ClientHome() {
     },
     
     content: {
-      flex: 1,
       paddingHorizontal: layoutConfig.containerPadding,
       paddingVertical: getResponsiveValue(SPACING.lg, screenType),
       maxWidth: layoutConfig.shouldUseGrid ? 1200 : layoutConfig.contentMaxWidth,
@@ -95,7 +95,7 @@ export default function ClientHome() {
     },
     
     quickActions: {
-      flex: 1,
+      flex: layoutConfig.shouldUseGrid ? 1 : undefined,
     },
     
     sectionTitle: {
@@ -324,7 +324,12 @@ export default function ClientHome() {
         translucent={false}
       />
       
-      <View style={viewStyles.scrollContainer}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={viewStyles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+        bounces={true}
+      >
         <View style={viewStyles.header}>
           <View style={viewStyles.titleContainer}>
             <View style={viewStyles.decorativeBadge} />
@@ -420,7 +425,7 @@ export default function ClientHome() {
             </View>
           </View>
         </View>
-      </View>
+      </ScrollView>
     </View>
   );
 }
