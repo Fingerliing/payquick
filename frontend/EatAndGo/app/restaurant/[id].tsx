@@ -20,7 +20,7 @@ import { Header } from '@/components/ui/Header';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Loading } from '@/components/ui/Loading';
-import { UpdateRestaurantData, CuisineType } from '@/types/restaurant';
+import { UpdateRestaurantData, CuisineType, OpeningHours } from '@/types/restaurant';
 import * as ImagePicker from 'expo-image-picker';
 import { 
   useScreenType, 
@@ -32,11 +32,12 @@ import {
   TYPOGRAPHY,
   SHADOWS,
 } from '@/utils/designSystem';
+import { MultiPeriodHoursEditor } from '@/components/restaurant/OpeningHoursEditor';
 
 // Hook personnalisé pour la gestion de l'édition
 const useRestaurantEditing = (restaurant: any) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState<UpdateRestaurantData>({
+  const [editForm, setEditForm] = useState<UpdateRestaurantData & { openingHours?: OpeningHours[] }>({
     name: '',
     description: '',
     address: '',
@@ -48,7 +49,8 @@ const useRestaurantEditing = (restaurant: any) => {
     cuisine: 'french' as CuisineType,
     priceRange: 2,
     accepts_meal_vouchers: false,
-    meal_voucher_info: ''
+    meal_voucher_info: '',
+    openingHours: []
   });
 
   useEffect(() => {
@@ -65,12 +67,13 @@ const useRestaurantEditing = (restaurant: any) => {
         cuisine: restaurant.cuisine || 'french',
         priceRange: restaurant.priceRange || 2,
         accepts_meal_vouchers: restaurant.accepts_meal_vouchers || false,
-        meal_voucher_info: restaurant.meal_voucher_info || ''
+        meal_voucher_info: restaurant.meal_voucher_info || '',
+        openingHours: restaurant.opening_hours || restaurant.openingHours || []
       });
     }
   }, [restaurant, isEditing]);
 
-  const updateField = useCallback((field: keyof UpdateRestaurantData, value: any) => {
+  const updateField = useCallback((field: keyof (UpdateRestaurantData & { openingHours?: OpeningHours[] }), value: any) => {
     setEditForm(prev => ({ ...prev, [field]: value }));
   }, []);
 
@@ -141,6 +144,23 @@ const RestaurantDetailPage = () => {
     small: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
   };
 
+  // Fonction pour obtenir les horaires par défaut
+  const getDefaultHours = (): OpeningHours[] => {
+    return Array.from({ length: 7 }, (_, dayIndex) => ({
+      dayOfWeek: dayIndex,
+      isClosed: dayIndex === 0, // Fermé le dimanche par défaut
+      periods: dayIndex === 0 ? [] : [{
+        startTime: '12:00',
+        endTime: '14:00',
+        name: 'Déjeuner'
+      }, {
+        startTime: '19:00',
+        endTime: '22:00',
+        name: 'Dîner'
+      }]
+    }));
+  };
+
   // Hooks personnalisés
   const { isEditing, setIsEditing, editForm, updateField } = useRestaurantEditing(currentRestaurant);
   const { 
@@ -154,6 +174,8 @@ const RestaurantDetailPage = () => {
   } = useTemporaryClose();
 
   const [refreshing, setRefreshing] = useState(false);
+  const [showHoursEditModal, setShowHoursEditModal] = useState(false);
+  const [tempHours, setTempHours] = useState<OpeningHours[]>([]);
 
   // Charger le restaurant au montage
   useEffect(() => {
@@ -171,14 +193,71 @@ const RestaurantDetailPage = () => {
     }
 
     try {
-      await updateRestaurant(id, editForm);
+      // Préparer les données avec les horaires
+      const updateData = {
+        ...editForm,
+        opening_hours: editForm.openingHours, // Ajouter les horaires pour le backend
+      };
+      
+      await updateRestaurant(id, updateData);
       setIsEditing(false);
+      setShowHoursEditModal(false);
       Alert.alert('Succès', 'Restaurant mis à jour avec succès');
     } catch (error) {
       console.error('Erreur lors de la mise à jour:', error);
       Alert.alert('Erreur', 'Impossible de mettre à jour le restaurant');
     }
   }, [id, editForm, updateRestaurant]);
+
+  const handleOpenHoursModal = useCallback(() => {
+    // Initialiser les horaires temporaires avec les horaires actuels ou par défaut
+    let currentHours = editForm.openingHours || currentRestaurant?.opening_hours || currentRestaurant?.openingHours || [];
+    
+    // S'assurer que nous avons bien 7 jours avec la bonne structure
+    if (!currentHours || currentHours.length !== 7) {
+      currentHours = getDefaultHours();
+    }
+    
+    // Vérifier et corriger la structure de chaque jour
+    currentHours = currentHours.map((day, index) => {
+      // Si le jour n'a pas la bonne structure, le corriger
+      if (!day || typeof day !== 'object') {
+        return {
+          dayOfWeek: index,
+          isClosed: index === 0,
+          periods: index === 0 ? [] : [
+            { startTime: '12:00', endTime: '14:00', name: 'Déjeuner' },
+            { startTime: '19:00', endTime: '22:00', name: 'Dîner' }
+          ]
+        };
+      }
+      
+      // S'assurer que periods est un tableau
+      if (!Array.isArray(day.periods)) {
+        day.periods = [];
+      }
+      
+      return {
+        dayOfWeek: day.dayOfWeek ?? index,
+        isClosed: day.isClosed ?? false,
+        periods: day.periods || []
+      };
+    });
+    
+    console.log('Horaires initialisés:', currentHours);
+    setTempHours(currentHours);
+    setShowHoursEditModal(true);
+  }, [editForm.openingHours, currentRestaurant]);
+
+  const handleSaveHours = useCallback(() => {
+    updateField('openingHours', tempHours);
+    setShowHoursEditModal(false);
+  }, [tempHours, updateField]);
+
+  const handleCancelHours = useCallback(() => {
+    setShowHoursEditModal(false);
+    setTempHours([]);
+  }, []);
 
   const handleCloseRestaurant = useCallback(async () => {
     if (!id || typeof id !== 'string') {
@@ -497,7 +576,8 @@ const RestaurantDetailPage = () => {
       borderRadius: BORDER_RADIUS.xl,
       padding: 20,
       width: '100%' as const,
-      maxWidth: screenType === 'desktop' ? 500 : undefined,
+      maxWidth: screenType === 'desktop' ? 600 : undefined,
+      maxHeight: '90%' as const,
       ...SHADOWS.card,
     },
 
@@ -780,6 +860,17 @@ const RestaurantDetailPage = () => {
                         </View>
                       </View>
                       
+                      {/* Bouton pour éditer les horaires */}
+                      <View style={{ marginTop: layoutConfig.cardSpacing * 0.5 }}>
+                        <Button
+                          title="Modifier les horaires d'ouverture"
+                          onPress={handleOpenHoursModal}
+                          variant="outline"
+                          leftIcon={<Ionicons name="time-outline" size={20} color={COLORS.primary} />}
+                          fullWidth
+                        />
+                      </View>
+                      
                       {/* Actions d'édition */}
                       <View style={{ 
                         flexDirection: 'row',
@@ -963,6 +1054,98 @@ const RestaurantDetailPage = () => {
           </View>
         </View>
       </Modal>
+
+      {/* Modal d'édition des horaires */}
+      <Modal
+        visible={showHoursEditModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={handleCancelHours}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.overlay }}>
+          <View style={{ 
+            flex: 1, 
+            backgroundColor: COLORS.surface, 
+            marginTop: 50,
+            borderTopLeftRadius: BORDER_RADIUS.xl,
+            borderTopRightRadius: BORDER_RADIUS.xl,
+          }}>
+            {/* En-tête de la modal */}
+            <View style={{ 
+              flexDirection: 'row', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              padding: 20,
+              borderBottomWidth: 1,
+              borderBottomColor: COLORS.border.light,
+            }}>
+              <Text style={dynamicStyles.modalTitle}>
+                Modifier les horaires d'ouverture
+              </Text>
+              <TouchableOpacity onPress={handleCancelHours}>
+                <Ionicons name="close" size={24} color={COLORS.text.primary} />
+              </TouchableOpacity>
+            </View>
+            
+            {/* Contenu scrollable */}
+            <ScrollView 
+              style={{ flex: 1 }} 
+              contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
+              showsVerticalScrollIndicator={true}
+              keyboardShouldPersistTaps="handled"
+            >
+              {tempHours.length === 7 ? (
+                <MultiPeriodHoursEditor
+                  openingHours={tempHours}
+                  onChange={(newHours) => {
+                    console.log('Nouveaux horaires:', newHours);
+                    setTempHours(newHours);
+                  }}
+                />
+              ) : (
+                <View style={{ padding: 20, alignItems: 'center' }}>
+                  <Text style={{ color: COLORS.text.secondary }}>
+                    Initialisation des horaires...
+                  </Text>
+                </View>
+              )}
+            </ScrollView>
+            
+            {/* Actions en bas */}
+            <View style={{ 
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              backgroundColor: COLORS.surface,
+              padding: 20,
+              borderTopWidth: 1,
+              borderTopColor: COLORS.border.light,
+              flexDirection: 'row',
+              gap: layoutConfig.cardSpacing * 0.75,
+            }}>
+              <View style={{ flex: 1 }}>
+                <Button
+                  title="Annuler"
+                  onPress={handleCancelHours}
+                  variant="outline"
+                  fullWidth
+                />
+              </View>
+              
+              <View style={{ flex: 1 }}>
+                <Button
+                  title="Appliquer"
+                  onPress={handleSaveHours}
+                  variant="primary"
+                  fullWidth
+                />
+              </View>
+            </View>
+          </View>
+        </SafeAreaView>
+      </Modal>
+
     </SafeAreaView>
   );
 
@@ -974,9 +1157,16 @@ const RestaurantDetailPage = () => {
         {/* Horaires d'ouverture */}
         {currentRestaurant.opening_hours && currentRestaurant.opening_hours.length > 0 && (
           <Card style={dynamicStyles.card}>
-            <Text style={dynamicStyles.sectionTitle}>
-              Horaires d'ouverture
-            </Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: layoutConfig.cardSpacing * 0.5 }}>
+              <Text style={dynamicStyles.sectionTitle}>
+                Horaires d'ouverture
+              </Text>
+              {isEditing && (
+                <TouchableOpacity onPress={handleOpenHoursModal}>
+                  <Ionicons name="create-outline" size={20} color={COLORS.primary} />
+                </TouchableOpacity>
+              )}
+            </View>
             
             <View style={{ gap: layoutConfig.cardSpacing * 0.5 }}>
               {currentRestaurant.opening_hours.map((hours: any) => (
