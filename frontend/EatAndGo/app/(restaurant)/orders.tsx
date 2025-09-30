@@ -108,7 +108,7 @@ const useRestaurantSelection = () => {
 
   useEffect(() => {
     const restoreSelection = async () => {
-      if (restaurants.length > 0 && selectedRestaurantId === null) {
+      if (restaurants.length > 0 ? selectedRestaurantId === null : false) {
         try {
           const savedRestaurantId = await AsyncStorage.getItem('selectedRestaurantId');
           
@@ -605,7 +605,7 @@ const OrderCard = React.memo(({
             disabled={isUpdating}
             variant="outline"
             size="sm"
-            leftIcon="archive-outline"
+            leftIcon={<Ionicons name="archive-outline" size={16} color={COLORS.text.secondary} />}
             fullWidth={screenType === 'mobile'}
             style={{ 
               borderColor: COLORS.text.secondary,
@@ -628,53 +628,53 @@ const OrderCard = React.memo(({
 
     return (
       <View style={styles.actions}>
-        {nextAction ? (
-          <Button
-            title={nextAction.label}
-            onPress={() => handleStatusChange(nextAction.next)}
-            disabled={localUpdating || isUpdating}
-            loading={localUpdating}
-            style={{ backgroundColor: COLORS.secondary }}
-            textStyle={{ color: COLORS.text.primary }}
-            size="sm"
-            leftIcon="arrow-forward"
-            fullWidth={screenType === 'mobile'}
-          />
-        ) : null}
+      {nextAction ? (
+        <Button
+          title={nextAction.label}
+          onPress={() => handleStatusChange(nextAction.next)}
+          disabled={localUpdating || isUpdating}
+          loading={localUpdating}
+          style={{ backgroundColor: COLORS.secondary }}
+          textStyle={{ color: COLORS.text.primary }}
+          size="sm"
+          leftIcon={<Ionicons name="arrow-forward" size={16} color={COLORS.text.secondary} />}
+          fullWidth={screenType === 'mobile'}
+        />
+      ) : null}
 
-        {item.payment_status !== 'paid' && !isCompleted ? (
-          <Button
-            title="Encaisser"
-            onPress={handleMarkAsPaid}
-            disabled={localUpdating || isUpdating}
-            variant="outline"
-            size="sm"
-            leftIcon="card"
-            fullWidth={screenType === 'mobile'}
-            style={{ 
-              borderColor: COLORS.success,
-              backgroundColor: 'transparent' 
-            }}
-            textStyle={{ color: COLORS.success }}
-          />
-        ) : null}
+      {item.payment_status !== 'paid' && !isCompleted ? (
+        <Button
+          title="Encaisser"
+          onPress={handleMarkAsPaid}
+          disabled={localUpdating || isUpdating}
+          variant="outline"
+          size="sm"
+          leftIcon={<Ionicons name="card" size={16} color={COLORS.text.secondary} />}
+          fullWidth={screenType === 'mobile'}
+          style={{ 
+            borderColor: COLORS.success,
+            backgroundColor: 'transparent' 
+          }}
+          textStyle={{ color: COLORS.success }}
+        />
+      ) : null}
 
-        {isCompleted && onArchive ? (
-          <Button
-            title="Archiver"
-            onPress={() => onArchive(item.id)}
-            disabled={isUpdating}
-            variant="outline"
-            size="sm"
-            leftIcon="archive"
-            fullWidth={screenType === 'mobile'}
-            style={{ 
-              borderColor: COLORS.text.secondary,
-              backgroundColor: 'transparent' 
-            }}
-            textStyle={{ color: COLORS.text.secondary }}
-          />
-        ) : null}
+      {isCompleted && onArchive ? (
+        <Button
+          title="Archiver"
+          onPress={() => onArchive(item.id)}
+          disabled={isUpdating}
+          variant="outline"
+          size="sm"
+          leftIcon={<Ionicons name="archive" size={16} color={COLORS.text.secondary} />}
+          fullWidth={screenType === 'mobile'}
+          style={{ 
+            borderColor: COLORS.text.secondary,
+            backgroundColor: 'transparent' 
+          }}
+          textStyle={{ color: COLORS.text.secondary }}
+        />
+      ) : null}
       </View>
     );
   };
@@ -1235,7 +1235,7 @@ export default function RestaurantOrdersScreen() {
                     onPress={handleArchiveCompleted}
                     variant="outline"
                     size="sm"
-                    leftIcon="archive"
+                    leftIcon={<Ionicons name="archive" size={16} color={COLORS.text.secondary} />}
                     style={{ 
                       borderColor: COLORS.text.secondary,
                       backgroundColor: 'transparent' 

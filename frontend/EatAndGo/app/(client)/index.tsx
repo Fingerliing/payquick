@@ -1,8 +1,7 @@
 import React from 'react';
 import { 
   View, 
-  Text, 
-  SafeAreaView, 
+  Text,
   Pressable, 
   StatusBar,
   Platform,

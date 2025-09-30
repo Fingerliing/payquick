@@ -203,30 +203,30 @@ export const Button: React.FC<ButtonProps> = ({
         />
       );
     }
-
+  
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-        {leftIcon && (
+        {leftIcon ? (
           <View style={{ marginRight: title ? SPACING.sm : 0 }}>
             {leftIcon}
           </View>
-        )}
+        ) : null}
         
-        {title && (
+        {title ? (
           <Text style={textStyle}>
             {safeText(title)}
           </Text>
-        )}
+        ) : null}
         
-        {rightIcon && (
+        {rightIcon ? (
           <View style={{ marginLeft: title ? SPACING.sm : 0 }}>
             {rightIcon}
           </View>
-        )}
+        ) : null}
       </View>
     );
   };
-
+  
   return (
     <TouchableOpacity
       style={containerStyle}
