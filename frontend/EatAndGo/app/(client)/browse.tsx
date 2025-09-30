@@ -21,7 +21,9 @@ import {
   getResponsiveValue, 
   COLORS, 
   SPACING, 
-  BORDER_RADIUS 
+  BORDER_RADIUS,
+  TYPOGRAPHY,
+  SHADOWS,
 } from '@/utils/designSystem';
 
 export default function BrowseRestaurantsScreen() {
@@ -36,14 +38,13 @@ export default function BrowseRestaurantsScreen() {
 
   // Configuration responsive
   const layoutConfig = {
-    containerPadding: getResponsiveValue(SPACING.container, screenType),
+    containerPadding: getResponsiveValue(SPACING.container, screenType) as number,
     numColumns: getResponsiveValue(
       { mobile: 1, tablet: 2, desktop: 3 },
       screenType
-    ),
-    itemSpacing: getResponsiveValue(SPACING.md, screenType),
+    ) as number,
+    itemSpacing: getResponsiveValue(SPACING.md, screenType) as number,
     maxContentWidth: screenType === 'desktop' ? 1200 : undefined,
-    isTabletLandscape: screenType === 'tablet' && width > 1000,
   };
 
   useEffect(() => {
@@ -123,7 +124,6 @@ export default function BrowseRestaurantsScreen() {
       setRestaurants(searchResults);
     } catch (error: any) {
       console.error('❌ Search error:', error);
-      // Fallback sur filtrage local
       const filtered = restaurants.filter(restaurant =>
         restaurant.name.toLowerCase().includes(query.toLowerCase()) ||
         restaurant.description?.toLowerCase().includes(query.toLowerCase()) ||
@@ -140,167 +140,299 @@ export default function BrowseRestaurantsScreen() {
     },
 
     searchContainer: {
-      padding: layoutConfig.containerPadding,
+      paddingHorizontal: layoutConfig.containerPadding,
+      paddingTop: getResponsiveValue(SPACING.md, screenType) as number,
+      paddingBottom: getResponsiveValue(SPACING.sm, screenType) as number,
       maxWidth: layoutConfig.maxContentWidth,
       alignSelf: 'center' as const,
       width: '100%' as const,
+      backgroundColor: COLORS.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: COLORS.border.light,
     },
 
     listContainer: {
-      padding: layoutConfig.containerPadding,
+      paddingHorizontal: layoutConfig.containerPadding,
+      paddingTop: getResponsiveValue(SPACING.lg, screenType) as number,
+      paddingBottom: getResponsiveValue(SPACING['2xl'], screenType) as number,
       maxWidth: layoutConfig.maxContentWidth,
       alignSelf: 'center' as const,
       width: '100%' as const,
     },
 
     restaurantCard: {
-      marginBottom: layoutConfig.itemSpacing,
-      padding: getResponsiveValue(SPACING.lg, screenType),
+      flex: 1,
+      marginBottom: getResponsiveValue(SPACING.lg, screenType) as number,
+      marginHorizontal: layoutConfig.numColumns > 1 ? layoutConfig.itemSpacing / 2 : 0,
       backgroundColor: COLORS.surface,
-      borderRadius: BORDER_RADIUS.lg,
+      borderRadius: BORDER_RADIUS['2xl'],
+      overflow: 'hidden' as const,
       shadowColor: COLORS.shadow.default,
-      shadowOffset: { width: 0, height: 2 },
+      shadowOffset: { width: 0, height: 6 },
       shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
+      shadowRadius: 16,
+      elevation: 5,
       borderWidth: 1,
       borderColor: COLORS.border.light,
     },
 
+    cardContent: {
+      padding: getResponsiveValue(
+        { 
+          mobile: SPACING.lg.mobile, 
+          tablet: SPACING.xl.tablet, 
+          desktop: SPACING['2xl'].desktop 
+        },
+        screenType
+      ) as number,
+    },
+
     restaurantHeader: {
+      marginBottom: getResponsiveValue(SPACING.md, screenType) as number,
+    },
+
+    restaurantNameRow: {
       flexDirection: 'row' as const,
       justifyContent: 'space-between' as const,
       alignItems: 'flex-start' as const,
-      marginBottom: getResponsiveValue(SPACING.sm, screenType),
-    },
-
-    restaurantInfo: {
-      flex: 1,
-      marginRight: getResponsiveValue(SPACING.sm, screenType),
+      marginBottom: getResponsiveValue(SPACING.xs, screenType) as number,
     },
 
     restaurantName: {
+      flex: 1,
       fontSize: getResponsiveValue(
-        { mobile: 18, tablet: 20, desktop: 22 },
+        { 
+          mobile: TYPOGRAPHY.fontSize.xl.mobile, 
+          tablet: TYPOGRAPHY.fontSize['2xl'].tablet, 
+          desktop: TYPOGRAPHY.fontSize['3xl'].desktop 
+        },
         screenType
-      ),
-      fontWeight: '600' as const,
+      ) as number,
+      fontWeight: TYPOGRAPHY.fontWeight.bold as '700',
       color: COLORS.text.primary,
-      marginBottom: getResponsiveValue(SPACING.xs, screenType),
+      marginRight: getResponsiveValue(SPACING.sm, screenType) as number,
+      letterSpacing: -0.5,
+      lineHeight: getResponsiveValue(
+        { mobile: 24, tablet: 30, desktop: 36 },
+        screenType
+      ) as number,
+    },
+
+    statusBadge: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: getResponsiveValue(SPACING.xs, screenType) as number / 2,
+      paddingHorizontal: getResponsiveValue(SPACING.sm, screenType) as number,
+      paddingVertical: getResponsiveValue(
+        { mobile: 4, tablet: 5, desktop: 6 },
+        screenType
+      ) as number,
+      borderRadius: BORDER_RADIUS.full,
+      alignSelf: 'flex-start' as const,
+    },
+
+    statusText: {
+      fontSize: getResponsiveValue(
+        { 
+          mobile: TYPOGRAPHY.fontSize.xs.mobile, 
+          tablet: TYPOGRAPHY.fontSize.sm.tablet, 
+          desktop: TYPOGRAPHY.fontSize.sm.desktop 
+        },
+        screenType
+      ) as number,
+      fontWeight: TYPOGRAPHY.fontWeight.bold as '700',
+      textTransform: 'uppercase' as const,
+      letterSpacing: 0.5,
     },
 
     restaurantDescription: {
       fontSize: getResponsiveValue(
-        { mobile: 14, tablet: 15, desktop: 16 },
+        { 
+          mobile: TYPOGRAPHY.fontSize.sm.mobile, 
+          tablet: TYPOGRAPHY.fontSize.base.tablet, 
+          desktop: TYPOGRAPHY.fontSize.md.desktop 
+        },
         screenType
-      ),
+      ) as number,
       color: COLORS.text.secondary,
-      marginBottom: getResponsiveValue(SPACING.xs, screenType),
+      marginBottom: getResponsiveValue(SPACING.sm, screenType) as number,
       lineHeight: getResponsiveValue(
-        { mobile: 18, tablet: 20, desktop: 22 },
+        { mobile: 20, tablet: 24, desktop: 26 },
         screenType
-      ),
+      ) as number,
+    },
+
+    locationContainer: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: getResponsiveValue(SPACING.xs, screenType) as number,
+      marginBottom: getResponsiveValue(SPACING.sm, screenType) as number,
     },
 
     restaurantAddress: {
+      flex: 1,
       fontSize: getResponsiveValue(
-        { mobile: 12, tablet: 13, desktop: 14 },
+        { 
+          mobile: TYPOGRAPHY.fontSize.sm.mobile, 
+          tablet: TYPOGRAPHY.fontSize.base.tablet, 
+          desktop: TYPOGRAPHY.fontSize.base.desktop 
+        },
         screenType
-      ),
-      color: COLORS.text.secondary,
-    },
-
-    voucherBadge: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      marginTop: getResponsiveValue(SPACING.xs, screenType),
-      backgroundColor: COLORS.success + '20',
-      paddingHorizontal: getResponsiveValue(SPACING.xs, screenType),
-      paddingVertical: getResponsiveValue(SPACING.xs, screenType) / 2,
-      borderRadius: BORDER_RADIUS.sm,
-      alignSelf: 'flex-start' as const,
-    },
-
-    voucherText: {
-      fontSize: getResponsiveValue(
-        { mobile: 10, tablet: 11, desktop: 12 },
+      ) as number,
+      color: COLORS.text.light,
+      lineHeight: getResponsiveValue(
+        { mobile: 18, tablet: 22, desktop: 24 },
         screenType
-      ),
-      color: COLORS.success,
-      marginLeft: getResponsiveValue(SPACING.xs, screenType) / 2,
-      fontWeight: '500' as const,
+      ) as number,
     },
 
-    chevronIcon: {
-      alignSelf: 'flex-start' as const,
+    divider: {
+      height: 1,
+      backgroundColor: COLORS.border.light,
+      marginVertical: getResponsiveValue(SPACING.md, screenType) as number,
     },
 
     restaurantDetails: {
-      flexDirection: screenType === 'mobile' ? 'column' as const : 'row' as const,
-      justifyContent: 'space-between' as const,
-      alignItems: screenType === 'mobile' ? 'flex-start' as const : 'center' as const,
-      marginTop: getResponsiveValue(SPACING.sm, screenType),
-      gap: getResponsiveValue(SPACING.xs, screenType),
-    },
-
-    detailRow: {
       flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
       alignItems: 'center' as const,
-      gap: getResponsiveValue(SPACING.xs, screenType),
       flexWrap: 'wrap' as const,
+      gap: getResponsiveValue(SPACING.md, screenType) as number,
     },
 
     detailItem: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
-      gap: getResponsiveValue(SPACING.xs, screenType) / 2,
-      marginRight: getResponsiveValue(SPACING.sm, screenType),
+      gap: getResponsiveValue(SPACING.xs, screenType) as number,
+      backgroundColor: COLORS.background,
+      paddingHorizontal: getResponsiveValue(SPACING.sm, screenType) as number,
+      paddingVertical: getResponsiveValue(SPACING.xs, screenType) as number,
+      borderRadius: BORDER_RADIUS.lg,
+      borderWidth: 1,
+      borderColor: COLORS.border.light,
     },
 
     detailText: {
       fontSize: getResponsiveValue(
-        { mobile: 12, tablet: 13, desktop: 14 },
+        { 
+          mobile: TYPOGRAPHY.fontSize.sm.mobile, 
+          tablet: TYPOGRAPHY.fontSize.base.tablet, 
+          desktop: TYPOGRAPHY.fontSize.base.desktop 
+        },
         screenType
-      ),
-      color: COLORS.text.secondary,
+      ) as number,
+      color: COLORS.text.primary,
+      fontWeight: TYPOGRAPHY.fontWeight.medium as '500',
     },
 
-    statusText: {
+    voucherBadge: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: getResponsiveValue(SPACING.xs, screenType) as number,
+      backgroundColor: COLORS.goldenSurface,
+      paddingHorizontal: getResponsiveValue(SPACING.md, screenType) as number,
+      paddingVertical: getResponsiveValue(SPACING.sm, screenType) as number,
+      borderRadius: BORDER_RADIUS.lg,
+      borderWidth: 1.5,
+      borderColor: COLORS.variants.secondary[400],
+      alignSelf: 'flex-start' as const,
+      ...SHADOWS.goldenGlow,
+    },
+
+    voucherText: {
       fontSize: getResponsiveValue(
-        { mobile: 12, tablet: 13, desktop: 14 },
+        { 
+          mobile: TYPOGRAPHY.fontSize.xs.mobile, 
+          tablet: TYPOGRAPHY.fontSize.sm.tablet, 
+          desktop: TYPOGRAPHY.fontSize.base.desktop 
+        },
         screenType
-      ),
-      fontWeight: '500' as const,
+      ) as number,
+      color: COLORS.text.golden,
+      fontWeight: TYPOGRAPHY.fontWeight.bold as '700',
+      letterSpacing: 0.3,
+    },
+
+    chevronIcon: {
+      position: 'absolute' as const,
+      right: getResponsiveValue(
+        { 
+          mobile: SPACING.lg.mobile, 
+          tablet: SPACING.xl.tablet, 
+          desktop: SPACING['2xl'].desktop 
+        },
+        screenType
+      ) as number,
+      top: getResponsiveValue(
+        { 
+          mobile: SPACING.lg.mobile, 
+          tablet: SPACING.xl.tablet, 
+          desktop: SPACING['2xl'].desktop 
+        },
+        screenType
+      ) as number,
+      width: getResponsiveValue(
+        { mobile: 32, tablet: 36, desktop: 40 },
+        screenType
+      ) as number,
+      height: getResponsiveValue(
+        { mobile: 32, tablet: 36, desktop: 40 },
+        screenType
+      ) as number,
+      borderRadius: BORDER_RADIUS.full,
+      backgroundColor: COLORS.primary + '10',
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
     },
 
     errorContainer: {
       margin: layoutConfig.containerPadding,
-      padding: getResponsiveValue(SPACING.md, screenType),
-      backgroundColor: COLORS.error + '10',
-      borderRadius: BORDER_RADIUS.lg,
+      padding: getResponsiveValue(
+        { 
+          mobile: SPACING.lg.mobile, 
+          tablet: SPACING.xl.tablet, 
+          desktop: SPACING['2xl'].desktop 
+        },
+        screenType
+      ) as number,
+      backgroundColor: COLORS.error + '08',
+      borderRadius: BORDER_RADIUS.xl,
       borderLeftWidth: 4,
       borderLeftColor: COLORS.error,
       maxWidth: layoutConfig.maxContentWidth,
       alignSelf: 'center' as const,
       width: '100%' as const,
+      ...SHADOWS.md,
     },
 
     errorTitle: {
       color: COLORS.error,
       fontSize: getResponsiveValue(
-        { mobile: 14, tablet: 15, desktop: 16 },
+        { 
+          mobile: TYPOGRAPHY.fontSize.md.mobile, 
+          tablet: TYPOGRAPHY.fontSize.lg.tablet, 
+          desktop: TYPOGRAPHY.fontSize.xl.desktop 
+        },
         screenType
-      ),
-      fontWeight: '500' as const,
+      ) as number,
+      fontWeight: TYPOGRAPHY.fontWeight.bold as '700',
+      marginBottom: getResponsiveValue(SPACING.xs, screenType) as number,
     },
 
     errorMessage: {
-      color: COLORS.error,
+      color: COLORS.text.secondary,
       fontSize: getResponsiveValue(
-        { mobile: 12, tablet: 13, desktop: 14 },
+        { 
+          mobile: TYPOGRAPHY.fontSize.sm.mobile, 
+          tablet: TYPOGRAPHY.fontSize.base.tablet, 
+          desktop: TYPOGRAPHY.fontSize.base.desktop 
+        },
         screenType
-      ),
-      marginTop: getResponsiveValue(SPACING.xs, screenType),
+      ) as number,
+      lineHeight: getResponsiveValue(
+        { mobile: 20, tablet: 24, desktop: 26 },
+        screenType
+      ) as number,
     },
 
     emptyContainer: {
@@ -308,108 +440,188 @@ export default function BrowseRestaurantsScreen() {
       justifyContent: 'center' as const,
       alignItems: 'center' as const,
       paddingVertical: getResponsiveValue(
-        { mobile: 40, tablet: 60, desktop: 80 },
+        { mobile: 80, tablet: 100, desktop: 120 },
         screenType
-      ),
+      ) as number,
       paddingHorizontal: layoutConfig.containerPadding,
     },
 
-    emptyIcon: {
-      marginBottom: getResponsiveValue(SPACING.md, screenType),
+    emptyIconContainer: {
+      width: getResponsiveValue(
+        { mobile: 120, tablet: 140, desktop: 160 },
+        screenType
+      ) as number,
+      height: getResponsiveValue(
+        { mobile: 120, tablet: 140, desktop: 160 },
+        screenType
+      ) as number,
+      borderRadius: BORDER_RADIUS.full,
+      backgroundColor: COLORS.background,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      marginBottom: getResponsiveValue(SPACING.xl, screenType) as number,
+      ...SHADOWS.lg,
     },
 
     emptyTitle: {
       fontSize: getResponsiveValue(
-        { mobile: 18, tablet: 22, desktop: 26 },
+        { 
+          mobile: TYPOGRAPHY.fontSize['2xl'].mobile, 
+          tablet: TYPOGRAPHY.fontSize['3xl'].tablet, 
+          desktop: TYPOGRAPHY.fontSize['4xl'].desktop 
+        },
         screenType
-      ),
-      color: COLORS.text.secondary,
+      ) as number,
+      color: COLORS.text.primary,
       textAlign: 'center' as const,
-      marginBottom: getResponsiveValue(SPACING.xs, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.bold as '700',
+      marginBottom: getResponsiveValue(SPACING.sm, screenType) as number,
+      letterSpacing: -0.5,
     },
 
     emptySubtitle: {
       fontSize: getResponsiveValue(
-        { mobile: 14, tablet: 16, desktop: 18 },
+        { 
+          mobile: TYPOGRAPHY.fontSize.base.mobile, 
+          tablet: TYPOGRAPHY.fontSize.md.tablet, 
+          desktop: TYPOGRAPHY.fontSize.lg.desktop 
+        },
         screenType
-      ),
+      ) as number,
       color: COLORS.text.secondary,
       textAlign: 'center' as const,
-      marginBottom: getResponsiveValue(SPACING.md, screenType),
+      marginBottom: getResponsiveValue(SPACING.xl, screenType) as number,
+      lineHeight: getResponsiveValue(
+        { mobile: 22, tablet: 26, desktop: 30 },
+        screenType
+      ) as number,
+      maxWidth: getResponsiveValue(
+        { mobile: 280, tablet: 360, desktop: 440 },
+        screenType
+      ) as number,
     },
 
     retryButton: {
-      backgroundColor: COLORS.secondary,
-      paddingHorizontal: getResponsiveValue(SPACING.lg, screenType),
-      paddingVertical: getResponsiveValue(SPACING.sm, screenType),
-      borderRadius: BORDER_RADIUS.lg,
-      shadowColor: COLORS.shadow.default,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 2,
+      backgroundColor: COLORS.primary,
+      paddingHorizontal: getResponsiveValue(
+        { 
+          mobile: SPACING.xl.mobile, 
+          tablet: SPACING['2xl'].tablet, 
+          desktop: SPACING['3xl'].desktop 
+        },
+        screenType
+      ) as number,
+      paddingVertical: getResponsiveValue(
+        { 
+          mobile: SPACING.md.mobile, 
+          tablet: SPACING.lg.tablet, 
+          desktop: SPACING.lg.desktop 
+        },
+        screenType
+      ) as number,
+      borderRadius: BORDER_RADIUS.xl,
+      ...SHADOWS.button,
+      minHeight: getResponsiveValue(
+        { mobile: 48, tablet: 54, desktop: 60 },
+        screenType
+      ) as number,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
     },
 
     retryButtonText: {
-      color: COLORS.text.primary,
+      color: COLORS.text.inverse,
       fontSize: getResponsiveValue(
-        { mobile: 14, tablet: 15, desktop: 16 },
+        { 
+          mobile: TYPOGRAPHY.fontSize.base.mobile, 
+          tablet: TYPOGRAPHY.fontSize.md.tablet, 
+          desktop: TYPOGRAPHY.fontSize.lg.desktop 
+        },
         screenType
-      ),
-      fontWeight: '500' as const,
+      ) as number,
+      fontWeight: TYPOGRAPHY.fontWeight.bold as '700',
+      letterSpacing: 0.5,
     },
   };
 
   const iconSize = getResponsiveValue(
     { mobile: 16, tablet: 18, desktop: 20 },
     screenType
-  );
+  ) as number;
 
   const chevronSize = getResponsiveValue(
-    { mobile: 20, tablet: 22, desktop: 24 },
+    { mobile: 18, tablet: 20, desktop: 22 },
     screenType
-  );
+  ) as number;
 
-  const renderRestaurantItem: ListRenderItem<Restaurant> = ({ item, index }) => (
+  const renderRestaurantItem: ListRenderItem<Restaurant> = ({ item }) => (
     <Pressable 
       onPress={() => router.push(`/menu/client/${item.id}`)}
       android_ripple={{ 
-        color: COLORS.primary + '20',
+        color: COLORS.primary + '15',
         borderless: false 
       }}
+      style={({ pressed }) => [
+        { 
+          transform: [{ scale: pressed ? 0.98 : 1 }],
+          opacity: pressed ? 0.95 : 1,
+        }
+      ]}
     >
       <Card style={styles.restaurantCard}>
-        <View style={styles.restaurantHeader}>
-          <View style={styles.restaurantInfo}>
-            <Text style={styles.restaurantName}>
-              {item.name}
-            </Text>
+        <View style={styles.cardContent}>
+          {/* Header avec nom et statut */}
+          <View style={styles.restaurantHeader}>
+            <View style={styles.restaurantNameRow}>
+              <Text style={styles.restaurantName} numberOfLines={2}>
+                {item.name}
+              </Text>
+            </View>
+
+            <View style={[
+              styles.statusBadge,
+              { 
+                backgroundColor: item.can_receive_orders 
+                  ? COLORS.success + '20' 
+                  : COLORS.error + '15',
+                borderWidth: 1.5,
+                borderColor: item.can_receive_orders ? COLORS.success : COLORS.error,
+              }
+            ]}>
+              <View style={{
+                width: 6,
+                height: 6,
+                borderRadius: 3,
+                backgroundColor: item.can_receive_orders ? COLORS.success : COLORS.error,
+              }} />
+              <Text style={[
+                styles.statusText,
+                { color: item.can_receive_orders ? COLORS.success : COLORS.error }
+              ]}>
+                {item.can_receive_orders ? "Ouvert" : "Fermé"}
+              </Text>
+            </View>
+
             {item.description && (
-              <Text style={styles.restaurantDescription}>
+              <Text style={styles.restaurantDescription} numberOfLines={3}>
                 {item.description}
               </Text>
             )}
-            <Text style={styles.restaurantAddress}>
-              {item.address}, {item.city}
-            </Text>
-            
-            {/* Titres-restaurant */}
-            {item.accepts_meal_vouchers && (
-              <View style={styles.voucherBadge}>
-                <Ionicons name="card-outline" size={iconSize - 4} color={COLORS.success} />
-                <Text style={styles.voucherText}>
-                  Titres-restaurant acceptés
-                </Text>
-              </View>
-            )}
-          </View>
-          <View style={styles.chevronIcon}>
-            <Ionicons name="chevron-forward" size={chevronSize} color={COLORS.text.secondary} />
-          </View>
-        </View>
 
-        <View style={styles.restaurantDetails}>
-          <View style={styles.detailRow}>
+            {/* Localisation */}
+            <View style={styles.locationContainer}>
+              <Ionicons name="location-outline" size={iconSize} color={COLORS.text.secondary} />
+              <Text style={styles.restaurantAddress} numberOfLines={1}>
+                {item.address}, {item.city}
+              </Text>
+            </View>
+          </View>
+
+          {/* Divider */}
+          <View style={styles.divider} />
+
+          {/* Détails du restaurant */}
+          <View style={styles.restaurantDetails}>
             <View style={styles.detailItem}>
               <Ionicons name="restaurant-outline" size={iconSize} color={COLORS.secondary} />
               <Text style={styles.detailText}>
@@ -418,24 +630,25 @@ export default function BrowseRestaurantsScreen() {
             </View>
             
             <View style={styles.detailItem}>
-              <Text style={styles.detailText}>
+              <Ionicons name="pricetag-outline" size={iconSize} color={COLORS.secondary} />
+              <Text style={[styles.detailText, { color: COLORS.secondary }]}>
                 {'€'.repeat(item.priceRange || 2)}
               </Text>
             </View>
+
+            {item.accepts_meal_vouchers && (
+              <View style={styles.voucherBadge}>
+                <Ionicons name="card" size={iconSize} color={COLORS.text.golden} />
+                <Text style={styles.voucherText}>
+                  Titres-restaurant
+                </Text>
+              </View>
+            )}
           </View>
-          
-          <View style={styles.detailItem}>
-            <Ionicons 
-              name={item.can_receive_orders ? "checkmark-circle" : "close-circle"} 
-              size={iconSize} 
-              color={item.can_receive_orders ? COLORS.success : COLORS.error} 
-            />
-            <Text style={[
-              styles.statusText,
-              { color: item.can_receive_orders ? COLORS.success : COLORS.error }
-            ]}>
-              {item.can_receive_orders ? "Ouvert" : "Fermé"}
-            </Text>
+
+          {/* Chevron icon */}
+          <View style={styles.chevronIcon}>
+            <Ionicons name="arrow-forward" size={chevronSize} color={COLORS.primary} />
           </View>
         </View>
       </Card>
@@ -444,10 +657,10 @@ export default function BrowseRestaurantsScreen() {
 
   const renderEmptyComponent = () => (
     <View style={styles.emptyContainer}>
-      <View style={styles.emptyIcon}>
+      <View style={styles.emptyIconContainer}>
         <Ionicons 
           name="restaurant-outline" 
-          size={getResponsiveValue({ mobile: 64, tablet: 80, desktop: 96 }, screenType)} 
+          size={getResponsiveValue({ mobile: 56, tablet: 64, desktop: 72 }, screenType) as number} 
           color={COLORS.text.light} 
         />
       </View>
@@ -461,15 +674,15 @@ export default function BrowseRestaurantsScreen() {
       </Text>
       {searchQuery && !loading && (
         <Text style={styles.emptySubtitle}>
-          Essayez avec d'autres mots-clés
+          Essayez avec d'autres mots-clés ou affinez votre recherche
         </Text>
       )}
-      {error && (
+      {error && !loading && (
         <Pressable 
           style={styles.retryButton}
           onPress={loadRestaurants}
           android_ripple={{ 
-            color: COLORS.primary + '20',
+            color: COLORS.text.inverse + '30',
             borderless: false 
           }}
         >
@@ -509,8 +722,8 @@ export default function BrowseRestaurantsScreen() {
         renderItem={renderRestaurantItem}
         keyExtractor={(item: Restaurant) => item.id.toString()}
         contentContainerStyle={styles.listContainer}
+        key={`${layoutConfig.numColumns}-${screenType}-${width}`}
         numColumns={layoutConfig.numColumns}
-        key={`${layoutConfig.numColumns}-${screenType}`}
         refreshControl={
           <RefreshControl 
             refreshing={refreshing} 
@@ -521,6 +734,11 @@ export default function BrowseRestaurantsScreen() {
         }
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={renderEmptyComponent}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        updateCellsBatchingPeriod={50}
+        initialNumToRender={layoutConfig.numColumns * 3}
+        windowSize={5}
       />
     </SafeAreaView>
   );
