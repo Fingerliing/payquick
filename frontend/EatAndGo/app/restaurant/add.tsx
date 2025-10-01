@@ -7,9 +7,6 @@ import {
   Alert,
   TouchableOpacity,
   Image,
-  ViewStyle,
-  TextStyle,
-  ImageStyle,
   Text,
   KeyboardAvoidingView,
   Platform,
@@ -20,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // Context & Hooks
 import { useRestaurant } from '@/contexts/RestaurantContext';
@@ -30,7 +28,18 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Loading } from '@/components/ui/Loading';
-import { OpeningHoursEditor } from '@/components/restaurant/OpeningHoursEditor';
+import { MultiPeriodHoursEditor } from '@/components/restaurant/OpeningHoursEditor';
+
+// Design System
+import {
+  COLORS,
+  SHADOWS,
+  BORDER_RADIUS,
+  useScreenType,
+  createResponsiveStyles,
+  getResponsiveValue,
+  SPACING,
+} from '@/utils/designSystem';
 
 // Utils & Types
 import { RestaurantHoursUtils } from '@/utils/restaurantHours';
@@ -41,33 +50,22 @@ import { OpeningHours, Restaurant } from '@/types/restaurant';
 // =============================================================================
 
 interface CreateRestaurantData {
-  // Informations de base
   name: string;
   description?: string;
   cuisine: string;
   priceRange: 1 | 2 | 3 | 4;
-
-  // Localisation
   address: string;
   city: string;
   zipCode: string;
   country?: string;
   latitude?: number;
   longitude?: number;
-
-  // Contact
   phone: string;
   email: string;
   website?: string;
-
-  // Configuration
   openingHours: OpeningHours[];
-
-  // Titres-restaurant
   accepts_meal_vouchers: boolean;
   meal_voucher_info?: string;
-
-  // Média
   image?: string;
 }
 
@@ -76,21 +74,17 @@ interface FormValidationErrors {
 }
 
 // =============================================================================
-// FALLBACKS SÛRS (évite l'erreur getDefaultOpeningHours manquante)
+// FALLBACKS SÛRS
 // =============================================================================
 
-// Horaires par défaut (7 jours, fermés) si l'util n'expose pas la méthode attendue
 const getDefaultOpeningHoursSafe = (): OpeningHours[] => {
   const anyUtils = RestaurantHoursUtils as unknown as Record<string, any>;
-
   if (anyUtils?.getDefaultOpeningHours) return anyUtils.getDefaultOpeningHours();
   if (anyUtils?.getDefaultWeek) return anyUtils.getDefaultWeek();
   if (anyUtils?.defaultOpeningHours) {
     const v = anyUtils.defaultOpeningHours;
     return typeof v === 'function' ? v() : v;
   }
-
-  // Fallback minimal : 7 jours fermés
   return Array.from({ length: 7 }, (_, dayIndex) => ({
     dayOfWeek: dayIndex,
     isClosed: true,
@@ -98,7 +92,6 @@ const getDefaultOpeningHoursSafe = (): OpeningHours[] => {
   })) as unknown as OpeningHours[];
 };
 
-// Statut d'ouverture : on tente l'utilitaire ; sinon, statut "Fermé"
 const getRestaurantStatusSafe = (restaurant: Restaurant) => {
   const anyUtils = RestaurantHoursUtils as unknown as Record<string, any>;
   if (anyUtils?.getRestaurantStatus) return anyUtils.getRestaurantStatus(restaurant);
@@ -115,17 +108,17 @@ const getRestaurantStatusSafe = (restaurant: Restaurant) => {
 // =============================================================================
 
 const CUISINE_OPTIONS = [
-  { value: 'french', label: 'Française' },
-  { value: 'italian', label: 'Italienne' },
-  { value: 'asian', label: 'Asiatique' },
-  { value: 'mexican', label: 'Mexicaine' },
-  { value: 'indian', label: 'Indienne' },
-  { value: 'american', label: 'Américaine' },
-  { value: 'mediterranean', label: 'Méditerranéenne' },
-  { value: 'japanese', label: 'Japonaise' },
-  { value: 'chinese', label: 'Chinoise' },
-  { value: 'thai', label: 'Thaïlandaise' },
-  { value: 'other', label: 'Autre' },
+  { value: 'french', label: 'Française', icon: '🇫🇷' },
+  { value: 'italian', label: 'Italienne', icon: '🇮🇹' },
+  { value: 'asian', label: 'Asiatique', icon: '🥢' },
+  { value: 'mexican', label: 'Mexicaine', icon: '🌮' },
+  { value: 'indian', label: 'Indienne', icon: '🇮🇳' },
+  { value: 'american', label: 'Américaine', icon: '🍔' },
+  { value: 'mediterranean', label: 'Méditerranéenne', icon: '🫒' },
+  { value: 'japanese', label: 'Japonaise', icon: '🍱' },
+  { value: 'chinese', label: 'Chinoise', icon: '🥟' },
+  { value: 'thai', label: 'Thaïlandaise', icon: '🌶️' },
+  { value: 'other', label: 'Autre', icon: '🍽️' },
 ] as const;
 
 const PRICE_RANGES = [
@@ -148,7 +141,6 @@ const MEAL_VOUCHER_LEGAL_INFO = [
 const validateRestaurantForm = (formData: CreateRestaurantData): FormValidationErrors => {
   const errors: FormValidationErrors = {};
 
-  // Champs requis
   if (!formData.name?.trim()) errors.name = 'Nom requis';
   if (!formData.address?.trim()) errors.address = 'Adresse requise';
   if (!formData.city?.trim()) errors.city = 'Ville requise';
@@ -157,17 +149,14 @@ const validateRestaurantForm = (formData: CreateRestaurantData): FormValidationE
   if (!formData.email?.trim()) errors.email = 'Email requis';
   if (!formData.cuisine?.trim()) errors.cuisine = 'Cuisine requise';
 
-  // Email simple
   if (formData.email && !/^\S+@\S+\.\S+$/.test(formData.email)) {
     errors.email = 'Email invalide';
   }
 
-  // Téléphone simple (10 à 15 chiffres/espaces/+)
   if (formData.phone && !/^[0-9+\s().-]{10,15}$/.test(formData.phone)) {
     errors.phone = 'Numéro invalide';
   }
 
-  // Horaires (multi-périodes)
   if (!Array.isArray(formData.openingHours) || formData.openingHours.length !== 7) {
     errors.openingHours = 'Les horaires doivent couvrir les 7 jours de la semaine';
   } else {
@@ -183,7 +172,7 @@ const validateRestaurantForm = (formData: CreateRestaurantData): FormValidationE
             break;
           }
           if (p.startTime === p.endTime) {
-            errors.openingHours = 'L’heure de fin doit différer de l’ouverture';
+            errors.openingHours = "L'heure de fin doit différer de l'ouverture";
             break;
           }
         }
@@ -230,156 +219,14 @@ const createMockRestaurant = (formData: CreateRestaurantData, image?: string): R
 });
 
 // =============================================================================
-const styles = {
-  container: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
-  } as ViewStyle,
-
-  scrollContent: {
-    padding: 16,
-  } as ViewStyle,
-
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 16,
-  } as TextStyle,
-
-  sectionIcon: {
-    marginRight: 8,
-  },
-
-  imageContainer: {
-    height: 200,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-  } as ViewStyle,
-
-  imagePreview: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 12,
-  } as ImageStyle,
-
-  imageRemoveBtn: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: '#EF4444',
-    borderRadius: 20,
-    width: 32,
-    height: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-  } as ViewStyle,
-
-  cuisineGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 8,
-  } as ViewStyle,
-
-  cuisineChip: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    borderWidth: 1,
-  } as ViewStyle,
-
-  priceGrid: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 8,
-  } as ViewStyle,
-
-  priceButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    alignItems: 'center',
-  } as ViewStyle,
-
-  mealVoucherContainer: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
-  } as ViewStyle,
-
-  mealVoucherHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  } as ViewStyle,
-
-  mealVoucherInfo: {
-    backgroundColor: '#DBEAFE',
-    borderRadius: 6,
-    padding: 12,
-    marginBottom: 12,
-  } as ViewStyle,
-
-  previewContainer: {
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 8,
-    borderWidth: 1,
-  } as ViewStyle,
-
-  addressHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  } as ViewStyle,
-
-  locationButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-  } as ViewStyle,
-
-  addressRow: {
-    flexDirection: 'row',
-    gap: 8,
-  } as ViewStyle,
-
-  submitContainer: {
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 16,
-    paddingHorizontal: 4,
-    borderRadius: 12,
-    marginTop: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  } as ViewStyle,
-};
-
-// =============================================================================
 // MAIN COMPONENT
 // =============================================================================
 
 export default function AddRestaurantScreen() {
-  // HOOKS & STATE
   const { createRestaurant } = useRestaurant();
   const insets = useSafeAreaInsets();
+  const screenType = useScreenType();
+  const responsiveStyles = createResponsiveStyles(screenType);
 
   const [isLoading, setIsLoading] = useState(false);
   const [image, setImage] = useState<string | null>(null);
@@ -479,7 +326,6 @@ export default function AddRestaurantScreen() {
 
   // SUBMIT
   const handleSubmit = async () => {
-    // Validation côté client
     const validationErrors = validateRestaurantForm(formData);
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
@@ -490,11 +336,9 @@ export default function AddRestaurantScreen() {
     try {
       setIsLoading(true);
 
-      // Statut en live (pour feedback UX)
       const status = getRestaurantStatusSafe(createMockRestaurant(formData, image || undefined));
       const currentStatus = status?.isOpen;
 
-      // Données conformes au contexte (Restaurant sans champs read-only)
       const restaurantData: Omit<
         Restaurant,
         'id' | 'createdAt' | 'updatedAt' | 'can_receive_orders' | 'ownerId'
@@ -520,12 +364,10 @@ export default function AddRestaurantScreen() {
           : undefined,
         accepts_meal_vouchers_display: formData.accepts_meal_vouchers ? 'Oui' : 'Non',
         image: image || undefined,
-        // location group (transmis puis converti par le contexte)
         location: {
           latitude: formData.latitude || 0,
           longitude: formData.longitude || 0,
         },
-        // champs backend-compat (le contexte convertira en snake_case)
         opening_hours: formData.openingHours as any,
         zip_code: formData.zipCode as any,
         price_range: formData.priceRange as any,
@@ -542,7 +384,6 @@ export default function AddRestaurantScreen() {
         [{ text: 'OK', onPress: () => router.back() }]
       );
     } catch (error: any) {
-      // Gestion fine des erreurs renvoyées par l’API
       let errorMessage = 'Impossible de créer le restaurant';
 
       if (error.response?.data?.validation_errors) {
@@ -587,24 +428,52 @@ export default function AddRestaurantScreen() {
 
     return (
       <View
-        style={[
-          styles.previewContainer,
-          {
-            backgroundColor: status.isOpen ? '#ECFDF5' : '#FEF2F2',
-            borderColor: status.isOpen ? '#10B981' : '#EF4444',
-          },
-        ]}
+        style={{
+          backgroundColor: status.isOpen ? '#ECFDF5' : '#FEF2F2',
+          borderRadius: BORDER_RADIUS.lg,
+          padding: getResponsiveValue(SPACING.md, screenType),
+          marginTop: getResponsiveValue(SPACING.md, screenType),
+          borderWidth: 1,
+          borderColor: status.isOpen ? COLORS.success : COLORS.error,
+          ...SHADOWS.sm,
+        }}
       >
-        <Text style={{ fontWeight: '600', color: status.isOpen ? '#065F46' : '#7F1D1D' }}>
-          {status.shortStatus}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Ionicons
+            name={status.isOpen ? 'checkmark-circle' : 'close-circle'}
+            size={20}
+            color={status.isOpen ? COLORS.success : COLORS.error}
+          />
+          <Text
+            style={{
+              marginLeft: 8,
+              fontWeight: '600',
+              color: status.isOpen ? '#065F46' : '#7F1D1D',
+              fontSize: getResponsiveValue(SPACING.md, screenType),
+            }}
+          >
+            {status.shortStatus}
+          </Text>
+        </View>
         {status.currentPeriod && (
-          <Text style={{ marginTop: 4, color: '#111827' }}>
+          <Text
+            style={{
+              marginTop: 4,
+              color: COLORS.text.secondary,
+              fontSize: getResponsiveValue(SPACING.sm, screenType),
+            }}
+          >
             Période: {status.currentPeriod.startTime} - {status.currentPeriod.endTime}
           </Text>
         )}
         {status.nextOpening && (
-          <Text style={{ marginTop: 2, color: '#374151' }}>
+          <Text
+            style={{
+              marginTop: 2,
+              color: COLORS.text.light,
+              fontSize: getResponsiveValue(SPACING.sm, screenType),
+            }}
+          >
             Prochaine ouverture: {status.nextOpening}
           </Text>
         )}
@@ -614,66 +483,182 @@ export default function AddRestaurantScreen() {
 
   const MealVoucherPreview = () => (
     <View
-      style={[
-        styles.previewContainer,
-        {
-          backgroundColor: formData.accepts_meal_vouchers ? '#EFF6FF' : '#F9FAFB',
-          borderColor: formData.accepts_meal_vouchers ? '#3B82F6' : '#E5E7EB',
-        },
-      ]}
+      style={{
+        backgroundColor: formData.accepts_meal_vouchers ? COLORS.goldenSurface : COLORS.background,
+        borderRadius: BORDER_RADIUS.lg,
+        padding: getResponsiveValue(SPACING.md, screenType),
+        marginTop: getResponsiveValue(SPACING.md, screenType),
+        borderWidth: 1,
+        borderColor: formData.accepts_meal_vouchers ? COLORS.border.golden : COLORS.border.default,
+        ...(formData.accepts_meal_vouchers ? SHADOWS.goldenGlow : SHADOWS.sm),
+      }}
     >
-      <Text style={{ fontWeight: '600', color: '#1F2937' }}>
-        Titres-restaurant {formData.accepts_meal_vouchers ? 'acceptés' : 'non acceptés'}
-      </Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <Ionicons
+          name="card"
+          size={20}
+          color={formData.accepts_meal_vouchers ? COLORS.text.golden : COLORS.text.secondary}
+        />
+        <Text
+          style={{
+            marginLeft: 8,
+            fontWeight: '600',
+            color: formData.accepts_meal_vouchers ? COLORS.text.golden : COLORS.text.primary,
+            fontSize: getResponsiveValue(SPACING.md, screenType),
+          }}
+        >
+          Titres-restaurant {formData.accepts_meal_vouchers ? 'acceptés' : 'non acceptés'}
+        </Text>
+      </View>
       {!!formData.meal_voucher_info?.trim() && (
-        <Text style={{ marginTop: 4, color: '#374151' }}>{formData.meal_voucher_info}</Text>
+        <Text
+          style={{
+            marginTop: 4,
+            color: COLORS.text.secondary,
+            fontSize: getResponsiveValue(SPACING.sm, screenType),
+          }}
+        >
+          {formData.meal_voucher_info}
+        </Text>
       )}
+    </View>
+  );
+
+  // Section Header Component
+  const SectionHeader = ({ icon, title }: { icon: string; title: string }) => (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: getResponsiveValue(SPACING.xl, screenType),
+        marginBottom: getResponsiveValue(SPACING.md, screenType),
+      }}
+    >
+      <View
+        style={{
+          width: 32,
+          height: 32,
+          borderRadius: BORDER_RADIUS.md,
+          backgroundColor: COLORS.goldenSurface,
+          justifyContent: 'center',
+          alignItems: 'center',
+          marginRight: 12,
+        }}
+      >
+        <Ionicons name={icon as any} size={18} color={COLORS.text.golden} />
+      </View>
+      <Text
+        style={{
+          fontSize: getResponsiveValue(SPACING.lg, screenType),
+          fontWeight: '700',
+          color: COLORS.text.primary,
+        }}
+      >
+        {title}
+      </Text>
     </View>
   );
 
   // RENDER
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={{ flex: 1, backgroundColor: COLORS.background, paddingTop: insets.top }}>
       <Header title="Ajouter un restaurant" showBackButton />
 
       <KeyboardAvoidingView
         behavior={Platform.select({ ios: 'padding', android: undefined })}
         style={{ flex: 1 }}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={{
+            padding: getResponsiveValue(SPACING.container, screenType),
+          }}
+          keyboardShouldPersistTaps="handled"
+        >
           {/* IMAGE */}
-          <Text style={styles.sectionTitle}>
-            <Ionicons name="image" size={18} style={styles.sectionIcon as any} />
-            Image de couverture
-          </Text>
+          <SectionHeader icon="image" title="Image de couverture" />
           <View
-            style={[
-              styles.imageContainer,
-              { borderColor: image ? '#10B981' : '#D1D5DB' },
-            ]}
+            style={{
+              height: 200,
+              backgroundColor: image ? 'transparent' : COLORS.goldenSurface,
+              borderRadius: BORDER_RADIUS.xl,
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginBottom: getResponsiveValue(SPACING.md, screenType),
+              borderWidth: 2,
+              borderStyle: image ? 'solid' : 'dashed',
+              borderColor: image ? COLORS.border.golden : COLORS.border.dark,
+              overflow: 'hidden',
+              ...(!image && SHADOWS.md),
+            }}
           >
             {image ? (
               <>
-                <Image source={{ uri: image }} style={styles.imagePreview} />
-                <TouchableOpacity onPress={() => setImage(null)} style={styles.imageRemoveBtn}>
-                  <Ionicons name="close" size={18} color="#fff" />
+                <Image source={{ uri: image }} style={{ width: '100%', height: '100%' }} />
+                <TouchableOpacity
+                  onPress={() => setImage(null)}
+                  style={{
+                    position: 'absolute',
+                    top: 12,
+                    right: 12,
+                    backgroundColor: COLORS.error,
+                    borderRadius: BORDER_RADIUS.full,
+                    width: 36,
+                    height: 36,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    ...SHADOWS.lg,
+                  }}
+                >
+                  <Ionicons name="close" size={20} color="#fff" />
                 </TouchableOpacity>
               </>
             ) : (
-            <Button
-              variant="secondary"
-              title="Choisir une image"
-              leftIcon={<Ionicons name="image" size={18} />}
-              onPress={handleImagePicker}
-            />
+              <TouchableOpacity
+                onPress={handleImagePicker}
+                style={{
+                  alignItems: 'center',
+                  paddingVertical: getResponsiveValue(SPACING.lg, screenType),
+                  paddingHorizontal: getResponsiveValue(SPACING.xl, screenType),
+                }}
+              >
+                <View
+                  style={{
+                    width: 64,
+                    height: 64,
+                    borderRadius: BORDER_RADIUS.full,
+                    backgroundColor: COLORS.variants.secondary[100],
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    marginBottom: 12,
+                  }}
+                >
+                  <Ionicons name="image" size={32} color={COLORS.text.golden} />
+                </View>
+                <Text
+                  style={{
+                    fontSize: getResponsiveValue(SPACING.md, screenType),
+                    fontWeight: '600',
+                    color: COLORS.text.primary,
+                    marginBottom: 4,
+                  }}
+                >
+                  Choisir une image
+                </Text>
+                <Text
+                  style={{
+                    fontSize: getResponsiveValue(SPACING.sm, screenType),
+                    color: COLORS.text.light,
+                    textAlign: 'center',
+                  }}
+                >
+                  Format 16:9 recommandé
+                </Text>
+              </TouchableOpacity>
             )}
           </View>
 
           {/* BASICS */}
-          <Text style={styles.sectionTitle}>
-            <Ionicons name="restaurant" size={18} style={styles.sectionIcon as any} />
-            Informations de base
-          </Text>
+          <SectionHeader icon="restaurant" title="Informations de base" />
           <Card>
             <Input
               label="Nom du restaurant *"
@@ -685,66 +670,107 @@ export default function AddRestaurantScreen() {
             />
             <Input
               label="Description"
-              placeholder="Courte description"
+              placeholder="Courte description de votre établissement"
               value={formData.description}
               onChangeText={(t) => updateField('description', t)}
               multiline
             />
-            <Input
-              label="Type de cuisine *"
-              placeholder="Sélectionnez un type"
-              value={formData.cuisine}
-              onChangeText={(t) => updateField('cuisine', t)}
-              error={errors.cuisine}
-              onFocus={() => clearError('cuisine')}
-            />
-            <View style={styles.cuisineGrid}>
+
+            <Text
+              style={{
+                fontSize: getResponsiveValue(SPACING.sm, screenType),
+                fontWeight: '600',
+                color: COLORS.text.primary,
+                marginTop: getResponsiveValue(SPACING.md, screenType),
+                marginBottom: getResponsiveValue(SPACING.sm, screenType),
+              }}
+            >
+              Type de cuisine *
+            </Text>
+            <View
+              style={{
+                flexDirection: 'row',
+                flexWrap: 'wrap',
+                gap: 8,
+              }}
+            >
               {CUISINE_OPTIONS.map((opt) => {
                 const selected = formData.cuisine === opt.value;
                 return (
                   <TouchableOpacity
                     key={opt.value}
                     onPress={() => updateField('cuisine', opt.value)}
-                    style={[
-                      styles.cuisineChip,
-                      {
-                        backgroundColor: selected ? '#EFF6FF' : '#FFFFFF',
-                        borderColor: selected ? '#3B82F6' : '#D1D5DB',
-                      },
-                    ]}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Choisir la cuisine ${opt.label}`}
+                    style={{
+                      paddingVertical: 10,
+                      paddingHorizontal: 14,
+                      borderRadius: BORDER_RADIUS.full,
+                      borderWidth: selected ? 2 : 1,
+                      backgroundColor: selected ? COLORS.goldenSurface : COLORS.surface,
+                      borderColor: selected ? COLORS.variants.secondary[500] : COLORS.border.default,
+                      ...(selected && SHADOWS.goldenGlow),
+                    }}
                   >
-                    <Text style={{ color: selected ? '#1D4ED8' : '#374151' }}>{opt.label}</Text>
+                    <Text style={{ fontSize: 14 }}>
+                      {opt.icon} {opt.label}
+                    </Text>
                   </TouchableOpacity>
                 );
               })}
             </View>
+            {errors.cuisine && (
+              <Text style={{ color: COLORS.error, fontSize: 12, marginTop: 4 }}>
+                {errors.cuisine}
+              </Text>
+            )}
 
-            <Text style={[styles.sectionTitle, { marginTop: 16, marginBottom: 8 }]}>
+            <Text
+              style={{
+                fontSize: getResponsiveValue(SPACING.sm, screenType),
+                fontWeight: '600',
+                color: COLORS.text.primary,
+                marginTop: getResponsiveValue(SPACING.lg, screenType),
+                marginBottom: getResponsiveValue(SPACING.sm, screenType),
+              }}
+            >
               Gamme de prix
             </Text>
-            <View style={styles.priceGrid}>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
               {PRICE_RANGES.map((p) => {
                 const selected = formData.priceRange === p.value;
                 return (
                   <TouchableOpacity
                     key={p.value}
                     onPress={() => updateField('priceRange', p.value)}
-                    style={[
-                      styles.priceButton,
-                      {
-                        backgroundColor: selected ? '#ECFDF5' : '#FFFFFF',
-                        borderColor: selected ? '#10B981' : '#D1D5DB',
-                      },
-                    ]}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Sélectionner la gamme de prix ${p.label}`}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 14,
+                      paddingHorizontal: 12,
+                      borderRadius: BORDER_RADIUS.lg,
+                      borderWidth: selected ? 2 : 1,
+                      alignItems: 'center',
+                      backgroundColor: selected ? COLORS.goldenSurface : COLORS.surface,
+                      borderColor: selected ? COLORS.variants.secondary[500] : COLORS.border.default,
+                      ...(selected && SHADOWS.goldenGlow),
+                    }}
                   >
-                    <Text style={{ fontWeight: '600', color: selected ? '#065F46' : '#111827' }}>
+                    <Text
+                      style={{
+                        fontWeight: '700',
+                        fontSize: 18,
+                        color: selected ? COLORS.text.golden : COLORS.text.primary,
+                      }}
+                    >
                       {p.label}
                     </Text>
-                    <Text style={{ fontSize: 12, color: '#6B7280' }}>{p.description}</Text>
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        marginTop: 2,
+                        color: COLORS.text.light,
+                      }}
+                    >
+                      {p.description}
+                    </Text>
                   </TouchableOpacity>
                 );
               })}
@@ -752,67 +778,82 @@ export default function AddRestaurantScreen() {
           </Card>
 
           {/* CONTACT */}
-          <Text style={styles.sectionTitle}>
-            <Ionicons name="call" size={18} style={styles.sectionIcon as any} />
-            Contact
-          </Text>
+          <SectionHeader icon="call" title="Contact" />
           <Card>
             <Input
               label="Téléphone *"
-              placeholder="+33 ..."
+              placeholder="+33 6 12 34 56 78"
               value={formData.phone}
               onChangeText={(t) => updateField('phone', t)}
               error={errors.phone}
               onFocus={() => clearError('phone')}
+              keyboardType="phone-pad"
             />
             <Input
               label="Email *"
-              placeholder="contact@exemple.com"
+              placeholder="contact@restaurant.com"
               value={formData.email}
               onChangeText={(t) => updateField('email', t)}
               error={errors.email}
               onFocus={() => clearError('email')}
+              keyboardType="email-address"
+              autoCapitalize="none"
             />
             <Input
               label="Site web"
-              placeholder="https://..."
+              placeholder="https://www.restaurant.com"
               value={formData.website}
               onChangeText={(t) => updateField('website', t)}
+              keyboardType="url"
+              autoCapitalize="none"
             />
           </Card>
 
           {/* ADRESSE */}
-          <Text style={styles.sectionTitle}>
-            <Ionicons name="location" size={18} style={styles.sectionIcon as any} />
-            Adresse & géolocalisation
-          </Text>
+          <SectionHeader icon="location" title="Adresse & géolocalisation" />
           <Card>
-            <View style={styles.addressHeader}>
-              <Text style={{ fontWeight: '600', color: '#111827' }}>Adresse</Text>
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: getResponsiveValue(SPACING.md, screenType),
+              }}
+            >
+              <Text style={{ fontWeight: '600', color: COLORS.text.primary }}>Adresse</Text>
               <TouchableOpacity
-                style={styles.locationButton}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: COLORS.goldenSurface,
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  borderRadius: BORDER_RADIUS.md,
+                  borderWidth: 1,
+                  borderColor: COLORS.border.golden,
+                }}
                 onPress={handleLocationDetection}
-                accessibilityRole="button"
-                accessibilityLabel="Utiliser ma position pour renseigner l'adresse"
               >
-                <Ionicons name="locate" size={16} color="#111827" />
-                <Text style={{ marginLeft: 6, color: '#111827' }}>Utiliser ma position</Text>
+                <Ionicons name="locate" size={16} color={COLORS.text.golden} />
+                <Text style={{ marginLeft: 6, color: COLORS.text.golden, fontSize: 13, fontWeight: '500' }}>
+                  Ma position
+                </Text>
               </TouchableOpacity>
             </View>
 
             <Input
               label="Adresse *"
-              placeholder="Numéro et rue"
+              placeholder="12 rue de la Paix"
               value={formData.address}
               onChangeText={(t) => updateField('address', t)}
               error={errors.address}
               onFocus={() => clearError('address')}
             />
-            <View style={styles.addressRow}>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
               <View style={{ flex: 1 }}>
                 <Input
                   label="Ville *"
-                  placeholder="Ville"
+                  placeholder="Paris"
                   value={formData.city}
                   onChangeText={(t) => updateField('city', t)}
                   error={errors.city}
@@ -822,53 +863,106 @@ export default function AddRestaurantScreen() {
               <View style={{ width: 120 }}>
                 <Input
                   label="Code postal *"
-                  placeholder="00000"
+                  placeholder="75001"
                   value={formData.zipCode}
                   onChangeText={(t) => updateField('zipCode', t)}
                   error={errors.zipCode}
                   onFocus={() => clearError('zipCode')}
+                  keyboardType="numeric"
                 />
               </View>
             </View>
           </Card>
 
           {/* HORAIRES */}
-          <Text style={styles.sectionTitle}>
-            <Ionicons name="time" size={18} style={styles.sectionIcon as any} />
-            Horaires d’ouverture
-          </Text>
+          <SectionHeader icon="time" title="Horaires d'ouverture" />
           <Card>
-            <OpeningHoursEditor
+            <MultiPeriodHoursEditor
               openingHours={formData.openingHours}
               onChange={(newHours) => updateField('openingHours', newHours)}
             />
             {!!errors.openingHours && (
-              <Text style={{ color: '#B91C1C', marginTop: 8 }}>{errors.openingHours}</Text>
+              <Text style={{ color: COLORS.error, marginTop: 8, fontSize: 13 }}>
+                {errors.openingHours}
+              </Text>
             )}
             <StatusPreview />
           </Card>
 
           {/* TITRES-RESTAURANT */}
-          <Text style={styles.sectionTitle}>
-            <Ionicons name="card" size={18} style={styles.sectionIcon as any} />
-            Titres-restaurant
-          </Text>
+          <SectionHeader icon="card" title="Titres-restaurant" />
           <Card>
-            <View style={styles.mealVoucherContainer}>
-              <View style={styles.mealVoucherHeader}>
-                <Text style={{ fontWeight: '600', color: '#111827' }}>
-                  Accepter les titres-restaurant
-                </Text>
+            <View
+              style={{
+                backgroundColor: COLORS.goldenSurface,
+                borderRadius: BORDER_RADIUS.lg,
+                padding: getResponsiveValue(SPACING.md, screenType),
+                borderWidth: 1,
+                borderColor: COLORS.border.golden,
+              }}
+            >
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: formData.accepts_meal_vouchers ? 16 : 0,
+                }}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontWeight: '600', color: COLORS.text.primary, fontSize: 15 }}>
+                    Accepter les titres-restaurant
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      color: COLORS.text.light,
+                      marginTop: 2,
+                    }}
+                  >
+                    Swile, Edenred, Up...
+                  </Text>
+                </View>
                 <Switch
                   value={formData.accepts_meal_vouchers}
                   onValueChange={(v) => updateField('accepts_meal_vouchers', v)}
+                  trackColor={{
+                    false: COLORS.border.default,
+                    true: COLORS.variants.secondary[400],
+                  }}
+                  thumbColor={COLORS.surface}
                 />
               </View>
+
               {formData.accepts_meal_vouchers && (
                 <>
-                  <View style={styles.mealVoucherInfo}>
+                  <View
+                    style={{
+                      backgroundColor: COLORS.variants.secondary[100],
+                      borderRadius: BORDER_RADIUS.md,
+                      padding: 12,
+                      marginBottom: 12,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: '600',
+                        color: COLORS.variants.secondary[900],
+                        marginBottom: 6,
+                      }}
+                    >
+                      Informations légales
+                    </Text>
                     {MEAL_VOUCHER_LEGAL_INFO.map((line, idx) => (
-                      <Text key={idx} style={{ color: '#1E3A8A' }}>
+                      <Text
+                        key={idx}
+                        style={{
+                          fontSize: 11,
+                          color: COLORS.variants.secondary[800],
+                          marginTop: 2,
+                        }}
+                      >
                         • {line}
                       </Text>
                     ))}
@@ -886,8 +980,33 @@ export default function AddRestaurantScreen() {
           </Card>
 
           {/* SUBMIT */}
-          <View style={styles.submitContainer}>
-            <Button title="Créer le restaurant" variant="primary" onPress={handleSubmit} />
+          <View
+            style={{
+              marginTop: getResponsiveValue(SPACING.xl, screenType),
+              marginBottom: getResponsiveValue(SPACING.xl, screenType),
+            }}
+          >
+            <TouchableOpacity
+              onPress={handleSubmit}
+              disabled={isLoading}
+              style={{
+                backgroundColor: COLORS.primary,
+                paddingVertical: 16,
+                borderRadius: BORDER_RADIUS.xl,
+                alignItems: 'center',
+                ...SHADOWS.button,
+              }}
+            >
+              <Text
+                style={{
+                  color: COLORS.text.inverse,
+                  fontSize: 16,
+                  fontWeight: '700',
+                }}
+              >
+                {isLoading ? 'Création en cours...' : 'Créer le restaurant'}
+              </Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
