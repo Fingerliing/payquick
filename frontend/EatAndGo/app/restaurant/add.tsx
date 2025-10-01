@@ -1,5 +1,3 @@
-// app/(tabs)/restaurants/add.tsx
-
 import React, { useState } from 'react';
 import {
   View,
@@ -17,7 +15,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 
 // Context & Hooks
 import { useRestaurant } from '@/contexts/RestaurantContext';
@@ -122,9 +119,9 @@ const CUISINE_OPTIONS = [
 ] as const;
 
 const PRICE_RANGES = [
-  { value: 1, label: '€', description: 'Économique' },
+  { value: 1, label: '€', description: 'Éco' },
   { value: 2, label: '€€', description: 'Modéré' },
-  { value: 3, label: '€€€', description: 'Élevé' },
+  { value: 3, label: '€€€', description: 'Cher' },
   { value: 4, label: '€€€€', description: 'Luxe' },
 ] as const;
 
