@@ -44,6 +44,19 @@ const prepareDataForBackend = (data: Partial<Restaurant>): any => {
     delete backendData.isActive;
   }
 
+  // Gérer les horaires d'ouverture
+  if (data.openingHours && Array.isArray(data.openingHours)) {
+    backendData.openingHours = data.openingHours.map((day: any) => ({
+      dayOfWeek: day.dayOfWeek,
+      isClosed: !!day.isClosed,
+      periods: (day.periods || []).map((p: any) => ({
+        startTime: p.startTime, // camelCase requis par la vue
+        endTime: p.endTime,     // camelCase requis par la vue
+        name: p.name || ''
+      })),
+    }));
+  }
+
   // Gérer location
   if (data.location) {
     backendData.latitude = data.location.latitude;
@@ -64,6 +77,8 @@ const prepareDataForBackend = (data: Partial<Restaurant>): any => {
   delete backendData.review_count;
   delete backendData.rating;
   delete backendData.accepts_meal_vouchers_display;
+  delete backendData.lastStatusChangedBy;
+  delete backendData.lastStatusChangedAt;
 
   return backendData;
 };
@@ -152,7 +167,7 @@ export class RestaurantService {
       ...params?.filters,
     };
 
-    const response = await apiClient.get('api/v1/restaurants/public/', queryParams);
+    const response = await apiClient.get('api/v1/restaurants/public/', { params: queryParams });
     return normalizePaginatedResponse(response);
   }
 
@@ -168,7 +183,9 @@ export class RestaurantService {
    * Recherche publique de restaurants
    */
   async searchPublicRestaurants(query: string, filters?: SearchFilters): Promise<Restaurant[]> {
-    const response = await apiClient.get('api/v1/restaurants/public/', { search: query, ...filters });
+    const response = await apiClient.get('api/v1/restaurants/', { 
+      params: { search: query, ...filters } 
+    });
 
     if (Array.isArray(response)) {
       return response.map(normalizeRestaurantData);
@@ -203,7 +220,7 @@ export class RestaurantService {
    * Liste des restaurants du restaurateur (privé)
    */
   async getRestaurants(params?: { search?: string; page?: number; page_size?: number }): Promise<PaginatedResponse<Restaurant>> {
-    const response = await apiClient.get('api/v1/restaurants/', params);
+    const response = await apiClient.get('api/v1/restaurants/', { params });
     return normalizePaginatedResponse(response);
   }
 
@@ -298,9 +315,14 @@ export class RestaurantService {
   /**
    * Mise à jour d'un restaurant (privé)
    */
-  async updateRestaurant(id: string, data: Partial<Restaurant>): Promise<void> {
+  async updateRestaurant(id: string, data: Partial<Restaurant>): Promise<Restaurant> {
     const payload = prepareDataForBackend(data);
-    await apiClient.patch(`api/v1/restaurants/${id}/`, payload);
+    console.log('🔄 Service: Updating restaurant', id, payload);
+    
+    const response = await apiClient.patch(`api/v1/restaurants/${id}/`, payload);
+    console.log('✅ Service: Restaurant updated', response);
+    
+    return normalizeRestaurantData(response);
   }
 
   /**
@@ -314,7 +336,9 @@ export class RestaurantService {
    * Recherche (privé)
    */
   async searchRestaurants(query: string, filters?: SearchFilters): Promise<Restaurant[]> {
-    const response = await apiClient.get('api/v1/restaurants/', { search: query, ...filters });
+    const response = await apiClient.get('api/v1/restaurants/', { 
+      params: { search: query, ...filters } 
+    });
 
     if (Array.isArray(response)) {
       return response.map(normalizeRestaurantData);

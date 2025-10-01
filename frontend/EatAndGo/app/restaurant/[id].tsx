@@ -10,9 +10,9 @@ import {
   Image,
   Modal,
   Switch,
-  SafeAreaView,
   useWindowDimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useRestaurant } from '@/contexts/RestaurantContext';
@@ -191,20 +191,15 @@ const RestaurantDetailPage = () => {
       Alert.alert('Erreur', 'ID du restaurant invalide');
       return;
     }
-
+  
     try {
-      // Préparer les données avec les horaires
-      const updateData = {
-        ...editForm,
-        opening_hours: editForm.openingHours, // Ajouter les horaires pour le backend
-      };
+      // Les horaires sont déjà sauvegardés, envoyer juste les autres champs
+      await updateRestaurant(id, editForm);
       
-      await updateRestaurant(id, updateData);
       setIsEditing(false);
-      setShowHoursEditModal(false);
       Alert.alert('Succès', 'Restaurant mis à jour avec succès');
     } catch (error) {
-      console.error('Erreur lors de la mise à jour:', error);
+      console.error('❌ Erreur:', error);
       Alert.alert('Erreur', 'Impossible de mettre à jour le restaurant');
     }
   }, [id, editForm, updateRestaurant]);
@@ -249,15 +244,72 @@ const RestaurantDetailPage = () => {
     setShowHoursEditModal(true);
   }, [editForm.openingHours, currentRestaurant]);
 
-  const handleSaveHours = useCallback(() => {
-    updateField('openingHours', tempHours);
-    setShowHoursEditModal(false);
-  }, [tempHours, updateField]);
+  const handleSaveHours = useCallback(async () => {
+    if (!id || typeof id !== 'string') return;
+    
+    try {
+      // Construire les données avec les nouveaux horaires
+      const updatedData = {
+        ...editForm,
+        openingHours: tempHours,
+      };
+      
+      // Sauvegarder au backend - cela met à jour automatiquement currentRestaurant dans le contexte
+      await updateRestaurant(id, updatedData);
+      
+      // Synchroniser editForm
+      updateField('openingHours', tempHours);
+      
+      // Fermer la modal - les changements sont maintenant visibles !
+      setShowHoursEditModal(false);
+      
+    } catch (error) {
+      console.error('❌ Erreur:', error);
+      Alert.alert('Erreur', 'Impossible de sauvegarder les horaires');
+    }
+  }, [tempHours, editForm, id, updateRestaurant, updateField]);
 
   const handleCancelHours = useCallback(() => {
     setShowHoursEditModal(false);
     setTempHours([]);
   }, []);
+
+  const handleCloseHoursModal = useCallback(async () => {
+    // Si pas d'id, on ferme simplement
+    if (!id || typeof id !== 'string') {
+      setShowHoursEditModal(false);
+      return;
+    }
+  
+    // Horaires "avant" (ce que voit l'écran d’édition)
+    const prevHours =
+      editForm.openingHours ||
+      currentRestaurant?.opening_hours ||
+      currentRestaurant?.openingHours ||
+      [];
+  
+    // S'il y a des changements, on sauvegarde, sinon on ferme juste
+    const hasChanges = JSON.stringify(tempHours) !== JSON.stringify(prevHours);
+  
+    if (hasChanges) {
+      try {
+        await handleSaveHours(); // fait déjà le setShowHoursEditModal(false)
+      } catch {
+        // En cas d'erreur, on ne ferme pas automatiquement
+        // (handleSaveHours affiche déjà une alerte)
+      }
+    } else {
+      setShowHoursEditModal(false);
+    }
+  }, [id, tempHours, editForm.openingHours, currentRestaurant, handleSaveHours]);
+
+  const effectiveHours = useMemo(() => {
+    const uiHours = editForm.openingHours ?? [];
+    if (Array.isArray(uiHours) && uiHours.length === 7) return uiHours;
+  
+    const ctxHours = currentRestaurant?.opening_hours || currentRestaurant?.openingHours || [];
+    return Array.isArray(ctxHours) ? ctxHours : [];
+  }, [editForm.openingHours, currentRestaurant]);
 
   const handleCloseRestaurant = useCallback(async () => {
     if (!id || typeof id !== 'string') {
@@ -652,7 +704,7 @@ const RestaurantDetailPage = () => {
       </SafeAreaView>
     );
   }
-
+  
   return (
     <SafeAreaView style={dynamicStyles.container}>
       <Header 
@@ -1060,7 +1112,7 @@ const RestaurantDetailPage = () => {
         visible={showHoursEditModal}
         transparent={true}
         animationType="slide"
-        onRequestClose={handleCancelHours}
+        onRequestClose={handleCloseHoursModal}
       >
         <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.overlay }}>
           <View style={{ 
@@ -1082,7 +1134,7 @@ const RestaurantDetailPage = () => {
               <Text style={dynamicStyles.modalTitle}>
                 Modifier les horaires d'ouverture
               </Text>
-              <TouchableOpacity onPress={handleCancelHours}>
+              <TouchableOpacity onPress={handleCloseHoursModal}>
                 <Ionicons name="close" size={24} color={COLORS.text.primary} />
               </TouchableOpacity>
             </View>
@@ -1126,17 +1178,8 @@ const RestaurantDetailPage = () => {
             }}>
               <View style={{ flex: 1 }}>
                 <Button
-                  title="Annuler"
-                  onPress={handleCancelHours}
-                  variant="outline"
-                  fullWidth
-                />
-              </View>
-              
-              <View style={{ flex: 1 }}>
-                <Button
-                  title="Appliquer"
-                  onPress={handleSaveHours}
+                  title="Fermer"
+                  onPress={handleCloseHoursModal}
                   variant="primary"
                   fullWidth
                 />
@@ -1154,53 +1197,53 @@ const RestaurantDetailPage = () => {
     if (!currentRestaurant) return null;
     return (
       <>
-        {/* Horaires d'ouverture */}
-        {currentRestaurant.opening_hours && currentRestaurant.opening_hours.length > 0 && (
-          <Card style={dynamicStyles.card}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: layoutConfig.cardSpacing * 0.5 }}>
-              <Text style={dynamicStyles.sectionTitle}>
-                Horaires d'ouverture
-              </Text>
-              {isEditing && (
-                <TouchableOpacity onPress={handleOpenHoursModal}>
-                  <Ionicons name="create-outline" size={20} color={COLORS.primary} />
-                </TouchableOpacity>
-              )}
-            </View>
-            
-            <View style={{ gap: layoutConfig.cardSpacing * 0.5 }}>
-              {currentRestaurant.opening_hours.map((hours: any) => (
-                <View key={hours.dayOfWeek} style={dynamicStyles.scheduleRow}>
-                  <Text style={dynamicStyles.dayLabel}>
-                    {['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'][hours.dayOfWeek]}
-                  </Text>
-                  <View style={dynamicStyles.scheduleInfo}>
-                    {hours.isClosed ? (
-                      <Text style={[dynamicStyles.scheduleTime, { color: COLORS.text.secondary }]}>Fermé</Text>
-                    ) : hours.periods && hours.periods.length > 0 ? (
-                      <View>
-                        {hours.periods.map((period: any, idx: number) => (
-                          <View key={idx}>
-                            <Text style={dynamicStyles.scheduleTime}>
-                              {period.startTime} - {period.endTime}
-                              {period.name && (
-                                <Text style={[dynamicStyles.scheduleTime, { color: COLORS.text.secondary }]}>
-                                  {' '}({period.name})
-                                </Text>
-                              )}
-                            </Text>
-                          </View>
-                        ))}
-                      </View>
-                    ) : (
-                      <Text style={[dynamicStyles.scheduleTime, { color: COLORS.text.secondary }]}>Non défini</Text>
-                    )}
-                  </View>
+      {/* Horaires d'ouverture */}
+      {effectiveHours && effectiveHours.length > 0 && (
+        <Card style={dynamicStyles.card}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: layoutConfig.cardSpacing * 0.5 }}>
+            <Text style={dynamicStyles.sectionTitle}>
+              Horaires d'ouverture
+            </Text>
+            {isEditing && (
+              <TouchableOpacity onPress={handleOpenHoursModal}>
+                <Ionicons name="create-outline" size={20} color={COLORS.primary} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <View style={{ gap: layoutConfig.cardSpacing * 0.5 }}>
+            {effectiveHours.map((hours: any) => (
+              <View key={hours.dayOfWeek} style={dynamicStyles.scheduleRow}>
+                <Text style={dynamicStyles.dayLabel}>
+                  {['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'][hours.dayOfWeek]}
+                </Text>
+                <View style={dynamicStyles.scheduleInfo}>
+                  {hours.isClosed ? (
+                    <Text style={[dynamicStyles.scheduleTime, { color: COLORS.text.secondary }]}>Fermé</Text>
+                  ) : hours.periods && hours.periods.length > 0 ? (
+                    <View>
+                      {hours.periods.map((p: any, idx: number) => (
+                        <View key={idx}>
+                          <Text style={dynamicStyles.scheduleTime}>
+                            {p.startTime} - {p.endTime}
+                            {p.name && (
+                              <Text style={[dynamicStyles.scheduleTime, { color: COLORS.text.secondary }]}>
+                                {' '}({p.name})
+                              </Text>
+                            )}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : (
+                    <Text style={[dynamicStyles.scheduleTime, { color: COLORS.text.secondary }]}>Non défini</Text>
+                  )}
                 </View>
-              ))}
-            </View>
-          </Card>
-        )}
+              </View>
+            ))}
+          </View>
+        </Card>
+      )}
 
         {/* Statistiques */}
         <Card style={dynamicStyles.card}>

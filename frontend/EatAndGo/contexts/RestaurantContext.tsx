@@ -500,24 +500,8 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
       console.log('RestaurantContext: Updating restaurant:', id, data);
       dispatch({ type: 'SET_ERROR', payload: null });
       
-      // Préparer les données pour le backend
-      const backendData: any = { ...data };
-      
-      // Gérer location si présent
-      if (data.location) {
-        backendData.latitude = data.location.latitude;
-        backendData.longitude = data.location.longitude;
-        delete backendData.location;
-      }
-      
-      // Supprimer les champs en lecture seule
-      delete backendData.id;
-      delete backendData.ownerId;
-      delete backendData.createdAt;
-      delete backendData.updatedAt;
-      delete backendData.can_receive_orders;
-      
-      const restaurant = await restaurantService.updateRestaurant(id, backendData);
+      // Le service gère maintenant toute la préparation des données
+      const restaurant = await restaurantService.updateRestaurant(id, data);
       console.log('RestaurantContext: Restaurant updated:', restaurant);
       
       dispatch({ type: 'UPDATE_RESTAURANT', payload: normalizeRestaurantData(restaurant) });
