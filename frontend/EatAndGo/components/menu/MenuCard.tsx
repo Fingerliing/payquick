@@ -1,7 +1,15 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Menu } from '@/types/menu';
+import { 
+  COLORS, 
+  SHADOWS, 
+  BORDER_RADIUS, 
+  useScreenType, 
+  createResponsiveStyles,
+  COMPONENT_STYLES 
+} from '@/utils/designSystem';
 
 interface MenuCardProps {
   menu: Menu;
@@ -20,175 +28,337 @@ export function MenuCard({
   onDelete,
   isToggling = false
 }: MenuCardProps) {
+  const screenType = useScreenType();
+  const styles = createResponsiveStyles(screenType);
+  const scaleAnim = React.useRef(new Animated.Value(1)).current;
   
   // Fonction pour déterminer si le menu est disponible
-  // Gère à la fois is_available et disponible (legacy)
   const isMenuAvailable = () => {
-    // Si is_available est défini (boolean), on l'utilise
     if (typeof menu.is_available === 'boolean') {
       return menu.is_available;
     }
-    // Sinon, on utilise disponible si elle existe (legacy)
     if (typeof (menu as any).disponible === 'boolean') {
       return (menu as any).disponible;
     }
-    // Par défaut, considérer comme non disponible
     return false;
   };
 
   const menuIsAvailable = isMenuAvailable();
+  const availableItemsCount = menu.items?.filter(item => item.is_available !== false).length || 0;
+
+  // Animation au press
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.98,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      friction: 3,
+      tension: 40,
+      useNativeDriver: true,
+    }).start();
+  };
 
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      disabled={isToggling}
+    <Animated.View
       style={{
-        backgroundColor: 'white',
-        marginHorizontal: 16,
+        transform: [{ scale: scaleAnim }],
+        marginHorizontal: styles.container.padding,
         marginVertical: 8,
-        padding: 16,
-        borderRadius: 12,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-        opacity: isToggling ? 0.7 : 1,
       }}
     >
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 4 }}>
-            {menu.name}
-          </Text>
-          
-          <Text style={{ fontSize: 14, color: '#6B7280', marginBottom: 8 }}>
-            {menu.items?.length || 0} plat(s) • Créé le {new Date(menu.created_at).toLocaleDateString('fr-FR')}
-          </Text>
+      <TouchableOpacity
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        disabled={isToggling}
+        activeOpacity={0.9}
+        style={{
+          backgroundColor: COLORS.surface,
+          borderRadius: BORDER_RADIUS.xl,
+          overflow: 'hidden',
+          ...SHADOWS.card,
+          opacity: isToggling ? 0.7 : 1,
+        }}
+      >
+        {/* Barre supérieure avec accent doré si actif */}
+        {menuIsAvailable && (
+          <View 
+            style={{
+              height: 3,
+              backgroundColor: COLORS.secondary,
+              ...SHADOWS.goldenGlow,
+            }} 
+          />
+        )}
 
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+        {/* Contenu principal */}
+        <View style={{ padding: 16 }}>
+          {/* En-tête avec titre et bouton édition */}
+          <View style={{ 
+            flexDirection: 'row', 
+            justifyContent: 'space-between', 
+            alignItems: 'flex-start',
+            marginBottom: 12,
+          }}>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Text style={{
+                ...styles.textSubtitle,
+                marginBottom: 4,
+                color: menuIsAvailable ? COLORS.text.primary : COLORS.text.secondary,
+              }}>
+                {menu.name}
+              </Text>
+              
+              <View style={{ 
+                flexDirection: 'row', 
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 8,
+              }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Ionicons 
+                    name="restaurant" 
+                    size={14} 
+                    color={COLORS.text.golden} 
+                    style={{ marginRight: 4 }}
+                  />
+                  <Text style={styles.textCaption}>
+                    {menu.items?.length || 0} plat{(menu.items?.length || 0) > 1 ? 's' : ''}
+                  </Text>
+                </View>
+
+                <Text style={{ ...styles.textCaption, color: COLORS.text.light }}>•</Text>
+
+                <Text style={styles.textCaption}>
+                  {availableItemsCount} disponible{availableItemsCount > 1 ? 's' : ''}
+                </Text>
+              </View>
+            </View>
+
+            {/* Badge de statut premium */}
             <View style={{
-              paddingHorizontal: 8,
-              paddingVertical: 4,
-              borderRadius: 4,
-              backgroundColor: menuIsAvailable ? '#D1FAE5' : '#FEE2E2',
+              ...COMPONENT_STYLES.statusBadge.base,
+              ...(menuIsAvailable 
+                ? COMPONENT_STYLES.statusBadge.premium 
+                : COMPONENT_STYLES.statusBadge.cancelled
+              ),
+              paddingHorizontal: 12,
+              paddingVertical: 6,
             }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <View style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: 3,
+                  backgroundColor: menuIsAvailable ? COLORS.secondary : COLORS.error,
+                }} />
+                <Text style={{
+                  fontSize: 12,
+                  fontWeight: '600',
+                  color: menuIsAvailable ? COLORS.text.golden : COLORS.error,
+                }}>
+                  {menuIsAvailable ? 'Actif' : 'Inactif'}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Badge "En cours" si en train de toggle */}
+          {isToggling && (
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: COLORS.variants.secondary[50],
+              borderLeftWidth: 3,
+              borderLeftColor: COLORS.secondary,
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+              borderRadius: BORDER_RADIUS.md,
+              marginBottom: 12,
+            }}>
+              <Ionicons name="hourglass-outline" size={14} color={COLORS.text.golden} />
               <Text style={{
                 fontSize: 12,
+                color: COLORS.text.golden,
                 fontWeight: '500',
-                color: menuIsAvailable ? '#059669' : '#DC2626',
+                marginLeft: 6,
               }}>
-                {menuIsAvailable ? 'Actif' : 'Inactif'}
+                Mise à jour en cours...
               </Text>
             </View>
+          )}
 
-            {isToggling && (
-              <View style={{ 
-                marginLeft: 8, 
-                paddingHorizontal: 8, 
-                paddingVertical: 4, 
-                backgroundColor: '#FEF3C7',
-                borderRadius: 4 
-              }}>
-                <Text style={{ fontSize: 12, color: '#92400E', fontWeight: '500' }}>
-                  En cours...
+          {/* Section métadonnées avec design élégant */}
+          <View style={{
+            backgroundColor: COLORS.background,
+            borderRadius: BORDER_RADIUS.md,
+            padding: 12,
+            marginBottom: 12,
+          }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 16 }}>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                  <Ionicons name="calendar-outline" size={12} color={COLORS.text.light} />
+                  <Text style={{ 
+                    fontSize: 10, 
+                    color: COLORS.text.light,
+                    marginLeft: 4,
+                    fontWeight: '500',
+                    textTransform: 'uppercase',
+                  }}>
+                    Créé le
+                  </Text>
+                </View>
+                <Text style={{ 
+                  fontSize: 13, 
+                  color: COLORS.text.secondary,
+                  fontWeight: '500',
+                }}>
+                  {new Date(menu.created_at).toLocaleDateString('fr-FR', { 
+                    day: 'numeric', 
+                    month: 'short',
+                    year: 'numeric'
+                  })}
                 </Text>
               </View>
-            )}
+
+              <View style={{ 
+                width: 1, 
+                backgroundColor: COLORS.border.default,
+              }} />
+
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                  <Ionicons name="time-outline" size={12} color={COLORS.text.light} />
+                  <Text style={{ 
+                    fontSize: 10, 
+                    color: COLORS.text.light,
+                    marginLeft: 4,
+                    fontWeight: '500',
+                    textTransform: 'uppercase',
+                  }}>
+                    Modifié le
+                  </Text>
+                </View>
+                <Text style={{ 
+                  fontSize: 13, 
+                  color: COLORS.text.secondary,
+                  fontWeight: '500',
+                }}>
+                  {new Date(menu.updated_at).toLocaleDateString('fr-FR', { 
+                    day: 'numeric', 
+                    month: 'short',
+                    year: 'numeric'
+                  })}
+                </Text>
+              </View>
+            </View>
           </View>
 
-          {/* Informations supplémentaires */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            {menu.items && menu.items.length > 0 && (
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Ionicons name="restaurant-outline" size={12} color="#6B7280" />
-                <Text style={{ fontSize: 11, color: '#6B7280', marginLeft: 2 }}>
-                  {menu.items.filter(item => item.is_available !== false).length} disponible(s)
-                </Text>
-              </View>
-            )}
-            
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Ionicons name="time-outline" size={12} color="#6B7280" />
-              <Text style={{ fontSize: 11, color: '#6B7280', marginLeft: 2 }}>
-                Modifié {new Date(menu.updated_at).toLocaleDateString('fr-FR')}
+          {/* Séparateur élégant */}
+          <View style={{
+            height: 1,
+            backgroundColor: COLORS.border.light,
+            marginBottom: 12,
+          }} />
+
+          {/* Boutons d'action avec design premium */}
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {/* Bouton Éditer */}
+            <TouchableOpacity
+              onPress={onEdit}
+              disabled={isToggling}
+              style={{
+                flex: 1,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: COLORS.variants.primary[50],
+                borderWidth: 1,
+                borderColor: COLORS.variants.primary[200],
+                paddingVertical: 10,
+                borderRadius: BORDER_RADIUS.lg,
+                opacity: isToggling ? 0.5 : 1,
+              }}
+            >
+              <Ionicons name="create-outline" size={16} color={COLORS.primary} />
+              <Text style={{
+                fontSize: 14,
+                fontWeight: '600',
+                color: COLORS.primary,
+                marginLeft: 6,
+              }}>
+                Éditer
               </Text>
-            </View>
+            </TouchableOpacity>
+
+            {/* Bouton Toggle avec design premium */}
+            <TouchableOpacity
+              onPress={onToggle}
+              disabled={isToggling}
+              style={{
+                flex: 1,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: menuIsAvailable ? COLORS.error : COLORS.secondary,
+                paddingVertical: 10,
+                borderRadius: BORDER_RADIUS.lg,
+                opacity: isToggling ? 0.5 : 1,
+                ...(menuIsAvailable ? {} : SHADOWS.goldenGlow),
+              }}
+            >
+              <Ionicons 
+                name={isToggling 
+                  ? "hourglass-outline" 
+                  : menuIsAvailable 
+                    ? "pause-circle-outline" 
+                    : "play-circle-outline"
+                } 
+                size={16} 
+                color="white" 
+              />
+              <Text style={{
+                fontSize: 14,
+                fontWeight: '600',
+                color: 'white',
+                marginLeft: 6,
+              }}>
+                {isToggling 
+                  ? 'En cours' 
+                  : menuIsAvailable 
+                    ? 'Désactiver' 
+                    : 'Activer'
+                }
+              </Text>
+            </TouchableOpacity>
+
+            {/* Bouton Supprimer compact */}
+            <TouchableOpacity
+              onPress={onDelete}
+              disabled={isToggling}
+              style={{
+                backgroundColor: COLORS.variants.primary[50],
+                borderWidth: 1,
+                borderColor: COLORS.error,
+                paddingHorizontal: 14,
+                paddingVertical: 10,
+                borderRadius: BORDER_RADIUS.lg,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: isToggling ? 0.5 : 1,
+              }}
+            >
+              <Ionicons name="trash-outline" size={18} color={COLORS.error} />
+            </TouchableOpacity>
           </View>
         </View>
-
-        <TouchableOpacity
-          onPress={onEdit}
-          disabled={isToggling}
-          style={{ padding: 8 }}
-        >
-          <Ionicons name="create-outline" size={20} color="#6B7280" />
-        </TouchableOpacity>
-      </View>
-
-      <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-        {/* Bouton toggle principal avec icône */}
-        <TouchableOpacity
-          onPress={onToggle}
-          disabled={isToggling}
-          style={{
-            flex: 1,
-            backgroundColor: menuIsAvailable ? '#EF4444' : '#10B981',
-            paddingVertical: 8,
-            paddingHorizontal: 12,
-            borderRadius: 6,
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexDirection: 'row',
-            opacity: isToggling ? 0.5 : 1,
-          }}
-        >
-          {/* Icône du bouton toggle */}
-          {isToggling ? (
-            <Ionicons 
-              name="hourglass-outline" 
-              size={14} 
-              color="white" 
-              style={{ marginRight: 6 }} 
-            />
-          ) : (
-            <Ionicons 
-              name={menuIsAvailable ? "pause-circle-outline" : "play-circle-outline"} 
-              size={14} 
-              color="white" 
-              style={{ marginRight: 6 }} 
-            />
-          )}
-          
-          <Text style={{ color: 'white', fontSize: 14, fontWeight: '500' }}>
-            {isToggling 
-              ? 'En cours...' 
-              : menuIsAvailable 
-                ? 'Désactiver' 
-                : 'Activer'
-            }
-          </Text>
-        </TouchableOpacity>
-
-        {/* Bouton supprimer avec icône corbeille */}
-        <TouchableOpacity
-          onPress={onDelete}
-          disabled={isToggling}
-          style={{
-            backgroundColor: '#EF4444',
-            paddingHorizontal: 12,
-            paddingVertical: 8,
-            borderRadius: 6,
-            alignItems: 'center',
-            justifyContent: 'center',
-            minWidth: 44,
-            opacity: isToggling ? 0.5 : 1,
-          }}
-        >
-          <Ionicons name="trash-outline" size={16} color="white" />
-        </TouchableOpacity>
-      </View>
-
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </Animated.View>
   );
 }
