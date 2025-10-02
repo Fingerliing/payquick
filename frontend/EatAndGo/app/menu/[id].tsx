@@ -87,16 +87,10 @@ export default function MenuDetailScreen() {
       const menuData = await menuService.getMenu(parseInt(id));
       setMenu(menuData);
       
-      console.log('📋 Menu items:', menuData.items.length);
-      console.log('📋 Sample item:', menuData.items[0]);
-      
       // Charger les catégories du restaurant
       if (menuData.restaurant) {
         const categoriesData = await categoryService.getCategoriesByRestaurant(String(menuData.restaurant));
         setCategories(categoriesData.categories || []);
-        
-        console.log('📂 Categories loaded:', categoriesData.categories?.length);
-        console.log('📂 Sample category:', categoriesData.categories?.[0]);
         
         // Extraire toutes les sous-catégories EN AJOUTANT LA RÉFÉRENCE AU PARENT
         const allSubcategories = (categoriesData.categories || []).flatMap(cat => 
@@ -106,9 +100,6 @@ export default function MenuDetailScreen() {
           }))
         );
         setSubcategories(allSubcategories);
-        
-        console.log('📁 Subcategories extracted:', allSubcategories.length);
-        console.log('📁 Sample subcategory:', allSubcategories[0]);
       }
     } catch (error) {
       console.error('Erreur lors du chargement des données:', error);
@@ -269,20 +260,14 @@ export default function MenuDetailScreen() {
   const getSectionedData = (): SectionData[] => {
     const filteredItems = getFilteredItems();
     const sections: SectionData[] = [];
-
-    console.log('🔍 Filtered items:', filteredItems.length);
-    console.log('🔍 Categories:', categories.length);
-    console.log('🔍 Subcategories:', subcategories.length);
-
+    
     // Récupérer les catégories triées
     const sortedCategories = [...categories].sort((a, b) => (a.order || 0) - (b.order || 0));
 
     sortedCategories.forEach(category => {
       // Récupérer les items de cette catégorie
       const categoryItems = filteredItems.filter(item => item.category === category.id);
-      
-      console.log(`📂 Category "${category.name}" (${category.id}):`, categoryItems.length, 'items');
-      
+        
       if (categoryItems.length === 0) return;
 
       // Récupérer les sous-catégories de cette catégorie
@@ -290,16 +275,11 @@ export default function MenuDetailScreen() {
         .filter(sub => sub.category === category.id)
         .sort((a, b) => (a.order || 0) - (b.order || 0));
 
-      console.log(`  📁 Subcategories for "${category.name}":`, categorySubcategories.length);
-
       if (categorySubcategories.length > 0) {
         // Si la catégorie a des sous-catégories
         categorySubcategories.forEach(subcategory => {
           const subcategoryItems = categoryItems.filter(item => item.subcategory === subcategory.id);
-          
-          console.log(`    📄 Subcategory "${subcategory.name}" (${subcategory.id}):`, subcategoryItems.length, 'items');
-          console.log(`    📄 Checking items for subcategory ${subcategory.id}:`, categoryItems.map(i => ({ id: i.id, name: i.name, subcategory: i.subcategory })));
-          
+
           if (subcategoryItems.length > 0) {
             sections.push({
               title: `${category.name} › ${subcategory.name}`,
@@ -314,7 +294,6 @@ export default function MenuDetailScreen() {
 
         // Items sans sous-catégorie dans cette catégorie
         const itemsWithoutSubcategory = categoryItems.filter(item => !item.subcategory);
-        console.log(`  📄 Items without subcategory:`, itemsWithoutSubcategory.length);
         
         if (itemsWithoutSubcategory.length > 0) {
           sections.push({
@@ -327,7 +306,6 @@ export default function MenuDetailScreen() {
         }
       } else {
         // Pas de sous-catégories, tous les items sous la catégorie
-        console.log(`  ℹ️ No subcategories, all items under category`);
         sections.push({
           title: category.name,
           categoryId: category.id,
@@ -337,10 +315,6 @@ export default function MenuDetailScreen() {
         });
       }
     });
-
-    console.log('✅ Final sections:', sections.length);
-    console.log('✅ Section titles:', sections.map(s => s.title));
-
     return sections;
   };
 

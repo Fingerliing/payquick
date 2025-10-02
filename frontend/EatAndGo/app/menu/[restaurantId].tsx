@@ -1,24 +1,41 @@
-// app/menu/[restaurantId].tsx - Menu client responsive
+// app/menu/[restaurantId].tsx - Carte de restaurant premium avec filtres
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
-  ScrollView,
+  SectionList,
   TouchableOpacity,
   Modal,
-  FlatList,
   Alert,
+  ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// UI Components
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
-import { COLORS, TYPOGRAPHY, SPACING, RADIUS, SHADOWS } from '@/styles/tokens';
-import { useResponsive } from '@/utils/responsive';
+import { Header } from '@/components/ui/Header';
 
-// ✅ TYPES POUR LE MENU
+// Design System
+import {
+  useScreenType,
+  getResponsiveValue,
+  COLORS,
+  SPACING,
+  BORDER_RADIUS,
+  SHADOWS,
+  TYPOGRAPHY,
+} from '@/utils/designSystem';
+
+// ========================================
+// TYPES
+// ========================================
+
 interface MenuItem {
   id: string;
   name: string;
@@ -26,23 +43,34 @@ interface MenuItem {
   price: number;
   image?: string;
   category: string;
+  subcategory?: string;
   allergens?: string[];
-  isVegetarian?: boolean;
-  isVegan?: boolean;
-  spicyLevel?: number;
-  preparationTime?: number;
+  is_vegetarian?: boolean;
+  is_vegan?: boolean;
+  is_gluten_free?: boolean;
+  spicy_level?: number;
+  preparation_time?: number;
+  is_available?: boolean;
 }
 
 interface MenuCategory {
   id: string;
   name: string;
-  items: MenuItem[];
+  icon?: string;
+  color?: string;
+  order?: number;
+}
+
+interface MenuSubCategory {
+  id: string;
+  name: string;
+  category: string;
+  order?: number;
 }
 
 interface CartItem {
   menuItem: MenuItem;
   quantity: number;
-  customizations?: Record<string, any>;
   specialInstructions?: string;
 }
 
@@ -51,146 +79,447 @@ interface Restaurant {
   name: string;
   description?: string;
   cuisine: string;
-  image?: string;
 }
+
+interface Filters {
+  categories: string[];
+  subcategories: string[];
+  dietary: ('vegetarian' | 'vegan' | 'gluten_free')[];
+  allergens: string[];
+}
+
+interface SectionData {
+  title: string;
+  categoryId: string;
+  categoryIcon?: string;
+  categoryColor?: string;
+  subcategoryId?: string;
+  data: MenuItem[];
+}
+
+const ALLERGENS = [
+  { id: 'gluten', name: 'Gluten' },
+  { id: 'crustaceans', name: 'Crustacés' },
+  { id: 'eggs', name: 'Œufs' },
+  { id: 'fish', name: 'Poissons' },
+  { id: 'peanuts', name: 'Arachides' },
+  { id: 'soybeans', name: 'Soja' },
+  { id: 'milk', name: 'Lait' },
+  { id: 'nuts', name: 'Fruits à coque' },
+];
+
+// ========================================
+// COMPOSANT PRINCIPAL
+// ========================================
 
 export default function MenuScreen() {
   const { restaurantId } = useLocalSearchParams<{ restaurantId: string }>();
+  const screenType = useScreenType();
+  const insets = useSafeAreaInsets();
+  
+  // États principaux
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [categories, setCategories] = useState<MenuCategory[]>([]);
-  const [activeCategory, setActiveCategory] = useState<string>('');
+  const [subcategories, setSubcategories] = useState<MenuSubCategory[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showCart, setShowCart] = useState(false);
   const [loading, setLoading] = useState(true);
   
-  const { isMobile, isTablet, getSpacing, getFontSize } = useResponsive();
+  // États filtres
+  const [filters, setFilters] = useState<Filters>({
+    categories: [],
+    subcategories: [],
+    dietary: [],
+    allergens: []
+  });
+  const [showFilters, setShowFilters] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // États modaux
+  const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
+  const [showCart, setShowCart] = useState(false);
 
-  // ✅ DONNÉES MOCK POUR DÉMONSTRATION
+  // ========================================
+  // CHARGEMENT DES DONNÉES
+  // ========================================
+
   useEffect(() => {
-    const loadMenuData = async () => {
-      try {
-        setLoading(true);
-        
-        // Mock restaurant data
-        const mockRestaurant: Restaurant = {
-          id: restaurantId || '1',
-          name: 'Restaurant Le Gourmet',
-          description: 'Cuisine française traditionnelle',
-          cuisine: 'Française',
-        };
-
-        const mockCategories: MenuCategory[] = [
-          {
-            id: 'entrees',
-            name: 'Entrées',
-            items: [
-              {
-                id: '1',
-                name: 'Salade César',
-                description: 'Salade verte, croûtons, parmesan, sauce César maison',
-                price: 12.50,
-                category: 'entrees',
-                isVegetarian: true,
-                preparationTime: 10,
-                allergens: ['milk', 'eggs'],
-              },
-              {
-                id: '2',
-                name: 'Soupe du jour',
-                description: 'Velouté de légumes de saison',
-                price: 8.50,
-                category: 'entrees',
-                isVegan: true,
-                preparationTime: 5,
-              },
-              {
-                id: '3',
-                name: 'Foie gras mi-cuit',
-                description: 'Foie gras maison, chutney de figues, pain toasté',
-                price: 22.00,
-                category: 'entrees',
-                preparationTime: 8,
-              },
-            ],
-          },
-          {
-            id: 'plats',
-            name: 'Plats principaux',
-            items: [
-              {
-                id: '4',
-                name: 'Burger du Chef',
-                description: 'Steak 180g, cheddar, bacon, tomates, salade, frites maison',
-                price: 18.90,
-                category: 'plats',
-                preparationTime: 15,
-                allergens: ['gluten', 'milk'],
-              },
-              {
-                id: '5',
-                name: 'Saumon grillé',
-                description: 'Filet de saumon, légumes de saison, sauce hollandaise',
-                price: 22.50,
-                category: 'plats',
-                preparationTime: 20,
-                allergens: ['fish', 'eggs'],
-              },
-              {
-                id: '6',
-                name: 'Risotto aux champignons',
-                description: 'Risotto crémeux, champignons de saison, truffe',
-                price: 19.50,
-                category: 'plats',
-                isVegetarian: true,
-                preparationTime: 25,
-                allergens: ['milk'],
-              },
-            ],
-          },
-          {
-            id: 'desserts',
-            name: 'Desserts',
-            items: [
-              {
-                id: '7',
-                name: 'Tarte tatin',
-                description: 'Tarte aux pommes caramélisées, crème chantilly',
-                price: 8.50,
-                category: 'desserts',
-                preparationTime: 5,
-                allergens: ['gluten', 'milk', 'eggs'],
-              },
-              {
-                id: '8',
-                name: 'Mousse au chocolat',
-                description: 'Mousse au chocolat noir 70%, chantilly vanille',
-                price: 7.50,
-                category: 'desserts',
-                isVegetarian: true,
-                preparationTime: 3,
-                allergens: ['milk', 'eggs'],
-              },
-            ],
-          },
-        ];
-        
-        setRestaurant(mockRestaurant);
-        setCategories(mockCategories);
-        setActiveCategory(mockCategories[0]?.id || '');
-      } catch (error) {
-        console.error('Erreur lors du chargement du menu:', error);
-        Alert.alert('Erreur', 'Impossible de charger le menu');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadMenuData();
   }, [restaurantId]);
 
-  // ✅ FONCTIONS CART AMÉLIORÉES
+  const loadMenuData = async () => {
+    try {
+      setLoading(true);
+      
+      // Mock data - À remplacer par vos appels API
+      const mockRestaurant: Restaurant = {
+        id: restaurantId || '1',
+        name: 'Le Gourmet Parisien',
+        description: 'Cuisine française traditionnelle',
+        cuisine: 'Française',
+      };
+
+      const mockCategories: MenuCategory[] = [
+        { id: 'entrees', name: 'Entrées', icon: '🥗', color: '#10B981', order: 1 },
+        { id: 'plats', name: 'Plats', icon: '🍽️', color: '#3B82F6', order: 2 },
+        { id: 'desserts', name: 'Desserts', icon: '🍰', color: '#F59E0B', order: 3 },
+        { id: 'boissons', name: 'Boissons', icon: '🍷', color: '#EF4444', order: 4 },
+      ];
+
+      const mockSubcategories: MenuSubCategory[] = [
+        { id: 'salades', name: 'Salades', category: 'entrees', order: 1 },
+        { id: 'soupes', name: 'Soupes', category: 'entrees', order: 2 },
+        { id: 'viandes', name: 'Viandes', category: 'plats', order: 1 },
+        { id: 'poissons', name: 'Poissons', category: 'plats', order: 2 },
+        { id: 'vegetarien', name: 'Végétarien', category: 'plats', order: 3 },
+      ];
+
+      const mockItems: MenuItem[] = [
+        // Entrées - Salades
+        {
+          id: '1',
+          name: 'Salade César',
+          description: 'Salade romaine, croûtons dorés, copeaux de parmesan, poulet grillé, sauce César maison',
+          price: 14.50,
+          category: 'entrees',
+          subcategory: 'salades',
+          preparation_time: 10,
+          allergens: ['milk', 'eggs', 'gluten'],
+          is_available: true,
+        },
+        {
+          id: '2',
+          name: 'Salade de chèvre chaud',
+          description: 'Mesclun, toasts de chèvre chaud, miel, noix, tomates cerises',
+          price: 13.90,
+          category: 'entrees',
+          subcategory: 'salades',
+          is_vegetarian: true,
+          preparation_time: 12,
+          allergens: ['milk', 'gluten', 'nuts'],
+          is_available: true,
+        },
+        // Entrées - Soupes
+        {
+          id: '3',
+          name: 'Soupe à l\'oignon',
+          description: 'Soupe d\'oignons caramélisés, croûtons, gruyère gratinée',
+          price: 9.50,
+          category: 'entrees',
+          subcategory: 'soupes',
+          is_vegetarian: true,
+          preparation_time: 15,
+          allergens: ['milk', 'gluten'],
+          is_available: true,
+        },
+        {
+          id: '4',
+          name: 'Velouté de saison',
+          description: 'Crème de légumes frais du marché, huile de truffe',
+          price: 8.90,
+          category: 'entrees',
+          subcategory: 'soupes',
+          is_vegan: true,
+          is_vegetarian: true,
+          is_gluten_free: true,
+          preparation_time: 8,
+          is_available: true,
+        },
+        // Plats - Viandes
+        {
+          id: '5',
+          name: 'Entrecôte grillée',
+          description: 'Entrecôte française 300g, frites maison, sauce au poivre',
+          price: 28.90,
+          category: 'plats',
+          subcategory: 'viandes',
+          preparation_time: 25,
+          allergens: ['milk'],
+          is_available: true,
+        },
+        {
+          id: '6',
+          name: 'Magret de canard',
+          description: 'Magret de canard rôti, sauce aux figues, purée de patate douce',
+          price: 26.50,
+          category: 'plats',
+          subcategory: 'viandes',
+          preparation_time: 30,
+          is_gluten_free: true,
+          is_available: true,
+        },
+        // Plats - Poissons
+        {
+          id: '7',
+          name: 'Saumon mi-cuit',
+          description: 'Pavé de saumon écossais, légumes croquants, beurre blanc',
+          price: 24.90,
+          category: 'plats',
+          subcategory: 'poissons',
+          preparation_time: 20,
+          allergens: ['fish', 'milk'],
+          is_gluten_free: true,
+          is_available: true,
+        },
+        {
+          id: '8',
+          name: 'Dorade royale',
+          description: 'Dorade entière grillée, ratatouille provençale',
+          price: 27.50,
+          category: 'plats',
+          subcategory: 'poissons',
+          preparation_time: 25,
+          allergens: ['fish'],
+          is_gluten_free: true,
+          is_available: true,
+        },
+        // Plats - Végétarien
+        {
+          id: '9',
+          name: 'Risotto aux champignons',
+          description: 'Risotto crémeux, cèpes, girolles, parmesan, truffe noire',
+          price: 21.90,
+          category: 'plats',
+          subcategory: 'vegetarien',
+          is_vegetarian: true,
+          preparation_time: 30,
+          allergens: ['milk'],
+          is_available: true,
+        },
+        {
+          id: '10',
+          name: 'Lasagnes végétariennes',
+          description: 'Lasagnes aux légumes du soleil, sauce tomate basilic, mozzarella',
+          price: 18.90,
+          category: 'plats',
+          subcategory: 'vegetarien',
+          is_vegetarian: true,
+          preparation_time: 20,
+          allergens: ['milk', 'gluten'],
+          is_available: true,
+        },
+        // Desserts
+        {
+          id: '11',
+          name: 'Tarte tatin',
+          description: 'Tarte aux pommes caramélisées, glace vanille Bourbon',
+          price: 9.50,
+          category: 'desserts',
+          is_vegetarian: true,
+          preparation_time: 8,
+          allergens: ['gluten', 'milk', 'eggs'],
+          is_available: true,
+        },
+        {
+          id: '12',
+          name: 'Fondant au chocolat',
+          description: 'Moelleux au chocolat noir 70%, cœur coulant, glace vanille',
+          price: 10.50,
+          category: 'desserts',
+          is_vegetarian: true,
+          preparation_time: 10,
+          allergens: ['milk', 'eggs', 'gluten'],
+          is_available: true,
+        },
+        {
+          id: '13',
+          name: 'Profiteroles',
+          description: 'Choux à la crème pâtissière, sauce chocolat chaude, chantilly',
+          price: 9.90,
+          category: 'desserts',
+          is_vegetarian: true,
+          preparation_time: 5,
+          allergens: ['milk', 'eggs', 'gluten'],
+          is_available: true,
+        },
+        // Boissons
+        {
+          id: '14',
+          name: 'Eau minérale',
+          description: 'Eau plate ou gazeuse 50cl',
+          price: 3.50,
+          category: 'boissons',
+          is_vegan: true,
+          is_vegetarian: true,
+          is_gluten_free: true,
+          is_available: true,
+        },
+        {
+          id: '15',
+          name: 'Vin rouge (verre)',
+          description: 'Sélection de vins de la maison',
+          price: 6.50,
+          category: 'boissons',
+          is_vegetarian: true,
+          is_gluten_free: true,
+          is_available: true,
+        },
+      ];
+
+      setRestaurant(mockRestaurant);
+      setCategories(mockCategories);
+      setSubcategories(mockSubcategories);
+      setMenuItems(mockItems);
+    } catch (error) {
+      console.error('Erreur chargement menu:', error);
+      Alert.alert('Erreur', 'Impossible de charger le menu');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ========================================
+  // GESTION DES FILTRES
+  // ========================================
+
+  const toggleFilter = (type: keyof Filters, value: any) => {
+    setFilters(prev => {
+      const currentValues = prev[type] as any[];
+      const isActive = currentValues.includes(value);
+      
+      return {
+        ...prev,
+        [type]: isActive 
+          ? currentValues.filter(v => v !== value)
+          : [...currentValues, value]
+      };
+    });
+  };
+
+  const clearAllFilters = () => {
+    setFilters({
+      categories: [],
+      subcategories: [],
+      dietary: [],
+      allergens: []
+    });
+    setSearchQuery('');
+  };
+
+  const hasActiveFilters = () => {
+    return filters.categories.length > 0 ||
+           filters.subcategories.length > 0 ||
+           filters.dietary.length > 0 ||
+           filters.allergens.length > 0 ||
+           searchQuery.trim() !== '';
+  };
+
+  // ========================================
+  // FILTRAGE DES ITEMS
+  // ========================================
+
+  const getFilteredItems = useCallback((): MenuItem[] => {
+    let filtered = [...menuItems].filter(item => item.is_available);
+
+    // Recherche textuelle
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(item =>
+        item.name.toLowerCase().includes(query) ||
+        item.description.toLowerCase().includes(query)
+      );
+    }
+
+    // Filtre par catégorie
+    if (filters.categories.length > 0) {
+      filtered = filtered.filter(item => filters.categories.includes(item.category));
+    }
+
+    // Filtre par sous-catégorie
+    if (filters.subcategories.length > 0) {
+      filtered = filtered.filter(item => 
+        item.subcategory && filters.subcategories.includes(item.subcategory)
+      );
+    }
+
+    // Filtre par régime alimentaire
+    if (filters.dietary.length > 0) {
+      filtered = filtered.filter(item => {
+        return filters.dietary.every(diet => {
+          if (diet === 'vegetarian') return item.is_vegetarian;
+          if (diet === 'vegan') return item.is_vegan;
+          if (diet === 'gluten_free') return item.is_gluten_free;
+          return true;
+        });
+      });
+    }
+
+    // Filtre par allergènes (exclusion)
+    if (filters.allergens.length > 0) {
+      filtered = filtered.filter(item => {
+        const itemAllergens = item.allergens || [];
+        return !filters.allergens.some(allergenId => 
+          itemAllergens.includes(allergenId)
+        );
+      });
+    }
+
+    return filtered;
+  }, [menuItems, filters, searchQuery]);
+
+  // ========================================
+  // ORGANISATION EN SECTIONS
+  // ========================================
+
+  const getSectionedData = useCallback((): SectionData[] => {
+    const filteredItems = getFilteredItems();
+    const sections: SectionData[] = [];
+
+    const sortedCategories = [...categories].sort((a, b) => (a.order || 0) - (b.order || 0));
+
+    sortedCategories.forEach(category => {
+      const categoryItems = filteredItems.filter(item => item.category === category.id);
+      
+      if (categoryItems.length === 0) return;
+
+      const categorySubcategories = subcategories
+        .filter(sub => sub.category === category.id)
+        .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+      if (categorySubcategories.length > 0) {
+        categorySubcategories.forEach(subcategory => {
+          const subcategoryItems = categoryItems.filter(item => item.subcategory === subcategory.id);
+          
+          if (subcategoryItems.length > 0) {
+            sections.push({
+              title: `${category.name} › ${subcategory.name}`,
+              categoryId: category.id,
+              categoryIcon: category.icon,
+              categoryColor: category.color,
+              subcategoryId: subcategory.id,
+              data: subcategoryItems
+            });
+          }
+        });
+
+        const itemsWithoutSubcategory = categoryItems.filter(item => !item.subcategory);
+        if (itemsWithoutSubcategory.length > 0) {
+          sections.push({
+            title: category.name,
+            categoryId: category.id,
+            categoryIcon: category.icon,
+            categoryColor: category.color,
+            data: itemsWithoutSubcategory
+          });
+        }
+      } else {
+        sections.push({
+          title: category.name,
+          categoryId: category.id,
+          categoryIcon: category.icon,
+          categoryColor: category.color,
+          data: categoryItems
+        });
+      }
+    });
+
+    return sections;
+  }, [getFilteredItems, categories, subcategories]);
+
+  // ========================================
+  // GESTION DU PANIER
+  // ========================================
+
   const addToCart = useCallback((item: MenuItem, quantity: number = 1, instructions?: string) => {
     const existingItem = cart.find(cartItem => 
       cartItem.menuItem.id === item.id && 
@@ -210,14 +539,6 @@ export default function MenuScreen() {
         specialInstructions: instructions 
       }]);
     }
-
-    // Feedback visuel
-    Alert.alert(
-      'Ajouté au panier',
-      `${item.name} (x${quantity}) ajouté avec succès`,
-      [{ text: 'OK' }],
-      { cancelable: true }
-    );
   }, [cart]);
 
   const removeFromCart = useCallback((itemId: string, instructions?: string) => {
@@ -258,67 +579,56 @@ export default function MenuScreen() {
     return cart.reduce((total, item) => total + item.quantity, 0);
   }, [cart]);
 
-  // ✅ FILTRAGE ET RECHERCHE
-  const filteredItems = useCallback(() => {
-    const activeItems = categories.find(cat => cat.id === activeCategory)?.items || [];
-    
-    if (!searchQuery.trim()) return activeItems;
-    
-    const query = searchQuery.toLowerCase().trim();
-    return activeItems.filter(item =>
-      item.name.toLowerCase().includes(query) ||
-      item.description.toLowerCase().includes(query) ||
-      item.category.toLowerCase().includes(query)
-    );
-  }, [categories, activeCategory, searchQuery]);
+  // ========================================
+  // STYLES DYNAMIQUES
+  // ========================================
 
-  // ✅ STYLES RESPONSIVES OPTIMISÉS
-  const styles = {
+  const dynamicStyles = {
     container: {
       flex: 1,
-      backgroundColor: COLORS.background.secondary,
+      backgroundColor: COLORS.background,
+      paddingBottom: cart.length > 0 ? 90 : insets.bottom,
     },
-    
-    header: {
-      paddingTop: getSpacing(50, 60, 70),
-      paddingBottom: getSpacing(SPACING.md, SPACING.lg),
-      paddingHorizontal: getSpacing(SPACING.lg, SPACING.xl),
-      backgroundColor: COLORS.surface.primary,
-      ...SHADOWS.sm,
+    headerCard: {
+      backgroundColor: COLORS.goldenSurface,
+      paddingTop: insets.top + 12,
+      paddingBottom: getResponsiveValue(SPACING.lg, screenType),
+      paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
+      borderBottomWidth: 2,
+      borderBottomColor: COLORS.border.golden,
+      ...SHADOWS.premiumCard,
     },
-    
     headerTop: {
       flexDirection: 'row' as const,
-      alignItems: 'center' as const,
       justifyContent: 'space-between' as const,
-      marginBottom: getSpacing(SPACING.md, SPACING.lg),
+      alignItems: 'center' as const,
+      marginBottom: getResponsiveValue(SPACING.md, screenType),
     },
-    
     backButton: {
       width: 40,
       height: 40,
       borderRadius: 20,
-      backgroundColor: COLORS.neutral[100],
+      backgroundColor: COLORS.surface,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
+      ...SHADOWS.sm,
     },
-    
-    headerTitle: {
-      fontSize: getFontSize(18, 22, 26),
-      fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: COLORS.text.primary,
+    restaurantInfo: {
       flex: 1,
-      textAlign: 'center' as const,
-      marginHorizontal: SPACING.md,
+      marginHorizontal: getResponsiveValue(SPACING.md, screenType),
     },
-    
-    headerSubtitle: {
-      fontSize: getFontSize(14, 15, 16),
+    restaurantName: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize['2xl'], screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.bold as any,
+      color: COLORS.primary,
+      textAlign: 'center' as const,
+    },
+    restaurantCuisine: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
       color: COLORS.text.secondary,
       textAlign: 'center' as const,
-      marginTop: SPACING.xs,
+      marginTop: getResponsiveValue(SPACING.xs, screenType),
     },
-    
     cartButton: {
       width: 40,
       height: 40,
@@ -327,1086 +637,699 @@ export default function MenuScreen() {
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
       position: 'relative' as const,
+      ...SHADOWS.md,
     },
-    
     cartBadge: {
       position: 'absolute' as const,
       top: -6,
       right: -6,
-    },
-    
-    // Search bar
-    searchContainer: {
-      marginTop: getSpacing(SPACING.sm, SPACING.md),
-    },
-    
-    // Categories
-    categoriesContainer: {
-      paddingVertical: getSpacing(SPACING.md, SPACING.lg),
-      backgroundColor: COLORS.surface.primary,
-      borderBottomWidth: 1,
-      borderBottomColor: COLORS.border.light,
-    },
-    
-    categoriesScroll: {
-      paddingHorizontal: getSpacing(SPACING.lg, SPACING.xl),
-    },
-    
-    categoryItem: {
-      paddingHorizontal: getSpacing(SPACING.lg, SPACING.xl),
-      paddingVertical: getSpacing(SPACING.sm, SPACING.md),
-      marginRight: getSpacing(SPACING.sm, SPACING.md),
-      borderRadius: RADIUS.lg,
-      backgroundColor: COLORS.neutral[100],
-    },
-    
-    categoryItemActive: {
-      backgroundColor: COLORS.primary,
-    },
-    
-    categoryText: {
-      fontSize: getFontSize(14, 16, 18),
-      fontWeight: TYPOGRAPHY.fontWeight.medium,
-      color: COLORS.text.secondary,
-    },
-    
-    categoryTextActive: {
-      color: COLORS.text.white,
-    },
-    
-    // Menu items
-    menuContent: {
-      flex: 1,
-      paddingHorizontal: getSpacing(SPACING.lg, SPACING.xl),
-      paddingTop: getSpacing(SPACING.md, SPACING.lg),
-    },
-    
-    menuGrid: {
-      paddingBottom: 120, // Space for cart button
-    },
-    
-    menuItem: {
-      marginBottom: getSpacing(SPACING.md, SPACING.lg),
-      width: isTablet ? '48%' as const : '100%' as const,
-    },
-    
-    menuItemContent: {
-      flexDirection: isMobile ? 'column' as const : 'row' as const,
-    },
-    
-    menuItemImage: {
-      width: isMobile ? '100%' as const : 120,
-      height: isMobile ? 160 : 120,
-      borderRadius: RADIUS.md,
-      backgroundColor: COLORS.neutral[200],
-      marginBottom: isMobile ? SPACING.md : 0,
-      marginRight: isMobile ? 0 : SPACING.md,
+      backgroundColor: COLORS.error,
+      borderRadius: BORDER_RADIUS.full,
+      minWidth: 20,
+      height: 20,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
+      paddingHorizontal: 6,
+      borderWidth: 2,
+      borderColor: COLORS.goldenSurface,
     },
-    
-    menuItemInfo: {
+    cartBadgeText: {
+      fontSize: 11,
+      fontWeight: TYPOGRAPHY.fontWeight.bold as any,
+      color: COLORS.text.inverse,
+    },
+    searchContainer: {
+      marginTop: getResponsiveValue(SPACING.sm, screenType),
+    },
+    filterSection: {
+      backgroundColor: COLORS.surface,
+      borderRadius: BORDER_RADIUS.xl,
+      padding: getResponsiveValue(SPACING.md, screenType),
+      marginHorizontal: getResponsiveValue(SPACING.container, screenType),
+      marginTop: getResponsiveValue(SPACING.md, screenType),
+      marginBottom: getResponsiveValue(SPACING.sm, screenType),
+      ...SHADOWS.md,
+    },
+    filterHeader: {
+      flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
+      alignItems: 'center' as const,
+      marginBottom: getResponsiveValue(SPACING.sm, screenType),
+    },
+    filterTitle: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.bold as any,
+      color: COLORS.text.primary,
       flex: 1,
     },
-    
-    menuItemHeader: {
+    filterBadge: {
+      backgroundColor: COLORS.primary,
+      borderRadius: BORDER_RADIUS.full,
+      width: 24,
+      height: 24,
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+      marginLeft: 8,
+    },
+    filterBadgeText: {
+      color: COLORS.text.inverse,
+      fontSize: 12,
+      fontWeight: TYPOGRAPHY.fontWeight.bold as any,
+    },
+    filterGroup: {
+      marginBottom: getResponsiveValue(SPACING.md, screenType),
+    },
+    filterGroupTitle: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.semibold as any,
+      color: COLORS.text.secondary,
+      marginBottom: getResponsiveValue(SPACING.xs, screenType),
+      textTransform: 'uppercase' as const,
+      letterSpacing: 0.5,
+    },
+    filterChipsContainer: {
+      flexDirection: 'row' as const,
+      flexWrap: 'wrap' as const,
+      gap: 8,
+    },
+    filterChip: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: BORDER_RADIUS.full,
+      borderWidth: 1.5,
+      borderColor: COLORS.border.light,
+      backgroundColor: COLORS.background,
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 6,
+    },
+    filterChipActive: {
+      backgroundColor: COLORS.primary,
+      borderColor: COLORS.primary,
+    },
+    filterChipText: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+      color: COLORS.text.primary,
+      fontWeight: TYPOGRAPHY.fontWeight.medium as any,
+    },
+    filterChipTextActive: {
+      color: COLORS.text.inverse,
+      fontWeight: TYPOGRAPHY.fontWeight.semibold as any,
+    },
+    sectionHeader: {
+      backgroundColor: COLORS.variants.primary[50],
+      paddingVertical: getResponsiveValue(SPACING.md, screenType),
+      paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
+      marginTop: getResponsiveValue(SPACING.md, screenType),
+      marginBottom: getResponsiveValue(SPACING.sm, screenType),
+      borderRadius: BORDER_RADIUS.lg,
+      borderLeftWidth: 4,
+      borderLeftColor: COLORS.primary,
+      marginHorizontal: getResponsiveValue(SPACING.container, screenType),
+      ...SHADOWS.sm,
+    },
+    sectionHeaderTitle: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xl, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.extrabold as any,
+      color: COLORS.primary,
+    },
+    sectionHeaderSubtitle: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+      color: COLORS.text.secondary,
+      marginTop: 2,
+      fontWeight: TYPOGRAPHY.fontWeight.medium as any,
+    },
+    menuItemCard: {
+      marginBottom: getResponsiveValue(SPACING.md, screenType),
+      marginHorizontal: getResponsiveValue(SPACING.container, screenType),
+      backgroundColor: COLORS.surface,
+      borderRadius: BORDER_RADIUS.xl,
+      ...SHADOWS.lg,
+      overflow: 'hidden' as const,
+    },
+    itemHeader: {
       flexDirection: 'row' as const,
       justifyContent: 'space-between' as const,
       alignItems: 'flex-start' as const,
-      marginBottom: SPACING.sm,
+      marginBottom: getResponsiveValue(SPACING.sm, screenType),
     },
-    
-    menuItemName: {
-      fontSize: getFontSize(16, 18, 20),
-      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    itemName: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xl, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.bold as any,
       color: COLORS.text.primary,
       flex: 1,
-      marginRight: SPACING.sm,
+      marginRight: getResponsiveValue(SPACING.sm, screenType),
     },
-    
-    menuItemPrice: {
-      fontSize: getFontSize(16, 18, 20),
-      fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: COLORS.primary,
+    itemPrice: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xl, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.extrabold as any,
+      color: COLORS.variants.secondary[600],
+      backgroundColor: COLORS.variants.secondary[100],
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: BORDER_RADIUS.lg,
+      borderWidth: 1.5,
+      borderColor: COLORS.variants.secondary[400],
     },
-    
-    menuItemDescription: {
-      fontSize: getFontSize(14, 15, 16),
+    itemDescription: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
       color: COLORS.text.secondary,
-      lineHeight: 20,
-      marginBottom: getSpacing(SPACING.sm, SPACING.md),
+      lineHeight: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType) * 1.5,
+      marginBottom: getResponsiveValue(SPACING.sm, screenType),
     },
-    
-    menuItemFooter: {
+    itemFooter: {
       flexDirection: 'row' as const,
       justifyContent: 'space-between' as const,
       alignItems: 'center' as const,
     },
-    
-    menuItemTags: {
+    dietaryTags: {
       flexDirection: 'row' as const,
-      flex: 1,
+      gap: 8,
       flexWrap: 'wrap' as const,
+      flex: 1,
     },
-    
-    addButton: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: COLORS.primary,
+    dietaryTag: {
+      backgroundColor: COLORS.variants.secondary[50],
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: BORDER_RADIUS.full,
+      borderWidth: 1,
+      borderColor: COLORS.variants.secondary[200],
+      flexDirection: 'row' as const,
       alignItems: 'center' as const,
-      justifyContent: 'center' as const,
+      gap: 4,
     },
-    
-    // Floating cart
+    dietaryTagText: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
+      color: COLORS.variants.secondary[800],
+      fontWeight: TYPOGRAPHY.fontWeight.semibold as any,
+    },
+    addButton: {
+      backgroundColor: COLORS.primary,
+      borderRadius: BORDER_RADIUS.lg,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 6,
+      ...SHADOWS.button,
+    },
+    addButtonText: {
+      color: COLORS.text.inverse,
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.semibold as any,
+    },
     floatingCart: {
       position: 'absolute' as const,
-      bottom: getSpacing(SPACING.xl, SPACING.xxl),
-      left: getSpacing(SPACING.lg, SPACING.xl),
-      right: getSpacing(SPACING.lg, SPACING.xl),
+      bottom: insets.bottom + getResponsiveValue(SPACING.md, screenType),
+      left: getResponsiveValue(SPACING.container, screenType),
+      right: getResponsiveValue(SPACING.container, screenType),
       backgroundColor: COLORS.primary,
-      borderRadius: RADIUS.lg,
-      paddingHorizontal: getSpacing(SPACING.lg, SPACING.xl),
-      paddingVertical: getSpacing(SPACING.md, SPACING.lg),
+      borderRadius: BORDER_RADIUS.xl,
+      paddingHorizontal: getResponsiveValue(SPACING.lg, screenType),
+      paddingVertical: getResponsiveValue(SPACING.md, screenType),
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
       justifyContent: 'space-between' as const,
-      ...SHADOWS.lg,
+      ...SHADOWS.xl,
     },
-    
     cartInfo: {
       flex: 1,
     },
-    
     cartItems: {
-      fontSize: getFontSize(14, 15, 16),
-      color: COLORS.text.white,
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+      color: COLORS.text.inverse,
       opacity: 0.9,
     },
-    
     cartTotal: {
-      fontSize: getFontSize(18, 20, 22),
-      fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: COLORS.text.white,
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xl, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.bold as any,
+      color: COLORS.text.inverse,
     },
-    
     viewCartButton: {
-      backgroundColor: COLORS.text.white,
-      borderRadius: RADIUS.md,
-      paddingHorizontal: getSpacing(SPACING.lg, SPACING.xl),
-      paddingVertical: getSpacing(SPACING.sm, SPACING.md),
+      backgroundColor: COLORS.text.inverse,
+      borderRadius: BORDER_RADIUS.lg,
+      paddingHorizontal: getResponsiveValue(SPACING.lg, screenType),
+      paddingVertical: getResponsiveValue(SPACING.sm, screenType),
     },
-    
     viewCartText: {
-      fontSize: getFontSize(14, 16, 18),
-      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.semibold as any,
       color: COLORS.primary,
     },
-    
     emptyState: {
       flex: 1,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
-      paddingVertical: getSpacing(SPACING.xxl, SPACING.xxl * 2),
+      paddingVertical: getResponsiveValue(SPACING['3xl'], screenType),
+      paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
     },
-    
     emptyIcon: {
-      marginBottom: getSpacing(SPACING.lg, SPACING.xl),
+      marginBottom: getResponsiveValue(SPACING.lg, screenType),
     },
-    
     emptyTitle: {
-      fontSize: getFontSize(18, 20, 22),
-      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xl, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.semibold as any,
       color: COLORS.text.primary,
       textAlign: 'center' as const,
-      marginBottom: SPACING.sm,
+      marginBottom: getResponsiveValue(SPACING.sm, screenType),
     },
-    
     emptyText: {
-      fontSize: getFontSize(14, 15, 16),
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
       color: COLORS.text.secondary,
       textAlign: 'center' as const,
-      paddingHorizontal: getSpacing(SPACING.xl, SPACING.xxl),
-    },
-
-    loadingContainer: {
-      flex: 1,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-    },
-
-    loadingText: {
-      fontSize: getFontSize(16, 17, 18),
-      color: COLORS.text.secondary,
-      marginTop: getSpacing(SPACING.md, SPACING.lg),
+      lineHeight: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType) * 1.5,
     },
   };
 
-  // ✅ COMPOSANT MENU ITEM AMÉLIORÉ
-  const MenuItemCard = ({ item }: { item: MenuItem }) => (
-    <Card 
-      style={styles.menuItem}
-      variant="elevated"
-      pressable
-      onPress={() => setSelectedItem(item)}
-    >
-      <View style={styles.menuItemContent}>
-        {/* Image placeholder */}
-        <View style={styles.menuItemImage}>
-          <Ionicons 
-            name="restaurant-outline" 
-            size={32} 
-            color={COLORS.neutral[400]} 
-          />
-        </View>
-        
-        <View style={styles.menuItemInfo}>
-          <View style={styles.menuItemHeader}>
-            <Text style={styles.menuItemName} numberOfLines={2}>
-              {item.name}
-            </Text>
-            <Text style={styles.menuItemPrice}>{item.price.toFixed(2)}€</Text>
-          </View>
-          
-          <Text style={styles.menuItemDescription} numberOfLines={3}>
-            {item.description}
-          </Text>
-          
-          <View style={styles.menuItemFooter}>
-            <View style={styles.menuItemTags}>
-              {item.isVegan && (
-                <Badge text="🌿 Vegan" variant="success" size="sm" style={{ marginRight: SPACING.xs, marginBottom: SPACING.xs }} />
-              )}
-              {item.isVegetarian && !item.isVegan && (
-                <Badge text="🌱 Végé" variant="success" size="sm" style={{ marginRight: SPACING.xs, marginBottom: SPACING.xs }} />
-              )}
-              {item.preparationTime && (
-                <Badge 
-                  text={`⏱️ ${item.preparationTime}min`} 
-                  variant="default" 
-                  size="sm" 
-                  style={{ marginRight: SPACING.xs, marginBottom: SPACING.xs }}
-                />
-              )}
-            </View>
-            
-            <TouchableOpacity 
-              style={styles.addButton}
-              onPress={() => addToCart(item)}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="add" size={20} color={COLORS.text.white} />
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Card>
-  );
+  // ========================================
+  // RENDU DES COMPOSANTS
+  // ========================================
 
-  // ✅ ÉTAT DE CHARGEMENT
-  if (loading) {
+  const renderFilters = () => {
+    const activeFiltersCount = 
+      filters.categories.length + 
+      filters.subcategories.length + 
+      filters.dietary.length + 
+      filters.allergens.length;
+
     return (
-      <View style={[styles.container, styles.loadingContainer]}>
-        <Ionicons name="restaurant-outline" size={48} color={COLORS.neutral[400]} />
-        <Text style={styles.loadingText}>Chargement du menu...</Text>
-      </View>
-    );
-  }
-
-  // ✅ RENDER MAIN
-  return (
-    <View style={styles.container}>
-      {/* ✅ HEADER MODERNE */}
-      <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => router.back()}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="arrow-back" size={24} color={COLORS.text.primary} />
-          </TouchableOpacity>
-          
-          <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle}>
-              {restaurant?.name || 'Menu'}
-            </Text>
-            {restaurant?.description && (
-              <Text style={styles.headerSubtitle}>
-                {restaurant.description}
-              </Text>
-            )}
-          </View>
-          
-          <TouchableOpacity 
-            style={styles.cartButton}
-            onPress={() => setShowCart(true)}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="bag-outline" size={24} color={COLORS.text.white} />
-            {getTotalItems() > 0 && (
-              <View style={styles.cartBadge}>
-                <Badge 
-                  text={getTotalItems().toString()} 
-                  variant="error" 
-                  size="sm" 
-                />
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
-        
-        {/* ✅ SEARCH BAR */}
-        <View style={styles.searchContainer}>
-          <Input
-            placeholder="Rechercher un plat..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            leftIcon="search-outline"
-            rightIcon={searchQuery ? "close-outline" : undefined}
-            onRightIconPress={searchQuery ? () => setSearchQuery('') : undefined}
-            fullWidth
-          />
-        </View>
-      </View>
-
-      {/* ✅ CATEGORIES HORIZONTALES */}
-      <View style={styles.categoriesContainer}>
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoriesScroll}
-        >
-          {categories.map((category) => (
-            <TouchableOpacity
-              key={category.id}
-              style={[
-                styles.categoryItem,
-                activeCategory === category.id && styles.categoryItemActive,
-              ]}
-              onPress={() => setActiveCategory(category.id)}
-              activeOpacity={0.7}
-            >
-              <Text style={[
-                styles.categoryText,
-                activeCategory === category.id && styles.categoryTextActive,
-              ]}>
-                {category.name}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-
-      {/* ✅ MENU ITEMS AVEC FLATLIST POUR PERFORMANCE */}
-      <FlatList
-        data={filteredItems()}
-        renderItem={({ item }) => <MenuItemCard item={item} />}
-        keyExtractor={(item) => item.id}
-        numColumns={isTablet ? 2 : 1}
-        key={isTablet ? 'tablet' : 'mobile'} // Force re-render on orientation change
-        contentContainerStyle={styles.menuGrid}
-        style={styles.menuContent}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <View style={styles.emptyIcon}>
-              <Ionicons name="search-outline" size={48} color={COLORS.neutral[400]} />
-            </View>
-            <Text style={styles.emptyTitle}>Aucun plat trouvé</Text>
-            <Text style={styles.emptyText}>
-              {searchQuery 
-                ? `Aucun résultat pour "${searchQuery}". Essayez un autre terme.`
-                : 'Cette catégorie ne contient aucun plat pour le moment.'
-              }
-            </Text>
-          </View>
-        }
-      />
-
-      {/* ✅ FLOATING CART */}
-      {cart.length > 0 && (
+      <View style={dynamicStyles.filterSection}>
         <TouchableOpacity 
-          style={styles.floatingCart}
-          onPress={() => setShowCart(true)}
-          activeOpacity={0.9}
+          onPress={() => setShowFilters(!showFilters)}
+          style={dynamicStyles.filterHeader}
+          activeOpacity={0.7}
         >
-          <View style={styles.cartInfo}>
-            <Text style={styles.cartItems}>
-              {getTotalItems()} article{getTotalItems() > 1 ? 's' : ''}
-            </Text>
-            <Text style={styles.cartTotal}>
-              {getTotalPrice().toFixed(2)}€
-            </Text>
-          </View>
-          
-          <View style={styles.viewCartButton}>
-            <Text style={styles.viewCartText}>Voir le panier</Text>
-          </View>
-        </TouchableOpacity>
-      )}
-
-      {/* ✅ MODALS */}
-      <CartModal 
-        visible={showCart}
-        onClose={() => setShowCart(false)}
-        cart={cart}
-        onUpdateQuantity={updateQuantity}
-        onRemoveItem={removeFromCart}
-        onClearCart={clearCart}
-        totalPrice={getTotalPrice()}
-        restaurant={restaurant}
-      />
-
-      <ProductDetailModal
-        visible={!!selectedItem}
-        item={selectedItem}
-        onClose={() => setSelectedItem(null)}
-        onAddToCart={addToCart}
-      />
-    </View>
-  );
-}
-
-// ✅ MODAL PANIER RESPONSIVE AMÉLIORÉ
-const CartModal = ({ 
-  visible, 
-  onClose, 
-  cart, 
-  onUpdateQuantity, 
-  onRemoveItem,
-  onClearCart,
-  totalPrice,
-  restaurant
-}: {
-  visible: boolean;
-  onClose: () => void;
-  cart: CartItem[];
-  onUpdateQuantity: (id: string, quantity: number, instructions?: string) => void;
-  onRemoveItem: (id: string, instructions?: string) => void;
-  onClearCart: () => void;
-  totalPrice: number;
-  restaurant: Restaurant | null;
-}) => {
-  const { isMobile, getSpacing, getFontSize } = useResponsive();
-
-  const styles = {
-    modalOverlay: {
-      flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      justifyContent: 'flex-end' as const,
-    },
-    
-    modalContent: {
-      backgroundColor: COLORS.surface.primary,
-      borderTopLeftRadius: RADIUS.xl,
-      borderTopRightRadius: RADIUS.xl,
-      maxHeight: '85%' as const,
-      paddingTop: getSpacing(SPACING.lg, SPACING.xl),
-    },
-    
-    modalHeader: {
-      flexDirection: 'row' as const,
-      justifyContent: 'space-between' as const,
-      alignItems: 'center' as const,
-      paddingHorizontal: getSpacing(SPACING.lg, SPACING.xl),
-      paddingBottom: getSpacing(SPACING.md, SPACING.lg),
-      borderBottomWidth: 1,
-      borderBottomColor: COLORS.border.light,
-    },
-    
-    modalTitle: {
-      fontSize: getFontSize(20, 22, 24),
-      fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: COLORS.text.primary,
-    },
-    
-    headerActions: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-    },
-    
-    clearButton: {
-      marginRight: getSpacing(SPACING.md, SPACING.lg),
-    },
-    
-    clearButtonText: {
-      fontSize: getFontSize(14, 15, 16),
-      color: COLORS.error,
-      fontWeight: TYPOGRAPHY.fontWeight.medium,
-    },
-    
-    closeButton: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      backgroundColor: COLORS.neutral[100],
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-    },
-    
-    cartList: {
-      flex: 1,
-      paddingHorizontal: getSpacing(SPACING.lg, SPACING.xl),
-    },
-    
-    cartItem: {
-      flexDirection: 'row' as const,
-      alignItems: 'flex-start' as const,
-      paddingVertical: getSpacing(SPACING.md, SPACING.lg),
-      borderBottomWidth: 1,
-      borderBottomColor: COLORS.border.light,
-    },
-    
-    cartItemInfo: {
-      flex: 1,
-      marginRight: getSpacing(SPACING.md, SPACING.lg),
-    },
-    
-    cartItemName: {
-      fontSize: getFontSize(16, 17, 18),
-      fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      color: COLORS.text.primary,
-      marginBottom: SPACING.xs,
-    },
-    
-    cartItemPrice: {
-      fontSize: getFontSize(14, 15, 16),
-      color: COLORS.text.secondary,
-      marginBottom: SPACING.xs,
-    },
-    
-    cartItemInstructions: {
-      fontSize: getFontSize(12, 13, 14),
-      color: COLORS.text.tertiary,
-      fontStyle: 'italic' as const,
-    },
-    
-    cartItemControls: {
-      alignItems: 'flex-end' as const,
-    },
-    
-    quantityControls: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      backgroundColor: COLORS.neutral[100],
-      borderRadius: RADIUS.lg,
-      paddingHorizontal: SPACING.sm,
-      paddingVertical: SPACING.xs,
-      marginBottom: getSpacing(SPACING.sm, SPACING.md),
-    },
-    
-    quantityButton: {
-      width: 28,
-      height: 28,
-      borderRadius: 14,
-      backgroundColor: COLORS.primary,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-    },
-    
-    quantityText: {
-      fontSize: getFontSize(16, 17, 18),
-      fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      color: COLORS.text.primary,
-      marginHorizontal: getSpacing(SPACING.md, SPACING.lg),
-      minWidth: 24,
-      textAlign: 'center' as const,
-    },
-    
-    removeButton: {
-      padding: SPACING.xs,
-    },
-    
-    footer: {
-      paddingHorizontal: getSpacing(SPACING.lg, SPACING.xl),
-      paddingVertical: getSpacing(SPACING.lg, SPACING.xl),
-      borderTopWidth: 1,
-      borderTopColor: COLORS.border.light,
-      backgroundColor: COLORS.surface.secondary,
-    },
-    
-    totalContainer: {
-      flexDirection: 'row' as const,
-      justifyContent: 'space-between' as const,
-      alignItems: 'center' as const,
-      marginBottom: getSpacing(SPACING.md, SPACING.lg),
-    },
-    
-    totalLabel: {
-      fontSize: getFontSize(18, 20, 22),
-      fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      color: COLORS.text.primary,
-    },
-    
-    totalPrice: {
-      fontSize: getFontSize(20, 22, 24),
-      fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: COLORS.primary,
-    },
-
-    emptyCart: {
-      alignItems: 'center' as const,
-      paddingVertical: getSpacing(SPACING.xxl, SPACING.xxl * 2),
-    },
-
-    emptyCartIcon: {
-      marginBottom: getSpacing(SPACING.lg, SPACING.xl),
-    },
-
-    emptyCartTitle: {
-      fontSize: getFontSize(18, 20, 22),
-      fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      color: COLORS.text.primary,
-      marginBottom: SPACING.sm,
-    },
-
-    emptyCartText: {
-      fontSize: getFontSize(14, 15, 16),
-      color: COLORS.text.secondary,
-      textAlign: 'center' as const,
-    },
-  };
-
-  return (
-    <Modal visible={visible} transparent animationType="slide">
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          {/* ✅ HEADER */}
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Mon panier</Text>
-            <View style={styles.headerActions}>
-              {cart.length > 0 && (
-                <TouchableOpacity 
-                  style={styles.clearButton}
-                  onPress={onClearCart}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.clearButtonText}>Vider</Text>
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity 
-                style={styles.closeButton} 
-                onPress={onClose}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="close" size={20} color={COLORS.text.secondary} />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* ✅ LISTE DES ARTICLES OU ÉTAT VIDE */}
-          {cart.length === 0 ? (
-            <View style={styles.emptyCart}>
-              <View style={styles.emptyCartIcon}>
-                <Ionicons name="bag-outline" size={48} color={COLORS.neutral[400]} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+            <Ionicons 
+              name="funnel" 
+              size={20} 
+              color={COLORS.primary} 
+              style={{ marginRight: 8 }} 
+            />
+            <Text style={dynamicStyles.filterTitle}>Filtres</Text>
+            {activeFiltersCount > 0 && (
+              <View style={dynamicStyles.filterBadge}>
+                <Text style={dynamicStyles.filterBadgeText}>
+                  {activeFiltersCount}
+                </Text>
               </View>
-              <Text style={styles.emptyCartTitle}>Votre panier est vide</Text>
-              <Text style={styles.emptyCartText}>
-                Ajoutez des plats depuis le menu pour commencer votre commande
-              </Text>
-            </View>
-          ) : (
-            <FlatList
-              data={cart}
-              keyExtractor={(item, index) => `${item.menuItem.id}-${index}`}
-              renderItem={({ item }) => (
-                <View style={styles.cartItem}>
-                  <View style={styles.cartItemInfo}>
-                    <Text style={styles.cartItemName}>{item.menuItem.name}</Text>
-                    <Text style={styles.cartItemPrice}>
-                      {item.menuItem.price.toFixed(2)}€ × {item.quantity} = {(item.menuItem.price * item.quantity).toFixed(2)}€
-                    </Text>
-                    {item.specialInstructions && (
-                      <Text style={styles.cartItemInstructions}>
-                        Note: {item.specialInstructions}
-                      </Text>
-                    )}
-                  </View>
+            )}
+          </View>
+          <Ionicons 
+            name={showFilters ? "chevron-up" : "chevron-down"} 
+            size={24} 
+            color={COLORS.text.secondary} 
+          />
+        </TouchableOpacity>
 
-                  <View style={styles.cartItemControls}>
-                    <View style={styles.quantityControls}>
-                      <TouchableOpacity
-                        style={styles.quantityButton}
-                        onPress={() => onUpdateQuantity(item.menuItem.id, item.quantity - 1, item.specialInstructions)}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons name="remove" size={14} color={COLORS.text.white} />
-                      </TouchableOpacity>
-
-                      <Text style={styles.quantityText}>{item.quantity}</Text>
-
-                      <TouchableOpacity
-                        style={styles.quantityButton}
-                        onPress={() => onUpdateQuantity(item.menuItem.id, item.quantity + 1, item.specialInstructions)}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons name="add" size={14} color={COLORS.text.white} />
-                      </TouchableOpacity>
-                    </View>
-
+        {showFilters && (
+          <>
+            {/* Catégories */}
+            {categories.length > 0 && (
+              <View style={dynamicStyles.filterGroup}>
+                <Text style={dynamicStyles.filterGroupTitle}>Catégories</Text>
+                <View style={dynamicStyles.filterChipsContainer}>
+                  {categories.map(category => (
                     <TouchableOpacity
-                      style={styles.removeButton}
-                      onPress={() => onRemoveItem(item.menuItem.id, item.specialInstructions)}
+                      key={category.id}
+                      onPress={() => toggleFilter('categories', category.id)}
+                      style={[
+                        dynamicStyles.filterChip,
+                        filters.categories.includes(category.id) && dynamicStyles.filterChipActive
+                      ]}
                       activeOpacity={0.7}
                     >
-                      <Ionicons name="trash-outline" size={18} color={COLORS.error} />
+                      {category.icon && (
+                        <Text style={{ fontSize: 14 }}>{category.icon}</Text>
+                      )}
+                      <Text style={[
+                        dynamicStyles.filterChipText,
+                        filters.categories.includes(category.id) && dynamicStyles.filterChipTextActive
+                      ]}>
+                        {category.name}
+                      </Text>
                     </TouchableOpacity>
-                  </View>
-                </View>
-              )}
-              style={styles.cartList}
-              showsVerticalScrollIndicator={false}
-            />
-          )}
-
-          {/* ✅ FOOTER TOTAL */}
-          {cart.length > 0 && (
-            <View style={styles.footer}>
-              <View style={styles.totalContainer}>
-                <Text style={styles.totalLabel}>Total</Text>
-                <Text style={styles.totalPrice}>{totalPrice.toFixed(2)}€</Text>
-              </View>
-
-              <Button
-                title={`Commander • ${restaurant?.name || ''}`}
-                variant="primary"
-                size="lg"
-                fullWidth
-                onPress={() => {
-                  onClose();
-                  // Navigation vers checkout
-                  router.push({
-                    pathname: '/order/checkout',
-                    params: { restaurantId: restaurant?.id || '' }
-                  } as any);
-                }}
-              />
-            </View>
-          )}
-        </View>
-      </View>
-    </Modal>
-  );
-};
-
-// ✅ MODAL DÉTAIL PRODUIT AMÉLIORÉ
-const ProductDetailModal = ({ 
-  visible, 
-  item, 
-  onClose, 
-  onAddToCart 
-}: {
-  visible: boolean;
-  item: MenuItem | null;
-  onClose: () => void;
-  onAddToCart: (item: MenuItem, quantity: number, instructions?: string) => void;
-}) => {
-  const [quantity, setQuantity] = useState(1);
-  const [specialInstructions, setSpecialInstructions] = useState('');
-  const { isMobile, getSpacing, getFontSize } = useResponsive();
-
-  // Reset state when modal closes
-  useEffect(() => {
-    if (!visible) {
-      setQuantity(1);
-      setSpecialInstructions('');
-    }
-  }, [visible]);
-
-  if (!item) return null;
-
-  const handleAddToCart = () => {
-    onAddToCart(item, quantity, specialInstructions.trim() || undefined);
-    onClose();
-  };
-
-  const getAllergenName = (allergen: string): string => {
-    const allergenMap: Record<string, string> = {
-      'gluten': 'Gluten',
-      'crustaceans': 'Crustacés',
-      'eggs': 'Œufs',
-      'fish': 'Poissons',
-      'peanuts': 'Arachides',
-      'soybeans': 'Soja',
-      'milk': 'Lait',
-      'nuts': 'Fruits à coque',
-      'celery': 'Céleri',
-      'mustard': 'Moutarde',
-      'sesame': 'Sésame',
-      'sulphites': 'Sulfites',
-      'lupin': 'Lupin',
-      'molluscs': 'Mollusques',
-    };
-    return allergenMap[allergen] || allergen;
-  };
-
-  const styles = {
-    modalOverlay: {
-      flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      justifyContent: 'center' as const,
-      alignItems: 'center' as const,
-      padding: getSpacing(SPACING.lg, SPACING.xl),
-    },
-    
-    modalContent: {
-      backgroundColor: COLORS.surface.primary,
-      borderRadius: RADIUS.xl,
-      width: '100%' as const,
-      maxWidth: isMobile ? undefined : 480,
-      maxHeight: '90%' as const,
-    },
-    
-    imageContainer: {
-      height: 200,
-      backgroundColor: COLORS.neutral[200],
-      borderTopLeftRadius: RADIUS.xl,
-      borderTopRightRadius: RADIUS.xl,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-      position: 'relative' as const,
-    },
-    
-    closeButton: {
-      position: 'absolute' as const,
-      top: getSpacing(SPACING.md, SPACING.lg),
-      right: getSpacing(SPACING.md, SPACING.lg),
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: 'rgba(0, 0, 0, 0.6)',
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-    },
-    
-    content: {
-      padding: getSpacing(SPACING.lg, SPACING.xl),
-    },
-    
-    itemName: {
-      fontSize: getFontSize(22, 24, 28),
-      fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: COLORS.text.primary,
-      marginBottom: SPACING.sm,
-    },
-    
-    itemPrice: {
-      fontSize: getFontSize(20, 22, 24),
-      fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: COLORS.primary,
-      marginBottom: getSpacing(SPACING.md, SPACING.lg),
-    },
-    
-    itemDescription: {
-      fontSize: getFontSize(16, 17, 18),
-      color: COLORS.text.secondary,
-      lineHeight: 24,
-      marginBottom: getSpacing(SPACING.lg, SPACING.xl),
-    },
-    
-    tagsContainer: {
-      flexDirection: 'row' as const,
-      flexWrap: 'wrap' as const,
-      marginBottom: getSpacing(SPACING.lg, SPACING.xl),
-    },
-    
-    allergensSection: {
-      marginBottom: getSpacing(SPACING.lg, SPACING.xl),
-    },
-    
-    sectionTitle: {
-      fontSize: getFontSize(16, 17, 18),
-      fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      color: COLORS.text.primary,
-      marginBottom: getSpacing(SPACING.sm, SPACING.md),
-    },
-    
-    allergensList: {
-      flexDirection: 'row' as const,
-      flexWrap: 'wrap' as const,
-    },
-    
-    quantitySection: {
-      marginBottom: getSpacing(SPACING.lg, SPACING.xl),
-    },
-    
-    quantityControls: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-      backgroundColor: COLORS.neutral[100],
-      borderRadius: RADIUS.lg,
-      paddingVertical: getSpacing(SPACING.sm, SPACING.md),
-    },
-    
-    quantityButton: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: COLORS.primary,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-    },
-    
-    quantityButtonDisabled: {
-      backgroundColor: COLORS.neutral[300],
-    },
-    
-    quantityText: {
-      fontSize: getFontSize(20, 22, 24),
-      fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: COLORS.text.primary,
-      marginHorizontal: getSpacing(SPACING.xl, SPACING.xxl),
-      minWidth: 32,
-      textAlign: 'center' as const,
-    },
-    
-    instructionsSection: {
-      marginBottom: getSpacing(SPACING.lg, SPACING.xl),
-    },
-    
-    footer: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      justifyContent: 'space-between' as const,
-    },
-    
-    totalPrice: {
-      fontSize: getFontSize(20, 22, 24),
-      fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: COLORS.primary,
-    },
-    
-    addButton: {
-      flex: 1,
-      marginLeft: getSpacing(SPACING.md, SPACING.lg),
-    },
-  };
-
-  return (
-    <Modal visible={visible} transparent animationType="fade">
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          {/* ✅ IMAGE PLACEHOLDER */}
-          <View style={styles.imageContainer}>
-            <Ionicons name="restaurant-outline" size={48} color={COLORS.neutral[400]} />
-            <TouchableOpacity 
-              style={styles.closeButton} 
-              onPress={onClose}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="close" size={20} color={COLORS.text.white} />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-            {/* ✅ INFO PRODUIT */}
-            <Text style={styles.itemName}>{item.name}</Text>
-            <Text style={styles.itemPrice}>{item.price.toFixed(2)}€</Text>
-            <Text style={styles.itemDescription}>{item.description}</Text>
-
-            {/* ✅ TAGS ALIMENTAIRES */}
-            <View style={styles.tagsContainer}>
-              {item.isVegan && (
-                <Badge text="🌿 Vegan" variant="success" size="sm" style={{ marginRight: SPACING.sm, marginBottom: SPACING.xs }} />
-              )}
-              {item.isVegetarian && !item.isVegan && (
-                <Badge text="🌱 Végétarien" variant="success" size="sm" style={{ marginRight: SPACING.sm, marginBottom: SPACING.xs }} />
-              )}
-              {item.preparationTime && (
-                <Badge 
-                  text={`⏱️ ${item.preparationTime} min`} 
-                  variant="default" 
-                  size="sm"
-                  style={{ marginRight: SPACING.sm, marginBottom: SPACING.xs }}
-                />
-              )}
-            </View>
-
-            {/* ✅ ALLERGÈNES */}
-            {item.allergens && item.allergens.length > 0 && (
-              <View style={styles.allergensSection}>
-                <Text style={styles.sectionTitle}>Allergènes</Text>
-                <View style={styles.allergensList}>
-                  {item.allergens.map((allergen, index) => (
-                    <Badge
-                      key={allergen}
-                      text={getAllergenName(allergen)}
-                      variant="warning"
-                      size="sm"
-                      style={{ 
-                        marginRight: SPACING.sm, 
-                        marginBottom: SPACING.xs 
-                      }}
-                    />
                   ))}
                 </View>
               </View>
             )}
 
-            {/* ✅ QUANTITÉ */}
-            <View style={styles.quantitySection}>
-              <Text style={styles.sectionTitle}>Quantité</Text>
-              <View style={styles.quantityControls}>
+            {/* Régime alimentaire */}
+            <View style={dynamicStyles.filterGroup}>
+              <Text style={dynamicStyles.filterGroupTitle}>Régime alimentaire</Text>
+              <View style={dynamicStyles.filterChipsContainer}>
                 <TouchableOpacity
+                  onPress={() => toggleFilter('dietary', 'vegetarian')}
                   style={[
-                    styles.quantityButton,
-                    quantity <= 1 && styles.quantityButtonDisabled
+                    dynamicStyles.filterChip,
+                    filters.dietary.includes('vegetarian') && dynamicStyles.filterChipActive
                   ]}
-                  onPress={() => setQuantity(Math.max(1, quantity - 1))}
-                  disabled={quantity <= 1}
                   activeOpacity={0.7}
                 >
                   <Ionicons 
-                    name="remove" 
-                    size={24} 
-                    color={quantity <= 1 ? COLORS.neutral[500] : COLORS.text.white} 
+                    name="leaf-outline" 
+                    size={14} 
+                    color={filters.dietary.includes('vegetarian') ? COLORS.text.inverse : COLORS.text.primary} 
                   />
+                  <Text style={[
+                    dynamicStyles.filterChipText,
+                    filters.dietary.includes('vegetarian') && dynamicStyles.filterChipTextActive
+                  ]}>
+                    Végétarien
+                  </Text>
                 </TouchableOpacity>
 
-                <Text style={styles.quantityText}>{quantity}</Text>
-
                 <TouchableOpacity
-                  style={styles.quantityButton}
-                  onPress={() => setQuantity(quantity + 1)}
+                  onPress={() => toggleFilter('dietary', 'vegan')}
+                  style={[
+                    dynamicStyles.filterChip,
+                    filters.dietary.includes('vegan') && dynamicStyles.filterChipActive
+                  ]}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="add" size={24} color={COLORS.text.white} />
+                  <Ionicons 
+                    name="nutrition-outline" 
+                    size={14} 
+                    color={filters.dietary.includes('vegan') ? COLORS.text.inverse : COLORS.text.primary} 
+                  />
+                  <Text style={[
+                    dynamicStyles.filterChipText,
+                    filters.dietary.includes('vegan') && dynamicStyles.filterChipTextActive
+                  ]}>
+                    Vegan
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => toggleFilter('dietary', 'gluten_free')}
+                  style={[
+                    dynamicStyles.filterChip,
+                    filters.dietary.includes('gluten_free') && dynamicStyles.filterChipActive
+                  ]}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons 
+                    name="fitness-outline" 
+                    size={14} 
+                    color={filters.dietary.includes('gluten_free') ? COLORS.text.inverse : COLORS.text.primary} 
+                  />
+                  <Text style={[
+                    dynamicStyles.filterChipText,
+                    filters.dietary.includes('gluten_free') && dynamicStyles.filterChipTextActive
+                  ]}>
+                    Sans gluten
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
 
-            {/* ✅ INSTRUCTIONS SPÉCIALES */}
-            <View style={styles.instructionsSection}>
-              <Text style={styles.sectionTitle}>Instructions spéciales</Text>
-              <Input
-                placeholder="Ex: Sans oignons, bien cuit, sauce à part..."
-                value={specialInstructions}
-                onChangeText={setSpecialInstructions}
-                multiline
-                numberOfLines={3}
-                maxLength={200}
-              />
-            </View>
+            {/* Allergènes */}
+            {ALLERGENS.length > 0 && (
+              <View style={dynamicStyles.filterGroup}>
+                <Text style={dynamicStyles.filterGroupTitle}>
+                  Exclure les allergènes
+                </Text>
+                <View style={dynamicStyles.filterChipsContainer}>
+                  {ALLERGENS.map(allergen => (
+                    <TouchableOpacity
+                      key={allergen.id}
+                      onPress={() => toggleFilter('allergens', allergen.id)}
+                      style={[
+                        dynamicStyles.filterChip,
+                        filters.allergens.includes(allergen.id) && dynamicStyles.filterChipActive
+                      ]}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons 
+                        name="warning-outline" 
+                        size={14} 
+                        color={filters.allergens.includes(allergen.id) ? COLORS.text.inverse : COLORS.error} 
+                      />
+                      <Text style={[
+                        dynamicStyles.filterChipText,
+                        filters.allergens.includes(allergen.id) && dynamicStyles.filterChipTextActive
+                      ]}>
+                        {allergen.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
 
-            {/* ✅ FOOTER */}
-            <View style={styles.footer}>
-              <Text style={styles.totalPrice}>
-                {(item.price * quantity).toFixed(2)}€
-              </Text>
-              
+            {/* Bouton réinitialiser */}
+            {hasActiveFilters() && (
               <Button
-                title={`Ajouter${quantity > 1 ? ` (${quantity})` : ''}`}
-                variant="primary"
-                size="lg"
-                onPress={handleAddToCart}
-                style={styles.addButton}
+                title="Réinitialiser les filtres"
+                onPress={clearAllFilters}
+                variant="outline"
+                size="sm"
+                leftIcon={<Ionicons name="close-circle-outline" size={18} color={COLORS.primary} />}
+                style={{ marginTop: getResponsiveValue(SPACING.xs, screenType) }}
               />
-            </View>
-          </ScrollView>
+            )}
+          </>
+        )}
+      </View>
+    );
+  };
+
+  const renderSectionHeader = ({ section }: { section: SectionData }) => (
+    <View style={dynamicStyles.sectionHeader}>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        {section.categoryIcon && (
+          <Text style={{ fontSize: 24, marginRight: 8 }}>
+            {section.categoryIcon}
+          </Text>
+        )}
+        <View style={{ flex: 1 }}>
+          <Text style={dynamicStyles.sectionHeaderTitle}>
+            {section.title}
+          </Text>
+          <Text style={dynamicStyles.sectionHeaderSubtitle}>
+            {section.data.length} plat{section.data.length > 1 ? 's' : ''}
+          </Text>
         </View>
       </View>
-    </Modal>
+    </View>
   );
-};
+
+  const renderMenuItem = ({ item }: { item: MenuItem }) => {
+    const dietaryTags = [];
+    
+    if (item.is_vegetarian) dietaryTags.push({ label: 'Végétarien', icon: 'leaf-outline' });
+    if (item.is_vegan) dietaryTags.push({ label: 'Vegan', icon: 'nutrition-outline' });
+    if (item.is_gluten_free) dietaryTags.push({ label: 'Sans gluten', icon: 'fitness-outline' });
+    if (item.preparation_time) dietaryTags.push({ label: `${item.preparation_time} min`, icon: 'time-outline' });
+
+    return (
+      <TouchableOpacity
+        activeOpacity={0.95}
+        onPress={() => setSelectedItem(item)}
+      >
+        <Card variant="default" style={dynamicStyles.menuItemCard}>
+          <View style={dynamicStyles.itemHeader}>
+            <Text style={dynamicStyles.itemName}>{item.name}</Text>
+            <Text style={dynamicStyles.itemPrice}>
+              {item.price.toFixed(2)}€
+            </Text>
+          </View>
+
+          <Text style={dynamicStyles.itemDescription}>
+            {item.description}
+          </Text>
+
+          <View style={dynamicStyles.itemFooter}>
+            <View style={dynamicStyles.dietaryTags}>
+              {dietaryTags.map((tag, index) => (
+                <View key={index} style={dynamicStyles.dietaryTag}>
+                  <Ionicons name={tag.icon as any} size={12} color={COLORS.variants.secondary[700]} />
+                  <Text style={dynamicStyles.dietaryTagText}>{tag.label}</Text>
+                </View>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              style={dynamicStyles.addButton}
+              onPress={(e) => {
+                e.stopPropagation();
+                addToCart(item);
+                Alert.alert('Ajouté', `${item.name} ajouté au panier`);
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="add" size={18} color={COLORS.text.inverse} />
+              <Text style={dynamicStyles.addButtonText}>Ajouter</Text>
+            </TouchableOpacity>
+          </View>
+        </Card>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderEmptyState = () => {
+    const sectionedData = getSectionedData();
+    const isFiltered = hasActiveFilters();
+
+    if (isFiltered && sectionedData.length === 0) {
+      return (
+        <View style={dynamicStyles.emptyState}>
+          <View style={dynamicStyles.emptyIcon}>
+            <Ionicons 
+              name="funnel-outline" 
+              size={64} 
+              color={COLORS.text.light} 
+            />
+          </View>
+          <Text style={dynamicStyles.emptyTitle}>
+            Aucun résultat
+          </Text>
+          <Text style={dynamicStyles.emptyText}>
+            Aucun plat ne correspond aux filtres sélectionnés.{'\n'}
+            Essayez de modifier vos critères.
+          </Text>
+          <Button
+            title="Réinitialiser"
+            onPress={clearAllFilters}
+            variant="outline"
+            style={{ marginTop: getResponsiveValue(SPACING.md, screenType) }}
+            leftIcon={<Ionicons name="close-circle-outline" size={20} color={COLORS.primary} />}
+          />
+        </View>
+      );
+    }
+
+    return (
+      <View style={dynamicStyles.emptyState}>
+        <View style={dynamicStyles.emptyIcon}>
+          <Ionicons 
+            name="restaurant-outline" 
+            size={64} 
+            color={COLORS.text.light} 
+          />
+        </View>
+        <Text style={dynamicStyles.emptyTitle}>
+          Menu non disponible
+        </Text>
+        <Text style={dynamicStyles.emptyText}>
+          Le menu de ce restaurant n'est pas encore disponible.
+        </Text>
+      </View>
+    );
+  };
+
+  // ========================================
+  // RENDU PRINCIPAL
+  // ========================================
+
+  if (loading) {
+    return (
+      <View style={[dynamicStyles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={{ marginTop: getResponsiveValue(SPACING.md, screenType), color: "#6B7280" }}>
+          Chargement du menu...
+        </Text>
+      </View>
+    );
+  }
+
+  const sectionedData = getSectionedData();
+
+  return (
+    <View style={dynamicStyles.container}>
+      <SectionList
+        sections={sectionedData}
+        renderItem={renderMenuItem}
+        renderSectionHeader={renderSectionHeader}
+        keyExtractor={(item) => item.id}
+        stickySectionHeadersEnabled={false}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={
+          <>
+            {/* Header Restaurant */}
+            <View style={dynamicStyles.headerCard}>
+              <View style={dynamicStyles.headerTop}>
+                <TouchableOpacity 
+                  style={dynamicStyles.backButton}
+                  onPress={() => router.back()}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="arrow-back" size={24} color={COLORS.text.primary} />
+                </TouchableOpacity>
+                
+                <View style={dynamicStyles.restaurantInfo}>
+                  <Text style={dynamicStyles.restaurantName}>
+                    {restaurant?.name || 'Menu'}
+                  </Text>
+                  {restaurant?.cuisine && (
+                    <Text style={dynamicStyles.restaurantCuisine}>
+                      Cuisine {restaurant.cuisine}
+                    </Text>
+                  )}
+                </View>
+                
+                <TouchableOpacity 
+                  style={dynamicStyles.cartButton}
+                  onPress={() => setShowCart(true)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="bag-outline" size={24} color={COLORS.text.inverse} />
+                  {getTotalItems() > 0 && (
+                    <View style={dynamicStyles.cartBadge}>
+                      <Text style={dynamicStyles.cartBadgeText}>
+                        {getTotalItems()}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+              
+              {/* Search Bar */}
+              <View style={dynamicStyles.searchContainer}>
+                <Input
+                  placeholder="Rechercher un plat..."
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  leftIcon="search-outline"
+                  rightIcon={searchQuery ? "close-outline" : undefined}
+                  onRightIconPress={searchQuery ? () => setSearchQuery('') : undefined}
+                  fullWidth
+                />
+              </View>
+            </View>
+
+            {/* Filtres */}
+            {renderFilters()}
+          </>
+        }
+        ListEmptyComponent={renderEmptyState}
+      />
+
+      {/* Floating Cart */}
+      {cart.length > 0 && (
+        <TouchableOpacity 
+          style={dynamicStyles.floatingCart}
+          onPress={() => setShowCart(true)}
+          activeOpacity={0.9}
+        >
+          <View style={dynamicStyles.cartInfo}>
+            <Text style={dynamicStyles.cartItems}>
+              {getTotalItems()} article{getTotalItems() > 1 ? 's' : ''}
+            </Text>
+            <Text style={dynamicStyles.cartTotal}>
+              {getTotalPrice().toFixed(2)}€
+            </Text>
+          </View>
+          
+          <View style={dynamicStyles.viewCartButton}>
+            <Text style={dynamicStyles.viewCartText}>Voir le panier</Text>
+          </View>
+        </TouchableOpacity>
+      )}
+
+      {/* Modals - À implémenter selon vos besoins */}
+      {/* CartModal et ProductDetailModal */}
+    </View>
+  );
+}
