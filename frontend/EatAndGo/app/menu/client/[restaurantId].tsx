@@ -1,21 +1,17 @@
-// app/(client)/restaurant/[restaurantId].tsx
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
   FlatList,
   Pressable,
-  SafeAreaView,
   RefreshControl,
   Alert,
   ScrollView,
   TouchableOpacity,
-  Image,
-  Modal
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // UI Components
 import { useCart } from '@/contexts/CartContext';
@@ -23,16 +19,23 @@ import { menuService } from '@/services/menuService';
 import { restaurantService } from '@/services/restaurantService';
 import { Header } from '@/components/ui/Header';
 import { Loading } from '@/components/ui/Loading';
-import { Button } from '@/components/ui/Button';
 import { DailyMenuDisplay } from '@/components/menu/DailyMenuDisplay';
+import { MenuItemCard } from '@/components/menu/MenuItemCard';
 
 // Types
 import { Menu, MenuItem } from '@/types/menu';
 import { Restaurant } from '@/types/restaurant';
 
-// Design System & Styles
-import { useScreenType } from '@/utils/designSystem';
-import { createRestaurantMenuStyles } from '@/styles/restaurantMenuStyles';
+// Design System
+import {
+  useScreenType,
+  getResponsiveValue,
+  COLORS,
+  SPACING,
+  BORDER_RADIUS,
+  SHADOWS,
+  TYPOGRAPHY,
+} from '@/utils/designSystem';
 
 // =============================================================================
 // TYPES ET INTERFACES
@@ -54,98 +57,521 @@ interface FilterOptions {
 }
 
 // =============================================================================
-// COMPOSANTS ENFANTS OPTIMISÉS
+// STYLES DYNAMIQUES
+// =============================================================================
+const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', insets: any) => ({
+  page: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  
+  // En-tête Restaurant Premium
+  restaurantHeader: {
+    backgroundColor: COLORS.goldenSurface,
+    paddingTop: getResponsiveValue(SPACING.xl, screenType),
+    paddingBottom: getResponsiveValue(SPACING.lg, screenType),
+    paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
+    borderBottomLeftRadius: BORDER_RADIUS['3xl'],
+    borderBottomRightRadius: BORDER_RADIUS['3xl'],
+    ...SHADOWS.premiumCard,
+    borderBottomWidth: 3,
+    borderBottomColor: COLORS.border.golden,
+  },
+  
+  restaurantName: {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize['3xl'], screenType),
+    fontWeight: TYPOGRAPHY.fontWeight.extrabold as any,
+    color: COLORS.primary,
+    textAlign: 'center' as const,
+    marginBottom: getResponsiveValue(SPACING.xs, screenType),
+    letterSpacing: 0.5,
+  },
+  
+  restaurantSubtitle: {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
+    fontWeight: TYPOGRAPHY.fontWeight.medium as any,
+    color: COLORS.text.golden,
+    textAlign: 'center' as const,
+    fontStyle: 'italic' as const,
+  },
+  
+  decorativeLine: {
+    height: 2,
+    backgroundColor: COLORS.border.golden,
+    marginVertical: getResponsiveValue(SPACING.md, screenType),
+    alignSelf: 'center' as const,
+    width: '40%',
+  },
+  
+  container: {
+    paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
+  },
+  
+  // Navigation Catégories - Style Menu
+  categoriesSection: {
+    marginVertical: getResponsiveValue(SPACING.lg, screenType),
+  },
+  
+  categoryCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.xl,
+    padding: getResponsiveValue(SPACING.md, screenType),
+    marginRight: getResponsiveValue(SPACING.sm, screenType),
+    minWidth: 120,
+    alignItems: 'center' as const,
+    borderWidth: 2,
+    borderColor: COLORS.border.light,
+    ...SHADOWS.card,
+  },
+  
+  categoryCardActive: {
+    backgroundColor: COLORS.goldenSurface,
+    borderColor: COLORS.variants.secondary[400],
+    borderWidth: 2,
+    ...SHADOWS.goldenGlow,
+  },
+  
+  categoryIcon: {
+    fontSize: 32,
+    marginBottom: 6,
+  },
+  
+  categoryName: {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+    fontWeight: TYPOGRAPHY.fontWeight.semibold as any,
+    color: COLORS.text.primary,
+    textAlign: 'center' as const,
+  },
+  
+  categoryNameActive: {
+    color: COLORS.text.golden,
+    fontWeight: TYPOGRAPHY.fontWeight.bold as any,
+  },
+  
+  categoryCount: {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
+    color: COLORS.text.light,
+    marginTop: 2,
+  },
+  
+  // Section de Catégorie - Style Carte Restaurant
+  categorySection: {
+    marginBottom: getResponsiveValue(SPACING['2xl'], screenType),
+  },
+  
+  sectionTitle: {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize['2xl'], screenType),
+    fontWeight: TYPOGRAPHY.fontWeight.extrabold as any,
+    color: COLORS.primary,
+    marginBottom: getResponsiveValue(SPACING.md, screenType),
+    textAlign: 'center' as const,
+    letterSpacing: 1,
+    textTransform: 'uppercase' as const,
+  },
+  
+  sectionDivider: {
+    height: 1,
+    backgroundColor: COLORS.border.golden,
+    marginBottom: getResponsiveValue(SPACING.lg, screenType),
+    width: '60%' as const,
+    alignSelf: 'center' as const,
+  },
+  
+  subSectionTitle: {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
+    fontWeight: TYPOGRAPHY.fontWeight.bold as any,
+    color: COLORS.text.golden,
+    marginTop: getResponsiveValue(SPACING.lg, screenType),
+    marginBottom: getResponsiveValue(SPACING.md, screenType),
+    fontStyle: 'italic' as const,
+  },
+  
+  // Menu Item Card - Style Carte Restaurant
+  menuItemCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.xl,
+    padding: getResponsiveValue(SPACING.lg, screenType),
+    marginBottom: getResponsiveValue(SPACING.md, screenType),
+    ...SHADOWS.card,
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.variants.secondary[400],
+  },
+  
+  menuItemHeader: {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'flex-start' as const,
+    marginBottom: getResponsiveValue(SPACING.sm, screenType),
+  },
+  
+  menuItemNameContainer: {
+    flex: 1,
+    marginRight: getResponsiveValue(SPACING.md, screenType),
+  },
+  
+  menuItemName: {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xl, screenType),
+    fontWeight: TYPOGRAPHY.fontWeight.bold as any,
+    color: COLORS.text.primary,
+    lineHeight: getResponsiveValue(TYPOGRAPHY.fontSize.xl, screenType) * 1.3,
+  },
+  
+  menuItemNameWithPhoto: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+  },
+  
+  photoIcon: {
+    marginLeft: 6,
+  },
+  
+  menuItemPrice: {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize['2xl'], screenType),
+    fontWeight: TYPOGRAPHY.fontWeight.extrabold as any,
+    color: COLORS.variants.secondary[600],
+    letterSpacing: 0.5,
+  },
+  
+  menuItemDescription: {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
+    fontWeight: TYPOGRAPHY.fontWeight.normal as any,
+    color: COLORS.text.secondary,
+    lineHeight: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType) * 1.5,
+    marginBottom: getResponsiveValue(SPACING.md, screenType),
+    fontStyle: 'italic' as const,
+  },
+  
+  // Tags Diététiques - Style Élégant
+  dietaryTags: {
+    flexDirection: 'row' as const,
+    flexWrap: 'wrap' as const,
+    gap: 8,
+    marginBottom: getResponsiveValue(SPACING.sm, screenType),
+  },
+  
+  dietaryTag: {
+    backgroundColor: COLORS.variants.secondary[50],
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.variants.secondary[300],
+  },
+  
+  dietaryTagText: {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
+    color: COLORS.variants.secondary[800],
+    fontWeight: TYPOGRAPHY.fontWeight.semibold as any,
+  },
+  
+  // Allergènes
+  allergenToggle: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    paddingVertical: 8,
+    gap: 6,
+  },
+  
+  allergenToggleText: {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+    color: COLORS.text.secondary,
+    fontWeight: TYPOGRAPHY.fontWeight.medium as any,
+  },
+  
+  allergenChips: {
+    flexDirection: 'row' as const,
+    flexWrap: 'wrap' as const,
+    gap: 6,
+    marginTop: 4,
+  },
+  
+  allergenChip: {
+    backgroundColor: '#FEF2F2',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+  },
+  
+  allergenChipText: {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
+    color: '#DC2626',
+    fontWeight: TYPOGRAPHY.fontWeight.medium as any,
+  },
+  
+  // Footer de l'item avec bouton
+  menuItemFooter: {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
+    marginTop: getResponsiveValue(SPACING.md, screenType),
+    paddingTop: getResponsiveValue(SPACING.sm, screenType),
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border.light,
+  },
+  
+  categoryBadge: {
+    backgroundColor: COLORS.variants.primary[100],
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.variants.primary[300],
+  },
+  
+  categoryBadgeText: {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
+    color: COLORS.primary,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold as any,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+  },
+  
+  addButton: {
+    backgroundColor: COLORS.variants.secondary[500],
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: BORDER_RADIUS.lg,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 6,
+    ...SHADOWS.button,
+  },
+  
+  addButtonText: {
+    color: COLORS.text.inverse,
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
+    fontWeight: TYPOGRAPHY.fontWeight.bold as any,
+  },
+  
+  unavailableContainer: {
+    backgroundColor: COLORS.border.light,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: BORDER_RADIUS.lg,
+  },
+  
+  unavailableText: {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+    color: COLORS.text.light,
+    fontWeight: TYPOGRAPHY.fontWeight.medium as any,
+  },
+  
+  // Bouton Panier Flottant - Style Premium
+  cartButton: {
+    position: 'absolute' as const,
+    left: getResponsiveValue(SPACING.container, screenType),
+    right: getResponsiveValue(SPACING.container, screenType),
+    backgroundColor: COLORS.variants.secondary[500],
+    borderRadius: BORDER_RADIUS['2xl'],
+    padding: getResponsiveValue(SPACING.md, screenType),
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
+    ...SHADOWS.xl,
+    borderWidth: 2,
+    borderColor: COLORS.variants.secondary[600],
+  },
+  
+  cartButtonContent: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 12,
+  },
+  
+  cartButtonIcon: {
+    backgroundColor: COLORS.text.inverse,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+  },
+  
+  cartButtonText: {
+    color: COLORS.text.inverse,
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
+    fontWeight: TYPOGRAPHY.fontWeight.bold as any,
+  },
+  
+  cartButtonPrice: {
+    color: COLORS.text.inverse,
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize['2xl'], screenType),
+    fontWeight: TYPOGRAPHY.fontWeight.extrabold as any,
+  },
+  
+  // Filtres
+  filtersButton: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1.5,
+    borderColor: COLORS.border.default,
+    gap: 6,
+    alignSelf: 'center' as const,
+    marginVertical: getResponsiveValue(SPACING.md, screenType),
+    ...SHADOWS.sm,
+  },
+  
+  filtersButtonActive: {
+    backgroundColor: COLORS.goldenSurface,
+    borderColor: COLORS.variants.secondary[400],
+  },
+  
+  filtersButtonText: {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+    color: COLORS.text.primary,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold as any,
+  },
+  
+  filtersPanel: {
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.xl,
+    padding: getResponsiveValue(SPACING.lg, screenType),
+    marginBottom: getResponsiveValue(SPACING.md, screenType),
+    ...SHADOWS.md,
+  },
+  
+  filtersPanelHeader: {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
+    marginBottom: getResponsiveValue(SPACING.md, screenType),
+  },
+  
+  filtersPanelTitle: {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
+    fontWeight: TYPOGRAPHY.fontWeight.bold as any,
+    color: COLORS.text.primary,
+  },
+  
+  clearFiltersText: {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+    color: COLORS.primary,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold as any,
+  },
+  
+  filterOption: {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border.light,
+  },
+  
+  filterOptionText: {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
+    color: COLORS.text.primary,
+    fontWeight: TYPOGRAPHY.fontWeight.medium as any,
+  },
+  
+  // États vides
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+    paddingVertical: getResponsiveValue(SPACING['4xl'], screenType),
+  },
+  
+  emptyStateText: {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
+    color: COLORS.text.secondary,
+    textAlign: 'center' as const,
+    marginTop: getResponsiveValue(SPACING.md, screenType),
+    marginBottom: getResponsiveValue(SPACING.lg, screenType),
+  },
+  
+  // Séparateur de section
+  sectionSeparator: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    marginVertical: getResponsiveValue(SPACING.xl, screenType),
+  },
+  
+  separatorLine: {
+    flex: 1,
+    height: 2,
+    backgroundColor: COLORS.border.golden,
+  },
+  
+  separatorText: {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
+    fontWeight: TYPOGRAPHY.fontWeight.bold as any,
+    color: COLORS.text.golden,
+    marginHorizontal: getResponsiveValue(SPACING.md, screenType),
+    textTransform: 'uppercase' as const,
+    letterSpacing: 1,
+  },
+});
+
+// =============================================================================
+// COMPOSANTS ENFANTS
 // =============================================================================
 
-// Navigation Sticky pour Catégories
-const StickyNavigation = React.memo(({ 
+const RestaurantHeader = React.memo(({ restaurant, styles }: { restaurant: Restaurant; styles: any }) => (
+  <View style={styles.restaurantHeader}>
+    <Text style={styles.restaurantName}>{restaurant.name}</Text>
+    <View style={styles.decorativeLine} />
+    <Text style={styles.restaurantSubtitle}>Notre Carte</Text>
+  </View>
+));
+
+const CategoryNavigation = React.memo(({ 
   categories, 
   selectedCategory, 
-  onCategorySelect, 
+  onSelect, 
   styles 
 }: {
   categories: MenuCategory[];
   selectedCategory: string | null;
-  onCategorySelect: (categoryId: string | null) => void;
-  styles: any;
-}) => {
-  const renderNavPill = useCallback(({ item }: { item: MenuCategory }) => (
-    <TouchableOpacity
-      key={item.id}
-      style={[
-        styles.navPill,
-        selectedCategory === item.id && styles.navPillActive
-      ]}
-      onPress={() => onCategorySelect(item.id === selectedCategory ? null : item.id)}
-      accessibilityRole="button"
-      accessibilityLabel={`Catégorie ${item.name}`}
-      accessibilityState={{ selected: selectedCategory === item.id }}
-    >
-      {item.icon && <Text style={styles.categoryIcon}>{item.icon}</Text>}
-      <Text style={[
-        styles.navPillText,
-        selectedCategory === item.id && styles.navPillTextActive
-      ]}>
-        {item.name}
-      </Text>
-    </TouchableOpacity>
-  ), [selectedCategory, onCategorySelect, styles]);
-
-  return (
-    <View style={styles.stickyNav}>
-      <FlatList
-        data={categories}
-        renderItem={renderNavPill}
-        keyExtractor={(item) => item.id}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.stickyNavContent}
-      />
-    </View>
-  );
-});
-
-// Row d'Actions (Filtres)
-const ActionsRow = React.memo(({ 
-  activeFiltersCount, 
-  showFilters, 
-  onToggleFilters, 
-  styles 
-}: {
-  activeFiltersCount: number;
-  showFilters: boolean;
-  onToggleFilters: () => void;
+  onSelect: (id: string | null) => void;
   styles: any;
 }) => (
-  <View style={styles.actionsRow}>
-    <View style={{ flex: 1 }} />
-    
-    <TouchableOpacity
-      style={[
-        styles.filterButton,
-        activeFiltersCount > 0 && styles.filterButtonActive
-      ]}
-      onPress={onToggleFilters}
-      accessibilityRole="button"
-      accessibilityLabel="Ouvrir les filtres"
-      accessibilityHint="Permet de filtrer les items du menu"
-    >
-      <Ionicons 
-        name="filter" 
-        size={16} 
-        color={activeFiltersCount > 0 ? '#1E2A78' : '#6B7280'} 
-      />
-      <Text style={[
-        styles.filterButtonText,
-        activeFiltersCount > 0 && styles.filterButtonTextActive
-      ]}>
-        Filtres {activeFiltersCount > 0 && `(${activeFiltersCount})`}
-      </Text>
-    </TouchableOpacity>
+  <View style={styles.categoriesSection}>
+    <FlatList
+      data={categories}
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      keyExtractor={(item) => item.id}
+      renderItem={({ item }) => (
+        <TouchableOpacity
+          style={[
+            styles.categoryCard,
+            selectedCategory === item.id && styles.categoryCardActive
+          ]}
+          onPress={() => onSelect(item.id === selectedCategory ? null : item.id)}
+        >
+          {item.icon && <Text style={styles.categoryIcon}>{item.icon}</Text>}
+          <Text style={[
+            styles.categoryName,
+            selectedCategory === item.id && styles.categoryNameActive
+          ]}>
+            {item.name}
+          </Text>
+          {item.count > 0 && (
+            <Text style={styles.categoryCount}>({item.count})</Text>
+          )}
+        </TouchableOpacity>
+      )}
+      contentContainerStyle={{ paddingHorizontal: getResponsiveValue(SPACING.container, 'mobile') }}
+    />
   </View>
 ));
 
-// Panneau de Filtres
+const SectionSeparator = React.memo(({ title, styles }: { title: string; styles: any }) => (
+  <View style={styles.sectionSeparator}>
+    <View style={styles.separatorLine} />
+    <Text style={styles.separatorText}>{title}</Text>
+    <View style={styles.separatorLine} />
+  </View>
+));
+
 const FiltersPanel = React.memo(({ 
   filters, 
   onToggleFilter, 
@@ -159,246 +585,55 @@ const FiltersPanel = React.memo(({
 }) => (
   <View style={styles.filtersPanel}>
     <View style={styles.filtersPanelHeader}>
-      <Text style={styles.filtersPanelTitle}>Filtres</Text>
+      <Text style={styles.filtersPanelTitle}>Filtres diététiques</Text>
       <TouchableOpacity onPress={onClearFilters}>
         <Text style={styles.clearFiltersText}>Réinitialiser</Text>
       </TouchableOpacity>
     </View>
     
-    <View style={styles.filterOptions}>
-      <TouchableOpacity
-        style={styles.filterOption}
-        onPress={() => onToggleFilter('showVegetarianOnly')}
-        accessibilityRole="checkbox"
-        accessibilityState={{ checked: filters.showVegetarianOnly }}
-      >
-        <Text style={styles.filterOptionText}>🥗 Végétarien uniquement</Text>
-        {filters.showVegetarianOnly && (
-          <Ionicons name="checkmark" size={20} color="#1E2A78" />
-        )}
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.filterOption}
-        onPress={() => onToggleFilter('showVeganOnly')}
-        accessibilityRole="checkbox"
-        accessibilityState={{ checked: filters.showVeganOnly }}
-      >
-        <Text style={styles.filterOptionText}>🌱 Vegan uniquement</Text>
-        {filters.showVeganOnly && (
-          <Ionicons name="checkmark" size={20} color="#1E2A78" />
-        )}
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.filterOption}
-        onPress={() => onToggleFilter('showGlutenFreeOnly')}
-        accessibilityRole="checkbox"
-        accessibilityState={{ checked: filters.showGlutenFreeOnly }}
-      >
-        <Text style={styles.filterOptionText}>🚫🌾 Sans gluten uniquement</Text>
-        {filters.showGlutenFreeOnly && (
-          <Ionicons name="checkmark" size={20} color="#1E2A78" />
-        )}
-      </TouchableOpacity>
-    </View>
-  </View>
-));
-
-// Menu Item Card avec nouveau design
-const MenuItemCard = React.memo(({ 
-  item, 
-  onAddToCart, 
-  styles,
-  showAllergens,
-  onToggleAllergens 
-}: {
-  item: MenuItem;
-  onAddToCart: (item: MenuItem) => void;
-  styles: any;
-  showAllergens: boolean;
-  onToggleAllergens: () => void;
-}) => {
-  const [showImageModal, setShowImageModal] = React.useState(false);
-  const hasImage = Boolean(item.image_url);
-
-  return (
-    <View style={[styles.card, styles.gridItem]}>
-      <View style={styles.menuItemRow}>
-        {/* Content Column */}
-        <View style={styles.menuItemCol}>
-          {/* Header avec nom et prix */}
-          <View style={styles.menuItemHeaderRow}>
-            {/* Groupe nom + icône photo */}
-            <View style={{ flexDirection: "row", alignItems: "center", flexShrink: 1 }}>
-              {hasImage ? (
-                <TouchableOpacity
-                  onPress={() => setShowImageModal(true)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Voir la photo de ${item.name}`}
-                  hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-                  style={{ flexDirection: "row", alignItems: "center" }}
-                >
-                  <Text
-                    style={styles.menuItemName}
-                    numberOfLines={2}
-                  >
-                    {item.name}
-                  </Text>
-                  <Ionicons
-                    name="camera"
-                    size={16}
-                    color="#1E2A78"
-                    style={{ marginLeft: 4 }}
-                  />
-                </TouchableOpacity>
-              ) : (
-                <Text style={styles.menuItemName} numberOfLines={2}>
-                  {item.name}
-                </Text>
-              )}
-            </View>
-
-            {/* Prix aligné à droite */}
-            <Text style={styles.menuItemPrice}>
-              {parseFloat(item.price).toFixed(2)}€
-            </Text>
-          </View>
-
-          {/* Description */}
-          {item.description && (
-            <Text style={styles.menuItemDescription} numberOfLines={3}>
-              {item.description}
-            </Text>
-          )}
-
-          {/* Tags diététiques */}
-          <View style={styles.tagsRow}>
-            {item.is_vegan && (
-              <View style={[styles.tag, styles.dietaryTagVegan]}>
-                <Text style={styles.tagText}>🌱 Vegan</Text>
-              </View>
-            )}
-            {item.is_vegetarian && !item.is_vegan && (
-              <View style={[styles.tag, styles.dietaryTagVegetarian]}>
-                <Text style={styles.tagText}>🥗 Végétarien</Text>
-              </View>
-            )}
-            {item.is_gluten_free && (
-              <View style={[styles.tag, styles.dietaryTagGlutenFree]}>
-                <Text style={styles.tagText}>🚫🌾 Sans gluten</Text>
-              </View>
-            )}
-          </View>
-
-          {/* Allergènes */}
-          {item.allergens && item.allergens.length > 0 && (
-            <>
-              <TouchableOpacity 
-                style={styles.allergenToggle}
-                onPress={onToggleAllergens}
-              >
-                <Ionicons 
-                  name={showAllergens ? "chevron-up" : "chevron-down"} 
-                  size={16} 
-                  color="#6B7280" 
-                />
-                <Text style={styles.allergenToggleText}>
-                  Allergènes ({item.allergens.length})
-                </Text>
-              </TouchableOpacity>
-
-              {showAllergens && (
-                <View style={styles.allergenChipsRow}>
-                  {item.allergens.map((allergen, index) => (
-                    <View key={index} style={styles.allergenChip}>
-                      <Text style={styles.allergenChipText}>{allergen}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </>
-          )}
-
-          {/* Footer avec catégorie et bouton */}
-          <View style={styles.menuItemFooterRow}>
-            <View style={styles.categoryBadge}>
-              <Text style={styles.categoryBadgeText}>
-                {item.category_name}
-              </Text>
-            </View>
-
-            {item.is_available ? (
-              <Button
-                title="Ajouter"
-                onPress={() => onAddToCart(item)}
-                leftIcon={<Ionicons name="add" size={16} color="#FFFFFF" />}
-                variant="primary"
-                size="sm"
-              />
-            ) : (
-              <View style={styles.unavailableContainer}>
-                <Text style={styles.unavailableText}>Indisponible</Text>
-              </View>
-            )}
-          </View>
-        </View>
-      </View>
-
-      {/* Modal d'image centré */}
-      {hasImage && (
-        <Modal
-          visible={showImageModal}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowImageModal(false)}
-        >
-          <Pressable
-            style={{
-              flex: 1,
-              backgroundColor: 'rgba(0,0,0,0.7)',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: 16,
-            }}
-            onPress={() => setShowImageModal(false)}
-            accessibilityRole="button"
-            accessibilityLabel="Fermer l'image"
-          >
-            <Image
-              source={{ uri: item.image_url! }}
-              style={{ width: '90%', height: '60%', borderRadius: 12 }}
-              resizeMode="contain"
-            />
-            <Text style={{ color: 'white', marginTop: 12 }}>{item.name}</Text>
-          </Pressable>
-        </Modal>
+    <TouchableOpacity
+      style={styles.filterOption}
+      onPress={() => onToggleFilter('showVegetarianOnly')}
+    >
+      <Text style={styles.filterOptionText}>🥗 Végétarien uniquement</Text>
+      {filters.showVegetarianOnly && (
+        <Ionicons name="checkmark-circle" size={24} color={COLORS.success} />
       )}
-    </View>
-  );
-});
+    </TouchableOpacity>
 
-// Section Separator Component
-const SectionSeparator = React.memo(({ title, styles }: { title: string; styles: any }) => (
-  <View style={styles.sectionSeparator}>
-    <View style={styles.separatorLine} />
-    <Text style={styles.separatorText}>{title}</Text>
-    <View style={styles.separatorLine} />
+    <TouchableOpacity
+      style={styles.filterOption}
+      onPress={() => onToggleFilter('showVeganOnly')}
+    >
+      <Text style={styles.filterOptionText}>🌱 Vegan uniquement</Text>
+      {filters.showVeganOnly && (
+        <Ionicons name="checkmark-circle" size={24} color={COLORS.success} />
+      )}
+    </TouchableOpacity>
+
+    <TouchableOpacity
+      style={[styles.filterOption, { borderBottomWidth: 0 }]}
+      onPress={() => onToggleFilter('showGlutenFreeOnly')}
+    >
+      <Text style={styles.filterOptionText}>🚫🌾 Sans gluten uniquement</Text>
+      {filters.showGlutenFreeOnly && (
+        <Ionicons name="checkmark-circle" size={24} color={COLORS.success} />
+      )}
+    </TouchableOpacity>
   </View>
 ));
 
 // =============================================================================
 // COMPOSANT PRINCIPAL
 // =============================================================================
-export default function ModernClientMenuScreen() {
+export default function RestaurantMenuScreen() {
   const { restaurantId } = useLocalSearchParams<{ restaurantId: string }>();
   const { table } = useLocalSearchParams<{ table?: string }>();
   const { cart, addToCart, isCartForRestaurant } = useCart();
   const screenType = useScreenType();
   const insets = useSafeAreaInsets();
-
-  // Styles mémorisés
-  const styles = useMemo(() => createRestaurantMenuStyles(screenType), [screenType]);
+  
+  const styles = useMemo(() => createStyles(screenType, insets), [screenType, insets]);
 
   // États
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
@@ -442,7 +677,7 @@ export default function ModernClientMenuScreen() {
                 id: categoryId,
                 name: item.category_name,
                 icon: item.category_icon,
-                color: '#1E2A78',
+                color: COLORS.primary,
                 count: 0,
               });
             }
@@ -452,7 +687,7 @@ export default function ModernClientMenuScreen() {
       });
 
       setCategories([
-        { id: 'all', name: 'Tout', icon: '🍽️', color: '#6B7280', count: 0 },
+        { id: 'all', name: 'Tout', icon: '🍽️', color: COLORS.text.secondary, count: 0 },
         ...Array.from(categoryMap.values())
       ]);
 
@@ -464,7 +699,6 @@ export default function ModernClientMenuScreen() {
     }
   }, [restaurantId]);
 
-  // Refresh
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await loadRestaurantData();
@@ -518,7 +752,6 @@ export default function ModernClientMenuScreen() {
   }, [restaurantId, isCartForRestaurant]);
 
   const proceedAddToCart = useCallback((item: MenuItem | any) => {
-    // Support for both regular menu items and daily menu items
     const itemData = {
       id: `${item.id || item.menuItemId}-${Date.now()}`,
       menuItemId: item.id || item.menuItemId,
@@ -531,7 +764,6 @@ export default function ModernClientMenuScreen() {
     };
 
     addToCart(itemData);
-
     Alert.alert('Ajouté au panier', `${item.name} a été ajouté à votre commande`);
   }, [addToCart, restaurantId, restaurant?.name]);
 
@@ -564,16 +796,17 @@ export default function ModernClientMenuScreen() {
     });
   }, []);
 
-  // Effet de chargement initial
   useEffect(() => {
     if (restaurantId) {
       loadRestaurantData();
     }
   }, [restaurantId, loadRestaurantData]);
 
-  // Compteurs pour l'UI
   const totalCartItems = cart.itemCount;
-  const activeFiltersCount = Object.values(filters).filter(Boolean).length;
+  const activeFiltersCount = 
+    (filters.showVegetarianOnly ? 1 : 0) +
+    (filters.showVeganOnly ? 1 : 0) +
+    (filters.showGlutenFreeOnly ? 1 : 0);
 
   // Render section de catégorie
   const renderCategorySection = useCallback(
@@ -591,16 +824,29 @@ export default function ModernClientMenuScreen() {
       const subNames = Object.keys(groups)
         .filter(k => k !== '__noSub')
         .sort((a, b) => a.localeCompare(b));
-  
-      const hasSubcategories = subNames.length > 0;
-  
+
       return (
         <View key={categoryName} style={styles.categorySection}>
           <Text style={styles.sectionTitle}>{categoryName}</Text>
+          <View style={styles.sectionDivider} />
   
-          {groups['__noSub'] && (
-            <View style={styles.grid}>
-              {groups['__noSub'].map(item => (
+          {groups['__noSub'] && 
+            groups['__noSub'].map(item => (
+              <MenuItemCard
+                key={item.id}
+                item={item}
+                onAddToCart={handleAddToCart}
+                styles={styles}
+                showAllergens={expandedAllergens.has(item.id.toString())}
+                onToggleAllergens={() => toggleAllergens(item.id.toString())}
+              />
+            ))
+          }
+  
+          {subNames.map(subName => (
+            <View key={subName}>
+              <Text style={styles.subSectionTitle}>{subName}</Text>
+              {groups[subName].map(item => (
                 <MenuItemCard
                   key={item.id}
                   item={item}
@@ -611,26 +857,7 @@ export default function ModernClientMenuScreen() {
                 />
               ))}
             </View>
-          )}
-  
-          {hasSubcategories &&
-            subNames.map(subName => (
-              <View key={subName} style={styles.subCategorySection}>
-                <Text style={styles.subSectionTitle}>{subName}</Text>
-                <View style={styles.grid}>
-                  {groups[subName].map(item => (
-                    <MenuItemCard
-                      key={item.id}
-                      item={item}
-                      onAddToCart={handleAddToCart}
-                      styles={styles}
-                      showAllergens={expandedAllergens.has(item.id.toString())}
-                      onToggleAllergens={() => toggleAllergens(item.id.toString())}
-                    />
-                  ))}
-                </View>
-              </View>
-            ))}
+          ))}
         </View>
       );
     },
@@ -650,8 +877,9 @@ export default function ModernClientMenuScreen() {
     return (
       <SafeAreaView style={styles.page}>
         <Header title="Menu" leftIcon="arrow-back" onLeftPress={() => router.back()} />
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>Restaurant non trouvé</Text>
+        <View style={styles.emptyStateContainer}>
+          <Ionicons name="restaurant-outline" size={64} color={COLORS.text.light} />
+          <Text style={styles.emptyStateText}>Restaurant non trouvé</Text>
         </View>
       </SafeAreaView>
     );
@@ -660,7 +888,7 @@ export default function ModernClientMenuScreen() {
   return (
     <SafeAreaView style={styles.page}>
       <Header
-        title={restaurant.name}
+        title=""
         leftIcon="arrow-back"
         onLeftPress={() => router.back()}
         rightIcon={totalCartItems > 0 ? "bag" : undefined}
@@ -671,8 +899,11 @@ export default function ModernClientMenuScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         showsVerticalScrollIndicator={false}
       >
+        {/* En-tête Restaurant */}
+        <RestaurantHeader restaurant={restaurant} styles={styles} />
+
         <View style={styles.container}>
-          {/* Daily Menu Display - Affiché en premier s'il y en a un */}
+          {/* Daily Menu Display */}
           <DailyMenuDisplay
             restaurantId={parseInt(restaurantId)}
             restaurantName={restaurant.name}
@@ -680,26 +911,41 @@ export default function ModernClientMenuScreen() {
             isInRestaurantView={true}
           />
 
-          {/* Séparateur entre menu du jour et menu classique */}
+          {/* Séparateur */}
           <SectionSeparator title="Menu à la carte" styles={styles} />
 
-          {/* Sticky Navigation */}
-          <StickyNavigation
+          {/* Navigation Catégories */}
+          <CategoryNavigation
             categories={categories}
             selectedCategory={filters.selectedCategory}
-            onCategorySelect={(categoryId) => 
+            onSelect={(categoryId) => 
               setFilters(prev => ({ ...prev, selectedCategory: categoryId }))
             }
             styles={styles}
           />
 
-          {/* Actions Row */}
-          <ActionsRow
-            activeFiltersCount={activeFiltersCount}
-            showFilters={showFilters}
-            onToggleFilters={() => setShowFilters(!showFilters)}
-            styles={styles}
-          />
+          {/* Bouton Filtres */}
+          <TouchableOpacity
+            style={[
+              styles.filtersButton,
+              (activeFiltersCount > 0 || showFilters) && styles.filtersButtonActive
+            ]}
+            onPress={() => setShowFilters(!showFilters)}
+          >
+            <Ionicons 
+              name="filter" 
+              size={18} 
+              color={activeFiltersCount > 0 ? COLORS.variants.secondary[600] : COLORS.text.secondary} 
+            />
+            <Text style={styles.filtersButtonText}>
+              Filtres {activeFiltersCount > 0 && `(${activeFiltersCount})`}
+            </Text>
+            <Ionicons 
+              name={showFilters ? "chevron-up" : "chevron-down"} 
+              size={18} 
+              color={COLORS.text.secondary} 
+            />
+          </TouchableOpacity>
 
           {/* Panneau de Filtres */}
           {showFilters && (
@@ -716,17 +962,17 @@ export default function ModernClientMenuScreen() {
             itemsByCategory.map(renderCategorySection)
           ) : (
             <View style={styles.emptyStateContainer}>
-              <Ionicons name="restaurant-outline" size={64} color="#9CA3AF" />
+              <Ionicons name="restaurant-outline" size={64} color={COLORS.text.light} />
               <Text style={styles.emptyStateText}>
                 Aucun plat ne correspond à vos critères
               </Text>
-              <TouchableOpacity onPress={clearFilters} style={styles.resetFiltersButton}>
-                <Text style={styles.resetFiltersText}>Réinitialiser les filtres</Text>
+              <TouchableOpacity onPress={clearFilters}>
+                <Text style={styles.clearFiltersText}>Réinitialiser les filtres</Text>
               </TouchableOpacity>
             </View>
           )}
 
-          <View style={{ height: Math.max(100, insets.bottom + 80) }} />
+          <View style={{ height: Math.max(120, insets.bottom + 100) }} />
         </View>
       </ScrollView>
 
@@ -735,18 +981,20 @@ export default function ModernClientMenuScreen() {
         <Pressable
           style={[styles.cartButton, { bottom: Math.max(20, insets.bottom + 10) }]}
           onPress={() => router.push('/(client)/cart')}
-          accessibilityRole="button"
-          accessibilityLabel={`Panier avec ${totalCartItems} articles`}
         >
-          <View>
-            <Text style={styles.cartButtonText}>
-              {totalCartItems} article{totalCartItems > 1 ? 's' : ''}
-            </Text>
-            <Text style={styles.cartButtonSubtext}>
-              {cart.total.toFixed(2)}€
-            </Text>
+          <View style={styles.cartButtonContent}>
+            <View style={styles.cartButtonIcon}>
+              <Ionicons name="bag" size={24} color={COLORS.variants.secondary[600]} />
+            </View>
+            <View>
+              <Text style={styles.cartButtonText}>
+                {totalCartItems} article{totalCartItems > 1 ? 's' : ''}
+              </Text>
+            </View>
           </View>
-          <Ionicons name="bag" size={20} color="#111827" />
+          <Text style={styles.cartButtonPrice}>
+            {cart.total.toFixed(2)}€
+          </Text>
         </Pressable>
       )}
     </SafeAreaView>
