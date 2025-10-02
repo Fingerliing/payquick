@@ -125,23 +125,25 @@ export default function MenuDetailScreen() {
       paddingBottom: insets.bottom,
     },
     headerCard: {
-      backgroundColor: COLORS.surface,
-      borderBottomLeftRadius: BORDER_RADIUS.xl,
-      borderBottomRightRadius: BORDER_RADIUS.xl,
+      backgroundColor: COLORS.goldenSurface,
+      borderBottomLeftRadius: BORDER_RADIUS['2xl'],
+      borderBottomRightRadius: BORDER_RADIUS['2xl'],
       padding: getResponsiveValue(SPACING.lg, screenType),
       marginBottom: getResponsiveValue(SPACING.md, screenType),
-      ...SHADOWS.card,
+      borderBottomWidth: 2,
+      borderBottomColor: COLORS.border.golden,
+      ...SHADOWS.premiumCard,
     },
     menuTitle: {
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize['2xl'], screenType),
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize['3xl'], screenType),
       fontWeight: TYPOGRAPHY.fontWeight.bold as any,
-      color: COLORS.text.primary,
+      color: COLORS.primary,
       marginBottom: getResponsiveValue(SPACING.xs, screenType),
     },
     menuMeta: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
       color: COLORS.text.secondary,
-      marginBottom: getResponsiveValue(SPACING.lg, screenType),
+      marginBottom: getResponsiveValue(SPACING.md, screenType),
       lineHeight: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType) * 1.4,
     },
     listContainer: {
@@ -149,24 +151,28 @@ export default function MenuDetailScreen() {
     },
     menuItemCard: {
       marginBottom: getResponsiveValue(SPACING.md, screenType),
+      backgroundColor: COLORS.surface,
+      borderRadius: BORDER_RADIUS.xl,
+      ...SHADOWS.lg,
+      overflow: 'hidden' as const,
     },
     itemHeader: {
       flexDirection: 'row' as const,
       justifyContent: 'space-between' as const,
       alignItems: 'flex-start' as const,
-      marginBottom: getResponsiveValue(SPACING.xs, screenType),
+      marginBottom: getResponsiveValue(SPACING.sm, screenType),
     },
     itemName: {
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
-      fontWeight: TYPOGRAPHY.fontWeight.semibold as any,
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xl, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.bold as any,
       color: COLORS.text.primary,
       flex: 1,
       marginRight: getResponsiveValue(SPACING.sm, screenType),
     },
     itemPrice: {
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
-      fontWeight: TYPOGRAPHY.fontWeight.bold as any,
-      color: COLORS.success,
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xl, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.extrabold as any,
+      color: COLORS.variants.secondary[600],
     },
     itemDescription: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
@@ -181,32 +187,40 @@ export default function MenuDetailScreen() {
       marginBottom: getResponsiveValue(SPACING.md, screenType),
     },
     categoryBadge: {
-      backgroundColor: COLORS.variants.primary[100],
-      paddingHorizontal: getResponsiveValue(SPACING.xs, screenType),
-      paddingVertical: 4,
-      borderRadius: BORDER_RADIUS.md,
+      backgroundColor: COLORS.variants.primary[50],
+      paddingHorizontal: getResponsiveValue(SPACING.sm, screenType),
+      paddingVertical: 6,
+      borderRadius: BORDER_RADIUS.full,
+      borderWidth: 1,
+      borderColor: COLORS.variants.primary[200],
     },
     categoryText: {
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
       color: COLORS.primary,
-      fontWeight: TYPOGRAPHY.fontWeight.medium as any,
+      fontWeight: TYPOGRAPHY.fontWeight.semibold as any,
+      textTransform: 'uppercase' as const,
+      letterSpacing: 0.5,
     },
     statusBadge: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
-      paddingHorizontal: getResponsiveValue(SPACING.xs, screenType),
-      paddingVertical: 4,
-      borderRadius: BORDER_RADIUS.md,
+      paddingHorizontal: getResponsiveValue(SPACING.sm, screenType),
+      paddingVertical: 6,
+      borderRadius: BORDER_RADIUS.full,
     },
     statusBadgeAvailable: {
-      backgroundColor: '#D1FAE5',
+      backgroundColor: '#ECFDF5',
+      borderWidth: 1,
+      borderColor: COLORS.success,
     },
     statusBadgeUnavailable: {
-      backgroundColor: '#FEE2E2',
+      backgroundColor: '#FEF2F2',
+      borderWidth: 1,
+      borderColor: COLORS.error,
     },
     statusText: {
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
-      fontWeight: TYPOGRAPHY.fontWeight.medium as any,
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.semibold as any,
       marginLeft: 4,
     },
     statusTextAvailable: {
@@ -218,23 +232,29 @@ export default function MenuDetailScreen() {
     itemActions: {
       flexDirection: 'row' as const,
       gap: getResponsiveValue(SPACING.sm, screenType),
+      marginTop: getResponsiveValue(SPACING.xs, screenType),
     },
     dietaryTags: {
       flexDirection: 'row' as const,
-      gap: 6,
+      gap: 8,
       marginBottom: getResponsiveValue(SPACING.sm, screenType),
       flexWrap: 'wrap' as const,
     },
     dietaryTag: {
-      backgroundColor: COLORS.variants.secondary[100],
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: BORDER_RADIUS.sm,
+      backgroundColor: COLORS.variants.secondary[50],
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: BORDER_RADIUS.full,
+      borderWidth: 1,
+      borderColor: COLORS.variants.secondary[200],
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 4,
     },
     dietaryTagText: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
-      color: COLORS.variants.secondary[700],
-      fontWeight: TYPOGRAPHY.fontWeight.medium as any,
+      color: COLORS.variants.secondary[800],
+      fontWeight: TYPOGRAPHY.fontWeight.semibold as any,
     },
     emptyState: {
       flex: 1,
@@ -262,23 +282,29 @@ export default function MenuDetailScreen() {
     statsContainer: {
       flexDirection: 'row' as const,
       justifyContent: 'space-around' as const,
-      paddingVertical: getResponsiveValue(SPACING.sm, screenType),
-      marginTop: getResponsiveValue(SPACING.sm, screenType),
+      paddingVertical: getResponsiveValue(SPACING.md, screenType),
+      marginTop: getResponsiveValue(SPACING.md, screenType),
+      marginBottom: getResponsiveValue(SPACING.sm, screenType),
       borderTopWidth: 1,
-      borderTopColor: COLORS.border.light,
+      borderTopColor: COLORS.border.golden,
+      backgroundColor: COLORS.variants.secondary[50],
+      borderRadius: BORDER_RADIUS.lg,
+      paddingHorizontal: getResponsiveValue(SPACING.sm, screenType),
     },
     statItem: {
       alignItems: 'center' as const,
+      flex: 1,
     },
     statValue: {
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
-      fontWeight: TYPOGRAPHY.fontWeight.bold as any,
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize['2xl'], screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.extrabold as any,
       color: COLORS.text.primary,
     },
     statLabel: {
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
-      color: COLORS.text.light,
-      marginTop: 2,
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+      color: COLORS.text.secondary,
+      marginTop: 4,
+      fontWeight: TYPOGRAPHY.fontWeight.medium as any,
     },
   };
 
@@ -288,148 +314,177 @@ export default function MenuDetailScreen() {
     const isDeleting = deletingItemId === item.id;
     const dietaryTags = [];
     
-    if (item.is_vegetarian) dietaryTags.push('Végétarien');
-    if (item.is_vegan) dietaryTags.push('Vegan');
-    if (item.is_gluten_free) dietaryTags.push('Sans gluten');
+    if (item.is_vegetarian) dietaryTags.push({ label: 'Végétarien', icon: 'leaf-outline' });
+    if (item.is_vegan) dietaryTags.push({ label: 'Vegan', icon: 'nutrition-outline' });
+    if (item.is_gluten_free) dietaryTags.push({ label: 'Sans gluten', icon: 'fitness-outline' });
 
     return (
-      <Card variant="default" style={dynamicStyles.menuItemCard}>
-        {/* En-tête avec nom et prix */}
-        <View style={dynamicStyles.itemHeader}>
-          <Text style={dynamicStyles.itemName}>{item.name}</Text>
-          <Text style={dynamicStyles.itemPrice}>
-            {parseFloat(item.price).toFixed(2)}€
-          </Text>
-        </View>
-
-        {/* Description */}
-        {item.description && (
-          <Text style={dynamicStyles.itemDescription}>
-            {item.description}
-          </Text>
-        )}
-
-        {/* Tags diététiques */}
-        {dietaryTags.length > 0 && (
-          <View style={dynamicStyles.dietaryTags}>
-            {dietaryTags.map((tag, index) => (
-              <View key={index} style={dynamicStyles.dietaryTag}>
-                <Text style={dynamicStyles.dietaryTagText}>{tag}</Text>
-              </View>
-            ))}
+      <TouchableOpacity
+        activeOpacity={0.95}
+        onPress={() => router.push(`/menu/item/edit/${item.id}` as any)}
+      >
+        <Card variant="default" style={dynamicStyles.menuItemCard}>
+          {/* En-tête avec nom et prix */}
+          <View style={dynamicStyles.itemHeader}>
+            <Text style={dynamicStyles.itemName}>{item.name}</Text>
+            <View style={{
+              backgroundColor: COLORS.variants.secondary[100],
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: BORDER_RADIUS.lg,
+              borderWidth: 1.5,
+              borderColor: COLORS.variants.secondary[400],
+            }}>
+              <Text style={dynamicStyles.itemPrice}>
+                {parseFloat(item.price).toFixed(2)}€
+              </Text>
+            </View>
           </View>
-        )}
 
-        {/* Métadonnées */}
-        <View style={dynamicStyles.itemMeta}>
-          <View style={dynamicStyles.categoryBadge}>
-            <Text style={dynamicStyles.categoryText}>
-              {item.category_name || item.category || 'Sans catégorie'}
+          {/* Description */}
+          {item.description && (
+            <Text style={dynamicStyles.itemDescription}>
+              {item.description}
             </Text>
-          </View>
-          
-          <View style={[
-            dynamicStyles.statusBadge,
-            item.is_available ? dynamicStyles.statusBadgeAvailable : dynamicStyles.statusBadgeUnavailable
-          ]}>
-            <Ionicons 
-              name={item.is_available ? "checkmark-circle" : "pause-circle"} 
-              size={12} 
-              color={item.is_available ? COLORS.success : COLORS.error} 
-            />
-            <Text style={[
-              dynamicStyles.statusText,
-              item.is_available ? dynamicStyles.statusTextAvailable : dynamicStyles.statusTextUnavailable
-            ]}>
-              {item.is_available ? 'Disponible' : 'Indisponible'}
-            </Text>
-          </View>
-        </View>
-
-        {/* Actions */}
-        <View style={dynamicStyles.itemActions}>
-        <TouchableOpacity
-          onPress={() => handleToggleItemAvailability(item)}
-          disabled={isToggling || isDeleting}
-          style={{
-            flex: 1,
-            backgroundColor: item.is_available ? COLORS.error : COLORS.primary,
-            paddingVertical: 8,
-            paddingHorizontal: 12,
-            borderRadius: 6,
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexDirection: 'row',
-            opacity: (isToggling || isDeleting) ? 0.5 : 1,
-          }}
-        >
-          {isToggling ? (
-            <Ionicons 
-              name="hourglass-outline" 
-              size={16} 
-              color={COLORS.text.inverse}
-              style={{ marginRight: 6 }} 
-            />
-          ) : (
-            <Ionicons 
-              name={item.is_available ? "pause-circle-outline" : "play-circle-outline"} 
-              size={16} 
-              color={COLORS.text.inverse}
-              style={{ marginRight: 6 }} 
-            />
           )}
-          <Text style={{
-            color: COLORS.text.inverse,
-            fontSize: 14,
-            fontWeight: '500'
-          }}>
-            {isToggling ? 'En cours...' : item.is_available ? 'Désactiver' : 'Activer'}
-          </Text>
-        </TouchableOpacity>
-          
-          <Button
-            title="Modifier"
-            onPress={() => router.push(`/menu/item/edit/${item.id}` as any)}
-            variant="outline"
-            size="sm"
-            style={{ flex: 1 }}
-            disabled={isToggling || isDeleting}
-            leftIcon={<Ionicons name="create-outline" size={16} color={COLORS.primary} />}
-          />
 
-          <TouchableOpacity
-            onPress={() => handleDeleteItem(item)}
-            disabled={isToggling || isDeleting}
-            style={[
-              {
-                backgroundColor: COLORS.error,
-                paddingHorizontal: 12,
-                paddingVertical: 8,
-                borderRadius: BORDER_RADIUS.md,
+          {/* Tags diététiques */}
+          {dietaryTags.length > 0 && (
+            <View style={dynamicStyles.dietaryTags}>
+              {dietaryTags.map((tag, index) => (
+                <View key={index} style={dynamicStyles.dietaryTag}>
+                  <Ionicons name={tag.icon as any} size={12} color={COLORS.variants.secondary[700]} />
+                  <Text style={dynamicStyles.dietaryTagText}>{tag.label}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Métadonnées */}
+          <View style={dynamicStyles.itemMeta}>
+            <View style={dynamicStyles.categoryBadge}>
+              <Text style={dynamicStyles.categoryText}>
+                {item.category_name || item.category || 'Sans catégorie'}
+              </Text>
+            </View>
+            
+            <View style={[
+              dynamicStyles.statusBadge,
+              item.is_available ? dynamicStyles.statusBadgeAvailable : dynamicStyles.statusBadgeUnavailable
+            ]}>
+              <Ionicons 
+                name={item.is_available ? "checkmark-circle" : "close-circle"} 
+                size={16} 
+                color={item.is_available ? COLORS.success : COLORS.error} 
+              />
+              <Text style={[
+                dynamicStyles.statusText,
+                item.is_available ? dynamicStyles.statusTextAvailable : dynamicStyles.statusTextUnavailable
+              ]}>
+                {item.is_available ? 'Disponible' : 'Indisponible'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Actions */}
+          <View style={dynamicStyles.itemActions}>
+            <TouchableOpacity
+              onPress={() => handleToggleItemAvailability(item)}
+              disabled={isToggling || isDeleting}
+              style={{
+                flex: 1,
+                backgroundColor: item.is_available ? COLORS.warning : COLORS.success,
+                paddingVertical: 10,
+                paddingHorizontal: 14,
+                borderRadius: BORDER_RADIUS.lg,
                 alignItems: 'center',
                 justifyContent: 'center',
-                minWidth: 44,
-                minHeight: 36, // Pour maintenir la cohérence avec les autres boutons
-              },
-              (isToggling || isDeleting) && { opacity: 0.5 }
-            ]}
-            activeOpacity={0.7}
-          >
-            {isDeleting ? (
-              <ActivityIndicator 
-                size="small" 
-                color={COLORS.text.inverse} 
-              />
-            ) : (
-              <Ionicons 
-                name="trash-outline" 
-                size={16} 
-                color={COLORS.text.inverse} 
-              />
-            )}
-          </TouchableOpacity>
-        </View>
-      </Card>
+                flexDirection: 'row',
+                opacity: (isToggling || isDeleting) ? 0.5 : 1,
+                ...SHADOWS.button,
+              }}
+            >
+              {isToggling ? (
+                <ActivityIndicator size="small" color={COLORS.text.inverse} />
+              ) : (
+                <>
+                  <Ionicons 
+                    name={item.is_available ? "eye-off-outline" : "eye-outline"} 
+                    size={18} 
+                    color={COLORS.text.inverse}
+                    style={{ marginRight: 6 }} 
+                  />
+                  <Text style={{
+                    color: COLORS.text.inverse,
+                    fontSize: 14,
+                    fontWeight: '600'
+                  }}>
+                    {item.is_available ? 'Masquer' : 'Afficher'}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          
+            <TouchableOpacity
+              onPress={() => router.push(`/menu/item/edit/${item.id}` as any)}
+              disabled={isToggling || isDeleting}
+              style={{
+                flex: 1,
+                backgroundColor: COLORS.primary,
+                paddingVertical: 10,
+                paddingHorizontal: 14,
+                borderRadius: BORDER_RADIUS.lg,
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexDirection: 'row',
+                opacity: (isToggling || isDeleting) ? 0.5 : 1,
+                ...SHADOWS.button,
+              }}
+            >
+              <Ionicons name="create-outline" size={18} color={COLORS.text.inverse} style={{ marginRight: 6 }} />
+              <Text style={{
+                color: COLORS.text.inverse,
+                fontSize: 14,
+                fontWeight: '600'
+              }}>
+                Modifier
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => handleDeleteItem(item)}
+              disabled={isToggling || isDeleting}
+              style={[
+                {
+                  backgroundColor: COLORS.error,
+                  paddingHorizontal: 14,
+                  paddingVertical: 10,
+                  borderRadius: BORDER_RADIUS.lg,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minWidth: 48,
+                  ...SHADOWS.button,
+                },
+                (isToggling || isDeleting) && { opacity: 0.5 }
+              ]}
+              activeOpacity={0.7}
+            >
+              {isDeleting ? (
+                <ActivityIndicator 
+                  size="small" 
+                  color={COLORS.text.inverse} 
+                />
+              ) : (
+                <Ionicons 
+                  name="trash-outline" 
+                  size={18} 
+                  color={COLORS.text.inverse} 
+                />
+              )}
+            </TouchableOpacity>
+          </View>
+        </Card>
+      </TouchableOpacity>
     );
   };
 
@@ -506,28 +561,38 @@ export default function MenuDetailScreen() {
       
       {/* En-tête du menu */}
       <View style={dynamicStyles.headerCard}>
-        <Text style={dynamicStyles.menuTitle}>{menu.name}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: getResponsiveValue(SPACING.xs, screenType) }}>
+          <Ionicons name="restaurant" size={28} color={COLORS.variants.secondary[600]} style={{ marginRight: 8 }} />
+          <Text style={dynamicStyles.menuTitle}>{menu.name}</Text>
+        </View>
         <Text style={dynamicStyles.menuMeta}>
-          {totalItems} plat(s) • Créé le {new Date(menu.created_at).toLocaleDateString('fr-FR')}
+          Créé le {new Date(menu.created_at).toLocaleDateString('fr-FR', { 
+            day: 'numeric', 
+            month: 'long', 
+            year: 'numeric' 
+          })}
         </Text>
         
         {/* Statistiques */}
         <View style={dynamicStyles.statsContainer}>
           <View style={dynamicStyles.statItem}>
+            <Ionicons name="albums-outline" size={24} color={COLORS.primary} style={{ marginBottom: 4 }} />
             <Text style={dynamicStyles.statValue}>{totalItems}</Text>
             <Text style={dynamicStyles.statLabel}>Total</Text>
           </View>
-          <View style={dynamicStyles.statItem}>
+          <View style={[dynamicStyles.statItem, { borderLeftWidth: 1, borderRightWidth: 1, borderColor: COLORS.border.golden }]}>
+            <Ionicons name="checkmark-circle" size={24} color={COLORS.success} style={{ marginBottom: 4 }} />
             <Text style={[dynamicStyles.statValue, { color: COLORS.success }]}>
               {availableItems}
             </Text>
-            <Text style={dynamicStyles.statLabel}>Disponible</Text>
+            <Text style={dynamicStyles.statLabel}>Disponibles</Text>
           </View>
           <View style={dynamicStyles.statItem}>
+            <Ionicons name="close-circle" size={24} color={COLORS.error} style={{ marginBottom: 4 }} />
             <Text style={[dynamicStyles.statValue, { color: COLORS.error }]}>
               {totalItems - availableItems}
             </Text>
-            <Text style={dynamicStyles.statLabel}>Indisponible</Text>
+            <Text style={dynamicStyles.statLabel}>Masqués</Text>
           </View>
         </View>
         
@@ -537,6 +602,7 @@ export default function MenuDetailScreen() {
           variant="primary"
           fullWidth
           leftIcon={<Ionicons name="add-circle-outline" size={20} color={COLORS.text.inverse} />}
+          style={{ marginTop: getResponsiveValue(SPACING.sm, screenType) }}
         />
       </View>
 
