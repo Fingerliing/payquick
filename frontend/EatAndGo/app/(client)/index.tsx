@@ -286,15 +286,15 @@ export default function ClientHome() {
   );
 
   const quickActions = [
-    {
-      id: 'browse',
-      icon: 'restaurant-outline',
-      title: 'Parcourir les restaurants',
-      subtitle: 'Découvrez nos établissements',
-      route: '/(client)/browse',
-      iconBg: COLORS.variants.primary[50],
-      iconColor: COLORS.primary,
-    },
+    // {
+    //   id: 'browse',
+    //   icon: 'restaurant-outline',
+    //   title: 'Parcourir les restaurants',
+    //   subtitle: 'Découvrez nos établissements',
+    //   route: '/(client)/browse',
+    //   iconBg: COLORS.variants.primary[50],
+    //   iconColor: COLORS.primary,
+    // },
     {
       id: 'orders',
       icon: 'receipt-outline',

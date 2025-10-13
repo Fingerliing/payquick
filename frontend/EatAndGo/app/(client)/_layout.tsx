@@ -91,7 +91,7 @@ export default function ClientLayout() {
         }}
       />
       
-      <Tabs.Screen
+      {/* <Tabs.Screen
         name="browse"
         options={{
           title: 'Restaurants',
@@ -104,7 +104,7 @@ export default function ClientLayout() {
           ),
           tabBarLabelPosition: isTabletLandscape ? 'beside-icon' : 'below-icon',
         }}
-      />
+      /> */}
       
       <Tabs.Screen
         name="orders"
