@@ -116,7 +116,7 @@ def ensure_single_role_group(sender, instance, **kwargs):
                             pass
                 break
 
-# ✅ SERVICE DE NOTIFICATION WEBSOCKET AMÉLIORÉ
+# SERVICE DE NOTIFICATION WEBSOCKET
 class OrderNotificationService:
     """Service de notifications WebSocket avec support Channels"""
     
@@ -139,13 +139,13 @@ class OrderNotificationService:
                 "data": data or {}
             }
             
-            # ✅ Envoyer au groupe de cette commande spécifique
+            # Envoyer au groupe de cette commande spécifique
             group_name = f"order_{order_id}"
             async_to_sync(self.channel_layer.group_send)(group_name, message)
             
             logger.info(f"✅ Order update sent via WebSocket for order {order_id}: {status}")
             
-            # ✅ NOUVEAU : Fallback vers SSE si configuré
+            # Fallback vers SSE si configuré
             self.send_sse_update(order_id, status, waiting_time, data)
             
             return True
@@ -246,7 +246,7 @@ def order_updated(sender, instance, created, **kwargs):
     except Exception as e:
         logger.error(f"❌ Error in order_updated signal: {e}")
 
-# ✅ FONCTIONS UTILITAIRES AMÉLIORÉES
+# FONCTIONS UTILITAIRES AMÉLIORÉES
 def notify_order_update(order_id, status=None, waiting_time=None, **extra_data):
     """Fonction utilitaire pour envoyer des notifications manuellement"""
     try:
@@ -280,7 +280,7 @@ def notify_custom_event(order_id, event_type, message, **data):
         logger.error(f"❌ Custom event failed for order {order_id}: {e}")
         return False
 
-# ✅ FONCTION DE TEST POUR LE DÉVELOPPEMENT
+# FONCTION DE TEST POUR LE DÉVELOPPEMENT
 def test_websocket_notification(order_id, test_message="Test notification"):
     """Fonction de test pour vérifier les WebSockets (développement uniquement)"""
     from django.conf import settings
@@ -296,3 +296,22 @@ def test_websocket_notification(order_id, test_message="Test notification"):
         timestamp=datetime.now().isoformat(),
         test=True
     )
+
+# Mise à jour du temps de préparation
+@receiver(pre_save, sender=Order)
+def update_order_timestamps(sender, instance, **kwargs):
+    """Met à jour les timestamps selon le changement de statut"""
+    if instance.pk:  # Uniquement pour les updates
+        try:
+            old_instance = Order.objects.get(pk=instance.pk)
+            
+            # Capture du moment où la commande devient ready
+            if old_instance.status != 'ready' and instance.status == 'ready':
+                instance.ready_at = timezone.now()
+            
+            # Capture du moment où la commande est servie
+            if old_instance.status != 'served' and instance.status == 'served':
+                instance.served_at = timezone.now()
+                
+        except Order.DoesNotExist:
+            pass
