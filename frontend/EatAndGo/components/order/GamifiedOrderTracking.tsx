@@ -12,9 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '@/utils/designSystem';
 
-const { width } = Dimensions.get('window');
-
-// Types
+// Types Premium
 interface CategoryProgress {
   category: string;
   category_icon: string;
@@ -39,17 +37,30 @@ interface Badge {
   name: string;
   icon: string;
   description: string;
+  tier: 'bronze' | 'silver' | 'gold' | 'platinum' | 'royal' | 'special';
 }
 
 interface GamificationData {
   level: number;
+  level_title: string;
   points: number;
   badges: Badge[];
   message: string;
   emoji: string;
+  progress_tier: {
+    name: string;
+    color: string;
+  };
+  performance_metrics: {
+    time_efficiency: number | null;
+    completion_rate: number;
+    experience_quality: number;
+  };
   next_milestone: {
     progress: number;
+    title: string;
     label: string;
+    tier: string;
     remaining: number;
   } | null;
 }
@@ -68,31 +79,29 @@ interface OrderTrackingData {
 interface Props {
   orderId: number;
   onRefresh?: () => void;
-  trackingData?: OrderTrackingData | null; // FIXED: Accept data as prop
+  trackingData?: OrderTrackingData | null;
 }
 
 export default function GamifiedOrderTracking({ orderId, onRefresh, trackingData: propTrackingData }: Props) {
   const [refreshing, setRefreshing] = useState(false);
-  
-  // FIXED: Use prop data if available, otherwise show loading
   const trackingData = propTrackingData;
   
-  // Animations
+  // Animations élégantes
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
-  const scaleAnim = React.useRef(new Animated.Value(0.9)).current;
+  const scaleAnim = React.useRef(new Animated.Value(0.95)).current;
 
-  // FIXED: Animate when data is received
   useEffect(() => {
     if (trackingData) {
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
-          duration: 600,
+          duration: 800,
           useNativeDriver: true,
         }),
         Animated.spring(scaleAnim, {
           toValue: 1,
-          friction: 8,
+          friction: 10,
+          tension: 80,
           useNativeDriver: true,
         })
       ]).start();
@@ -102,7 +111,6 @@ export default function GamifiedOrderTracking({ orderId, onRefresh, trackingData
   const handleRefresh = () => {
     setRefreshing(true);
     onRefresh?.();
-    // Reset refreshing after a delay
     setTimeout(() => setRefreshing(false), 1000);
   };
 
@@ -129,35 +137,48 @@ export default function GamifiedOrderTracking({ orderId, onRefresh, trackingData
         ]}
       >
         <LinearGradient
-          colors={['#3b82f6', '#2563eb', '#1d4ed8']}
+          colors={['#1E2A78', '#2D3A8C', '#3B4BA0']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.gradientBackground}
         >
-          {/* En-tête avec niveau */}
+          {/* En-tête avec niveau et titre prestigieux */}
           <View style={styles.headerRow}>
             <View style={styles.levelBadge}>
-              <Text style={styles.levelText}>Niveau {gamification.level}</Text>
+              <Text style={styles.levelEmoji}>{gamification.emoji}</Text>
+              <View>
+                <Text style={styles.levelTitle}>{gamification.level_title}</Text>
+                <Text style={styles.levelSubtitle}>Niveau {gamification.level}</Text>
+              </View>
             </View>
             <View style={styles.pointsBadge}>
-              <Ionicons name="star" size={16} color="#fbbf24" />
-              <Text style={styles.pointsText}>{gamification.points} pts</Text>
+              <Ionicons name="diamond" size={18} color="#FFD700" />
+              <Text style={styles.pointsText}>{gamification.points.toLocaleString()}</Text>
+              <Text style={styles.pointsLabel}>pts</Text>
             </View>
           </View>
 
-          {/* Message motivationnel */}
+          {/* Message professionnel */}
           <View style={styles.messageContainer}>
-            <Text style={styles.messageEmoji}>{gamification.emoji}</Text>
             <Text style={styles.messageText}>{gamification.message}</Text>
           </View>
 
-          {/* Barre de progression globale */}
+          {/* Barre de progression avec tier */}
           <View style={styles.progressBarContainer}>
+            <View style={styles.progressHeader}>
+              <Text style={styles.progressLabel}>Progression</Text>
+              <View style={styles.tierBadge}>
+                <Text style={styles.tierText}>{gamification.progress_tier.name}</Text>
+              </View>
+            </View>
             <View style={styles.progressBarBackground}>
               <Animated.View 
                 style={[
                   styles.progressBarFill,
-                  { width: `${global_progress}%` }
+                  { 
+                    width: `${global_progress}%`,
+                    backgroundColor: gamification.progress_tier.color
+                  }
                 ]}
               />
             </View>
@@ -166,13 +187,45 @@ export default function GamifiedOrderTracking({ orderId, onRefresh, trackingData
             </Text>
           </View>
 
+          {/* Métriques de performance */}
+          {gamification.performance_metrics && (
+            <View style={styles.metricsContainer}>
+              <View style={styles.metricItem}>
+                <Ionicons name="speedometer" size={16} color="rgba(255,255,255,0.8)" />
+                <Text style={styles.metricLabel}>Qualité</Text>
+                <Text style={styles.metricValue}>
+                  {gamification.performance_metrics.experience_quality}/100
+                </Text>
+              </View>
+              {gamification.performance_metrics.time_efficiency && (
+                <View style={styles.metricItem}>
+                  <Ionicons name="time" size={16} color="rgba(255,255,255,0.8)" />
+                  <Text style={styles.metricLabel}>Efficacité</Text>
+                  <Text style={styles.metricValue}>
+                    {Math.round(gamification.performance_metrics.time_efficiency)}%
+                  </Text>
+                </View>
+              )}
+              <View style={styles.metricItem}>
+                <Ionicons name="checkmark-circle" size={16} color="rgba(255,255,255,0.8)" />
+                <Text style={styles.metricLabel}>Complétion</Text>
+                <Text style={styles.metricValue}>
+                  {Math.round(gamification.performance_metrics.completion_rate)}%
+                </Text>
+              </View>
+            </View>
+          )}
+
           {/* Prochain objectif */}
           {gamification.next_milestone && (
             <View style={styles.nextMilestone}>
-              <Ionicons name="flag" size={16} color="#cbd5e1" />
-              <Text style={styles.nextMilestoneText}>
-                Prochain: {gamification.next_milestone.label} ({Math.round(gamification.next_milestone.remaining)}% restants)
-              </Text>
+              <Ionicons name="trophy" size={16} color="#FFD700" />
+              <View style={styles.milestoneContent}>
+                <Text style={styles.milestoneTitle}>{gamification.next_milestone.title}</Text>
+                <Text style={styles.milestoneSubtitle}>
+                  {gamification.next_milestone.tier} • {Math.round(gamification.next_milestone.remaining)}% restants
+                </Text>
+              </View>
             </View>
           )}
         </LinearGradient>
@@ -183,35 +236,69 @@ export default function GamifiedOrderTracking({ orderId, onRefresh, trackingData
   const renderBadges = () => {
     if (!trackingData?.gamification.badges.length) return null;
 
+    // Grouper les badges par tier
+    const badgesByTier = trackingData.gamification.badges.reduce((acc, badge) => {
+      if (!acc[badge.tier]) acc[badge.tier] = [];
+      acc[badge.tier].push(badge);
+      return acc;
+    }, {} as Record<string, typeof trackingData.gamification.badges>);
+
+    const tierOrder = ['bronze', 'silver', 'gold', 'platinum', 'royal', 'special'];
+    const tierColors = {
+      bronze: '#CD7F32',
+      silver: '#C0C0C0',
+      gold: '#FFD700',
+      platinum: '#E5E4E2',
+      royal: '#9333EA',
+      special: '#10B981'
+    };
+
     return (
       <View style={styles.badgesSection}>
-        <Text style={styles.sectionTitle}>🏆 Badges Débloqués</Text>
+        <View style={styles.badgesHeader}>
+          <Ionicons name="shield-checkmark" size={22} color={COLORS.primary} />
+          <Text style={styles.sectionTitle}>Distinctions</Text>
+          <View style={styles.badgeCount}>
+            <Text style={styles.badgeCountText}>{trackingData.gamification.badges.length}</Text>
+          </View>
+        </View>
         <ScrollView 
           horizontal 
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.badgesContainer}
         >
-          {trackingData.gamification.badges.map((badge, index) => (
-            <Animated.View 
-              key={badge.id}
-              style={[
-                styles.badgeCard,
-                {
-                  opacity: fadeAnim,
-                  transform: [{
-                    translateY: fadeAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [20, 0]
-                    })
-                  }]
-                }
-              ]}
-            >
-              <Text style={styles.badgeIcon}>{badge.icon}</Text>
-              <Text style={styles.badgeName}>{badge.name}</Text>
-              <Text style={styles.badgeDescription}>{badge.description}</Text>
-            </Animated.View>
-          ))}
+          {tierOrder.map(tier => 
+            badgesByTier[tier]?.map((badge, index) => (
+              <Animated.View 
+                key={badge.id}
+                style={[
+                  styles.badgeCard,
+                  {
+                    opacity: fadeAnim,
+                    transform: [{
+                      translateY: fadeAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [20, 0]
+                      })
+                    }]
+                  }
+                ]}
+              >
+                <LinearGradient
+                  colors={[tierColors[tier as keyof typeof tierColors] + '20', tierColors[tier as keyof typeof tierColors] + '10']}
+                  style={styles.badgeGradient}
+                >
+                  <View style={[styles.badgeTierIndicator, { backgroundColor: tierColors[tier as keyof typeof tierColors] }]} />
+                  <Text style={styles.badgeIcon}>{badge.icon}</Text>
+                  <Text style={styles.badgeName}>{badge.name}</Text>
+                  <Text style={styles.badgeDescription}>{badge.description}</Text>
+                  <Text style={[styles.badgeTier, { color: tierColors[tier as keyof typeof tierColors] }]}>
+                    {tier.charAt(0).toUpperCase() + tier.slice(1)}
+                  </Text>
+                </LinearGradient>
+              </Animated.View>
+            ))
+          )}
         </ScrollView>
       </View>
     );
@@ -237,7 +324,6 @@ export default function GamifiedOrderTracking({ orderId, onRefresh, trackingData
           }
         ]}
       >
-        {/* En-tête de catégorie */}
         <View style={styles.categoryHeader}>
           <View style={styles.categoryTitleRow}>
             <Text style={styles.categoryIcon}>{category.category_icon}</Text>
@@ -256,7 +342,6 @@ export default function GamifiedOrderTracking({ orderId, onRefresh, trackingData
           )}
         </View>
 
-        {/* Liste des items */}
         <View style={styles.itemsList}>
           {category.items.map((item, idx) => (
             <View key={`${item.id}-${idx}`} style={styles.itemRow}>
@@ -268,7 +353,6 @@ export default function GamifiedOrderTracking({ orderId, onRefresh, trackingData
           ))}
         </View>
 
-        {/* Barre de progression de catégorie */}
         <View style={styles.categoryProgressContainer}>
           <View style={styles.categoryProgressBar}>
             <Animated.View 
@@ -286,7 +370,6 @@ export default function GamifiedOrderTracking({ orderId, onRefresh, trackingData
           </Text>
         </View>
 
-        {/* Informations de temps */}
         <View style={styles.timeInfo}>
           <View style={styles.timeItem}>
             <Ionicons name="time-outline" size={16} color={COLORS.text.secondary} />
@@ -305,7 +388,6 @@ export default function GamifiedOrderTracking({ orderId, onRefresh, trackingData
           )}
         </View>
 
-        {/* Statut */}
         <View style={[styles.statusLabel, { backgroundColor: statusColor + '20' }]}>
           <Text style={[styles.statusLabelText, { color: statusColor }]}>
             {category.status_label}
@@ -315,7 +397,6 @@ export default function GamifiedOrderTracking({ orderId, onRefresh, trackingData
     );
   };
 
-  // FIXED: Show message when no data is available
   if (!trackingData) {
     return (
       <View style={styles.loadingContainer}>
@@ -337,13 +418,9 @@ export default function GamifiedOrderTracking({ orderId, onRefresh, trackingData
         />
       }
     >
-      {/* Progression globale */}
       {renderGlobalProgress()}
-
-      {/* Badges */}
       {renderBadges()}
 
-      {/* Progression par catégorie */}
       <View style={styles.categoriesSection}>
         <Text style={styles.sectionTitle}>📋 Détails par Catégorie</Text>
         {trackingData.categories.map((category, index) => 
@@ -351,7 +428,6 @@ export default function GamifiedOrderTracking({ orderId, onRefresh, trackingData
         )}
       </View>
 
-      {/* Temps total estimé */}
       <View style={styles.totalTimeCard}>
         <Ionicons name="timer" size={24} color={COLORS.primary} />
         <Text style={styles.totalTimeText}>
@@ -385,154 +461,276 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.text.secondary,
   },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: COLORS.background,
-    padding: 32,
-  },
-  errorText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: COLORS.error,
-    textAlign: 'center',
-  },
   
-  // Global Progress Card
+  // Global Progress Card - Premium Design
   globalCard: {
     marginBottom: 24,
-    borderRadius: 20,
+    borderRadius: 24,
     overflow: 'hidden',
-    elevation: 8,
+    elevation: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
   },
   gradientBackground: {
-    padding: 20,
+    padding: 24,
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    alignItems: 'center',
+    marginBottom: 20,
   },
   levelBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  levelText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  pointsBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  levelEmoji: {
+    fontSize: 24,
+  },
+  levelTitle: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 15,
+    letterSpacing: 0.5,
+  },
+  levelSubtitle: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  pointsBadge: {
+    backgroundColor: 'rgba(255, 215, 0, 0.15)',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.3)',
   },
   pointsText: {
-    color: '#fff',
+    color: '#FFD700',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  pointsLabel: {
+    color: 'rgba(255, 215, 0, 0.8)',
+    fontSize: 11,
     fontWeight: '600',
-    fontSize: 14,
   },
   messageContainer: {
     alignItems: 'center',
     marginBottom: 20,
-  },
-  messageEmoji: {
-    fontSize: 48,
-    marginBottom: 8,
+    paddingHorizontal: 20,
   },
   messageText: {
     color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '500',
     textAlign: 'center',
+    lineHeight: 22,
+    letterSpacing: 0.3,
   },
   progressBarContainer: {
-    marginBottom: 12,
+    marginBottom: 16,
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  progressLabel: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 13,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  tierBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  tierText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   progressBarBackground: {
-    height: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: 6,
+    height: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 7,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: '#fff',
-    borderRadius: 6,
+    borderRadius: 7,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
   progressPercentage: {
     color: '#fff',
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 28,
+    fontWeight: '800',
     textAlign: 'center',
-    marginTop: 8,
+    marginTop: 10,
+    letterSpacing: 1,
+  },
+  metricsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  metricItem: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  metricLabel: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 10,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  metricValue: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
   },
   nextMilestone: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    padding: 12,
-    borderRadius: 10,
+    gap: 12,
+    backgroundColor: 'rgba(255, 215, 0, 0.15)',
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.3)',
   },
-  nextMilestoneText: {
-    color: '#e2e8f0',
-    fontSize: 13,
+  milestoneContent: {
     flex: 1,
   },
+  milestoneTitle: {
+    color: '#FFD700',
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  milestoneSubtitle: {
+    color: 'rgba(255, 215, 0, 0.8)',
+    fontSize: 11,
+    fontWeight: '500',
+  },
   
-  // Badges Section
+  // Badges Section - Premium
   badgesSection: {
     marginBottom: 24,
+  },
+  badgesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: '700',
     color: COLORS.text.primary,
-    marginBottom: 16,
+    flex: 1,
+  },
+  badgeCount: {
+    backgroundColor: COLORS.primary,
+    minWidth: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+  },
+  badgeCountText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
   },
   badgesContainer: {
-    gap: 12,
+    gap: 14,
     paddingRight: 16,
   },
   badgeCard: {
-    backgroundColor: COLORS.card,
-    padding: 16,
-    borderRadius: 16,
-    alignItems: 'center',
-    width: 120,
-    elevation: 3,
+    borderRadius: 18,
+    width: 140,
+    elevation: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    overflow: 'hidden',
+  },
+  badgeGradient: {
+    padding: 18,
+    alignItems: 'center',
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.05)',
+    backgroundColor: COLORS.card,
+  },
+  badgeTierIndicator: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
   },
   badgeIcon: {
-    fontSize: 40,
-    marginBottom: 8,
+    fontSize: 44,
+    marginBottom: 10,
   },
   badgeName: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
     color: COLORS.text.primary,
     textAlign: 'center',
-    marginBottom: 4,
+    marginBottom: 6,
+    letterSpacing: 0.3,
   },
   badgeDescription: {
     fontSize: 11,
     color: COLORS.text.secondary,
     textAlign: 'center',
+    lineHeight: 15,
+    marginBottom: 8,
+  },
+  badgeTier: {
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    borderRadius: 6,
   },
   
   // Categories Section

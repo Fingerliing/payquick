@@ -11,7 +11,7 @@ from collections import defaultdict
 
 class OrderTrackingViewSet(viewsets.ViewSet):
     """
-    API pour le suivi gamifié des commandes avec calcul des temps moyens
+    API pour le suivi gamifié des commandes avec système de récompenses premium
     """
     
     @action(detail=True, methods=['get'], permission_classes=[AllowAny])
@@ -53,15 +53,13 @@ class OrderTrackingViewSet(viewsets.ViewSet):
         restaurant = order.restaurant
         categories_progress = []
         
-        # FIXED: Renamed variable to clarify it's a MenuCategory object
         for category_obj, items in items_by_category.items():
-            # FIXED: Convert category object to string for JSON serialization
             category_name = str(category_obj)
             
             # Calculer le temps moyen de cette catégorie basé sur l'historique
             avg_time = self._calculate_category_average_time(
                 restaurant, 
-                category_obj  # FIXED: Pass the object to the method
+                category_obj
             )
             
             # Trouver le temps de préparation maximum parmi les items de cette catégorie
@@ -79,7 +77,7 @@ class OrderTrackingViewSet(viewsets.ViewSet):
             )
             
             categories_progress.append({
-                'category': category_name,  # FIXED: Now a string
+                'category': category_name,
                 'category_icon': self._get_category_icon(category_name),
                 'items_count': len(items),
                 'items': items,
@@ -96,7 +94,7 @@ class OrderTrackingViewSet(viewsets.ViewSet):
         total_progress = sum(cat['progress_percentage'] for cat in categories_progress)
         global_progress = total_progress / len(categories_progress) if categories_progress else 0
         
-        # Déterminer le niveau gamifié
+        # Déterminer le niveau gamifié avec système premium
         gamification_data = self._get_gamification_level(global_progress, order)
         
         return Response({
@@ -117,7 +115,6 @@ class OrderTrackingViewSet(viewsets.ViewSet):
         Calcule le temps moyen de préparation pour une catégorie
         basé sur les commandes servies dans ce restaurant
         """
-        # Récupérer les commandes servies des 30 derniers jours
         thirty_days_ago = timezone.now() - timedelta(days=30)
         
         # Filtrer les commandes qui ont été servies
@@ -147,7 +144,6 @@ class OrderTrackingViewSet(viewsets.ViewSet):
             avg_time = sum(category_times) / len(category_times)
             return round(avg_time)
         
-        # FIXED: Get string representation for comparison
         category_str = str(category)
         
         # Temps par défaut selon la catégorie
@@ -203,92 +199,264 @@ class OrderTrackingViewSet(viewsets.ViewSet):
         icons = {
             'Entrée': '🥗',
             'Plat': '🍽️',
-            'Dessert': '🰰',
+            'Dessert': '🍰',
             'Boisson': '🥤'
         }
-        return icons.get(category, '🴴')
+        return icons.get(category, '🍴')
     
     def _get_gamification_level(self, progress, order):
         """
-        Retourne les données de gamification selon la progression
+        Système de récompenses premium avec calcul sophistiqué des points
         """
-        # Points basés sur la progression
-        points = int(progress * 10)
+        # === CALCUL DES POINTS STRATIFIÉ ===
+        time_elapsed = timezone.now() - order.created_at
+        minutes_waited = time_elapsed.total_seconds() / 60
         
-        # Badges débloqués
+        # Points de progression (0-1500 pts)
+        progression_points = int(progress * 15)
+        
+        # Multiplicateur de statut (1x à 5x)
+        status_multipliers = {
+            'pending': 1.0,
+            'confirmed': 1.5,
+            'preparing': 2.0,
+            'ready': 3.5,
+            'served': 5.0
+        }
+        multiplier = status_multipliers.get(order.status, 1.0)
+        
+        # Bonus d'excellence temporelle
+        time_bonus = 0
+        if order.status == 'served':
+            if minutes_waited < 10:
+                time_bonus = 500  # Service éclair
+            elif minutes_waited < 20:
+                time_bonus = 300  # Service rapide
+            elif minutes_waited < 30:
+                time_bonus = 150  # Service optimal
+        
+        # Bonus de complexité (basé sur le nombre d'items)
+        items_count = order.items.count()
+        complexity_bonus = min(items_count * 25, 200)
+        
+        total_points = int((progression_points * multiplier) + time_bonus + complexity_bonus)
+        
+        # === SYSTÈME DE BADGES PREMIUM ===
         badges = []
-        if progress >= 25:
+        
+        # Tier Bronze : Initiation (15%)
+        if progress >= 15:
             badges.append({
-                'id': 'patience_1',
-                'name': 'Patient Débutant',
-                'icon': 'ⱱ️',
-                'description': 'La préparation a débuté'
+                'id': 'bronze_initiation',
+                'name': 'Initié',
+                'icon': '🥉',
+                'description': 'Première étape franchie avec succès',
+                'tier': 'bronze'
             })
-        if progress >= 50:
+        
+        # Tier Argent : Progression (35%)
+        if progress >= 35:
             badges.append({
-                'id': 'halfway',
-                'name': 'Mi-chemin',
-                'icon': '🃏',
-                'description': 'Plus qu\'à moitié !'
+                'id': 'silver_progress',
+                'name': 'Connaisseur',
+                'icon': '🥈',
+                'description': 'Progression constante et maîtrisée',
+                'tier': 'silver'
             })
-        if progress >= 75:
+        
+        # Tier Or : Excellence (60%)
+        if progress >= 60:
             badges.append({
-                'id': 'almost_there',
-                'name': 'Presque prêt',
-                'icon': '🯯',
-                'description': 'Bientôt à table !'
+                'id': 'gold_excellence',
+                'name': 'Expert',
+                'icon': '🥇',
+                'description': 'Excellence culinaire en préparation',
+                'tier': 'gold'
             })
+        
+        # Tier Platine : Maîtrise (85%)
+        if progress >= 85:
+            badges.append({
+                'id': 'platinum_mastery',
+                'name': 'Maître',
+                'icon': '💎',
+                'description': 'Maîtrise absolue du processus',
+                'tier': 'platinum'
+            })
+        
+        # Badge de finalisation
         if progress >= 100 or order.status == 'served':
             badges.append({
-                'id': 'bon_appetit',
-                'name': 'Bon Appétit !',
-                'icon': '🉉',
-                'description': 'Commande servie !'
+                'id': 'completion_virtuoso',
+                'name': 'Virtuose',
+                'icon': '👑',
+                'description': 'Expérience culinaire accomplie',
+                'tier': 'royal'
             })
         
-        # Message motivationnel
-        if progress < 25:
-            message = "Votre commande est en cours de validation..."
-            emoji = "⳿"
-        elif progress < 50:
-            message = "Nos chefs préparent vos plats avec soin !"
-            emoji = "👨‍🍳"
-        elif progress < 75:
-            message = "C'est bientôt prêt, encore un peu de patience !"
-            emoji = "⚡"
+        # Badges spéciaux basés sur la performance
+        if order.status == 'served':
+            # Excellence temporelle
+            if minutes_waited < 10:
+                badges.append({
+                    'id': 'velocity_master',
+                    'name': 'Maître de la Vélocité',
+                    'icon': '⚡',
+                    'description': 'Service express d\'exception',
+                    'tier': 'special'
+                })
+            elif minutes_waited < 20:
+                badges.append({
+                    'id': 'swift_service',
+                    'name': 'Service Rapide',
+                    'icon': '🚀',
+                    'description': 'Efficacité remarquable',
+                    'tier': 'special'
+                })
+            
+            # Patience distinguée
+            if minutes_waited > 40:
+                badges.append({
+                    'id': 'distinguished_patience',
+                    'name': 'Patience Distinguée',
+                    'icon': '⭐',
+                    'description': 'Élégance dans l\'attente',
+                    'tier': 'special'
+                })
+        
+        # Commande complexe
+        if items_count >= 5:
+            badges.append({
+                'id': 'gastronome',
+                'name': 'Gastronome',
+                'icon': '🍷',
+                'description': 'Amateur de gastronomie raffinée',
+                'tier': 'special'
+            })
+        
+        # === TITRES PRESTIGIEUX PAR NIVEAU ===
+        level_titles = [
+            (0, 'Découverte', '🌱'),      # 0-20%
+            (20, 'Initiation', '🎓'),     # 20-40%
+            (40, 'Progression', '📈'),    # 40-60%
+            (60, 'Excellence', '⭐'),     # 60-80%
+            (80, 'Maîtrise', '👑'),       # 80-100%
+        ]
+        
+        current_title = 'Découverte'
+        current_emoji = '🌱'
+        current_level = 1
+        
+        for threshold, title, emoji in level_titles:
+            if progress >= threshold:
+                current_title = title
+                current_emoji = emoji
+                current_level = (threshold // 20) + 1
+        
+        # === MESSAGES PROFESSIONNELS ET ÉLÉGANTS ===
+        if progress < 15:
+            message = "Validation de votre commande en cours"
+            status_emoji = "📋"
+        elif progress < 35:
+            message = "Nos équipes orchestrent votre expérience"
+            status_emoji = "🎭"
+        elif progress < 60:
+            message = "Préparation minutieuse de vos mets"
+            status_emoji = "👨‍🍳"
+        elif progress < 85:
+            message = "Finitions d'excellence en cours"
+            status_emoji = "✨"
         elif progress < 100:
-            message = "Dernière touche, votre plat arrive !"
-            emoji = "✨"
+            message = "Présentation finale de votre commande"
+            status_emoji = "🎯"
         else:
-            message = "Bon appétit ! 🎉"
-            emoji = "🎊"
+            message = "Votre expérience culinaire vous attend"
+            status_emoji = "🌟"
         
         return {
-            'level': min(int(progress / 25) + 1, 4),
-            'points': points,
+            'level': current_level,
+            'level_title': current_title,
+            'points': total_points,
             'badges': badges,
             'message': message,
-            'emoji': emoji,
+            'emoji': status_emoji,
+            'progress_tier': self._get_progress_tier(progress),
+            'performance_metrics': {
+                'time_efficiency': self._calculate_time_efficiency(minutes_waited, order.status),
+                'completion_rate': round(progress, 1),
+                'experience_quality': self._calculate_experience_quality(progress, minutes_waited, items_count)
+            },
             'next_milestone': self._get_next_milestone(progress)
         }
     
+    def _get_progress_tier(self, progress):
+        """Détermine le tier actuel de progression"""
+        if progress < 20:
+            return {'name': 'Bronze', 'color': '#CD7F32'}
+        elif progress < 40:
+            return {'name': 'Argent', 'color': '#C0C0C0'}
+        elif progress < 60:
+            return {'name': 'Or', 'color': '#FFD700'}
+        elif progress < 80:
+            return {'name': 'Platine', 'color': '#E5E4E2'}
+        else:
+            return {'name': 'Diamant', 'color': '#B9F2FF'}
+    
+    def _calculate_time_efficiency(self, minutes_waited, status):
+        """Calcule l'efficacité temporelle (0-100)"""
+        if status != 'served':
+            return None
+        
+        # Référence: 25 minutes = service optimal
+        optimal_time = 25
+        if minutes_waited <= optimal_time:
+            efficiency = 100 - ((optimal_time - minutes_waited) * 2)
+            return max(min(efficiency, 100), 80)
+        else:
+            penalty = (minutes_waited - optimal_time) * 2
+            return max(100 - penalty, 40)
+    
+    def _calculate_experience_quality(self, progress, minutes_waited, items_count):
+        """Score de qualité d'expérience global (0-100)"""
+        # Facteurs pondérés
+        progress_score = progress * 0.5  # 50%
+        
+        # Score temporel
+        if minutes_waited < 15:
+            time_score = 50
+        elif minutes_waited < 30:
+            time_score = 40
+        elif minutes_waited < 45:
+            time_score = 30
+        else:
+            time_score = 20
+        
+        # Score de complexité (commandes plus complexes = meilleure expérience)
+        complexity_score = min(items_count * 2, 10)
+        
+        total_score = progress_score + time_score + complexity_score
+        return round(min(total_score, 100), 1)
+    
     def _get_next_milestone(self, progress):
         """
-        Retourne le prochain objectif à atteindre
+        Retourne le prochain objectif avec système de tiers premium
         """
         milestones = [
-            (25, 'Commande validée'),
-            (50, 'Mi-parcours'),
-            (75, 'Presque prêt'),
-            (100, 'Servi')
+            (15, 'Initié', '🥉', 'Bronze'),
+            (35, 'Connaisseur', '🥈', 'Argent'),
+            (60, 'Expert', '🥇', 'Or'),
+            (85, 'Maître', '💎', 'Platine'),
+            (100, 'Virtuose', '👑', 'Diamant')
         ]
         
-        for milestone_progress, label in milestones:
+        for milestone_progress, title, icon, tier in milestones:
             if progress < milestone_progress:
                 return {
                     'progress': milestone_progress,
-                    'label': label,
-                    'remaining': milestone_progress - progress
+                    'title': title,
+                    'label': f'{icon} {title} - Tier {tier}',
+                    'tier': tier,
+                    'remaining': round(milestone_progress - progress, 1)
                 }
         
         return None
