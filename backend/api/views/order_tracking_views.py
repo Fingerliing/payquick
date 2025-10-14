@@ -53,11 +53,15 @@ class OrderTrackingViewSet(viewsets.ViewSet):
         restaurant = order.restaurant
         categories_progress = []
         
-        for category_name, items in items_by_category.items():
+        # FIXED: Renamed variable to clarify it's a MenuCategory object
+        for category_obj, items in items_by_category.items():
+            # FIXED: Convert category object to string for JSON serialization
+            category_name = str(category_obj)
+            
             # Calculer le temps moyen de cette catégorie basé sur l'historique
             avg_time = self._calculate_category_average_time(
                 restaurant, 
-                category_name
+                category_obj  # FIXED: Pass the object to the method
             )
             
             # Trouver le temps de préparation maximum parmi les items de cette catégorie
@@ -75,7 +79,7 @@ class OrderTrackingViewSet(viewsets.ViewSet):
             )
             
             categories_progress.append({
-                'category': category_name,
+                'category': category_name,  # FIXED: Now a string
                 'category_icon': self._get_category_icon(category_name),
                 'items_count': len(items),
                 'items': items,
@@ -143,6 +147,9 @@ class OrderTrackingViewSet(viewsets.ViewSet):
             avg_time = sum(category_times) / len(category_times)
             return round(avg_time)
         
+        # FIXED: Get string representation for comparison
+        category_str = str(category)
+        
         # Temps par défaut selon la catégorie
         default_times = {
             'Entrée': 15,
@@ -150,7 +157,7 @@ class OrderTrackingViewSet(viewsets.ViewSet):
             'Dessert': 10,
             'Boisson': 5
         }
-        return default_times.get(category, 20)
+        return default_times.get(category_str, 20)
     
     def _calculate_category_progress(self, order, estimated_time_minutes):
         """
@@ -196,10 +203,10 @@ class OrderTrackingViewSet(viewsets.ViewSet):
         icons = {
             'Entrée': '🥗',
             'Plat': '🍽️',
-            'Dessert': '🍰',
+            'Dessert': '🰰',
             'Boisson': '🥤'
         }
-        return icons.get(category, '🍴')
+        return icons.get(category, '🴴')
     
     def _get_gamification_level(self, progress, order):
         """
@@ -214,35 +221,35 @@ class OrderTrackingViewSet(viewsets.ViewSet):
             badges.append({
                 'id': 'patience_1',
                 'name': 'Patient Débutant',
-                'icon': '⏱️',
+                'icon': 'ⱱ️',
                 'description': 'La préparation a débuté'
             })
         if progress >= 50:
             badges.append({
                 'id': 'halfway',
                 'name': 'Mi-chemin',
-                'icon': '🏃',
+                'icon': '🃏',
                 'description': 'Plus qu\'à moitié !'
             })
         if progress >= 75:
             badges.append({
                 'id': 'almost_there',
                 'name': 'Presque prêt',
-                'icon': '🎯',
+                'icon': '🯯',
                 'description': 'Bientôt à table !'
             })
         if progress >= 100 or order.status == 'served':
             badges.append({
                 'id': 'bon_appetit',
                 'name': 'Bon Appétit !',
-                'icon': '🎉',
+                'icon': '🉉',
                 'description': 'Commande servie !'
             })
         
         # Message motivationnel
         if progress < 25:
             message = "Votre commande est en cours de validation..."
-            emoji = "⏳"
+            emoji = "⳿"
         elif progress < 50:
             message = "Nos chefs préparent vos plats avec soin !"
             emoji = "👨‍🍳"

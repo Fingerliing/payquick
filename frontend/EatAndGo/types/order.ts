@@ -44,7 +44,7 @@ export interface OrderList {
   order_type: OrderType;
   order_type_display?: string;
 
-  table_number?: string | null;      // CORRIGÉ: string comme dans le backend
+  table_number?: string | null;      // string comme dans le backend
 
   status: OrderStatus;
   status_display?: string;
@@ -102,6 +102,7 @@ export interface OrderDetail {
   // Méthodes du serializer
   can_be_cancelled?: boolean;        // SerializerMethodField
   preparation_time?: number | null;  // SerializerMethodField (minutes)
+  waiting_time?: number | null;      // ⭐ AJOUTÉ: minutes (SerializerMethodField)
 
   created_at: string;                // ISO
   updated_at?: string;               // ISO

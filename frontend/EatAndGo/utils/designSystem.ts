@@ -18,6 +18,7 @@ export const COLORS = {
   warning: '#F59E0B',      // Orange pour avertissements
   error: '#EF4444',        // Rouge pour erreurs
   info: '#3B82F6',         // Bleu pour informations
+  card: '#FFFFFF',
   
   // Couleurs de surface avec touches dorées
   background: '#F9FAFB',   // Arrière-plan principal
@@ -49,6 +50,13 @@ export const COLORS = {
     medium: 'rgba(0, 0, 0, 0.15)',
     dark: 'rgba(0, 0, 0, 0.25)',
     golden: 'rgba(212, 175, 55, 0.15)', // Ombre dorée
+  },
+
+  progress: {
+    pending: '#cbd5e1',
+    preparing: '#3b82f6',
+    ready: '#10b981',
+    completed: '#8b5cf6'
   },
   
   // Variantes des couleurs principales

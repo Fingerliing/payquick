@@ -3,7 +3,6 @@ import {
   View,
   Text,
   ScrollView,
-  SafeAreaView,
   ActivityIndicator,
   Pressable,
   Alert,
@@ -12,6 +11,7 @@ import {
   Animated,
   Modal,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -19,7 +19,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useOrder } from '@/contexts/OrderContext';
 import { OrderDetail, OrderItem } from '@/types/order';
 import { Header } from '@/components/ui/Header';
-import { Card } from '@/components/ui/Card';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Receipt } from '@/components/receipt/Receipt';
 
@@ -215,6 +214,66 @@ const OrderItemCard = React.memo(({ item, index }: { item: OrderItem; index: num
   );
 });
 
+// Bouton de suivi gamifié pour tous les utilisateurs
+const GamifiedTrackingButton = React.memo(({ orderId, orderStatus }: { 
+  orderId: number; 
+  orderStatus: string;
+}) => {
+  const screenType = useScreenType();
+  const styles = createStyles(screenType);
+  const { scaleValue, scaleIn, scaleOut } = useScaleAnimation();
+  
+  // Afficher uniquement si la commande est active
+  const isActiveOrder = ['pending', 'confirmed', 'preparing', 'ready'].includes(orderStatus);
+  
+  if (!isActiveOrder) return null;
+
+  const handleTrackingPress = () => {
+    router.push(`/order/tracking/${orderId}`);
+  };
+
+  return (
+    <Animated.View style={{ transform: [{ scale: scaleValue }], marginBottom: 16 }}>
+      <Pressable
+        style={styles.trackingButtonContainer}
+        onPress={handleTrackingPress}
+        onPressIn={scaleIn}
+        onPressOut={scaleOut}
+      >
+        <LinearGradient
+          colors={['#8B5CF6', '#7C3AED', '#6D28D9']}
+          style={styles.trackingButtonGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          {/* Icônes flottantes d'animation */}
+          <View style={styles.trackingIconsContainer}>
+            <Text style={styles.floatingIcon}>🎮</Text>
+            <Text style={styles.floatingIcon}>⭐</Text>
+            <Text style={styles.floatingIcon}>🏆</Text>
+          </View>
+
+          <View style={styles.trackingButtonContent}>
+            <View style={styles.trackingMainInfo}>
+              <View style={styles.trackingTitleRow}>
+                <Ionicons name="game-controller" size={24} color="#fff" />
+                <Text style={styles.trackingButtonTitle}>Suivre ma commande</Text>
+              </View>
+              <Text style={styles.trackingButtonSubtitle}>
+                Progression en temps réel avec badges et points
+              </Text>
+            </View>
+            
+            <View style={styles.trackingArrowContainer}>
+              <Ionicons name="arrow-forward" size={24} color="#fff" />
+            </View>
+          </View>
+        </LinearGradient>
+      </Pressable>
+    </Animated.View>
+  );
+});
+
 // Actions pour restaurateurs avec bouton ticket de caisse
 const RestaurantActions = React.memo(({ 
   order, 
@@ -258,84 +317,89 @@ const RestaurantActions = React.memo(({
   };
 
   return (
-    <LinearGradient
-      colors={['#FFFFFF', '#F8FAFC']}
-      style={styles.actionsCard}
-    >
-      <View style={styles.actionsHeader}>
-        <Ionicons name="flash" size={20} color={COLORS.primary} />
-        <Text style={styles.sectionTitle}>Actions rapides</Text>
-      </View>
-      
-      <View style={styles.actionButtons}>
-        {canUpdateStatus && nextStatus && (
-          <Pressable
-            style={({ pressed }) => [
-              styles.actionButton,
-              styles.statusButton,
-              pressed && styles.buttonPressed
-            ]}
-            onPress={() => onStatusUpdate(nextStatus.next)}
-            disabled={isUpdating}
-          >
-            <LinearGradient
-              colors={['#1E2A78', '#2D3A8C']}
-              style={styles.buttonGradient}
-            >
-              {isUpdating ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <>
-                  <Ionicons name={nextStatus.icon as any} size={18} color="#fff" />
-                  <Text style={styles.actionButtonText}>{nextStatus.label}</Text>
-                </>
-              )}
-            </LinearGradient>
-          </Pressable>
-        )}
+    <>
+      {/* 🎮 Bouton de suivi gamifié */}
+      <GamifiedTrackingButton orderId={order.id} orderStatus={order.status} />
 
-        {canMarkAsPaid && (
-          <Pressable
-            style={({ pressed }) => [
-              styles.actionButton,
-              styles.paymentButton,
-              pressed && styles.buttonPressed
-            ]}
-            onPress={handleMarkAsPaid}
-            disabled={isUpdating}
-          >
-            <LinearGradient
-              colors={['#10B981', '#059669']}
-              style={styles.buttonGradient}
+      <LinearGradient
+        colors={['#FFFFFF', '#F8FAFC']}
+        style={styles.actionsCard}
+      >
+        <View style={styles.actionsHeader}>
+          <Ionicons name="flash" size={20} color={COLORS.primary} />
+          <Text style={styles.sectionTitle}>Actions rapides</Text>
+        </View>
+        
+        <View style={styles.actionButtons}>
+          {canUpdateStatus && nextStatus && (
+            <Pressable
+              style={({ pressed }) => [
+                styles.actionButton,
+                styles.statusButton,
+                pressed && styles.buttonPressed
+              ]}
+              onPress={() => onStatusUpdate(nextStatus.next)}
+              disabled={isUpdating}
             >
-              <Ionicons name="card" size={18} color="#fff" />
-              <Text style={styles.actionButtonText}>Encaisser</Text>
-            </LinearGradient>
-          </Pressable>
-        )}
+              <LinearGradient
+                colors={['#1E2A78', '#2D3A8C']}
+                style={styles.buttonGradient}
+              >
+                {isUpdating ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name={nextStatus.icon as any} size={18} color="#fff" />
+                    <Text style={styles.actionButtonText}>{nextStatus.label}</Text>
+                  </>
+                )}
+              </LinearGradient>
+            </Pressable>
+          )}
 
-        {/* Bouton Ticket de caisse pour restaurateurs */}
-        {canShowReceipt && (
-          <Pressable
-            style={({ pressed }) => [
-              styles.actionButton,
-              styles.receiptButton,
-              pressed && styles.buttonPressed
-            ]}
-            onPress={onShowReceipt}
-            disabled={isUpdating}
-          >
-            <LinearGradient
-              colors={['#D4AF37', '#B8941F']}
-              style={styles.buttonGradient}
+          {canMarkAsPaid && (
+            <Pressable
+              style={({ pressed }) => [
+                styles.actionButton,
+                styles.paymentButton,
+                pressed && styles.buttonPressed
+              ]}
+              onPress={handleMarkAsPaid}
+              disabled={isUpdating}
             >
-              <Ionicons name="receipt" size={18} color="#fff" />
-              <Text style={styles.actionButtonText}>Ticket de caisse</Text>
-            </LinearGradient>
-          </Pressable>
-        )}
-      </View>
-    </LinearGradient>
+              <LinearGradient
+                colors={['#10B981', '#059669']}
+                style={styles.buttonGradient}
+              >
+                <Ionicons name="card" size={18} color="#fff" />
+                <Text style={styles.actionButtonText}>Encaisser</Text>
+              </LinearGradient>
+            </Pressable>
+          )}
+
+          {/* Bouton Ticket de caisse pour restaurateurs */}
+          {canShowReceipt && (
+            <Pressable
+              style={({ pressed }) => [
+                styles.actionButton,
+                styles.receiptButton,
+                pressed && styles.buttonPressed
+              ]}
+              onPress={onShowReceipt}
+              disabled={isUpdating}
+            >
+              <LinearGradient
+                colors={['#D4AF37', '#B8941F']}
+                style={styles.buttonGradient}
+              >
+                <Ionicons name="receipt" size={18} color="#fff" />
+                <Text style={styles.actionButtonText}>Ticket de caisse</Text>
+              </LinearGradient>
+            </Pressable>
+          )}
+        </View>
+      </LinearGradient>
+    </>
   );
 });
 
@@ -357,6 +421,9 @@ const ClientPaymentButton = React.memo(({ order, onShowReceipt }: {
 
   return (
     <View style={styles.paymentSection}>
+      {/* 🎮 Bouton de suivi gamifié */}
+      <GamifiedTrackingButton orderId={order.id} orderStatus={order.status} />
+
       {/* Bouton de paiement principal */}
       {shouldShowPayButton && (
         <Animated.View style={{ transform: [{ scale: scaleValue }] }}>
@@ -387,7 +454,7 @@ const ClientPaymentButton = React.memo(({ order, onShowReceipt }: {
         </Animated.View>
       )}
 
-      {/* Bouton ticket de caisse pour clients (si payé) */}
+      {/* Bouton ticket de caisse pour clients (si payée) */}
       {canShowReceipt && (
         <Pressable
           style={styles.receiptButtonClient}
@@ -1416,6 +1483,82 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop') => {
       fontSize: isTabletOrLarger ? 20 : 18,
       fontWeight: 'bold' as const,
       color: COLORS.accent,
+    },
+
+    // STYLES pour le bouton de suivi gamifié
+    trackingButtonContainer: {
+      borderRadius: 20,
+      overflow: 'hidden' as const,
+      ...COLORS.shadow.medium && {
+        shadowColor: '#8B5CF6',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.4,
+        shadowRadius: 16,
+        elevation: 12,
+      }
+    },
+    trackingButtonGradient: {
+      padding: 20,
+      position: 'relative' as const,
+      minHeight: 100,
+    },
+    trackingIconsContainer: {
+      position: 'absolute' as const,
+      top: 10,
+      right: 10,
+      flexDirection: 'row' as const,
+      gap: 8,
+    },
+    floatingIcon: {
+      fontSize: 20,
+      opacity: 0.3,
+    },
+    trackingButtonContent: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'space-between' as const,
+    },
+    trackingMainInfo: {
+      flex: 1,
+    },
+    trackingTitleRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 12,
+      marginBottom: 6,
+    },
+    trackingButtonTitle: {
+      color: '#fff',
+      fontSize: isTabletOrLarger ? 20 : 18,
+      fontWeight: '700' as const,
+    },
+    trackingButtonSubtitle: {
+      color: 'rgba(255,255,255,0.85)',
+      fontSize: 14,
+      lineHeight: 18,
+    },
+    trackingArrowContainer: {
+      backgroundColor: 'rgba(255,255,255,0.2)',
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+    },
+    newBadge: {
+      position: 'absolute' as const,
+      top: 16,
+      left: 16,
+      backgroundColor: '#EF4444',
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 8,
+    },
+    newBadgeText: {
+      color: '#fff',
+      fontSize: 10,
+      fontWeight: '800' as const,
+      letterSpacing: 0.5,
     },
 
     // Actions pour restaurateurs

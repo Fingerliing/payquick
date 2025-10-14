@@ -2,7 +2,7 @@ from django.db.models.signals import post_save, pre_save, post_migrate
 from django.contrib.auth.models import User, Group
 from django.dispatch import receiver
 from django.apps import apps as django_apps
-from api.models import RestaurateurProfile, Restaurant, ClientProfile
+from api.models import RestaurateurProfile, Restaurant, ClientProfile,Order
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from datetime import datetime
