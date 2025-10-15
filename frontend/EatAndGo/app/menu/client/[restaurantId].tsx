@@ -753,18 +753,26 @@ export default function RestaurantMenuScreen() {
 
   const proceedAddToCart = useCallback((item: MenuItem | any) => {
     const itemData = {
-      id: `${item.id || item.menuItemId}-${Date.now()}`,
+      // Pas d'ID ici, il sera généré automatiquement par addToCart
       menuItemId: item.id || item.menuItemId,
       name: item.name,
       description: item.description,
+      image: item.image,
       price: typeof item.price === 'string' ? parseFloat(item.price) : item.price,
       restaurantId: parseInt(restaurantId),
       restaurantName: item.restaurantName || restaurant?.name || '',
       specialInstructions: '',
+      customizations: {}
     };
-
+  
+    // addToCart gérera automatiquement la détection des doublons
+    // et incrémentera la quantité si l'article existe déjà
     addToCart(itemData);
-    Alert.alert('Ajouté au panier', `${item.name} a été ajouté à votre commande`);
+    
+    Alert.alert(
+      'Ajouté au panier', 
+      `${item.name} a été ajouté à votre commande`
+    );
   }, [addToCart, restaurantId, restaurant?.name]);
 
   const toggleFilter = useCallback((filterType: keyof FilterOptions) => {

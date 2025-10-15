@@ -21,6 +21,7 @@ import { OrderDetail, OrderItem } from '@/types/order';
 import { Header } from '@/components/ui/Header';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Receipt } from '@/components/receipt/Receipt';
+import { groupIdenticalItems } from '@/utils/regroupItems'
 
 // Design System aligné sur l'existant
 const BREAKPOINTS = {
@@ -882,11 +883,13 @@ export default function OrderDetailScreen() {
                   <Ionicons name="receipt" size={20} color={COLORS.primary} />
                   <Text style={styles.sectionTitle}>Articles commandés</Text>
                   <View style={styles.itemCount}>
-                    <Text style={styles.itemCountText}>{order.items.length}</Text>
+                    <Text style={styles.itemCountText}>
+                      {groupIdenticalItems(order.items).length}
+                    </Text>
                   </View>
                 </View>
-                {order.items.map((item, index) => (
-                  <OrderItemCard key={item.id} item={item} index={index} />
+                {groupIdenticalItems(order.items).map((item, index) => (
+                  <OrderItemCard key={`${item.menu_item}-${index}`} item={item} index={index} />
                 ))}
               </View>
 

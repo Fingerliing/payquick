@@ -12,13 +12,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Print from 'expo-print';
-import * as FileSystem from 'expo-file-system/legacy';
-import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Alert, useAlert } from '@/components/ui/Alert';
 import { receiptService, ReceiptData as ServiceReceipt } from '@/services/receiptService';
+import { groupIdenticalReceiptItems } from '@/utils/regroupItems';
 import {
   useScreenType,
   getResponsiveValue,
@@ -27,75 +26,13 @@ import {
   BORDER_RADIUS,
 } from '@/utils/designSystem';
 
-interface ReceiptProps {
-  orderId: string;
-  order?: any;
-  showActions?: boolean;
-  onClose?: () => void;
-  autoSendEmail?: boolean;
-  customerEmail?: string;
-}
-
-// Schéma de données conforme aux normes françaises
-interface ProcessedReceiptItem {
-  name: string;
-  description?: string;
-  price: number; // Prix unitaire HT
-  price_ttc: number; // Prix unitaire TTC
-  quantity: number;
-  total_price_ht: number; // Total HT pour cet article
-  total_price_ttc: number; // Total TTC pour cet article
-  tva_rate: number; // Taux de TVA (ex: 0.20 pour 20%)
-  tva_amount: number; // Montant TVA pour cet article
-  customizations?: Record<string, string | string[]>;
-}
-
-type VatDetailsMap = Record<string, { ht: number; tva: number }>;
-
-interface ReceiptViewData {
-  order: {
-    id?: number | string;
-    order_number: string;
-    order_type?: 'dine_in' | 'takeaway' | string;
-    table_number?: string | number | null;
-    sequential_number?: string; // Numéro séquentiel
-    items: ProcessedReceiptItem[];
-    subtotal_ht: number; // Sous-total HT
-    subtotal_ttc: number; // Sous-total TTC
-    total_tva: number; // Total TVA
-    total_amount: number; // Total TTC final (avec pourboire)
-    vat_details?: VatDetailsMap;
-  };
-  restaurantInfo: {
-    name: string;
-    address?: string;
-    city?: string;
-    postal_code?: string;
-    phone?: string;
-    email?: string;
-    siret?: string;
-    tva_number?: string; // Numéro de TVA intracommunautaire
-    legal_form?: string; // Forme juridique
-  };
-  paymentInfo: {
-    method?: string;
-    amount?: number;
-    tip?: number;
-    transactionId?: string;
-    paidAt: string; // ISO format
-    sequential_receipt_number?: string; // Numéro séquentiel du ticket
-  };
-  customerInfo?: {
-    name?: string;
-    email?: string;
-    phone?: string;
-  };
-  legalInfo: {
-    warranty_notice?: string; // Mention garantie légale si applicable
-    tva_notice?: string; // Mention TVA non applicable si exonéré
-    receipt_notice?: string; // Mention sur la conservation du ticket
-  };
-}
+// Types
+import { 
+  ProcessedReceiptItem,
+  ReceiptProps,
+  ReceiptViewData,
+  VatDetailsMap
+} from '@/types/receipt'
 
 // -------------------------
 // Helpers de sécurité
@@ -269,13 +206,15 @@ export const Receipt: React.FC<ReceiptProps> = ({
       };
     });
 
+    const groupedItems = groupIdenticalReceiptItems(processedItems);
+
     // Calculs totaux
-    const subtotalHT = processedItems.reduce((sum: number, item) => sum + item.total_price_ht, 0);
-    const subtotalTTC = processedItems.reduce((sum: number, item) => sum + item.total_price_ttc, 0);
-    const totalTVA = processedItems.reduce((sum: number, item) => sum + item.tva_amount, 0);
+    const subtotalHT = groupedItems.reduce((sum: number, item) => sum + item.total_price_ht, 0);
+    const subtotalTTC = groupedItems.reduce((sum: number, item) => sum + item.total_price_ttc, 0);
+    const totalTVA = groupedItems.reduce((sum: number, item) => sum + item.tva_amount, 0);
     const tipAmount = Number((data as any).tip_amount ?? 0);
     const totalAmount = subtotalTTC + tipAmount;
-    const vat_details = buildVatDetails(processedItems);
+    const vat_details = buildVatDetails(groupedItems);
 
     return {
       order: {
@@ -284,7 +223,7 @@ export const Receipt: React.FC<ReceiptProps> = ({
         order_type: (data as any).order_type,
         table_number: (data as any).table_number ?? null,
         sequential_number: safeText((data as any).sequential_number) || safeText((data as any).order_number),
-        items: processedItems,
+        items: groupedItems,
         subtotal_ht: Math.round(subtotalHT * 100) / 100,
         subtotal_ttc: Math.round(subtotalTTC * 100) / 100,
         total_tva: Math.round(totalTVA * 100) / 100,
@@ -353,12 +292,14 @@ export const Receipt: React.FC<ReceiptProps> = ({
       };
     });
 
-    const subtotalHT = processedItems.reduce((sum: number, item) => sum + item.total_price_ht, 0);
-    const subtotalTTC = processedItems.reduce((sum: number, item) => sum + item.total_price_ttc, 0);
-    const totalTVA = processedItems.reduce((sum: number, item) => sum + item.tva_amount, 0);
+    const groupedItems = groupIdenticalReceiptItems(processedItems);
+
+    const subtotalHT = groupedItems.reduce((sum: number, item) => sum + item.total_price_ht, 0);
+    const subtotalTTC = groupedItems.reduce((sum: number, item) => sum + item.total_price_ttc, 0);
+    const totalTVA = groupedItems.reduce((sum: number, item) => sum + item.tva_amount, 0);
     const tipAmount = Number(ord.tip_amount ?? 0);
     const totalAmount = subtotalTTC + tipAmount;
-    const vat_details = buildVatDetails(processedItems);
+    const vat_details = buildVatDetails(groupedItems);
 
     return {
       order: {
@@ -367,7 +308,7 @@ export const Receipt: React.FC<ReceiptProps> = ({
         order_type: ord.order_type,
         table_number: ord.table_number ?? null,
         sequential_number: safeText(ord.sequential_number) || safeText(ord.order_number),
-        items: processedItems,
+        items: groupedItems,
         subtotal_ht: Math.round(subtotalHT * 100) / 100,
         subtotal_ttc: Math.round(subtotalTTC * 100) / 100,
         total_tva: Math.round(totalTVA * 100) / 100,

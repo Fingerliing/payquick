@@ -42,7 +42,7 @@ export interface CartContextType {
   cart: Cart;
 
   // Ajoute un item (si restaurant différent => reset du panier)
-  addToCart: (item: Omit<CartItem, 'quantity'>, quantity?: number) => void;
+  addToCart: (item: Omit<CartItem, 'quantity' | 'id'> & { id?: string }, quantity?: number) => void;
 
   // Supprime par identifiant local d’item (id)
   removeFromCart: (itemId: string) => void;

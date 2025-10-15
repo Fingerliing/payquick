@@ -179,7 +179,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         items: cart.items.length
       });
 
-      // ✅ CORRIGÉ: Utiliser les données du cart pour construire la requête
+      // Utiliser les données du cart pour construire la requête
       const completeOrderData: CreateOrderRequest = {
         ...orderData,
         restaurant: cart.restaurantId,
@@ -275,26 +275,63 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Méthodes existantes du cart (inchangées)
+  // Méthodes du cart
   const addToCart: CartContextType["addToCart"] = (item, quantity = 1) => {
     setCart(prev => {
       const shouldReset = prev.restaurantId && prev.restaurantId !== item.restaurantId;
       const base = shouldReset ? emptyCart() : prev;
-
-      const idx = base.items.findIndex(it => it.id === item.id);
-      const nextItems = [...base.items];
-      if (idx >= 0) {
-        nextItems[idx] = { ...nextItems[idx], quantity: nextItems[idx].quantity + quantity };
+  
+      // Fonction pour comparer si deux articles sont identiques
+      const isSameItem = (cartItem: CartItem): boolean => {
+        // Vérifier si c'est le même article de menu
+        if (cartItem.menuItemId !== item.menuItemId) return false;
+        
+        // Vérifier si les instructions spéciales sont identiques
+        const sameInstructions = 
+          (cartItem.specialInstructions || '') === (item.specialInstructions || '');
+        
+        // Vérifier si les customizations sont identiques
+        const currentCustom = JSON.stringify(cartItem.customizations || {});
+        const newCustom = JSON.stringify(item.customizations || {});
+        const sameCustomizations = currentCustom === newCustom;
+        
+        return sameInstructions && sameCustomizations;
+      };
+  
+      // Chercher si l'article existe déjà
+      const existingIndex = base.items.findIndex(isSameItem);
+      
+      if (existingIndex >= 0) {
+        // Article trouvé : on incrémente la quantité
+        const updatedItems = [...base.items];
+        updatedItems[existingIndex] = {
+          ...updatedItems[existingIndex],
+          quantity: updatedItems[existingIndex].quantity + quantity
+        };
+        
+        console.log(`✅ Article existant, quantité mise à jour: ${updatedItems[existingIndex].name} (×${updatedItems[existingIndex].quantity})`);
+        
+        return calculateTotals({
+          ...base,
+          items: updatedItems,
+        });
       } else {
-        nextItems.push({ ...item, quantity });
+        // Nouvel article : on l'ajoute avec un ID unique
+        const newItem: CartItem = {
+          ...item,
+          id: item.id || `${item.menuItemId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          quantity
+        };
+        
+        console.log(`➕ Nouvel article ajouté: ${newItem.name} (×${quantity})`);
+        
+        return calculateTotals({
+          ...base,
+          restaurantId: item.restaurantId ?? base.restaurantId,
+          restaurantName: item.restaurantName ?? base.restaurantName,
+          items: [...base.items, newItem],
+        });
       }
-
-      return calculateTotals({
-        ...base,
-        restaurantId: item.restaurantId ?? base.restaurantId,
-        restaurantName: item.restaurantName ?? base.restaurantName,
-        items: nextItems,
-      });
     });
   };
 
