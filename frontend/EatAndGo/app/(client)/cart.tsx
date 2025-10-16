@@ -872,13 +872,13 @@ export default function CartScreen() {
               containerStyle={{ width: '100%', backgroundColor: 'transparent' }}
             />
             
-            <Button
+            {/* <Button
               title="Parcourir les restaurants"
               onPress={() => router.push('/(client)/browse')}
               variant="outline"
               leftIcon={<Ionicons name="restaurant-outline" size={smallIconSize} color={COLORS.primary} />}
               fullWidth
-            />
+            /> */}
           </View>
         </View>
       </SafeAreaView>

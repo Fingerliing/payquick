@@ -663,11 +663,17 @@ export default function RegisterScreen() {
                   
                   <Text style={styles.termsText}>
                     J'accepte les{' '}
-                    <Text style={styles.termsLink}>
+                    <Text 
+                      style={styles.termsLink}
+                      onPress={() => router.push('/(legal)/terms')}
+                    >
                       conditions d'utilisation
                     </Text>
                     {' '}et la{' '}
-                    <Text style={styles.termsLink}>
+                    <Text 
+                      style={styles.termsLink}
+                      onPress={() => router.push('/(legal)/privacy')}
+                    >
                       politique de confidentialité
                     </Text>
                   </Text>

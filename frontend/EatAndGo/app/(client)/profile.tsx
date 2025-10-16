@@ -338,11 +338,11 @@ export default function ClientProfileScreen() {
                   badge={totalOrders > 0 ? totalOrders.toString() : undefined}
                 />
 
-                <ActionItem
+                {/* <ActionItem
                   icon="heart-outline"
                   title="Restaurants favoris"
                   onPress={() => router.push('/(client)/browse')}
-                />
+                /> */}
 
                 <ActionItem
                   icon="card-outline"
@@ -422,13 +422,13 @@ export default function ClientProfileScreen() {
                 <ActionItem
                   icon="document-text-outline"
                   title="Conditions d'utilisation"
-                  onPress={() => console.log('CGU')}
+                  onPress={() => router.push('/(legal)/terms')}
                 />
 
                 <ActionItem
                   icon="shield-outline"
                   title="Politique de confidentialité"
-                  onPress={() => console.log('Politique')}
+                  onPress={() => router.push('/(legal)/privacy')}
                 />
 
                 <ActionItem
