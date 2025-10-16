@@ -977,21 +977,53 @@ class Order(models.Model):
         super().save(*args, **kwargs)
     
     def generate_order_number(self):
-        """Génère un numéro de commande unique avec séquence table"""
+        """Génère un numéro de commande unique pour la production"""
+        from django.utils import timezone
+        from django.db.models import Max
+        import random
+        
         prefix = "T" if self.order_type == "dine_in" else "E"
         today = timezone.now().date()
         
-        # Compter toutes les commandes du jour pour ce restaurant
-        count = Order.objects.filter(
-            restaurant=self.restaurant,
-            created_at__date=today
-        ).count() + 1
-        
-        # Si c'est une commande de table avec séquence
+        # Pour les commandes de table avec séquence
         if self.table_number and hasattr(self, 'order_sequence'):
             return f"{prefix}{self.table_number}-{self.order_sequence:02d}"
         
-        return f"{prefix}{count:03d}"
+        # Méthode basée sur le max existant
+        last_order = Order.objects.filter(
+            restaurant=self.restaurant,
+            created_at__date=today,
+            order_number__regex=f'^{prefix}[0-9]+$'  # Seulement les numéros standard
+        ).aggregate(
+            max_num=Max('order_number')
+        )
+        
+        if last_order['max_num']:
+            try:
+                # Extraire le numéro du dernier order_number
+                last_num = int(last_order['max_num'][1:])
+                next_num = last_num + 1
+            except (ValueError, IndexError):
+                next_num = 1
+        else:
+            next_num = 1
+        
+        # Générer le numéro avec vérification anti-collision
+        max_attempts = 100
+        for attempt in range(max_attempts):
+            order_number = f"{prefix}{next_num:03d}"
+            
+            # Vérifier que ce numéro n'existe pas déjà
+            if not Order.objects.filter(order_number=order_number).exists():
+                return order_number
+            
+            next_num += 1
+        
+        # Fallback ultime : ajouter timestamp + random pour garantir l'unicité
+        # Format : E001_143525_42 (pour 14:35:25 + nombre aléatoire)
+        timestamp = timezone.now().strftime('%H%M%S')
+        random_suffix = random.randint(10, 99)
+        return f"{prefix}{next_num:03d}_{timestamp}_{random_suffix}"
     
     def set_order_sequence(self):
         """Définit la séquence de commande pour cette table"""
