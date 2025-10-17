@@ -4,7 +4,6 @@ import {
   Text,
   ScrollView,
   Pressable,
-  SafeAreaView,
   Alert,
   useWindowDimensions,
 } from 'react-native';
@@ -15,6 +14,9 @@ import { useClientOrders } from '../../hooks/client/useClientOrders';
 import { Header } from '../../components/ui/Header';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { LegalFooter } from '@/components/legal/LegalFooter';
+import { DownloadMyDataButton } from '@/components/legal/DownloadMyDataButton';
 
 export default function ClientProfileScreen() {
   const { user, logout, isClient } = useAuth();
@@ -406,6 +408,22 @@ export default function ClientProfileScreen() {
                   isLast
                 />
               </Card>
+              
+              {/* Données personnelles */}
+              <Card style={{ marginBottom: 20 }}>
+                <Text style={{
+                  fontSize: 18,
+                  fontWeight: '700',
+                  color: '#111827',
+                  marginBottom: 16,
+                  paddingHorizontal: 12,
+                }}>
+                  Mes données personnelles
+                </Text>
+                <View style={{ paddingHorizontal: 12 }}>
+                  <DownloadMyDataButton />
+                </View>
+              </Card>
 
               {/* Informations */}
               <Card style={{ marginBottom: 20 }}>
@@ -451,6 +469,7 @@ export default function ClientProfileScreen() {
           </View>
         </View>
       </ScrollView>
+      <LegalFooter />
     </SafeAreaView>
   );
 }

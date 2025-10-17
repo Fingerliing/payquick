@@ -19,9 +19,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Card } from '@/components/ui/Card';
 import { COLORS, SPACING, TYPOGRAPHY, SHADOWS, RADIUS } from '@/styles/tokens';
 import { useResponsive } from '@/utils/responsive';
+import { legalService } from '@/services/legalService';
 
 const APP_LOGO = require('@/assets/images/logo.png');
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -139,11 +139,18 @@ export default function RegisterScreen() {
 
   const handleSubmit = useCallback(async () => {
     if (!validateForm()) {
-      if (!acceptedTerms) {
-        Alert.alert('Conditions d\'utilisation', 'Veuillez accepter les conditions d\'utilisation pour continuer');
+      if (acceptedTerms) {
+        try {
+          await legalService.recordConsent({
+            terms_version: '1.0.0',
+            privacy_version: '1.0.0',
+            consent_date: new Date().toISOString(),
+          });
+        } catch (error) {
+          console.error('Erreur lors de l\'enregistrement du consentement:', error);
+        }
       }
-      return;
-    }
+    };
     
     setLoading(true);
     try {
