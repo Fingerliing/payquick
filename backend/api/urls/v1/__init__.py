@@ -40,4 +40,7 @@ urlpatterns = [
     # Administration et Stripe
     path('admin/', include('api.urls.v1.admin_urls')),
     path('stripe/', include('api.urls.v1.stripe_urls')),
+
+    # Mentions légales
+    path('legal/', include('api.urls.v1.legal_urls')),
 ]
