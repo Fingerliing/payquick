@@ -6,8 +6,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
@@ -25,8 +25,8 @@ interface LegalAcceptance {
 export function FirstLaunchLegalModal() {
   const router = useRouter();
   const [visible, setVisible] = useState(false);
-  const [hasReadTerms, setHasReadTerms] = useState(false);
-  const [hasReadPrivacy, setHasReadPrivacy] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
 
   useEffect(() => {
     checkLegalAcceptance();
@@ -42,7 +42,6 @@ export function FirstLaunchLegalModal() {
 
       const acceptance: LegalAcceptance = JSON.parse(stored);
       
-      // Vérifier si la version a changé
       if (acceptance.version !== LEGAL_VERSION) {
         setVisible(true);
       }
@@ -52,19 +51,16 @@ export function FirstLaunchLegalModal() {
     }
   };
 
-  const handleReadTerms = () => {
-    setHasReadTerms(true);
+  const openTerms = () => {
     router.push('/(legal)/terms');
   };
 
-  const handleReadPrivacy = () => {
-    setHasReadPrivacy(true);
+  const openPrivacy = () => {
     router.push('/(legal)/privacy');
   };
 
   const handleAccept = async () => {
-    if (!hasReadTerms || !hasReadPrivacy) {
-      alert('Veuillez lire les deux documents avant d\'accepter');
+    if (!termsAccepted || !privacyAccepted) {
       return;
     }
 
@@ -84,7 +80,7 @@ export function FirstLaunchLegalModal() {
     }
   };
 
-  const canAccept = hasReadTerms && hasReadPrivacy;
+  const canAccept = termsAccepted && privacyAccepted;
 
   if (!visible) return null;
 
@@ -92,89 +88,98 @@ export function FirstLaunchLegalModal() {
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType="slide"
       onRequestClose={() => {}}
     >
-      <SafeAreaView style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <ScrollView showsVerticalScrollIndicator={false}>
+      <View style={styles.modalOverlay}>
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.modalContent}>
             {/* En-tête */}
             <View style={styles.header}>
-              <Ionicons name="shield-checkmark" size={48} color="#1E40AF" />
-              <Text style={styles.title}>Bienvenue sur Eat&Go ! 🍽️</Text>
-              <Text style={styles.subtitle}>
-                Avant de commencer, veuillez prendre connaissance de nos
-                conditions et de notre politique de confidentialité.
-              </Text>
+              <Text style={styles.title}>Conditions d'utilisation</Text>
             </View>
 
-            {/* Documents à lire */}
-            <View style={styles.documentsContainer}>
-              {/* CGU */}
-              <TouchableOpacity
-                style={[
-                  styles.documentItem,
-                  hasReadTerms && styles.documentItemRead,
-                ]}
-                onPress={handleReadTerms}
-              >
-                <View style={styles.documentIcon}>
-                  <Ionicons
-                    name={hasReadTerms ? "checkmark-circle" : "document-text"}
-                    size={28}
-                    color={hasReadTerms ? "#10B981" : "#6B7280"}
-                  />
-                </View>
-                <View style={styles.documentInfo}>
-                  <Text style={styles.documentTitle}>
-                    Conditions Générales d'Utilisation
-                  </Text>
-                  <Text style={styles.documentDescription}>
-                    Vos droits et obligations lors de l'utilisation d'Eat&Go
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-              </TouchableOpacity>
+            <ScrollView 
+              style={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.content}>
+                <Text style={styles.description}>
+                  Veuillez lire et accepter les conditions suivantes pour
+                  continuer à utiliser Eat&Go.
+                </Text>
 
-              {/* Politique de confidentialité */}
-              <TouchableOpacity
-                style={[
-                  styles.documentItem,
-                  hasReadPrivacy && styles.documentItemRead,
-                ]}
-                onPress={handleReadPrivacy}
-              >
-                <View style={styles.documentIcon}>
-                  <Ionicons
-                    name={hasReadPrivacy ? "checkmark-circle" : "shield"}
-                    size={28}
-                    color={hasReadPrivacy ? "#10B981" : "#6B7280"}
-                  />
-                </View>
-                <View style={styles.documentInfo}>
-                  <Text style={styles.documentTitle}>
-                    Politique de Confidentialité
-                  </Text>
-                  <Text style={styles.documentDescription}>
-                    Comment nous protégeons vos données personnelles
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-              </TouchableOpacity>
-            </View>
+                {/* Checkboxes */}
+                <View style={styles.checkboxContainer}>
+                  {/* CGU */}
+                  <TouchableOpacity
+                    style={styles.checkboxRow}
+                    onPress={() => setTermsAccepted(!termsAccepted)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[
+                      styles.checkbox,
+                      termsAccepted && styles.checkboxChecked
+                    ]}>
+                      {termsAccepted && (
+                        <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+                      )}
+                    </View>
+                    <View style={styles.checkboxTextContainer}>
+                      <Text style={styles.checkboxLabel}>
+                        J'accepte les{' '}
+                        <Text 
+                          style={styles.link}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            openTerms();
+                          }}
+                        >
+                          Conditions Générales d'Utilisation
+                        </Text>
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
 
-            {/* Message de progression */}
-            {!canAccept && (
-              <View style={styles.progressMessage}>
-                <Ionicons name="information-circle" size={20} color="#F59E0B" />
-                <Text style={styles.progressText}>
-                  Veuillez consulter les deux documents avant de continuer
+                  {/* Politique de confidentialité */}
+                  <TouchableOpacity
+                    style={styles.checkboxRow}
+                    onPress={() => setPrivacyAccepted(!privacyAccepted)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[
+                      styles.checkbox,
+                      privacyAccepted && styles.checkboxChecked
+                    ]}>
+                      {privacyAccepted && (
+                        <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+                      )}
+                    </View>
+                    <View style={styles.checkboxTextContainer}>
+                      <Text style={styles.checkboxLabel}>
+                        J'accepte la{' '}
+                        <Text 
+                          style={styles.link}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            openPrivacy();
+                          }}
+                        >
+                          Politique de Confidentialité
+                        </Text>
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={styles.disclaimer}>
+                  En continuant, vous confirmez avoir lu et compris ces documents.
                 </Text>
               </View>
-            )}
+            </ScrollView>
 
-            {/* Boutons */}
-            <View style={styles.buttonsContainer}>
+            {/* Bouton fixe en bas */}
+            <View style={styles.footer}>
               <TouchableOpacity
                 style={[
                   styles.acceptButton,
@@ -182,25 +187,14 @@ export function FirstLaunchLegalModal() {
                 ]}
                 onPress={handleAccept}
                 disabled={!canAccept}
+                activeOpacity={0.8}
               >
-                <Ionicons 
-                  name="checkmark-circle" 
-                  size={24} 
-                  color="#FFFFFF" 
-                />
-                <Text style={styles.acceptButtonText}>
-                  J'accepte les conditions
-                </Text>
+                <Text style={styles.acceptButtonText}>Continuer</Text>
               </TouchableOpacity>
-
-              <Text style={styles.disclaimer}>
-                En acceptant, vous confirmez avoir lu et compris les conditions
-                d'utilisation et la politique de confidentialité.
-              </Text>
             </View>
-          </ScrollView>
-        </View>
-      </SafeAreaView>
+          </View>
+        </SafeAreaView>
+      </View>
     </Modal>
   );
 }
@@ -209,121 +203,104 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    padding: 20,
+    justifyContent: 'flex-end',
+  },
+  safeArea: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '85%',
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    maxHeight: '90%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 10,
+    flex: 1,
   },
   header: {
-    alignItems: 'center',
-    padding: 24,
+    paddingVertical: 20,
+    paddingHorizontal: 24,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
   title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#111827',
-    marginTop: 16,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 15,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  documentsContainer: {
-    padding: 20,
-    gap: 16,
-  },
-  documentItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
-  },
-  documentItemRead: {
-    backgroundColor: '#ECFDF5',
-    borderColor: '#10B981',
-  },
-  documentIcon: {
-    marginRight: 12,
-  },
-  documentInfo: {
-    flex: 1,
-  },
-  documentTitle: {
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: '600',
     color: '#111827',
-    marginBottom: 4,
+    textAlign: 'center',
   },
-  documentDescription: {
-    fontSize: 13,
-    color: '#6B7280',
-    lineHeight: 18,
-  },
-  progressMessage: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEF3C7',
-    padding: 12,
-    marginHorizontal: 20,
-    marginBottom: 16,
-    borderRadius: 8,
-    gap: 8,
-  },
-  progressText: {
+  scrollContent: {
     flex: 1,
-    fontSize: 13,
-    color: '#92400E',
-    fontWeight: '500',
   },
-  buttonsContainer: {
-    padding: 20,
+  content: {
+    padding: 24,
   },
-  acceptButton: {
+  description: {
+    fontSize: 15,
+    color: '#6B7280',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  checkboxContainer: {
+    gap: 16,
+    marginBottom: 24,
+  },
+  checkboxRow: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#10B981',
+    marginRight: 12,
+    marginTop: 2,
+  },
+  checkboxChecked: {
+    backgroundColor: '#2563EB',
+    borderColor: '#2563EB',
+  },
+  checkboxTextContainer: {
+    flex: 1,
+  },
+  checkboxLabel: {
+    fontSize: 15,
+    color: '#374151',
+    lineHeight: 22,
+  },
+  link: {
+    color: '#2563EB',
+    fontWeight: '500',
+    textDecorationLine: 'underline',
+  },
+  disclaimer: {
+    fontSize: 13,
+    color: '#9CA3AF',
+    lineHeight: 18,
+    textAlign: 'center',
+  },
+  footer: {
     padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+  },
+  acceptButton: {
+    backgroundColor: '#2563EB',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
     borderRadius: 12,
-    gap: 8,
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   acceptButtonDisabled: {
-    backgroundColor: '#D1D5DB',
-    shadowOpacity: 0,
-    elevation: 0,
+    backgroundColor: '#E5E7EB',
   },
   acceptButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
-  },
-  disclaimer: {
-    fontSize: 12,
-    color: '#6B7280',
-    textAlign: 'center',
-    marginTop: 12,
-    lineHeight: 18,
   },
 });
