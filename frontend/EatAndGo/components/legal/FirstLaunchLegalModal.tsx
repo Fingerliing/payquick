@@ -106,7 +106,7 @@ export function FirstLaunchLegalModal() {
               <View style={styles.content}>
                 <Text style={styles.description}>
                   Veuillez lire et accepter les conditions suivantes pour
-                  continuer à utiliser Eat&Go.
+                  continuer à utiliser EatQuicker.
                 </Text>
 
                 {/* Checkboxes */}

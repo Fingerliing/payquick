@@ -4,7 +4,7 @@ from django.template.loader import render_to_string
 def send_data_export_email(user, download_url):
     """Email avec lien de téléchargement des données"""
     
-    subject = 'Votre export de données Eat&Go est prêt'
+    subject = 'Votre export de données EatQuickeR est prêt'
     
     context = {
         'user_name': user.first_name,
@@ -22,13 +22,13 @@ def send_data_export_email(user, download_url):
     (valable 7 jours)
     
     Cordialement,
-    L'équipe Eat&Go
+    L'équipe EatQuickeR
     '''
     
     email = EmailMultiAlternatives(
         subject=subject,
         body=text_content,
-        from_email='privacy@eatandgo.com',
+        from_email='privacy@eatquicker.com',
         to=[user.email]
     )
     email.attach_alternative(html_content, "text/html")
@@ -38,7 +38,7 @@ def send_data_export_email(user, download_url):
 def send_account_deletion_confirmation(user, deletion_date):
     """Email de confirmation de suppression de compte"""
     
-    subject = 'Confirmation de suppression de compte Eat&Go'
+    subject = 'Confirmation de suppression de compte EatQuickeR'
     
     context = {
         'user_name': user.first_name,

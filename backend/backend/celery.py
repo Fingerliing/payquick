@@ -2,7 +2,7 @@
 from celery import Celery
 from celery.schedules import crontab
 
-app = Celery('eatandgo')
+app = Celery('eatquicker')
 app.config_from_object('django.conf:settings', namespace='CELERY')
 
 # Tâches planifiées

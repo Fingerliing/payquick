@@ -54,7 +54,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Permettre à EatAndGo d'accéder à la caméra pour scanner les QR codes des menus de restaurant."
+          "cameraPermission": "Permettre à EatQuickeR d'accéder à la caméra pour scanner les QR codes des menus de restaurant."
         }
       ],
       [

@@ -104,7 +104,7 @@ export const LegalDocument: React.FC<LegalDocumentProps> = ({
           </Text>
           <TouchableOpacity style={styles.contactItem}>
             <Ionicons name="mail" size={16} color="#1E40AF" />
-            <Text style={styles.contactLink}>support@eatandgo.com</Text>
+            <Text style={styles.contactLink}>support@eatquicker.com</Text>
           </TouchableOpacity>
           <View style={styles.contactItem}>
             <Ionicons name="location" size={16} color="#1E40AF" />

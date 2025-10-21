@@ -333,7 +333,7 @@ export default function ClientHome() {
           <View style={viewStyles.titleContainer}>
             <View style={viewStyles.decorativeBadge} />
             <Text style={textStyles.logo}>
-              Eat<Text style={textStyles.logoAccent}>&</Text>Go
+              Eat<Text style={textStyles.logoAccent}></Text>QuickeR
             </Text>
             <Text style={textStyles.subtitle}>Commandez facilement</Text>
           </View>

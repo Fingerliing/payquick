@@ -1,4 +1,4 @@
-import { User, LoginCredentials, RegisterData } from '../types/auth';
+import { User, LoginCredentials, RegisterCredentials } from '../types/auth';
 import { apiClient } from './api';
 
 export class AuthService {
@@ -6,7 +6,7 @@ export class AuthService {
     return apiClient.post('/auth/login/', credentials);
   }
 
-  async register(data: RegisterData): Promise<{ user: User; token: string }> {
+  async register(data: RegisterCredentials): Promise<{ user: User; token: string }> {
     return apiClient.post('/auth/register/', data);
   }
 
@@ -35,7 +35,7 @@ export class AuthService {
   }
 
   async uploadAvatar(file: FormData): Promise<User> {
-    return apiClient.upload('/auth/avatar/', file);
+    return apiClient.post('/auth/avatar/', file);
   }
 }
 

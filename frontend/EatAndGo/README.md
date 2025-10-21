@@ -36,7 +36,7 @@ npm start
 ### Structure du projet
 
 ```
-payquick-mobile/
+EatQuickeR/
 ├── app/                    # Routes et écrans (Expo Router)
 │   ├── (auth)/            # Écrans d'authentification
 │   ├── (tabs)/            # Navigation par onglets
@@ -201,5 +201,5 @@ Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
 ## 📞 Support
 
 Pour toute question ou support, contactez-nous :
-- Email: support@payquick.com
+- Email: support@eatquicker.com
 - Issues GitHub: [Créer un ticket](https://github.com/your-repo/issues)

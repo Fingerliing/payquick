@@ -421,7 +421,7 @@ export default function ProfileScreen() {
             {/* Footer */}
             <View style={styles.footer}>
               <Text style={styles.version}>
-                Eat&Go v1.0.0
+                EatQuickeR v1.0.0
               </Text>
             </View>
             

@@ -76,7 +76,7 @@ export function DownloadMyDataButton() {
       const jsonData = JSON.stringify(userData, null, 2);
       
       const timestamp = new Date().toISOString().split('T')[0];
-      const filename = `eatandgo_export_${currentUser.id}_${timestamp}.json`;
+      const filename = `eatquicker_export_${currentUser.id}_${timestamp}.json`;
       fileUri = `${FileSystem.documentDirectory}${filename}`;
 
       // Utiliser writeAsStringAsync - la méthode recommandée et stable
@@ -94,7 +94,7 @@ export function DownloadMyDataButton() {
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(fileUri, {
           mimeType: 'application/json',
-          dialogTitle: 'Télécharger mes données Eat&Go',
+          dialogTitle: 'Télécharger mes données EatQuickeR',
           UTI: 'public.json',
         });
         

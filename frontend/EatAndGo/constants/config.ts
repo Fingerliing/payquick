@@ -19,7 +19,7 @@ export const STRIPE_PUBLISHABLE_KEY = __DEV__
 
 // Configuration générale de l'app
 export const APP_CONFIG = {
-  name: 'Eat&Go',
+  name: 'EatQuickeR',
   version: Constants.expoConfig?.version || '1.0.0',
   buildNumber: Constants.expoConfig?.ios?.buildNumber || Constants.expoConfig?.android?.versionCode || '1',
 };
@@ -81,8 +81,8 @@ export const COLORS = {
 // app.config.js (configuration Expo)
 export default {
   expo: {
-    name: 'Eat&Go',
-    slug: 'eatandgo',
+    name: 'EatQuickeR',
+    slug: 'eatquicker',
     version: '1.0.0',
     orientation: 'portrait',
     icon: './assets/icon.png',
@@ -97,7 +97,7 @@ export default {
     ],
     ios: {
       supportsTablet: true,
-      bundleIdentifier: 'com.yourcompany.eatandgo',
+      bundleIdentifier: 'com.yourcompany.eatquicker',
       buildNumber: '1.0.0'
     },
     android: {
@@ -105,7 +105,7 @@ export default {
         foregroundImage: './assets/adaptive-icon.png',
         backgroundColor: '#FFFFFF'
       },
-      package: 'com.yourcompany.eatandgo',
+      package: 'com.yourcompany.eatquicker',
       versionCode: 1
     },
     web: {

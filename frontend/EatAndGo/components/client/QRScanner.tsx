@@ -29,7 +29,7 @@ export default function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
       console.log('❌ QR Code invalide:', data);
       Alert.alert(
         'QR Code invalide',
-        `Ce QR code ne correspond pas à un restaurant Eat&Go\n\nValeur scannée: ${data}`,
+        `Ce QR code ne correspond pas à un restaurant EatQuickeR\n\nValeur scannée: ${data}`,
         [
           { text: 'Réessayer', onPress: () => setIsScanning(true) },
           { text: 'Annuler', onPress: onClose }
@@ -104,9 +104,9 @@ export default function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
   };
 
   // 🗑️ ANCIENNE FONCTION - remplacée par extractAndValidateCode
-  const isValidEatAndGoQR = (data: string): boolean => {
+  const isValidEatQuickeRQR = (data: string): boolean => {
     // Cette fonction n'est plus utilisée
-    return data.includes('eatandgo') || 
+    return data.includes('eatquicker') || 
            data.includes('restaurant') || 
            /restaurant[\/=]\d+/i.test(data);
   };

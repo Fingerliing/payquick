@@ -1,5 +1,5 @@
 export const APP_CONFIG = {
-  name: 'Eat&Go',
+  name: 'EatQuickeR',
   version: '1.0.0',
   api: {
     baseUrl: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000',
@@ -47,8 +47,8 @@ export const ERROR_MESSAGES = {
 // Configuration Expo mise à jour
 export const EXPO_CONFIG = {
   expo: {
-    name: 'Eat&Go',
-    slug: 'eatandgo',
+    name: 'EatQuickeR',
+    slug: 'eatquicker',
     version: '1.0.0',
     orientation: 'portrait',
     icon: './assets/icon.png',
@@ -61,7 +61,7 @@ export const EXPO_CONFIG = {
     assetBundlePatterns: ['**/*'],
     ios: {
       supportsTablet: true,
-      bundleIdentifier: 'com.yourcompany.eatandgo',
+      bundleIdentifier: 'com.yourcompany.eatquicker',
       buildNumber: '1.0.0'
     },
     android: {
@@ -69,7 +69,7 @@ export const EXPO_CONFIG = {
         foregroundImage: './assets/adaptive-icon.png',
         backgroundColor: '#1E2A78' // Couleur principale de la marque
       },
-      package: 'com.yourcompany.eatandgo',
+      package: 'com.yourcompany.eatquicker',
       versionCode: 1
     },
     web: {

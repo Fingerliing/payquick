@@ -122,7 +122,7 @@ ASGI_APPLICATION = 'backend.asgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'eatandgo',
+        'NAME': 'eatquicker',
         'USER': 'eatuser',
         'PASSWORD': 'eatpass',
         'HOST': 'db',
@@ -268,7 +268,7 @@ else:
     EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
     EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 
-DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@eatandgo.com')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@eatquicker.com')
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
 
 # Twilio Configuration

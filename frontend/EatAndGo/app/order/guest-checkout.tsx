@@ -163,7 +163,7 @@ export default function GuestCheckoutScreen() {
       }
 
       const { error: initError } = await initPaymentSheet({
-        merchantDisplayName: "EatAndGo",
+        merchantDisplayName: "EatQuickeR",
         paymentIntentClientSecret: resp.payment_intent_client_secret,
         defaultBillingDetails: {
           name: name.trim(),

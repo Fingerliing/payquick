@@ -78,7 +78,7 @@ def send_data_export_email(user, download_url):
         user: Utilisateur
         download_url: URL de téléchargement
     """
-    subject = 'Votre export de données Eat&Go est prêt'
+    subject = 'Votre export de données EatQuickeR est prêt'
     
     context = {
         'user_name': user.first_name or user.username,
@@ -98,9 +98,9 @@ Lien de téléchargement : {download_url}
 Cet export contient toutes vos données personnelles conformément à l'Article 20 du RGPD.
 
 Cordialement,
-L'équipe Eat&Go
+L'équipe EatQuickeR
 Privacy Team
-privacy@eatandgo.com
+privacy@eatquicker.com
     '''
     
     # Version HTML (optionnel, nécessite un template)
@@ -137,7 +137,7 @@ def send_account_deletion_email(user, deletion_date):
         user: Utilisateur
         deletion_date: Date prévue de suppression
     """
-    subject = 'Confirmation de suppression de compte Eat&Go'
+    subject = 'Confirmation de suppression de compte EatQuickeR'
     
     message = f'''
 Bonjour {user.first_name or user.username},
@@ -151,10 +151,10 @@ Toutes vos données personnelles seront définitivement effacées, à l'exceptio
 
 Si vous changez d'avis, reconnectez-vous avant cette date pour annuler la suppression.
 
-Pour toute question, contactez-nous : privacy@eatandgo.com
+Pour toute question, contactez-nous : privacy@eatquicker.com
 
 Cordialement,
-L'équipe Eat&Go
+L'équipe EatQuickeR
 Privacy Team
     '''
     
@@ -416,7 +416,7 @@ def request_data_export(request):
         
         # Pour l'instant, on envoie juste un email de confirmation
         send_mail(
-            subject='Export de vos données Eat&Go en cours',
+            subject='Export de vos données EatQuickeR en cours',
             message=f'''Bonjour {user.first_name or user.username},
 
 Nous avons bien reçu votre demande d'export de données.
@@ -426,8 +426,8 @@ Votre export sera prêt sous 48 heures maximum. Vous recevrez un email avec un l
 Le lien sera valable 7 jours.
 
 Cordialement,
-L'équipe Eat&Go
-privacy@eatandgo.com
+L'équipe EatQuickeR
+privacy@eatquicker.com
             ''',
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[user.email],
@@ -581,17 +581,17 @@ def cancel_account_deletion(request):
         
         # Envoyer un email de confirmation
         send_mail(
-            subject='Annulation de la suppression de compte Eat&Go',
+            subject='Annulation de la suppression de compte EatQuickeR',
             message=f'''Bonjour {user.first_name or user.username},
 
 Votre demande de suppression de compte a été annulée avec succès.
 
 Votre compte est de nouveau actif et toutes vos données sont conservées.
 
-Bienvenue de retour sur Eat&Go !
+Bienvenue de retour sur EatQuickeR !
 
 Cordialement,
-L'équipe Eat&Go
+L'équipe EatQuickeR
             ''',
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[user.email],

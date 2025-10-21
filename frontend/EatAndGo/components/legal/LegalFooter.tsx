@@ -8,7 +8,7 @@ export function LegalFooter() {
   return (
     <View style={styles.footer}>
       <Text style={styles.copyright}>
-        © 2025 Eat&Go. Tous droits réservés.
+        © 2025 EatQuicker. Tous droits réservés.
       </Text>
       
       <View style={styles.links}>

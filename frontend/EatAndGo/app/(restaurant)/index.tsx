@@ -722,7 +722,7 @@ export default function DashboardScreen() {
   if (isInitialLoading && !hasData) {
     return (
       <View style={styles.container}>
-        <Header title="Eat&Go" />
+        <Header title="EatQuickeR" />
         <Loading fullScreen text="Chargement du tableau de bord..." />
       </View>
     );
@@ -731,7 +731,7 @@ export default function DashboardScreen() {
   return (
     <View style={styles.container}>
       <Header
-        title="Eat&Go"
+        title="EatQuickeR"
         showLogout
         logoutPosition="left"
         rightIcon="notifications-outline"
@@ -1088,7 +1088,7 @@ export default function DashboardScreen() {
                   <Ionicons title="lightbulb" size={28} color={COLORS.text.inverse} />
                 </View>
                 <Text style={styles.helpTitle}>
-                  Commencer avec Eat&Go
+                  Commencer avec EatQuickeR
                 </Text>
                 <Text style={styles.helpText}>
                   Créez votre premier restaurant pour commencer à recevoir des commandes en ligne et développer votre activité.

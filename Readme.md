@@ -1,8 +1,8 @@
-# 🍽️ Eat&Go
+# 🍽️ EatQuickeR
 
 **Solution de commande à table digitale pour restaurants**
 
-Eat&Go révolutionne l'expérience de restauration en permettant aux clients de commander directement depuis leur table en scannant un QR code, tout en offrant aux restaurateurs un système de gestion complet et temps réel.
+EatQuickeR révolutionne l'expérience de restauration en permettant aux clients de commander directement depuis leur table en scannant un QR code, tout en offrant aux restaurateurs un système de gestion complet et temps réel.
 
 ## 🚀 Concept
 
@@ -35,7 +35,7 @@ Eat&Go révolutionne l'expérience de restauration en permettant aux clients de 
 ## 📁 Structure du projet
 
 ```
-eatandgo/
+eatquicker/
 ├── backend/                 # API Django
 │   ├── api/                # Application principale
 │   │   ├── models/         # Modèles (Restaurant, Table, Order, etc.)
@@ -45,7 +45,7 @@ eatandgo/
 │   ├── requirements.txt    # Dépendances Python
 │   └── manage.py          # Script Django
 ├── frontend/               # Application React
-│   └── EatAndGo/          # Code source React
+│   └── EatQuickeR/          # Code source React
 │       ├── src/
 │       │   ├── components/ # Composants React
 │       │   │   ├── Restaurant/  # Interface restaurateur
@@ -117,7 +117,7 @@ python manage.py runserver  # http://localhost:8000
 
 ### 3. Configuration Frontend
 ```bash
-cd frontend/EatAndGo
+cd frontend/EatQuickeR
 
 # Installation dépendances Node.js
 npm install
@@ -141,7 +141,7 @@ npm start  # ws://localhost:8080
 ```env
 SECRET_KEY=votre-clé-secrète-django
 DEBUG=True
-DATABASE_URL=postgresql://user:password@localhost/eatandgo_db
+DATABASE_URL=postgresql://user:password@localhost/eatquicker_db
 QR_CODE_BASE_URL=https://votre-domaine.com/table/
 WEBSOCKET_URL=ws://localhost:8080
 ```
@@ -263,7 +263,7 @@ python manage.py test
 
 ### Frontend
 ```bash
-cd frontend/EatAndGo  
+cd frontend/EatQuickeR 
 npm test
 ```
 
@@ -296,7 +296,7 @@ npm test
 ### Déploiement Heroku
 ```bash
 # Configuration Heroku
-heroku create eatandgo-app
+heroku create eatquicker-app
 heroku addons:create heroku-postgresql:basic
 
 # Variables d'environnement
@@ -350,9 +350,9 @@ Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de 
 
 Pour toute question ou suggestion :
 - 🐛 **Issues** : [GitHub Issues](https://github.com/Fingerliing/payquick/issues)
-- 📧 **Email** : support@eatandgo.com
+- 📧 **Email** : support@eatquicker.com
 - 📚 **Documentation** : [Wiki du projet](https://github.com/Fingerliing/payquick/wiki)
 
 ---
 
-**Eat&Go** - *Révolutionnez votre expérience de restauration* 🍽️✨
+**EatQuickeR** - *Révolutionnez votre expérience de restauration* 🍽️✨

@@ -29,7 +29,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data/
     environment:
-      POSTGRES_DB: eatandgo
+      POSTGRES_DB: eatquicker
       POSTGRES_USER: eatuser
       POSTGRES_PASSWORD: eatpass
     ports:

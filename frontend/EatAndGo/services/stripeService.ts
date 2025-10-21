@@ -97,7 +97,7 @@ class StripeService {
     }
   }
 
-  /** Parse le retour de deep link (eatandgo://stripe/...) défini côté backend */
+  /** Parse le retour de deep link (eatquicker://stripe/...) défini côté backend */
   parseOnboardingReturn(url: string): OnboardingReturn {
     try {
       const { pathname } = new URL(url);

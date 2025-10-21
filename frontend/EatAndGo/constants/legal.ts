@@ -7,14 +7,14 @@ export const TERMS_OF_SERVICE = {
       subsections: [
         {
           title: "Objet",
-          content: "Les présentes Conditions Générales d'Utilisation (ci-après « CGU ») régissent l'utilisation de la plateforme Eat&Go (ci-après la « Plateforme »), accessible via l'application mobile et le site web, permettant aux clients de commander directement depuis leur table dans les restaurants partenaires."
+          content: "Les présentes Conditions Générales d'Utilisation (ci-après « CGU ») régissent l'utilisation de la plateforme EatQuickeR (ci-après la « Plateforme »), accessible via l'application mobile et le site web, permettant aux clients de commander directement depuis leur table dans les restaurants partenaires."
         },
         {
           title: "Éditeur",
-          content: "La Plateforme Eat&Go est éditée par [NOM DE VOTRE SOCIÉTÉ]",
+          content: "La Plateforme EatQuickeR est éditée par [NOM DE VOTRE SOCIÉTÉ]",
           bulletPoints: [
             "Siège social : [ADRESSE]",
-            "Email : support@eatandgo.com",
+            "Email : support@eatquicker.com",
             "SIRET : [NUMÉRO SIRET]",
             "TVA intracommunautaire : [NUMÉRO TVA]"
           ]
@@ -34,7 +34,7 @@ export const TERMS_OF_SERVICE = {
         },
         {
           title: "Modifications",
-          content: "Eat&Go se réserve le droit de modifier les présentes CGU à tout moment. Les utilisateurs seront informés des modifications par notification dans l'application ou par email. La poursuite de l'utilisation après modification vaut acceptation des nouvelles conditions."
+          content: "EatQuickeR se réserve le droit de modifier les présentes CGU à tout moment. Les utilisateurs seront informés des modifications par notification dans l'application ou par email. La poursuite de l'utilisation après modification vaut acceptation des nouvelles conditions."
         }
       ]
     },
@@ -46,7 +46,7 @@ export const TERMS_OF_SERVICE = {
           title: "Termes clés",
           content: "",
           bulletPoints: [
-            "Plateforme : Désigne l'application mobile Eat&Go et ses services associés",
+            "Plateforme : Désigne l'application mobile EatQuickeR et ses services associés",
             "Utilisateur : Toute personne utilisant la Plateforme (Client ou Restaurateur)",
             "Client : Personne physique commandant via la Plateforme dans un restaurant partenaire",
             "Restaurateur : Professionnel inscrit sur la Plateforme pour recevoir des commandes",
@@ -239,8 +239,8 @@ export const TERMS_OF_SERVICE = {
       title: "RESPONSABILITÉS",
       subsections: [
         {
-          title: "Responsabilité d'Eat&Go",
-          content: "Eat&Go :",
+          title: "Responsabilité d'EatQuickeR",
+          content: "EatQuickeR :",
           bulletPoints: [
             "Met à disposition une plateforme technique de mise en relation",
             "N'est pas responsable de la qualité des produits servis par les restaurants",
@@ -266,7 +266,7 @@ export const TERMS_OF_SERVICE = {
       subsections: [
         {
           title: "Collecte des données",
-          content: "Eat&Go collecte et traite les données personnelles conformément à la réglementation RGPD. Pour plus d'informations, consultez notre Politique de Confidentialité."
+          content: "EatQuickeR collecte et traite les données personnelles conformément à la réglementation RGPD. Pour plus d'informations, consultez notre Politique de Confidentialité."
         },
         {
           title: "Finalités du traitement",
@@ -295,7 +295,7 @@ export const TERMS_OF_SERVICE = {
     },
     {
       title: "CONTACT",
-      content: "Pour toute question concernant les présentes CGU, contactez-nous à support@eatandgo.com"
+      content: "Pour toute question concernant les présentes CGU, contactez-nous à support@eatquicker.com"
     }
   ]
 };
@@ -306,7 +306,7 @@ export const PRIVACY_POLICY = {
   sections: [
     {
       title: "INTRODUCTION",
-      content: "Eat&Go s'engage à protéger votre vie privée. Cette politique explique comment nous collectons, utilisons et protégeons vos données personnelles."
+      content: "EatQuickeR s'engage à protéger votre vie privée. Cette politique explique comment nous collectons, utilisons et protégeons vos données personnelles."
     },
     // Ajoutez les autres sections de la politique de confidentialité ici
   ]
