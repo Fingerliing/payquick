@@ -22,15 +22,24 @@ interface LegalAcceptance {
   privacyAccepted: boolean;
 }
 
-export function FirstLaunchLegalModal() {
+interface FirstLaunchLegalModalProps {
+  isAuthenticated?: boolean; // Ajout d'une prop pour vérifier l'état de connexion
+}
+
+export function FirstLaunchLegalModal({ isAuthenticated = false }: FirstLaunchLegalModalProps) {
   const router = useRouter();
   const [visible, setVisible] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
 
   useEffect(() => {
-    checkLegalAcceptance();
-  }, []);
+    // Ne vérifier que si l'utilisateur est connecté
+    if (isAuthenticated) {
+      checkLegalAcceptance();
+    } else {
+      setVisible(false);
+    }
+  }, [isAuthenticated]);
 
   const checkLegalAcceptance = async () => {
     try {
