@@ -246,13 +246,12 @@ export default function LoginScreen() {
       shadowOpacity: 0.3,
       shadowRadius: 8,
       elevation: 6,
+      overflow: 'hidden' as const,
     },
     logoImage: {
-      width: getResponsiveValue(40, 44, 48),
-      height: getResponsiveValue(40, 44, 48),
-      borderRadius: RADIUS.full,
-    },
-    
+      width: '100%' as const,
+      height: '100%' as const,
+    },    
     logoFallback: {
       width: getSpacing(40, 46, 52),
       height: getSpacing(40, 46, 52),
@@ -413,13 +412,11 @@ export default function LoginScreen() {
         {/* Contenu centré */}
         <View style={styles.headerContent}>
           <View style={styles.logoImageContainer}>
-            <View style={styles.logoImageContainer}>
-              <Image 
-                source={APP_LOGO}
-                style={styles.logoImage}
-                resizeMode="contain"
-              />
-            </View>
+            <Image 
+              source={APP_LOGO}
+              style={styles.logoImage}
+              resizeMode="cover"
+            />
           </View>
           <Text style={styles.headerTitle}>Ravis de vous voir</Text>
           <Text style={styles.headerSubtitle}>Connectez-vous pour continuer</Text>
