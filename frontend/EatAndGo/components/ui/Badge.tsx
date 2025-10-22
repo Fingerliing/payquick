@@ -1,7 +1,13 @@
-
 import React from 'react';
 import { View, Text, ViewStyle, TextStyle } from 'react-native';
-import { COLORS, TYPOGRAPHY, SPACING, RADIUS } from '@/styles/tokens';
+import { 
+  COLORS, 
+  TYPOGRAPHY, 
+  SPACING, 
+  BORDER_RADIUS,
+  useScreenType,
+  getResponsiveValue 
+} from '@/utils/designSystem';
 
 interface BadgeProps {
   text: string;
@@ -16,62 +22,64 @@ export const Badge: React.FC<BadgeProps> = ({
   size = 'md',
   style,
 }) => {
-  // ✅ COULEURS PAR VARIANTE
+  const screenType = useScreenType();
+
+  // COULEURS PAR VARIANTE
   const getVariantStyles = () => {
     switch (variant) {
       case 'primary':
         return {
-          backgroundColor: COLORS.primary_pale,
+          backgroundColor: COLORS.variants.primary[100],
           textColor: COLORS.primary,
         };
       case 'secondary':
         return {
-          backgroundColor: COLORS.secondary_pale,
-          textColor: COLORS.secondary_dark,
+          backgroundColor: COLORS.variants.secondary[100],
+          textColor: COLORS.variants.secondary[700],
         };
       case 'success':
         return {
-          backgroundColor: '#DCFCE7',
+          backgroundColor: '#DCFCE7', // Vert pâle (à ajouter au design system si utilisé souvent)
           textColor: COLORS.success,
         };
       case 'warning':
         return {
-          backgroundColor: '#FEF3C7',
+          backgroundColor: COLORS.variants.secondary[200],
           textColor: COLORS.warning,
         };
       case 'error':
         return {
-          backgroundColor: '#FEE2E2',
+          backgroundColor: '#FEE2E2', // Rouge pâle (à ajouter au design system si utilisé souvent)
           textColor: COLORS.error,
         };
       default:
         return {
-          backgroundColor: COLORS.neutral[100],
-          textColor: COLORS.neutral[700],
+          backgroundColor: COLORS.border.light,
+          textColor: COLORS.text.secondary,
         };
     }
   };
 
-  // ✅ TAILLES RESPONSIVES
+  // TAILLES RESPONSIVES
   const getSizeStyles = () => {
     switch (size) {
       case 'sm':
         return {
-          paddingHorizontal: SPACING.sm,
-          paddingVertical: SPACING.xs,
-          fontSize: TYPOGRAPHY.fontSize.xs,
+          paddingHorizontal: getResponsiveValue(SPACING.sm, screenType),
+          paddingVertical: getResponsiveValue(SPACING.xs, screenType),
+          fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
         };
       case 'lg':
         return {
-          paddingHorizontal: SPACING.lg,
-          paddingVertical: SPACING.sm,
-          fontSize: TYPOGRAPHY.fontSize.base,
+          paddingHorizontal: getResponsiveValue(SPACING.lg, screenType),
+          paddingVertical: getResponsiveValue(SPACING.sm, screenType),
+          fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
         };
       default:
         return {
-          paddingHorizontal: SPACING.md,
-          paddingVertical: SPACING.xs,
-          fontSize: TYPOGRAPHY.fontSize.sm,
+          paddingHorizontal: getResponsiveValue(SPACING.md, screenType),
+          paddingVertical: getResponsiveValue(SPACING.xs, screenType),
+          fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
         };
     }
   };
@@ -80,7 +88,7 @@ export const Badge: React.FC<BadgeProps> = ({
   const sizeStyles = getSizeStyles();
 
   const containerStyle: ViewStyle = {
-    borderRadius: RADIUS.badge,
+    borderRadius: BORDER_RADIUS.full,
     backgroundColor: variantStyles.backgroundColor,
     paddingHorizontal: sizeStyles.paddingHorizontal,
     paddingVertical: sizeStyles.paddingVertical,

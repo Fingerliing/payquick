@@ -9,11 +9,14 @@ import {
   TextInputProps,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '@/styles/tokens/colors';
-import { TYPOGRAPHY } from '@/styles/tokens/typography';
-import { SPACING } from '@/styles/tokens/spacing';
-import { RADIUS } from '@/styles/tokens/radius';
-import { useResponsive } from '@/utils/responsive';
+import {
+  COLORS,
+  TYPOGRAPHY,
+  SPACING,
+  BORDER_RADIUS,
+  useScreenType,
+  getResponsiveValue,
+} from '@/utils/designSystem';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -41,47 +44,47 @@ export const Input = forwardRef<TextInput, InputProps>(({
   ...props
 }, ref) => {
   const [isFocused, setIsFocused] = useState(false);
-  const { getSpacing, getFontSize } = useResponsive();
+  const screenType = useScreenType();
   
   const hasError = !!error;
   const hasValue = !!props.value || !!props.defaultValue;
 
-  // ✅ STYLES RESPONSIVES
+  // STYLES RESPONSIVES
   const containerStyle: ViewStyle = {
     width: fullWidth ? '100%' : undefined,
-    marginBottom: getSpacing(SPACING.md, SPACING.lg),
+    marginBottom: getResponsiveValue(SPACING.md, screenType),
   };
 
   const labelStyle: TextStyle = {
-    fontSize: getFontSize(14, 15, 16),
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
     fontWeight: TYPOGRAPHY.fontWeight.medium,
     color: hasError ? COLORS.error : COLORS.text.primary,
-    marginBottom: getSpacing(SPACING.xs, SPACING.sm),
+    marginBottom: getResponsiveValue(SPACING.xs, screenType),
   };
 
   const inputContainerStyle: ViewStyle = {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1.5,
-    borderRadius: RADIUS.input,
-    backgroundColor: COLORS.surface.primary,
+    borderRadius: BORDER_RADIUS.lg,
+    backgroundColor: COLORS.surface,
     borderColor: hasError 
       ? COLORS.error 
       : isFocused 
         ? COLORS.primary 
         : COLORS.border.light,
-    paddingHorizontal: getSpacing(SPACING.md, SPACING.lg),
-    paddingVertical: getSpacing(SPACING.sm, SPACING.md),
-    minHeight: getSpacing(48, 52, 56),
+    paddingHorizontal: getResponsiveValue(SPACING.md, screenType),
+    paddingVertical: getResponsiveValue(SPACING.sm, screenType),
+    minHeight: getResponsiveValue({ mobile: 48, tablet: 52, desktop: 56 }, screenType),
   };
 
   const textInputStyle: TextStyle = {
     flex: 1,
-    fontSize: getFontSize(16, 17, 18),
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
     color: COLORS.text.primary,
     paddingVertical: 0,
-    marginLeft: leftIcon ? SPACING.sm : 0,
-    marginRight: rightIcon ? SPACING.sm : 0,
+    marginLeft: leftIcon ? getResponsiveValue(SPACING.sm, screenType) : 0,
+    marginRight: rightIcon ? getResponsiveValue(SPACING.sm, screenType) : 0,
     ...(style as TextStyle),
   };
 
@@ -89,12 +92,12 @@ export const Input = forwardRef<TextInput, InputProps>(({
     ? COLORS.error 
     : isFocused 
       ? COLORS.primary 
-      : COLORS.text.tertiary;
+      : COLORS.text.light;
 
   const messageStyle: TextStyle = {
-    fontSize: getFontSize(12, 13, 14),
-    marginTop: SPACING.xs,
-    color: hasError ? COLORS.error : COLORS.text.tertiary,
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
+    marginTop: getResponsiveValue(SPACING.xs, screenType),
+    color: hasError ? COLORS.error : COLORS.text.light,
   };
 
   return (
@@ -116,7 +119,7 @@ export const Input = forwardRef<TextInput, InputProps>(({
         <TextInput
           ref={ref}
           style={textInputStyle}
-          placeholderTextColor={COLORS.text.white}
+          placeholderTextColor={COLORS.text.light}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           {...props}

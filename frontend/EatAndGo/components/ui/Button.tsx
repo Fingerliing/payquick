@@ -8,11 +8,18 @@ import {
   TouchableOpacityProps,
   View,
 } from 'react-native';
-import { COLORS, TYPOGRAPHY, SPACING, RADIUS, SHADOWS } from '@/styles/tokens';
-import { useResponsive } from '@/utils/responsive';
+import { 
+  COLORS, 
+  TYPOGRAPHY, 
+  SPACING, 
+  BORDER_RADIUS, 
+  SHADOWS,
+  useScreenType,
+  getResponsiveValue 
+} from '@/utils/designSystem';
 
 interface ButtonProps extends Omit<TouchableOpacityProps, 'style'> {
-  title?: string; // Rendre optionnel au cas où il y a seulement des icônes
+  title?: string;
   loading?: boolean;
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive';
   size?: 'sm' | 'md' | 'lg';
@@ -36,7 +43,7 @@ export const Button: React.FC<ButtonProps> = ({
   textStyle: textStyleProp,
   ...props
 }) => {
-  const { isMobile, getSpacing } = useResponsive();
+  const screenType = useScreenType();
   const isDisabled = disabled || loading;
 
   // Fonction pour sécuriser le texte
@@ -47,50 +54,49 @@ export const Button: React.FC<ButtonProps> = ({
     return String(text);
   };
 
-  // STYLES RESPONSIFS PAR TAILLE
+  // STYLES RESPONSIFVE PAR TAILLE
   const getSizeStyles = () => {
-    const paddingH = getSpacing(
-      isMobile ? SPACING.md : SPACING.lg,
-      SPACING.lg,
-      SPACING.xl
-    );
+    const basePadding = getResponsiveValue(SPACING.lg, screenType);
 
     switch (size) {
       case 'sm':
         return {
-          paddingVertical: SPACING.sm,
-          paddingHorizontal: paddingH * 0.75,
+          paddingVertical: getResponsiveValue(SPACING.sm, screenType),
+          paddingHorizontal: basePadding * 0.75,
           minHeight: 36,
-          fontSize: 14,
-          fontWeight: '600' as const,
+          fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+          fontWeight: TYPOGRAPHY.fontWeight.semibold,
         };
       case 'lg':
         return {
-          paddingVertical: SPACING.lg,
-          paddingHorizontal: paddingH * 1.25,
+          paddingVertical: getResponsiveValue(SPACING.lg, screenType),
+          paddingHorizontal: basePadding * 1.25,
           minHeight: 56,
-          fontSize: 18,
-          fontWeight: '600' as const,
+          fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
+          fontWeight: TYPOGRAPHY.fontWeight.semibold,
         };
       default:
         return {
-          paddingVertical: SPACING.md,
-          paddingHorizontal: paddingH,
+          paddingVertical: getResponsiveValue(SPACING.md, screenType),
+          paddingHorizontal: basePadding,
           minHeight: 48,
-          fontSize: 16,
-          fontWeight: '600' as const,
+          fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
+          fontWeight: TYPOGRAPHY.fontWeight.semibold,
         };
     }
   };
 
   // STYLES PAR VARIANTE
   const getVariantStyles = () => {
+    const sizeStyles = getSizeStyles();
     const baseStyle: ViewStyle = {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: RADIUS.button,
-      ...getSizeStyles(),
+      borderRadius: BORDER_RADIUS.lg,
+      paddingVertical: sizeStyles.paddingVertical,
+      paddingHorizontal: sizeStyles.paddingHorizontal,
+      minHeight: sizeStyles.minHeight,
     };
 
     switch (variant) {
@@ -102,9 +108,9 @@ export const Button: React.FC<ButtonProps> = ({
             ...SHADOWS.sm,
           },
           text: { 
-            color: COLORS.text.white || '#FFFFFF',
-            fontSize: getSizeStyles().fontSize,
-            fontWeight: getSizeStyles().fontWeight,
+            color: COLORS.text.inverse,
+            fontSize: sizeStyles.fontSize,
+            fontWeight: sizeStyles.fontWeight,
           },
         };
 
@@ -116,9 +122,9 @@ export const Button: React.FC<ButtonProps> = ({
             ...SHADOWS.sm,
           },
           text: { 
-            color: COLORS.text.primary || '#000000',
-            fontSize: getSizeStyles().fontSize,
-            fontWeight: getSizeStyles().fontWeight,
+            color: COLORS.text.primary,
+            fontSize: sizeStyles.fontSize,
+            fontWeight: sizeStyles.fontWeight,
           },
         };
 
@@ -132,8 +138,8 @@ export const Button: React.FC<ButtonProps> = ({
           },
           text: { 
             color: COLORS.primary,
-            fontSize: getSizeStyles().fontSize,
-            fontWeight: getSizeStyles().fontWeight,
+            fontSize: sizeStyles.fontSize,
+            fontWeight: sizeStyles.fontWeight,
           },
         };
 
@@ -145,8 +151,8 @@ export const Button: React.FC<ButtonProps> = ({
           },
           text: { 
             color: COLORS.primary,
-            fontSize: getSizeStyles().fontSize,
-            fontWeight: getSizeStyles().fontWeight,
+            fontSize: sizeStyles.fontSize,
+            fontWeight: sizeStyles.fontWeight,
           },
         };
 
@@ -160,8 +166,8 @@ export const Button: React.FC<ButtonProps> = ({
           },
           text: { 
             color: COLORS.error,
-            fontSize: getSizeStyles().fontSize,
-            fontWeight: getSizeStyles().fontWeight,
+            fontSize: sizeStyles.fontSize,
+            fontWeight: sizeStyles.fontWeight,
           },
         };
 
@@ -169,15 +175,16 @@ export const Button: React.FC<ButtonProps> = ({
         return {
           container: baseStyle,
           text: { 
-            color: COLORS.text.primary || '#000000',
-            fontSize: getSizeStyles().fontSize,
-            fontWeight: getSizeStyles().fontWeight,
+            color: COLORS.text.primary,
+            fontSize: sizeStyles.fontSize,
+            fontWeight: sizeStyles.fontWeight,
           },
         };
     }
   };
 
   const styles = getVariantStyles();
+  const spacingSm = getResponsiveValue(SPACING.sm, screenType);
   
   const containerStyle: ViewStyle = {
     ...styles.container,
@@ -188,8 +195,8 @@ export const Button: React.FC<ButtonProps> = ({
 
   const textStyle: TextStyle = {
     ...styles.text,
-    marginLeft: leftIcon ? SPACING.sm : 0,
-    marginRight: rightIcon ? SPACING.sm : 0,
+    marginLeft: leftIcon ? spacingSm : 0,
+    marginRight: rightIcon ? spacingSm : 0,
     ...(textStyleProp || {}),
   };
 
@@ -206,23 +213,23 @@ export const Button: React.FC<ButtonProps> = ({
   
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-        {leftIcon ? (
-          <View style={{ marginRight: title ? SPACING.sm : 0 }}>
+        {leftIcon && (
+          <View style={{ marginRight: title ? spacingSm : 0 }}>
             {leftIcon}
           </View>
-        ) : null}
+        )}
         
-        {title ? (
+        {title && (
           <Text style={textStyle}>
             {safeText(title)}
           </Text>
-        ) : null}
+        )}
         
-        {rightIcon ? (
-          <View style={{ marginLeft: title ? SPACING.sm : 0 }}>
+        {rightIcon && (
+          <View style={{ marginLeft: title ? spacingSm : 0 }}>
             {rightIcon}
           </View>
-        ) : null}
+        )}
       </View>
     );
   };
