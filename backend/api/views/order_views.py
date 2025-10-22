@@ -202,7 +202,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         description="Change le statut d'une commande (pour le personnel cuisine/comptoir).",
         request=OrderStatusUpdateSerializer
     )
-    @action(detail=True, methods=["patch'])
+    @action(detail=True, methods=["patch"])
     def update_status(self, request, pk=None):
         """Mise à jour du statut d'une commande (avec notifications)"""
         order = self.get_object()
