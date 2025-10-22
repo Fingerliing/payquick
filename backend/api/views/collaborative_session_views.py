@@ -523,6 +523,28 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
                 'details': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    # ==============================
+    # Utilitaires de notification
+    # ==============================
+    def _actor_name(self, request):
+        """Récupère le nom de l'acteur depuis la requête"""
+        if request.user.is_authenticated:
+            return getattr(request.user, 'username', None) or getattr(request.user, 'email', None)
+        return 'guest'
+
+    def _notify_session_update(self, session, event='update', actor=None):
+        """Émet une notification générique de mise à jour de session"""
+        try:
+            payload = {
+                'event': event,
+                'actor': actor,
+                'session': CollaborativeSessionSerializer(session, context={'request': self.request}).data
+            }
+            notify_session_update(str(session.id), payload)
+            logger.info(f"✅ Session update notified: {event} by {actor}")
+        except Exception as e:
+            logger.warning(f"⚠️ Notif session_update échouée: {e}")
+
 
 class SessionParticipantViewSet(viewsets.ReadOnlyModelViewSet):
     """
