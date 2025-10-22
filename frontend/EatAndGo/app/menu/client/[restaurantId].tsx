@@ -16,6 +16,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 // UI Components
 import { useCart } from '@/contexts/CartContext';
 import { menuService } from '@/services/menuService';
+import { useSession } from '@/contexts/SessionContext';
 import { restaurantService } from '@/services/restaurantService';
 import { Header } from '@/components/ui/Header';
 import { Loading } from '@/components/ui/Loading';
@@ -102,6 +103,41 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', insets: any) 
     alignSelf: 'center' as const,
     width: '40%',
   },
+  
+  sessionCodeContainer: {
+    backgroundColor: COLORS.variants.secondary[50],
+    borderRadius: BORDER_RADIUS.lg,
+    padding: getResponsiveValue(SPACING.md, screenType),
+    marginTop: getResponsiveValue(SPACING.md, screenType),
+    borderWidth: 2,
+    borderColor: COLORS.variants.secondary[400],
+    borderStyle: 'dashed' as const,
+  },
+  
+  sessionCodeLabel: {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+    fontWeight: TYPOGRAPHY.fontWeight.semibold as any,
+    color: COLORS.text.secondary,
+    textAlign: 'center' as const,
+    marginBottom: getResponsiveValue(SPACING.xs, screenType),
+  },
+  
+  sessionCode: {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize['2xl'], screenType),
+    fontWeight: TYPOGRAPHY.fontWeight.extrabold as any,
+    color: COLORS.variants.secondary[600],
+    textAlign: 'center' as const,
+    letterSpacing: 4,
+    fontFamily: 'monospace' as const,
+  },
+  
+  sessionCodeSubtext: {
+    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
+    color: COLORS.text.light,
+    textAlign: 'center' as const,
+    marginTop: getResponsiveValue(SPACING.xs, screenType),
+  },
+
   
   container: {
     paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
@@ -514,11 +550,19 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', insets: any) 
 // COMPOSANTS ENFANTS
 // =============================================================================
 
-const RestaurantHeader = React.memo(({ restaurant, styles }: { restaurant: Restaurant; styles: any }) => (
+const RestaurantHeader = React.memo(({ restaurant, styles, sessionCode }: { restaurant: Restaurant; styles: any; sessionCode?: string | null }) => (
   <View style={styles.restaurantHeader}>
     <Text style={styles.restaurantName}>{restaurant.name}</Text>
     <View style={styles.decorativeLine} />
     <Text style={styles.restaurantSubtitle}>Notre Carte</Text>
+    
+    {sessionCode && (
+      <View style={styles.sessionCodeContainer}>
+        <Text style={styles.sessionCodeLabel}>📱 Code de session partagée</Text>
+        <Text style={styles.sessionCode}>{sessionCode}</Text>
+        <Text style={styles.sessionCodeSubtext}>Partagez ce code avec vos amis pour commander ensemble</Text>
+      </View>
+    )}
   </View>
 ));
 
@@ -630,6 +674,7 @@ export default function RestaurantMenuScreen() {
   const { restaurantId } = useLocalSearchParams<{ restaurantId: string }>();
   const { table } = useLocalSearchParams<{ table?: string }>();
   const { cart, addToCart, isCartForRestaurant } = useCart();
+  const { session } = useSession();
   const screenType = useScreenType();
   const insets = useSafeAreaInsets();
   
@@ -908,7 +953,7 @@ export default function RestaurantMenuScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* En-tête Restaurant */}
-        <RestaurantHeader restaurant={restaurant} styles={styles} />
+        <RestaurantHeader restaurant={restaurant} styles={styles} sessionCode={session?.share_code} />
 
         <View style={styles.container}>
           {/* Daily Menu Display */}
