@@ -2,15 +2,18 @@ from django.db.models.signals import post_save, pre_save, post_migrate
 from django.contrib.auth.models import User, Group
 from django.dispatch import receiver
 from django.apps import apps as django_apps
-from api.models import RestaurateurProfile, Restaurant, ClientProfile,Order
+from django.utils import timezone
+from api.models import RestaurateurProfile, Restaurant, ClientProfile, Order, SessionParticipant
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from datetime import datetime
 import logging
 import time
 
-logger = logging.getLogger(__name__)
+# WebSocket consumer helpers
+from api.consumers import notify_participant_approved
 
+logger = logging.getLogger(__name__)
 
 DEFAULT_GROUPS = ("restaurateur", "client", "admin")
 
@@ -37,12 +40,12 @@ def update_restaurant_stripe_status(sender, instance, **kwargs):
             Restaurant.objects.filter(owner=instance).update(
                 is_stripe_active=instance.stripe_verified
             )
-            
+
             if instance.stripe_verified:
                 logger.info(f"Restaurants activés pour le restaurateur {instance.id} ({instance.display_name})")
             else:
                 logger.info(f"Restaurants désactivés pour le restaurateur {instance.id} ({instance.display_name})")
-                
+
         except Exception as e:
             logger.error(f"Erreur lors de la mise à jour des restaurants pour le restaurateur {instance.id}: {str(e)}")
 
@@ -53,15 +56,15 @@ def check_restaurant_stripe_activation(sender, instance, created, **kwargs):
         update_fields = kwargs.get('update_fields', None)
         if update_fields is None:
             update_fields = []
-        
+
         if created or 'is_stripe_active' in update_fields:
             print(f"📍 Signal Restaurant: {instance.name} - Stripe actif: {instance.is_stripe_active}")
-            
+
             if instance.is_stripe_active:
                 print(f"✅ Restaurant {instance.name} activé pour Stripe")
             else:
                 print(f"⚠️ Restaurant {instance.name} désactivé pour Stripe")
-                
+
     except Exception as e:
         print(f"❌ Erreur dans le signal Restaurant: {e}")
 
@@ -73,10 +76,10 @@ def assign_restaurateur_group(sender, instance, created, **kwargs):
             group, group_created = Group.objects.get_or_create(name="restaurateur")
             instance.user.groups.add(group)
             print(f"✅ [SIGNAL] Utilisateur {instance.user.email} ajouté au groupe 'restaurateur'")
-            
+
             if group_created:
                 print(f"✅ [SIGNAL] Groupe 'restaurateur' créé automatiquement")
-                
+
         except Exception as e:
             print(f"❌ [SIGNAL] Erreur lors de l'assignation du groupe: {e}")
 
@@ -88,7 +91,7 @@ def assign_client_group(sender, instance, created, **kwargs):
             group, group_created = Group.objects.get_or_create(name="client")
             instance.user.groups.add(group)
             print(f"✅ [SIGNAL] Utilisateur {instance.user.email} ajouté au groupe 'client'")
-            
+
         except Exception as e:
             print(f"❌ [SIGNAL] Erreur lors de l'assignation du groupe client: {e}")
 
@@ -97,14 +100,14 @@ def ensure_single_role_group(sender, instance, **kwargs):
     """S'assure qu'un utilisateur n'est que dans un seul groupe de rôle"""
     user_groups = instance.groups.all()
     role_groups = ['restaurateur', 'client', 'admin']
-    
+
     current_role_groups = [g.name for g in user_groups if g.name in role_groups]
-    
+
     if len(current_role_groups) > 1:
         print(f"⚠️ [SIGNAL] Utilisateur {instance.email} dans plusieurs groupes: {current_role_groups}")
-        
+
         priority_order = ['admin', 'restaurateur', 'client']
-        
+
         for role in priority_order:
             if role in current_role_groups:
                 for other_role in role_groups:
@@ -119,47 +122,47 @@ def ensure_single_role_group(sender, instance, **kwargs):
 # SERVICE DE NOTIFICATION WEBSOCKET
 class OrderNotificationService:
     """Service de notifications WebSocket avec support Channels"""
-    
+
     def __init__(self):
         self.channel_layer = get_channel_layer()
-    
+
     def send_order_update(self, order_id, status=None, waiting_time=None, data=None):
         """Envoyer une mise à jour de commande via WebSocket"""
         if not self.channel_layer:
             logger.warning("Channel layer not configured")
             return False
-        
+
         try:
             message = {
-                "type": "order_update",  # ✅ Correspond à la méthode order_update du consumer
+                "type": "order_update",
                 "order_id": order_id,
                 "status": status,
                 "waiting_time": waiting_time,
                 "timestamp": datetime.now().isoformat(),
                 "data": data or {}
             }
-            
+
             # Envoyer au groupe de cette commande spécifique
             group_name = f"order_{order_id}"
             async_to_sync(self.channel_layer.group_send)(group_name, message)
-            
+
             logger.info(f"✅ Order update sent via WebSocket for order {order_id}: {status}")
-            
+
             # Fallback vers SSE si configuré
             self.send_sse_update(order_id, status, waiting_time, data)
-            
+
             return True
-            
+
         except Exception as e:
             logger.error(f"❌ Error sending WebSocket order update: {e}")
             return False
-    
+
     def send_sse_update(self, order_id, status=None, waiting_time=None, data=None):
         """Envoyer aussi via SSE pour compatibilité"""
         try:
             # Import dynamique pour éviter les dépendances circulaires
             from api.views.websocket_views import broadcast_to_sse
-            
+
             message = {
                 'type': 'order_update',
                 'order_id': order_id,
@@ -168,10 +171,10 @@ class OrderNotificationService:
                 'timestamp': time.time(),
                 'data': data or {}
             }
-            
+
             broadcast_to_sse(order_id, message)
             logger.info(f"✅ Order update sent via SSE for order {order_id}")
-            
+
         except ImportError:
             # SSE non disponible, continuer silencieusement
             pass
@@ -196,8 +199,14 @@ def capture_order_changes(sender, instance, **kwargs):
 @receiver(post_save, sender='api.Order')
 def order_updated(sender, instance, created, **kwargs):
     """Signal déclenché lors de la mise à jour d'une commande - AMÉLIORÉ"""
-    
+
     try:
+        # Champs additionnels communs au payload
+        extra_data_common = {
+            "order_number": getattr(instance, 'order_number', None),
+            "total_amount": float(getattr(instance, 'total_amount', 0) or 0)
+        }
+
         if created:
             # Nouvelle commande créée
             logger.info(f"📝 New order created: {instance.id}")
@@ -205,16 +214,16 @@ def order_updated(sender, instance, created, **kwargs):
                 order_id=instance.id,
                 status=getattr(instance, 'status', None),
                 waiting_time=getattr(instance, 'waiting_time', None),
-                data={"action": "created"}
+                data={"action": "created", **extra_data_common}
             )
             return
-        
+
         # Vérifier les changements
         old_status = getattr(instance, '_old_status', None)
         old_waiting_time = getattr(instance, '_old_waiting_time', None)
         current_status = getattr(instance, 'status', None)
         current_waiting_time = getattr(instance, 'waiting_time', None)
-        
+
         # Changement de statut
         if old_status != current_status:
             logger.info(f"📊 Order {instance.id} status changed: {old_status} → {current_status}")
@@ -225,10 +234,11 @@ def order_updated(sender, instance, created, **kwargs):
                 data={
                     "action": "status_changed",
                     "old_status": old_status,
-                    "new_status": current_status
+                    "new_status": current_status,
+                    **extra_data_common
                 }
             )
-        
+
         # Changement de temps d'attente uniquement
         elif old_waiting_time != current_waiting_time:
             logger.info(f"⏱️ Order {instance.id} waiting time updated: {old_waiting_time} → {current_waiting_time}")
@@ -239,10 +249,11 @@ def order_updated(sender, instance, created, **kwargs):
                 data={
                     "action": "waiting_time_updated",
                     "old_waiting_time": old_waiting_time,
-                    "new_waiting_time": current_waiting_time
+                    "new_waiting_time": current_waiting_time,
+                    **extra_data_common
                 }
             )
-    
+
     except Exception as e:
         logger.error(f"❌ Error in order_updated signal: {e}")
 
@@ -284,11 +295,11 @@ def notify_custom_event(order_id, event_type, message, **data):
 def test_websocket_notification(order_id, test_message="Test notification"):
     """Fonction de test pour vérifier les WebSockets (développement uniquement)"""
     from django.conf import settings
-    
+
     if not getattr(settings, 'DEBUG', False):
         logger.warning("Test notifications only available in DEBUG mode")
         return False
-    
+
     return notify_custom_event(
         order_id=order_id,
         event_type="test",
@@ -304,14 +315,32 @@ def update_order_timestamps(sender, instance, **kwargs):
     if instance.pk:  # Uniquement pour les updates
         try:
             old_instance = Order.objects.get(pk=instance.pk)
-            
+
             # Capture du moment où la commande devient ready
             if old_instance.status != 'ready' and instance.status == 'ready':
                 instance.ready_at = timezone.now()
-            
+
             # Capture du moment où la commande est servie
             if old_instance.status != 'served' and instance.status == 'served':
                 instance.served_at = timezone.now()
-                
+
         except Order.DoesNotExist:
             pass
+
+# =====================
+# Signal participant approuvé
+# =====================
+@receiver(post_save, sender=SessionParticipant)
+def participant_post_save(sender, instance, created, **kwargs):
+    """
+    Signal après changement de statut d'un participant.
+    Si un participant passe à 'active' (approuvé), on notifie via WebSocket.
+    """
+    try:
+        if not created and getattr(instance, 'status', None) == 'active':
+            from api.serializers.collaborative_session_serializers import SessionParticipantSerializer
+            participant_data = SessionParticipantSerializer(instance).data
+            notify_participant_approved(str(instance.session_id), participant_data)
+            logger.info(f"👥 Participant approuvé notifié (session={instance.session_id}, participant={instance.id})")
+    except Exception as e:
+        logger.warning(f"⚠️ Échec notification participant approuvé: {e}")

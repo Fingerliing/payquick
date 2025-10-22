@@ -27,6 +27,9 @@ urlpatterns = [
     path('payments/', include('api.urls.v1.payment_urls')),
     path('split-payments/', include('api.urls.v1.split_payment_urls')),
     path('receipts/', include('api.urls.v1.receipt_urls')),
+
+    # Sessions collaboratives
+    path('sessions/', include('api.urls.v1.collaborative_session_urls')),
     
     # Tables et QR codes
     path('qrcode/', include('api.urls.v1.qrcode_urls')),

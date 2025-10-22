@@ -15,16 +15,24 @@ from api.serializers.order_serializers import (
     OrderWithTableInfoSerializer,
     OrderStatsSerializer
 )
+from api.consumers import (
+    notify_order_update,
+    notify_session_order_created,
+    notify_session_order_updated
+)
 from api.permissions import IsRestaurateur, IsOwnerOrReadOnly, IsValidatedRestaurateur
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter
 from datetime import timedelta
 import uuid
+import logging
+
+logger = logging.getLogger(__name__)
 
 @extend_schema(tags=["Order • Commandes"])
 class OrderViewSet(viewsets.ModelViewSet):
     """
     ViewSet complet pour la gestion des commandes sur place.
-    
+
     Fonctionnalités incluses :
     - CRUD des commandes (création, consultation, mise à jour)
     - Gestion des statuts (pending -> preparing -> ready -> served)
@@ -44,17 +52,17 @@ class OrderViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Filtre selon le type d'utilisateur"""
         user = self.request.user
-        
+
         # Si restaurateur, voir ses commandes
         if hasattr(user, 'restaurateur_profile'):
             return Order.objects.filter(
                 restaurant__owner=user.restaurateur_profile
             ).select_related('restaurant', 'user').prefetch_related('items__menu_item')
-        
+
         # Si client connecté, voir ses commandes
         elif user.is_authenticated:
             return Order.objects.filter(user=user).select_related('restaurant')
-        
+
         return Order.objects.none()
 
     def get_serializer_class(self):
@@ -77,7 +85,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             permission_classes = [IsAuthenticated, IsRestaurateur]
         else:
             permission_classes = [IsAuthenticated]
-        
+
         return [permission() for permission in permission_classes]
 
     @extend_schema(
@@ -94,26 +102,26 @@ class OrderViewSet(viewsets.ModelViewSet):
         """Liste des commandes avec informations enrichies"""
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
-        
+
         orders_data = []
         orders = page if page is not None else queryset
-        
+
         for order in orders:
             serializer = self.get_serializer(order)
             order_data = serializer.data
-            
+
             # Enrichir avec des infos temps réel
             order_data.update({
                 'is_urgent': self._is_order_urgent(order),
                 'items_summary': self._get_items_summary(order),
                 'next_possible_status': self._get_next_status(order.status)
             })
-            
+
             orders_data.append(order_data)
-        
+
         if page is not None:
             return self.get_paginated_response(orders_data)
-        
+
         return Response(orders_data)
 
     @extend_schema(
@@ -125,7 +133,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         order = self.get_object()
         serializer = self.get_serializer(order)
         data = serializer.data
-        
+
         # Ajouter des métadonnées utiles
         data.update({
             'is_urgent': self._is_order_urgent(order),
@@ -138,7 +146,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                 'payment_methods_available': ['cash', 'card', 'online']
             }
         })
-        
+
         return Response(data)
 
     @extend_schema(
@@ -151,35 +159,35 @@ class OrderViewSet(viewsets.ModelViewSet):
         }
     )
     def create(self, request, *args, **kwargs):
-        """Créer une nouvelle commande"""
+        """Créer une nouvelle commande (avec notifications WebSocket)"""
         serializer = self.get_serializer(data=request.data)
-        
+
         if serializer.is_valid():
             try:
                 order = serializer.save()
-                print(f"✅ Order created: {order.id}")
-                
-                # Générer notification en temps réel (WebSocket)
+                logger.info(f"✅ Order created: %s", order.id)
+
+                # 🔔 Notification en temps réel
                 self._notify_new_order(order)
-                
+
                 # Retourner avec le sérialiseur détaillé
                 response_serializer = OrderDetailSerializer(
                     order, 
                     context={'request': request}
                 )
-                
+
                 return Response(
                     response_serializer.data, 
                     status=status.HTTP_201_CREATED
                 )
-            
-                
+
             except Exception as e:
+                logger.exception("Erreur lors de la création de la commande")
                 return Response({
                     'error': 'Erreur lors de la création de la commande',
                     'details': str(e)
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
+
         return Response({
             'error': 'Données invalides',
             'validation_errors': serializer.errors
@@ -194,37 +202,40 @@ class OrderViewSet(viewsets.ModelViewSet):
         description="Change le statut d'une commande (pour le personnel cuisine/comptoir).",
         request=OrderStatusUpdateSerializer
     )
-    @action(detail=True, methods=["patch"])
+    @action(detail=True, methods=["patch'])
     def update_status(self, request, pk=None):
-        """Mise à jour du statut d'une commande"""
+        """Mise à jour du statut d'une commande (avec notifications)"""
         order = self.get_object()
+        previous_status = order.status  # conserver l'ancien statut
+
         serializer = OrderStatusUpdateSerializer(
             order, 
             data=request.data, 
             partial=True
         )
-        
+
         if serializer.is_valid():
             try:
                 updated_order = serializer.save()
-                
-                # Notification temps réel
-                self._notify_status_change(updated_order)
-                
+
+                # 🔔 Notification temps réel (avec previous_status)
+                self._notify_status_change(updated_order, previous_status=previous_status)
+
                 # Retourner les détails complets
                 response_serializer = OrderDetailSerializer(
                     updated_order, 
                     context={'request': request}
                 )
-                
+
                 return Response(response_serializer.data)
-                
+
             except Exception as e:
+                logger.exception("Erreur lors de la mise à jour du statut")
                 return Response({
                     'error': 'Erreur lors de la mise à jour du statut',
                     'details': str(e)
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @extend_schema(
@@ -235,27 +246,29 @@ class OrderViewSet(viewsets.ModelViewSet):
     def cancel_order(self, request, pk=None):
         """Annuler une commande"""
         order = self.get_object()
-        
+
         if not order.can_be_cancelled():
             return Response({
                 'error': 'Cette commande ne peut plus être annulée',
                 'current_status': order.status
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
         try:
+            previous_status = order.status
             order.status = 'cancelled'
             order.save(update_fields=['status', 'updated_at'])
-            
-            # Notification
-            self._notify_status_change(order)
-            
+
+            # 🔔 Notification
+            self._notify_status_change(order, previous_status=previous_status)
+
             return Response({
                 'message': 'Commande annulée avec succès',
                 'order_number': order.order_number,
                 'status': order.status
             })
-            
+
         except Exception as e:
+            logger.exception("Erreur lors de l'annulation")
             return Response({
                 'error': 'Erreur lors de l\'annulation',
                 'details': str(e)
@@ -274,23 +287,23 @@ class OrderViewSet(viewsets.ModelViewSet):
     def mark_as_paid(self, request, pk=None):
         """Marquer une commande comme payée"""
         order = self.get_object()
-        
+
         if order.payment_status == 'paid':
             return Response({
                 'message': 'Commande déjà payée',
                 'order_number': order.order_number
             })
-        
+
         serializer = OrderPaymentSerializer(
             order, 
             data=request.data, 
             partial=True
         )
-        
+
         if serializer.is_valid():
             try:
                 updated_order = serializer.save()
-                
+
                 return Response({
                     'message': 'Commande marquée comme payée',
                     'order_number': updated_order.order_number,
@@ -298,13 +311,14 @@ class OrderViewSet(viewsets.ModelViewSet):
                     'payment_status': updated_order.payment_status,
                     'total_amount': str(updated_order.total_amount)
                 })
-                
+
             except Exception as e:
+                logger.exception("Erreur lors du marquage du paiement")
                 return Response({
                     'error': 'Erreur lors du marquage du paiement',
                     'details': str(e)
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     # ============================================================================
@@ -319,23 +333,23 @@ class OrderViewSet(viewsets.ModelViewSet):
     def kitchen_view(self, request):
         """Vue cuisine avec regroupement par table"""
         restaurant_id = request.query_params.get('restaurant')
-        
+
         if not restaurant_id:
             return Response({
                 'error': 'ID restaurant requis'
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
         # Commandes actives groupées par table
         active_orders = self.get_queryset().filter(
             restaurant_id=restaurant_id,
             status__in=['pending', 'confirmed', 'preparing', 'ready']
         ).select_related('restaurant').prefetch_related('items__menu_item')
-        
+
         # Grouper par table
         tables = {}
         for order in active_orders:
             table_key = order.table_number or 'Takeaway'
-            
+
             if table_key not in tables:
                 tables[table_key] = {
                     'table_number': table_key,
@@ -344,23 +358,23 @@ class OrderViewSet(viewsets.ModelViewSet):
                     'oldest_order_time': order.created_at,
                     'urgency_level': 'normal'
                 }
-            
+
             # Ajouter la commande
             order_data = OrderWithTableInfoSerializer(
                 order, 
                 context={'request': request}
             ).data
-            
+
             tables[table_key]['orders'].append(order_data)
             tables[table_key]['total_items'] += order.items.count()
-            
+
             # Calculer l'urgence
             waiting_time = order.get_table_waiting_time()
             if waiting_time > 30:
                 tables[table_key]['urgency_level'] = 'urgent'
             elif waiting_time > 20:
                 tables[table_key]['urgency_level'] = 'warning'
-        
+
         # Trier les tables par urgence et temps d'attente
         sorted_tables = sorted(
             tables.values(),
@@ -369,7 +383,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                 x['oldest_order_time']
             )
         )
-        
+
         return Response({
             'restaurant_id': restaurant_id,
             'tables': sorted_tables,
@@ -390,11 +404,11 @@ class OrderViewSet(viewsets.ModelViewSet):
         """Statistiques complètes des commandes"""
         restaurant_id = request.query_params.get('restaurant')
         period = request.query_params.get('period', 'today')
-        
+
         queryset = self.get_queryset()
         if restaurant_id:
             queryset = queryset.filter(restaurant_id=restaurant_id)
-        
+
         # Filtrer par période
         now = timezone.now()
         if period == 'today':
@@ -405,7 +419,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         elif period == 'month':
             start_month = now - timedelta(days=30)
             queryset = queryset.filter(created_at__gte=start_month)
-        
+
         # Calculer les statistiques
         stats = queryset.aggregate(
             total_orders=Count('id'),
@@ -418,15 +432,15 @@ class OrderViewSet(viewsets.ModelViewSet):
             paid_orders=Count('id', filter=Q(payment_status='paid')),
             total_revenue=Sum('total_amount', filter=Q(payment_status='paid')) or 0,
         )
-        
+
         # Calculs dérivés
         stats['unpaid_orders'] = stats['total_orders'] - stats['paid_orders']
-        
+
         if stats['paid_orders'] > 0:
             stats['average_order_value'] = stats['total_revenue'] / stats['paid_orders']
         else:
             stats['average_order_value'] = 0
-        
+
         # Temps de préparation moyen
         served_orders = queryset.filter(status='served', ready_at__isnull=False)
         if served_orders.exists():
@@ -436,7 +450,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             stats['average_preparation_time'] = int(avg_prep.total_seconds() / 60) if avg_prep else 0
         else:
             stats['average_preparation_time'] = 0
-        
+
         serializer = OrderStatsSerializer(stats)
         return Response({
             'period': period,
@@ -453,19 +467,24 @@ class OrderViewSet(viewsets.ModelViewSet):
         summary="Scanner table QR",
         description="Scanne un QR code de table pour commencer une commande."
     )
-    @action(detail=False, methods=["get"], permission_classes=[AllowAny])
-    def scan_table(self, request, table_code):
+    @action(detail=False, methods=["get"], permission_classes=[AllowAny], url_path='scan_table/(?P<table_code>[^/.]+)')
+    def scan_table(self, request, table_code=None):
         """Scanner QR code d'une table"""
+        if not table_code:
+            return Response({
+                'error': 'Code de table requis'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
         try:
             table = get_object_or_404(Table, qr_code=table_code)
             restaurant = table.restaurant
-            
+
             # Vérifier que le restaurant peut recevoir des commandes
             if not restaurant.can_receive_orders:
                 return Response({
                     'error': 'Ce restaurant n\'accepte pas de commandes actuellement'
                 }, status=status.HTTP_400_BAD_REQUEST)
-            
+
             return Response({
                 'success': True,
                 'restaurant': {
@@ -482,7 +501,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                     'code': table_code
                 }
             })
-            
+
         except Exception as e:
             return Response({
                 'error': 'Code de table invalide',
@@ -497,39 +516,40 @@ class OrderViewSet(viewsets.ModelViewSet):
     def estimate_time(self, request):
         """Estimer le temps de préparation"""
         items_data = request.data.get('items', [])
-        
+
         if not items_data:
             return Response({
                 'error': 'Liste d\'items requise'
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
         try:
             total_minutes = 0
-            
+
             for item in items_data:
                 menu_item_id = item.get('menu_item')
                 quantity = item.get('quantity', 1)
-                
+
                 try:
                     menu_item = MenuItem.objects.get(id=menu_item_id)
                     prep_time = getattr(menu_item, 'preparation_time', 5)  # 5min par défaut
                     total_minutes += prep_time * quantity
                 except MenuItem.DoesNotExist:
                     continue
-            
+
             # Ajouter buffer et temps de base
             base_time = 5  # 5 minutes de base
             buffer = max(5, total_minutes * 0.2)  # 20% de buffer, minimum 5min
-            
+
             estimated_minutes = int(base_time + total_minutes + buffer)
-            
+
             return Response({
                 'estimated_minutes': estimated_minutes,
                 'estimated_time': f"{estimated_minutes} minutes",
                 'ready_at': (timezone.now() + timedelta(minutes=estimated_minutes)).isoformat()
             })
-            
+
         except Exception as e:
+            logger.exception("Erreur lors de l'estimation du temps")
             return Response({
                 'error': 'Erreur lors de l\'estimation',
                 'details': str(e)
@@ -543,11 +563,11 @@ class OrderViewSet(viewsets.ModelViewSet):
     def generate_ticket(self, request, pk=None):
         """Générer un ticket de commande"""
         order = self.get_object()
-        
+
         try:
             # Ici on générerait un PDF du ticket
             # Pour l'instant, on retourne les données structurées
-            
+
             ticket_data = {
                 'restaurant': {
                     'name': order.restaurant.name,
@@ -578,14 +598,15 @@ class OrderViewSet(viewsets.ModelViewSet):
                     'total': str(order.total_amount)
                 }
             }
-            
+
             return Response({
                 'success': True,
                 'ticket_data': ticket_data,
                 'ticket_url': f'/api/v1/orders/{order.id}/ticket.pdf'  # URL future
             })
-            
+
         except Exception as e:
+            logger.exception("Erreur lors de la génération du ticket")
             return Response({
                 'error': 'Erreur lors de la génération du ticket',
                 'details': str(e)
@@ -599,7 +620,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         """Détermine si une commande est urgente"""
         if order.status in ['served', 'cancelled']:
             return False
-        
+
         elapsed = timezone.now() - order.created_at
         return elapsed.total_seconds() > 1800  # Plus de 30 minutes
 
@@ -631,87 +652,80 @@ class OrderViewSet(viewsets.ModelViewSet):
                 'label': 'Commande créée'
             }
         ]
-        
+
         if order.ready_at:
             timeline.append({
                 'status': 'ready',
                 'timestamp': order.ready_at,
                 'label': 'Commande prête'
             })
-        
+
         if order.served_at:
             timeline.append({
                 'status': 'served', 
                 'timestamp': order.served_at,
                 'label': 'Commande servie'
             })
-        
+
         return timeline
 
     def _get_special_instructions(self, order):
         """Récupère toutes les instructions spéciales"""
         instructions = []
-        
+
         if order.notes:
             instructions.append(f"Commande: {order.notes}")
-        
+
         for item in order.items.all():
             if item.special_instructions:
                 instructions.append(f"{item.menu_item.name}: {item.special_instructions}")
-        
+
         return instructions
 
+    # =========================
+    # 🔔 Notifications WebSocket
+    # =========================
     def _notify_new_order(self, order):
         """Notification temps réel nouvelle commande"""
-        # TODO: Implémenter WebSocket notification
-        pass
-
-    def _notify_status_change(self, order):
-        """Notification temps réel changement statut"""
-        # TODO: Implémenter WebSocket notification
-        pass
-
-    @extend_schema(
-        summary="Scanner table QR",
-        description="Scanne un QR code de table pour commencer une commande."
-    )
-    @action(detail=False, methods=["get"], permission_classes=[AllowAny], url_path='scan_table/(?P<table_code>[^/.]+)')
-    def scan_table(self, request, table_code=None):
-        """Scanner QR code d'une table"""
-        if not table_code:
-            return Response({
-                'error': 'Code de table requis'
-            }, status=status.HTTP_400_BAD_REQUEST)
-            
         try:
-            table = get_object_or_404(Table, qr_code=table_code)
-            restaurant = table.restaurant
-            
-            # Vérifier que le restaurant peut recevoir des commandes
-            if not restaurant.can_receive_orders:
-                return Response({
-                    'error': 'Ce restaurant n\'accepte pas de commandes actuellement'
-                }, status=status.HTTP_400_BAD_REQUEST)
-            
-            return Response({
-                'success': True,
-                'restaurant': {
-                    'id': restaurant.id,
-                    'name': restaurant.name,
-                    'description': restaurant.description,
-                    'cuisine': restaurant.cuisine,
-                    'rating': float(restaurant.rating),
-                    'image_url': request.build_absolute_uri(restaurant.image.url) if restaurant.image else None
-                },
-                'table': {
-                    'id': table.id,
-                    'number': table.identifiant,
-                    'code': table_code
+            # Notification standard pour l'ordre
+            notify_order_update(
+                order.id,
+                order.status,
+                {
+                    'order_number': order.order_number,
+                    'total_amount': float(order.total_amount),
+                    'restaurant_id': order.restaurant_id
                 }
-            })
-            
+            )
+            # Notification de session collaborative si applicable
+            if getattr(order, 'collaborative_session_id', None):
+                order_data = OrderDetailSerializer(order, context={'request': self.request}).data
+                notify_session_order_created(
+                    str(order.collaborative_session_id),
+                    order_data
+                )
         except Exception as e:
-            return Response({
-                'error': 'Code de table invalide',
-                'details': str(e)
-            }, status=status.HTTP_404_NOT_FOUND)
+            logger.warning("Échec notification nouvelle commande: %s", e)
+
+    def _notify_status_change(self, order, previous_status=None):
+        """Notification temps réel changement de statut"""
+        try:
+            notify_order_update(
+                order.id,
+                order.status,
+                {
+                    'order_number': order.order_number,
+                    'status': order.status,
+                    'previous_status': previous_status,
+                    'updated_at': order.updated_at.isoformat() if getattr(order, 'updated_at', None) else timezone.now().isoformat()
+                }
+            )
+            if getattr(order, 'collaborative_session_id', None):
+                order_data = OrderDetailSerializer(order, context={'request': self.request}).data
+                notify_session_order_updated(
+                    str(order.collaborative_session_id),
+                    order_data
+                )
+        except Exception as e:
+            logger.warning("Échec notification changement de statut: %s", e)

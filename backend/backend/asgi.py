@@ -11,11 +11,12 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
 django.setup()
 
 # Import après setup Django
-from api.consumers import OrderConsumer  # À créer
+from api.consumers import OrderConsumer, SessionConsumer
 
 # Routes WebSocket
 websocket_urlpatterns = [
     path('ws/orders/', OrderConsumer.as_asgi()),
+    re_path(r'ws/session/(?P<session_id>[^/]+)/$', SessionConsumer.as_asgi()),
 ]
 
 # Configuration ASGI complète
