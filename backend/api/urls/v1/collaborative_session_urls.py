@@ -6,7 +6,7 @@ from api.views.collaborative_session_views import (
 )
 
 router = DefaultRouter()
-router.register(r'sessions', CollaborativeSessionViewSet, basename='collaborative-sessions')
+router.register(r'', CollaborativeSessionViewSet, basename='collaborative-sessions')
 router.register(r'participants', SessionParticipantViewSet, basename='session-participants')
 
 urlpatterns = [

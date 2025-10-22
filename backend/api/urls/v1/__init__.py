@@ -29,7 +29,7 @@ urlpatterns = [
     path('receipts/', include('api.urls.v1.receipt_urls')),
 
     # Sessions collaboratives
-    path('sessions/', include('api.urls.v1.collaborative_session_urls')),
+    path('collaborative-sessions/', include('api.urls.v1.collaborative_session_urls')),
     
     # Tables et QR codes
     path('qrcode/', include('api.urls.v1.qrcode_urls')),
