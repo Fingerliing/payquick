@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import UntypedToken
 from rest_framework_simplejwt.exceptions import InvalidToken
 from django.conf import settings
+from django.utils import timezone
 import jwt
 import time
 
@@ -225,16 +226,17 @@ class OrderConsumer(BaseAuthenticatedConsumer):
 class SessionConsumer(BaseAuthenticatedConsumer):
     """
     Consumer WebSocket pour les sessions collaboratives de table
+    AVEC support des notifications d'archivage
     """
     
     async def connect(self):
-        """Connexion au WebSocket de session"""
+        """Gérer la connexion WebSocket pour une session"""
         try:
-            # Récupérer l'ID de session depuis l'URL
+            # Récupérer le session_id depuis l'URL
             self.session_id = self.scope['url_route']['kwargs']['session_id']
             self.session_group_name = f'session_{self.session_id}'
             
-            # Token optionnel (pour les utilisateurs authentifiés)
+            # Récupérer et valider le token (optionnel pour les invités)
             query_string = self.scope.get('query_string', b'').decode()
             query_params = dict(param.split('=') for param in query_string.split('&') if '=' in param)
             token = query_params.get('token')
@@ -243,14 +245,13 @@ class SessionConsumer(BaseAuthenticatedConsumer):
             if token:
                 self.user = await self.authenticate_connection(token)
             else:
-                self.user = None
+                self.user = None  # Invité
             
-            # Vérifier que la session existe et qu'on peut y accéder
-            can_access = await self.check_session_access()
-            
-            if not can_access:
-                logger.warning(f"SessionWS: Access denied to session {self.session_id}")
-                await self.close(code=4007)
+            # Vérifier que la session existe
+            session_exists = await self.check_session_exists(self.session_id)
+            if not session_exists:
+                logger.warning(f"Session {self.session_id} not found")
+                await self.close(code=4404)
                 return
             
             # Rejoindre le groupe de la session
@@ -259,15 +260,16 @@ class SessionConsumer(BaseAuthenticatedConsumer):
                 self.channel_name
             )
             
+            # Accepter la connexion
             await self.accept()
             
-            # Envoyer l'état initial de la session
-            await self.send_session_state()
+            # Envoyer le statut initial
+            await self.send_session_status()
             
             # Confirmer la connexion
             await self.send(text_data=json.dumps({
                 'type': 'connected',
-                'message': 'Session WebSocket connected',
+                'message': 'Connected to session',
                 'session_id': self.session_id,
                 'timestamp': time.time()
             }))
@@ -279,20 +281,19 @@ class SessionConsumer(BaseAuthenticatedConsumer):
             await self.close(code=4000)
     
     async def disconnect(self, close_code):
-        """Déconnexion du WebSocket"""
+        """Gérer la déconnexion"""
         try:
             if hasattr(self, 'session_group_name'):
                 await self.channel_layer.group_discard(
                     self.session_group_name,
                     self.channel_name
                 )
-            
-            logger.info(f"SessionWS disconnected: session {self.session_id}, code {close_code}")
+                logger.info(f"SessionWS disconnected: session {self.session_id}, code {close_code}")
         except Exception as e:
             logger.error(f"SessionWS disconnect error: {e}")
     
     async def receive(self, text_data):
-        """Réception d'un message du client"""
+        """Gérer les messages reçus"""
         try:
             data = json.loads(text_data)
             message_type = data.get('type')
@@ -302,10 +303,6 @@ class SessionConsumer(BaseAuthenticatedConsumer):
                     'type': 'pong',
                     'timestamp': time.time()
                 }))
-            
-            elif message_type == 'request_update':
-                await self.send_session_state()
-            
             else:
                 logger.warning(f"Unknown message type: {message_type}")
                 
@@ -314,142 +311,212 @@ class SessionConsumer(BaseAuthenticatedConsumer):
         except Exception as e:
             logger.error(f"Error processing message: {e}")
     
-    # Handlers pour les événements envoyés au groupe
+    # ==================== HANDLERS POUR ÉVÉNEMENTS SESSION ====================
     
     async def session_update(self, event):
-        """Mise à jour de session"""
-        await self.send(text_data=json.dumps({
-            'type': 'session_update',
-            'data': event['data'],
-            'timestamp': time.time()
-        }))
+        """
+        Handler pour les mises à jour générales de session
+        Appelé par notify_session_update()
+        """
+        try:
+            await self.send(text_data=json.dumps({
+                'type': 'session_update',
+                'session_id': event.get('session_id'),
+                'event': event.get('event'),
+                'actor': event.get('actor'),
+                'timestamp': event.get('timestamp'),
+                'data': event.get('data', {})
+            }))
+        except Exception as e:
+            logger.error(f"Error sending session update: {e}")
     
-    async def participant_joined(self, event):
-        """Notification qu'un participant a rejoint"""
-        await self.send(text_data=json.dumps({
-            'type': 'participant_joined',
-            'participant': event['participant'],
-            'timestamp': time.time()
-        }))
-    
-    async def participant_left(self, event):
-        """Notification qu'un participant est parti"""
-        await self.send(text_data=json.dumps({
-            'type': 'participant_left',
-            'participant_id': event['participant_id'],
-            'timestamp': time.time()
-        }))
-    
-    async def participant_approved(self, event):
-        """Notification qu'un participant a été approuvé"""
-        await self.send(text_data=json.dumps({
-            'type': 'participant_approved',
-            'participant': event['participant'],
-            'timestamp': time.time()
-        }))
-    
-    async def order_created(self, event):
-        """Notification de nouvelle commande dans la session"""
-        await self.send(text_data=json.dumps({
-            'type': 'order_created',
-            'order': event['order'],
-            'timestamp': time.time()
-        }))
-    
-    async def order_updated(self, event):
-        """Notification de mise à jour de commande"""
-        await self.send(text_data=json.dumps({
-            'type': 'order_updated',
-            'order': event['order'],
-            'timestamp': time.time()
-        }))
-    
-    async def session_locked(self, event):
-        """Notification de verrouillage de session"""
-        await self.send(text_data=json.dumps({
-            'type': 'session_locked',
-            'locked_by': event.get('locked_by'),
-            'timestamp': time.time()
-        }))
-    
-    async def session_unlocked(self, event):
-        """Notification de déverrouillage de session"""
-        await self.send(text_data=json.dumps({
-            'type': 'session_unlocked',
-            'timestamp': time.time()
-        }))
+    async def session_archived(self, event):
+        """
+        🆕 Handler pour notification d'archivage de session
+        Appelé par notify_session_archived()
+        """
+        try:
+            await self.send(text_data=json.dumps({
+                'type': 'session_archived',
+                'session_id': event.get('session_id'),
+                'message': event.get('message'),
+                'reason': event.get('reason'),
+                'timestamp': event.get('timestamp'),
+                'redirect_suggested': True  # Suggère au client de rediriger
+            }))
+            logger.info(f"✅ Sent session_archived notification for session {event.get('session_id')}")
+        except Exception as e:
+            logger.error(f"Error sending session_archived: {e}")
     
     async def session_completed(self, event):
-        """Notification de fin de session"""
-        await self.send(text_data=json.dumps({
-            'type': 'session_completed',
-            'timestamp': time.time()
-        }))
+        """
+        Handler pour notification de completion de session
+        Appelé par notify_session_completed()
+        """
+        try:
+            await self.send(text_data=json.dumps({
+                'type': 'session_completed',
+                'session_id': event.get('session_id'),
+                'message': event.get('message'),
+                'will_archive_in': event.get('will_archive_in', 300),  # 5 minutes
+                'timestamp': event.get('timestamp')
+            }))
+        except Exception as e:
+            logger.error(f"Error sending session_completed: {e}")
+    
+    async def table_released(self, event):
+        """
+        🆕 Handler pour notification de libération de table
+        Appelé par notify_table_released()
+        """
+        try:
+            await self.send(text_data=json.dumps({
+                'type': 'table_released',
+                'table_id': event.get('table_id'),
+                'table_number': event.get('table_number'),
+                'message': event.get('message'),
+                'timestamp': event.get('timestamp')
+            }))
+        except Exception as e:
+            logger.error(f"Error sending table_released: {e}")
+    
+    async def participant_update(self, event):
+        """
+        Handler pour mises à jour de participants
+        """
+        try:
+            await self.send(text_data=json.dumps({
+                'type': 'participant_update',
+                'session_id': event.get('session_id'),
+                'participant_id': event.get('participant_id'),
+                'action': event.get('action'),  # joined, left, approved, etc.
+                'timestamp': event.get('timestamp')
+            }))
+        except Exception as e:
+            logger.error(f"Error sending participant update: {e}")
+    
+    async def participant_joined(self, event):
+        """Handler pour participant qui rejoint"""
+        try:
+            await self.send(text_data=json.dumps({
+                'type': 'participant_joined',
+                'participant': event.get('participant'),
+                'timestamp': time.time()
+            }))
+        except Exception as e:
+            logger.error(f"Error sending participant_joined: {e}")
+    
+    async def participant_left(self, event):
+        """Handler pour participant qui part"""
+        try:
+            await self.send(text_data=json.dumps({
+                'type': 'participant_left',
+                'participant_id': event.get('participant_id'),
+                'timestamp': time.time()
+            }))
+        except Exception as e:
+            logger.error(f"Error sending participant_left: {e}")
+    
+    async def participant_approved(self, event):
+        """Handler pour participant approuvé"""
+        try:
+            await self.send(text_data=json.dumps({
+                'type': 'participant_approved',
+                'participant': event.get('participant'),
+                'timestamp': time.time()
+            }))
+        except Exception as e:
+            logger.error(f"Error sending participant_approved: {e}")
+    
+    async def order_created(self, event):
+        """Handler pour commande créée"""
+        try:
+            await self.send(text_data=json.dumps({
+                'type': 'order_created',
+                'order': event.get('order'),
+                'timestamp': time.time()
+            }))
+        except Exception as e:
+            logger.error(f"Error sending order_created: {e}")
+    
+    async def order_updated(self, event):
+        """Handler pour commande mise à jour"""
+        try:
+            await self.send(text_data=json.dumps({
+                'type': 'order_updated',
+                'order': event.get('order'),
+                'timestamp': time.time()
+            }))
+        except Exception as e:
+            logger.error(f"Error sending order_updated: {e}")
+    
+    async def session_locked(self, event):
+        """Handler pour session verrouillée"""
+        try:
+            await self.send(text_data=json.dumps({
+                'type': 'session_locked',
+                'locked_by': event.get('locked_by'),
+                'timestamp': time.time()
+            }))
+        except Exception as e:
+            logger.error(f"Error sending session_locked: {e}")
+    
+    async def session_unlocked(self, event):
+        """Handler pour session déverrouillée"""
+        try:
+            await self.send(text_data=json.dumps({
+                'type': 'session_unlocked',
+                'timestamp': time.time()
+            }))
+        except Exception as e:
+            logger.error(f"Error sending session_unlocked: {e}")
+    
+    # ==================== HELPERS ====================
     
     @database_sync_to_async
-    def check_session_access(self):
-        """Vérifie si l'utilisateur peut accéder à cette session"""
+    def check_session_exists(self, session_id):
+        """Vérifier qu'une session existe"""
         try:
-            from api.models import CollaborativeTableSession, SessionParticipant
-            
-            session = CollaborativeTableSession.objects.get(id=self.session_id)
-            
-            # Les sessions actives sont accessibles à tous
-            if session.status in ['active', 'locked']:
-                return True
-            
-            # Pour les sessions terminées, vérifier qu'on était participant
-            if self.user:
-                return SessionParticipant.objects.filter(
-                    session=session,
-                    user=self.user
-                ).exists()
-            
-            return False
-            
-        except CollaborativeTableSession.DoesNotExist:
-            return False
+            from api.models import CollaborativeTableSession
+            # Utiliser all_objects pour accéder même aux sessions archivées
+            return CollaborativeTableSession.all_objects.filter(id=session_id).exists()
         except Exception as e:
-            logger.error(f"Error checking session access: {e}")
+            logger.error(f"Error checking session: {e}")
             return False
     
     @database_sync_to_async
     def get_session_data(self):
-        """Récupère les données complètes de la session"""
+        """Récupérer les données de la session"""
         try:
             from api.models import CollaborativeTableSession
-            from api.serializers.collaborative_session_serializers import (
-                CollaborativeSessionSerializer
-            )
-            
-            session = CollaborativeTableSession.objects.select_related(
-                'restaurant', 'table'
-            ).prefetch_related(
-                'participants', 'orders'
-            ).get(id=self.session_id)
-            
-            serializer = CollaborativeSessionSerializer(session)
-            return serializer.data
-            
+            session = CollaborativeTableSession.all_objects.get(id=self.session_id)
+            return {
+                'id': str(session.id),
+                'share_code': session.share_code,
+                'status': session.status,
+                'is_archived': session.is_archived,
+                'participant_count': session.participant_count,
+                'table_number': session.table_number,
+            }
         except Exception as e:
             logger.error(f"Error getting session data: {e}")
             return None
     
-    async def send_session_state(self):
-        """Envoie l'état complet de la session"""
+    async def send_session_status(self):
+        """Envoyer le statut actuel de la session"""
         try:
             session_data = await self.get_session_data()
             if session_data:
                 await self.send(text_data=json.dumps({
-                    'type': 'session_state',
-                    'data': session_data,
+                    'type': 'session_status',
+                    'session': session_data,
                     'timestamp': time.time()
                 }))
         except Exception as e:
-            logger.error(f"Error sending session state: {e}")
+            logger.error(f"Error sending session status: {e}")
 
 
-# Fonctions utilitaires pour envoyer des notifications
+# ==================== FONCTIONS UTILITAIRES POUR NOTIFICATIONS ====================
 
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
@@ -458,6 +525,10 @@ from asgiref.sync import async_to_sync
 def notify_order_update(order_id, status, data=None):
     """Envoie une notification de mise à jour de commande"""
     channel_layer = get_channel_layer()
+    if not channel_layer:
+        logger.warning("Channel layer not available")
+        return
+    
     async_to_sync(channel_layer.group_send)(
         f'order_{order_id}',
         {
@@ -473,11 +544,19 @@ def notify_order_update(order_id, status, data=None):
 def notify_session_update(session_id, data):
     """Envoie une notification de mise à jour de session"""
     channel_layer = get_channel_layer()
+    if not channel_layer:
+        logger.warning("Channel layer not available")
+        return
+    
     async_to_sync(channel_layer.group_send)(
         f'session_{session_id}',
         {
             'type': 'session_update',
-            'data': data
+            'session_id': str(session_id),
+            'event': data.get('event', 'update'),
+            'actor': data.get('actor'),
+            'timestamp': timezone.now().isoformat(),
+            'data': data.get('data', {})
         }
     )
 
@@ -485,6 +564,10 @@ def notify_session_update(session_id, data):
 def notify_participant_joined(session_id, participant_data):
     """Notifie qu'un participant a rejoint"""
     channel_layer = get_channel_layer()
+    if not channel_layer:
+        logger.warning("Channel layer not available")
+        return
+    
     async_to_sync(channel_layer.group_send)(
         f'session_{session_id}',
         {
@@ -497,6 +580,10 @@ def notify_participant_joined(session_id, participant_data):
 def notify_participant_left(session_id, participant_id):
     """Notifie qu'un participant est parti"""
     channel_layer = get_channel_layer()
+    if not channel_layer:
+        logger.warning("Channel layer not available")
+        return
+    
     async_to_sync(channel_layer.group_send)(
         f'session_{session_id}',
         {
@@ -509,6 +596,10 @@ def notify_participant_left(session_id, participant_id):
 def notify_participant_approved(session_id, participant_data):
     """Notifie qu'un participant a été approuvé"""
     channel_layer = get_channel_layer()
+    if not channel_layer:
+        logger.warning("Channel layer not available")
+        return
+    
     async_to_sync(channel_layer.group_send)(
         f'session_{session_id}',
         {
@@ -521,6 +612,10 @@ def notify_participant_approved(session_id, participant_data):
 def notify_session_order_created(session_id, order_data):
     """Notifie qu'une commande a été créée dans la session"""
     channel_layer = get_channel_layer()
+    if not channel_layer:
+        logger.warning("Channel layer not available")
+        return
+    
     async_to_sync(channel_layer.group_send)(
         f'session_{session_id}',
         {
@@ -533,6 +628,10 @@ def notify_session_order_created(session_id, order_data):
 def notify_session_order_updated(session_id, order_data):
     """Notifie qu'une commande a été mise à jour dans la session"""
     channel_layer = get_channel_layer()
+    if not channel_layer:
+        logger.warning("Channel layer not available")
+        return
+    
     async_to_sync(channel_layer.group_send)(
         f'session_{session_id}',
         {
@@ -545,6 +644,10 @@ def notify_session_order_updated(session_id, order_data):
 def notify_session_locked(session_id, locked_by=None):
     """Notifie que la session a été verrouillée"""
     channel_layer = get_channel_layer()
+    if not channel_layer:
+        logger.warning("Channel layer not available")
+        return
+    
     async_to_sync(channel_layer.group_send)(
         f'session_{session_id}',
         {
@@ -557,6 +660,10 @@ def notify_session_locked(session_id, locked_by=None):
 def notify_session_unlocked(session_id):
     """Notifie que la session a été déverrouillée"""
     channel_layer = get_channel_layer()
+    if not channel_layer:
+        logger.warning("Channel layer not available")
+        return
+    
     async_to_sync(channel_layer.group_send)(
         f'session_{session_id}',
         {
@@ -566,11 +673,82 @@ def notify_session_unlocked(session_id):
 
 
 def notify_session_completed(session_id):
-    """Notifie que la session est terminée"""
+    """
+    Notifie que la session est terminée
+    (archivage automatique dans 5 minutes)
+    """
     channel_layer = get_channel_layer()
+    if not channel_layer:
+        logger.warning("Channel layer not available")
+        return
+    
     async_to_sync(channel_layer.group_send)(
         f'session_{session_id}',
         {
-            'type': 'session_completed'
+            'type': 'session_completed',
+            'session_id': str(session_id),
+            'message': 'Session terminée - archivage automatique dans 5 minutes',
+            'will_archive_in': 300,  # secondes
+            'timestamp': timezone.now().isoformat()
         }
     )
+
+
+def notify_session_archived(session_id, reason=None):
+    """
+    🆕 Notifie que une session a été archivée
+    
+    Args:
+        session_id: UUID de la session archivée
+        reason: Raison de l'archivage (optionnel)
+    """
+    channel_layer = get_channel_layer()
+    if not channel_layer:
+        logger.warning("Channel layer not available")
+        return
+    
+    try:
+        async_to_sync(channel_layer.group_send)(
+            f'session_{session_id}',
+            {
+                'type': 'session_archived',
+                'session_id': str(session_id),
+                'message': 'Cette session a été archivée et la table est maintenant disponible',
+                'reason': reason or 'Session terminée',
+                'timestamp': timezone.now().isoformat()
+            }
+        )
+        logger.info(f"✅ Notification archivage envoyée pour session {session_id}")
+    except Exception as e:
+        logger.error(f"❌ Erreur notification archivage: {e}")
+
+
+def notify_table_released(table_id, table_number, restaurant_id):
+    """
+    🆕 Notifie que une table a été libérée
+    
+    Args:
+        table_id: UUID de la table
+        table_number: Numéro de la table
+        restaurant_id: ID du restaurant
+    """
+    channel_layer = get_channel_layer()
+    if not channel_layer:
+        logger.warning("Channel layer not available")
+        return
+    
+    try:
+        # Envoyer au groupe du restaurant
+        async_to_sync(channel_layer.group_send)(
+            f'restaurant_{restaurant_id}',
+            {
+                'type': 'table_released',
+                'table_id': str(table_id),
+                'table_number': table_number,
+                'message': f'Table {table_number} libérée',
+                'timestamp': timezone.now().isoformat()
+            }
+        )
+        logger.info(f"✅ Notification libération table {table_number}")
+    except Exception as e:
+        logger.error(f"❌ Erreur notification table: {e}")

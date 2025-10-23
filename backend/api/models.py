@@ -2112,6 +2112,13 @@ class DataAccessLog(models.Model):
             models.Index(fields=['user', '-timestamp']),
         ]
 
+class ActiveSessionManager(models.Manager):
+    """
+    Manager qui exclut les sessions archivées par défaut
+    """
+    def get_queryset(self):
+        return super().get_queryset().filter(is_archived=False)
+
 class CollaborativeTableSession(models.Model):
     """
     Session collaborative pour une table - permet aux utilisateurs 
@@ -2210,14 +2217,33 @@ class CollaborativeTableSession(models.Model):
     
     # Notes
     session_notes = models.TextField(blank=True)
+
+    is_archived = models.BooleanField(
+        default=False,
+        help_text="Indique si la session est archivée (libère la table)"
+    )
+    archived_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Date et heure d'archivage de la session"
+    )
+    
+    # ========== MANAGERS ==========
+    # Manager par défaut : exclut les sessions archivées
+    objects = ActiveSessionManager()
+    
+    # Manager pour accéder à TOUTES les sessions (y compris archivées)
+    all_objects = models.Manager()
     
     class Meta:
         db_table = 'collaborative_table_sessions'
         ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['share_code']),
             models.Index(fields=['restaurant', 'status']),
             models.Index(fields=['table', 'status']),
+            models.Index(fields=['share_code']),
+            models.Index(fields=['table', 'is_archived', 'status']),
+            models.Index(fields=['is_archived', 'archived_at']),
         ]
     
     def __str__(self):
@@ -2295,6 +2321,69 @@ class CollaborativeTableSession(models.Model):
         self.completed_at = timezone.now()
         self.save()
 
+    def archive(self, reason=None):
+        """
+        Archive la session (libère la table sans supprimer les données)
+        """
+        self.is_archived = True
+        self.archived_at = timezone.now()
+        if reason:
+            if not self.session_notes:
+                self.session_notes = f"Archivé: {reason}"
+            else:
+                self.session_notes += f"\nArchivé: {reason}"
+        self.save(update_fields=['is_archived', 'archived_at', 'session_notes'])
+        
+        # Log l'archivage
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(
+            f"Session {self.id} archivée - Table {self.table_number} "
+            f"- Raison: {reason or 'Non spécifiée'}"
+        )
+    
+    def unarchive(self):
+        """
+        Désarchive la session (réactive la session)
+        Utile si archivage accidentel
+        """
+        self.is_archived = False
+        self.archived_at = None
+        self.save(update_fields=['is_archived', 'archived_at'])
+        
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Session {self.id} désarchivée - Table {self.table_number}")
+    
+    @property
+    def can_be_archived(self):
+        """
+        Vérifie si la session peut être archivée
+        """
+        # Une session peut être archivée si elle est terminée ou annulée
+        return self.status in ['completed', 'cancelled']
+    
+    @property
+    def auto_archive_eligible(self):
+        """
+        Vérifie si la session est éligible pour l'archivage automatique
+        """
+        if not self.can_be_archived or self.is_archived:
+            return False
+        
+        # Archiver automatiquement après 5 minutes de completion
+        if self.completed_at:
+            age = timezone.now() - self.completed_at
+            return age.total_seconds() > 300  # 5 minutes
+        
+        return False
+    
+    def __str__(self):
+        archived_status = " [ARCHIVÉE]" if self.is_archived else ""
+        return (
+            f"Session {self.share_code} - Table {self.table_number} "
+            f"- {self.get_status_display()}{archived_status}"
+        )
 
 class SessionParticipant(models.Model):
     """
