@@ -1,4 +1,8 @@
-import React, { useEffect, useState, useCallback } from 'react';
+/**
+ * Système de notifications toast pour les sessions collaboratives
+ */
+
+import React, { useEffect, useState, useCallback, createContext, useContext } from 'react';
 import {
   View,
   Text,
@@ -8,8 +12,12 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSessionWebSocket } from '@/hooks/session/useSessionWebSocket';
 
-// Types de notifications
+// ============================================================================
+// TYPES
+// ============================================================================
+
 export type NotificationType = 'info' | 'success' | 'warning' | 'error';
 
 export interface SessionNotification {
@@ -25,14 +33,15 @@ export interface SessionNotification {
   };
 }
 
-// Context pour gérer les notifications globalement
-import { createContext, useContext } from 'react';
-
 interface NotificationContextType {
   showNotification: (notification: Omit<SessionNotification, 'id'>) => void;
   hideNotification: (id: string) => void;
   clearAll: () => void;
 }
+
+// ============================================================================
+// CONTEXT
+// ============================================================================
 
 const NotificationContext = createContext<NotificationContextType | null>(null);
 
@@ -44,15 +53,14 @@ export const useNotifications = () => {
   return context;
 };
 
-// Provider de notifications
-export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+// ============================================================================
+// PROVIDER
+// ============================================================================
+
+export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [notifications, setNotifications] = useState<SessionNotification[]>([]);
 
-  const showNotification = useCallback((
-    notification: Omit<SessionNotification, 'id'>
-  ) => {
+  const showNotification = useCallback((notification: Omit<SessionNotification, 'id'>) => {
     const id = Math.random().toString(36).substring(7);
     const newNotification: SessionNotification = {
       ...notification,
@@ -62,7 +70,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
 
     setNotifications((prev) => [...prev, newNotification]);
 
-    // Auto-hide après duration
     if (newNotification.duration) {
       setTimeout(() => {
         hideNotification(id);
@@ -79,19 +86,17 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   return (
-    <NotificationContext.Provider
-      value={{ showNotification, hideNotification, clearAll }}
-    >
+    <NotificationContext.Provider value={{ showNotification, hideNotification, clearAll }}>
       {children}
-      <NotificationContainer
-        notifications={notifications}
-        onHide={hideNotification}
-      />
+      <NotificationContainer notifications={notifications} onHide={hideNotification} />
     </NotificationContext.Provider>
   );
 };
 
-// Container pour afficher les notifications
+// ============================================================================
+// NOTIFICATION CONTAINER
+// ============================================================================
+
 const NotificationContainer: React.FC<{
   notifications: SessionNotification[];
   onHide: (id: string) => void;
@@ -99,17 +104,16 @@ const NotificationContainer: React.FC<{
   return (
     <View style={styles.container} pointerEvents="box-none">
       {notifications.map((notification) => (
-        <NotificationCard
-          key={notification.id}
-          notification={notification}
-          onHide={onHide}
-        />
+        <NotificationCard key={notification.id} notification={notification} onHide={onHide} />
       ))}
     </View>
   );
 };
 
-// Carte de notification
+// ============================================================================
+// NOTIFICATION CARD
+// ============================================================================
+
 const NotificationCard: React.FC<{
   notification: SessionNotification;
   onHide: (id: string) => void;
@@ -118,7 +122,6 @@ const NotificationCard: React.FC<{
   const [opacity] = useState(new Animated.Value(0));
 
   useEffect(() => {
-    // Animation d'entrée
     Animated.parallel([
       Animated.timing(translateY, {
         toValue: 0,
@@ -132,7 +135,6 @@ const NotificationCard: React.FC<{
       }),
     ]).start();
 
-    // Animation de sortie avant suppression
     const timer = setTimeout(() => {
       handleHide();
     }, (notification.duration || 4000) - 300);
@@ -200,12 +202,7 @@ const NotificationCard: React.FC<{
       ]}
     >
       <View style={styles.notificationContent}>
-        <Ionicons
-          name={config.icon}
-          size={24}
-          color={config.iconColor}
-          style={styles.notificationIcon}
-        />
+        <Ionicons name={config.icon} size={24} color={config.iconColor} style={styles.notificationIcon} />
         <View style={styles.notificationText}>
           <Text style={styles.notificationTitle}>{notification.title}</Text>
           <Text style={styles.notificationMessage}>{notification.message}</Text>
@@ -223,23 +220,25 @@ const NotificationCard: React.FC<{
             handleHide();
           }}
         >
-          <Text style={styles.actionButtonText}>
-            {notification.action.label}
-          </Text>
+          <Text style={styles.actionButtonText}>{notification.action.label}</Text>
         </TouchableOpacity>
       )}
     </Animated.View>
   );
 };
 
-// Hook personnalisé pour les notifications de session
-export const useSessionNotifications = (sessionId: string) => {
+// ============================================================================
+// HOOK: useSessionNotifications
+// ============================================================================
+
+export const useSessionNotifications = (sessionId: string | null) => {
   const { showNotification } = useNotifications();
   const { on } = useSessionWebSocket(sessionId);
 
   useEffect(() => {
-    // Participant rejoint
-    const unsubJoined = on('participant_joined', (participant) => {
+    if (!sessionId) return;
+
+    const unsubJoined = on('participant_joined', (participant: any) => {
       showNotification({
         type: 'info',
         title: 'Nouveau participant',
@@ -248,8 +247,7 @@ export const useSessionNotifications = (sessionId: string) => {
       });
     });
 
-    // Participant parti
-    const unsubLeft = on('participant_left', (participantId) => {
+    const unsubLeft = on('participant_left', () => {
       showNotification({
         type: 'info',
         title: 'Participant parti',
@@ -258,8 +256,7 @@ export const useSessionNotifications = (sessionId: string) => {
       });
     });
 
-    // Nouvelle commande
-    const unsubOrderCreated = on('order_created', (order) => {
+    const unsubOrderCreated = on('order_created', (order: any) => {
       showNotification({
         type: 'success',
         title: 'Nouvelle commande',
@@ -268,8 +265,7 @@ export const useSessionNotifications = (sessionId: string) => {
       });
     });
 
-    // Commande mise à jour
-    const unsubOrderUpdated = on('order_updated', (order) => {
+    const unsubOrderUpdated = on('order_updated', (order: any) => {
       if (order.status === 'ready') {
         showNotification({
           type: 'success',
@@ -280,8 +276,7 @@ export const useSessionNotifications = (sessionId: string) => {
       }
     });
 
-    // Session verrouillée
-    const unsubLocked = on('session_locked', (lockedBy) => {
+    const unsubLocked = on('session_locked', () => {
       showNotification({
         type: 'warning',
         title: 'Session verrouillée',
@@ -290,7 +285,6 @@ export const useSessionNotifications = (sessionId: string) => {
       });
     });
 
-    // Session déverrouillée
     const unsubUnlocked = on('session_unlocked', () => {
       showNotification({
         type: 'info',
@@ -300,14 +294,38 @@ export const useSessionNotifications = (sessionId: string) => {
       });
     });
 
-    // Session terminée
-    const unsubCompleted = on('session_completed', () => {
+    const unsubCompleted = on('session_completed', (data: any) => {
+      const archiveTime = data?.will_archive_in ? Math.floor(data.will_archive_in / 60000) : 30;
       showNotification({
         type: 'success',
         title: 'Session terminée',
-        message: 'Merci et à bientôt !',
+        message: `Merci et à bientôt ! La session sera archivée dans ${archiveTime} minutes.`,
         icon: 'checkmark-done',
         duration: 6000,
+      });
+    });
+
+    const unsubArchived = on('session_archived', (data: any) => {
+      showNotification({
+        type: 'warning',
+        title: '🗄️ Session archivée',
+        message: data?.message || 'Cette session a été archivée et n\'est plus accessible.',
+        icon: 'archive',
+        duration: 8000,
+        action: data?.redirect_suggested ? {
+          label: 'Retour à l\'accueil',
+          onPress: () => console.log('Navigate to home'),
+        } : undefined,
+      });
+    });
+
+    const unsubTableReleased = on('table_released', (data: any) => {
+      showNotification({
+        type: 'info',
+        title: '🆓 Table libérée',
+        message: data?.message || `La table ${data?.table_number || ''} a été libérée.`,
+        icon: 'checkmark-circle',
+        duration: 5000,
       });
     });
 
@@ -319,11 +337,16 @@ export const useSessionNotifications = (sessionId: string) => {
       unsubLocked();
       unsubUnlocked();
       unsubCompleted();
+      unsubArchived();
+      unsubTableReleased();
     };
-  }, [on, showNotification]);
+  }, [sessionId, on, showNotification]);
 };
 
-// Helper pour notifications personnalisées
+// ============================================================================
+// NOTIFICATION HELPERS
+// ============================================================================
+
 export const sessionNotifications = {
   participantJoined: (name: string) => ({
     type: 'info' as NotificationType,
@@ -339,7 +362,7 @@ export const sessionNotifications = {
 
   orderCreated: (participantName: string, orderNumber: string) => ({
     type: 'success' as NotificationType,
-    title: '🛎️ Nouvelle commande',
+    title: '🛒 Nouvelle commande',
     message: `${participantName} a commandé (#${orderNumber})`,
   }),
 
@@ -355,10 +378,22 @@ export const sessionNotifications = {
     message: 'Plus de nouveaux participants',
   }),
 
-  sessionCompleted: () => ({
+  sessionCompleted: (archiveMinutes: number = 30) => ({
     type: 'success' as NotificationType,
     title: '🎉 Session terminée',
-    message: 'Merci et à bientôt !',
+    message: `Merci et à bientôt ! Archivage dans ${archiveMinutes} min.`,
+  }),
+
+  sessionArchived: (message?: string) => ({
+    type: 'warning' as NotificationType,
+    title: '🗄️ Session archivée',
+    message: message || 'Cette session a été archivée et n\'est plus accessible.',
+  }),
+
+  tableReleased: (tableNumber: string) => ({
+    type: 'info' as NotificationType,
+    title: '🆓 Table libérée',
+    message: `La table ${tableNumber} est maintenant disponible`,
   }),
 
   paymentRequired: (amount: number) => ({
@@ -373,6 +408,10 @@ export const sessionNotifications = {
     message,
   }),
 };
+
+// ============================================================================
+// STYLES
+// ============================================================================
 
 const styles = StyleSheet.create({
   container: {
@@ -429,49 +468,3 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
-
-// Import à ajouter pour utiliser WebSocket
-import { useSessionWebSocket } from '@/services/sessionWebSocket';
-
-// Exemple d'utilisation dans App.tsx
-/*
-import { NotificationProvider } from '@/components/SessionNotifications';
-
-export default function App() {
-  return (
-    <NotificationProvider>
-      <NavigationContainer>
-        <Stack.Navigator>
-          ...
-        </Stack.Navigator>
-      </NavigationContainer>
-    </NotificationProvider>
-  );
-}
-*/
-
-// Exemple d'utilisation dans un composant
-/*
-import { useNotifications, sessionNotifications } from '@/components/SessionNotifications';
-
-function MyComponent() {
-  const { showNotification } = useNotifications();
-
-  const handleSomething = () => {
-    showNotification(sessionNotifications.orderReady('T5-01'));
-    
-    // Ou personnalisé
-    showNotification({
-      type: 'success',
-      title: 'Succès',
-      message: 'Action effectuée',
-      action: {
-        label: 'Voir',
-        onPress: () => console.log('Action pressed'),
-      },
-    });
-  };
-
-  return <Button onPress={handleSomething}>Test Notification</Button>;
-}
-*/

@@ -15,21 +15,62 @@ import {
   CollaborativeSession,
   SessionParticipant,
 } from '@/services/collaborativeSessionService';
+import { useSessionArchiving } from '@/hooks/session/useSessionArchiving';
+import { SessionArchiveWarning } from '@/components/session/SessionArchiveWarning';
+import { useSessionNotifications } from '@/components/session/SessionNotifications';
 
 interface SessionDashboardProps {
   sessionId: string;
   onLeave?: () => void;
   onSessionCompleted?: () => void;
+  onSessionArchived?: () => void;
+  navigation?: any; // Pour la navigation React Navigation
 }
 
 export const SessionDashboard: React.FC<SessionDashboardProps> = ({
   sessionId,
   onLeave,
   onSessionCompleted,
+  onSessionArchived,
+  navigation,
 }) => {
   const [session, setSession] = useState<CollaborativeSession | null>(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Activer les notifications de session
+  useSessionNotifications(sessionId);
+
+  // Gérer l'archivage avec redirection automatique
+  useSessionArchiving({
+    sessionId,
+    autoRedirect: true,
+    onSessionArchived: (data) => {
+      console.log('🗄️ Session archivée:', data);
+      
+      // Callback personnalisé
+      if (onSessionArchived) {
+        onSessionArchived();
+      }
+
+      // Redirection vers l'accueil après un court délai
+      setTimeout(() => {
+        if (navigation) {
+          navigation.replace('Home');
+        }
+      }, 2000);
+    },
+    onTableReleased: (data) => {
+      console.log('🆓 Table libérée:', data.table_number);
+    },
+    onSessionCompleted: (data) => {
+      console.log('✅ Session terminée');
+      
+      if (onSessionCompleted) {
+        onSessionCompleted();
+      }
+    },
+  });
 
   useEffect(() => {
     loadSession();
@@ -43,8 +84,29 @@ export const SessionDashboard: React.FC<SessionDashboardProps> = ({
     try {
       const data = await collaborativeSessionService.getSession(sessionId);
       setSession(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading session:', error);
+      
+      // Si la session n'existe plus (404), elle a probablement été archivée
+      if (error?.response?.status === 404) {
+        Alert.alert(
+          'Session introuvable',
+          'Cette session a été archivée ou n\'existe plus.',
+          [
+            {
+              text: 'Retour à l\'accueil',
+              onPress: () => {
+                if (navigation) {
+                  navigation.replace('Home');
+                } else if (onSessionArchived) {
+                  onSessionArchived();
+                }
+              },
+            },
+          ],
+          { cancelable: false }
+        );
+      }
     }
   };
 
@@ -54,25 +116,12 @@ export const SessionDashboard: React.FC<SessionDashboardProps> = ({
     setRefreshing(false);
   };
 
-  const handleShareCode = async () => {
-    if (!session) return;
-
-    try {
-      await Share.share({
-        message: `Rejoignez notre table au restaurant !\n\nCode de session: ${session.share_code}\n\nTable: ${session.table_number}\nRestaurant: ${session.restaurant_name}`,
-        title: 'Rejoignez notre table',
-      });
-    } catch (error) {
-      console.error('Error sharing:', error);
-    }
-  };
-
   const handleLockSession = async () => {
     if (!session) return;
 
     Alert.alert(
       'Verrouiller la session',
-      'Plus personne ne pourra rejoindre cette session. Continuer ?',
+      'Plus aucun nouveau participant ne pourra rejoindre la session.',
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -80,14 +129,10 @@ export const SessionDashboard: React.FC<SessionDashboardProps> = ({
           style: 'destructive',
           onPress: async () => {
             try {
-              setLoading(true);
               await collaborativeSessionService.sessionAction(sessionId, 'lock');
               await loadSession();
-              Alert.alert('Succès', 'Session verrouillée');
-            } catch (error: any) {
-              Alert.alert('Erreur', error.message);
-            } finally {
-              setLoading(false);
+            } catch (error) {
+              Alert.alert('Erreur', 'Impossible de verrouiller la session');
             }
           },
         },
@@ -96,15 +141,13 @@ export const SessionDashboard: React.FC<SessionDashboardProps> = ({
   };
 
   const handleUnlockSession = async () => {
+    if (!session) return;
+
     try {
-      setLoading(true);
       await collaborativeSessionService.sessionAction(sessionId, 'unlock');
       await loadSession();
-      Alert.alert('Succès', 'Session déverrouillée');
-    } catch (error: any) {
-      Alert.alert('Erreur', error.message);
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      Alert.alert('Erreur', 'Impossible de déverrouiller la session');
     }
   };
 
@@ -113,22 +156,27 @@ export const SessionDashboard: React.FC<SessionDashboardProps> = ({
 
     Alert.alert(
       'Terminer la session',
-      'Toutes les commandes sont-elles payées ?',
+      'Cette action va terminer la session pour tous les participants. La session sera archivée automatiquement dans 30 minutes.',
       [
         { text: 'Annuler', style: 'cancel' },
         {
           text: 'Terminer',
+          style: 'destructive',
           onPress: async () => {
             try {
-              setLoading(true);
               await collaborativeSessionService.sessionAction(sessionId, 'complete');
-              Alert.alert('Session terminée', 'Merci et à bientôt !', [
-                { text: 'OK', onPress: onSessionCompleted }
-              ]);
-            } catch (error: any) {
-              Alert.alert('Erreur', error.message);
-            } finally {
-              setLoading(false);
+              
+              if (onSessionCompleted) {
+                onSessionCompleted();
+              }
+
+              Alert.alert(
+                'Session terminée',
+                'La session sera archivée automatiquement dans 30 minutes. Vous recevrez une notification avant l\'archivage.',
+                [{ text: 'OK' }]
+              );
+            } catch (error) {
+              Alert.alert('Erreur', 'Impossible de terminer la session');
             }
           },
         },
@@ -147,13 +195,12 @@ export const SessionDashboard: React.FC<SessionDashboardProps> = ({
           style: 'destructive',
           onPress: async () => {
             try {
-              setLoading(true);
               await collaborativeSessionService.leaveSession(sessionId);
-              onLeave?.();
-            } catch (error: any) {
-              Alert.alert('Erreur', error.message);
-            } finally {
-              setLoading(false);
+              if (onLeave) {
+                onLeave();
+              }
+            } catch (error) {
+              Alert.alert('Erreur', 'Impossible de quitter la session');
             }
           },
         },
@@ -161,70 +208,53 @@ export const SessionDashboard: React.FC<SessionDashboardProps> = ({
     );
   };
 
-  const handleApproveParticipant = async (participantId: string) => {
-    try {
-      setLoading(true);
-      await collaborativeSessionService.participantAction(participantId, 'approve');
-      await loadSession();
-      Alert.alert('Succès', 'Participant approuvé');
-    } catch (error: any) {
-      Alert.alert('Erreur', error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const handleShareSession = async () => {
+    if (!session) return;
 
-  const handleRejectParticipant = async (participantId: string) => {
+    const message = `🍽️ Rejoins notre table au restaurant !\n\nRestaurant: ${session.restaurant_name}\nTable: ${session.table_number}\n\nCode de session: ${session.share_code}`;
+
     try {
-      setLoading(true);
-      await collaborativeSessionService.participantAction(participantId, 'reject');
-      await loadSession();
-      Alert.alert('Succès', 'Participation refusée');
-    } catch (error: any) {
-      Alert.alert('Erreur', error.message);
-    } finally {
-      setLoading(false);
+      await Share.share({
+        message,
+        title: 'Rejoins notre table',
+      });
+    } catch (error) {
+      console.error('Error sharing:', error);
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active':
-        return '#4CAF50';
-      case 'locked':
-        return '#FF9800';
-      case 'completed':
-        return '#9E9E9E';
-      default:
-        return '#666';
+      case 'active': return '#4CAF50';
+      case 'locked': return '#FF9800';
+      case 'completed': return '#2196F3';
+      case 'payment': return '#9C27B0';
+      case 'cancelled': return '#F44336';
+      default: return '#666';
     }
   };
 
   const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'Active';
-      case 'locked':
-        return 'Verrouillée';
-      case 'payment':
-        return 'En paiement';
-      case 'completed':
-        return 'Terminée';
-      default:
-        return status;
-    }
+    const labels: Record<string, string> = {
+      active: 'Active',
+      locked: 'Verrouillée',
+      payment: 'Paiement',
+      completed: 'Terminée',
+      cancelled: 'Annulée',
+    };
+    return labels[status] || status;
   };
 
   if (!session) {
     return (
-      <View style={styles.container}>
-        <Text>Chargement...</Text>
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Chargement...</Text>
       </View>
     );
   }
 
   const isHost = session.participants.some(p => p.is_host);
-  const pendingParticipants = session.participants.filter(p => p.status === 'pending');
+  const canManageSession = isHost && session.status !== 'completed' && session.status !== 'cancelled';
 
   return (
     <ScrollView
@@ -233,168 +263,134 @@ export const SessionDashboard: React.FC<SessionDashboardProps> = ({
         <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
       }
     >
-      {/* En-tête de session */}
+      {/* Bandeau d'avertissement d'archivage */}
+      <SessionArchiveWarning sessionId={sessionId} />
+
+      {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <View style={styles.headerInfo}>
-            <Text style={styles.headerTitle}>{session.restaurant_name}</Text>
-            <Text style={styles.headerSubtitle}>Table {session.table_number}</Text>
+          <View style={styles.restaurantInfo}>
+            <Ionicons name="restaurant" size={24} color="#1E2A78" />
+            <View style={styles.restaurantDetails}>
+              <Text style={styles.restaurantName}>{session.restaurant_name}</Text>
+              <Text style={styles.tableNumber}>Table {session.table_number}</Text>
+            </View>
           </View>
           <View style={[styles.statusBadge, { backgroundColor: getStatusColor(session.status) }]}>
             <Text style={styles.statusText}>{getStatusLabel(session.status)}</Text>
           </View>
         </View>
 
-        {/* Code de partage */}
-        <View style={styles.shareCodeCard}>
-          <View style={styles.shareCodeContent}>
-            <Ionicons name="qr-code" size={40} color="#1E2A78" />
-            <View style={styles.shareCodeInfo}>
-              <Text style={styles.shareCodeLabel}>Code de session</Text>
-              <Text style={styles.shareCode}>{session.share_code}</Text>
-            </View>
-          </View>
-          {session.status === 'active' && (
-            <TouchableOpacity
-              style={styles.shareButton}
-              onPress={handleShareCode}
-            >
-              <Ionicons name="share-social" size={20} color="#1E2A78" />
-              <Text style={styles.shareButtonText}>Partager</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Statistiques */}
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Ionicons name="people" size={24} color="#1E2A78" />
-            <Text style={styles.statValue}>{session.participant_count}</Text>
-            <Text style={styles.statLabel}>Participants</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Ionicons name="receipt" size={24} color="#1E2A78" />
-            <Text style={styles.statValue}>{session.total_orders_count}</Text>
-            <Text style={styles.statLabel}>Commandes</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Ionicons name="cash" size={24} color="#1E2A78" />
-            <Text style={styles.statValue}>{session.total_amount.toFixed(2)}€</Text>
-            <Text style={styles.statLabel}>Total</Text>
-          </View>
+        <View style={styles.sessionCode}>
+          <Ionicons name="qr-code" size={20} color="#666" />
+          <Text style={styles.codeLabel}>Code:</Text>
+          <Text style={styles.code}>{session.share_code}</Text>
+          <TouchableOpacity onPress={handleShareSession} style={styles.shareButton}>
+            <Ionicons name="share-social" size={20} color="#1E2A78" />
+          </TouchableOpacity>
         </View>
       </View>
 
-      {/* Demandes en attente (pour l'hôte) */}
-      {isHost && pendingParticipants.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            <Ionicons name="time" size={20} color="#FF9800" /> Demandes en attente
-          </Text>
-          {pendingParticipants.map((participant) => (
-            <View key={participant.id} style={styles.pendingCard}>
-              <View style={styles.pendingInfo}>
-                <Text style={styles.pendingName}>{participant.display_name}</Text>
-                <Text style={styles.pendingTime}>
-                  {new Date(participant.joined_at).toLocaleTimeString()}
-                </Text>
-              </View>
-              <View style={styles.pendingActions}>
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.approveButton]}
-                  onPress={() => handleApproveParticipant(participant.id)}
-                >
-                  <Ionicons name="checkmark" size={20} color="#FFF" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.rejectButton]}
-                  onPress={() => handleRejectParticipant(participant.id)}
-                >
-                  <Ionicons name="close" size={20} color="#FFF" />
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))}
+      {/* Stats */}
+      <View style={styles.statsContainer}>
+        <View style={styles.statCard}>
+          <Ionicons name="people" size={24} color="#1E2A78" />
+          <Text style={styles.statValue}>{session.participants.length}</Text>
+          <Text style={styles.statLabel}>Participants</Text>
         </View>
-      )}
+        <View style={styles.statCard}>
+          <Ionicons name="receipt" size={24} color="#1E2A78" />
+          <Text style={styles.statValue}>{session.total_orders_count}</Text>
+          <Text style={styles.statLabel}>Commandes</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Ionicons name="cash" size={24} color="#1E2A78" />
+          <Text style={styles.statValue}>{session.total_amount.toFixed(2)}€</Text>
+          <Text style={styles.statLabel}>Total</Text>
+        </View>
+      </View>
 
-      {/* Liste des participants */}
+      {/* Participants */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>
-          <Ionicons name="people" size={20} color="#1E2A78" /> Participants
-        </Text>
-        {session.participants
-          .filter(p => p.status === 'active')
-          .map((participant) => (
-            <View key={participant.id} style={styles.participantCard}>
-              <View style={styles.participantAvatar}>
-                <Text style={styles.participantInitial}>
-                  {participant.display_name.charAt(0).toUpperCase()}
-                </Text>
-              </View>
-              <View style={styles.participantInfo}>
-                <View style={styles.participantNameRow}>
-                  <Text style={styles.participantName}>{participant.display_name}</Text>
-                  {participant.is_host && (
-                    <View style={styles.hostBadge}>
-                      <Text style={styles.hostBadgeText}>Hôte</Text>
-                    </View>
-                  )}
-                </View>
-                <Text style={styles.participantStats}>
-                  {participant.orders_count} commande(s) • {participant.total_spent.toFixed(2)}€
-                </Text>
-              </View>
+        <Text style={styles.sectionTitle}>Participants</Text>
+        {session.participants.map((participant) => (
+          <View key={participant.id} style={styles.participantCard}>
+            <View style={styles.participantAvatar}>
+              <Text style={styles.participantInitial}>
+                {participant.display_name.charAt(0).toUpperCase()}
+              </Text>
             </View>
-          ))}
+            <View style={styles.participantInfo}>
+              <View style={styles.participantNameRow}>
+                <Text style={styles.participantName}>{participant.display_name}</Text>
+                {participant.is_host && (
+                  <View style={styles.hostBadge}>
+                    <Ionicons name="star" size={12} color="#FFD700" />
+                    <Text style={styles.hostBadgeText}>Hôte</Text>
+                  </View>
+                )}
+              </View>
+              <Text style={styles.participantStats}>
+                {participant.orders_count} commande(s) • {participant.total_spent.toFixed(2)}€
+              </Text>
+            </View>
+          </View>
+        ))}
       </View>
 
       {/* Actions */}
-      <View style={styles.actionsSection}>
-        {isHost && (
+      <View style={styles.actions}>
+        {canManageSession && (
           <>
             {session.status === 'active' && (
               <TouchableOpacity
-                style={[styles.actionButtonLarge, styles.lockButton]}
+                style={[styles.actionButton, styles.lockButton]}
                 onPress={handleLockSession}
               >
                 <Ionicons name="lock-closed" size={20} color="#FFF" />
-                <Text style={styles.actionButtonText}>Verrouiller la session</Text>
+                <Text style={styles.actionButtonText}>Verrouiller</Text>
               </TouchableOpacity>
             )}
 
             {session.status === 'locked' && (
               <TouchableOpacity
-                style={[styles.actionButtonLarge, styles.unlockButton]}
+                style={[styles.actionButton, styles.unlockButton]}
                 onPress={handleUnlockSession}
               >
                 <Ionicons name="lock-open" size={20} color="#FFF" />
-                <Text style={styles.actionButtonText}>Déverrouiller la session</Text>
+                <Text style={styles.actionButtonText}>Déverrouiller</Text>
               </TouchableOpacity>
             )}
 
-            {(session.status === 'active' || session.status === 'locked') && (
-              <TouchableOpacity
-                style={[styles.actionButtonLarge, styles.completeButton]}
-                onPress={handleCompleteSession}
-              >
-                <Ionicons name="checkmark-circle" size={20} color="#FFF" />
-                <Text style={styles.actionButtonText}>Terminer la session</Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity
+              style={[styles.actionButton, styles.completeButton]}
+              onPress={handleCompleteSession}
+            >
+              <Ionicons name="checkmark-done" size={20} color="#FFF" />
+              <Text style={styles.actionButtonText}>Terminer</Text>
+            </TouchableOpacity>
           </>
         )}
 
-        {!isHost && (
-          <TouchableOpacity
-            style={[styles.actionButtonLarge, styles.leaveButton]}
-            onPress={handleLeaveSession}
-          >
-            <Ionicons name="exit" size={20} color="#FFF" />
-            <Text style={styles.actionButtonText}>Quitter la session</Text>
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity
+          style={[styles.actionButton, styles.leaveButton]}
+          onPress={handleLeaveSession}
+        >
+          <Ionicons name="exit" size={20} color="#FFF" />
+          <Text style={styles.actionButtonText}>Quitter</Text>
+        </TouchableOpacity>
       </View>
+
+      {/* Info d'archivage pour les sessions terminées */}
+      {session.status === 'completed' && (
+        <View style={styles.archiveInfo}>
+          <Ionicons name="information-circle" size={20} color="#1E2A78" />
+          <Text style={styles.archiveInfoText}>
+            Cette session sera automatiquement archivée 30 minutes après sa fin.
+            Vous recevrez une notification avant l'archivage.
+          </Text>
+        </View>
+      )}
     </ScrollView>
   );
 };
@@ -403,6 +399,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8F9FA',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F8F9FA',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#666',
   },
   header: {
     backgroundColor: '#FFF',
@@ -413,85 +419,75 @@ const styles = StyleSheet.create({
   headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 20,
+    alignItems: 'center',
+    marginBottom: 16,
   },
-  headerInfo: {
+  restaurantInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
   },
-  headerTitle: {
-    fontSize: 24,
+  restaurantDetails: {
+    marginLeft: 12,
+  },
+  restaurantName: {
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#1E2A78',
-    marginBottom: 4,
   },
-  headerSubtitle: {
-    fontSize: 16,
+  tableNumber: {
+    fontSize: 14,
     color: '#666',
+    marginTop: 2,
   },
   statusBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 16,
+    borderRadius: 12,
   },
   statusText: {
     color: '#FFF',
     fontSize: 12,
     fontWeight: '600',
   },
-  shareCodeCard: {
-    backgroundColor: '#E8EAF6',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-  },
-  shareCodeContent: {
+  sessionCode: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
-  },
-  shareCodeInfo: {
-    marginLeft: 16,
-    flex: 1,
-  },
-  shareCodeLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 4,
-  },
-  shareCode: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#1E2A78',
-    letterSpacing: 4,
-  },
-  shareButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFF',
+    backgroundColor: '#F8F9FA',
     padding: 12,
     borderRadius: 8,
+    gap: 8,
   },
-  shareButtonText: {
-    color: '#1E2A78',
+  codeLabel: {
     fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 8,
+    color: '#666',
   },
-  statsRow: {
+  code: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1E2A78',
+    letterSpacing: 2,
+    flex: 1,
+  },
+  shareButton: {
+    padding: 4,
+  },
+  statsContainer: {
     flexDirection: 'row',
+    padding: 16,
     gap: 12,
   },
   statCard: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
-    borderRadius: 8,
-    padding: 12,
+    backgroundColor: '#FFF',
+    padding: 16,
+    borderRadius: 12,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
   },
   statValue: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#1E2A78',
     marginTop: 8,
@@ -503,8 +499,8 @@ const styles = StyleSheet.create({
   },
   section: {
     backgroundColor: '#FFF',
-    marginTop: 12,
     padding: 20,
+    marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 18,
@@ -512,52 +508,12 @@ const styles = StyleSheet.create({
     color: '#1E2A78',
     marginBottom: 16,
   },
-  pendingCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#FFF3E0',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  pendingInfo: {
-    flex: 1,
-  },
-  pendingName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
-  },
-  pendingTime: {
-    fontSize: 12,
-    color: '#666',
-  },
-  pendingActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  actionButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  approveButton: {
-    backgroundColor: '#4CAF50',
-  },
-  rejectButton: {
-    backgroundColor: '#F44336',
-  },
   participantCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    backgroundColor: '#F8F9FA',
-    borderRadius: 8,
-    marginBottom: 8,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
   },
   participantAvatar: {
     width: 48,
@@ -579,39 +535,42 @@ const styles = StyleSheet.create({
   participantNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
     marginBottom: 4,
   },
   participantName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
-    marginRight: 8,
+    color: '#1E2A78',
   },
   hostBadge: {
-    backgroundColor: '#FFD700',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF3CD',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
+    gap: 4,
   },
   hostBadgeText: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#1E2A78',
+    color: '#856404',
   },
   participantStats: {
     fontSize: 12,
     color: '#666',
   },
-  actionsSection: {
-    padding: 20,
+  actions: {
+    padding: 16,
     gap: 12,
   },
-  actionButtonLarge: {
+  actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 16,
-    borderRadius: 8,
+    borderRadius: 12,
     gap: 8,
   },
   lockButton: {
@@ -621,7 +580,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#4CAF50',
   },
   completeButton: {
-    backgroundColor: '#1E2A78',
+    backgroundColor: '#2196F3',
   },
   leaveButton: {
     backgroundColor: '#F44336',
@@ -630,5 +589,20 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  archiveInfo: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#E8EAF6',
+    padding: 16,
+    margin: 16,
+    borderRadius: 8,
+    gap: 12,
+  },
+  archiveInfoText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#1E2A78',
+    lineHeight: 20,
   },
 });
