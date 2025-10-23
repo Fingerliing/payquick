@@ -7,7 +7,7 @@ from datetime import timedelta
 import logging
 
 from api.models import CollaborativeTableSession, Table, Restaurant
-from api.serializers.collaborative_serializers import CollaborativeSessionSerializer
+from api.serializers.collaborative_session_serializers import CollaborativeSessionSerializer
 
 logger = logging.getLogger(__name__)
 

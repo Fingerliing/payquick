@@ -13,7 +13,9 @@ export type SessionWebSocketEvent =
   | 'order_updated'
   | 'session_locked'
   | 'session_unlocked'
-  | 'session_completed';
+  | 'session_completed'
+  | 'session_archived'
+  | 'table_released';
 
 interface WebSocketMessage {
   type: string;
@@ -22,6 +24,14 @@ interface WebSocketMessage {
   participant_id?: string;
   order?: any;
   locked_by?: string;
+  session_id?: string;
+  message?: string;
+  reason?: string;
+  timestamp?: string;
+  redirect_suggested?: boolean;
+  will_archive_in?: number;
+  table_id?: string;
+  table_number?: string;
 }
 
 export class SessionWebSocket extends EventEmitter {
@@ -162,7 +172,33 @@ export class SessionWebSocket extends EventEmitter {
           break;
 
         case 'session_completed':
-          this.emit('session_completed');
+          this.emit('session_completed', {
+            will_archive_in: message.will_archive_in,
+            message: message.message
+          });
+          break;
+
+        //Handler pour session archivée
+        case 'session_archived':
+          console.log('🗄️ Session archived:', message.reason);
+          this.emit('session_archived', {
+            session_id: message.session_id,
+            message: message.message,
+            reason: message.reason,
+            redirect_suggested: message.redirect_suggested,
+            timestamp: message.timestamp
+          });
+          break;
+
+        //Handler pour table libérée
+        case 'table_released':
+          console.log('🆓 Table released:', message.table_number);
+          this.emit('table_released', {
+            table_id: message.table_id,
+            table_number: message.table_number,
+            message: message.message,
+            timestamp: message.timestamp
+          });
           break;
 
         default:
@@ -214,161 +250,3 @@ export class SessionWebSocket extends EventEmitter {
     }
   }
 }
-
-// Hook React pour utiliser le WebSocket de session
-import { useState, useEffect, useRef, useCallback } from 'react';
-
-interface UseSessionWebSocketOptions {
-  autoConnect?: boolean;
-}
-
-export const useSessionWebSocket = (
-  sessionId: string | null,
-  options: UseSessionWebSocketOptions = {}
-) => {
-  const { autoConnect = true } = options;
-  
-  const [isConnected, setIsConnected] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  const wsRef = useRef<SessionWebSocket | null>(null);
-
-  // Créer la connexion WebSocket
-  useEffect(() => {
-    if (!sessionId) {
-      return;
-    }
-
-    const ws = new SessionWebSocket(sessionId);
-    wsRef.current = ws;
-
-    // Gestionnaires d'événements
-    ws.on('connected', () => {
-      setIsConnected(true);
-      setError(null);
-    });
-
-    ws.on('disconnected', () => {
-      setIsConnected(false);
-    });
-
-    ws.on('error', (err) => {
-      setError(err);
-    });
-
-    // Connexion automatique
-    if (autoConnect) {
-      ws.connect();
-    }
-
-    // Nettoyage
-    return () => {
-      ws.disconnect();
-      ws.removeAllListeners();
-    };
-  }, [sessionId, autoConnect]);
-
-  // Méthodes utilitaires
-  const connect = useCallback(() => {
-    wsRef.current?.connect();
-  }, []);
-
-  const disconnect = useCallback(() => {
-    wsRef.current?.disconnect();
-  }, []);
-
-  const requestUpdate = useCallback(() => {
-    wsRef.current?.requestUpdate();
-  }, []);
-
-  const on = useCallback((event: SessionWebSocketEvent, handler: (...args: any[]) => void) => {
-    wsRef.current?.on(event, handler);
-    return () => {
-      wsRef.current?.off(event, handler);
-    };
-  }, []);
-
-  return {
-    isConnected,
-    error,
-    connect,
-    disconnect,
-    requestUpdate,
-    on,
-    ws: wsRef.current,
-  };
-};
-
-// Hook pour écouter les événements spécifiques de session
-export const useSessionEvents = (sessionId: string | null) => {
-  const { on, isConnected } = useSessionWebSocket(sessionId);
-  
-  const [sessionData, setSessionData] = useState<any>(null);
-  const [participants, setParticipants] = useState<any[]>([]);
-  const [orders, setOrders] = useState<any[]>([]);
-  const [isLocked, setIsLocked] = useState(false);
-
-  useEffect(() => {
-    if (!isConnected) return;
-
-    // État de la session
-    const unsubState = on('session_state', (data) => {
-      setSessionData(data);
-      setParticipants(data.participants || []);
-      setIsLocked(data.status === 'locked');
-    });
-
-    // Mise à jour de session
-    const unsubUpdate = on('session_update', (data) => {
-      setSessionData(data);
-    });
-
-    // Participant rejoint
-    const unsubJoined = on('participant_joined', (participant) => {
-      setParticipants(prev => [...prev, participant]);
-    });
-
-    // Participant parti
-    const unsubLeft = on('participant_left', (participantId) => {
-      setParticipants(prev => prev.filter(p => p.id !== participantId));
-    });
-
-    // Nouvelle commande
-    const unsubOrderCreated = on('order_created', (order) => {
-      setOrders(prev => [...prev, order]);
-    });
-
-    // Commande mise à jour
-    const unsubOrderUpdated = on('order_updated', (order) => {
-      setOrders(prev => prev.map(o => o.id === order.id ? order : o));
-    });
-
-    // Session verrouillée
-    const unsubLocked = on('session_locked', () => {
-      setIsLocked(true);
-    });
-
-    // Session déverrouillée
-    const unsubUnlocked = on('session_unlocked', () => {
-      setIsLocked(false);
-    });
-
-    return () => {
-      unsubState();
-      unsubUpdate();
-      unsubJoined();
-      unsubLeft();
-      unsubOrderCreated();
-      unsubOrderUpdated();
-      unsubLocked();
-      unsubUnlocked();
-    };
-  }, [on, isConnected]);
-
-  return {
-    sessionData,
-    participants,
-    orders,
-    isLocked,
-    isConnected,
-  };
-};
