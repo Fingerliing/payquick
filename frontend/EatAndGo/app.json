@@ -25,15 +25,24 @@
       "intentFilters": [
         {
           "action": "VIEW",
-          "data": [{ "scheme": "eatquicker" }],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "data": [
+            {
+              "scheme": "eatquicker"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ],
       "permissions": [
         "android.permission.CAMERA",
         "WRITE_EXTERNAL_STORAGE",
-        "READ_EXTERNAL_STORAGE"
-      ]
+        "READ_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.fingerliing.EatQuickeR"
     },
     "web": {
       "bundler": "metro",
@@ -68,7 +77,11 @@
       "typedRoutes": true
     },
     "extra": {
-      "API_URL": "http://192.168.1.163:8000"
+      "API_URL": "http://192.168.1.163:8000",
+      "router": {},
+      "eas": {
+        "projectId": "aec49fe2-48a9-417e-9552-31fc13700804"
+      }
     }
   }
 }

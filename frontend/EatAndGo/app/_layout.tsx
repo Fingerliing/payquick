@@ -61,7 +61,7 @@ export default function RootLayout() {
                     <Stack.Screen name="order/success" options={{ title: 'Commande confirmée' }} />
                     <Stack.Screen name="+not-found" />
                   </Stack>
-                  <FirstLaunchLegalModal isAuthenticated={true}/>
+                  {/* <FirstLaunchLegalModal isAuthenticated={true}/> */}
                 </NotificationProvider>
               </CartProvider>
             </SplashScreenManager>
