@@ -6,7 +6,6 @@ import { RestaurantProvider } from '@/contexts/RestaurantContext';
 import { OrderProvider } from '@/contexts/OrderContext';
 import { CartProvider } from '@/contexts/CartContext';
 import { FirstLaunchLegalModal } from '@/components/legal/FirstLaunchLegalModal';
-import { checkLegalUpdates, showLegalUpdateAlert } from '@/utils/legalNotifications';
 import { NotificationProvider } from '@/components/session/SessionNotifications';
 
 SplashScreen.preventAutoHideAsync();
@@ -39,19 +38,6 @@ function SplashScreenManager({ children }: { children: React.ReactNode }) {
 }
 
 export default function RootLayout() {
-  useEffect(() => {
-    const checkUpdates = async () => {
-      const needsUpdate = await checkLegalUpdates();
-      if (needsUpdate) {
-        showLegalUpdateAlert(() => {
-          // Naviguer vers les CGU
-          router.push('/(legal)/terms');
-        });
-      }
-    };
-    
-    checkUpdates();
-  }, []);
   return (
     <SafeAreaProvider>
       <AuthProvider>

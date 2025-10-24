@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
+import { markLegalAsRead } from '@/utils/legalNotifications';
 
 const LEGAL_VERSION = '1.0.0';
 const STORAGE_KEY = 'legal_acceptance';
@@ -23,7 +24,7 @@ interface LegalAcceptance {
 }
 
 interface FirstLaunchLegalModalProps {
-  isAuthenticated?: boolean; // Ajout d'une prop pour vérifier l'état de connexion
+  isAuthenticated?: boolean;
 }
 
 export function FirstLaunchLegalModal({ isAuthenticated = false }: FirstLaunchLegalModalProps) {
@@ -33,7 +34,6 @@ export function FirstLaunchLegalModal({ isAuthenticated = false }: FirstLaunchLe
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
 
   useEffect(() => {
-    // Ne vérifier que si l'utilisateur est connecté
     if (isAuthenticated) {
       checkLegalAcceptance();
     } else {
@@ -45,6 +45,7 @@ export function FirstLaunchLegalModal({ isAuthenticated = false }: FirstLaunchLe
     try {
       const stored = await AsyncStorage.getItem(STORAGE_KEY);
       if (!stored) {
+        console.log('📋 Aucune acceptation CGU trouvée - affichage modal');
         setVisible(true);
         return;
       }
@@ -52,7 +53,10 @@ export function FirstLaunchLegalModal({ isAuthenticated = false }: FirstLaunchLe
       const acceptance: LegalAcceptance = JSON.parse(stored);
       
       if (acceptance.version !== LEGAL_VERSION) {
+        console.log('📋 Version CGU obsolète - affichage modal');
         setVisible(true);
+      } else {
+        console.log('✅ CGU déjà acceptées - version à jour');
       }
     } catch (error) {
       console.error('Erreur lors de la vérification:', error);
@@ -81,7 +85,15 @@ export function FirstLaunchLegalModal({ isAuthenticated = false }: FirstLaunchLe
     };
 
     try {
+      console.log('💾 Enregistrement de l\'acceptation des CGU');
+      
+      // Enregistrement dans le système de FirstLaunchLegalModal
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(acceptance));
+      
+      // Enregistrement dans le système legalNotifications
+      await markLegalAsRead();
+      
+      console.log('✅ Acceptation enregistrée dans les deux systèmes');
       setVisible(false);
     } catch (error) {
       console.error('Erreur lors de la sauvegarde:', error);
