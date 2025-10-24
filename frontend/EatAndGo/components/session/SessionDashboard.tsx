@@ -1,127 +1,105 @@
+/**
+ * Dashboard principal pour la gestion d'une session collaborative
+ * Centralise tous les composants et hooks de session
+ */
+
 import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   ScrollView,
-  Alert,
   RefreshControl,
-  Share,
+  TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import {
-  collaborativeSessionService,
-  CollaborativeSession,
-  SessionParticipant,
-} from '@/services/collaborativeSessionService';
+import { router } from 'expo-router';
+
+// Hooks
+import { useCollaborativeSession } from '@/hooks/session/useCollaborativeSession';
 import { useSessionArchiving } from '@/hooks/session/useSessionArchiving';
-import { SessionArchiveWarning } from '@/components/session/SessionArchiveWarning';
+import { useSessionEvents } from '@/hooks/session/useSessionEvents';
 import { useSessionNotifications } from '@/components/session/SessionNotifications';
 
-interface SessionDashboardProps {
+// Composants
+import { SessionArchiveWarning } from '@/components/session/SessionArchiveWarning';
+import { SessionOrdersView } from '@/components/session/SessionOrdersView';
+import { SessionQRCodeModal, SessionCodeDisplay } from '@/components/session/SessionQRCodeModal';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+export interface SessionDashboardProps {
   sessionId: string;
-  onLeave?: () => void;
-  onSessionCompleted?: () => void;
-  onSessionArchived?: () => void;
-  navigation?: any; // Pour la navigation React Navigation
+  onLeaveSession?: () => void;
 }
+
+// ============================================================================
+// COMPOSANT PRINCIPAL
+// ============================================================================
 
 export const SessionDashboard: React.FC<SessionDashboardProps> = ({
   sessionId,
-  onLeave,
-  onSessionCompleted,
-  onSessionArchived,
-  navigation,
+  onLeaveSession,
 }) => {
-  const [session, setSession] = useState<CollaborativeSession | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Activer les notifications de session
+  // Hooks de gestion de session
+  const {
+    session,
+    currentParticipant,
+    isHost,
+    canManage,
+    loading,
+    error,
+    lockSession,
+    unlockSession,
+    completeSession,
+    leaveSession,
+    refresh,
+    isActive,
+    isLocked,
+    isCompleted,
+  } = useCollaborativeSession({ sessionId });
+
+  // Écoute des événements de session
+  const { sessionData, participants, orders, isConnected } = useSessionEvents(sessionId);
+
+  // Notifications automatiques
   useSessionNotifications(sessionId);
 
-  // Gérer l'archivage avec redirection automatique
+  // Gestion de l'archivage
   useSessionArchiving({
     sessionId,
     autoRedirect: true,
     onSessionArchived: (data) => {
-      console.log('🗄️ Session archivée:', data);
-      
-      // Callback personnalisé
-      if (onSessionArchived) {
-        onSessionArchived();
-      }
-
-      // Redirection vers l'accueil après un court délai
-      setTimeout(() => {
-        if (navigation) {
-          navigation.replace('Home');
-        }
-      }, 2000);
+      Alert.alert('Session archivée', data.message || 'Cette session a été archivée', [
+        { text: 'OK', onPress: () => router.replace('/(tabs)/dashboard') },
+      ]);
     },
     onTableReleased: (data) => {
-      console.log('🆓 Table libérée:', data.table_number);
-    },
-    onSessionCompleted: (data) => {
-      console.log('✅ Session terminée');
-      
-      if (onSessionCompleted) {
-        onSessionCompleted();
-      }
+      console.log(`Table ${data.table_number} libérée`);
     },
   });
 
-  useEffect(() => {
-    loadSession();
-    
-    // Rafraîchir toutes les 10 secondes
-    const interval = setInterval(loadSession, 10000);
-    return () => clearInterval(interval);
-  }, [sessionId]);
-
-  const loadSession = async () => {
-    try {
-      const data = await collaborativeSessionService.getSession(sessionId);
-      setSession(data);
-    } catch (error: any) {
-      console.error('Error loading session:', error);
-      
-      // Si la session n'existe plus (404), elle a probablement été archivée
-      if (error?.response?.status === 404) {
-        Alert.alert(
-          'Session introuvable',
-          'Cette session a été archivée ou n\'existe plus.',
-          [
-            {
-              text: 'Retour à l\'accueil',
-              onPress: () => {
-                if (navigation) {
-                  navigation.replace('Home');
-                } else if (onSessionArchived) {
-                  onSessionArchived();
-                }
-              },
-            },
-          ],
-          { cancelable: false }
-        );
-      }
-    }
-  };
-
+  // Rafraîchir les données
   const handleRefresh = async () => {
     setRefreshing(true);
-    await loadSession();
+    await refresh();
     setRefreshing(false);
   };
 
-  const handleLockSession = async () => {
-    if (!session) return;
-
+  // Gérer le verrouillage
+  const handleLock = async () => {
     Alert.alert(
       'Verrouiller la session',
-      'Plus aucun nouveau participant ne pourra rejoindre la session.',
+      'Les participants ne pourront plus rejoindre cette session',
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -129,10 +107,9 @@ export const SessionDashboard: React.FC<SessionDashboardProps> = ({
           style: 'destructive',
           onPress: async () => {
             try {
-              await collaborativeSessionService.sessionAction(sessionId, 'lock');
-              await loadSession();
-            } catch (error) {
-              Alert.alert('Erreur', 'Impossible de verrouiller la session');
+              await lockSession();
+            } catch (error: any) {
+              Alert.alert('Erreur', error.message);
             }
           },
         },
@@ -140,23 +117,20 @@ export const SessionDashboard: React.FC<SessionDashboardProps> = ({
     );
   };
 
-  const handleUnlockSession = async () => {
-    if (!session) return;
-
+  // Gérer le déverrouillage
+  const handleUnlock = async () => {
     try {
-      await collaborativeSessionService.sessionAction(sessionId, 'unlock');
-      await loadSession();
-    } catch (error) {
-      Alert.alert('Erreur', 'Impossible de déverrouiller la session');
+      await unlockSession();
+    } catch (error: any) {
+      Alert.alert('Erreur', error.message);
     }
   };
 
-  const handleCompleteSession = async () => {
-    if (!session) return;
-
+  // Terminer la session
+  const handleComplete = async () => {
     Alert.alert(
       'Terminer la session',
-      'Cette action va terminer la session pour tous les participants. La session sera archivée automatiquement dans 30 minutes.',
+      'Êtes-vous sûr ? Cette action marquera la fin du repas.',
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -164,19 +138,9 @@ export const SessionDashboard: React.FC<SessionDashboardProps> = ({
           style: 'destructive',
           onPress: async () => {
             try {
-              await collaborativeSessionService.sessionAction(sessionId, 'complete');
-              
-              if (onSessionCompleted) {
-                onSessionCompleted();
-              }
-
-              Alert.alert(
-                'Session terminée',
-                'La session sera archivée automatiquement dans 30 minutes. Vous recevrez une notification avant l\'archivage.',
-                [{ text: 'OK' }]
-              );
-            } catch (error) {
-              Alert.alert('Erreur', 'Impossible de terminer la session');
+              await completeSession();
+            } catch (error: any) {
+              Alert.alert('Erreur', error.message);
             }
           },
         },
@@ -184,10 +148,13 @@ export const SessionDashboard: React.FC<SessionDashboardProps> = ({
     );
   };
 
-  const handleLeaveSession = async () => {
+  // Quitter la session
+  const handleLeave = async () => {
     Alert.alert(
       'Quitter la session',
-      'Êtes-vous sûr de vouloir quitter cette session ?',
+      isHost
+        ? 'Vous êtes l\'hôte. Si vous quittez, la session continuera sans vous.'
+        : 'Êtes-vous sûr de vouloir quitter cette session ?',
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -195,12 +162,11 @@ export const SessionDashboard: React.FC<SessionDashboardProps> = ({
           style: 'destructive',
           onPress: async () => {
             try {
-              await collaborativeSessionService.leaveSession(sessionId);
-              if (onLeave) {
-                onLeave();
-              }
-            } catch (error) {
-              Alert.alert('Erreur', 'Impossible de quitter la session');
+              await leaveSession();
+              onLeaveSession?.();
+              router.replace('/(tabs)/dashboard');
+            } catch (error: any) {
+              Alert.alert('Erreur', error.message);
             }
           },
         },
@@ -208,192 +174,192 @@ export const SessionDashboard: React.FC<SessionDashboardProps> = ({
     );
   };
 
-  const handleShareSession = async () => {
-    if (!session) return;
-
-    const message = `🍽️ Rejoins notre table au restaurant !\n\nRestaurant: ${session.restaurant_name}\nTable: ${session.table_number}\n\nCode de session: ${session.share_code}`;
-
-    try {
-      await Share.share({
-        message,
-        title: 'Rejoins notre table',
-      });
-    } catch (error) {
-      console.error('Error sharing:', error);
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return '#4CAF50';
-      case 'locked': return '#FF9800';
-      case 'completed': return '#2196F3';
-      case 'payment': return '#9C27B0';
-      case 'cancelled': return '#F44336';
-      default: return '#666';
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    const labels: Record<string, string> = {
-      active: 'Active',
-      locked: 'Verrouillée',
-      payment: 'Paiement',
-      completed: 'Terminée',
-      cancelled: 'Annulée',
-    };
-    return labels[status] || status;
-  };
-
-  if (!session) {
+  if (loading && !session) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Chargement...</Text>
+        <Text style={styles.loadingText}>Chargement de la session...</Text>
       </View>
     );
   }
 
-  const isHost = session.participants.some(p => p.is_host);
-  const canManageSession = isHost && session.status !== 'completed' && session.status !== 'cancelled';
+  if (error || !session) {
+    return (
+      <View style={styles.errorContainer}>
+        <Ionicons name="alert-circle" size={64} color="#F44336" />
+        <Text style={styles.errorTitle}>Erreur</Text>
+        <Text style={styles.errorMessage}>
+          {error?.message || 'Impossible de charger la session'}
+        </Text>
+        <Button 
+          title="Retour" 
+          onPress={() => router.back()}
+          variant="primary"
+        />
+      </View>
+    );
+  }
 
   return (
-    <ScrollView
-      style={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-      }
-    >
-      {/* Bandeau d'avertissement d'archivage */}
+    <View style={styles.container}>
+      {/* Bandeau d'archivage */}
       <SessionArchiveWarning sessionId={sessionId} />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <View style={styles.restaurantInfo}>
-            <Ionicons name="restaurant" size={24} color="#1E2A78" />
-            <View style={styles.restaurantDetails}>
+      <ScrollView
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
+      >
+        {/* En-tête de session */}
+        <Card style={styles.headerCard}>
+          <View style={styles.headerRow}>
+            <View style={styles.headerInfo}>
               <Text style={styles.restaurantName}>{session.restaurant_name}</Text>
-              <Text style={styles.tableNumber}>Table {session.table_number}</Text>
+              <Text style={styles.tableName}>Table {session.table_number}</Text>
+            </View>
+            <View style={styles.statusContainer}>
+              <Badge
+                text={isActive ? 'Active' : isLocked ? 'Verrouillée' : 'Terminée'}
+                variant={isActive ? 'success' : isLocked ? 'warning' : 'default'}
+                size="md"
+              />
+              {isHost && (
+                <Badge 
+                  text="Hôte" 
+                  variant="warning" 
+                  size="sm"
+                />
+              )}
             </View>
           </View>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(session.status) }]}>
-            <Text style={styles.statusText}>{getStatusLabel(session.status)}</Text>
-          </View>
-        </View>
 
-        <View style={styles.sessionCode}>
-          <Ionicons name="qr-code" size={20} color="#666" />
-          <Text style={styles.codeLabel}>Code:</Text>
-          <Text style={styles.code}>{session.share_code}</Text>
-          <TouchableOpacity onPress={handleShareSession} style={styles.shareButton}>
-            <Ionicons name="share-social" size={20} color="#1E2A78" />
-          </TouchableOpacity>
-        </View>
-      </View>
+          {/* Code de session */}
+          <SessionCodeDisplay
+            shareCode={session.share_code}
+            onPress={() => setShowQRModal(true)}
+          />
 
-      {/* Stats */}
-      <View style={styles.statsContainer}>
-        <View style={styles.statCard}>
-          <Ionicons name="people" size={24} color="#1E2A78" />
-          <Text style={styles.statValue}>{session.participants.length}</Text>
-          <Text style={styles.statLabel}>Participants</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Ionicons name="receipt" size={24} color="#1E2A78" />
-          <Text style={styles.statValue}>{session.total_orders_count}</Text>
-          <Text style={styles.statLabel}>Commandes</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Ionicons name="cash" size={24} color="#1E2A78" />
-          <Text style={styles.statValue}>{session.total_amount.toFixed(2)}€</Text>
-          <Text style={styles.statLabel}>Total</Text>
-        </View>
-      </View>
-
-      {/* Participants */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Participants</Text>
-        {session.participants.map((participant) => (
-          <View key={participant.id} style={styles.participantCard}>
-            <View style={styles.participantAvatar}>
-              <Text style={styles.participantInitial}>
-                {participant.display_name.charAt(0).toUpperCase()}
-              </Text>
+          {/* Statistiques */}
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <Ionicons name="people" size={20} color="#666" />
+              <Text style={styles.statValue}>{session.participant_count}</Text>
+              <Text style={styles.statLabel}>Participants</Text>
             </View>
-            <View style={styles.participantInfo}>
-              <View style={styles.participantNameRow}>
-                <Text style={styles.participantName}>{participant.display_name}</Text>
-                {participant.is_host && (
-                  <View style={styles.hostBadge}>
-                    <Ionicons name="star" size={12} color="#FFD700" />
-                    <Text style={styles.hostBadgeText}>Hôte</Text>
-                  </View>
-                )}
-              </View>
-              <Text style={styles.participantStats}>
-                {participant.orders_count} commande(s) • {participant.total_spent.toFixed(2)}€
-              </Text>
+            <View style={styles.statItem}>
+              <Ionicons name="receipt" size={20} color="#666" />
+              <Text style={styles.statValue}>{orders.length}</Text>
+              <Text style={styles.statLabel}>Commandes</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Ionicons name="cash" size={20} color="#666" />
+              <Text style={styles.statValue}>{session.total_amount.toFixed(2)}€</Text>
+              <Text style={styles.statLabel}>Total</Text>
             </View>
           </View>
-        ))}
-      </View>
+        </Card>
 
-      {/* Actions */}
-      <View style={styles.actions}>
-        {canManageSession && (
-          <>
-            {session.status === 'active' && (
-              <TouchableOpacity
-                style={[styles.actionButton, styles.lockButton]}
-                onPress={handleLockSession}
-              >
-                <Ionicons name="lock-closed" size={20} color="#FFF" />
-                <Text style={styles.actionButtonText}>Verrouiller</Text>
-              </TouchableOpacity>
-            )}
-
-            {session.status === 'locked' && (
-              <TouchableOpacity
-                style={[styles.actionButton, styles.unlockButton]}
-                onPress={handleUnlockSession}
-              >
-                <Ionicons name="lock-open" size={20} color="#FFF" />
-                <Text style={styles.actionButtonText}>Déverrouiller</Text>
-              </TouchableOpacity>
-            )}
-
-            <TouchableOpacity
-              style={[styles.actionButton, styles.completeButton]}
-              onPress={handleCompleteSession}
-            >
-              <Ionicons name="checkmark-done" size={20} color="#FFF" />
-              <Text style={styles.actionButtonText}>Terminer</Text>
-            </TouchableOpacity>
-          </>
+        {/* Actions de l'hôte */}
+        {canManage && isActive && (
+          <Card style={styles.actionsCard}>
+            <Text style={styles.actionsTitle}>Actions de l'hôte</Text>
+            <View style={styles.actionsRow}>
+              {!isLocked ? (
+                <Button
+                  title="Verrouiller"
+                  onPress={handleLock}
+                  variant="outline"
+                  size="md"
+                  leftIcon={<Ionicons name="lock-closed" size={18} color="#FF9800" />}
+                  style={styles.actionButton}
+                />
+              ) : (
+                <Button
+                  title="Déverrouiller"
+                  onPress={handleUnlock}
+                  variant="outline"
+                  size="md"
+                  leftIcon={<Ionicons name="lock-open" size={18} color="#4CAF50" />}
+                  style={styles.actionButton}
+                />
+              )}
+              <Button
+                title="Terminer"
+                onPress={handleComplete}
+                variant="primary"
+                size="md"
+                leftIcon={<Ionicons name="checkmark-done" size={18} color="#FFF" />}
+                style={styles.actionButton}
+              />
+            </View>
+          </Card>
         )}
 
-        <TouchableOpacity
-          style={[styles.actionButton, styles.leaveButton]}
-          onPress={handleLeaveSession}
-        >
-          <Ionicons name="exit" size={20} color="#FFF" />
-          <Text style={styles.actionButtonText}>Quitter</Text>
-        </TouchableOpacity>
-      </View>
+        {/* Liste des participants */}
+        <Card style={styles.participantsCard}>
+          <Text style={styles.sectionTitle}>Participants ({participants.length})</Text>
+          {participants.map((participant) => (
+            <View key={participant.id} style={styles.participantRow}>
+              <View style={styles.participantAvatar}>
+                <Text style={styles.participantInitial}>
+                  {participant.display_name.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+              <View style={styles.participantInfo}>
+                <Text style={styles.participantName}>{participant.display_name}</Text>
+                <Text style={styles.participantStats}>
+                  {participant.orders_count} commande(s) • {participant.total_spent.toFixed(2)}€
+                </Text>
+              </View>
+              {participant.is_host && (
+                <Badge 
+                  text="Hôte" 
+                  variant="warning" 
+                  size="sm"
+                />
+              )}
+            </View>
+          ))}
+        </Card>
 
-      {/* Info d'archivage pour les sessions terminées */}
-      {session.status === 'completed' && (
-        <View style={styles.archiveInfo}>
-          <Ionicons name="information-circle" size={20} color="#1E2A78" />
-          <Text style={styles.archiveInfoText}>
-            Cette session sera automatiquement archivée 30 minutes après sa fin.
-            Vous recevrez une notification avant l'archivage.
-          </Text>
+        {/* Vue des commandes */}
+        <SessionOrdersView
+          sessionId={sessionId}
+          currentParticipantId={currentParticipant?.id}
+          onOrderPress={(order) => {
+            // Navigation vers les détails de commande
+            router.push(`/order/${order.id}`);
+          }}
+        />
+
+        {/* Bouton quitter */}
+        <View style={styles.leaveContainer}>
+          <Button 
+            title="Quitter la session"
+            onPress={handleLeave} 
+            variant="destructive"
+            size="md"
+            leftIcon={<Ionicons name="exit-outline" size={20} color="#F44336" />}
+            style={styles.leaveButton}
+          />
         </View>
-      )}
-    </ScrollView>
+      </ScrollView>
+
+      {/* Modal QR Code */}
+      <SessionQRCodeModal
+        visible={showQRModal}
+        onClose={() => setShowQRModal(false)}
+        shareCode={session.share_code}
+        restaurantName={session.restaurant_name}
+        tableNumber={session.table_number}
+        sessionType={session.session_type}
+      />
+    </View>
   );
 };
+
+// ============================================================================
+// STYLES
+// ============================================================================
 
 const styles = StyleSheet.create({
   container: {
@@ -409,200 +375,145 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 16,
     color: '#666',
+    marginTop: 16,
   },
-  header: {
-    backgroundColor: '#FFF',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-  },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  restaurantInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  errorContainer: {
     flex: 1,
-  },
-  restaurantDetails: {
-    marginLeft: 12,
-  },
-  restaurantName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1E2A78',
-  },
-  tableNumber: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 2,
-  },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  statusText: {
-    color: '#FFF',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  sessionCode: {
-    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
+    padding: 32,
     backgroundColor: '#F8F9FA',
-    padding: 12,
-    borderRadius: 8,
-    gap: 8,
   },
-  codeLabel: {
-    fontSize: 14,
-    color: '#666',
-  },
-  code: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1E2A78',
-    letterSpacing: 2,
-    flex: 1,
-  },
-  shareButton: {
-    padding: 4,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    padding: 16,
-    gap: 12,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: '#FFF',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  statValue: {
+  errorTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#1E2A78',
-    marginTop: 8,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  errorMessage: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  headerCard: {
+    margin: 16,
+    padding: 20,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  headerInfo: {
+    flex: 1,
+  },
+  restaurantName: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1E2A78',
+    marginBottom: 4,
+  },
+  tableName: {
+    fontSize: 16,
+    color: '#666',
+  },
+  statusContainer: {
+    gap: 8,
+    alignItems: 'flex-end',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 20,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+  },
+  statItem: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1E2A78',
   },
   statLabel: {
     fontSize: 12,
     color: '#666',
-    marginTop: 4,
   },
-  section: {
-    backgroundColor: '#FFF',
+  actionsCard: {
+    margin: 16,
+    marginTop: 0,
     padding: 20,
-    marginBottom: 16,
   },
-  sectionTitle: {
+  actionsTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#1E2A78',
     marginBottom: 16,
   },
-  participantCard: {
+  actionsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  actionButton: {
+    flex: 1,
+  },
+  participantsCard: {
+    margin: 16,
+    marginTop: 0,
+    padding: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1E2A78',
+    marginBottom: 16,
+  },
+  participantRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: '#E0E0E0',
   },
   participantAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#1E2A78',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   participantInitial: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#FFF',
   },
   participantInfo: {
     flex: 1,
   },
-  participantNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
-  },
   participantName: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1E2A78',
-  },
-  hostBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF3CD',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-    gap: 4,
-  },
-  hostBadgeText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#856404',
+    marginBottom: 2,
   },
   participantStats: {
     fontSize: 12,
     color: '#666',
   },
-  actions: {
+  leaveContainer: {
     padding: 16,
-    gap: 12,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    borderRadius: 12,
-    gap: 8,
-  },
-  lockButton: {
-    backgroundColor: '#FF9800',
-  },
-  unlockButton: {
-    backgroundColor: '#4CAF50',
-  },
-  completeButton: {
-    backgroundColor: '#2196F3',
   },
   leaveButton: {
-    backgroundColor: '#F44336',
-  },
-  actionButtonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  archiveInfo: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#E8EAF6',
-    padding: 16,
-    margin: 16,
-    borderRadius: 8,
-    gap: 12,
-  },
-  archiveInfoText: {
-    flex: 1,
-    fontSize: 14,
-    color: '#1E2A78',
-    lineHeight: 20,
+    width: '100%',
   },
 });
+
+export default SessionDashboard;

@@ -17,7 +17,7 @@ import { Badge } from '@/components/ui/Badge';
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS, SHADOWS } from '@/styles/tokens';
 import { useResponsive } from '@/utils/responsive';
 
-// ✅ TYPES POUR DASHBOARD
+// TYPES
 interface DashboardStats {
   todayOrders: number;
   todayRevenue: number;
@@ -123,7 +123,7 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(false);
   const { isMobile, isTablet, getSpacing, getFontSize } = useResponsive();
 
-  // ✅ QUICK ACTIONS ADAPTATIVES
+  // QUICK ACTIONS ADAPTATIVES
   const quickActions: QuickAction[] = [
     {
       id: '1',
@@ -177,7 +177,7 @@ export default function DashboardScreen() {
     },
   ];
 
-  // ✅ FONCTIONS DE GESTION
+  // FONCTIONS DE GESTION
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -241,7 +241,7 @@ export default function DashboardScreen() {
     );
   }, [stats.restaurantStatus]);
 
-  // ✅ RESPONSIVE GRID CALCULATION
+  // RESPONSIVE GRID CALCULATION
   const getGridColumns = useCallback(() => {
     if (isMobile) return 2;
     if (isTablet) return 3;
@@ -251,7 +251,7 @@ export default function DashboardScreen() {
   const gridColumns = getGridColumns();
   const cardWidth = `${(100 / gridColumns) - 2}%` as const;
 
-  // ✅ EFFET POUR SIMULATION TEMPS RÉEL
+  // EFFET POUR SIMULATION TEMPS RÉEL
   useEffect(() => {
     const interval = setInterval(() => {
       // Simuler mise à jour des commandes en temps réel
@@ -271,7 +271,7 @@ export default function DashboardScreen() {
     return () => clearInterval(interval);
   }, []);
 
-  // ✅ STYLES RESPONSIVES OPTIMISÉS
+  // STYLES RESPONSIVES OPTIMISÉS
   const styles = {
     container: {
       flex: 1,
@@ -581,7 +581,7 @@ export default function DashboardScreen() {
     },
   };
 
-  // ✅ COMPOSANT STAT CARD AMÉLIORÉ
+  // COMPOSANT STAT CARD AMÉLIORÉ
   const StatCard = ({ 
     label, 
     value, 
@@ -619,7 +619,7 @@ export default function DashboardScreen() {
     </Card>
   );
 
-  // ✅ COMPOSANT ACTION CARD AMÉLIORÉ
+  // COMPOSANT ACTION CARD AMÉLIORÉ
   const ActionCard = ({ action }: { action: QuickAction }) => (
     <Card 
       style={styles.actionCard}
@@ -661,7 +661,7 @@ export default function DashboardScreen() {
     </Card>
   );
 
-  // ✅ COMPOSANT ORDER ITEM AMÉLIORÉ
+  // COMPOSANT ORDER ITEM AMÉLIORÉ
   const OrderItem = ({ order, isLast }: { order: RecentOrder; isLast: boolean }) => {
     const getStatusColor = (status: string) => {
       switch (status) {
@@ -742,7 +742,7 @@ export default function DashboardScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
       
-      {/* ✅ HEADER AVEC GRADIENT */}
+      {/* HEADER AVEC GRADIENT */}
       <View style={styles.header}>
         <LinearGradient
           colors={[COLORS.primary, COLORS.primary_light]}
@@ -791,7 +791,7 @@ export default function DashboardScreen() {
           />
         }
       >
-        {/* ✅ STATS SECTION */}
+        {/* STATS SECTION */}
         <View style={styles.statsSection}>
           <View style={styles.statsGrid}>
             <StatCard
@@ -831,7 +831,7 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        {/* ✅ QUICK ACTIONS */}
+        {/* QUICK ACTIONS */}
         <View style={styles.contentSection}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Actions rapides</Text>
@@ -844,7 +844,7 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        {/* ✅ RECENT ORDERS */}
+        {/* RECENT ORDERS */}
         <View style={styles.contentSection}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Commandes récentes</Text>
@@ -883,7 +883,7 @@ export default function DashboardScreen() {
         <View style={{ height: 80 }} />
       </ScrollView>
 
-      {/* ✅ FLOATING ACTION BUTTON */}
+      {/* FLOATING ACTION BUTTON */}
       <TouchableOpacity 
         style={styles.fab}
         onPress={() => router.push('/order/new' as any)}
