@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   Modal,
   View,
@@ -6,38 +6,99 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  Dimensions,
+  Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, usePathname } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { markLegalAsRead, checkLegalUpdates } from '@/utils/legalNotifications';
+import { useLegalAcceptance } from '@/contexts/LegalAcceptanceContext';
+import { COLORS, BORDER_RADIUS, SHADOWS, TYPOGRAPHY } from '@/utils/designSystem';
 
-export function FirstLaunchLegalModal({ isAuthenticated = false }: { isAuthenticated?: boolean }) {
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+// Clés de stockage pour les acceptations temporaires
+const TERMS_ACCEPTED_KEY = '@legal_terms_temp_accepted';
+const PRIVACY_ACCEPTED_KEY = '@legal_privacy_temp_accepted';
+
+export function FirstLaunchLegalModal() {
   const router = useRouter();
+  const pathname = usePathname();
   const [visible, setVisible] = useState(false);
-  const [termsAccepted, setTermsAccepted] = useState(false);
-  const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [shouldShow, setShouldShow] = useState(false);
+  // Indique si nous sommes en train de naviguer vers un document
+  const isNavigatingRef = useRef(false);
+  const {
+    termsAccepted,
+    privacyAccepted,
+    setTermsAccepted,
+    setPrivacyAccepted,
+    acceptTerms,
+    acceptPrivacy,
+    resetAcceptances,
+    isLoading,
+  } = useLegalAcceptance();
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (!isLoading) {
+      console.log('📋 Modal - Vérification CGU...');
       checkIfNeedsAcceptance();
-    } else {
-      setVisible(false);
     }
-  }, [isAuthenticated]);
+  }, [isLoading]);
+
+  // Afficher/masquer la modal en fonction de la route et de l'état shouldShow
+  useEffect(() => {
+    // Extraire le chemin de base sans les paramètres de requête
+    const basePath = pathname?.split('?')[0] ?? '';
+    const onLegalRoute = basePath.startsWith('/(legal)/terms') || basePath.startsWith('/(legal)/privacy');
+    if (onLegalRoute) {
+      // Pendant la lecture d'un document, masquer la modal
+      setVisible(false);
+      return;
+    }
+    // Si nous venons de déclencher une navigation, ne pas réafficher immédiatement
+    if (isNavigatingRef.current) {
+      return;
+    }
+    if (shouldShow) {
+      setVisible(true);
+    }
+  }, [pathname, shouldShow]);
+
+  // Réinitialiser le flag de navigation après un changement de route
+  useEffect(() => {
+    isNavigatingRef.current = false;
+  }, [pathname]);
 
   const checkIfNeedsAcceptance = async () => {
-    const needsUpdate = await checkLegalUpdates();
-    console.log('📋 Modal - Affichage nécessaire:', needsUpdate);
-    setVisible(needsUpdate);
+    try {
+      const needsUpdate = await checkLegalUpdates();
+      console.log('📋 Modal - Affichage nécessaire:', needsUpdate);
+      // Mettre à jour uniquement l'état shouldShow. L'affichage de la modal est géré ailleurs.
+      setShouldShow(needsUpdate);
+    } catch (error) {
+      console.error('❌ Modal CGU - Erreur:', error);
+      setShouldShow(true);
+    }
   };
 
   const openTerms = () => {
-    router.push('/(legal)/terms');
+    console.log('📄 Ouverture des CGU');
+    // Marquer le début d'une navigation vers un document pour éviter un clignotement
+    isNavigatingRef.current = true;
+    // Cacher temporairement la modal pour la lecture
+    setVisible(false);
+    router.push('/(legal)/terms?fromModal=true');
   };
 
   const openPrivacy = () => {
-    router.push('/(legal)/privacy');
+    console.log('🛡️ Ouverture de la politique');
+    // Marquer le début d'une navigation vers un document pour éviter un clignotement
+    isNavigatingRef.current = true;
+    // Cacher temporairement la modal pour la lecture
+    setVisible(false);
+    router.push('/(legal)/privacy?fromModal=true');
   };
 
   const handleAccept = async () => {
@@ -46,297 +107,293 @@ export function FirstLaunchLegalModal({ isAuthenticated = false }: { isAuthentic
     }
 
     try {
-      console.log('💾 Utilisateur accepte les CGU');
-      
-      // ⭐ CRUCIAL : Enregistrer l'acceptation
+      console.log('💾 Utilisateur accepte les CGU définitivement');
       await markLegalAsRead();
-      
-      console.log('✅ Acceptation enregistrée - fermeture modal');
+
+      // Réinitialiser les acceptations pour un nouveau cycle au prochain lancement
+      await resetAcceptances();
+
+      console.log('✅ Acceptation enregistrée');
+      // Ne plus afficher la modal tant que l'utilisateur a validé
+      setShouldShow(false);
       setVisible(false);
     } catch (error) {
-      console.error('Erreur lors de l\'acceptation:', error);
+      console.error('❌ Erreur:', error);
       alert('Erreur lors de la sauvegarde. Veuillez réessayer.');
     }
   };
 
   const canAccept = termsAccepted && privacyAccepted;
 
-  if (!visible) return null;
+  if (!visible || isLoading) return null;
 
   return (
     <Modal
       visible={visible}
-      transparent
-      animationType="slide"
+      transparent={true}
+      animationType="fade"
       onRequestClose={() => {}}
     >
-      <View style={styles.modalOverlay}>
-        <SafeAreaView style={styles.safeArea}>
-          <View style={styles.modalContent}>
-            <View style={styles.header}>
-              <Text style={styles.title}>Bienvenue sur EatQuicker</Text>
-            </View>
+      <View style={styles.overlay}>
+        <View style={styles.modalCard}>
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.title}>Bienvenue sur EatQuickeR</Text>
+          </View>
 
+          {/* Content */}
+          <View style={styles.content}>
             <ScrollView 
-              style={styles.scrollContent}
+              contentContainerStyle={styles.scrollContent}
               showsVerticalScrollIndicator={false}
             >
-              <View style={styles.content}>
-                <Text style={styles.description}>
-                  Pour continuer, veuillez accepter nos conditions d'utilisation.
-                  Vous pouvez les consulter en cliquant sur les liens ci-dessous.
-                </Text>
+              <Text style={styles.description}>
+                Pour continuer, veuillez lire et accepter nos documents légaux.
+              </Text>
 
-                <View style={styles.checkboxContainer}>
-                  {/* CGU */}
-                  <TouchableOpacity
-                    style={styles.checkboxRow}
-                    onPress={() => setTermsAccepted(!termsAccepted)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={[
-                      styles.checkbox,
-                      termsAccepted && styles.checkboxChecked
-                    ]}>
-                      {termsAccepted && (
-                        <Ionicons name="checkmark" size={18} color="#FFFFFF" />
-                      )}
-                    </View>
-                    <View style={styles.checkboxTextContainer}>
-                      <Text style={styles.checkboxLabel}>
-                        J'accepte les{' '}
-                        <Text 
-                          style={styles.link}
-                          onPress={(e) => {
-                            e.stopPropagation();
-                            openTerms();
-                          }}
-                        >
-                          Conditions Générales d'Utilisation
-                        </Text>
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-
-                  {/* Politique de confidentialité */}
-                  <TouchableOpacity
-                    style={styles.checkboxRow}
-                    onPress={() => setPrivacyAccepted(!privacyAccepted)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={[
-                      styles.checkbox,
-                      privacyAccepted && styles.checkboxChecked
-                    ]}>
-                      {privacyAccepted && (
-                        <Ionicons name="checkmark" size={18} color="#FFFFFF" />
-                      )}
-                    </View>
-                    <View style={styles.checkboxTextContainer}>
-                      <Text style={styles.checkboxLabel}>
-                        J'accepte la{' '}
-                        <Text 
-                          style={styles.link}
-                          onPress={(e) => {
-                            e.stopPropagation();
-                            openPrivacy();
-                          }}
-                        >
-                          Politique de Confidentialité
-                        </Text>
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
+              {/* CGU Section */}
+              <View style={styles.documentSection}>
+                <View style={styles.documentHeader}>
+                  <Ionicons name="document-text" size={22} color={COLORS.primary} />
+                  <Text style={styles.documentName}>Conditions Générales d'Utilisation</Text>
                 </View>
+                
+                <TouchableOpacity 
+                  style={styles.viewDocumentButton}
+                  onPress={openTerms}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="eye-outline" size={18} color={COLORS.primary} />
+                  <Text style={styles.viewDocumentText}>Consulter le document</Text>
+                  <Ionicons name="chevron-forward" size={18} color={COLORS.primary} />
+                </TouchableOpacity>
 
-                {/* Boutons de consultation rapide */}
-                <View style={styles.quickLinksContainer}>
-                  <Text style={styles.quickLinksTitle}>Consultez nos documents :</Text>
-                  <View style={styles.quickLinksButtons}>
-                    <TouchableOpacity 
-                      style={styles.quickLinkButton}
-                      onPress={openTerms}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="document-text-outline" size={20} color="#2563EB" />
-                      <Text style={styles.quickLinkText}>Voir les CGU</Text>
-                    </TouchableOpacity>
-                    
-                    <TouchableOpacity 
-                      style={styles.quickLinkButton}
-                      onPress={openPrivacy}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="shield-checkmark-outline" size={20} color="#2563EB" />
-                      <Text style={styles.quickLinkText}>Voir la politique</Text>
-                    </TouchableOpacity>
+                {/* Checkbox - lecture seule, géré par le Context */}
+                <View style={styles.checkboxRow}>
+                  <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked]}>
+                    {termsAccepted && (
+                      <Ionicons name="checkmark" size={18} color={COLORS.text.inverse} />
+                    )}
                   </View>
+                  <Text style={styles.checkboxLabel}>
+                    {termsAccepted ? '✓ CGU acceptées' : 'En attente d\'acceptation'}
+                  </Text>
                 </View>
+              </View>
 
-                <Text style={styles.disclaimer}>
-                  En acceptant, vous confirmez avoir pris connaissance de ces documents.
+              {/* Privacy Section */}
+              <View style={styles.documentSection}>
+                <View style={styles.documentHeader}>
+                  <Ionicons name="shield-checkmark" size={22} color={COLORS.primary} />
+                  <Text style={styles.documentName}>Politique de Confidentialité</Text>
+                </View>
+                
+                <TouchableOpacity 
+                  style={styles.viewDocumentButton}
+                  onPress={openPrivacy}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="eye-outline" size={18} color={COLORS.primary} />
+                  <Text style={styles.viewDocumentText}>Consulter le document</Text>
+                  <Ionicons name="chevron-forward" size={18} color={COLORS.primary} />
+                </TouchableOpacity>
+
+                {/* Checkbox - lecture seule, géré par le Context */}
+                <View style={styles.checkboxRow}>
+                  <View style={[styles.checkbox, privacyAccepted && styles.checkboxChecked]}>
+                    {privacyAccepted && (
+                      <Ionicons name="checkmark" size={18} color={COLORS.text.inverse} />
+                    )}
+                  </View>
+                  <Text style={styles.checkboxLabel}>
+                    {privacyAccepted ? '✓ Politique acceptée' : 'En attente d\'acceptation'}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Help text */}
+              <View style={styles.helpBox}>
+                <Ionicons name="information-circle" size={20} color={COLORS.text.secondary} />
+                <Text style={styles.helpText}>
+                  Consultez et acceptez chaque document en cliquant sur "Consulter le document"
                 </Text>
               </View>
             </ScrollView>
-
-            <View style={styles.footer}>
-              <TouchableOpacity
-                style={[
-                  styles.acceptButton,
-                  !canAccept && styles.acceptButtonDisabled,
-                ]}
-                onPress={handleAccept}
-                disabled={!canAccept}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.acceptButtonText}>
-                  {canAccept ? 'Continuer' : 'Acceptez les conditions pour continuer'}
-                </Text>
-              </TouchableOpacity>
-            </View>
           </View>
-        </SafeAreaView>
+
+          {/* Footer */}
+          <View style={styles.footer}>
+            <TouchableOpacity
+              style={[styles.acceptButton, !canAccept && styles.acceptButtonDisabled]}
+              onPress={handleAccept}
+              disabled={!canAccept}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.acceptButtonText, !canAccept && styles.acceptButtonTextDisabled]}>
+                {canAccept ? 'Continuer' : 'Acceptez les deux documents'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  modalOverlay: {
+  overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+    backgroundColor: COLORS.overlay,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 10,
   },
-  safeArea: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '85%',
-  },
-  modalContent: {
-    flex: 1,
+  modalCard: {
+    width: '100%',
+    maxWidth: 500,
+    minHeight: SCREEN_HEIGHT * 0.7,
+    maxHeight: SCREEN_HEIGHT - 40,
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS['3xl'],
+    overflow: 'hidden',
+    ...SHADOWS.xl,
   },
   header: {
     paddingVertical: 20,
     paddingHorizontal: 24,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: COLORS.border.default,
+    backgroundColor: COLORS.surface,
   },
   title: {
     fontSize: 22,
-    fontWeight: '600',
-    color: '#111827',
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.primary,
     textAlign: 'center',
   },
-  scrollContent: {
-    flex: 1,
-  },
   content: {
+    flex: 1,
+    minHeight: 400,
+  },
+  scrollContent: {
     padding: 24,
+    flexGrow: 1,
   },
   description: {
     fontSize: 15,
-    color: '#6B7280',
+    color: COLORS.text.secondary,
     lineHeight: 22,
     marginBottom: 24,
+    textAlign: 'center',
   },
-  checkboxContainer: {
-    gap: 16,
-    marginBottom: 24,
+  documentSection: {
+    backgroundColor: COLORS.background,
+    borderRadius: BORDER_RADIUS.xl,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border.default,
+  },
+  documentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 10,
+  },
+  documentName: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.primary,
+  },
+  viewDocumentButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surface,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    marginBottom: 12,
+    gap: 8,
+  },
+  viewDocumentText: {
+    flex: 1,
+    fontSize: 15,
+    color: COLORS.primary,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   checkboxRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    paddingVertical: 8,
   },
   checkbox: {
     width: 24,
     height: 24,
-    borderRadius: 6,
+    borderRadius: BORDER_RADIUS.md,
     borderWidth: 2,
-    borderColor: '#D1D5DB',
-    backgroundColor: '#FFFFFF',
+    borderColor: COLORS.border.dark,
+    backgroundColor: COLORS.surface,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
-    marginTop: 2,
   },
   checkboxChecked: {
-    backgroundColor: '#2563EB',
-    borderColor: '#2563EB',
-  },
-  checkboxTextContainer: {
-    flex: 1,
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
   checkboxLabel: {
     fontSize: 15,
-    color: '#374151',
-    lineHeight: 22,
-  },
-  link: {
-    color: '#2563EB',
-    fontWeight: '500',
-    textDecorationLine: 'underline',
-  },
-  quickLinksContainer: {
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-  quickLinksTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 12,
-  },
-  quickLinksButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  quickLinkButton: {
+    color: COLORS.text.primary,
     flex: 1,
+  },
+  helpBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    gap: 10,
+    backgroundColor: COLORS.border.light,
+    padding: 12,
+    borderRadius: BORDER_RADIUS.lg,
+    marginTop: 8,
   },
-  quickLinkText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#2563EB',
-  },
-  disclaimer: {
+  helpText: {
+    flex: 1,
     fontSize: 13,
-    color: '#9CA3AF',
-    lineHeight: 18,
-    textAlign: 'center',
+    color: COLORS.text.secondary,
   },
   footer: {
     padding: 16,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 16,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
+    borderTopColor: COLORS.border.default,
+    backgroundColor: COLORS.surface,
   },
   acceptButton: {
-    backgroundColor: '#2563EB',
+    backgroundColor: COLORS.primary,
     paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
+    borderRadius: BORDER_RADIUS.xl,
     alignItems: 'center',
-    justifyContent: 'center',
+    ...SHADOWS.button,
   },
   acceptButtonDisabled: {
-    backgroundColor: '#E5E7EB',
+    backgroundColor: COLORS.border.default,
+    ...Platform.select({
+      ios: {
+        shadowOpacity: 0,
+      },
+      android: {
+        elevation: 0,
+      },
+    }),
   },
   acceptButtonText: {
-    color: '#FFFFFF',
+    color: COLORS.text.inverse,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+  },
+  acceptButtonTextDisabled: {
+    color: COLORS.text.light,
   },
 });

@@ -1,15 +1,26 @@
 import React from 'react';
 import { LegalDocument } from '@/components/legal/LegalDocument';
 import { TERMS_OF_SERVICE } from '@/constants/legal';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useLegalAcceptance } from '@/contexts/LegalAcceptanceContext';
 
 export default function TermsScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const fromModal = params.fromModal === 'true';
+  const { acceptTerms } = useLegalAcceptance();
 
-  const handleAccept = () => {
-    // Optionnel : Enregistrer l'acceptation
-    console.log('CGU acceptées');
-    router.back();
+  const handleAccept = async () => {
+    try {
+      await acceptTerms();
+      console.log('✅ CGU acceptées via Context');
+      
+      // Retourner à l'écran précédent
+      router.back();
+    } catch (error) {
+      console.error('❌ Erreur lors de l\'acceptation:', error);
+      alert('Erreur lors de l\'enregistrement. Veuillez réessayer.');
+    }
   };
 
   return (
@@ -17,8 +28,9 @@ export default function TermsScreen() {
       title={TERMS_OF_SERVICE.title}
       lastUpdate={TERMS_OF_SERVICE.lastUpdate}
       sections={TERMS_OF_SERVICE.sections}
-      showAcceptButton={true}
+      showAcceptButton={fromModal}
       onAccept={handleAccept}
+      acceptButtonText="J'ai lu et j'accepte les CGU"
     />
   );
 }
