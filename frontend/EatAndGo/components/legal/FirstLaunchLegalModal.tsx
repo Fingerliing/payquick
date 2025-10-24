@@ -9,25 +9,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { markLegalAsRead } from '@/utils/legalNotifications';
+import { markLegalAsRead, checkLegalUpdates } from '@/utils/legalNotifications';
 
-const LEGAL_VERSION = '1.0.0';
-const STORAGE_KEY = 'legal_acceptance';
-
-interface LegalAcceptance {
-  version: string;
-  acceptedAt: string;
-  termsAccepted: boolean;
-  privacyAccepted: boolean;
-}
-
-interface FirstLaunchLegalModalProps {
-  isAuthenticated?: boolean;
-}
-
-export function FirstLaunchLegalModal({ isAuthenticated = false }: FirstLaunchLegalModalProps) {
+export function FirstLaunchLegalModal({ isAuthenticated = false }: { isAuthenticated?: boolean }) {
   const router = useRouter();
   const [visible, setVisible] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -35,33 +20,16 @@ export function FirstLaunchLegalModal({ isAuthenticated = false }: FirstLaunchLe
 
   useEffect(() => {
     if (isAuthenticated) {
-      checkLegalAcceptance();
+      checkIfNeedsAcceptance();
     } else {
       setVisible(false);
     }
   }, [isAuthenticated]);
 
-  const checkLegalAcceptance = async () => {
-    try {
-      const stored = await AsyncStorage.getItem(STORAGE_KEY);
-      if (!stored) {
-        console.log('📋 Aucune acceptation CGU trouvée - affichage modal');
-        setVisible(true);
-        return;
-      }
-
-      const acceptance: LegalAcceptance = JSON.parse(stored);
-      
-      if (acceptance.version !== LEGAL_VERSION) {
-        console.log('📋 Version CGU obsolète - affichage modal');
-        setVisible(true);
-      } else {
-        console.log('✅ CGU déjà acceptées - version à jour');
-      }
-    } catch (error) {
-      console.error('Erreur lors de la vérification:', error);
-      setVisible(true);
-    }
+  const checkIfNeedsAcceptance = async () => {
+    const needsUpdate = await checkLegalUpdates();
+    console.log('📋 Modal - Affichage nécessaire:', needsUpdate);
+    setVisible(needsUpdate);
   };
 
   const openTerms = () => {
@@ -77,26 +45,16 @@ export function FirstLaunchLegalModal({ isAuthenticated = false }: FirstLaunchLe
       return;
     }
 
-    const acceptance: LegalAcceptance = {
-      version: LEGAL_VERSION,
-      acceptedAt: new Date().toISOString(),
-      termsAccepted: true,
-      privacyAccepted: true,
-    };
-
     try {
-      console.log('💾 Enregistrement de l\'acceptation des CGU');
+      console.log('💾 Utilisateur accepte les CGU');
       
-      // Enregistrement dans le système de FirstLaunchLegalModal
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(acceptance));
-      
-      // Enregistrement dans le système legalNotifications
+      // ⭐ CRUCIAL : Enregistrer l'acceptation
       await markLegalAsRead();
       
-      console.log('✅ Acceptation enregistrée dans les deux systèmes');
+      console.log('✅ Acceptation enregistrée - fermeture modal');
       setVisible(false);
     } catch (error) {
-      console.error('Erreur lors de la sauvegarde:', error);
+      console.error('Erreur lors de l\'acceptation:', error);
       alert('Erreur lors de la sauvegarde. Veuillez réessayer.');
     }
   };
@@ -115,9 +73,8 @@ export function FirstLaunchLegalModal({ isAuthenticated = false }: FirstLaunchLe
       <View style={styles.modalOverlay}>
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.modalContent}>
-            {/* En-tête */}
             <View style={styles.header}>
-              <Text style={styles.title}>Conditions d'utilisation</Text>
+              <Text style={styles.title}>Bienvenue sur EatQuicker</Text>
             </View>
 
             <ScrollView 
@@ -126,11 +83,10 @@ export function FirstLaunchLegalModal({ isAuthenticated = false }: FirstLaunchLe
             >
               <View style={styles.content}>
                 <Text style={styles.description}>
-                  Veuillez lire et accepter les conditions suivantes pour
-                  continuer à utiliser EatQuicker.
+                  Pour continuer, veuillez accepter nos conditions d'utilisation.
+                  Vous pouvez les consulter en cliquant sur les liens ci-dessous.
                 </Text>
 
-                {/* Checkboxes */}
                 <View style={styles.checkboxContainer}>
                   {/* CGU */}
                   <TouchableOpacity
@@ -193,13 +149,36 @@ export function FirstLaunchLegalModal({ isAuthenticated = false }: FirstLaunchLe
                   </TouchableOpacity>
                 </View>
 
+                {/* Boutons de consultation rapide */}
+                <View style={styles.quickLinksContainer}>
+                  <Text style={styles.quickLinksTitle}>Consultez nos documents :</Text>
+                  <View style={styles.quickLinksButtons}>
+                    <TouchableOpacity 
+                      style={styles.quickLinkButton}
+                      onPress={openTerms}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="document-text-outline" size={20} color="#2563EB" />
+                      <Text style={styles.quickLinkText}>Voir les CGU</Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity 
+                      style={styles.quickLinkButton}
+                      onPress={openPrivacy}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="shield-checkmark-outline" size={20} color="#2563EB" />
+                      <Text style={styles.quickLinkText}>Voir la politique</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
                 <Text style={styles.disclaimer}>
-                  En continuant, vous confirmez avoir lu et compris ces documents.
+                  En acceptant, vous confirmez avoir pris connaissance de ces documents.
                 </Text>
               </View>
             </ScrollView>
 
-            {/* Bouton fixe en bas */}
             <View style={styles.footer}>
               <TouchableOpacity
                 style={[
@@ -210,7 +189,9 @@ export function FirstLaunchLegalModal({ isAuthenticated = false }: FirstLaunchLe
                 disabled={!canAccept}
                 activeOpacity={0.8}
               >
-                <Text style={styles.acceptButtonText}>Continuer</Text>
+                <Text style={styles.acceptButtonText}>
+                  {canAccept ? 'Continuer' : 'Acceptez les conditions pour continuer'}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -242,7 +223,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#E5E7EB',
   },
   title: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '600',
     color: '#111827',
     textAlign: 'center',
@@ -295,6 +276,40 @@ const styles = StyleSheet.create({
     color: '#2563EB',
     fontWeight: '500',
     textDecorationLine: 'underline',
+  },
+  quickLinksContainer: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  quickLinksTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 12,
+  },
+  quickLinksButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  quickLinkButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  quickLinkText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#2563EB',
   },
   disclaimer: {
     fontSize: 13,

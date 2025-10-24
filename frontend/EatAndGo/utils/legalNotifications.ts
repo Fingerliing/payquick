@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 
 const LEGAL_VERSION_KEY = 'legal_version';
-const CURRENT_LEGAL_VERSION = '1.0.0'; // À incrémenter à chaque modification des CGU
+const CURRENT_LEGAL_VERSION = '1.0.1'; // À incrémenter à chaque modification des CGU
 
 interface LegalUpdate {
   version: string;
