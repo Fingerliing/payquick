@@ -41,7 +41,7 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
   onSuccess,
   title = 'Scanner le QR code de votre table',
   description = 'Ou entrez le code manuellement',
-  scanButtonText = 'Scanner QR',
+  scanButtonText = 'Scanner QR code',
   codeButtonText = 'Saisir le code',
   compact = false,
   vertical = false,
@@ -227,7 +227,12 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
           disabled={isProcessing}
         >
           <Ionicons name="qr-code-outline" size={iconSize} color={COLORS.text.inverse} />
-          <Text style={[styles.buttonText, { fontSize: fontSize.button }]}>
+          <Text 
+            style={[styles.buttonText, { fontSize: fontSize.button }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.8}
+          >
             {scanButtonText}
           </Text>
         </TouchableOpacity>
@@ -238,7 +243,12 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
           disabled={isProcessing}
         >
           <Ionicons name="keypad-outline" size={iconSize} color={COLORS.primary} />
-          <Text style={[styles.buttonTextSecondary, { fontSize: fontSize.button }]}>
+          <Text 
+            style={[styles.buttonTextSecondary, { fontSize: fontSize.button }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.8}
+          >
             {codeButtonText}
           </Text>
         </TouchableOpacity>
@@ -330,7 +340,8 @@ const styles = StyleSheet.create({
   },
   buttonsHorizontal: {
     flexDirection: 'row',
-    gap: SPACING.md.mobile,
+    gap: SPACING.sm.mobile,
+    width: '100%',
   },
   buttonsVertical: {
     flexDirection: 'column',
@@ -342,8 +353,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: SPACING.md.mobile,
+    paddingHorizontal: SPACING.sm.mobile,
     borderRadius: BORDER_RADIUS.lg,
-    gap: SPACING.sm.mobile,
+    gap: SPACING.xs.mobile,
+    minHeight: 48,
   },
   buttonVertical: {
     flex: 0,
@@ -359,10 +372,14 @@ const styles = StyleSheet.create({
   buttonText: {
     color: COLORS.text.inverse,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    flexShrink: 1,
+    textAlign: 'center',
   },
   buttonTextSecondary: {
     color: COLORS.primary,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    flexShrink: 1,
+    textAlign: 'center',
   },
   modalOverlay: {
     flex: 1,
