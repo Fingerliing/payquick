@@ -25,11 +25,9 @@ export default function ClientLayout() {
       height: getResponsiveValue(
         COMPONENT_CONSTANTS.tabBarHeight,
         screenType
-      ) + insets.bottom, // ✅ Ajouter la safe area du bas
-      paddingBottom: Math.max(screenType === 'mobile' ? 4 : 6, insets.bottom), // ✅ Safe area bottom
-      paddingTop: screenType === 'mobile' ? 4 : 6,
-      paddingLeft: insets.left, // ✅ Safe area gauche
-      paddingRight: insets.right, // ✅ Safe area droite
+      ) + insets.bottom + (screenType === 'mobile' ? 4 : 6),
+      paddingLeft: insets.left,
+      paddingRight: insets.right,
       backgroundColor: COLORS.surface,
       borderTopWidth: 1,
       borderTopColor: COLORS.border.light,
