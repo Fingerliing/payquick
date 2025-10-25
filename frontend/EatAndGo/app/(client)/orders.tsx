@@ -401,15 +401,14 @@ const OrderCard = React.memo(({
 
 // État vide avec QR Access
 const EmptyState = React.memo(({ screenType }: { screenType: 'mobile' | 'tablet' | 'desktop' }) => {
-  const handleQRSuccess = useCallback((restaurantId: string, tableNumber?: string) => {
-    const params: Record<string, string> = {};
-    if (tableNumber) {
-      params.tableNumber = tableNumber;
-    }
-
+  const handleQRSuccess = useCallback((restaurantId: number, tableNumber: string, code: string) => {
     router.push({
       pathname: `/menu/client/${restaurantId}` as any,
-      params
+      params: {
+        code: code,
+        restaurantId: restaurantId.toString(),
+        tableNumber: tableNumber,
+      }
     });
   }, []);
 
@@ -451,7 +450,7 @@ const EmptyState = React.memo(({ screenType }: { screenType: 'mobile' | 'tablet'
     },
 
     qrContainer: {
-      width: '100%',
+      width: '100%' as const,
       maxWidth: getResponsiveValue(
         { mobile: 400, tablet: 500, desktop: 600 },
         screenType
