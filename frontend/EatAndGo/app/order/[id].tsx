@@ -257,7 +257,6 @@ const GamifiedTrackingButton = React.memo(({ orderId, orderStatus }: {
           <View style={styles.trackingButtonContent}>
             <View style={styles.trackingMainInfo}>
               <View style={styles.trackingTitleRow}>
-                <Ionicons name="game-controller" size={24} color="#fff" />
                 <Text style={styles.trackingButtonTitle}>Suivre ma commande</Text>
               </View>
               <Text style={styles.trackingButtonSubtitle}>
