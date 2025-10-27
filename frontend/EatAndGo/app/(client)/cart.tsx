@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Alert,
   Image,
+  StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -21,28 +22,336 @@ import { Header } from '@/components/ui/Header';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { QRAccessButtons } from '@/components/qrCode/QRAccessButton';
-import { TableOrders } from '@/components/order/TableOrders';
 import { SessionJoinModal } from '@/components/session/SessionJoinModal';
 
 // Utils & Types
 import {
   COLORS,
   SPACING,
+  TYPOGRAPHY,
+  BORDER_RADIUS,
   useScreenType,
   getResponsiveValue,
+  createResponsiveStyles,
+  COMPONENT_CONSTANTS,
 } from '@/utils/designSystem';
 import { QRSessionUtils } from '@/utils/qrSessionUtils';
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+interface CartItem {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+  image?: string;
+  specialInstructions?: string;
+}
+
+interface SessionData {
+  id: string;
+  [key: string]: any;
+}
+
+// ============================================================================
+// CART ITEM COMPONENT
+// ============================================================================
+
+interface CartItemCardProps {
+  item: CartItem;
+  onQuantityChange: (itemId: string, newQuantity: number) => void;
+  screenType: 'mobile' | 'tablet' | 'desktop';
+}
+
+const CartItemCard = React.memo<CartItemCardProps>(({ item, onQuantityChange, screenType }) => {
+  const styles = createResponsiveStyles(screenType);
+  const imageSize = getResponsiveValue({ mobile: 80, tablet: 90, desktop: 100 }, screenType);
+  const smallIconSize = getResponsiveValue({ mobile: 18, tablet: 20, desktop: 22 }, screenType);
+
+  return (
+    <Card 
+      style={[
+        localStyles.cartItemCard, 
+        styles.mb('sm')
+      ]}
+      accessibilityLabel={`${item.name}, quantité ${item.quantity}, prix ${(item.price * item.quantity).toFixed(2)} euros`}
+    >
+      <View style={localStyles.cartItemContent}>
+        {item.image && (
+          <Image 
+            source={{ uri: item.image }}
+            style={[
+              localStyles.itemImage,
+              { 
+                width: imageSize, 
+                height: imageSize,
+                marginRight: getResponsiveValue(SPACING.sm, screenType)
+              }
+            ]}
+            accessibilityLabel={`Image de ${item.name}`}
+          />
+        )}
+        
+        <View style={localStyles.itemDetails}>
+          <Text 
+            style={[
+              styles.textSubtitle,
+              localStyles.itemName
+            ]}
+            numberOfLines={2}
+          >
+            {item.name}
+          </Text>
+          
+          {item.specialInstructions && (
+            <Text 
+              style={[
+                styles.textCaption,
+                styles.mt('xs')
+              ]}
+              numberOfLines={2}
+            >
+              {item.specialInstructions}
+            </Text>
+          )}
+          
+          <View style={[localStyles.itemFooter, styles.mt('sm')]}>
+            <Text 
+              style={[
+                styles.textSubtitle,
+                { color: COLORS.primary }
+              ]}
+            >
+              {(item.price * item.quantity).toFixed(2)} €
+            </Text>
+            
+            <View style={localStyles.quantityControls}>
+              <TouchableOpacity
+                onPress={() => onQuantityChange(item.id, item.quantity - 1)}
+                style={localStyles.quantityButton}
+                accessibilityLabel="Diminuer la quantité"
+                accessibilityHint={`Quantité actuelle: ${item.quantity}`}
+              >
+                <Ionicons name="remove" size={smallIconSize} color={COLORS.primary} />
+              </TouchableOpacity>
+              
+              <Text 
+                style={[
+                  styles.textSubtitle,
+                  localStyles.quantityText
+                ]}
+                accessibilityLabel={`Quantité: ${item.quantity}`}
+              >
+                {item.quantity}
+              </Text>
+              
+              <TouchableOpacity
+                onPress={() => onQuantityChange(item.id, item.quantity + 1)}
+                style={[
+                  localStyles.quantityButton,
+                  localStyles.quantityButtonAdd
+                ]}
+                accessibilityLabel="Augmenter la quantité"
+              >
+                <Ionicons name="add" size={smallIconSize} color={COLORS.text.inverse} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </View>
+    </Card>
+  );
+});
+
+CartItemCard.displayName = 'CartItemCard';
+
+// ============================================================================
+// CART SUMMARY COMPONENT
+// ============================================================================
+
+interface CartSummaryProps {
+  total: number;
+  itemCount: number;
+  isCreatingOrder: boolean;
+  onCheckout: () => void;
+  screenType: 'mobile' | 'tablet' | 'desktop';
+}
+
+const CartSummary = React.memo<CartSummaryProps>(({ 
+  total, 
+  itemCount, 
+  isCreatingOrder, 
+  onCheckout,
+  screenType 
+}) => {
+  const styles = createResponsiveStyles(screenType);
+  const iconSize = getResponsiveValue({ mobile: 20, tablet: 24, desktop: 28 }, screenType);
+
+  return (
+    <View style={localStyles.summaryContainer}>
+      <View style={[localStyles.totalRow, styles.mb('md')]}>
+        <Text style={styles.textSubtitle}>
+          Total
+        </Text>
+        <Text 
+          style={[
+            styles.textTitle,
+            { color: COLORS.primary }
+          ]}
+        >
+          {total.toFixed(2)} €
+        </Text>
+      </View>
+      
+      <Button
+        title={isCreatingOrder ? "Traitement..." : "Commander"}
+        onPress={onCheckout}
+        disabled={isCreatingOrder || itemCount === 0}
+        fullWidth
+        leftIcon={<Ionicons name="checkmark-circle" size={iconSize} color={COLORS.text.inverse} />}
+        accessibilityLabel={`Commander pour un total de ${total.toFixed(2)} euros`}
+        accessibilityHint="Appuyez pour procéder au paiement"
+      />
+    </View>
+  );
+});
+
+CartSummary.displayName = 'CartSummary';
+
+// ============================================================================
+// RESTAURANT INFO COMPONENT
+// ============================================================================
+
+interface RestaurantInfoProps {
+  restaurantName: string;
+  tableNumber: string;
+  itemCount: number;
+  hasActiveSession: boolean;
+  screenType: 'mobile' | 'tablet' | 'desktop';
+}
+
+const RestaurantInfo = React.memo<RestaurantInfoProps>(({
+  restaurantName,
+  tableNumber,
+  itemCount,
+  hasActiveSession,
+  screenType
+}) => {
+  const styles = createResponsiveStyles(screenType);
+
+  return (
+    <Card style={[localStyles.restaurantCard, styles.mx('md'), styles.mt('md')]}>
+      <View style={localStyles.restaurantContent}>
+        <View style={localStyles.restaurantDetails}>
+          <Text style={[styles.textSubtitle, localStyles.restaurantName]}>
+            {restaurantName || 'Restaurant'}
+          </Text>
+          
+          {tableNumber && (
+            <Text style={[styles.textBody, styles.mt('xs')]}>
+              Table {tableNumber}
+            </Text>
+          )}
+          
+          {hasActiveSession && (
+            <View style={localStyles.sessionBadge}>
+              <Ionicons name="people" size={14} color={COLORS.success} />
+              <Text style={localStyles.sessionBadgeText}>
+                Session collaborative active
+              </Text>
+            </View>
+          )}
+        </View>
+        
+        <View style={localStyles.itemCountContainer}>
+          <Text style={styles.textCaption}>
+            {itemCount} {itemCount > 1 ? 'articles' : 'article'}
+          </Text>
+        </View>
+      </View>
+    </Card>
+  );
+});
+
+RestaurantInfo.displayName = 'RestaurantInfo';
+
+// ============================================================================
+// EMPTY CART COMPONENT
+// ============================================================================
+
+interface EmptyCartProps {
+  screenType: 'mobile' | 'tablet' | 'desktop';
+}
+
+const EmptyCart = React.memo<EmptyCartProps>(({ screenType }) => {
+  const styles = createResponsiveStyles(screenType);
+  const iconSize = getResponsiveValue({ mobile: 80, tablet: 100, desktop: 120 }, screenType);
+
+  return (
+    <View style={localStyles.emptyContainer}>
+      <Ionicons 
+        name="cart-outline" 
+        size={iconSize} 
+        color={COLORS.border.dark} 
+      />
+      <Text 
+        style={[
+          styles.textTitle,
+          styles.mt('lg'),
+          { textAlign: 'center' }
+        ]}
+      >
+        Votre panier est vide
+      </Text>
+      <Text 
+        style={[
+          styles.textBody,
+          styles.mt('sm'),
+          { textAlign: 'center', maxWidth: 300 }
+        ]}
+      >
+        Ajoutez des articles à votre panier pour commencer votre commande
+      </Text>
+      
+      <View style={[localStyles.qrButtonsContainer, styles.mt('xl')]}>
+        <QRAccessButtons
+          compact
+          vertical
+          title="Scanner pour commander"
+          description="Scannez un QR code pour accéder au menu"
+          scanButtonText="Scanner QR Code"
+          codeButtonText="Entrer le code"
+          containerStyle={localStyles.qrButtons}
+        />
+      </View>
+    </View>
+  );
+});
+
+EmptyCart.displayName = 'EmptyCart';
+
+// ============================================================================
+// MAIN CART SCREEN
+// ============================================================================
 
 export default function CartScreen() {
   const { cart, removeFromCart, updateQuantity, clearCart, setTableNumber } = useCart();
   const { isAuthenticated } = useAuth();
   const screenType = useScreenType();
+  const styles = createResponsiveStyles(screenType);
   
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [currentTableNumber, setCurrentTableNumber] = useState(cart.tableNumber || '');
   const [showSessionModal, setShowSessionModal] = useState(false);
 
-  // Charger la table depuis la session QR
+  const iconSize = getResponsiveValue({ mobile: 20, tablet: 24, desktop: 28 }, screenType);
+
+  // ============================================================================
+  // EFFECTS
+  // ============================================================================
+
   useEffect(() => {
     const loadTableFromQR = async () => {
       const qrData = await QRSessionUtils.getSession();
@@ -54,13 +363,15 @@ export default function CartScreen() {
     loadTableFromQR();
   }, []);
 
-  // Hook pour vérifier s'il existe une session active sur cette table
+  // ============================================================================
+  // HOOKS
+  // ============================================================================
+
   const { activeSession, hasActiveSession, loading: checkingSession } = useActiveTableSession(
     cart.restaurantId,
     currentTableNumber
   );
 
-  // Hook de gestion de session collaborative
   const {
     session,
     currentParticipant,
@@ -71,53 +382,95 @@ export default function CartScreen() {
     sessionId: activeSession?.id,
   });
 
-  const iconSize = getResponsiveValue({ mobile: 20, tablet: 24, desktop: 28 }, screenType);
-  const smallIconSize = getResponsiveValue({ mobile: 18, tablet: 20, desktop: 22 }, screenType);
+  // ============================================================================
+  // UTILITY FUNCTIONS
+  // ============================================================================
 
-  const handleQuantityChange = (itemId: string, newQuantity: number) => {
+  /**
+   * Construit l'URL de checkout avec les query params appropriés
+   */
+  const buildCheckoutUrl = useCallback((sessionId?: string): string => {
+    const params: string[] = [];
+    
+    if (cart.restaurantId) {
+      params.push(`restaurantId=${cart.restaurantId}`);
+    }
+    if (currentTableNumber || cart.tableNumber) {
+      params.push(`tableNumber=${currentTableNumber || cart.tableNumber}`);
+    }
+    if (sessionId) {
+      params.push(`sessionId=${sessionId}`);
+    }
+
+    const queryString = params.length > 0 ? `?${params.join('&')}` : '';
+    const basePath = isAuthenticated ? '/order/checkout' : '/order/guest-checkout';
+    
+    return `${basePath}${queryString}`;
+  }, [cart.restaurantId, cart.tableNumber, currentTableNumber, isAuthenticated]);
+
+  /**
+   * Navigue vers la page de checkout
+   */
+  const navigateToCheckout = useCallback((sessionId?: string) => {
+    const url = buildCheckoutUrl(sessionId);
+    router.push(url as any);
+  }, [buildCheckoutUrl]);
+
+  // ============================================================================
+  // HANDLERS
+  // ============================================================================
+
+  const handleQuantityChange = useCallback((itemId: string, newQuantity: number) => {
     if (newQuantity === 0) {
       Alert.alert(
         'Retirer l\'article',
         'Voulez-vous retirer cet article du panier ?',
         [
           { text: 'Annuler', style: 'cancel' },
-          { text: 'Supprimer', onPress: () => removeFromCart(itemId) }
+          { 
+            text: 'Supprimer', 
+            style: 'destructive',
+            onPress: () => removeFromCart(itemId) 
+          }
         ]
       );
     } else {
       updateQuantity(itemId, newQuantity);
     }
-  };
+  }, [removeFromCart, updateQuantity]);
 
-  const handleClearCart = () => {
+  const handleClearCart = useCallback(() => {
     Alert.alert(
       'Vider le panier',
       'Êtes-vous sûr de vouloir vider votre panier ?',
       [
         { text: 'Annuler', style: 'cancel' },
-        { text: 'Vider', style: 'destructive', onPress: clearCart }
+        { 
+          text: 'Vider', 
+          style: 'destructive', 
+          onPress: clearCart 
+        }
       ]
     );
-  };
+  }, [clearCart]);
 
-  const handleCheckout = async () => {
+  const handleCheckout = useCallback(async () => {
     if (cart.items.length === 0) {
       Alert.alert('Panier vide', 'Ajoutez des articles à votre panier pour continuer');
       return;
     }
 
-    // Si on a une table, vérifier s'il existe une session active
+    // Vérifier s'il existe une session active
     if (currentTableNumber && cart.restaurantId) {
       if (hasActiveSession) {
-        // Proposer de rejoindre la session existante
         Alert.alert(
           'Session collaborative détectée',
-          `Une session collaborative est active pour cette table. Voulez-vous la rejoindre ou créer une nouvelle session ?`,
+          'Une session collaborative est active pour cette table. Voulez-vous la rejoindre ou créer une nouvelle session ?',
           [
             { text: 'Annuler', style: 'cancel' },
             { 
               text: 'Nouvelle commande', 
-              onPress: () => proceedToCheckout() 
+              onPress: () => navigateToCheckout() 
             },
             { 
               text: 'Rejoindre la session', 
@@ -127,7 +480,6 @@ export default function CartScreen() {
         );
         return;
       } else {
-        // Proposer de créer une session collaborative
         Alert.alert(
           'Commander seul ou en groupe ?',
           'Voulez-vous créer une session collaborative pour permettre à d\'autres personnes de la table de commander avec vous ?',
@@ -135,7 +487,7 @@ export default function CartScreen() {
             { text: 'Annuler', style: 'cancel' },
             { 
               text: 'Commande individuelle', 
-              onPress: () => proceedToCheckout() 
+              onPress: () => navigateToCheckout() 
             },
             { 
               text: 'Session collaborative', 
@@ -147,351 +499,93 @@ export default function CartScreen() {
       }
     }
 
-    // Pas de table définie, procéder normalement
-    proceedToCheckout();
-  };
+    navigateToCheckout();
+  }, [cart.items.length, cart.restaurantId, currentTableNumber, hasActiveSession, navigateToCheckout]);
 
-  const proceedToCheckout = () => {
-    // ✅ CORRECTION : Construction des query params comme string
-    const queryParams: string[] = [];
-    
-    if (cart.restaurantId) {
-      queryParams.push(`restaurantId=${cart.restaurantId}`);
-    }
-    if (currentTableNumber || cart.tableNumber) {
-      queryParams.push(`tableNumber=${currentTableNumber || cart.tableNumber}`);
-    }
-
-    const queryString = queryParams.length > 0 ? `?${queryParams.join('&')}` : '';
-
-    if (isAuthenticated) {
-      // ✅ CORRECTION : Utiliser une string template au lieu d'un objet params
-      router.push(`/order/checkout${queryString}` as any);
-    } else {
-      router.push(`/order/guest-checkout${queryString}` as any);
-    }
-  };
-
-  const handleSessionCreated = (createdSession: any) => {
+  const handleSessionCreated = useCallback((createdSession: SessionData) => {
     console.log('✅ Session créée:', createdSession);
     setShowSessionModal(false);
-    
-    // ✅ CORRECTION : Construction des query params comme string
-    const queryParams: string[] = [];
-    
-    if (cart.restaurantId) {
-      queryParams.push(`restaurantId=${cart.restaurantId}`);
-    }
-    if (currentTableNumber || cart.tableNumber) {
-      queryParams.push(`tableNumber=${currentTableNumber || cart.tableNumber}`);
-    }
-    if (createdSession.id) {
-      queryParams.push(`sessionId=${createdSession.id}`);
-    }
+    navigateToCheckout(createdSession.id);
+  }, [navigateToCheckout]);
 
-    const queryString = queryParams.length > 0 ? `?${queryParams.join('&')}` : '';
-
-    if (isAuthenticated) {
-      router.push(`/order/checkout${queryString}` as any);
-    } else {
-      router.push(`/order/guest-checkout${queryString}` as any);
-    }
-  };
-
-  const handleSessionJoined = (joinedSession: any) => {
+  const handleSessionJoined = useCallback((joinedSession: SessionData) => {
     console.log('✅ Session rejointe:', joinedSession);
     setShowSessionModal(false);
-    
-    // ✅ CORRECTION : Construction des query params comme string
-    const queryParams: string[] = [];
-    
-    if (cart.restaurantId) {
-      queryParams.push(`restaurantId=${cart.restaurantId}`);
-    }
-    if (currentTableNumber || cart.tableNumber) {
-      queryParams.push(`tableNumber=${currentTableNumber || cart.tableNumber}`);
-    }
-    if (joinedSession.id) {
-      queryParams.push(`sessionId=${joinedSession.id}`);
-    }
+    navigateToCheckout(joinedSession.id);
+  }, [navigateToCheckout]);
 
-    const queryString = queryParams.length > 0 ? `?${queryParams.join('&')}` : '';
+  // ============================================================================
+  // MEMOIZED VALUES
+  // ============================================================================
 
-    if (isAuthenticated) {
-      router.push(`/order/checkout${queryString}` as any);
-    } else {
-      router.push(`/order/guest-checkout${queryString}` as any);
-    }
-  };
+  const cartItems = useMemo(() => cart.items || [], [cart.items]);
+  const itemCount = useMemo(() => cart.itemCount || 0, [cart.itemCount]);
+  const totalAmount = useMemo(() => cart.total || 0, [cart.total]);
 
-  // Panier vide avec commandes de table (mode visualisation)
-  if (cart.items.length === 0 && cart.restaurantId && currentTableNumber) {
+  // ============================================================================
+  // RENDER
+  // ============================================================================
+
+  // Panier vide
+  if (cartItems.length === 0) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
-        <Header
-          title={`Panier (0)`}
-          leftIcon="arrow-back"
-          onLeftPress={() => router.back()}
-        />
-        
-        <View style={{ flex: 1 }}>
-          <TableOrders
-            restaurantId={Number(cart.restaurantId) || 0}
-            tableNumber={String(currentTableNumber)}
-            onAddOrder={() => {
-              router.push(`/menu/client/${cart.restaurantId}?tableNumber=${currentTableNumber}` as any);
-            }}
-            onOrderPress={(order) => {
-              router.push(`/order/${order.id}` as any);
-            }}
-          />
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  // Panier vide sans table
-  if (cart.items.length === 0) {
-    return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
+      <SafeAreaView style={localStyles.container}>
         <Header
           title="Panier"
           leftIcon="arrow-back"
           onLeftPress={() => router.back()}
         />
-        
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
-          <View style={{ alignItems: 'center' }}>
-            <Ionicons 
-              name="bag-outline" 
-              size={getResponsiveValue({ mobile: 80, tablet: 100, desktop: 120 }, screenType)} 
-              color={COLORS.variants.secondary[600]} 
-            />
-          </View>
-          <Text style={{ 
-            fontSize: getResponsiveValue({ mobile: 22, tablet: 26, desktop: 30 }, screenType),
-            fontWeight: 'bold',
-            color: COLORS.text.primary,
-            marginTop: getResponsiveValue(SPACING.lg, screenType),
-            marginBottom: getResponsiveValue(SPACING.sm, screenType),
-            textAlign: 'center'
-          }}>
-            Votre panier est vide
-          </Text>
-          <Text style={{
-            fontSize: getResponsiveValue({ mobile: 14, tablet: 16, desktop: 18 }, screenType),
-            color: COLORS.text.secondary,
-            textAlign: 'center',
-            lineHeight: 22,
-            marginBottom: getResponsiveValue(SPACING.xl, screenType)
-          }}>
-            Scannez un QR code ou parcourez les restaurants pour découvrir de délicieux plats
-          </Text>
-          
-          <View style={{ width: '100%' }}>
-            <QRAccessButtons
-              compact
-              vertical
-              title="Scanner pour commander"
-              description="Scannez un QR code pour accéder au menu"
-              scanButtonText="Scanner QR Code"
-              codeButtonText="Entrer le code"
-              containerStyle={{ width: '100%', backgroundColor: 'transparent' }}
-            />
-          </View>
-        </View>
+        <EmptyCart screenType={screenType} />
       </SafeAreaView>
     );
   }
 
-  // Panier avec des articles
+  // Panier avec articles
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
+    <SafeAreaView style={localStyles.container}>
       <Header
-        title={`Panier (${cart.itemCount || 0})`}
+        title={`Panier (${itemCount})`}
         leftIcon="arrow-back"
         onLeftPress={() => router.back()}
         rightIcon="trash-outline"
         onRightPress={handleClearCart}
       />
 
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={localStyles.scrollView} 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.pb('md')}
+      >
         {/* Restaurant Info */}
-        <Card style={{ margin: getResponsiveValue(SPACING.md, screenType) }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ 
-                fontSize: getResponsiveValue({ mobile: 18, tablet: 20, desktop: 22 }, screenType), 
-                fontWeight: 'bold', 
-                color: COLORS.text.primary, 
-                marginBottom: 4 
-              }}>
-                {cart.restaurantName || 'Restaurant'}
-              </Text>
-              {currentTableNumber && (
-                <Text style={{ 
-                  fontSize: getResponsiveValue({ mobile: 14, tablet: 15, desktop: 16 }, screenType), 
-                  color: COLORS.text.secondary 
-                }}>
-                  Table {currentTableNumber}
-                </Text>
-              )}
-              {hasActiveSession && (
-                <View style={{ 
-                  flexDirection: 'row', 
-                  alignItems: 'center', 
-                  marginTop: 4,
-                  backgroundColor: '#E8F5E8',
-                  paddingHorizontal: 8,
-                  paddingVertical: 4,
-                  borderRadius: 4,
-                  alignSelf: 'flex-start'
-                }}>
-                  <Ionicons name="people" size={14} color="#2D5A2D" />
-                  <Text style={{ fontSize: 12, color: '#2D5A2D', marginLeft: 4, fontWeight: '500' }}>
-                    Session collaborative active
-                  </Text>
-                </View>
-              )}
-            </View>
-            <View style={{ alignItems: 'flex-end' }}>
-              <Text style={{ fontSize: 12, color: COLORS.text.secondary }}>
-                {cart.itemCount} {cart.itemCount > 1 ? 'articles' : 'article'}
-              </Text>
-            </View>
-          </View>
-        </Card>
+        <RestaurantInfo
+          restaurantName={cart.restaurantName || 'Restaurant'}
+          tableNumber={currentTableNumber}
+          itemCount={itemCount}
+          hasActiveSession={hasActiveSession}
+          screenType={screenType}
+        />
 
         {/* Cart Items */}
-        <View style={{ 
-          paddingHorizontal: getResponsiveValue(SPACING.md, screenType), 
-          paddingBottom: getResponsiveValue(SPACING.md, screenType) 
-        }}>
-          {cart.items.map((item) => (
-            <Card key={item.id} style={{ 
-              marginBottom: getResponsiveValue(SPACING.sm, screenType), 
-              padding: getResponsiveValue(SPACING.sm, screenType) 
-            }}>
-              <View style={{ flexDirection: 'row' }}>
-                {item.image && (
-                  <Image 
-                    source={{ uri: item.image }}
-                    style={{ 
-                      width: 80, 
-                      height: 80, 
-                      borderRadius: 8, 
-                      marginRight: getResponsiveValue(SPACING.sm, screenType) 
-                    }}
-                  />
-                )}
-                <View style={{ flex: 1 }}>
-                  <Text style={{ 
-                    fontSize: getResponsiveValue({ mobile: 16, tablet: 17, desktop: 18 }, screenType), 
-                    fontWeight: '600', 
-                    color: COLORS.text.primary, 
-                    marginBottom: 4 
-                  }}>
-                    {item.name}
-                  </Text>
-                  {item.specialInstructions && (
-                    <Text style={{ 
-                      fontSize: getResponsiveValue({ mobile: 12, tablet: 13, desktop: 14 }, screenType), 
-                      color: COLORS.text.secondary, 
-                      marginBottom: 8 
-                    }}>
-                      {item.specialInstructions}
-                    </Text>
-                  )}
-                  
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text style={{ 
-                      fontSize: getResponsiveValue({ mobile: 16, tablet: 17, desktop: 18 }, screenType), 
-                      fontWeight: 'bold', 
-                      color: COLORS.primary 
-                    }}>
-                      {(item.price * item.quantity).toFixed(2)} €
-                    </Text>
-                    
-                    <View style={{ 
-                      flexDirection: 'row', 
-                      alignItems: 'center', 
-                      gap: getResponsiveValue(SPACING.sm, screenType) 
-                    }}>
-                      <TouchableOpacity
-                        onPress={() => handleQuantityChange(item.id, item.quantity - 1)}
-                        style={{ 
-                          backgroundColor: COLORS.variants.secondary[100],
-                          borderRadius: 6,
-                          padding: 8
-                        }}
-                      >
-                        <Ionicons name="remove" size={smallIconSize} color={COLORS.primary} />
-                      </TouchableOpacity>
-                      
-                      <Text style={{ 
-                        fontSize: getResponsiveValue({ mobile: 16, tablet: 17, desktop: 18 }, screenType), 
-                        fontWeight: '600', 
-                        minWidth: 30, 
-                        textAlign: 'center' 
-                      }}>
-                        {item.quantity}
-                      </Text>
-                      
-                      <TouchableOpacity
-                        onPress={() => handleQuantityChange(item.id, item.quantity + 1)}
-                        style={{ 
-                          backgroundColor: COLORS.primary,
-                          borderRadius: 6,
-                          padding: 8
-                        }}
-                      >
-                        <Ionicons name="add" size={smallIconSize} color={COLORS.text.inverse} />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </View>
-              </View>
-            </Card>
+        <View style={[localStyles.itemsContainer, styles.px('md'), styles.pt('md')]}>
+          {cartItems.map((item) => (
+            <CartItemCard
+              key={item.id}
+              item={item}
+              onQuantityChange={handleQuantityChange}
+              screenType={screenType}
+            />
           ))}
         </View>
       </ScrollView>
 
       {/* Footer with total and checkout */}
-      <View style={{ 
-        backgroundColor: COLORS.surface,
-        padding: getResponsiveValue(SPACING.md, screenType),
-        borderTopWidth: 1,
-        borderTopColor: COLORS.border.light,
-      }}>
-        <View style={{ 
-          flexDirection: 'row', 
-          justifyContent: 'space-between', 
-          marginBottom: getResponsiveValue(SPACING.md, screenType) 
-        }}>
-          <Text style={{ 
-            fontSize: getResponsiveValue({ mobile: 18, tablet: 20, desktop: 22 }, screenType), 
-            fontWeight: '600',
-            color: COLORS.text.primary
-          }}>
-            Total
-          </Text>
-          <Text style={{ 
-            fontSize: getResponsiveValue({ mobile: 24, tablet: 26, desktop: 28 }, screenType), 
-            fontWeight: 'bold', 
-            color: COLORS.primary 
-          }}>
-            {cart.total.toFixed(2)} €
-          </Text>
-        </View>
-        
-        <Button
-          title={isCreatingOrder ? "Traitement..." : "Commander"}
-          onPress={handleCheckout}
-          disabled={isCreatingOrder || cart.items.length === 0}
-          fullWidth
-          leftIcon={<Ionicons name="checkmark-circle" size={iconSize} color={COLORS.text.inverse} />}
-        />
-      </View>
+      <CartSummary
+        total={totalAmount}
+        itemCount={itemCount}
+        isCreatingOrder={isCreatingOrder}
+        onCheckout={handleCheckout}
+        screenType={screenType}
+      />
 
       {/* Modal de session collaborative */}
       {showSessionModal && cart.restaurantId && currentTableNumber && (
@@ -507,3 +601,147 @@ export default function CartScreen() {
     </SafeAreaView>
   );
 }
+
+// ============================================================================
+// STYLES
+// ============================================================================
+
+const localStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  
+  scrollView: {
+    flex: 1,
+  },
+
+  // Restaurant Info Styles
+  restaurantCard: {
+    padding: SPACING.md.mobile,
+  },
+  
+  restaurantContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  
+  restaurantDetails: {
+    flex: 1,
+  },
+  
+  restaurantName: {
+    marginBottom: 4,
+  },
+  
+  sessionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    backgroundColor: '#E8F5E8',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.sm,
+    alignSelf: 'flex-start',
+  },
+  
+  sessionBadgeText: {
+    fontSize: 12,
+    color: COLORS.success,
+    marginLeft: 4,
+    fontWeight: '500',
+  },
+  
+  itemCountContainer: {
+    alignItems: 'flex-end',
+  },
+
+  // Cart Items Styles
+  itemsContainer: {
+    // Empty - spacing handled by responsive styles
+  },
+  
+  cartItemCard: {
+    padding: SPACING.sm.mobile,
+  },
+  
+  cartItemContent: {
+    flexDirection: 'row',
+  },
+  
+  itemImage: {
+    borderRadius: BORDER_RADIUS.md,
+  },
+  
+  itemDetails: {
+    flex: 1,
+  },
+  
+  itemName: {
+    marginBottom: 4,
+  },
+  
+  itemFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  
+  quantityControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm.mobile,
+  },
+  
+  quantityButton: {
+    backgroundColor: COLORS.variants.secondary[100],
+    borderRadius: BORDER_RADIUS.sm,
+    padding: 8,
+    minWidth: COMPONENT_CONSTANTS.minTouchTarget,
+    minHeight: COMPONENT_CONSTANTS.minTouchTarget,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  
+  quantityButtonAdd: {
+    backgroundColor: COLORS.primary,
+  },
+  
+  quantityText: {
+    minWidth: 30,
+    textAlign: 'center',
+  },
+
+  // Summary Styles
+  summaryContainer: {
+    backgroundColor: COLORS.surface,
+    padding: SPACING.md.mobile,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border.light,
+  },
+  
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+
+  // Empty Cart Styles
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.xl.mobile,
+  },
+  
+  qrButtonsContainer: {
+    width: '100%',
+    maxWidth: 400,
+  },
+  
+  qrButtons: {
+    width: '100%',
+    backgroundColor: 'transparent',
+  },
+});
