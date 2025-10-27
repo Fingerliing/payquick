@@ -21,6 +21,7 @@ interface SessionJoinModalProps {
   tableId?: number;
   onSessionCreated?: (session: CollaborativeSession) => void;
   onSessionJoined?: (session: CollaborativeSession) => void;
+  onOrderAlone?: () => void; // Nouveau callback pour commander seul
 }
 
 export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
@@ -31,6 +32,7 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
   tableId,
   onSessionCreated,
   onSessionJoined,
+  onOrderAlone, // Déstructuration du nouveau callback
 }) => {
   const [mode, setMode] = useState<'choose' | 'create' | 'join'>('choose');
   const [loading, setLoading] = useState(false);
@@ -67,7 +69,10 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
           'Session active détectée',
           `Une session existe déjà pour cette table (Code: ${session.share_code}). Voulez-vous la rejoindre ?`,
           [
-            { text: 'Non, commander seul', onPress: () => onClose() },
+            { 
+              text: 'Non, commander seul', 
+              onPress: handleOrderAlone // Appeler la fonction de commande seul
+            },
             { 
               text: 'Rejoindre', 
               onPress: () => {
@@ -80,6 +85,15 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
       }
     } catch (error) {
       console.error('Error checking session:', error);
+    }
+  };
+
+  // Nouvelle fonction pour gérer la commande seul
+  const handleOrderAlone = () => {
+    if (onOrderAlone) {
+      onOrderAlone(); // Appeler le callback si fourni
+    } else {
+      onClose(); // Sinon, simplement fermer la modale (comportement par défaut)
     }
   };
 
@@ -208,7 +222,7 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
 
       <TouchableOpacity
         style={styles.soloButton}
-        onPress={onClose}
+        onPress={handleOrderAlone} // Modifié pour appeler handleOrderAlone
       >
         <Text style={styles.soloButtonText}>Commander seul(e)</Text>
       </TouchableOpacity>
@@ -323,30 +337,38 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
 
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Code de session *</Text>
-        <TextInput
-          style={[styles.input, styles.codeInput]}
-          placeholder="ABC123"
-          value={shareCode}
-          onChangeText={(text) => setShareCode(text.toUpperCase())}
-          maxLength={6}
-          autoCapitalize="characters"
-          onBlur={handlePreviewSession}
-        />
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TextInput
+            style={[styles.input, styles.codeInput, { flex: 1 }]}
+            placeholder="ABC123"
+            value={shareCode}
+            onChangeText={(text) => setShareCode(text.toUpperCase())}
+            maxLength={6}
+            autoCapitalize="characters"
+          />
+          <TouchableOpacity
+            style={[
+              styles.primaryButton,
+              { flex: 0, paddingHorizontal: 20 },
+              (loading || shareCode.length !== 6) && styles.buttonDisabled
+            ]}
+            onPress={handlePreviewSession}
+            disabled={loading || shareCode.length !== 6}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <Text style={styles.primaryButtonText}>Vérifier</Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       {sessionPreview && (
         <View style={styles.previewCard}>
           <View style={styles.previewHeader}>
             <Ionicons name="information-circle" size={24} color="#1E2A78" />
-            <Text style={styles.previewTitle}>Aperçu de la session</Text>
-          </View>
-          <View style={styles.previewInfo}>
-            <Text style={styles.previewLabel}>Restaurant:</Text>
-            <Text style={styles.previewValue}>{sessionPreview.restaurant_name}</Text>
-          </View>
-          <View style={styles.previewInfo}>
-            <Text style={styles.previewLabel}>Table:</Text>
-            <Text style={styles.previewValue}>{sessionPreview.table_number}</Text>
+            <Text style={styles.previewTitle}>Informations de la session</Text>
           </View>
           <View style={styles.previewInfo}>
             <Text style={styles.previewLabel}>Hôte:</Text>

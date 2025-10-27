@@ -1,8 +1,3 @@
-/**
- * Dashboard principal pour la gestion d'une session collaborative
- * Centralise tous les composants et hooks de session
- */
-
 import React, { useState, useEffect } from 'react';
 import {
   View,

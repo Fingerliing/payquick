@@ -189,6 +189,27 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
     }
   };
 
+  const handleOrderAlone = () => {
+    console.log('🛒 Commande seul (sans session de groupe)');
+    setShowSessionModal(false);
+    
+    if (onSuccess && scannedData) {
+      onSuccess(scannedData.restaurantId, scannedData.tableNumber, scannedData.code);
+    } else if (scannedData) {
+      // Navigation vers le menu SANS sessionId (mode solo)
+      router.push({
+        pathname: `/menu/client/${scannedData.restaurantId}` as any,
+        params: {
+          code: scannedData.code,
+          restaurantId: scannedData.restaurantId.toString(),
+          tableNumber: scannedData.tableNumber,
+          // PAS de sessionId = mode solo
+          soloMode: 'true', // Indicateur optionnel pour l'écran de menu
+        }
+      });
+    }
+  };
+
   if (showScanner) {
     return (
       <Modal
@@ -312,6 +333,7 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
           tableNumber={scannedData.tableNumber}
           onSessionCreated={handleSessionCreated}
           onSessionJoined={handleSessionJoined}
+          onOrderAlone={handleOrderAlone}
         />
       )}
     </View>
