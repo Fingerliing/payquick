@@ -4,9 +4,9 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  Alert,
   Image,
   StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -22,7 +22,7 @@ import { Header } from '@/components/ui/Header';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { QRAccessButtons } from '@/components/qrCode/QRAccessButton';
-import { SessionJoinModal } from '@/components/session/SessionJoinModal';
+import { Alert, AlertWithAction, useAlert } from '@/components/ui/Alert';
 
 // Utils & Types
 import {
@@ -34,6 +34,7 @@ import {
   getResponsiveValue,
   createResponsiveStyles,
   COMPONENT_CONSTANTS,
+  SHADOWS,
 } from '@/utils/designSystem';
 import { QRSessionUtils } from '@/utils/qrSessionUtils';
 
@@ -62,22 +63,60 @@ interface SessionData {
 interface CartItemCardProps {
   item: CartItem;
   onQuantityChange: (itemId: string, newQuantity: number) => void;
+  onRemove: (itemId: string) => void;
   screenType: 'mobile' | 'tablet' | 'desktop';
+  isUpdating?: boolean;
 }
 
-const CartItemCard = React.memo<CartItemCardProps>(({ item, onQuantityChange, screenType }) => {
+const CartItemCard = React.memo<CartItemCardProps>(({ 
+  item, 
+  onQuantityChange, 
+  onRemove,
+  screenType,
+  isUpdating = false,
+}) => {
   const styles = createResponsiveStyles(screenType);
   const imageSize = getResponsiveValue({ mobile: 80, tablet: 90, desktop: 100 }, screenType);
   const smallIconSize = getResponsiveValue({ mobile: 18, tablet: 20, desktop: 22 }, screenType);
+  const [localQuantity, setLocalQuantity] = useState(item.quantity);
+
+  // Sync local quantity with prop when it changes
+  useEffect(() => {
+    setLocalQuantity(item.quantity);
+  }, [item.quantity]);
+
+  const handleDecrease = useCallback(() => {
+    const newQuantity = localQuantity - 1;
+    if (newQuantity === 0) {
+      onRemove(item.id);
+    } else {
+      setLocalQuantity(newQuantity);
+      onQuantityChange(item.id, newQuantity);
+    }
+  }, [localQuantity, item.id, onQuantityChange, onRemove]);
+
+  const handleIncrease = useCallback(() => {
+    const newQuantity = localQuantity + 1;
+    setLocalQuantity(newQuantity);
+    onQuantityChange(item.id, newQuantity);
+  }, [localQuantity, item.id, onQuantityChange]);
 
   return (
     <Card 
+      padding="sm"
       style={[
         localStyles.cartItemCard, 
-        styles.mb('sm')
+        styles.mb('sm'),
+        ...(isUpdating ? [localStyles.updatingCard] : []),
       ]}
-      accessibilityLabel={`${item.name}, quantité ${item.quantity}, prix ${(item.price * item.quantity).toFixed(2)} euros`}
+      accessibilityLabel={`${item.name}, quantité ${localQuantity}, prix ${(item.price * localQuantity).toFixed(2)} euros`}
     >
+      {isUpdating && (
+        <View style={localStyles.loadingOverlay}>
+          <ActivityIndicator size="small" color={COLORS.primary} />
+        </View>
+      )}
+      
       <View style={localStyles.cartItemContent}>
         {item.image && (
           <Image 
@@ -95,46 +134,74 @@ const CartItemCard = React.memo<CartItemCardProps>(({ item, onQuantityChange, sc
         )}
         
         <View style={localStyles.itemDetails}>
-          <Text 
-            style={[
-              styles.textSubtitle,
-              localStyles.itemName
-            ]}
-            numberOfLines={2}
-          >
-            {item.name}
-          </Text>
-          
-          {item.specialInstructions && (
+          <View style={localStyles.itemHeader}>
             <Text 
               style={[
-                styles.textCaption,
-                styles.mt('xs')
+                styles.textSubtitle,
+                localStyles.itemName
               ]}
               numberOfLines={2}
             >
-              {item.specialInstructions}
+              {item.name}
             </Text>
+            
+            <TouchableOpacity
+              onPress={() => onRemove(item.id)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityLabel="Retirer l'article"
+              accessibilityRole="button"
+            >
+              <Ionicons 
+                name="trash-outline" 
+                size={smallIconSize} 
+                color={COLORS.error} 
+              />
+            </TouchableOpacity>
+          </View>
+          
+          {item.specialInstructions && (
+            <View style={[localStyles.instructionsContainer, styles.mt('xs')]}>
+              <Ionicons 
+                name="information-circle-outline" 
+                size={14} 
+                color={COLORS.text.light} 
+              />
+              <Text 
+                style={[
+                  styles.textCaption,
+                  localStyles.instructions
+                ]}
+                numberOfLines={2}
+              >
+                {item.specialInstructions}
+              </Text>
+            </View>
           )}
           
           <View style={[localStyles.itemFooter, styles.mt('sm')]}>
             <Text 
               style={[
                 styles.textSubtitle,
-                { color: COLORS.primary }
+                { color: COLORS.primary, fontWeight: TYPOGRAPHY.fontWeight.bold }
               ]}
             >
-              {(item.price * item.quantity).toFixed(2)} €
+              {(item.price * localQuantity).toFixed(2)} €
             </Text>
             
             <View style={localStyles.quantityControls}>
               <TouchableOpacity
-                onPress={() => onQuantityChange(item.id, item.quantity - 1)}
+                onPress={handleDecrease}
                 style={localStyles.quantityButton}
+                disabled={isUpdating}
                 accessibilityLabel="Diminuer la quantité"
-                accessibilityHint={`Quantité actuelle: ${item.quantity}`}
+                accessibilityHint={`Quantité actuelle: ${localQuantity}`}
+                accessibilityRole="button"
               >
-                <Ionicons name="remove" size={smallIconSize} color={COLORS.primary} />
+                <Ionicons 
+                  name={localQuantity === 1 ? "trash" : "remove"} 
+                  size={smallIconSize} 
+                  color={localQuantity === 1 ? COLORS.error : COLORS.primary} 
+                />
               </TouchableOpacity>
               
               <Text 
@@ -142,18 +209,20 @@ const CartItemCard = React.memo<CartItemCardProps>(({ item, onQuantityChange, sc
                   styles.textSubtitle,
                   localStyles.quantityText
                 ]}
-                accessibilityLabel={`Quantité: ${item.quantity}`}
+                accessibilityLabel={`Quantité: ${localQuantity}`}
               >
-                {item.quantity}
+                {localQuantity}
               </Text>
               
               <TouchableOpacity
-                onPress={() => onQuantityChange(item.id, item.quantity + 1)}
+                onPress={handleIncrease}
                 style={[
                   localStyles.quantityButton,
                   localStyles.quantityButtonAdd
                 ]}
+                disabled={isUpdating}
                 accessibilityLabel="Augmenter la quantité"
+                accessibilityRole="button"
               >
                 <Ionicons name="add" size={smallIconSize} color={COLORS.text.inverse} />
               </TouchableOpacity>
@@ -172,7 +241,7 @@ CartItemCard.displayName = 'CartItemCard';
 // ============================================================================
 
 interface CartSummaryProps {
-  total: number;
+  subtotal: number;
   itemCount: number;
   isCreatingOrder: boolean;
   onCheckout: () => void;
@@ -180,7 +249,7 @@ interface CartSummaryProps {
 }
 
 const CartSummary = React.memo<CartSummaryProps>(({ 
-  total, 
+  subtotal, 
   itemCount, 
   isCreatingOrder, 
   onCheckout,
@@ -189,30 +258,65 @@ const CartSummary = React.memo<CartSummaryProps>(({
   const styles = createResponsiveStyles(screenType);
   const iconSize = getResponsiveValue({ mobile: 20, tablet: 24, desktop: 28 }, screenType);
 
+  // Calcul des frais (à adapter selon votre logique métier)
+  const serviceFee = 0; // Exemple: pas de frais de service
+  const total = subtotal + serviceFee;
+
   return (
     <View style={localStyles.summaryContainer}>
-      <View style={[localStyles.totalRow, styles.mb('md')]}>
-        <Text style={styles.textSubtitle}>
-          Total
-        </Text>
-        <Text 
-          style={[
-            styles.textTitle,
-            { color: COLORS.primary }
-          ]}
-        >
-          {total.toFixed(2)} €
-        </Text>
+      <View style={localStyles.summaryContent}>
+        <View style={localStyles.summaryRow}>
+          <Text style={styles.textBody}>
+            Sous-total ({itemCount} {itemCount > 1 ? 'articles' : 'article'})
+          </Text>
+          <Text style={styles.textBody}>
+            {subtotal.toFixed(2)} €
+          </Text>
+        </View>
+        
+        {serviceFee > 0 && (
+          <View style={[localStyles.summaryRow, styles.mt('xs')]}>
+            <Text style={styles.textCaption}>
+              Frais de service
+            </Text>
+            <Text style={styles.textCaption}>
+              {serviceFee.toFixed(2)} €
+            </Text>
+          </View>
+        )}
+        
+        <View style={localStyles.divider} />
+        
+        <View style={localStyles.totalRow}>
+          <Text style={styles.textSubtitle}>
+            Total
+          </Text>
+          <Text 
+            style={[
+              styles.textTitle,
+              { color: COLORS.primary }
+            ]}
+          >
+            {total.toFixed(2)} €
+          </Text>
+        </View>
       </View>
       
       <Button
-        title={isCreatingOrder ? "Traitement..." : "Commander"}
+        title={isCreatingOrder ? "Traitement en cours..." : "Passer la commande"}
         onPress={onCheckout}
         disabled={isCreatingOrder || itemCount === 0}
         fullWidth
-        leftIcon={<Ionicons name="checkmark-circle" size={iconSize} color={COLORS.text.inverse} />}
+        leftIcon={
+          isCreatingOrder ? (
+            <ActivityIndicator size="small" color={COLORS.text.inverse} />
+          ) : (
+            <Ionicons name="checkmark-circle" size={iconSize} color={COLORS.text.inverse} />
+          )
+        }
         accessibilityLabel={`Commander pour un total de ${total.toFixed(2)} euros`}
         accessibilityHint="Appuyez pour procéder au paiement"
+        accessibilityState={{ disabled: isCreatingOrder || itemCount === 0 }}
       />
     </View>
   );
@@ -240,38 +344,57 @@ const RestaurantInfo = React.memo<RestaurantInfoProps>(({
   screenType
 }) => {
   const styles = createResponsiveStyles(screenType);
+  const iconSize = getResponsiveValue({ mobile: 16, tablet: 18, desktop: 20 }, screenType);
+  
+  // Padding adaptatif selon le screenType
+  const cardPadding: keyof typeof SPACING = screenType === 'mobile' ? 'sm' : 'md';
 
   return (
-    <Card style={[localStyles.restaurantCard, styles.mx('md'), styles.mt('md')]}>
+    <View style={[styles.px('md'), styles.mt('md')]}>
+    <Card 
+      padding={cardPadding}
+      style={localStyles.restaurantCard}
+    >
       <View style={localStyles.restaurantContent}>
+        <View style={localStyles.restaurantIcon}>
+          <Ionicons name="restaurant" size={iconSize} color={COLORS.primary} />
+        </View>
+        
         <View style={localStyles.restaurantDetails}>
           <Text style={[styles.textSubtitle, localStyles.restaurantName]}>
             {restaurantName || 'Restaurant'}
           </Text>
           
-          {tableNumber && (
-            <Text style={[styles.textBody, styles.mt('xs')]}>
-              Table {tableNumber}
-            </Text>
-          )}
+          <View style={localStyles.restaurantMeta}>
+            {tableNumber && (
+              <View style={localStyles.metaItem}>
+                <Ionicons name="location" size={14} color={COLORS.text.secondary} />
+                <Text style={[styles.textCaption, localStyles.metaText]}>
+                  Table {tableNumber}
+                </Text>
+              </View>
+            )}
+            
+            <View style={localStyles.metaItem}>
+              <Ionicons name="cart" size={14} color={COLORS.text.secondary} />
+              <Text style={[styles.textCaption, localStyles.metaText]}>
+                {itemCount} {itemCount > 1 ? 'articles' : 'article'}
+              </Text>
+            </View>
+          </View>
           
           {hasActiveSession && (
             <View style={localStyles.sessionBadge}>
-              <Ionicons name="people" size={14} color={COLORS.success} />
+              <Ionicons name="people" size={12} color={COLORS.success} />
               <Text style={localStyles.sessionBadgeText}>
-                Session collaborative active
+                Session collaborative
               </Text>
             </View>
           )}
         </View>
-        
-        <View style={localStyles.itemCountContainer}>
-          <Text style={styles.textCaption}>
-            {itemCount} {itemCount > 1 ? 'articles' : 'article'}
-          </Text>
-        </View>
       </View>
     </Card>
+    </View>
   );
 });
 
@@ -291,11 +414,14 @@ const EmptyCart = React.memo<EmptyCartProps>(({ screenType }) => {
 
   return (
     <View style={localStyles.emptyContainer}>
-      <Ionicons 
-        name="cart-outline" 
-        size={iconSize} 
-        color={COLORS.border.dark} 
-      />
+      <View style={localStyles.emptyIconContainer}>
+        <Ionicons 
+          name="cart-outline" 
+          size={iconSize} 
+          color={COLORS.border.dark} 
+        />
+      </View>
+      
       <Text 
         style={[
           styles.textTitle,
@@ -305,11 +431,12 @@ const EmptyCart = React.memo<EmptyCartProps>(({ screenType }) => {
       >
         Votre panier est vide
       </Text>
+      
       <Text 
         style={[
           styles.textBody,
           styles.mt('sm'),
-          { textAlign: 'center', maxWidth: 300 }
+          { textAlign: 'center', maxWidth: 320 }
         ]}
       >
         Ajoutez des articles à votre panier pour commencer votre commande
@@ -341,12 +468,13 @@ export default function CartScreen() {
   const { isAuthenticated } = useAuth();
   const screenType = useScreenType();
   const styles = createResponsiveStyles(screenType);
+  const { alertState, showAlert, hideAlert, showError, showSuccess } = useAlert();
   
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [currentTableNumber, setCurrentTableNumber] = useState(cart.tableNumber || '');
-  const [showSessionModal, setShowSessionModal] = useState(false);
-
-  const iconSize = getResponsiveValue({ mobile: 20, tablet: 24, desktop: 28 }, screenType);
+  const [updatingItems, setUpdatingItems] = useState<Set<string>>(new Set());
+  const [showClearConfirmation, setShowClearConfirmation] = useState(false);
+  const [itemToRemove, setItemToRemove] = useState<string | null>(null);
 
   // ============================================================================
   // EFFECTS
@@ -354,10 +482,14 @@ export default function CartScreen() {
 
   useEffect(() => {
     const loadTableFromQR = async () => {
-      const qrData = await QRSessionUtils.getSession();
-      if (qrData?.tableNumber && !currentTableNumber) {
-        setCurrentTableNumber(qrData.tableNumber);
-        setTableNumber(qrData.tableNumber);
+      try {
+        const qrData = await QRSessionUtils.getSession();
+        if (qrData?.tableNumber && !currentTableNumber) {
+          setCurrentTableNumber(qrData.tableNumber);
+          setTableNumber(qrData.tableNumber);
+        }
+      } catch (error) {
+        console.error('Error loading table from QR:', error);
       }
     };
     loadTableFromQR();
@@ -420,99 +552,76 @@ export default function CartScreen() {
   // HANDLERS
   // ============================================================================
 
-  const handleQuantityChange = useCallback((itemId: string, newQuantity: number) => {
-    if (newQuantity === 0) {
-      Alert.alert(
-        'Retirer l\'article',
-        'Voulez-vous retirer cet article du panier ?',
-        [
-          { text: 'Annuler', style: 'cancel' },
-          { 
-            text: 'Supprimer', 
-            style: 'destructive',
-            onPress: () => removeFromCart(itemId) 
-          }
-        ]
-      );
-    } else {
-      updateQuantity(itemId, newQuantity);
+  const handleQuantityChange = useCallback(async (itemId: string, newQuantity: number) => {
+    try {
+      setUpdatingItems(prev => new Set(prev).add(itemId));
+      await updateQuantity(itemId, newQuantity);
+      showSuccess('Quantité mise à jour');
+    } catch (error) {
+      showError('Erreur lors de la mise à jour de la quantité');
+      console.error('Error updating quantity:', error);
+    } finally {
+      setUpdatingItems(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(itemId);
+        return newSet;
+      });
     }
-  }, [removeFromCart, updateQuantity]);
+  }, [updateQuantity, showSuccess, showError]);
+
+  const handleRemoveItem = useCallback((itemId: string) => {
+    setItemToRemove(itemId);
+  }, []);
+
+  const confirmRemoveItem = useCallback(async () => {
+    if (!itemToRemove) return;
+
+    try {
+      await removeFromCart(itemToRemove);
+      showSuccess('Article retiré du panier');
+      setItemToRemove(null);
+    } catch (error) {
+      showError('Erreur lors du retrait de l\'article');
+      console.error('Error removing item:', error);
+    }
+  }, [itemToRemove, removeFromCart, showSuccess, showError]);
 
   const handleClearCart = useCallback(() => {
-    Alert.alert(
-      'Vider le panier',
-      'Êtes-vous sûr de vouloir vider votre panier ?',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        { 
-          text: 'Vider', 
-          style: 'destructive', 
-          onPress: clearCart 
-        }
-      ]
-    );
-  }, [clearCart]);
+    setShowClearConfirmation(true);
+  }, []);
+
+  const confirmClearCart = useCallback(async () => {
+    try {
+      await clearCart();
+      setShowClearConfirmation(false);
+      showSuccess('Panier vidé');
+    } catch (error) {
+      showError('Erreur lors de la suppression du panier');
+      console.error('Error clearing cart:', error);
+    }
+  }, [clearCart, showSuccess, showError]);
 
   const handleCheckout = useCallback(async () => {
     if (cart.items.length === 0) {
-      Alert.alert('Panier vide', 'Ajoutez des articles à votre panier pour continuer');
+      showError('Votre panier est vide. Ajoutez des articles pour continuer.');
       return;
     }
 
-    // Vérifier s'il existe une session active
-    if (currentTableNumber && cart.restaurantId) {
-      if (hasActiveSession) {
-        Alert.alert(
-          'Session collaborative détectée',
-          'Une session collaborative est active pour cette table. Voulez-vous la rejoindre ou créer une nouvelle session ?',
-          [
-            { text: 'Annuler', style: 'cancel' },
-            { 
-              text: 'Nouvelle commande', 
-              onPress: () => navigateToCheckout() 
-            },
-            { 
-              text: 'Rejoindre la session', 
-              onPress: () => setShowSessionModal(true)
-            }
-          ]
-        );
-        return;
-      } else {
-        Alert.alert(
-          'Commander seul ou en groupe ?',
-          'Voulez-vous créer une session collaborative pour permettre à d\'autres personnes de la table de commander avec vous ?',
-          [
-            { text: 'Annuler', style: 'cancel' },
-            { 
-              text: 'Commande individuelle', 
-              onPress: () => navigateToCheckout() 
-            },
-            { 
-              text: 'Session collaborative', 
-              onPress: () => setShowSessionModal(true)
-            }
-          ]
-        );
-        return;
-      }
+    if (!cart.restaurantId) {
+      showError('Restaurant non trouvé. Veuillez scanner à nouveau le QR code.');
+      return;
     }
 
-    navigateToCheckout();
-  }, [cart.items.length, cart.restaurantId, currentTableNumber, hasActiveSession, navigateToCheckout]);
-
-  const handleSessionCreated = useCallback((createdSession: SessionData) => {
-    console.log('✅ Session créée:', createdSession);
-    setShowSessionModal(false);
-    navigateToCheckout(createdSession.id);
-  }, [navigateToCheckout]);
-
-  const handleSessionJoined = useCallback((joinedSession: SessionData) => {
-    console.log('✅ Session rejointe:', joinedSession);
-    setShowSessionModal(false);
-    navigateToCheckout(joinedSession.id);
-  }, [navigateToCheckout]);
+    try {
+      setIsCreatingOrder(true);
+      navigateToCheckout();
+    } catch (error) {
+      showError('Erreur lors de la préparation de la commande');
+      console.error('Error during checkout:', error);
+    } finally {
+      setIsCreatingOrder(false);
+    }
+  }, [cart.items.length, cart.restaurantId, navigateToCheckout, showError]);
 
   // ============================================================================
   // MEMOIZED VALUES
@@ -554,7 +663,7 @@ export default function CartScreen() {
       <ScrollView 
         style={localStyles.scrollView} 
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.pb('md')}
+        contentContainerStyle={styles.pb('xl')}
       >
         {/* Restaurant Info */}
         <RestaurantInfo
@@ -565,6 +674,17 @@ export default function CartScreen() {
           screenType={screenType}
         />
 
+        {/* Alerts */}
+        {alertState && (
+          <View style={[styles.mx('md'), styles.mt('md')]}>
+            <Alert
+              variant={alertState.variant}
+              title={alertState.title}
+              message={alertState.message}
+            />
+          </View>
+        )}
+
         {/* Cart Items */}
         <View style={[localStyles.itemsContainer, styles.px('md'), styles.pt('md')]}>
           {cartItems.map((item) => (
@@ -572,7 +692,9 @@ export default function CartScreen() {
               key={item.id}
               item={item}
               onQuantityChange={handleQuantityChange}
+              onRemove={handleRemoveItem}
               screenType={screenType}
+              isUpdating={updatingItems.has(item.id)}
             />
           ))}
         </View>
@@ -580,23 +702,54 @@ export default function CartScreen() {
 
       {/* Footer with total and checkout */}
       <CartSummary
-        total={totalAmount}
+        subtotal={totalAmount}
         itemCount={itemCount}
         isCreatingOrder={isCreatingOrder}
         onCheckout={handleCheckout}
         screenType={screenType}
       />
 
-      {/* Modal de session collaborative */}
-      {showSessionModal && cart.restaurantId && currentTableNumber && (
-        <SessionJoinModal
-          visible={showSessionModal}
-          onClose={() => setShowSessionModal(false)}
-          restaurantId={cart.restaurantId}
-          tableNumber={currentTableNumber}
-          onSessionCreated={handleSessionCreated}
-          onSessionJoined={handleSessionJoined}
-        />
+      {/* Confirmation Modals using AlertWithAction */}
+      {showClearConfirmation && (
+        <View style={localStyles.modalOverlay}>
+          <View style={[localStyles.modalContainer, styles.mx('md')]}>
+            <AlertWithAction
+              variant="warning"
+              title="Vider le panier"
+              message="Êtes-vous sûr de vouloir vider votre panier ? Cette action est irréversible."
+              primaryButton={{
+                text: "Vider le panier",
+                onPress: confirmClearCart,
+                variant: "danger",
+              }}
+              secondaryButton={{
+                text: "Annuler",
+                onPress: () => setShowClearConfirmation(false),
+              }}
+            />
+          </View>
+        </View>
+      )}
+
+      {itemToRemove && (
+        <View style={localStyles.modalOverlay}>
+          <View style={[localStyles.modalContainer, styles.mx('md')]}>
+            <AlertWithAction
+              variant="warning"
+              title="Retirer l'article"
+              message="Voulez-vous retirer cet article de votre panier ?"
+              primaryButton={{
+                text: "Retirer",
+                onPress: confirmRemoveItem,
+                variant: "danger",
+              }}
+              secondaryButton={{
+                text: "Annuler",
+                onPress: () => setItemToRemove(null),
+              }}
+            />
+          </View>
+        </View>
       )}
     </SafeAreaView>
   );
@@ -618,13 +771,23 @@ const localStyles = StyleSheet.create({
 
   // Restaurant Info Styles
   restaurantCard: {
-    padding: SPACING.md.mobile,
+    // Le padding est géré par la prop du composant Card
+    ...SHADOWS.card,
   },
   
   restaurantContent: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  
+  restaurantIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.variants.primary[50],
     alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: SPACING.sm.mobile,
   },
   
   restaurantDetails: {
@@ -635,35 +798,68 @@ const localStyles = StyleSheet.create({
     marginBottom: 4,
   },
   
+  restaurantMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: SPACING.sm.mobile,
+  },
+  
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  
+  metaText: {
+    marginLeft: 2,
+  },
+  
   sessionBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 8,
-    backgroundColor: '#E8F5E8',
+    backgroundColor: COLORS.variants.primary[50],
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: BORDER_RADIUS.sm,
+    borderRadius: BORDER_RADIUS.full,
     alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: COLORS.success,
   },
   
   sessionBadgeText: {
-    fontSize: 12,
+    fontSize: 11,
     color: COLORS.success,
     marginLeft: 4,
-    fontWeight: '500',
-  },
-  
-  itemCountContainer: {
-    alignItems: 'flex-end',
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
 
   // Cart Items Styles
   itemsContainer: {
-    // Empty - spacing handled by responsive styles
+    // Le padding horizontal est géré par styles.px('md')
   },
   
   cartItemCard: {
-    padding: SPACING.sm.mobile,
+    // Le padding est géré par la prop du composant Card
+    position: 'relative',
+  },
+  
+  updatingCard: {
+    opacity: 0.7,
+  },
+  
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    borderRadius: BORDER_RADIUS.md,
+    zIndex: 1,
   },
   
   cartItemContent: {
@@ -672,14 +868,36 @@ const localStyles = StyleSheet.create({
   
   itemImage: {
     borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.border.light,
   },
   
   itemDetails: {
     flex: 1,
   },
   
+  itemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  
   itemName: {
-    marginBottom: 4,
+    flex: 1,
+    marginRight: SPACING.sm.mobile,
+  },
+  
+  instructionsContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 4,
+    backgroundColor: COLORS.variants.primary[50],
+    padding: SPACING.xs.mobile,
+    borderRadius: BORDER_RADIUS.sm,
+  },
+  
+  instructions: {
+    flex: 1,
+    fontStyle: 'italic',
   },
   
   itemFooter: {
@@ -702,6 +920,7 @@ const localStyles = StyleSheet.create({
     minHeight: COMPONENT_CONSTANTS.minTouchTarget,
     alignItems: 'center',
     justifyContent: 'center',
+    ...SHADOWS.sm,
   },
   
   quantityButtonAdd: {
@@ -711,6 +930,7 @@ const localStyles = StyleSheet.create({
   quantityText: {
     minWidth: 30,
     textAlign: 'center',
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
 
   // Summary Styles
@@ -718,13 +938,32 @@ const localStyles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     padding: SPACING.md.mobile,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border.light,
+    borderTopColor: COLORS.border.default,
+    ...SHADOWS.lg,
+  },
+  
+  summaryContent: {
+    marginBottom: SPACING.md.mobile,
+  },
+  
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  
+  divider: {
+    height: 1,
+    backgroundColor: COLORS.border.default,
+    marginVertical: SPACING.sm.mobile,
   },
   
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop: 4,
   },
 
   // Empty Cart Styles
@@ -735,6 +974,15 @@ const localStyles = StyleSheet.create({
     paddingHorizontal: SPACING.xl.mobile,
   },
   
+  emptyIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: BORDER_RADIUS['2xl'],
+    backgroundColor: COLORS.border.light,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  
   qrButtonsContainer: {
     width: '100%',
     maxWidth: 400,
@@ -743,5 +991,23 @@ const localStyles = StyleSheet.create({
   qrButtons: {
     width: '100%',
     backgroundColor: 'transparent',
+  },
+  
+  // Modal Styles
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: COLORS.overlay,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: COMPONENT_CONSTANTS.zIndex.modal,
+  },
+  
+  modalContainer: {
+    width: '100%',
+    maxWidth: 400,
   },
 });
