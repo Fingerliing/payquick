@@ -107,7 +107,7 @@ const useScaleAnimation = (initialValue = 1) => {
 };
 
 // Composant amélioré pour les items avec animations
-const OrderItemCard = React.memo(({ item, index }: { item: OrderItem; index: number }) => {
+  const OrderItemCard = React.memo(({ item, index }: { item: OrderItem; index: number }) => {
   const screenType = useScreenType();
   const styles = createStyles(screenType);
   const { scaleValue, scaleIn, scaleOut } = useScaleAnimation();
@@ -444,7 +444,7 @@ const ClientPaymentButton = React.memo(({ order, onShowReceipt }: {
                 <Ionicons name="card" size={24} color="#fff" />
                 <View>
                   <Text style={styles.payButtonText}>Payer maintenant</Text>
-                  <Text style={styles.payButtonAmount}>{order.total_amount || order.subtotal}€</Text>
+                  <Text style={styles.payButtonAmount}>{order.subtotal}€</Text>
                 </View>
               </View>
               <View style={styles.payButtonArrow}>
@@ -910,7 +910,7 @@ export default function OrderDetailScreen() {
                 
                 <View style={[styles.totalRow, styles.finalTotal]}>
                   <Text style={styles.finalTotalLabel}>Total à payer:</Text>
-                  <Text style={styles.finalTotalValue}>{order.total_amount || order.subtotal}€</Text>
+                  <Text style={styles.finalTotalValue}>{order.subtotal}€</Text>
                 </View>
               </LinearGradient>
             </View>
