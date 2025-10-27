@@ -36,7 +36,8 @@ export function LegalFooter() {
 
 const styles = StyleSheet.create({
   footer: {
-    padding: 24,
+    paddingTop: 24,
+    paddingHorizontal: 24,
     alignItems: 'center',
     backgroundColor: '#F9FAFB',
     borderTopWidth: 1,
@@ -46,6 +47,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
     marginBottom: 12,
+    
   },
   links: {
     flexDirection: 'row',
