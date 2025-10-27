@@ -854,6 +854,42 @@ class Table(models.Model):
             return f"{base_url}/table/{self.qr_code}"
         return None
 
+# Manager personnalisé pour les commandes
+class OrderManager(models.Manager):
+    def for_table(self, restaurant, table_number):
+        """Toutes les commandes pour une table donnée"""
+        return self.filter(
+            restaurant=restaurant,
+            table_number=table_number
+        ).order_by('-created_at')
+    
+    def active_for_table(self, restaurant, table_number):
+        """Commandes actives pour une table"""
+        return self.for_table(restaurant, table_number).filter(
+            status__in=['pending', 'confirmed', 'preparing', 'ready']
+        )
+    
+    def by_table_session(self, session_id):
+        """Commandes par session de table"""
+        return self.filter(table_session_id=session_id).order_by('created_at')
+    
+    def table_statistics(self, restaurant, table_number):
+        """Statistiques pour une table"""
+        orders = self.for_table(restaurant, table_number)
+        
+        return {
+            'total_orders': orders.count(),
+            'total_revenue': orders.aggregate(
+                total=models.Sum('total_amount')
+            )['total'] or 0,
+            'average_order_value': orders.aggregate(
+                avg=models.Avg('total_amount')
+            )['avg'] or 0,
+            'active_orders': orders.filter(
+                status__in=['pending', 'confirmed', 'preparing', 'ready']
+            ).count()
+        }
+
 class Order(models.Model):
     STATUS_CHOICES = [
         ('pending', 'En Attente'),
@@ -955,6 +991,8 @@ class Order(models.Model):
         verbose_name="Détail TVA par taux",
         help_text='{"10": {"ht": 45.45, "tva": 4.55, "ttc": 50}, ...}'
     )
+
+    objects = OrderManager()
     
     class Meta:
         ordering = ['-created_at']
@@ -1193,44 +1231,6 @@ class Order(models.Model):
             
         progress = (paid_amount / total_with_tip) * 100
         return min(100, max(0, progress))
-
-
-# Manager personnalisé pour les commandes
-class OrderManager(models.Manager):
-    def for_table(self, restaurant, table_number):
-        """Toutes les commandes pour une table donnée"""
-        return self.filter(
-            restaurant=restaurant,
-            table_number=table_number
-        ).order_by('-created_at')
-    
-    def active_for_table(self, restaurant, table_number):
-        """Commandes actives pour une table"""
-        return self.for_table(restaurant, table_number).filter(
-            status__in=['pending', 'confirmed', 'preparing', 'ready']
-        )
-    
-    def by_table_session(self, session_id):
-        """Commandes par session de table"""
-        return self.filter(table_session_id=session_id).order_by('created_at')
-    
-    def table_statistics(self, restaurant, table_number):
-        """Statistiques pour une table"""
-        orders = self.for_table(restaurant, table_number)
-        
-        return {
-            'total_orders': orders.count(),
-            'total_revenue': orders.aggregate(
-                total=models.Sum('total_amount')
-            )['total'] or 0,
-            'average_order_value': orders.aggregate(
-                avg=models.Avg('total_amount')
-            )['avg'] or 0,
-            'active_orders': orders.filter(
-                status__in=['pending', 'confirmed', 'preparing', 'ready']
-            ).count()
-        }
-Order.add_to_class('objects', OrderManager())
 
 class TableSession(models.Model):
     """Modèle pour suivre les sessions de table et regrouper les commandes"""
