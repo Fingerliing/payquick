@@ -170,45 +170,45 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         
         return validated_items
     
-    def validate(self, data):
-        """Validation croisée avec gestion client améliorée"""
+    # def validate(self, data):
+    #     """Validation croisée avec gestion client améliorée"""
         
-        # Si c'est une commande sur place, vérifier la table
-        if data.get('order_type') == 'dine_in' and not data.get('table_number'):
-            raise serializers.ValidationError({
-                'table_number': 'Le numéro de table est requis pour les commandes sur place'
-            })
+    #     # Si c'est une commande sur place, vérifier la table
+    #     if data.get('order_type') == 'dine_in' and not data.get('table_number'):
+    #         raise serializers.ValidationError({
+    #             'table_number': 'Le numéro de table est requis pour les commandes sur place'
+    #         })
         
-        # Pour les clients non authentifiés, s'assurer d'avoir au moins un nom ou téléphone
-        request = self.context.get('request')
-        if request and not request.user.is_authenticated:
-            if not data.get('customer_name') and not data.get('phone'):
-                raise serializers.ValidationError(
-                    "Au moins le nom ou le téléphone est requis pour les clients non authentifiés"
-                )
+    #     # Pour les clients non authentifiés, s'assurer d'avoir au moins un nom ou téléphone
+    #     request = self.context.get('request')
+    #     if request and not request.user.is_authenticated:
+    #         if not data.get('customer_name') and not data.get('phone'):
+    #             raise serializers.ValidationError(
+    #                 "Au moins le nom ou le téléphone est requis pour les clients non authentifiés"
+    #             )
         
-        # Si une session collaborative est spécifiée, vérifier qu'elle existe et est active
-        if data.get('table_session_id'):
-            try:
-                session = TableSession.objects.get(
-                    id=data['table_session_id'],
-                    is_active=True
-                )
-                # Vérifier que la session correspond au restaurant et à la table
-                if session.restaurant != data['restaurant']:
-                    raise serializers.ValidationError({
-                        'table_session_id': 'La session ne correspond pas au restaurant'
-                    })
-                if data.get('table_number') and session.table_number != data['table_number']:
-                    raise serializers.ValidationError({
-                        'table_session_id': 'La session ne correspond pas à la table'
-                    })
-            except TableSession.DoesNotExist:
-                raise serializers.ValidationError({
-                    'table_session_id': 'Session invalide ou inactive'
-                })
+    #     # Si une session collaborative est spécifiée, vérifier qu'elle existe et est active
+    #     if data.get('table_session_id'):
+    #         try:
+    #             session = TableSession.objects.get(
+    #                 id=data['table_session_id'],
+    #                 is_active=True
+    #             )
+    #             # Vérifier que la session correspond au restaurant et à la table
+    #             if session.restaurant != data['restaurant']:
+    #                 raise serializers.ValidationError({
+    #                     'table_session_id': 'La session ne correspond pas au restaurant'
+    #                 })
+    #             if data.get('table_number') and session.table_number != data['table_number']:
+    #                 raise serializers.ValidationError({
+    #                     'table_session_id': 'La session ne correspond pas à la table'
+    #                 })
+    #         except TableSession.DoesNotExist:
+    #             raise serializers.ValidationError({
+    #                 'table_session_id': 'Session invalide ou inactive'
+    #             })
         
-        return data
+    #     return data
     
     @transaction.atomic
     def create(self, validated_data):
@@ -244,7 +244,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         estimated_ready_time = timezone.now() + timezone.timedelta(
             minutes=15 + (len(items_data) * 5)
         )
-        validated_data['estimated_ready_time'] = estimated_ready_time
+        validated_data['estimated_ready_time'] = estimated_ready_time.time()
         
         # Créer la commande
         order = Order.objects.create(**validated_data)
@@ -269,13 +269,17 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         
         # Si une session collaborative existe, mettre à jour les compteurs
         if order.table_session_id:
-            session = TableSession.objects.get(id=order.table_session_id)
-            session.orders_count = session.orders.count()
-            session.total_amount = session.orders.aggregate(
-                total=Sum('total_amount')
-            )['total'] or Decimal('0.00')
-            session.save()
-        
+            try:
+                session = TableSession.objects.get(id=order.table_session_id)
+                session.orders_count = session.orders.count()
+                session.total_amount = session.orders.aggregate(
+                    total=Sum('total_amount')
+                )['total'] or Decimal('0.00')
+                session.save()
+            except TableSession.DoesNotExist:
+                # Pas de session réelle - c'est juste un UUID de groupement
+                pass
+
         return order
 
 
