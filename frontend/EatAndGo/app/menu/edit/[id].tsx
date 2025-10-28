@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState, useMemo } from 'react';
+import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Loading } from '@/components/ui/Loading';
+import { Alert as AppAlert } from '@/components/ui/Alert'; // <-- utilisation de ton composant
 
 // Services & Types
 import { menuService } from '@/services/menuService';
@@ -28,6 +29,15 @@ import {
   COMPONENT_CONSTANTS,
 } from '@/utils/designSystem';
 
+type AppAlertVariant = 'success' | 'error' | 'warning' | 'info';
+
+type LocalAlert = {
+  id: string;
+  variant: AppAlertVariant;
+  title?: string;
+  message: string;
+};
+
 export default function EditMenuScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const screenType = useScreenType();
@@ -40,6 +50,23 @@ export default function EditMenuScreen() {
   const [name, setName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
+
+  // Alerts (pile locale)
+  const [alerts, setAlerts] = useState<LocalAlert[]>([]);
+
+  const pushAlert = (variant: AppAlertVariant, title: string, message: string) => {
+    const a: LocalAlert = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      variant,
+      title,
+      message,
+    };
+    setAlerts(prev => [a, ...prev]); // on affiche la plus récente en haut
+  };
+
+  const dismissAlert = (alertId: string) => {
+    setAlerts(prev => prev.filter(a => a.id !== alertId));
+  };
 
   useEffect(() => {
     loadMenu();
@@ -55,7 +82,7 @@ export default function EditMenuScreen() {
       setName(menuData.name || '');
     } catch (error) {
       console.error('Erreur lors du chargement du menu:', error);
-      Alert.alert('Erreur', 'Impossible de charger le menu');
+      pushAlert('error', 'Erreur', 'Impossible de charger le menu');
       router.back();
     } finally {
       setIsLoading(false);
@@ -64,7 +91,7 @@ export default function EditMenuScreen() {
 
   const handleSave = async () => {
     if (!name.trim()) {
-      Alert.alert('Erreur', 'Le nom du menu est requis');
+      pushAlert('error', 'Erreur', 'Le nom du menu est requis');
       return;
     }
 
@@ -78,10 +105,10 @@ export default function EditMenuScreen() {
       
       const updatedMenu = await menuService.updateMenu(parseInt(id), updateData);
       setMenu(updatedMenu);
-      Alert.alert('Succès', 'Menu mis à jour avec succès');
+      pushAlert('success', 'Succès', 'Menu mis à jour avec succès');
     } catch (error) {
       console.error('Erreur lors de la sauvegarde:', error);
-      Alert.alert('Erreur', 'Impossible de sauvegarder le menu');
+      pushAlert('error', 'Erreur', 'Impossible de sauvegarder le menu');
     } finally {
       setIsSaving(false);
     }
@@ -108,13 +135,13 @@ export default function EditMenuScreen() {
       // Rechargement du menu pour avoir les données à jour
       await loadMenu();
       
-      // Afficher le message de succès
-      Alert.alert(
-        'Succès', 
-        result.message || (result.is_available 
+      // Afficher le message de succès via AppAlert
+      const msg =
+        result.message ||
+        (result.is_available
           ? 'Menu activé avec succès (les autres menus ont été désactivés)'
-          : 'Menu désactivé avec succès')
-      );
+          : 'Menu désactivé avec succès');
+      pushAlert('success', 'Succès', msg);
       
     } catch (error: any) {
       console.error('Erreur lors du toggle:', error);
@@ -122,7 +149,7 @@ export default function EditMenuScreen() {
       // Afficher un message d'erreur plus détaillé
       let errorMessage = 'Impossible de modifier la disponibilité';
       if (error?.response?.status === 403) {
-        errorMessage = 'Vous n\'avez pas les permissions pour modifier ce menu';
+        errorMessage = "Vous n'avez pas les permissions pour modifier ce menu";
       } else if (error?.response?.status === 404) {
         errorMessage = 'Menu non trouvé';
       } else if (error?.response?.data?.detail) {
@@ -131,7 +158,7 @@ export default function EditMenuScreen() {
         errorMessage = error.message;
       }
       
-      Alert.alert('Erreur', errorMessage);
+      pushAlert('error', 'Erreur', errorMessage);
     } finally {
       setIsToggling(false);
     }
@@ -243,6 +270,12 @@ export default function EditMenuScreen() {
       borderTopColor: COLORS.border.light,
       ...SHADOWS.sm,
     },
+    // Conteneur des alerts custom
+    alertsContainer: {
+      paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
+      paddingTop: getResponsiveValue(SPACING.md, screenType),
+      gap: getResponsiveValue(SPACING.xs, screenType),
+    },
   };
 
   if (isLoading) {
@@ -258,6 +291,23 @@ export default function EditMenuScreen() {
           onLeftPress={() => router.back()}
           includeSafeArea={true}
         />
+
+        {/* Zone d'alertes */}
+        {alerts.length > 0 && (
+          <View style={dynamicStyles.alertsContainer}>
+            {alerts.map(a => (
+              <AppAlert
+                key={a.id}
+                variant={a.variant}
+                title={a.title}
+                message={a.message}
+                onDismiss={() => dismissAlert(a.id)}
+                autoDismiss
+              />
+            ))}
+          </View>
+        )}
+
         <View style={dynamicStyles.emptyState}>
           <Ionicons 
             name="restaurant-outline" 
@@ -294,6 +344,22 @@ export default function EditMenuScreen() {
         onRightPress={handleSave}
         includeSafeArea={true}
       />
+
+      {/* Zone d'alertes (en haut de page) */}
+      {alerts.length > 0 && (
+        <View style={dynamicStyles.alertsContainer}>
+          {alerts.map(a => (
+            <AppAlert
+              key={a.id}
+              variant={a.variant}
+              title={a.title}
+              message={a.message}
+              onDismiss={() => dismissAlert(a.id)}
+              autoDismiss
+            />
+          ))}
+        </View>
+      )}
       
       <ScrollView 
         contentContainerStyle={dynamicStyles.scrollContainer}
