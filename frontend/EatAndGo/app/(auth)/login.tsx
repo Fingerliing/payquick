@@ -7,7 +7,6 @@ import {
   Platform,
   TouchableOpacity,
   StatusBar,
-  Alert,
   Image,
   Dimensions,
 } from 'react-native';
@@ -21,6 +20,7 @@ import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS } from '@/styles/tokens';
 import { useResponsive } from '@/utils/responsive';
+import { Alert as CustomAlert } from '@/components/ui/Alert';
 
 const APP_LOGO = require('@/assets/images/logo.png');
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -38,12 +38,19 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Partial<LoginFormData>>({});
+
+  // ÉTAT POUR L'ALERTE PERSONNALISÉE
+  const [customAlert, setCustomAlert] = useState<{
+    variant?: 'success' | 'error' | 'warning' | 'info';
+    title?: string;
+    message: string;
+  } | null>(null);
   
   const { login } = useAuth();
   const { isMobile, isTablet, isSmallScreen, getSpacing, getFontSize, getResponsiveValue } = useResponsive();
   const insets = useSafeAreaInsets();
 
-  // ✅ VALIDATION AMÉLIORÉE
+  // VALIDATION
   const validateForm = useCallback((): boolean => {
     const newErrors: Partial<LoginFormData> = {};
     
@@ -66,7 +73,7 @@ export default function LoginScreen() {
     return Object.keys(newErrors).length === 0;
   }, [formData.email, formData.password]);
 
-  // ✅ GESTION DES ERREURS AMÉLIORÉE
+  // GESTION DES ERREURS
   const handleLoginError = (error: any) => {
     console.error('Login error:', error);
   
@@ -76,7 +83,8 @@ export default function LoginScreen() {
       error?.response?.data?.message ?? error?.message ?? ''
     ).toLowerCase();
   
-    const show = (title: string, msg: string) => Alert.alert(title, msg);
+    const show = (variant: 'success' | 'error' | 'warning' | 'info', title: string, msg: string) =>
+      setCustomAlert({ variant, title, message: msg });
   
     // 👤 Aucun utilisateur avec cet email
     if (
@@ -85,7 +93,7 @@ export default function LoginScreen() {
       /user.*not.*found|no.*user|aucun.*utilisateur|unknown.*user/.test(serverMessage)
     ) {
       setErrors(prev => ({ ...prev, email: 'Aucun utilisateur avec cet email' }));
-      show('Email inconnu', 'Aucun utilisateur avec cet email');
+      show('error', 'Email inconnu', 'Aucun utilisateur avec cet email');
       return;
     }
   
@@ -96,33 +104,33 @@ export default function LoginScreen() {
       /wrong.*password|invalid.*password|bad.*credentials|mot.*de.*passe.*(incorrect|invalide|erron)/.test(serverMessage)
     ) {
       setErrors(prev => ({ ...prev, password: 'Mot de passe incorrect' }));
-      show('Mot de passe incorrect', 'Veuillez vérifier votre mot de passe.');
+      show('error', 'Mot de passe incorrect', 'Veuillez vérifier votre mot de passe.');
       return;
     }
   
     // ⏱️ Trop de tentatives
     if (status === 429 || code === 'RATE_LIMITED') {
-      show('Trop de tentatives', 'Réessayez dans quelques instants.');
+      show('warning', 'Trop de tentatives', 'Réessayez dans quelques instants.');
       return;
     }
   
     // 🌐 Problème réseau
     if (serverMessage.includes('network') || code === 'ERR_NETWORK') {
-      show('Erreur de connexion', 'Vérifiez votre connexion internet.');
+      show('warning', 'Erreur de connexion', 'Vérifiez votre connexion internet.');
       return;
     }
   
     // 🛠️ Erreur serveur
     if (typeof status === 'number' && status >= 500) {
-      show('Service indisponible', 'Réessayez plus tard.');
+      show('error', 'Service indisponible', 'Réessayez plus tard.');
       return;
     }
   
     // 🧩 Cas non mappé
-    show('Erreur', error?.response?.data?.message || error?.message || 'Une erreur est survenue');
+    show('error', 'Erreur', error?.response?.data?.message || error?.message || 'Une erreur est survenue');
   };
 
-  // ✅ SOUMISSION AVEC FEEDBACK AMÉLIORÉ
+  // SOUMISSION AVEC FEEDBACK
   const handleSubmit = useCallback(async () => {
     if (!validateForm()) return;
     
@@ -140,7 +148,7 @@ export default function LoginScreen() {
     }
   }, [formData, login, validateForm]);
 
-  // ✅ HELPERS POUR FORMULAIRE
+  // HELPERS
   const updateFormData = useCallback((field: keyof LoginFormData) => 
     (value: string) => setFormData(prev => ({ ...prev, [field]: value }))
   , []);
@@ -151,16 +159,24 @@ export default function LoginScreen() {
     }
   }, [errors]);
 
-  // ✅ SOCIAL LOGIN HANDLERS
+  // SOCIAL LOGIN HANDLERS
   const handleGoogleLogin = useCallback(() => {
-    Alert.alert('Bientôt disponible', 'La connexion Google sera disponible prochainement');
+    setCustomAlert({
+      variant: 'info',
+      title: 'Bientôt disponible',
+      message: 'La connexion Google sera disponible prochainement',
+    });
   }, []);
 
   const handleAppleLogin = useCallback(() => {
-    Alert.alert('Bientôt disponible', 'La connexion Apple sera disponible prochainement');
+    setCustomAlert({
+      variant: 'info',
+      title: 'Bientôt disponible',
+      message: 'La connexion Apple sera disponible prochainement',
+    });
   }, []);
 
-  // ✅ STYLES RESPONSIVES OPTIMISÉS AVEC SAFE AREA
+  // STYLES RESPONSIVES
   const styles = {
     container: {
       flex: 1,
@@ -377,7 +393,16 @@ export default function LoginScreen() {
     keyboardAvoid: {
       flex: 1,
     },
-  };
+
+    // Positionnement pratique pour afficher l'alerte en haut du contenu
+    alertWrapper: {
+      position: 'absolute' as const,
+      left: 16,
+      right: 16,
+      top: Math.max(insets.top, 12) + 8,
+      zIndex: 50,
+    },
+  } as const;
 
   return (
     <View style={styles.container}>
@@ -386,6 +411,19 @@ export default function LoginScreen() {
         backgroundColor="#1E2A78" 
         translucent={false}
       />
+
+      {/* AFFICHE L'ALERTE PERSONNALISÉE */}
+      {customAlert && (
+        <View style={styles.alertWrapper}>
+          <CustomAlert
+            variant={customAlert.variant}
+            title={customAlert.title}
+            message={customAlert.message}
+            onDismiss={() => setCustomAlert(null)}
+            autoDismiss
+          />
+        </View>
+      )}
       
       {/* HEADER AVEC LOGO */}
       <View style={styles.header}>
@@ -423,7 +461,7 @@ export default function LoginScreen() {
         </View>
       </View>
 
-      {/* ✅ CONTENT CONTAINER AVEC KEYBOARD AVOIDING */}
+      {/* CONTENT CONTAINER AVEC KEYBOARD AVOIDING */}
       <KeyboardAvoidingView 
         style={styles.keyboardAvoid}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -439,7 +477,7 @@ export default function LoginScreen() {
             <Card style={styles.formCard} variant="elevated" padding="xl">
               <Text style={styles.formTitle}>Connexion</Text>
               
-              {/* ✅ SOCIAL LOGIN SECTION */}
+              {/* SOCIAL LOGIN SECTION */}
               <View style={styles.socialSection}>
                 <Button
                   title="Continuer avec Google"
@@ -466,14 +504,14 @@ export default function LoginScreen() {
                 )}
               </View>
 
-              {/* ✅ DIVIDER AMÉLIORÉ */}
+              {/* DIVIDER */}
               <View style={styles.divider}>
                 <View style={styles.dividerLine} />
                 <Text style={styles.dividerText}>ou</Text>
                 <View style={styles.dividerLine} />
               </View>
 
-              {/* ✅ FORMULAIRE AMÉLIORÉ */}
+              {/* FORMULAIRE */}
               <View style={styles.inputContainer}>
                 <Input
                   label="Email"
@@ -514,7 +552,11 @@ export default function LoginScreen() {
               </View>
 
               <TouchableOpacity 
-                onPress={() => Alert.alert('Récupération', 'Fonctionnalité bientôt disponible')}
+                onPress={() => setCustomAlert({
+                  variant: 'info',
+                  title: 'Récupération',
+                  message: 'Fonctionnalité bientôt disponible',
+                })}
                 activeOpacity={0.7}
               >
                 <Text style={styles.forgotPassword}>
@@ -522,7 +564,7 @@ export default function LoginScreen() {
                 </Text>
               </TouchableOpacity>
 
-              {/* ✅ BOUTON DE CONNEXION AMÉLIORÉ */}
+              {/* BOUTON DE CONNEXION */}
               <Button
                 title="Se connecter"
                 onPress={handleSubmit}
@@ -536,7 +578,7 @@ export default function LoginScreen() {
             </Card>
           </ScrollView>
 
-          {/* ✅ FOOTER TOUJOURS VISIBLE AVEC SAFE AREA */}
+          {/* FOOTER */}
           <View style={styles.footer}>
             <TouchableOpacity 
               onPress={() => router.push('/(auth)/register')}

@@ -7,7 +7,6 @@ import {
   Platform,
   TouchableOpacity,
   StatusBar,
-  Alert,
   Image,
   Dimensions,
   Pressable,
@@ -22,6 +21,7 @@ import { Input } from '@/components/ui/Input';
 import { COLORS, SPACING, TYPOGRAPHY, SHADOWS, RADIUS } from '@/styles/tokens';
 import { useResponsive } from '@/utils/responsive';
 import { legalService } from '@/services/legalService';
+import { Alert as CustomAlert } from '@/components/ui/Alert';
 
 const APP_LOGO = require('@/assets/images/logo.png');
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -59,6 +59,13 @@ export default function RegisterScreen() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+
+  // ✅ état pour l'alerte personnalisée
+  const [customAlert, setCustomAlert] = useState<{
+    variant?: 'success' | 'error' | 'warning' | 'info';
+    title?: string;
+    message: string;
+  } | null>(null);
   
   const { register, login } = useAuth();
   const { isMobile, isTablet, isSmallScreen, getSpacing, getFontSize, getResponsiveValue } = useResponsive();
@@ -132,8 +139,21 @@ export default function RegisterScreen() {
       }
       
       setErrors(newErrors);
+
+      // Message général si fourni
+      if (backendErrors.non_field_errors || backendErrors.detail) {
+        setCustomAlert({
+          variant: 'error',
+          title: 'Erreur',
+          message: String(backendErrors.non_field_errors?.[0] || backendErrors.detail),
+        });
+      }
     } else {
-      Alert.alert('Erreur', error.message || 'Une erreur est survenue lors de l\'inscription');
+      setCustomAlert({
+        variant: 'error',
+        title: 'Erreur',
+        message: error?.message || 'Une erreur est survenue lors de l\'inscription',
+      });
     }
   };
 
@@ -482,7 +502,16 @@ export default function RegisterScreen() {
     keyboardAvoid: {
       flex: 1,
     },
-  };
+
+    // Positionnement de l'alerte en overlay en haut de l'écran
+    alertWrapper: {
+      position: 'absolute' as const,
+      left: 16,
+      right: 16,
+      top: Math.max(insets.top, 12) + 8,
+      zIndex: 50,
+    },
+  } as const;
 
   return (
     <View style={styles.container}>
@@ -491,6 +520,19 @@ export default function RegisterScreen() {
         backgroundColor="#1E2A78" 
         translucent={false}
       />
+
+      {/* ✅ Alerte personnalisée */}
+      {customAlert && (
+        <View style={styles.alertWrapper}>
+          <CustomAlert
+            variant={customAlert.variant}
+            title={customAlert.title}
+            message={customAlert.message}
+            onDismiss={() => setCustomAlert(null)}
+            autoDismiss
+          />
+        </View>
+      )}
       
       {/* Header élégant avec motifs décoratifs */}
       <View style={styles.header}>
