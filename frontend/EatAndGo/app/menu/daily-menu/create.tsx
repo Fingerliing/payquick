@@ -3,7 +3,6 @@ import {
   View,
   Text,
   ScrollView,
-  Alert,
   TouchableOpacity,
   TextInput,
   Switch,
@@ -22,6 +21,7 @@ import { Header } from '@/components/ui/Header';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
+import { Alert as AppAlert } from '@/components/ui/Alert';
 
 // Services & Types
 import { dailyMenuService, CreateDailyMenuData } from '@/services/dailyMenuService';
@@ -48,6 +48,15 @@ interface SelectedItem {
   isAvailable: boolean;
 }
 
+type AppAlertVariant = 'success' | 'error' | 'warning' | 'info';
+type LocalAlert = {
+  id: string;
+  variant: AppAlertVariant;
+  title?: string;
+  message: string;
+  onDismiss?: () => void; // optionnel : action au dismiss
+};
+
 export default function CreateDailyMenuScreen() {
   const { restaurantId } = useLocalSearchParams<{ restaurantId: string }>();
   const screenType = useScreenType();
@@ -66,25 +75,43 @@ export default function CreateDailyMenuScreen() {
   const [selectedItems, setSelectedItems] = useState<Map<string, SelectedItem>>(new Map());
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
+  // Pile d'alertes (top screen)
+  const [alerts, setAlerts] = useState<LocalAlert[]>([]);
+  const pushAlert = (variant: AppAlertVariant, title: string, message: string, onDismiss?: () => void) => {
+    setAlerts(prev => [
+      {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        variant,
+        title,
+        message,
+        onDismiss,
+      },
+      ...prev,
+    ]);
+  };
+  const dismissAlert = (alertId: string, callback?: () => void) => {
+    setAlerts(prev => prev.filter(a => a.id !== alertId));
+    callback?.();
+  };
+
   useEffect(() => {
     loadMenuItems();
   }, [restaurantId]);
 
   const loadMenuItems = async () => {
     if (!restaurantId) return;
-    
     try {
       setIsLoading(true);
       // Charger tous les plats du restaurant
       const items = await menuService.menuItems.getMyMenuItems();
       setMenuItems(items);
-      
+
       // Grouper par catégorie et expandre toutes les catégories
       const categories = new Set(items.map((item: MenuItem) => item.category_name || 'Autres'));
       setExpandedCategories(categories);
     } catch (error) {
       console.error('Erreur lors du chargement des plats:', error);
-      Alert.alert('Erreur', 'Impossible de charger les plats du menu');
+      pushAlert('error', 'Erreur', 'Impossible de charger les plats du menu');
     } finally {
       setIsLoading(false);
     }
@@ -93,7 +120,7 @@ export default function CreateDailyMenuScreen() {
   const toggleItemSelection = (item: MenuItem) => {
     const newSelected = new Map(selectedItems);
     const itemId = String(item.id);
-    
+
     if (newSelected.has(itemId)) {
       newSelected.delete(itemId);
     } else {
@@ -104,7 +131,7 @@ export default function CreateDailyMenuScreen() {
         isAvailable: true,
       });
     }
-    
+
     setSelectedItems(newSelected);
   };
 
@@ -120,12 +147,12 @@ export default function CreateDailyMenuScreen() {
 
   const handleSave = async () => {
     if (!title.trim()) {
-      Alert.alert('Erreur', 'Le titre du menu est requis');
+      pushAlert('error', 'Erreur', 'Le titre du menu est requis');
       return;
     }
 
     if (selectedItems.size === 0) {
-      Alert.alert('Erreur', 'Veuillez sélectionner au moins un plat');
+      pushAlert('error', 'Erreur', 'Veuillez sélectionner au moins un plat');
       return;
     }
 
@@ -133,7 +160,7 @@ export default function CreateDailyMenuScreen() {
 
     try {
       setIsSaving(true);
-      
+
       const menuData: CreateDailyMenuData = {
         restaurant: restaurantId,
         date: format(selectedDate, 'yyyy-MM-dd'),
@@ -151,17 +178,15 @@ export default function CreateDailyMenuScreen() {
       };
 
       await dailyMenuService.createDailyMenu(menuData);
-      
-      Alert.alert(
-        'Succès',
-        'Le menu du jour a été créé avec succès',
-        [{ text: 'OK', onPress: () => router.back() }]
-      );
+
+      // Succès : afficher l'alerte puis revenir en arrière au dismiss
+      pushAlert('success', 'Succès', 'Le menu du jour a été créé avec succès', () => router.back());
     } catch (error: any) {
       console.error('Erreur lors de la création du menu:', error);
-      Alert.alert(
+      pushAlert(
+        'error',
         'Erreur',
-        error.response?.data?.message || 'Impossible de créer le menu du jour'
+        error?.response?.data?.message || 'Impossible de créer le menu du jour'
       );
     } finally {
       setIsSaving(false);
@@ -215,7 +240,7 @@ export default function CreateDailyMenuScreen() {
             <Text style={styles.menuItemPrice}>Prix normal : {item.price}€</Text>
           </View>
         </View>
-        
+
         {isSelected && (
           <View style={styles.menuItemOptions}>
             <View style={styles.specialPriceContainer}>
@@ -251,7 +276,23 @@ export default function CreateDailyMenuScreen() {
         title="Créer un Menu du Jour"
         showBackButton
       />
-      
+
+      {/* Zone d'alertes (en haut de page) */}
+      {alerts.length > 0 && (
+        <View style={styles.alertsContainer}>
+          {alerts.map(a => (
+            <AppAlert
+              key={a.id}
+              variant={a.variant}
+              title={a.title}
+              message={a.message}
+              onDismiss={() => dismissAlert(a.id, a.onDismiss)}
+              autoDismiss
+            />
+          ))}
+        </View>
+      )}
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -259,7 +300,7 @@ export default function CreateDailyMenuScreen() {
       >
         <Card variant="premium" style={styles.formCard}>
           <Text style={styles.sectionTitle}>Informations générales</Text>
-          
+
           <Input
             label="Titre du menu"
             value={title}
@@ -267,7 +308,7 @@ export default function CreateDailyMenuScreen() {
             placeholder="Ex: Menu du jour"
             leftIcon="restaurant"
           />
-          
+
           <Input
             label="Description (optionnel)"
             value={description}
@@ -277,7 +318,7 @@ export default function CreateDailyMenuScreen() {
             numberOfLines={3}
             leftIcon="document-text"
           />
-          
+
           <Input
             label="Prix du menu complet (optionnel)"
             value={specialPrice}
@@ -293,11 +334,11 @@ export default function CreateDailyMenuScreen() {
           <Text style={styles.selectionSubtitle}>
             {selectedItems.size} plat{selectedItems.size > 1 ? 's' : ''} sélectionné{selectedItems.size > 1 ? 's' : ''}
           </Text>
-          
+
           {Object.entries(itemsByCategory).map(([category, items]) => {
             const isExpanded = expandedCategories.has(category);
             const selectedCount = items.filter(item => selectedItems.has(String(item.id))).length;
-            
+
             return (
               <View key={category} style={styles.categorySection}>
                 <TouchableOpacity
@@ -318,7 +359,7 @@ export default function CreateDailyMenuScreen() {
                     color={COLORS.text.secondary}
                   />
                 </TouchableOpacity>
-                
+
                 {isExpanded && (
                   <View style={styles.categoryItems}>
                     {items.map(renderMenuItem)}
@@ -329,7 +370,7 @@ export default function CreateDailyMenuScreen() {
           })}
         </Card>
       </ScrollView>
-      
+
       <View style={styles.footer}>
         <LinearGradient
           colors={[COLORS.surface, COLORS.goldenSurface]}
@@ -352,11 +393,17 @@ export default function CreateDailyMenuScreen() {
 
 const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: any, insets: any) => {
   const responsiveStyles = createResponsiveStyles(screenType);
-  
+
   return StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: COLORS.background,
+    },
+    // Conteneur des alertes custom (marge sous le Header)
+    alertsContainer: {
+      paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
+      paddingTop: getResponsiveValue(SPACING.md, screenType),
+      gap: getResponsiveValue(SPACING.xs, screenType),
     },
     scrollView: {
       flex: 1,

@@ -3,10 +3,10 @@ import {
   View,
   Text,
   ScrollView,
-  Alert,
   TextInput,
   Switch,
   StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Loading } from '@/components/ui/Loading';
 import { Header } from '@/components/ui/Header';
+import { Alert as AppAlert } from '@/components/ui/Alert';
 
 // Services & Types
 import { dailyMenuService, DailyMenu, DailyMenuItem } from '@/services/dailyMenuService';
@@ -36,8 +37,17 @@ import {
 } from '@/utils/designSystem';
 import { useResponsive } from '@/utils/responsive';
 
+type AppAlertVariant = 'success' | 'error' | 'warning' | 'info';
+type LocalAlert = {
+  id: string;
+  variant: AppAlertVariant;
+  title?: string;
+  message: string;
+  onDismiss?: () => void;
+};
+
 export default function EditDailyMenuScreen() {
-  const { id, restaurantId } = useLocalSearchParams<{ id: string; restaurantId: string }>();
+  const { id } = useLocalSearchParams<{ id: string }>();
   const screenType = useScreenType();
   const responsive = useResponsive();
   const styles = createStyles(screenType, responsive);
@@ -52,10 +62,27 @@ export default function EditDailyMenuScreen() {
   const [isActive, setIsActive] = useState(true);
   const [modifiedItems, setModifiedItems] = useState<Map<string, any>>(new Map());
 
+  // Pile d’alertes
+  const [alerts, setAlerts] = useState<LocalAlert[]>([]);
+  const pushAlert = (variant: AppAlertVariant, title: string, message: string, onDismiss?: () => void) => {
+    setAlerts(prev => [
+      {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        variant,
+        title,
+        message,
+        onDismiss,
+      },
+      ...prev,
+    ]);
+  };
+  const dismissAlert = (alertId: string, callback?: () => void) => {
+    setAlerts(prev => prev.filter(a => a.id !== alertId));
+    callback?.();
+  };
+
   useEffect(() => {
-    if (id) {
-      loadDailyMenu();
-    }
+    if (id) loadDailyMenu();
   }, [id]);
 
   const loadDailyMenu = async () => {
@@ -69,8 +96,7 @@ export default function EditDailyMenuScreen() {
       setIsActive(menu.is_active);
     } catch (error) {
       console.error('Erreur lors du chargement du menu:', error);
-      Alert.alert('Erreur', 'Impossible de charger le menu du jour');
-      router.back();
+      pushAlert('error', 'Erreur', 'Impossible de charger le menu du jour', () => router.back());
     } finally {
       setIsLoading(false);
     }
@@ -94,7 +120,7 @@ export default function EditDailyMenuScreen() {
 
   const handleSave = async () => {
     if (!title.trim()) {
-      Alert.alert('Erreur', 'Le titre du menu est requis');
+      pushAlert('error', 'Erreur', 'Le titre du menu est requis');
       return;
     }
 
@@ -102,8 +128,6 @@ export default function EditDailyMenuScreen() {
 
     try {
       setIsSaving(true);
-      
-      // Mise à jour des informations générales
       await dailyMenuService.updateDailyMenu(id, {
         title: title.trim(),
         description: description.trim() || undefined,
@@ -111,60 +135,37 @@ export default function EditDailyMenuScreen() {
         is_active: isActive,
       });
 
-      // Mise à jour des items modifiés
       for (const [itemId, changes] of modifiedItems.entries()) {
-        // Implémenter l'API pour mettre à jour individuellement les items
         console.log('Updating item', itemId, changes);
       }
-      
-      Alert.alert(
-        'Succès',
-        'Le menu du jour a été mis à jour',
-        [{ text: 'OK', onPress: () => router.back() }]
-      );
+
+      pushAlert('success', 'Succès', 'Le menu du jour a été mis à jour', () => router.back());
     } catch (error: any) {
       console.error('Erreur lors de la mise à jour:', error);
-      Alert.alert(
-        'Erreur',
-        error.response?.data?.message || 'Impossible de mettre à jour le menu'
-      );
+      pushAlert('error', 'Erreur', error.response?.data?.message || 'Impossible de mettre à jour le menu');
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleDelete = () => {
-    Alert.alert(
-      'Supprimer le menu',
-      'Êtes-vous sûr de vouloir supprimer ce menu du jour ?',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Supprimer',
-          style: 'destructive',
-          onPress: async () => {
-            if (!id) return;
-            try {
-              await dailyMenuService.deleteDailyMenu(id);
-              Alert.alert('Succès', 'Menu supprimé');
-              router.back();
-            } catch (error) {
-              Alert.alert('Erreur', 'Impossible de supprimer le menu');
-            }
-          },
-        },
-      ]
-    );
+    pushAlert('warning', 'Confirmation', 'Êtes-vous sûr de vouloir supprimer ce menu du jour ?', async () => {
+      if (!id) return;
+      try {
+        await dailyMenuService.deleteDailyMenu(id);
+        pushAlert('success', 'Supprimé', 'Menu supprimé avec succès', () => router.back());
+      } catch {
+        pushAlert('error', 'Erreur', 'Impossible de supprimer le menu');
+      }
+    });
   };
 
   const renderMenuItem = (item: DailyMenuItem) => {
     const modified = modifiedItems.get(item.id);
-    const currentPrice = modified?.special_price !== undefined 
-      ? modified.special_price 
-      : item.special_price;
-    const currentAvailable = modified?.is_available !== undefined
-      ? modified.is_available
-      : item.is_available;
+    const currentPrice =
+      modified?.special_price !== undefined ? modified.special_price : item.special_price;
+    const currentAvailable =
+      modified?.is_available !== undefined ? modified.is_available : item.is_available;
 
     return (
       <View key={item.id} style={styles.menuItem}>
@@ -172,17 +173,16 @@ export default function EditDailyMenuScreen() {
           <Switch
             value={currentAvailable}
             onValueChange={() => toggleItemAvailability(item.id, item.is_available)}
-            trackColor={{ 
-              false: COLORS.border.default, 
-              true: COLORS.variants.secondary[400] 
+            trackColor={{
+              false: COLORS.border.default,
+              true: COLORS.variants.secondary[400],
             }}
             thumbColor={currentAvailable ? COLORS.variants.secondary[500] : COLORS.text.light}
           />
           <View style={styles.menuItemInfo}>
-            <Text style={[
-              styles.menuItemName,
-              !currentAvailable && styles.menuItemDisabled
-            ]}>
+            <Text
+              style={[styles.menuItemName, !currentAvailable && styles.menuItemDisabled]}
+            >
               {item.menu_item_name}
             </Text>
             <Text style={styles.menuItemOriginalPrice}>
@@ -190,13 +190,13 @@ export default function EditDailyMenuScreen() {
             </Text>
           </View>
         </View>
-        
+
         <View style={styles.priceEditContainer}>
           <Text style={styles.priceLabel}>Prix spécial :</Text>
           <TextInput
             style={styles.priceInput}
             value={currentPrice?.toString() || ''}
-            onChangeText={(text) => updateItemPrice(item.id, text)}
+            onChangeText={text => updateItemPrice(item.id, text)}
             keyboardType="numeric"
             placeholder={String(item.original_price)}
             placeholderTextColor={COLORS.text.light}
@@ -207,9 +207,7 @@ export default function EditDailyMenuScreen() {
     );
   };
 
-  if (isLoading) {
-    return <Loading />;
-  }
+  if (isLoading) return <Loading fullScreen text="Chargement du menu..." />;
 
   if (!dailyMenu) {
     return (
@@ -228,7 +226,23 @@ export default function EditDailyMenuScreen() {
         rightIcon="trash"
         onRightPress={handleDelete}
       />
-      
+
+      {/* Zone d’alertes */}
+      {alerts.length > 0 && (
+        <View style={styles.alertsContainer}>
+          {alerts.map(a => (
+            <AppAlert
+              key={a.id}
+              variant={a.variant}
+              title={a.title}
+              message={a.message}
+              onDismiss={() => dismissAlert(a.id, a.onDismiss)}
+              autoDismiss
+            />
+          ))}
+        </View>
+      )}
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -241,7 +255,7 @@ export default function EditDailyMenuScreen() {
               {format(new Date(dailyMenu.date), 'EEEE dd MMMM yyyy', { locale: fr })}
             </Text>
           </View>
-          
+
           <Input
             label="Titre du menu"
             value={title}
@@ -249,7 +263,7 @@ export default function EditDailyMenuScreen() {
             placeholder="Ex: Menu du jour"
             leftIcon="restaurant"
           />
-          
+
           <Input
             label="Description (optionnel)"
             value={description}
@@ -259,7 +273,7 @@ export default function EditDailyMenuScreen() {
             numberOfLines={3}
             leftIcon="document-text"
           />
-          
+
           <Input
             label="Prix du menu complet (optionnel)"
             value={specialPrice}
@@ -268,15 +282,15 @@ export default function EditDailyMenuScreen() {
             placeholder="Ex: 19.90"
             leftIcon="pricetag"
           />
-          
+
           <View style={styles.switchContainer}>
             <Text style={styles.switchLabel}>Menu actif</Text>
             <Switch
               value={isActive}
               onValueChange={setIsActive}
-              trackColor={{ 
-                false: COLORS.border.default, 
-                true: COLORS.variants.secondary[400] 
+              trackColor={{
+                false: COLORS.border.default,
+                true: COLORS.variants.secondary[400],
               }}
               thumbColor={isActive ? COLORS.variants.secondary[500] : COLORS.text.light}
             />
@@ -288,8 +302,8 @@ export default function EditDailyMenuScreen() {
           <Text style={styles.sectionSubtitle}>
             {dailyMenu.total_items_count} plats • Prix estimé : {dailyMenu.estimated_total_price}€
           </Text>
-          
-          {dailyMenu.items_by_category.map((category) => (
+
+          {dailyMenu.items_by_category.map(category => (
             <View key={category.name} style={styles.categorySection}>
               <View style={styles.categoryHeader}>
                 <Text style={styles.categoryIcon}>{category.icon}</Text>
@@ -298,7 +312,7 @@ export default function EditDailyMenuScreen() {
                   <Text style={styles.categoryBadgeText}>{category.items.length}</Text>
                 </View>
               </View>
-              
+
               <View style={styles.categoryItems}>
                 {category.items.map(renderMenuItem)}
               </View>
@@ -306,10 +320,10 @@ export default function EditDailyMenuScreen() {
           ))}
         </Card>
       </ScrollView>
-      
+
       <View style={styles.footer}>
         <Button
-          title={isSaving ? "Enregistrement..." : "Enregistrer les modifications"}
+          title={isSaving ? 'Enregistrement...' : 'Enregistrer les modifications'}
           onPress={handleSave}
           loading={isSaving}
           disabled={isSaving}
@@ -324,15 +338,14 @@ export default function EditDailyMenuScreen() {
 
 const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: any) => {
   const responsiveStyles = createResponsiveStyles(screenType);
-  
   return StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: COLORS.background,
+    container: { flex: 1, backgroundColor: COLORS.background },
+    alertsContainer: {
+      paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
+      paddingTop: getResponsiveValue(SPACING.md, screenType),
+      gap: getResponsiveValue(SPACING.xs, screenType),
     },
-    scrollView: {
-      flex: 1,
-    },
+    scrollView: { flex: 1 },
     scrollContent: {
       padding: getResponsiveValue(SPACING.container, screenType),
       paddingBottom: 100,
@@ -348,12 +361,8 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
       color: COLORS.text.secondary,
       marginBottom: getResponsiveValue(SPACING.lg, screenType),
     },
-    formCard: {
-      marginBottom: getResponsiveValue(SPACING.lg, screenType),
-    },
-    itemsCard: {
-      marginBottom: getResponsiveValue(SPACING.lg, screenType),
-    },
+    formCard: { marginBottom: getResponsiveValue(SPACING.lg, screenType) },
+    itemsCard: { marginBottom: getResponsiveValue(SPACING.lg, screenType) },
     dateHeader: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -394,9 +403,7 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
       color: COLORS.text.secondary,
       marginBottom: getResponsiveValue(SPACING.lg, screenType),
     },
-    categorySection: {
-      marginBottom: getResponsiveValue(SPACING.lg, screenType),
-    },
+    categorySection: { marginBottom: getResponsiveValue(SPACING.lg, screenType) },
     categoryHeader: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -426,9 +433,7 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
       fontWeight: TYPOGRAPHY.fontWeight.bold,
       color: COLORS.variants.secondary[700],
     },
-    categoryItems: {
-      paddingLeft: getResponsiveValue(SPACING.md, screenType),
-    },
+    categoryItems: { paddingLeft: getResponsiveValue(SPACING.md, screenType) },
     menuItem: {
       backgroundColor: COLORS.surface,
       padding: getResponsiveValue(SPACING.md, screenType),
@@ -442,19 +447,13 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
       alignItems: 'center',
       marginBottom: getResponsiveValue(SPACING.sm, screenType),
     },
-    menuItemInfo: {
-      flex: 1,
-      marginLeft: getResponsiveValue(SPACING.md, screenType),
-    },
+    menuItemInfo: { flex: 1, marginLeft: getResponsiveValue(SPACING.md, screenType) },
     menuItemName: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
       fontWeight: TYPOGRAPHY.fontWeight.medium,
       color: COLORS.text.primary,
     },
-    menuItemDisabled: {
-      opacity: 0.5,
-      textDecorationLine: 'line-through',
-    },
+    menuItemDisabled: { opacity: 0.5, textDecorationLine: 'line-through' },
     menuItemOriginalPrice: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
       color: COLORS.text.secondary,
