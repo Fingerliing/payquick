@@ -9,6 +9,8 @@ export interface AlertState {
   variant: 'success' | 'error' | 'warning' | 'info';
   title?: string;
   message: string;
+  autoDismiss?: boolean;
+  autoDismissDuration?: number;
 }
 
 export const useAlert = () => {
@@ -17,13 +19,17 @@ export const useAlert = () => {
   const showAlert = useCallback((
     message: string,
     variant: AlertState['variant'] = 'info',
-    title?: string
+    title?: string,
+    autoDismiss: boolean = true,
+    autoDismissDuration: number = 5000
   ) => {
     setAlertState({
       visible: true,
       variant,
       title,
       message,
+      autoDismiss,
+      autoDismissDuration,
     });
   }, []);
 
@@ -31,20 +37,40 @@ export const useAlert = () => {
     setAlertState(null);
   }, []);
 
-  const showSuccess = useCallback((message: string, title?: string) => {
-    showAlert(message, 'success', title);
+  const showSuccess = useCallback((
+    message: string, 
+    title?: string,
+    autoDismiss: boolean = true,
+    autoDismissDuration: number = 5000
+  ) => {
+    showAlert(message, 'success', title, autoDismiss, autoDismissDuration);
   }, [showAlert]);
 
-  const showError = useCallback((message: string, title?: string) => {
-    showAlert(message, 'error', title);
+  const showError = useCallback((
+    message: string, 
+    title?: string,
+    autoDismiss: boolean = true,
+    autoDismissDuration: number = 5000
+  ) => {
+    showAlert(message, 'error', title, autoDismiss, autoDismissDuration);
   }, [showAlert]);
 
-  const showWarning = useCallback((message: string, title?: string) => {
-    showAlert(message, 'warning', title);
+  const showWarning = useCallback((
+    message: string, 
+    title?: string,
+    autoDismiss: boolean = true,
+    autoDismissDuration: number = 5000
+  ) => {
+    showAlert(message, 'warning', title, autoDismiss, autoDismissDuration);
   }, [showAlert]);
 
-  const showInfo = useCallback((message: string, title?: string) => {
-    showAlert(message, 'info', title);
+  const showInfo = useCallback((
+    message: string, 
+    title?: string,
+    autoDismiss: boolean = true,
+    autoDismissDuration: number = 5000
+  ) => {
+    showAlert(message, 'info', title, autoDismiss, autoDismissDuration);
   }, [showAlert]);
 
   return {

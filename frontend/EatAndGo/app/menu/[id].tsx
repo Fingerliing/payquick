@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, SectionList, Alert, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, SectionList, TouchableOpacity, ActivityIndicator, ScrollView, Modal } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,6 +9,7 @@ import { Header } from '@/components/ui/Header';
 import { Loading } from '@/components/ui/Loading';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { Alert, AlertWithAction, useAlert } from '@/components/ui/Alert';
 
 // Services & Types
 import { menuService } from '@/services/menuService';
@@ -73,6 +74,17 @@ export default function MenuDetailScreen() {
   // État UI des filtres
   const [showFilters, setShowFilters] = useState(false);
 
+  // Hook pour gérer les alertes
+  const {
+    alertState,
+    showSuccess,
+    showError,
+    hideAlert,
+  } = useAlert();
+
+  // État pour la modal de confirmation de suppression
+  const [itemToDelete, setItemToDelete] = useState<MenuItem | null>(null);
+
   useEffect(() => {
     loadInitialData();
   }, [id]);
@@ -103,7 +115,7 @@ export default function MenuDetailScreen() {
       }
     } catch (error) {
       console.error('Erreur lors du chargement des données:', error);
-      Alert.alert('Erreur', 'Impossible de charger les données');
+      showError('Impossible de charger les données', 'Erreur');
       router.back();
     } finally {
       setIsLoading(false);
@@ -118,7 +130,7 @@ export default function MenuDetailScreen() {
       setMenu(menuData);
     } catch (error) {
       console.error('Erreur lors du chargement du menu:', error);
-      Alert.alert('Erreur', 'Impossible de charger le menu');
+      showError('Impossible de charger le menu', 'Erreur');
     }
   };
 
@@ -136,45 +148,43 @@ export default function MenuDetailScreen() {
         };
       });
       
-      Alert.alert(
-        'Succès',
-        `Plat ${updatedItem.is_available ? 'activé' : 'désactivé'} avec succès`
+      showSuccess(
+        `Plat ${updatedItem.is_available ? 'activé' : 'désactivé'} avec succès`,
+        'Succès'
       );
     } catch (error) {
       console.error('Erreur lors de la modification de l\'item:', error);
-      Alert.alert('Erreur', 'Impossible de modifier le statut du plat');
+      showError('Impossible de modifier le statut du plat', 'Erreur');
     } finally {
       setTogglingItemId(null);
     }
   };
 
-  const handleDeleteItem = async (item: MenuItem) => {
-    Alert.alert(
-      'Supprimer le plat',
-      `Êtes-vous sûr de vouloir supprimer "${item.name}" ?\n\nCette action est irréversible.`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        { text: 'Supprimer', style: 'destructive', onPress: () => confirmDeleteItem(item) },
-      ],
-      { cancelable: true }
-    );
+  const handleDeleteItem = (item: MenuItem) => {
+    setItemToDelete(item);
   };
   
-  const confirmDeleteItem = async (item: MenuItem) => {
-    setDeletingItemId(item.id);
+  const confirmDeleteItem = async () => {
+    if (!itemToDelete) return;
+    
+    setDeletingItemId(itemToDelete.id);
+    const itemName = itemToDelete.name;
+    
     try {
-      await menuService.menuItems.deleteMenuItem(item.id);
+      await menuService.menuItems.deleteMenuItem(itemToDelete.id);
       setMenu(prevMenu => {
         if (!prevMenu) return null;
         return {
           ...prevMenu,
-          items: prevMenu.items.filter(i => i.id !== item.id)
+          items: prevMenu.items.filter(i => i.id !== itemToDelete.id)
         };
       });
-      Alert.alert('Succès', `Le plat "${item.name}" a été supprimé avec succès`);
+      
+      setItemToDelete(null);
+      showSuccess(`Le plat "${itemName}" a été supprimé avec succès`, 'Succès');
     } catch (error) {
       console.error('Erreur lors de la suppression:', error);
-      Alert.alert('Erreur', 'Impossible de supprimer le plat. Veuillez réessayer.');
+      showError('Impossible de supprimer le plat. Veuillez réessayer.', 'Erreur');
     } finally {
       setDeletingItemId(null);
     }
@@ -1140,6 +1150,69 @@ export default function MenuDetailScreen() {
         onRightPress={() => router.push(`/menu/edit/${menu.id}` as any)}
         includeSafeArea={true}
       />
+      
+      {/* Affichage des alertes */}
+      {alertState && (
+        <View style={{
+          position: 'absolute',
+          top: insets.top + 60,
+          left: getResponsiveValue(SPACING.md, screenType),
+          right: getResponsiveValue(SPACING.md, screenType),
+          zIndex: 1000,
+        }}>
+          <Alert
+            variant={alertState.variant}
+            title={alertState.title}
+            message={alertState.message}
+            onDismiss={hideAlert}
+            autoDismiss={alertState.autoDismiss}
+            autoDismissDuration={alertState.autoDismissDuration}
+          />
+        </View>
+      )}
+      
+      {/* Modal de confirmation de suppression */}
+      {itemToDelete && (
+        <Modal
+          visible={true}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setItemToDelete(null)}
+        >
+          <View style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: getResponsiveValue(SPACING.lg, screenType),
+          }}>
+            <View style={{
+              width: '100%',
+              maxWidth: 400,
+              backgroundColor: COLORS.surface,
+              borderRadius: BORDER_RADIUS.xl,
+              padding: getResponsiveValue(SPACING.lg, screenType),
+              ...SHADOWS.xl,
+            }}>
+              <AlertWithAction
+                variant="warning"
+                title="Supprimer le plat"
+                message={`Êtes-vous sûr de vouloir supprimer "${itemToDelete.name}" ?\n\nCette action est irréversible.`}
+                showIcon={true}
+                primaryButton={{
+                  text: 'Supprimer',
+                  onPress: confirmDeleteItem,
+                  variant: 'danger'
+                }}
+                secondaryButton={{
+                  text: 'Annuler',
+                  onPress: () => setItemToDelete(null)
+                }}
+              />
+            </View>
+          </View>
+        </Modal>
+      )}
       
       <SectionList
         sections={sectionedData}
