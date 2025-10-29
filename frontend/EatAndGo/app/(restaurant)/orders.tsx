@@ -6,7 +6,6 @@ import {
   Pressable,
   RefreshControl,
   ActivityIndicator,
-  Alert,
   Modal,
   useWindowDimensions,
 } from 'react-native';
@@ -23,6 +22,7 @@ import { Header } from '@/components/ui/Header';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { StatusBadge } from '@/components/common/StatusBadge';
+import { Alert as InlineAlert, AlertWithAction } from '@/components/ui/Alert';
 import { 
   useScreenType, 
   getResponsiveValue, 
@@ -33,7 +33,33 @@ import {
 
 type ScreenType = 'mobile' | 'tablet' | 'desktop';
 
-// Hook pour gérer l'archivage des commandes
+/** ---------- Utilitaires alertes ---------- */
+type AlertItem = {
+  id: string;
+  variant: 'success' | 'error' | 'warning' | 'info';
+  title?: string;
+  message: string;
+};
+
+const useAlerts = () => {
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+
+  const pushAlert = useCallback(
+    (variant: AlertItem['variant'], title: string | undefined, message: string) => {
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      setAlerts(prev => [{ id, variant, title, message }, ...prev]);
+    },
+    []
+  );
+
+  const dismissAlert = useCallback((id: string) => {
+    setAlerts(prev => prev.filter(a => a.id !== id));
+  }, []);
+
+  return { alerts, pushAlert, dismissAlert };
+};
+
+/** ---------- Hook pour gérer l'archivage des commandes ---------- */
 const useOrderArchiving = () => {
   const [archivedOrders, setArchivedOrders] = useState<Set<number>>(new Set());
 
@@ -94,7 +120,7 @@ const useOrderArchiving = () => {
   };
 };
 
-// Hook pour gérer la sélection de restaurant
+/** ---------- Hook pour gérer la sélection de restaurant ---------- */
 const useRestaurantSelection = () => {
   const [selectedRestaurantId, setSelectedRestaurantId] = useState<number | null>(null);
   const { restaurants, loadRestaurants, isLoading: isLoadingRestaurants } = useRestaurant();
@@ -141,7 +167,7 @@ const useRestaurantSelection = () => {
   };
 };
 
-// Composant sélecteur de restaurant
+/** ---------- Composant sélecteur de restaurant ---------- */
 const RestaurantSelector = React.memo(({ 
   restaurants, 
   selectedRestaurantId, 
@@ -352,11 +378,11 @@ const RestaurantSelector = React.memo(({
   );
 });
 
-// Composant pour une commande
+/** ---------- Carte de commande ---------- */
 const OrderCard = React.memo(({ 
   item, 
   onStatusUpdate,
-  onMarkAsPaid,
+  onRequestPaymentMethod,
   onArchive,
   onUnarchive,
   isUpdating = false,
@@ -365,7 +391,7 @@ const OrderCard = React.memo(({
 }: { 
   item: OrderList;
   onStatusUpdate: (orderId: number, newStatus: string) => Promise<void>;
-  onMarkAsPaid: (orderId: number, paymentMethod: string) => Promise<void>;
+  onRequestPaymentMethod: (orderId: number) => void;
   onArchive?: (orderId: number) => Promise<void>;
   onUnarchive?: (orderId: number) => Promise<void>;
   isUpdating?: boolean;
@@ -556,38 +582,10 @@ const OrderCard = React.memo(({
     setLocalUpdating(true);
     try {
       await onStatusUpdate(item.id, newStatus);
-    } catch (error) {
-      console.error('Erreur mise à jour statut:', error);
     } finally {
       setLocalUpdating(false);
     }
   }, [item.id, onStatusUpdate, localUpdating, isUpdating]);
-
-  const handleMarkAsPaid = useCallback(async () => {
-    if (localUpdating || isUpdating) return;
-    
-    Alert.alert(
-      'Marquer comme payée',
-      'Quelle méthode de paiement ?',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        { 
-          text: 'Espèces', 
-          onPress: () => {
-            setLocalUpdating(true);
-            onMarkAsPaid(item.id, 'cash').finally(() => setLocalUpdating(false));
-          }
-        },
-        { 
-          text: 'Carte', 
-          onPress: () => {
-            setLocalUpdating(true);
-            onMarkAsPaid(item.id, 'card').finally(() => setLocalUpdating(false));
-          }
-        },
-      ]
-    );
-  }, [item.id, onMarkAsPaid, localUpdating, isUpdating]);
 
   const handlePress = useCallback(() => {
     router.push(`/order/${item.id}` as any);
@@ -645,7 +643,7 @@ const OrderCard = React.memo(({
       {item.payment_status !== 'paid' && !isCompleted ? (
         <Button
           title="Encaisser"
-          onPress={handleMarkAsPaid}
+          onPress={() => onRequestPaymentMethod(item.id)}
           disabled={localUpdating || isUpdating}
           variant="outline"
           size="sm"
@@ -769,7 +767,7 @@ const OrderCard = React.memo(({
   );
 });
 
-// Filtres par statut
+/** ---------- Filtres par statut ---------- */
 const StatusFilters = React.memo(({ 
   currentFilter, 
   onFilterChange, 
@@ -877,7 +875,7 @@ const StatusFilters = React.memo(({
   );
 });
 
-// Composant principal
+/** ---------- Écran principal ---------- */
 export default function RestaurantOrdersScreen() {
   const { isRestaurateur, isAuthenticated } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
@@ -885,6 +883,15 @@ export default function RestaurantOrdersScreen() {
   
   const screenType = useScreenType();
   const { width } = useWindowDimensions();
+
+  // Gestion des alertes (bannières)
+  const { alerts, pushAlert, dismissAlert } = useAlerts();
+
+  // Demande choix de paiement
+  const [paymentPrompt, setPaymentPrompt] = useState<null | { orderId: number }>(null);
+
+  // Confirmation d'archivage en masse
+  const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
 
   // Configuration responsive
   const layoutConfig = {
@@ -933,12 +940,13 @@ export default function RestaurantOrdersScreen() {
         page: 1,
         limit: 100,
       });
-    } catch (error) {
-      console.error('Error refreshing orders:', error);
+    } catch (err) {
+      console.error('Error refreshing orders:', err);
+      pushAlert('error', 'Erreur', 'Impossible d’actualiser les commandes');
     } finally {
       setRefreshing(false);
     }
-  }, [fetchOrders]);
+  }, [fetchOrders, pushAlert]);
 
   // Filtrer par statut et archivage
   const filteredOrders = useMemo(() => {
@@ -962,47 +970,47 @@ export default function RestaurantOrdersScreen() {
   const handleStatusUpdate = useCallback(async (orderId: number, newStatus: string) => {
     try {
       await updateOrderStatus(orderId, newStatus);
-    } catch (error) {
-      console.error('Error updating status:', error);
-      Alert.alert('Erreur', 'Impossible de mettre à jour le statut de la commande');
+    } catch (err) {
+      console.error('Error updating status:', err);
+      pushAlert('error', 'Erreur', 'Impossible de mettre à jour le statut de la commande');
     }
-  }, [updateOrderStatus]);
+  }, [updateOrderStatus, pushAlert]);
 
-  const handleMarkAsPaid = useCallback(async (orderId: number, paymentMethod: string) => {
+  const openPaymentPrompt = useCallback((orderId: number) => {
+    setPaymentPrompt({ orderId });
+  }, []);
+
+  const performMarkAsPaid = useCallback(async (orderId: number, paymentMethod: 'cash' | 'card') => {
     try {
       await markAsPaid(orderId, paymentMethod);
-    } catch (error) {
-      console.error('Error marking as paid:', error);
-      Alert.alert('Erreur', 'Impossible de marquer la commande comme payée');
+      pushAlert('success', 'Encaissement', 'La commande a été marquée comme payée');
+    } catch (err) {
+      console.error('Error marking as paid:', err);
+      pushAlert('error', 'Erreur', 'Impossible de marquer la commande comme payée');
+    } finally {
+      setPaymentPrompt(null);
     }
-  }, [markAsPaid]);
+  }, [markAsPaid, pushAlert]);
 
-  const handleArchiveCompleted = useCallback(async () => {
-    Alert.alert(
-      'Archiver les commandes terminées',
-      'Voulez-vous archiver toutes les commandes servies et annulées ?',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Archiver',
-          style: 'default',
-          onPress: async () => {
-            try {
-              const count = await archiveCompletedOrders(restaurantOrders);
-              if (count > 0) {
-                Alert.alert('Succès', `${count} commande(s) archivée(s)`);
-              } else {
-                Alert.alert('Information', 'Aucune commande à archiver');
-              }
-            } catch (error) {
-              console.error('Error bulk archiving:', error);
-              Alert.alert('Erreur', 'Impossible d\'archiver les commandes');
-            }
-          }
-        },
-      ]
-    );
-  }, [archiveCompletedOrders, restaurantOrders]);
+  const openArchiveConfirm = useCallback(() => {
+    setArchiveConfirmOpen(true);
+  }, []);
+
+  const confirmBulkArchive = useCallback(async () => {
+    try {
+      const count = await archiveCompletedOrders(restaurantOrders);
+      if (count > 0) {
+        pushAlert('success', 'Succès', `${count} commande(s) archivée(s)`);
+      } else {
+        pushAlert('info', 'Information', 'Aucune commande à archiver');
+      }
+    } catch (err) {
+      console.error('Error bulk archiving:', err);
+      pushAlert('error', 'Erreur', 'Impossible d’archiver les commandes');
+    } finally {
+      setArchiveConfirmOpen(false);
+    }
+  }, [archiveCompletedOrders, restaurantOrders, pushAlert]);
 
   // Charger les commandes au montage
   useEffect(() => {
@@ -1139,6 +1147,11 @@ export default function RestaurantOrdersScreen() {
       ),
       color: COLORS.text.secondary,
     },
+
+    alertsContainer: {
+      paddingHorizontal: layoutConfig.containerPadding,
+      paddingTop: getResponsiveValue(SPACING.sm, screenType),
+    },
   };
 
   const iconSize = getResponsiveValue(
@@ -1199,7 +1212,7 @@ export default function RestaurantOrdersScreen() {
             key={item.id}
             item={item}
             onStatusUpdate={handleStatusUpdate}
-            onMarkAsPaid={handleMarkAsPaid}
+            onRequestPaymentMethod={openPaymentPrompt}
             onArchive={archiveOrder}
             onUnarchive={unarchiveOrder}
             isUpdating={refreshing}
@@ -1232,7 +1245,7 @@ export default function RestaurantOrdersScreen() {
                 {completedOrders.length > 0 && filter !== 'archived' ? (
                   <Button
                     title={`Archiver (${completedOrders.length})`}
-                    onPress={handleArchiveCompleted}
+                    onPress={openArchiveConfirm}
                     variant="outline"
                     size="sm"
                     leftIcon={<Ionicons name="archive" size={16} color={COLORS.text.secondary} />}
@@ -1264,6 +1277,22 @@ export default function RestaurantOrdersScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <Header title="Gestion des commandes" />
+
+      {/* Bannières d’alertes (success / error / info / warning) */}
+      {alerts.length > 0 && (
+        <View style={styles.alertsContainer}>
+          {alerts.map(a => (
+            <InlineAlert
+              key={a.id}
+              variant={a.variant}
+              title={a.title}
+              message={a.message}
+              onDismiss={() => dismissAlert(a.id)}
+              // autoDismiss true par défaut (dans ton composant)
+            />
+          ))}
+        </View>
+      )}
 
       <RestaurantSelector
         restaurants={restaurants}
@@ -1299,6 +1328,47 @@ export default function RestaurantOrdersScreen() {
         </View>
       ) : (
         renderContent()
+      )}
+
+      {/* Prompt d’encaissement (carte / espèces) */}
+      {paymentPrompt && (
+        <View style={{ paddingHorizontal: layoutConfig.containerPadding, paddingTop: getResponsiveValue(SPACING.sm, screenType) }}>
+          <AlertWithAction
+            variant="info"
+            title="Marquer comme payée"
+            message="Quelle méthode de paiement ?"
+            primaryButton={{
+              text: 'Espèces',
+              onPress: () => performMarkAsPaid(paymentPrompt.orderId, 'cash'),
+              variant: 'primary',
+            }}
+            secondaryButton={{
+              text: 'Carte',
+              onPress: () => performMarkAsPaid(paymentPrompt.orderId, 'card'),
+            }}
+            // autoDismiss est désactivé par défaut dans AlertWithAction
+          />
+        </View>
+      )}
+
+      {/* Confirmation d’archivage en masse */}
+      {archiveConfirmOpen && (
+        <View style={{ paddingHorizontal: layoutConfig.containerPadding, paddingTop: getResponsiveValue(SPACING.sm, screenType) }}>
+          <AlertWithAction
+            variant="warning"
+            title="Archiver les commandes terminées"
+            message="Voulez-vous archiver toutes les commandes servies et annulées ?"
+            secondaryButton={{
+              text: 'Annuler',
+              onPress: () => setArchiveConfirmOpen(false),
+            }}
+            primaryButton={{
+              text: 'Archiver',
+              onPress: confirmBulkArchive,
+              variant: 'danger',
+            }}
+          />
+        </View>
       )}
     </SafeAreaView>
   );

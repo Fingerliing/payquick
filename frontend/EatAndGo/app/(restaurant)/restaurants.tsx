@@ -5,7 +5,6 @@ import {
   RefreshControl,
   ViewStyle,
   TextStyle,
-  Alert,
   Text,
   Pressable,
   Animated,
@@ -18,8 +17,8 @@ import { SearchBar } from '@/components/common/SearchBar';
 import { RestaurantCard } from '@/components/restaurant/RestaurantCard';
 import { Loading } from '@/components/ui/Loading';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import { Restaurant } from '@/types/restaurant';
+import { Alert as InlineAlert } from '@/components/ui/Alert';
 import { 
   COLORS, 
   SPACING, 
@@ -31,6 +30,28 @@ import {
   SHADOWS,
   ANIMATIONS,
 } from '@/utils/designSystem';
+
+// ---- Hook simple pour gérer des bannières d’alertes empilables ----
+type AlertItem = {
+  id: string;
+  variant: 'success' | 'error' | 'warning' | 'info';
+  title?: string;
+  message: string;
+};
+const useAlerts = () => {
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const pushAlert = useCallback(
+    (variant: AlertItem['variant'], title: string | undefined, message: string) => {
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      setAlerts(prev => [{ id, variant, title, message }, ...prev]);
+    },
+    []
+  );
+  const dismissAlert = useCallback((id: string) => {
+    setAlerts(prev => prev.filter(a => a.id !== id));
+  }, []);
+  return { alerts, pushAlert, dismissAlert };
+};
 
 // Composant de statistique animé
 const StatItem = ({ 
@@ -192,6 +213,9 @@ export default function RestaurantsScreen() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
 
+  // 🔔 Bannières d’alertes
+  const { alerts, pushAlert, dismissAlert } = useAlerts();
+
   useEffect(() => {
     loadRestaurants();
     Animated.timing(fadeAnim, {
@@ -206,10 +230,15 @@ export default function RestaurantsScreen() {
       try {
         await searchRestaurants(searchQuery.trim(), filters);
       } catch (error) {
-        Alert.alert('Erreur', 'Impossible de rechercher les restaurants');
+        // Remplace Alert.alert
+        pushAlert('error', 'Erreur', 'Impossible de rechercher les restaurants');
       }
     } else {
-      await loadRestaurants(filters);
+      try {
+        await loadRestaurants(filters);
+      } catch (error) {
+        pushAlert('error', 'Erreur', 'Impossible de recharger les restaurants');
+      }
     }
   }, [searchQuery, filters]);
 
@@ -218,7 +247,8 @@ export default function RestaurantsScreen() {
     try {
       await loadRestaurants(filters, 1);
     } catch (error) {
-      Alert.alert('Erreur', 'Impossible de rafraîchir la liste');
+      // Remplace Alert.alert
+      pushAlert('error', 'Erreur', 'Impossible de rafraîchir la liste');
     } finally {
       setRefreshing(false);
     }
@@ -231,7 +261,8 @@ export default function RestaurantsScreen() {
     try {
       await loadRestaurants(filters, pagination.page + 1);
     } catch (error) {
-      Alert.alert('Erreur', 'Impossible de charger plus de restaurants');
+      // Remplace Alert.alert
+      pushAlert('error', 'Erreur', 'Impossible de charger plus de restaurants');
     } finally {
       setLoadingMore(false);
     }
@@ -425,6 +456,21 @@ export default function RestaurantsScreen() {
         onRightPress={() => router.push('/restaurant/add')}
       />
 
+      {/* 🔔 Bannières d’alertes */}
+      {alerts.length > 0 && (
+        <View style={styles.alertsContainer(screenType)}>
+          {alerts.map(a => (
+            <InlineAlert
+              key={a.id}
+              variant={a.variant}
+              title={a.title}
+              message={a.message}
+              onDismiss={() => dismissAlert(a.id)}
+            />
+          ))}
+        </View>
+      )}
+
       <FlatList
         key={`${viewMode}-${numColumns}`}
         data={restaurants}
@@ -461,6 +507,12 @@ const styles = {
   listContent: (screenType: 'mobile' | 'tablet' | 'desktop'): ViewStyle => ({
     paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
     paddingBottom: getResponsiveValue(SPACING['4xl'], screenType),
+  }),
+
+  // 👇 conteneur pour les bannières (aligné avec le contenu)
+  alertsContainer: (screenType: 'mobile' | 'tablet' | 'desktop'): ViewStyle => ({
+    paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
+    paddingTop: getResponsiveValue(SPACING.sm, screenType),
   }),
 
   columnWrapper: (screenType: 'mobile' | 'tablet' | 'desktop'): ViewStyle => ({

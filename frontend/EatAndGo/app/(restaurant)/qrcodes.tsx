@@ -1,17 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   ScrollView,
   Pressable,
-  Alert,
   Share,
   RefreshControl,
   Modal,
-  SafeAreaView,
   useWindowDimensions,
 } from 'react-native';
-import { router } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRestaurant } from '@/contexts/RestaurantContext';
 import { Header } from '@/components/ui/Header';
@@ -25,16 +23,37 @@ import * as Sharing from 'expo-sharing';
 import QRCode from 'react-native-qrcode-svg';
 import * as FileSystem from 'expo-file-system';
 import { Asset } from 'expo-asset';
-import { 
-  useScreenType, 
-  getResponsiveValue, 
-  COLORS, 
-  SPACING, 
-  BORDER_RADIUS 
+import { Alert as InlineAlert, AlertWithAction } from '@/components/ui/Alert';
+import {
+  useScreenType,
+  getResponsiveValue,
+  COLORS,
+  SPACING,
+  BORDER_RADIUS
 } from '@/utils/designSystem';
 
 type ScreenType = 'mobile' | 'tablet' | 'desktop';
 type QRSize = 'small' | 'medium' | 'large';
+
+type AlertItem = {
+  id: string;
+  variant: 'success' | 'error' | 'warning' | 'info';
+  title?: string;
+  message: string;
+};
+const useAlerts = () => {
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const pushAlert = useCallback(
+    (variant: AlertItem['variant'], title: string | undefined, message: string) => {
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      setAlerts(prev => [{ id, variant, title, message }, ...prev]);
+    }, []
+  );
+  const dismissAlert = useCallback((id: string) => {
+    setAlerts(prev => prev.filter(a => a.id !== id));
+  }, []);
+  return { alerts, pushAlert, dismissAlert };
+};
 
 interface QRSizeConfig {
   label: string;
@@ -51,7 +70,7 @@ interface QRSizeConfig {
 
 const APP_LOGO = require('@/assets/images/logo.png');
 
-const QR_SIZES = {
+const QR_SIZES: Record<QRSize, QRSizeConfig> = {
   small: {
     label: 'Petit (24/page)',
     displaySize: 90,
@@ -91,13 +110,13 @@ const QR_SIZES = {
 };
 
 export default function QRCodesScreen() {
-  const { 
-    restaurants, 
-    createTables, 
-    loadRestaurantTables, 
+  const {
+    restaurants,
+    createTables,
+    loadRestaurantTables,
     deleteTable,
     isLoading,
-    error 
+    error
   } = useRestaurant();
 
   const [selectedRestaurant, setSelectedRestaurant] = useState('');
@@ -114,7 +133,15 @@ export default function QRCodesScreen() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [logoBase64, setLogoBase64] = useState('');
   const [isPrinting, setIsPrinting] = useState(false);
-  
+
+  // 🔔 alertes
+  const { alerts, pushAlert, dismissAlert } = useAlerts();
+
+  // Prompts/confirmations via AlertWithAction
+  const [replaceConfirmOpen, setReplaceConfirmOpen] = useState(false);
+  const [conflictStage, setConflictStage] = useState<0 | 1 | 2>(0);
+  const [suggestPrompt, setSuggestPrompt] = useState<null | { suggested: number, maxNumber: number, count: number }>(null);
+
   const screenType = useScreenType();
   const { width } = useWindowDimensions();
 
@@ -162,17 +189,14 @@ export default function QRCodesScreen() {
 
   const checkExistingTables = async () => {
     if (!selectedRestaurant) return;
-    
+
     try {
       const existingTables = await loadRestaurantTables(selectedRestaurant);
       const tablesArray = Array.isArray(existingTables) ? existingTables : [];
       setExistingTablesCount(tablesArray.length);
     } catch (error: any) {
-      if (error.message?.includes('404') || error.response?.status === 404) {
-        setExistingTablesCount(0);
-      } else {
-        setExistingTablesCount(0);
-      }
+      // On garde 0 par défaut, et on affiche un toast si besoin
+      setExistingTablesCount(0);
     }
   };
 
@@ -180,7 +204,7 @@ export default function QRCodesScreen() {
 
   const handleGenerateTables = async () => {
     if (!selectedRestaurant) {
-      Alert.alert('Erreur', 'Veuillez sélectionner un restaurant');
+      pushAlert('error', 'Erreur', 'Veuillez sélectionner un restaurant');
       return;
     }
 
@@ -188,43 +212,15 @@ export default function QRCodesScreen() {
     try {
       const tables = await createTables(selectedRestaurant, tableCount, startNumber);
       setGeneratedTables(tables);
-      Alert.alert(
-        'Succès', 
-        `${tables.length} tables créées avec succès !`,
-        [{ text: 'OK' }]
-      );
+      pushAlert('success', 'Succès', `${tables.length} table(s) créées avec succès !`);
     } catch (error: any) {
       console.error('Erreur lors de la génération des tables:', error);
-      
-      if (error.message.includes('400') || error.message.includes('exist') || error.message.includes('conflit')) {
-        Alert.alert(
-          'Conflit détecté', 
-          'Certaines tables existent déjà avec ces numéros. Voulez-vous :',
-          [
-            {
-              text: 'Remplacer',
-              onPress: () => handleReplaceTables(),
-              style: 'destructive'
-            },
-            {
-              text: 'Charger existantes',
-              onPress: () => loadExistingTables()
-            },
-            {
-              text: 'Autres numéros',
-              onPress: () => suggestNewStartNumber()
-            },
-            {
-              text: 'Annuler',
-              style: 'cancel'
-            }
-          ]
-        );
+
+      if (error?.message?.includes('400') || error?.message?.includes('exist') || error?.message?.includes('conflit')) {
+        // Étape 1 : proposer "Remplacer" directement, ou "Plus d’options"
+        setConflictStage(1);
       } else {
-        Alert.alert(
-          'Erreur', 
-          error.message || 'Erreur lors de la génération des QR codes'
-        );
+        pushAlert('error', 'Erreur', error?.message || 'Erreur lors de la génération des QR codes');
       }
     } finally {
       setIsGenerating(false);
@@ -233,161 +229,127 @@ export default function QRCodesScreen() {
 
   const handleReplaceTables = async () => {
     if (!selectedRestaurant) return;
+    setReplaceConfirmOpen(true);
+  };
 
-    Alert.alert(
-      'Confirmer le remplacement',
-      `Voulez-vous vraiment remplacer les tables existantes ?\n\nCette action va :\n• Supprimer toutes les tables existantes\n• Créer ${tableCount} nouvelles tables (${startNumber} à ${startNumber + tableCount - 1})\n\nCette action est irréversible.`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Remplacer',
-          style: 'destructive',
-          onPress: async () => {
-            setIsGenerating(true);
-            try {
-              const existingTables = await loadRestaurantTables(selectedRestaurant);
-              const tablesArray = Array.isArray(existingTables) ? existingTables : [];
-              
-              if (tablesArray.length > 0) {
-                const deletePromises = tablesArray.map(table => deleteTable(table.id));
-                await Promise.all(deletePromises);
-              }
-              
-              const newTables = await createTables(selectedRestaurant, tableCount, startNumber);
-              
-              setGeneratedTables(newTables);
-              setExistingTablesCount(newTables.length);
-              
-              Alert.alert(
-                'Remplacement réussi', 
-                `${tablesArray.length > 0 ? `${tablesArray.length} tables supprimées et ` : ''}${newTables.length} nouvelles tables créées avec succès !`,
-                [{ text: 'OK' }]
-              );
-            } catch (error: any) {
-              console.error('Erreur lors du remplacement:', error);
-              Alert.alert('Erreur', error.message || 'Erreur lors du remplacement des tables');
-            } finally {
-              setIsGenerating(false);
-            }
-          }
-        }
-      ]
-    );
+  const performReplace = async () => {
+    if (!selectedRestaurant) return;
+
+    setIsGenerating(true);
+    try {
+      const existingTables = await loadRestaurantTables(selectedRestaurant);
+      const tablesArray = Array.isArray(existingTables) ? existingTables : [];
+
+      if (tablesArray.length > 0) {
+        const deletePromises = tablesArray.map(table => deleteTable(table.id));
+        await Promise.all(deletePromises);
+      }
+
+      const newTables = await createTables(selectedRestaurant, tableCount, startNumber);
+
+      setGeneratedTables(newTables);
+      setExistingTablesCount(newTables.length);
+
+      pushAlert(
+        'success',
+        'Remplacement réussi',
+        `${tablesArray.length > 0 ? `${tablesArray.length} table(s) supprimée(s) et ` : ''}${newTables.length} nouvelle(s) table(s) créée(s) !`
+      );
+    } catch (error: any) {
+      console.error('Erreur lors du remplacement:', error);
+      pushAlert('error', 'Erreur', error?.message || 'Erreur lors du remplacement des tables');
+    } finally {
+      setIsGenerating(false);
+      setReplaceConfirmOpen(false);
+    }
   };
 
   const loadExistingTables = async () => {
     if (!selectedRestaurant) return;
-    
+
     try {
       setIsGenerating(true);
       const existingTables = await loadRestaurantTables(selectedRestaurant);
       const tablesArray = Array.isArray(existingTables) ? existingTables : [];
-      
+
       if (tablesArray.length > 0) {
         setGeneratedTables(tablesArray);
         setExistingTablesCount(tablesArray.length);
-        Alert.alert(
-          'Tables chargées', 
-          `${tablesArray.length} tables existantes ont été chargées.`,
-          [{ text: 'OK' }]
-        );
+        pushAlert('success', 'Tables chargées', `${tablesArray.length} table(s) existante(s) ont été chargées.`);
       } else {
-        Alert.alert('Aucune table', 'Aucune table trouvée pour ce restaurant.');
         setExistingTablesCount(0);
+        pushAlert('info', 'Aucune table', 'Aucune table trouvée pour ce restaurant.');
       }
     } catch (error: any) {
       console.error('Erreur chargement tables:', error);
-      
-      if (error.message?.includes('404') || error.response?.status === 404) {
-        Alert.alert('Aucune table', 'Aucune table trouvée pour ce restaurant.');
+
+      if (error?.message?.includes('404') || error?.response?.status === 404) {
         setExistingTablesCount(0);
+        pushAlert('info', 'Aucune table', 'Aucune table trouvée pour ce restaurant.');
       } else {
-        Alert.alert('Erreur', 'Impossible de charger les tables existantes.');
+        pushAlert('error', 'Erreur', 'Impossible de charger les tables existantes.');
       }
     } finally {
       setIsGenerating(false);
+      setConflictStage(0);
     }
   };
 
   const suggestNewStartNumber = async () => {
     if (!selectedRestaurant) return;
-    
+
     try {
       const existingTables = await loadRestaurantTables(selectedRestaurant);
       const tablesArray = Array.isArray(existingTables) ? existingTables : [];
-      
+
       if (tablesArray.length > 0) {
-        const maxNumber = Math.max(...tablesArray.map(t => parseInt(t.number) || 0));
+        const maxNumber = Math.max(...tablesArray.map(t => parseInt((t as any).number) || 0));
         const suggestedStart = maxNumber + 1;
-        
-        Alert.alert(
-          'Numéro suggéré',
-          `Il y a déjà ${tablesArray.length} tables (jusqu'au numéro ${maxNumber}).\n\nCommencer au numéro ${suggestedStart} ?`,
-          [
-            {
-              text: 'Oui',
-              onPress: () => {
-                setStartNumber(suggestedStart);
-                Alert.alert('Numéro mis à jour', `Le numéro de départ a été changé pour ${suggestedStart}. Vous pouvez maintenant générer les tables.`);
-              }
-            },
-            {
-              text: 'Choisir autre',
-              onPress: () => promptForStartNumber()
-            },
-            { text: 'Annuler', style: 'cancel' }
-          ]
-        );
+        setSuggestPrompt({ suggested: suggestedStart, maxNumber, count: tablesArray.length });
       } else {
         setStartNumber(1);
-        Alert.alert('Info', 'Aucune table existante trouvée. Le numéro de départ reste à 1.');
+        pushAlert('info', 'Info', 'Aucune table existante trouvée. Le numéro de départ reste à 1.');
       }
     } catch (error: any) {
-      if (error.message?.includes('404') || error.response?.status === 404) {
+      if (error?.message?.includes('404') || error?.response?.status === 404) {
         setStartNumber(1);
-        Alert.alert('Info', 'Aucune table existante trouvée. Vous pouvez commencer au numéro 1.');
+        pushAlert('info', 'Info', 'Aucune table existante trouvée. Vous pouvez commencer au numéro 1.');
       } else {
-        Alert.alert('Erreur', 'Impossible de vérifier les tables existantes.');
+        pushAlert('error', 'Erreur', 'Impossible de vérifier les tables existantes.');
       }
+    } finally {
+      setConflictStage(0);
     }
   };
 
   const promptForStartNumber = () => {
-    Alert.alert(
-      'Choisir un numéro',
-      'Utilisez les boutons +/- dans les paramètres pour ajuster le numéro de départ, puis générez à nouveau.',
-      [
-        { 
-          text: 'Compris', 
-          onPress: () => setShowSettings(true)
-        }
-      ]
-    );
+    setShowSettings(true);
+    pushAlert('info', 'Choisir un numéro', 'Utilisez les boutons +/- pour ajuster le numéro de départ, puis générez à nouveau.');
   };
 
   const handleShareTable = async (table: Table) => {
     try {
       const message = `Table ${table.number} - ${selectedRestaurantData?.name}\n\nCode manuel: ${table.manualCode}\nOu scannez ce QR code pour accéder au menu !\n\n${table.qrCodeUrl}`;
-      
       await Share.share({
         message,
         title: `QR Code - Table ${table.number}`,
       });
     } catch (error) {
       console.error('Erreur partage:', error);
+      pushAlert('error', 'Erreur', 'Impossible de partager ce QR code.');
     }
   };
 
   const generateOptimizedPrintHTML = (tables: Table[], size: QRSize = qrSize) => {
     const sizeConfig = QR_SIZES[size];
-    
+
     const generateOptimizedQRCodeSVG = (url: string, size: number) => {
       const qrData = encodeURIComponent(url);
       return `
         <div style="position: relative; width: ${size}px; height: ${size}px; margin: 0 auto;">
           <img src="https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${qrData}&format=png&ecc=M&margin=8"
-               width="${size}" height="${size}" 
-               style="display: block; image-rendering: -webkit-optimize-contrast;" 
+               width="${size}" height="${size}"
+               style="display: block; image-rendering: -webkit-optimize-contrast;"
                alt="QR Code" />
         </div>
       `;
@@ -398,10 +360,10 @@ export default function QRCodesScreen() {
         <div class="qr-card qr-card-${size}" style="width: ${sizeConfig.cardWidth}; height: ${sizeConfig.cardHeight};">
           <div style="font-size: ${size === 'small' ? '12px' : size === 'medium' ? '14px' : '16px'}; font-weight: bold; color: #111827; margin-bottom: 4px; flex-shrink: 0;">Table ${table.number}</div>
           <div style="display: flex; justify-content: center; align-items: center; flex: 1; margin: 2px 0;">
-            ${generateOptimizedQRCodeSVG(table.qrCodeUrl, sizeConfig.printSize)}
+            ${generateOptimizedQRCodeSVG((table as any).qrCodeUrl, sizeConfig.printSize)}
           </div>
           <div style="font-size: ${size === 'small' ? '8px' : size === 'medium' ? '10px' : '11px'}; color: #666; background: #f8f9fa; padding: 2px 4px; border-radius: 2px; margin-bottom: 2px; flex-shrink: 0;">
-            <span style="font-family: monospace; font-weight: bold; font-size: ${size === 'small' ? '9px' : size === 'medium' ? '11px' : '12px'}; color: #111827;">${table.manualCode}</span>
+            <span style="font-family: monospace; font-weight: bold; font-size: ${size === 'small' ? '9px' : size === 'medium' ? '11px' : '12px'}; color: #111827;">${(table as any).manualCode}</span>
           </div>
           <div style="font-size: ${size === 'small' ? '6px' : size === 'medium' ? '7px' : '8px'}; color: #999; line-height: 1.1; flex-shrink: 0;">Scanner ou saisir</div>
         </div>
@@ -471,7 +433,7 @@ export default function QRCodesScreen() {
       });
     } catch (error) {
       console.error('Erreur impression:', error);
-      Alert.alert('Erreur', 'Impossible d\'imprimer les QR codes');
+      pushAlert('error', 'Erreur', 'Impossible d’imprimer les QR codes');
     } finally {
       setIsPrinting(false);
     }
@@ -488,7 +450,7 @@ export default function QRCodesScreen() {
       });
     } catch (error) {
       console.error('Erreur impression:', error);
-      Alert.alert('Erreur', 'Impossible d\'imprimer le QR code');
+      pushAlert('error', 'Erreur', 'Impossible d’imprimer le QR code');
     } finally {
       setIsPrinting(false);
     }
@@ -507,7 +469,7 @@ export default function QRCodesScreen() {
       });
     } catch (error) {
       console.error('Erreur téléchargement:', error);
-      Alert.alert('Erreur', 'Impossible de générer le PDF');
+      pushAlert('error', 'Erreur', 'Impossible de générer le PDF');
     } finally {
       setIsDownloading(false);
     }
@@ -524,7 +486,7 @@ export default function QRCodesScreen() {
       });
     } catch (error) {
       console.error('Erreur téléchargement:', error);
-      Alert.alert('Erreur', 'Impossible de générer le PDF');
+      pushAlert('error', 'Erreur', 'Impossible de générer le PDF');
     } finally {
       setIsDownloading(false);
     }
@@ -538,6 +500,7 @@ export default function QRCodesScreen() {
       }
     } catch (error) {
       console.error('Erreur rafraîchissement:', error);
+      pushAlert('error', 'Erreur', 'Échec du rafraîchissement.');
     } finally {
       setRefreshing(false);
     }
@@ -1169,6 +1132,11 @@ export default function QRCodesScreen() {
       ),
       color: COLORS.text.secondary,
     },
+
+    alertsContainer: {
+      paddingHorizontal: layoutConfig.containerPadding,
+      paddingTop: getResponsiveValue(SPACING.sm, screenType),
+    },
   };
 
   const iconSize = getResponsiveValue(
@@ -1193,7 +1161,7 @@ export default function QRCodesScreen() {
       presentationStyle="pageSheet"
     >
       <View style={styles.pickerContainer}>
-        <Header 
+        <Header
           title="Choisir un restaurant"
           leftIcon="close-outline"
           onLeftPress={() => setShowRestaurantPicker(false)}
@@ -1207,9 +1175,9 @@ export default function QRCodesScreen() {
                 setShowRestaurantPicker(false);
               }}
               style={styles.pickerOption}
-              android_ripple={{ 
+              android_ripple={{
                 color: COLORS.primary + '20',
-                borderless: false 
+                borderless: false
               }}
             >
               <View style={styles.pickerOptionAvatar}>
@@ -1247,9 +1215,9 @@ export default function QRCodesScreen() {
               styles.qrSizeButton,
               qrSize === size && styles.qrSizeButtonActive,
             ]}
-            android_ripple={{ 
+            android_ripple={{
               color: COLORS.secondary + '20',
-              borderless: false 
+              borderless: false
             }}
           >
             <Text style={[
@@ -1269,10 +1237,10 @@ export default function QRCodesScreen() {
       <Text style={styles.tableTitle}>
         Table {table.number}
       </Text>
-      
+
       <View style={styles.qrCodeContainer}>
         <QRCode
-          value={table.qrCodeUrl}
+          value={(table as any).qrCodeUrl}
           size={QR_SIZES[qrSize].displaySize}
           backgroundColor={COLORS.surface}
           color={COLORS.text.primary}
@@ -1280,20 +1248,20 @@ export default function QRCodesScreen() {
           quietZone={16}
         />
       </View>
-      
+
       <View style={styles.manualCodeContainer}>
         <Text style={styles.manualCodeLabel}>
           Code manuel
         </Text>
         <Text style={styles.manualCode}>
-          {table.manualCode}
+          {(table as any).manualCode}
         </Text>
       </View>
-      
+
       <Text style={styles.instruction}>
         Scannez le QR code ou saisissez le code manuel
       </Text>
-      
+
       <View style={styles.qrActions}>
         <View style={styles.qrActionsRow}>
           <Button
@@ -1304,14 +1272,14 @@ export default function QRCodesScreen() {
             style={{ flex: 1 }}
             leftIcon="eye-outline"
           />
-          
+
           <Button
             title="Partager"
             onPress={() => handleShareTable(table)}
-            style={{ 
-              flex: 1, 
+            style={{
+              flex: 1,
               backgroundColor: COLORS.secondary,
-              borderColor: COLORS.secondary 
+              borderColor: COLORS.secondary
             }}
             textStyle={{ color: COLORS.text.primary }}
             size="sm"
@@ -1329,7 +1297,7 @@ export default function QRCodesScreen() {
             loading={isPrinting}
             leftIcon="print-outline"
           />
-          
+
           <Button
             title="Télécharger"
             onPress={() => handleDownloadSingle(table)}
@@ -1356,10 +1324,10 @@ export default function QRCodesScreen() {
             <Text style={styles.modalTitle}>
               Table {previewTable.number}
             </Text>
-            
+
             <View style={styles.modalQRContainer}>
               <QRCode
-                value={previewTable.qrCodeUrl}
+                value={(previewTable as any).qrCodeUrl}
                 size={150}
                 backgroundColor={COLORS.surface}
                 color={COLORS.text.primary}
@@ -1367,20 +1335,20 @@ export default function QRCodesScreen() {
                 quietZone={16}
               />
             </View>
-            
+
             <View style={styles.modalManualCodeContainer}>
               <Text style={styles.modalManualCodeLabel}>
                 Code manuel
               </Text>
               <Text style={styles.modalManualCode}>
-                {previewTable.manualCode}
+                {(previewTable as any).manualCode}
               </Text>
             </View>
-            
+
             <Text style={styles.modalInstruction}>
               Scannez le QR code ou saisissez le code manuel
             </Text>
-            
+
             <Button
               title="Fermer"
               onPress={() => setPreviewTable(null)}
@@ -1404,16 +1372,31 @@ export default function QRCodesScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Header 
+      <Header
         title="QR Codes Tables"
         rightIcon="settings-outline"
         onRightPress={() => setShowSettings(!showSettings)}
       />
-      
+
+      {/* 🔔 Bannières d’alertes */}
+      {alerts.length > 0 && (
+        <View style={styles.alertsContainer}>
+          {alerts.map(a => (
+            <InlineAlert
+              key={a.id}
+              variant={a.variant}
+              title={a.title}
+              message={a.message}
+              onDismiss={() => dismissAlert(a.id)}
+            />
+          ))}
+        </View>
+      )}
+
       <ScrollView
         refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
+          <RefreshControl
+            refreshing={refreshing}
             onRefresh={onRefresh}
             colors={[COLORS.primary]}
             tintColor={COLORS.primary}
@@ -1423,7 +1406,7 @@ export default function QRCodesScreen() {
       >
         <View style={styles.content}>
           <View style={styles.scrollContent}>
-            
+
             {/* Configuration */}
             <Card style={styles.configCard}>
               <View style={styles.sectionHeader}>
@@ -1432,7 +1415,7 @@ export default function QRCodesScreen() {
                   Générateur de QR Codes
                 </Text>
               </View>
-              
+
               <Text style={styles.description}>
                 Créez des QR codes pour vos tables et permettez à vos clients de scanner ou saisir un code manuel pour accéder au menu.
               </Text>
@@ -1451,9 +1434,9 @@ export default function QRCodesScreen() {
               <Pressable
                 onPress={() => setShowRestaurantPicker(true)}
                 style={styles.restaurantSelector}
-                android_ripple={{ 
+                android_ripple={{
                   color: COLORS.primary + '20',
-                  borderless: false 
+                  borderless: false
                 }}
               >
                 <View style={styles.restaurantInfo}>
@@ -1529,9 +1512,9 @@ export default function QRCodesScreen() {
                     onPress={handleGenerateTables}
                     loading={isGenerating}
                     disabled={!selectedRestaurant}
-                    style={{ 
+                    style={{
                       backgroundColor: COLORS.primary,
-                      flex: screenType === 'mobile' ? undefined : 2 
+                      flex: screenType === 'mobile' ? undefined : 2
                     }}
                     textStyle={{ color: COLORS.surface }}
                     leftIcon="qr-code-outline"
@@ -1543,10 +1526,10 @@ export default function QRCodesScreen() {
                       onPress={handleReplaceTables}
                       loading={isGenerating}
                       disabled={!selectedRestaurant}
-                      style={{ 
+                      style={{
                         backgroundColor: COLORS.error,
                         borderColor: COLORS.error,
-                        flex: screenType === 'mobile' ? undefined : 1 
+                        flex: screenType === 'mobile' ? undefined : 1
                       }}
                       textStyle={{ color: COLORS.surface }}
                       leftIcon="refresh-outline"
@@ -1572,10 +1555,10 @@ export default function QRCodesScreen() {
                     <Button
                       title={isPrinting ? 'Impression...' : 'Imprimer tout'}
                       onPress={handlePrintAll}
-                      style={{ 
+                      style={{
                         backgroundColor: COLORS.secondary,
                         borderColor: COLORS.secondary,
-                        flex: 1 
+                        flex: 1
                       }}
                       textStyle={{ color: COLORS.text.primary }}
                       loading={isPrinting}
@@ -1585,9 +1568,9 @@ export default function QRCodesScreen() {
                       title={isDownloading ? 'Téléchargement...' : 'Télécharger PDF'}
                       onPress={handleDownloadAll}
                       variant="outline"
-                      style={{ 
+                      style={{
                         flex: 1,
-                        borderColor: COLORS.secondary 
+                        borderColor: COLORS.secondary
                       }}
                       textStyle={{ color: COLORS.secondary }}
                       loading={isDownloading}
@@ -1648,7 +1631,7 @@ export default function QRCodesScreen() {
                   <Text style={styles.emptyMessage}>
                     Sélectionnez un restaurant et spécifiez le nombre de tables pour commencer
                   </Text>
-                  
+
                   <View style={styles.helpCard}>
                     <Text style={styles.helpTitle}>
                       Comment ça marche :
@@ -1665,7 +1648,7 @@ export default function QRCodesScreen() {
                 </View>
               </Card>
             )}
-            
+
           </View>
         </View>
       </ScrollView>
@@ -1673,6 +1656,91 @@ export default function QRCodesScreen() {
       {/* Modals */}
       {renderRestaurantPicker()}
       {renderPreviewModal()}
+
+      {/* 🔶 Confirmation: Remplacer toutes les tables */}
+      {replaceConfirmOpen && (
+        <View style={{ paddingHorizontal: layoutConfig.containerPadding, paddingTop: getResponsiveValue(SPACING.sm, screenType) }}>
+          <AlertWithAction
+            variant="warning"
+            title="Confirmer le remplacement"
+            message={`Voulez-vous vraiment remplacer les tables existantes ?\n\nCette action va :\n• Supprimer toutes les tables existantes\n• Créer ${tableCount} nouvelles tables (${startNumber} à ${startNumber + tableCount - 1})\n\nCette action est irréversible.`}
+            secondaryButton={{
+              text: 'Annuler',
+              onPress: () => setReplaceConfirmOpen(false),
+            }}
+            primaryButton={{
+              text: 'Remplacer',
+              onPress: performReplace,
+              variant: 'danger',
+            }}
+          />
+        </View>
+      )}
+
+      {/* ⚠️ Conflit à la génération — étape 1 */}
+      {conflictStage === 1 && (
+        <View style={{ paddingHorizontal: layoutConfig.containerPadding, paddingTop: getResponsiveValue(SPACING.sm, screenType) }}>
+          <AlertWithAction
+            variant="warning"
+            title="Conflit détecté"
+            message="Certaines tables existent déjà avec ces numéros. Que souhaitez-vous faire ?"
+            secondaryButton={{
+              text: 'Plus d’options',
+              onPress: () => setConflictStage(2),
+            }}
+            primaryButton={{
+              text: 'Remplacer',
+              onPress: handleReplaceTables,
+              variant: 'danger',
+            }}
+          />
+        </View>
+      )}
+
+      {/* ⚙️ Conflit — étape 2 : autres options */}
+      {conflictStage === 2 && (
+        <View style={{ paddingHorizontal: layoutConfig.containerPadding, paddingTop: getResponsiveValue(SPACING.sm, screenType) }}>
+          <AlertWithAction
+            variant="info"
+            title="Options disponibles"
+            message="Vous pouvez charger les tables existantes ou choisir un autre numéro de départ."
+            secondaryButton={{
+              text: 'Autre numéro',
+              onPress: () => suggestNewStartNumber(),
+            }}
+            primaryButton={{
+              text: 'Charger existantes',
+              onPress: () => loadExistingTables(),
+            }}
+          />
+        </View>
+      )}
+
+      {/* 💡 Numéro suggéré */}
+      {suggestPrompt && (
+        <View style={{ paddingHorizontal: layoutConfig.containerPadding, paddingTop: getResponsiveValue(SPACING.sm, screenType) }}>
+          <AlertWithAction
+            variant="info"
+            title="Numéro suggéré"
+            message={`Il y a déjà ${suggestPrompt.count} table(s) (jusqu'au numéro ${suggestPrompt.maxNumber}).\n\nCommencer au numéro ${suggestPrompt.suggested} ?`}
+            secondaryButton={{
+              text: 'Choisir autre',
+              onPress: () => {
+                setSuggestPrompt(null);
+                promptForStartNumber();
+              },
+            }}
+            primaryButton={{
+              text: 'Accepter',
+              onPress: () => {
+                setStartNumber(suggestPrompt.suggested);
+                setSuggestPrompt(null);
+                pushAlert('success', 'Numéro mis à jour', `Le numéro de départ a été changé pour ${suggestPrompt.suggested}.`);
+              },
+            }}
+          />
+        </View>
+      )}
     </SafeAreaView>
   );
 }

@@ -1,13 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   ScrollView,
-  Pressable,
-  Alert,
-  SafeAreaView,
   useWindowDimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
@@ -15,6 +13,7 @@ import { Header } from '@/components/ui/Header';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import StripeAccountStatus from '@/components/stripe/StripeAccountStatus';
+import { Alert as InlineAlert, AlertWithAction } from '@/components/ui/Alert';
 import { 
   useScreenType, 
   getResponsiveValue, 
@@ -25,9 +24,39 @@ import {
 
 type ScreenType = 'mobile' | 'tablet' | 'desktop';
 
+/** ---------- Utilitaires alertes (bannières empilables) ---------- */
+type AlertItem = {
+  id: string;
+  variant: 'success' | 'error' | 'warning' | 'info';
+  title?: string;
+  message: string;
+};
+
+const useAlerts = () => {
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+
+  const pushAlert = useCallback(
+    (variant: AlertItem['variant'], title: string | undefined, message: string) => {
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      setAlerts(prev => [{ id, variant, title, message }, ...prev]);
+    },
+    []
+  );
+
+  const dismissAlert = useCallback((id: string) => {
+    setAlerts(prev => prev.filter(a => a.id !== id));
+  }, []);
+
+  return { alerts, pushAlert, dismissAlert };
+};
+
 export default function ProfileScreen() {
   const { user, logout, isRestaurateur } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  // 🧰 composant d'alerte
+  const { alerts, pushAlert, dismissAlert } = useAlerts();
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   
   const screenType = useScreenType();
   const { width } = useWindowDimensions();
@@ -43,30 +72,24 @@ export default function ProfileScreen() {
     isTabletLandscape: screenType === 'tablet' && width > 1000,
   };
 
-  const handleLogout = () => {
-    Alert.alert(
-      'Déconnexion',
-      'Êtes-vous sûr de vouloir vous déconnecter ?',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Déconnexion',
-          style: 'destructive',
-          onPress: async () => {
-            setIsLoggingOut(true);
-            try {
-              await logout();
-              router.replace('/(auth)/login');
-            } catch (error) {
-              Alert.alert('Erreur', 'Impossible de se déconnecter');
-            } finally {
-              setIsLoggingOut(false);
-            }
-          },
-        },
-      ]
-    );
-  };
+  const performLogout = useCallback(async () => {
+    setIsLoggingOut(true);
+    try {
+      await logout();
+      router.replace('/(auth)/login');
+    } catch (error) {
+      // ❌ ancienne Alert.alert remplacée par une bannière
+      pushAlert('error', 'Erreur', 'Impossible de se déconnecter');
+    } finally {
+      setIsLoggingOut(false);
+      setLogoutConfirmOpen(false);
+    }
+  }, [logout, pushAlert]);
+
+  const handleLogout = useCallback(() => {
+    // ❓ confirmation via AlertWithAction
+    setLogoutConfirmOpen(true);
+  }, []);
 
   const getInitials = (name: string) => {
     if (!name) return 'U';
@@ -186,8 +209,6 @@ export default function ProfileScreen() {
       gap: getResponsiveValue(SPACING.xs, screenType) / 2,
     },
 
-
-
     roleBadgeText: {
       fontSize: getResponsiveValue(
         { mobile: 14, tablet: 15, desktop: 16 },
@@ -298,6 +319,11 @@ export default function ProfileScreen() {
       color: COLORS.text.light,
       textAlign: 'center' as const,
     },
+
+    alertsContainer: {
+      paddingHorizontal: layoutConfig.containerPadding,
+      paddingTop: getResponsiveValue(SPACING.sm, screenType),
+    },
   };
 
   const iconSize = getResponsiveValue(
@@ -308,6 +334,21 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <Header title="Profil" />
+
+      {/* Bannières d’alertes (success / error / info / warning) */}
+      {alerts.length > 0 && (
+        <View style={styles.alertsContainer}>
+          {alerts.map(a => (
+            <InlineAlert
+              key={a.id}
+              variant={a.variant}
+              title={a.title}
+              message={a.message}
+              onDismiss={() => dismissAlert(a.id)}
+            />
+          ))}
+        </View>
+      )}
       
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.content}>
@@ -428,6 +469,26 @@ export default function ProfileScreen() {
           </View>
         </View>
       </ScrollView> 
+
+      {/* Confirmation de déconnexion via ton composant */}
+      {logoutConfirmOpen && (
+        <View style={{ paddingHorizontal: layoutConfig.containerPadding, paddingTop: getResponsiveValue(SPACING.sm, screenType) }}>
+          <AlertWithAction
+            variant="warning"
+            title="Déconnexion"
+            message="Êtes-vous sûr de vouloir vous déconnecter ?"
+            secondaryButton={{
+              text: 'Annuler',
+              onPress: () => setLogoutConfirmOpen(false),
+            }}
+            primaryButton={{
+              text: 'Déconnexion',
+              onPress: performLogout,
+              variant: 'danger',
+            }}
+          />
+        </View>
+      )}
     </SafeAreaView>
   );
 }
