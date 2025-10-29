@@ -5,17 +5,16 @@ import {
   ScrollView,
   RefreshControl,
   TouchableOpacity,
-  Alert,
   StatusBar,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS, SHADOWS } from '@/styles/tokens';
 import { useResponsive } from '@/utils/responsive';
+import { Alert as InlineAlert, AlertWithAction } from '@/components/ui/Alert';
 
 // TYPES
 interface DashboardStats {
@@ -121,6 +120,23 @@ export default function DashboardScreen() {
   
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Toast (auto-dismiss) via Alert
+  const [toast, setToast] = useState<{
+    visible: boolean;
+    variant: 'success' | 'error' | 'warning' | 'info';
+    title?: string;
+    message: string;
+  }>({ visible: false, variant: 'info', message: '' });
+
+  // Confirmation (avec boutons) via AlertWithAction
+  const [confirm, setConfirm] = useState<{
+    visible: boolean;
+    nextStatus: 'open' | 'closed' | null;
+    title: string;
+    message: string;
+  }>({ visible: false, nextStatus: null, title: '', message: '' });
+
   const { isMobile, isTablet, getSpacing, getFontSize } = useResponsive();
 
   // QUICK ACTIONS ADAPTATIVES
@@ -178,6 +194,53 @@ export default function DashboardScreen() {
   ];
 
   // FONCTIONS DE GESTION
+  const showToast = useCallback((
+    variant: 'success' | 'error' | 'warning' | 'info',
+    message: string,
+    title?: string
+  ) => {
+    setToast({ visible: true, variant, message, title });
+  }, []);
+
+  const hideToast = useCallback(() => {
+    setToast((prev) => ({ ...prev, visible: false }));
+  }, []);
+
+  const askToggleRestaurantStatus = useCallback(() => {
+    const next = stats.restaurantStatus === 'open' ? 'closed' : 'open';
+    setConfirm({
+      visible: true,
+      nextStatus: next,
+      title: 'Changer le statut',
+      message: `Voulez-vous ${next === 'open' ? 'ouvrir' : 'fermer'} votre restaurant ?`,
+    });
+  }, [stats.restaurantStatus]);
+
+  const performToggleRestaurantStatus = useCallback(async (next: 'open' | 'closed') => {
+    setLoading(true);
+    try {
+      // Simuler appel API
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      setStats(prev => ({
+        ...prev,
+        restaurantStatus: next,
+      }));
+      
+      setRestaurant(prev => ({
+        ...prev,
+        isOpen: next === 'open',
+      }));
+
+      showToast('success', `Votre restaurant est maintenant ${next === 'open' ? 'ouvert' : 'fermé'}.`);
+    } catch (error) {
+      showToast('error', 'Impossible de modifier le statut');
+    } finally {
+      setLoading(false);
+      setConfirm({ visible: false, nextStatus: null, title: '', message: '' });
+    }
+  }, [showToast]);
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -191,55 +254,13 @@ export default function DashboardScreen() {
         pendingOrders: Math.floor(Math.random() * 5),
       }));
       
-      console.log('Dashboard data refreshed');
+      showToast('success', 'Données rafraîchies avec succès');
     } catch (error) {
-      Alert.alert('Erreur', 'Impossible de rafraîchir les données');
+      showToast('error', 'Impossible de rafraîchir les données');
     } finally {
       setRefreshing(false);
     }
-  }, []);
-
-  const toggleRestaurantStatus = useCallback(async () => {
-    const newStatus = stats.restaurantStatus === 'open' ? 'closed' : 'open';
-    const statusText = newStatus === 'open' ? 'ouvrir' : 'fermer';
-    
-    Alert.alert(
-      'Changer le statut',
-      `Voulez-vous ${statusText} votre restaurant ?`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        { 
-          text: 'Confirmer', 
-          onPress: async () => {
-            setLoading(true);
-            try {
-              // Simuler appel API
-              await new Promise(resolve => setTimeout(resolve, 1000));
-              
-              setStats(prev => ({
-                ...prev,
-                restaurantStatus: newStatus,
-              }));
-              
-              setRestaurant(prev => ({
-                ...prev,
-                isOpen: newStatus === 'open',
-              }));
-              
-              Alert.alert(
-                'Statut mis à jour',
-                `Votre restaurant est maintenant ${newStatus === 'open' ? 'ouvert' : 'fermé'}.`
-              );
-            } catch (error) {
-              Alert.alert('Erreur', 'Impossible de modifier le statut');
-            } finally {
-              setLoading(false);
-            }
-          }
-        }
-      ]
-    );
-  }, [stats.restaurantStatus]);
+  }, [showToast]);
 
   // RESPONSIVE GRID CALCULATION
   const getGridColumns = useCallback(() => {
@@ -579,6 +600,13 @@ export default function DashboardScreen() {
       color: COLORS.text.secondary,
       textAlign: 'center' as const,
     },
+
+    // Zone d’alertes (top padding)
+    alertsWrapper: {
+      paddingHorizontal: getSpacing(SPACING.lg, SPACING.xl),
+      marginTop: getSpacing(SPACING.md, SPACING.lg),
+      zIndex: 10,
+    },
   };
 
   // COMPOSANT STAT CARD AMÉLIORÉ
@@ -763,7 +791,7 @@ export default function DashboardScreen() {
           <View style={styles.statusContainer}>
             <TouchableOpacity 
               style={styles.statusToggle}
-              onPress={toggleRestaurantStatus}
+              onPress={askToggleRestaurantStatus}
               disabled={loading}
               activeOpacity={0.7}
             >
@@ -778,6 +806,38 @@ export default function DashboardScreen() {
             </TouchableOpacity>
           </View>
         </View>
+      </View>
+
+      {/* ✅ Zone d’alertes (top) */}
+      <View style={styles.alertsWrapper}>
+        {toast.visible && (
+          <InlineAlert
+            variant={toast.variant}
+            title={toast.title}
+            message={toast.message}
+            onDismiss={hideToast}
+            autoDismiss
+          />
+        )}
+
+        {confirm.visible && confirm.nextStatus && (
+          <AlertWithAction
+            variant="info"
+            title={confirm.title}
+            message={confirm.message}
+            autoDismiss={false}
+            onDismiss={() => setConfirm({ visible: false, nextStatus: null, title: '', message: '' })}
+            primaryButton={{
+              text: 'Confirmer',
+              onPress: () => performToggleRestaurantStatus(confirm.nextStatus!),
+              variant: confirm.nextStatus === 'closed' ? 'danger' : 'primary',
+            }}
+            secondaryButton={{
+              text: 'Annuler',
+              onPress: () => setConfirm({ visible: false, nextStatus: null, title: '', message: '' }),
+            }}
+          />
+        )}
       </View>
 
       <ScrollView 
