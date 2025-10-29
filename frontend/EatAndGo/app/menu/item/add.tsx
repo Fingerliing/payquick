@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+// app/(owner)/menus/add.tsx
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   View,
   Text,
   ScrollView,
-  Alert,
   TouchableOpacity,
   Modal,
   KeyboardAvoidingView,
@@ -22,6 +22,7 @@ import { Header } from '@/components/ui/Header';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Alert as InlineAlert } from '@/components/ui/Alert'; // ✅ comme dans [restaurantId].tsx :contentReference[oaicite:3]{index=3}
 
 // Services & Types
 import { menuService } from '@/services/menuService';
@@ -82,6 +83,22 @@ export default function AddMenuItemScreen() {
   const insets = useSafeAreaInsets();
   const [photo, setPhoto] = useState<{ uri: string; name: string; type: string } | null>(null);
 
+  // ✅ Toast state (comme dans [restaurantId].tsx)
+  const [toast, setToast] = useState<{
+    visible: boolean;
+    variant: 'success' | 'error' | 'warning' | 'info';
+    title?: string;
+    message: string;
+  }>({ visible: false, variant: 'info', message: '' });
+
+  const showToast = useCallback(
+    (variant: 'success' | 'error' | 'warning' | 'info', message: string, title?: string) => {
+      setToast({ visible: true, variant, message, title });
+    },
+    []
+  );
+  const hideToast = useCallback(() => setToast(p => ({ ...p, visible: false })), []);
+
   // Responsive styles instance
   const styles = useMemo(() => createStyles(screenType), [screenType]);
 
@@ -135,7 +152,7 @@ export default function AddMenuItemScreen() {
   // Effects
   useEffect(() => {
     loadCategories();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restaurantId]);
 
   useEffect(() => {
@@ -156,7 +173,8 @@ export default function AddMenuItemScreen() {
       setCategories(res.categories || []);
     } catch (e: any) {
       console.error('loadCategories error:', e);
-      Alert.alert('Erreur', 'Impossible de charger les catégories');
+      // ⛔️ remplace Alert natif
+      showToast('error', 'Impossible de charger les catégories', 'Erreur');
     } finally {
       setLoadingCategories(false);
     }
@@ -169,15 +187,13 @@ export default function AddMenuItemScreen() {
     } catch (e: any) {
       console.error('loadSubCategories error:', e);
       setSubCategories([]);
+      showToast('error', 'Impossible de charger les sous-catégories', 'Erreur'); // cohérent
     }
   };
 
   // Handlers
   const handleAllergenToggle = (id: Allergen) => {
-    setSelectedAllergens(prev => prev.includes(id)
-      ? prev.filter(x => x !== id)
-      : [...prev, id]
-    );
+    setSelectedAllergens(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
     if (id === 'gluten') setIsGlutenFree(false);
   };
 
@@ -196,11 +212,11 @@ export default function AddMenuItemScreen() {
 
   const handleCreateCategory = async () => {
     if (!newCategoryName.trim()) {
-      Alert.alert('Erreur', 'Le nom de la catégorie est requis');
+      showToast('warning', 'Le nom de la catégorie est requis', 'Attention');
       return;
     }
     if (!restaurantId) {
-      Alert.alert('Erreur', 'Restaurant non spécifié');
+      showToast('error', 'Restaurant non spécifié', 'Erreur');
       return;
     }
     try {
@@ -220,20 +236,20 @@ export default function AddMenuItemScreen() {
       setNewCategoryDescription('');
       setNewCategoryIcon('');
       setNewCategoryColor(DEFAULT_CATEGORY_COLORS[0]);
-      Alert.alert('Succès', 'Catégorie créée avec succès');
+      showToast('success', 'Catégorie créée avec succès', 'Succès');
     } catch (e: any) {
       console.error('createCategory error:', e);
-      Alert.alert('Erreur', e?.message || 'Impossible de créer la catégorie');
+      showToast('error', e?.message || 'Impossible de créer la catégorie', 'Erreur');
     }
   };
 
   const handleCreateSubCategory = async () => {
     if (!newSubCategoryName.trim()) {
-      Alert.alert('Erreur', 'Le nom de la sous-catégorie est requis');
+      showToast('warning', 'Le nom de la sous-catégorie est requis', 'Attention');
       return;
     }
     if (!selectedCategory) {
-      Alert.alert('Erreur', "Veuillez d'abord sélectionner une catégorie");
+      showToast('warning', "Veuillez d'abord sélectionner une catégorie", 'Attention');
       return;
     }
     try {
@@ -249,57 +265,56 @@ export default function AddMenuItemScreen() {
       setShowCreateSubCategoryModal(false);
       setNewSubCategoryName('');
       setNewSubCategoryDescription('');
-      Alert.alert('Succès', 'Sous-catégorie créée avec succès');
+      showToast('success', 'Sous-catégorie créée avec succès', 'Succès');
     } catch (e: any) {
       console.error('createSubCategory error:', e);
-      Alert.alert('Erreur', e?.message || 'Impossible de créer la sous-catégorie');
+      showToast('error', e?.message || 'Impossible de créer la sous-catégorie', 'Erreur');
     }
   };
 
   const handleCreate = async () => {
     if (!name.trim()) {
-      Alert.alert('Erreur', 'Le nom du plat est requis');
+      showToast('warning', 'Le nom du plat est requis', 'Attention');
       return;
     }
     if (!price.trim() || isNaN(Number(price))) {
-      Alert.alert('Erreur', 'Le prix doit être un nombre valide');
+      showToast('warning', 'Le prix doit être un nombre valide', 'Attention');
       return;
     }
     if (!selectedCategory || !selectedCategory.id) {
-      Alert.alert('Erreur', 'Veuillez sélectionner une catégorie');
+      showToast('warning', 'Veuillez sélectionner une catégorie', 'Attention');
       return;
     }
     if (!menuId) {
-      Alert.alert('Erreur', 'Menu non spécifié');
+      showToast('error', 'Menu non spécifié', 'Erreur');
       return;
     }
-  
+
     setIsCreating(true);
 
-    const vatType = VAT_TYPES.find(t => t.id === selectedVatType);
     try {
       const form = new FormData();
-      
+
       // Données texte
       form.append('name', name.trim());
       form.append('description', description.trim());
       form.append('price', String(Number(parseFloat(price).toFixed(2))));
       form.append('menu', String(parseInt(String(menuId), 10)));
       form.append('vat_category', selectedVatType);
-      
+
       if (selectedCategory.id) {
         form.append('category', String(selectedCategory.id));
       }
       if (selectedSubCategory?.id) {
         form.append('subcategory', String(selectedSubCategory.id));
       }
-      
+
       form.append('allergens', JSON.stringify(selectedAllergens));
       form.append('is_vegetarian', String(isVegetarian));
       form.append('is_vegan', String(isVegan));
       form.append('is_gluten_free', String(isGlutenFree));
-      
-      // Image avec le format React Native (comme restaurant)
+
+      // Image (format RN)
       if (photo) {
         form.append('image', {
           uri: photo.uri,
@@ -307,46 +322,39 @@ export default function AddMenuItemScreen() {
           name: photo.name,
         } as any);
       }
-  
-      // Récupérer le token d'authentification
-      const token = await AsyncStorage.getItem('access_token') || 
-                    await AsyncStorage.getItem('auth_token') || 
-                    await AsyncStorage.getItem('token');
-      
+
+      // Token
+      const token =
+        (await AsyncStorage.getItem('access_token')) ||
+        (await AsyncStorage.getItem('auth_token')) ||
+        (await AsyncStorage.getItem('token'));
+
       if (!token) {
-        Alert.alert('Erreur', 'Token d\'authentification manquant');
+        showToast('error', "Token d'authentification manquant", 'Erreur');
         return;
       }
-  
-      // Construire l'URL complète
+
+      // URL
       const baseURL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
       const url = `${baseURL}/api/v1/menu-items/`;
-  
-      console.log('🔤 Création du menu item avec fetch direct:', {
-        name: name.trim(),
-        hasImage: !!photo,
-        menuId: String(menuId),
-        categoryId: String(selectedCategory.id),
-        url
-      });
-  
-      // Utiliser fetch direct avec les headers d'authentification
+
+      // Requête
       const response = await fetch(url, {
         method: 'POST',
         body: form,
         headers: {
-          'Authorization': `Bearer ${token}`,
-          // PAS de Content-Type - FormData le gère automatiquement
-        }
+          Authorization: `Bearer ${token}`,
+          // Pas de Content-Type: laissé à FormData
+        },
       });
-  
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        const errorData = await response.json().catch(() => ({} as any));
         console.error('❌ Erreur serveur:', errorData);
-        
+
         let message = "Impossible d'ajouter le plat";
         if (errorData.details && typeof errorData.details === 'object') {
-          const parts = [];
+          const parts: string[] = [];
           for (const [field, messages] of Object.entries(errorData.details)) {
             if (Array.isArray(messages)) {
               parts.push(`${field}: ${messages.join(', ')}`);
@@ -358,156 +366,41 @@ export default function AddMenuItemScreen() {
         } else if (errorData.message) {
           message = errorData.message;
         }
-        
-        Alert.alert('Erreur', message);
+
+        showToast('error', message, 'Erreur');
         return;
       }
-  
-      const result = await response.json();
-      console.log('✅ Menu item créé:', result);
-      
-      Alert.alert('Succès', 'Plat ajouté avec succès');
+
+      await response.json();
+      showToast('success', 'Plat ajouté avec succès', 'Succès');
       router.back();
-      
     } catch (error: any) {
       console.error('❌ Erreur création plat:', error);
-      Alert.alert('Erreur', error.message || "Impossible d'ajouter le plat");
+      showToast('error', error?.message || "Impossible d'ajouter le plat", 'Erreur');
     } finally {
       setIsCreating(false);
     }
   };
 
-  // Render helpers
-  const renderCategorySelector = () => (
-    <View style={styles.section}>
-      <Text style={styles.label}>Catégorie *</Text>
-      <TouchableOpacity
-        onPress={() => setShowCategoryModal(true)}
-        style={[styles.selector, selectedCategory && styles.selectorSelected]}
-      >
-        {selectedCategory ? (
-          <>
-            {!!selectedCategory.icon && (
-              <Text style={{ fontSize: 20, marginRight: 12 }}>{selectedCategory.icon}</Text>
-            )}
-            <View style={{ flex: 1 }}>
-              <Text style={styles.selectedText}>{selectedCategory.name}</Text>
-              {!!selectedCategory.description && (
-                <Text style={styles.description}>{selectedCategory.description}</Text>
-              )}
-            </View>
-          </>
-        ) : (
-          <Text style={styles.placeholder}>Sélectionner une catégorie</Text>
-        )}
-        <Ionicons name="chevron-down" size={20} color={COLORS.text.secondary} />
-      </TouchableOpacity>
-    </View>
-  );
-
-  const renderSubCategorySelector = () => (
-    <View style={styles.section}>
-      <Text style={styles.label}>Sous-catégorie (optionnel)</Text>
-      <TouchableOpacity
-        onPress={() => selectedCategory && setShowSubCategoryModal(true)}
-        disabled={!selectedCategory}
-        style={[
-          styles.selector,
-          !selectedCategory && styles.selectorDisabled,
-          selectedSubCategory && styles.selectorSelected,
-        ]}
-      >
-        {selectedSubCategory ? (
-          <View style={{ flex: 1 }}>
-            <Text style={styles.selectedText}>{selectedSubCategory.name}</Text>
-            {!!selectedSubCategory.description && (
-              <Text style={styles.description}>{selectedSubCategory.description}</Text>
-            )}
-          </View>
-        ) : (
-          <Text style={styles.placeholder}>
-            {selectedCategory ? 'Sélectionner une sous-catégorie' : "Sélectionnez d'abord une catégorie"}
-          </Text>
-        )}
-        <Ionicons name="chevron-down" size={20} color={COLORS.text.secondary} />
-      </TouchableOpacity>
-    </View>
-  );
-  
-  const renderAllergen = (a: typeof ALLERGENS[number]) => {
-    const selected = selectedAllergens.includes(a.id);
-    return (
-      <View key={a.id} style={styles.allergenCol}>
-        <TouchableOpacity
-          onPress={() => handleAllergenToggle(a.id)}
-          style={[styles.allergenButton, selected && styles.allergenButtonSelected]}
-        >
-          <Text style={{ fontSize: 16, marginRight: 8 }}>{a.icon}</Text>
-          <View style={{ flex: 1 }}>
-            <Text
-              style={{
-                fontSize: 14,
-                fontWeight: '500',
-                color: selected ? COLORS.error : COLORS.text.primary,
-              }}
-            >
-              {a.name}
-            </Text>
-            <Text style={{ fontSize: 11, color: selected ? '#B91C1C' : COLORS.text.secondary }}>
-              {a.description}
-            </Text>
-          </View>
-          {selected && <Ionicons name="checkmark-circle" size={20} color={COLORS.error} />}
-        </TouchableOpacity>
-      </View>
-    );
-  };
-
-  const renderDietary = (
-    title: string,
-    value: boolean,
-    onToggle: (v: boolean) => void,
-    icon: string,
-    color: string,
-    descriptionText: string,
-  ) => (
-    <TouchableOpacity
-      onPress={() => onToggle(!value)}
-      style={[styles.dietaryOption, value && { backgroundColor: color + '20', borderColor: color }]}
-    >
-      <Text style={{ fontSize: 20, marginRight: 12 }}>{icon}</Text>
-      <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 16, fontWeight: '500', color: value ? color : COLORS.text.primary }}>
-          {title}
-        </Text>
-        <Text style={{ fontSize: 12, color: value ? color : COLORS.text.secondary }}>
-          {descriptionText}
-        </Text>
-      </View>
-      {value && <Ionicons name="checkmark-circle" size={24} color={color} />}
-    </TouchableOpacity>
-  );
-
   // helper: ouvrir la galerie
   const pickFromLibrary = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission requise', 'Donnez accès à vos photos pour continuer.');
+      showToast('warning', 'Donnez accès à vos photos pour continuer.', 'Permission requise');
       return;
     }
-    
+
     const res = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       quality: 0.8,
     });
-    
+
     if (!res.canceled && res.assets && res.assets[0]) {
       const asset = res.assets[0];
-      // Properly determine MIME type
       const uri = asset.uri;
       const extension = uri.split('.').pop()?.toLowerCase() || 'jpg';
-      
+
       let mimeType = 'image/jpeg'; // default
       switch (extension) {
         case 'png':
@@ -522,7 +415,7 @@ export default function AddMenuItemScreen() {
           mimeType = 'image/jpeg';
           break;
       }
-      
+
       setPhoto({
         uri: asset.uri,
         name: `menu-item-${Date.now()}.${extension}`,
@@ -535,20 +428,20 @@ export default function AddMenuItemScreen() {
   const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission requise', 'Donnez accès à la caméra pour continuer.');
+      showToast('warning', 'Donnez accès à la caméra pour continuer.', 'Permission requise');
       return;
     }
-    
+
     const res = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
       quality: 0.8,
     });
-    
+
     if (!res.canceled && res.assets && res.assets[0]) {
       const asset = res.assets[0];
       const uri = asset.uri;
       const extension = uri.split('.').pop()?.toLowerCase() || 'jpg';
-      
+
       let mimeType = 'image/jpeg'; // default for camera
       switch (extension) {
         case 'png':
@@ -560,7 +453,7 @@ export default function AddMenuItemScreen() {
           mimeType = 'image/jpeg';
           break;
       }
-      
+
       setPhoto({
         uri: asset.uri,
         name: `menu-item-camera-${Date.now()}.${extension}`,
@@ -584,9 +477,36 @@ export default function AddMenuItemScreen() {
         includeSafeArea={false}
       />
 
-      <View style={[styles.content, { paddingLeft: Math.max(layout.containerPadding, insets.left), paddingRight: Math.max(layout.containerPadding, insets.right), maxWidth: layout.maxContentWidth }] }>
-        <ScrollView contentContainerStyle={{ paddingVertical: layout.contentSpacing, paddingBottom: layout.contentSpacing + Math.max(layout.containerPadding, insets.bottom) }} showsVerticalScrollIndicator={false}>
+      {/* 🔔 Zone d'alertes en haut – identique au pattern de [restaurantId].tsx */}
+      <View style={{ paddingHorizontal: getResponsiveValue(SPACING.container, screenType), marginTop: getResponsiveValue(SPACING.md, screenType), zIndex: 10 }}>
+        {toast.visible && (
+          <InlineAlert
+            variant={toast.variant}
+            title={toast.title}
+            message={toast.message}
+            onDismiss={hideToast}
+            autoDismiss
+          />
+        )}
+      </View>
 
+      <View
+        style={[
+          styles.content,
+          {
+            paddingLeft: Math.max(layout.containerPadding, insets.left),
+            paddingRight: Math.max(layout.containerPadding, insets.right),
+            maxWidth: layout.maxContentWidth,
+          },
+        ]}
+      >
+        <ScrollView
+          contentContainerStyle={{
+            paddingVertical: layout.contentSpacing,
+            paddingBottom: layout.contentSpacing + Math.max(layout.containerPadding, insets.bottom),
+          }}
+          showsVerticalScrollIndicator={false}
+        >
           {/* Infos plat */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Informations</Text>
@@ -623,7 +543,7 @@ export default function AddMenuItemScreen() {
                     keyboardType="decimal-pad"
                     style={styles.input}
                   />
-                </View>             
+                </View>
               </View>
             </Card>
           </View>
@@ -646,7 +566,7 @@ export default function AddMenuItemScreen() {
                       {VAT_TYPES.find(t => t.id === selectedVatType)?.name}
                     </Text>
                     <Text style={styles.description}>
-                      TVA: {(((VAT_TYPES.find(t => t.id === selectedVatType)?.rate ?? 0) * 100).toFixed(1))}% • 
+                      TVA: {(((VAT_TYPES.find(t => t.id === selectedVatType)?.rate ?? 0) * 100).toFixed(1))}% •{' '}
                       {VAT_TYPES.find(t => t.id === selectedVatType)?.description}
                     </Text>
                   </View>
@@ -662,33 +582,27 @@ export default function AddMenuItemScreen() {
             <Card style={styles.card}>
               {photo ? (
                 <View style={{ gap: getResponsiveValue(SPACING.sm, screenType) }}>
-                  <Image
-                    source={{ uri: photo.uri }}
-                    style={styles.photoImage}
-                    resizeMode="cover"
-                  />
-                  <Text style={styles.photoInfo}>
-                    {photo.name} • {photo.type}
-                  </Text>
+                  <Image source={{ uri: photo.uri }} style={styles.photoImage} resizeMode="cover" />
+                  <Text style={styles.photoInfo}>{photo.name} • {photo.type}</Text>
                   <View style={styles.photoActions}>
-                    <Button 
-                      title="Remplacer" 
-                      onPress={pickFromLibrary} 
-                      variant="secondary" 
+                    <Button
+                      title="Remplacer"
+                      onPress={pickFromLibrary}
+                      variant="secondary"
                       style={styles.photoButton}
                       leftIcon={<Ionicons name="images-outline" size={20} color={COLORS.text.primary} />}
                     />
-                    <Button 
-                      title="Photo" 
-                      onPress={takePhoto} 
-                      variant="secondary" 
+                    <Button
+                      title="Photo"
+                      onPress={takePhoto}
+                      variant="secondary"
                       style={styles.photoButton}
                       leftIcon={<Ionicons name="camera-outline" size={20} color={COLORS.text.primary} />}
                     />
-                    <Button 
-                      title="Supprimer" 
-                      onPress={() => setPhoto(null)} 
-                      variant="destructive" 
+                    <Button
+                      title="Supprimer"
+                      onPress={() => setPhoto(null)}
+                      variant="destructive"
                       style={styles.photoButtonDelete}
                       leftIcon={<Ionicons name="trash-outline" size={20} color={COLORS.error} />}
                     />
@@ -704,17 +618,17 @@ export default function AddMenuItemScreen() {
                     </Text>
                   </View>
                   <View style={styles.photoActions}>
-                    <Button 
-                      title="Choisir une photo" 
-                      onPress={pickFromLibrary} 
-                      variant="primary" 
+                    <Button
+                      title="Choisir une photo"
+                      onPress={pickFromLibrary}
+                      variant="primary"
                       style={styles.photoButton}
                       leftIcon={<Ionicons name="images-outline" size={20} color={COLORS.text.inverse} />}
                     />
-                    <Button 
-                      title="Prendre une photo" 
-                      onPress={takePhoto} 
-                      variant="secondary" 
+                    <Button
+                      title="Prendre une photo"
+                      onPress={takePhoto}
+                      variant="secondary"
                       style={styles.photoButton}
                       leftIcon={<Ionicons name="camera-outline" size={20} color={COLORS.text.primary} />}
                     />
@@ -769,7 +683,7 @@ export default function AddMenuItemScreen() {
       {/* MODALES – Sélection catégorie */}
       <Modal visible={showCategoryModal} transparent animationType="slide" onRequestClose={() => setShowCategoryModal(false)}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContainer, layout.modalMaxWidth ? { alignSelf: 'center', width: layout.modalMaxWidth } : null ]}>
+          <View style={[styles.modalContainer, layout.modalMaxWidth ? { alignSelf: 'center', width: layout.modalMaxWidth } : null]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Catégorie</Text>
               <TouchableOpacity onPress={() => setShowCategoryModal(false)}>
@@ -777,12 +691,8 @@ export default function AddMenuItemScreen() {
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.modalContent}>
-              {loadingCategories && (
-                <Text style={styles.placeholder}>Chargement...</Text>
-              )}
-              {!loadingCategories && categories.length === 0 && (
-                <Text style={styles.placeholder}>Aucune catégorie</Text>
-              )}
+              {loadingCategories && <Text style={styles.placeholder}>Chargement...</Text>}
+              {!loadingCategories && categories.length === 0 && <Text style={styles.placeholder}>Aucune catégorie</Text>}
               <View style={{ gap: 8 }}>
                 {categories.map(cat => (
                   <TouchableOpacity
@@ -801,68 +711,23 @@ export default function AddMenuItemScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
-            </ScrollView>
 
-            <View style={{ padding: layout.containerPadding }}>
-              <Button title="Créer une catégorie" onPress={() => setShowCreateCategoryModal(true)} variant="secondary" fullWidth />
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* MODALE – Création catégorie */}
-      <Modal visible={showCreateCategoryModal} transparent animationType="slide" onRequestClose={() => setShowCreateCategoryModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContainer, layout.modalMaxWidth ? { alignSelf: 'center', width: layout.modalMaxWidth } : null ]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Nouvelle catégorie</Text>
-              <TouchableOpacity onPress={() => setShowCreateCategoryModal(false)}>
-                <Ionicons name="close" size={22} color={COLORS.text.secondary} />
+              <TouchableOpacity
+                onPress={() => { setShowCategoryModal(false); setShowCreateCategoryModal(true); }}
+                style={[styles.selector, { justifyContent: 'center' }]}
+              >
+                <Ionicons name="add-circle-outline" size={20} color={COLORS.primary} />
+                <Text style={[styles.selectedText, { marginLeft: 8, color: COLORS.primary }]}>Créer une catégorie</Text>
               </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.modalContent}>
-              <View style={{ gap: 12 }}>
-                <View>
-                  <Text style={styles.label}>Nom *</Text>
-                  <Input value={newCategoryName} onChangeText={setNewCategoryName} placeholder="Ex. Plats" />
-                </View>
-                <View>
-                  <Text style={styles.label}>Description</Text>
-                  <Input value={newCategoryDescription} onChangeText={setNewCategoryDescription} placeholder="Ex. Tous les plats principaux" />
-                </View>
-                <View>
-                  <Text style={styles.label}>Icône (emoji ou texte court)</Text>
-                  <Input value={newCategoryIcon} onChangeText={setNewCategoryIcon} placeholder="Ex. 🍽️" />
-                </View>
-                <View>
-                  <Text style={styles.label}>Couleur</Text>
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                    {DEFAULT_CATEGORY_COLORS.map(c => (
-                      <TouchableOpacity
-                        key={c}
-                        onPress={() => setNewCategoryColor(c)}
-                        style={{
-                          width: 28, height: 28, borderRadius: 14, backgroundColor: c,
-                          borderWidth: newCategoryColor === c ? 2 : 1,
-                          borderColor: newCategoryColor === c ? COLORS.primary : COLORS.border.light,
-                        }}
-                      />
-                    ))}
-                  </View>
-                </View>
-              </View>
             </ScrollView>
-            <View style={{ padding: layout.containerPadding }}>
-              <Button title="Créer" onPress={handleCreateCategory} fullWidth />
-            </View>
           </View>
         </View>
       </Modal>
 
-      {/* MODALES – Sélection & création sous-catégorie */}
+      {/* MODALES – Sélection sous-catégorie */}
       <Modal visible={showSubCategoryModal} transparent animationType="slide" onRequestClose={() => setShowSubCategoryModal(false)}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContainer, layout.modalMaxWidth ? { alignSelf: 'center', width: layout.modalMaxWidth } : null ]}>
+          <View style={[styles.modalContainer, layout.modalMaxWidth ? { alignSelf: 'center', width: layout.modalMaxWidth } : null]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Sous-catégorie</Text>
               <TouchableOpacity onPress={() => setShowSubCategoryModal(false)}>
@@ -870,68 +735,104 @@ export default function AddMenuItemScreen() {
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.modalContent}>
+              {subCategories.length === 0 && <Text style={styles.placeholder}>Aucune sous-catégorie</Text>}
               <View style={{ gap: 8 }}>
-                {subCategories.map(sc => (
+                {subCategories.map(sub => (
                   <TouchableOpacity
-                    key={sc.id}
-                    onPress={() => { setSelectedSubCategory(sc); setShowSubCategoryModal(false); }}
-                    style={[styles.selector, selectedSubCategory?.id === sc.id && styles.selectorSelected]}
+                    key={sub.id}
+                    onPress={() => { setSelectedSubCategory(sub); setShowSubCategoryModal(false); }}
+                    style={[styles.selector, selectedSubCategory?.id === sub.id && styles.selectorSelected]}
                   >
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.selectedText}>{sc.name}</Text>
-                      {!!sc.description && <Text style={styles.description}>{sc.description}</Text>}
+                      <Text style={styles.selectedText}>{sub.name}</Text>
+                      {!!sub.description && <Text style={styles.description}>{sub.description}</Text>}
                     </View>
-                    {selectedSubCategory?.id === sc.id && (
+                    {selectedSubCategory?.id === sub.id && (
                       <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
                     )}
                   </TouchableOpacity>
                 ))}
-                {subCategories.length === 0 && (
-                  <Text style={styles.placeholder}>Aucune sous-catégorie</Text>
-                )}
               </View>
+
+              <TouchableOpacity
+                onPress={() => { setShowSubCategoryModal(false); setShowCreateSubCategoryModal(true); }}
+                style={[styles.selector, { justifyContent: 'center' }]}
+              >
+                <Ionicons name="add-circle-outline" size={20} color={COLORS.primary} />
+                <Text style={[styles.selectedText, { marginLeft: 8, color: COLORS.primary }]}>Créer une sous-catégorie</Text>
+              </TouchableOpacity>
             </ScrollView>
-            <View style={{ padding: layout.containerPadding }}>
-              <Button title="Créer une sous-catégorie" onPress={() => setShowCreateSubCategoryModal(true)} variant="secondary" fullWidth />
+          </View>
+        </View>
+      </Modal>
+
+      {/* MODALES – Création catégorie */}
+      <Modal visible={showCreateCategoryModal} transparent animationType="slide" onRequestClose={() => setShowCreateCategoryModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContainer, layout.modalMaxWidth ? { alignSelf: 'center', width: layout.modalMaxWidth } : null]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Nouvelle catégorie</Text>
+              <TouchableOpacity onPress={() => setShowCreateCategoryModal(false)}>
+                <Ionicons name="close" size={22} color={COLORS.text.secondary} />
+              </TouchableOpacity>
+            </View>
+            <View style={{ padding: 12 }}>
+              <Text style={styles.label}>Nom *</Text>
+              <Input value={newCategoryName} onChangeText={setNewCategoryName} placeholder="Ex. Plats" style={styles.input} />
+
+              <Text style={[styles.label, { marginTop: 12 }]}>Description</Text>
+              <Input value={newCategoryDescription} onChangeText={setNewCategoryDescription} placeholder="Optionnel" style={[styles.input, styles.inputMultiline]} multiline />
+
+              <Text style={[styles.label, { marginTop: 12 }]}>Icône (emoji)</Text>
+              <Input value={newCategoryIcon} onChangeText={setNewCategoryIcon} placeholder="Ex. 🍝" style={styles.input} />
+
+              <Text style={[styles.label, { marginTop: 12 }]}>Couleur</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  {DEFAULT_CATEGORY_COLORS.map(c => (
+                    <TouchableOpacity
+                      key={c}
+                      onPress={() => setNewCategoryColor(c)}
+                      style={{
+                        width: 28, height: 28, borderRadius: 14, backgroundColor: c,
+                        borderWidth: 2, borderColor: newCategoryColor === c ? COLORS.primary : 'transparent',
+                      }}
+                    />
+                  ))}
+                </View>
+              </ScrollView>
+
+              <Button title="Créer" onPress={handleCreateCategory} variant="primary" />
             </View>
           </View>
         </View>
       </Modal>
 
+      {/* MODALES – Création sous-catégorie */}
       <Modal visible={showCreateSubCategoryModal} transparent animationType="slide" onRequestClose={() => setShowCreateSubCategoryModal(false)}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContainer, layout.modalMaxWidth ? { alignSelf: 'center', width: layout.modalMaxWidth } : null ]}>
+          <View style={[styles.modalContainer, layout.modalMaxWidth ? { alignSelf: 'center', width: layout.modalMaxWidth } : null]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Nouvelle sous-catégorie</Text>
               <TouchableOpacity onPress={() => setShowCreateSubCategoryModal(false)}>
                 <Ionicons name="close" size={22} color={COLORS.text.secondary} />
               </TouchableOpacity>
             </View>
-            <ScrollView style={styles.modalContent}>
-              <View style={{ gap: 12 }}>
-                <View>
-                  <Text style={styles.label}>Nom *</Text>
-                  <Input value={newSubCategoryName} onChangeText={setNewSubCategoryName} placeholder="Ex. Burgers" />
-                </View>
-                <View>
-                  <Text style={styles.label}>Description</Text>
-                  <Input value={newSubCategoryDescription} onChangeText={setNewSubCategoryDescription} placeholder="Ex. Burgers spéciaux" />
-                </View>
-              </View>
-            </ScrollView>
-            <View style={{ padding: layout.containerPadding }}>
-              <Button title="Créer" onPress={handleCreateSubCategory} fullWidth />
+            <View style={{ padding: 12 }}>
+              <Text style={styles.label}>Nom *</Text>
+              <Input value={newSubCategoryName} onChangeText={setNewSubCategoryName} placeholder="Ex. Pizzas blanches" style={styles.input} />
+
+              <Text style={[styles.label, { marginTop: 12 }]}>Description</Text>
+              <Input value={newSubCategoryDescription} onChangeText={setNewSubCategoryDescription} placeholder="Optionnel" style={[styles.input, styles.inputMultiline]} multiline />
+
+              <Button title="Créer" onPress={handleCreateSubCategory} variant="primary" style={{ marginTop: 16 }} />
             </View>
           </View>
         </View>
       </Modal>
-      {/* Modal TVA Type */}
-      <Modal 
-        visible={showVatTypeModal} 
-        transparent 
-        animationType="slide" 
-        onRequestClose={() => setShowVatTypeModal(false)}
-      >
+
+      {/* MODALE – Type de TVA */}
+      <Modal visible={showVatTypeModal} transparent animationType="slide" onRequestClose={() => setShowVatTypeModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContainer, layout.modalMaxWidth ? { alignSelf: 'center', width: layout.modalMaxWidth } : null]}>
             <View style={styles.modalHeader}>
@@ -944,25 +845,15 @@ export default function AddMenuItemScreen() {
               {VAT_TYPES.map(type => (
                 <TouchableOpacity
                   key={type.id}
-                  onPress={() => {
-                    setSelectedVatType(type.id);
-                    setShowVatTypeModal(false);
-                  }}
-                  style={[
-                    styles.selector, 
-                    selectedVatType === type.id && styles.selectorSelected
-                  ]}
+                  onPress={() => { setSelectedVatType(type.id); setShowVatTypeModal(false); }}
+                  style={[styles.selector, selectedVatType === type.id && styles.selectorSelected]}
                 >
                   <Text style={{ fontSize: 20, marginRight: 12 }}>{type.icon}</Text>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.selectedText}>{type.name}</Text>
-                    <Text style={styles.description}>
-                      TVA: {(type.rate * 100).toFixed(1)}% • {type.description}
-                    </Text>
+                    <Text style={styles.description}>TVA: {(type.rate * 100).toFixed(1)}% • {type.description}</Text>
                   </View>
-                  {selectedVatType === type.id && (
-                    <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
-                  )}
+                  {selectedVatType === type.id && <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />}
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -971,6 +862,102 @@ export default function AddMenuItemScreen() {
       </Modal>
     </KeyboardAvoidingView>
   );
+
+  // Render helpers
+  function renderCategorySelector() {
+    return (
+      <View style={styles.section}>
+        <Text style={styles.label}>Catégorie *</Text>
+        <TouchableOpacity onPress={() => setShowCategoryModal(true)} style={[styles.selector, selectedCategory && styles.selectorSelected]}>
+          {selectedCategory ? (
+            <>
+              {!!selectedCategory.icon && <Text style={{ fontSize: 20, marginRight: 12 }}>{selectedCategory.icon}</Text>}
+              <View style={{ flex: 1 }}>
+                <Text style={styles.selectedText}>{selectedCategory.name}</Text>
+                {!!selectedCategory.description && <Text style={styles.description}>{selectedCategory.description}</Text>}
+              </View>
+            </>
+          ) : (
+            <Text style={styles.placeholder}>Sélectionner une catégorie</Text>
+          )}
+          <Ionicons name="chevron-down" size={20} color={COLORS.text.secondary} />
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  function renderSubCategorySelector() {
+    return (
+      <View style={styles.section}>
+        <Text style={styles.label}>Sous-catégorie (optionnel)</Text>
+        <TouchableOpacity
+          onPress={() => selectedCategory && setShowSubCategoryModal(true)}
+          disabled={!selectedCategory}
+          style={[
+            styles.selector,
+            !selectedCategory && styles.selectorDisabled,
+            selectedSubCategory && styles.selectorSelected,
+          ]}
+        >
+          {selectedSubCategory ? (
+            <View style={{ flex: 1 }}>
+              <Text style={styles.selectedText}>{selectedSubCategory.name}</Text>
+              {!!selectedSubCategory.description && <Text style={styles.description}>{selectedSubCategory.description}</Text>}
+            </View>
+          ) : (
+            <Text style={styles.placeholder}>
+              {selectedCategory ? 'Sélectionner une sous-catégorie' : "Sélectionnez d'abord une catégorie"}
+            </Text>
+          )}
+          <Ionicons name="chevron-down" size={20} color={COLORS.text.secondary} />
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  function renderAllergen(a: typeof ALLERGENS[number]) {
+    const selected = selectedAllergens.includes(a.id);
+    return (
+      <View key={a.id} style={styles.allergenCol}>
+        <TouchableOpacity onPress={() => handleAllergenToggle(a.id)} style={[styles.allergenButton, selected && styles.allergenButtonSelected]}>
+          <Text style={{ fontSize: 16, marginRight: 8 }}>{a.icon}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 14, fontWeight: '500', color: selected ? COLORS.error : COLORS.text.primary }}>
+              {a.name}
+            </Text>
+            <Text style={{ fontSize: 11, color: selected ? '#B91C1C' : COLORS.text.secondary }}>
+              {a.description}
+            </Text>
+          </View>
+          {selected && <Ionicons name="checkmark-circle" size={20} color={COLORS.error} />}
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  function renderDietary(
+    title: string,
+    value: boolean,
+    onToggle: (v: boolean) => void,
+    icon: string,
+    color: string,
+    descriptionText: string,
+  ) {
+    return (
+      <TouchableOpacity onPress={() => onToggle(!value)} style={[styles.dietaryOption, value && { backgroundColor: color + '20', borderColor: color }]}>
+        <Text style={{ fontSize: 20, marginRight: 12 }}>{icon}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 16, fontWeight: '500', color: value ? color : COLORS.text.primary }}>
+            {title}
+          </Text>
+          <Text style={{ fontSize: 12, color: value ? color : COLORS.text.secondary }}>
+            {descriptionText}
+          </Text>
+        </View>
+        {value && <Ionicons name="checkmark-circle" size={24} color={color} />}
+      </TouchableOpacity>
+    );
+  }
 }
 
 // Styles
@@ -1041,147 +1028,103 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop') => {
       backgroundColor: COLORS.border.light,
     },
     placeholder: {
-      fontSize: gv(TYPOGRAPHY.fontSize.base),
-      color: COLORS.text.light,
+      fontSize: gv(TYPOGRAPHY.fontSize.sm),
+      color: COLORS.text.secondary,
       flex: 1,
     },
     selectedText: {
       fontSize: gv(TYPOGRAPHY.fontSize.base),
+      fontWeight: '600' as const,
       color: COLORS.text.primary,
-      fontWeight: '500' as const,
     },
     description: {
       fontSize: gv(TYPOGRAPHY.fontSize.xs),
       color: COLORS.text.secondary,
-      marginTop: 2,
-    },
-    dietaryOption: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      backgroundColor: COLORS.surface,
-      borderWidth: 1,
-      borderColor: COLORS.border.default,
-      borderRadius: BORDER_RADIUS.lg,
-      padding: 12,
-      minHeight: COMPONENT_CONSTANTS.minTouchTarget,
     },
     allergenList: {
       flexDirection: 'row' as const,
       flexWrap: 'wrap' as const,
-      justifyContent: 'space-between' as const,
+      marginHorizontal: -6,
     },
-    
     allergenCol: {
-      width: '48%' as const,
-      marginBottom: 8,
+      width: '50%' as const,
+      paddingHorizontal: 6,
+      marginBottom: 12,
     },
-    
     allergenButton: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
       backgroundColor: COLORS.surface,
       borderWidth: 1,
       borderColor: COLORS.border.default,
-      borderRadius: BORDER_RADIUS.md,
+      borderRadius: BORDER_RADIUS.lg,
       padding: 10,
-      width: '100%' as const,
-      minHeight: COMPONENT_CONSTANTS.minTouchTarget,
     },
-
     allergenButtonSelected: {
       borderColor: COLORS.error,
-      backgroundColor: '#FEE2E2',
+      backgroundColor: '#FEF2F2',
     },
-
-    // Styles pour la section photo
+    dietaryOption: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      borderWidth: 1,
+      borderColor: COLORS.border.default,
+      backgroundColor: COLORS.surface,
+      borderRadius: BORDER_RADIUS.lg,
+      padding: 12,
+    },
+    // Photo
     photoImage: {
       width: '100%' as const,
-      height: gv(200),
-      borderRadius: BORDER_RADIUS.md,
-      borderWidth: 1,
-      borderColor: COLORS.border.light,
+      height: 180,
+      borderRadius: BORDER_RADIUS.lg,
     },
-    
     photoInfo: {
       fontSize: gv(TYPOGRAPHY.fontSize.xs),
       color: COLORS.text.secondary,
-      textAlign: 'center' as const,
-      fontStyle: 'italic' as const,
     },
-    
     photoActions: {
       flexDirection: 'row' as const,
-      gap: gv(SPACING.sm),
-      flexWrap: 'wrap' as const,
+      gap: 8,
     },
-    
-    photoButton: {
-      flex: 1,
-      minWidth: 120,
-    },
-    
-    photoButtonDelete: {
-      flexBasis: 'auto' as const,
-      minWidth: 100,
-    },
-    
+    photoButton: { flex: 1 },
+    photoButtonDelete: { flex: 1 },
     photoPlaceholder: {
       alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-      backgroundColor: COLORS.border.light,
-      borderRadius: BORDER_RADIUS.md,
-      borderWidth: 2,
+      paddingVertical: 16,
+      borderWidth: 1,
       borderColor: COLORS.border.default,
-      borderStyle: 'dashed' as const,
-      paddingVertical: gv(SPACING['3xl']),
-      paddingHorizontal: gv(SPACING.lg),
+      borderRadius: BORDER_RADIUS.lg,
+      backgroundColor: COLORS.surface,
     },
-    
-    photoPlaceholderIcon: {
-      fontSize: screenType === 'mobile' ? 48 : 64,
-      marginBottom: gv(SPACING.sm),
-      opacity: 0.5,
-    },
-    
-    photoPlaceholderText: {
-      fontSize: gv(TYPOGRAPHY.fontSize.base),
-      fontWeight: '500' as const,
-      color: COLORS.text.secondary,
-      textAlign: 'center' as const,
-      marginBottom: gv(SPACING.xs),
-    },
-    
-    photoPlaceholderSubtext: {
-      fontSize: gv(TYPOGRAPHY.fontSize.sm),
-      color: COLORS.text.light,
-      textAlign: 'center' as const,
-      lineHeight: Math.round(gv(TYPOGRAPHY.fontSize.sm) * 1.4),
-      maxWidth: 280,
-    },
+    photoPlaceholderIcon: { fontSize: 36, marginBottom: 8 },
+    photoPlaceholderText: { fontWeight: '600' as const, color: COLORS.text.primary },
+    photoPlaceholderSubtext: { color: COLORS.text.secondary, fontSize: gv(TYPOGRAPHY.fontSize.sm) },
 
-    // Modals
+    // Modales
     modalOverlay: {
       flex: 1 as const,
-      backgroundColor: COLORS.overlay,
+      backgroundColor: 'rgba(0,0,0,0.4)',
       justifyContent: 'flex-end' as const,
     },
     modalContainer: {
       backgroundColor: COLORS.surface,
-      borderTopLeftRadius: BORDER_RADIUS['3xl'],
-      borderTopRightRadius: BORDER_RADIUS['3xl'],
-      maxHeight: '90%' as const,
+      borderTopLeftRadius: BORDER_RADIUS['2xl'],
+      borderTopRightRadius: BORDER_RADIUS['2xl'],
+      maxHeight: '80%' as const,
     },
     modalHeader: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
       justifyContent: 'space-between' as const,
-      padding: gv(SPACING.container),
+      paddingHorizontal: gv(SPACING.container),
+      paddingVertical: 12,
       borderBottomWidth: 1,
       borderBottomColor: COLORS.border.light,
     },
     modalTitle: {
       fontSize: gv(TYPOGRAPHY.fontSize.lg),
-      fontWeight: '600' as const,
+      fontWeight: '700' as const,
       color: COLORS.text.primary,
     },
     modalContent: {

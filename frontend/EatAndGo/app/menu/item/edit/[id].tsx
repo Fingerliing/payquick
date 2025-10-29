@@ -1,9 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   View,
   Text,
   ScrollView,
-  Alert,
   TouchableOpacity,
   Modal,
   KeyboardAvoidingView,
@@ -24,6 +23,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Loading } from '@/components/ui/Loading';
+import { Alert as InlineAlert } from '@/components/ui/Alert';
 
 // Services & Types
 import { menuService } from '@/services/menuService';
@@ -77,6 +77,22 @@ export default function EditMenuItemScreen() {
   const R = createResponsiveStyles(screenType);
   const insets = useSafeAreaInsets();
   const [photo, setPhoto] = useState<{ uri: string; name: string; type: string } | null>(null);
+
+  // ✅ Toast state (aligné avec les autres écrans)
+  const [toast, setToast] = useState<{
+    visible: boolean;
+    variant: 'success' | 'error' | 'warning' | 'info';
+    title?: string;
+    message: string;
+  }>({ visible: false, variant: 'info', message: '' });
+
+  const showToast = useCallback(
+    (variant: 'success' | 'error' | 'warning' | 'info', message: string, title?: string) => {
+      setToast({ visible: true, variant, message, title });
+    },
+    []
+  );
+  const hideToast = useCallback(() => setToast(p => ({ ...p, visible: false })), []);
 
   // Responsive styles instance
   const styles = useMemo(() => createStyles(screenType), [screenType]);
@@ -152,27 +168,27 @@ export default function EditMenuItemScreen() {
 
   const loadMenuItem = async () => {
     if (!id) return;
-    
+
     try {
       setIsLoading(true);
       const item = await menuService.menuItems.getMenuItem(parseInt(id));
       setMenuItem(item);
-      
+
       // Pré-remplir le formulaire
       setName(item.name || '');
       setDescription(item.description || '');
       setPrice(item.price || '');
-      
+
       // Filtrer les allergènes pour ne garder que les valeurs valides
-      const validAllergens = (item.allergens || []).filter((allergen): allergen is Allergen => 
+      const validAllergens = (item.allergens || []).filter((allergen): allergen is Allergen =>
         ALLERGENS.some(a => a.id === allergen)
       );
       setSelectedAllergens(validAllergens);
-      
+
       setIsVegetarian(item.is_vegetarian || false);
       setIsVegan(item.is_vegan || false);
       setIsGlutenFree(item.is_gluten_free || false);
-      
+
       // Si l'item a une image, la charger
       if (item.image_url) {
         setPhoto({
@@ -181,10 +197,10 @@ export default function EditMenuItemScreen() {
           type: 'image/jpeg'
         });
       }
-      
+
     } catch (error) {
       console.error('Erreur lors du chargement du menu item:', error);
-      Alert.alert('Erreur', 'Impossible de charger le plat');
+      showToast('error', 'Impossible de charger le plat', 'Erreur');
       router.back();
     } finally {
       setIsLoading(false);
@@ -193,7 +209,7 @@ export default function EditMenuItemScreen() {
 
   const loadCategoriesForMenu = async () => {
     if (!menuItem) return;
-    
+
     try {
       setLoadingCategories(true);
       // On récupère l'ID du restaurant via le menu
@@ -201,7 +217,7 @@ export default function EditMenuItemScreen() {
       const res = await categoryService.getCategoriesByRestaurant(String(menu.restaurant));
       const categoriesList = res.categories || [];
       setCategories(categoriesList);
-      
+
       // Pré-sélectionner la catégorie actuelle
       const currentCategory = categoriesList.find(cat => cat.id === menuItem.category);
       if (currentCategory) {
@@ -209,7 +225,7 @@ export default function EditMenuItemScreen() {
       }
     } catch (e: any) {
       console.error('loadCategoriesForMenu error:', e);
-      Alert.alert('Erreur', 'Impossible de charger les catégories');
+      showToast('error', 'Impossible de charger les catégories', 'Erreur');
     } finally {
       setLoadingCategories(false);
     }
@@ -220,7 +236,7 @@ export default function EditMenuItemScreen() {
       const res = await categoryService.getSubCategoriesByCategory(categoryId);
       const subCategoriesList = res.subcategories || [];
       setSubCategories(subCategoriesList);
-      
+
       // Pré-sélectionner la sous-catégorie actuelle si elle existe
       if (menuItem?.subcategory) {
         const currentSubCategory = subCategoriesList.find(sub => sub.id === menuItem.subcategory);
@@ -231,10 +247,11 @@ export default function EditMenuItemScreen() {
     } catch (e: any) {
       console.error('loadSubCategories error:', e);
       setSubCategories([]);
+      showToast('error', 'Impossible de charger les sous-catégories', 'Erreur');
     }
   };
 
-  // Handlers (identiques à la page add)
+  // Handlers
   const handleAllergenToggle = (id: Allergen) => {
     setSelectedAllergens(prev => prev.includes(id)
       ? prev.filter(x => x !== id)
@@ -258,14 +275,14 @@ export default function EditMenuItemScreen() {
 
   const handleCreateCategory = async () => {
     if (!newCategoryName.trim()) {
-      Alert.alert('Erreur', 'Le nom de la catégorie est requis');
+      showToast('warning', 'Le nom de la catégorie est requis', 'Attention');
       return;
     }
     if (!menuItem) {
-      Alert.alert('Erreur', 'Élément de menu non chargé');
+      showToast('error', 'Élément de menu non chargé', 'Erreur');
       return;
     }
-    
+
     try {
       const menu = await menuService.getMenu(menuItem.menu);
       const created = await categoryService.createCategory({
@@ -284,20 +301,20 @@ export default function EditMenuItemScreen() {
       setNewCategoryDescription('');
       setNewCategoryIcon('');
       setNewCategoryColor(DEFAULT_CATEGORY_COLORS[0]);
-      Alert.alert('Succès', 'Catégorie créée avec succès');
+      showToast('success', 'Catégorie créée avec succès', 'Succès');
     } catch (e: any) {
       console.error('createCategory error:', e);
-      Alert.alert('Erreur', e?.message || 'Impossible de créer la catégorie');
+      showToast('error', e?.message || 'Impossible de créer la catégorie', 'Erreur');
     }
   };
 
   const handleCreateSubCategory = async () => {
     if (!newSubCategoryName.trim()) {
-      Alert.alert('Erreur', 'Le nom de la sous-catégorie est requis');
+      showToast('warning', 'Le nom de la sous-catégorie est requis', 'Attention');
       return;
     }
     if (!selectedCategory) {
-      Alert.alert('Erreur', "Veuillez d'abord sélectionner une catégorie");
+      showToast('warning', "Veuillez d'abord sélectionner une catégorie", 'Attention');
       return;
     }
     try {
@@ -313,34 +330,34 @@ export default function EditMenuItemScreen() {
       setShowCreateSubCategoryModal(false);
       setNewSubCategoryName('');
       setNewSubCategoryDescription('');
-      Alert.alert('Succès', 'Sous-catégorie créée avec succès');
+      showToast('success', 'Sous-catégorie créée avec succès', 'Succès');
     } catch (e: any) {
       console.error('createSubCategory error:', e);
-      Alert.alert('Erreur', e?.message || 'Impossible de créer la sous-catégorie');
+      showToast('error', e?.message || 'Impossible de créer la sous-catégorie', 'Erreur');
     }
   };
 
   const handleUpdate = async () => {
     if (!name.trim()) {
-      Alert.alert('Erreur', 'Le nom du plat est requis');
+      showToast('warning', 'Le nom du plat est requis', 'Attention');
       return;
     }
     if (!price.trim() || isNaN(Number(price))) {
-      Alert.alert('Erreur', 'Le prix doit être un nombre valide');
+      showToast('warning', 'Le prix doit être un nombre valide', 'Attention');
       return;
     }
     if (!selectedCategory || !selectedCategory.id) {
-      Alert.alert('Erreur', 'Veuillez sélectionner une catégorie');
+      showToast('warning', 'Veuillez sélectionner une catégorie', 'Attention');
       return;
     }
     if (!id || !menuItem) {
-      Alert.alert('Erreur', 'Élément de menu non identifié');
+      showToast('error', 'Élément de menu non identifié', 'Erreur');
       return;
     }
 
     setIsUpdating(true);
     try {
-      // Construire les données de mise à jour
+      // Données à jour
       const updateData: UpdateMenuItemRequest = {
         name: name.trim(),
         description: description.trim(),
@@ -353,11 +370,10 @@ export default function EditMenuItemScreen() {
         is_gluten_free: isGlutenFree,
       };
 
-      // Si une nouvelle photo a été sélectionnée, utiliser FormData
+      // Si une nouvelle photo a été choisie
       if (photo && photo.uri !== menuItem.image_url) {
         const form = new FormData();
-        
-        // Ajouter tous les champs
+
         Object.entries(updateData).forEach(([key, value]) => {
           if (value !== undefined) {
             if (key === 'allergens') {
@@ -368,20 +384,18 @@ export default function EditMenuItemScreen() {
           }
         });
 
-        // Ajouter l'image
         form.append('image', {
           uri: photo.uri,
           type: photo.type,
           name: photo.name,
         } as any);
 
-        // Utiliser fetch pour envoyer avec FormData
-        const token = await AsyncStorage.getItem('access_token') || 
-                      await AsyncStorage.getItem('auth_token') || 
-                      await AsyncStorage.getItem('token');
-        
+        const token = await AsyncStorage.getItem('access_token') ||
+          await AsyncStorage.getItem('auth_token') ||
+          await AsyncStorage.getItem('token');
+
         if (!token) {
-          Alert.alert('Erreur', 'Token d\'authentification manquant');
+          showToast('error', "Token d'authentification manquant", 'Erreur');
           return;
         }
 
@@ -391,9 +405,7 @@ export default function EditMenuItemScreen() {
         const response = await fetch(url, {
           method: 'PATCH',
           body: form,
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          }
+          headers: { 'Authorization': `Bearer ${token}` }
         });
 
         if (!response.ok) {
@@ -404,80 +416,166 @@ export default function EditMenuItemScreen() {
         const result = await response.json();
         setMenuItem(result);
       } else {
-        // Pas de nouvelle image, utiliser l'API normale
+        // Pas de nouvelle image
         const updatedItem = await menuService.menuItems.updateMenuItem(parseInt(id), updateData);
         setMenuItem(updatedItem);
       }
 
-      Alert.alert('Succès', 'Plat mis à jour avec succès');
+      showToast('success', 'Plat mis à jour avec succès', 'Succès');
       router.back();
-      
+
     } catch (error: any) {
       console.error('Erreur mise à jour plat:', error);
-      Alert.alert('Erreur', error.message || "Impossible de mettre à jour le plat");
+      showToast('error', error.message || "Impossible de mettre à jour le plat", 'Erreur');
     } finally {
       setIsUpdating(false);
     }
   };
 
-  // Render helpers (identiques à la page add)
-  const renderCategorySelector = () => (
-    <View style={styles.section}>
-      <Text style={styles.label}>Catégorie *</Text>
-      <TouchableOpacity
-        onPress={() => setShowCategoryModal(true)}
-        style={[styles.selector, selectedCategory && styles.selectorSelected]}
-      >
-        {selectedCategory ? (
-          <>
-            {!!selectedCategory.icon && (
-              <Text style={{ fontSize: 20, marginRight: 12 }}>{selectedCategory.icon}</Text>
-            )}
+  // Helper galerie
+  const pickFromLibrary = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      showToast('warning', 'Donnez accès à vos photos pour continuer.', 'Permission requise');
+      return;
+    }
+
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (!res.canceled && res.assets && res.assets[0]) {
+      const asset = res.assets[0];
+      const uri = asset.uri;
+      const extension = uri.split('.').pop()?.toLowerCase() || 'jpg';
+
+      let mimeType = 'image/jpeg';
+      switch (extension) {
+        case 'png':
+          mimeType = 'image/png';
+          break;
+        case 'webp':
+          mimeType = 'image/webp';
+          break;
+        case 'jpg':
+        case 'jpeg':
+        default:
+          mimeType = 'image/jpeg';
+          break;
+      }
+
+      setPhoto({
+        uri: asset.uri,
+        name: `menu-item-${Date.now()}.${extension}`,
+        type: mimeType,
+      });
+    }
+  };
+
+  // Helper caméra
+  const takePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      showToast('warning', 'Donnez accès à la caméra pour continuer.', 'Permission requise');
+      return;
+    }
+
+    const res = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (!res.canceled && res.assets && res.assets[0]) {
+      const asset = res.assets[0];
+      const uri = asset.uri;
+      const extension = uri.split('.').pop()?.toLowerCase() || 'jpg';
+
+      let mimeType = 'image/jpeg';
+      switch (extension) {
+        case 'png':
+          mimeType = 'image/png';
+          break;
+        case 'jpg':
+        case 'jpeg':
+        default:
+          mimeType = 'image/jpeg';
+          break;
+      }
+
+      setPhoto({
+        uri: asset.uri,
+        name: `menu-item-camera-${Date.now()}.${extension}`,
+        type: mimeType,
+      });
+    }
+  };
+
+  // ---------- RENDER HELPERS (ajoutés) ----------
+  function renderCategorySelector() {
+    return (
+      <View style={styles.section}>
+        <Text style={styles.label}>Catégorie *</Text>
+        <TouchableOpacity
+          onPress={() => setShowCategoryModal(true)}
+          style={[styles.selector, selectedCategory && styles.selectorSelected]}
+        >
+          {selectedCategory ? (
+            <>
+              {!!(selectedCategory as any).icon && (
+                <Text style={{ fontSize: 20, marginRight: 12 }}>
+                  {(selectedCategory as any).icon}
+                </Text>
+              )}
+              <View style={{ flex: 1 }}>
+                <Text style={styles.selectedText}>{selectedCategory.name}</Text>
+                {!!selectedCategory.description && (
+                  <Text style={styles.description}>{selectedCategory.description}</Text>
+                )}
+              </View>
+            </>
+          ) : (
+            <Text style={styles.placeholder}>Sélectionner une catégorie</Text>
+          )}
+          <Ionicons name="chevron-down" size={20} color={COLORS.text.secondary} />
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  function renderSubCategorySelector() {
+    return (
+      <View style={styles.section}>
+        <Text style={styles.label}>Sous-catégorie (optionnel)</Text>
+        <TouchableOpacity
+          onPress={() => selectedCategory && setShowSubCategoryModal(true)}
+          disabled={!selectedCategory}
+          style={[
+            styles.selector,
+            !selectedCategory && styles.selectorDisabled,
+            selectedSubCategory && styles.selectorSelected,
+          ]}
+        >
+          {selectedSubCategory ? (
             <View style={{ flex: 1 }}>
-              <Text style={styles.selectedText}>{selectedCategory.name}</Text>
-              {!!selectedCategory.description && (
-                <Text style={styles.description}>{selectedCategory.description}</Text>
+              <Text style={styles.selectedText}>{selectedSubCategory.name}</Text>
+              {!!selectedSubCategory.description && (
+                <Text style={styles.description}>{selectedSubCategory.description}</Text>
               )}
             </View>
-          </>
-        ) : (
-          <Text style={styles.placeholder}>Sélectionner une catégorie</Text>
-        )}
-        <Ionicons name="chevron-down" size={20} color={COLORS.text.secondary} />
-      </TouchableOpacity>
-    </View>
-  );
+          ) : (
+            <Text style={styles.placeholder}>
+              {selectedCategory ? 'Sélectionner une sous-catégorie' : "Sélectionnez d'abord une catégorie"}
+            </Text>
+          )}
+          <Ionicons name="chevron-down" size={20} color={COLORS.text.secondary} />
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
-  const renderSubCategorySelector = () => (
-    <View style={styles.section}>
-      <Text style={styles.label}>Sous-catégorie (optionnel)</Text>
-      <TouchableOpacity
-        onPress={() => selectedCategory && setShowSubCategoryModal(true)}
-        disabled={!selectedCategory}
-        style={[
-          styles.selector,
-          !selectedCategory && styles.selectorDisabled,
-          selectedSubCategory && styles.selectorSelected,
-        ]}
-      >
-        {selectedSubCategory ? (
-          <View style={{ flex: 1 }}>
-            <Text style={styles.selectedText}>{selectedSubCategory.name}</Text>
-            {!!selectedSubCategory.description && (
-              <Text style={styles.description}>{selectedSubCategory.description}</Text>
-            )}
-          </View>
-        ) : (
-          <Text style={styles.placeholder}>
-            {selectedCategory ? 'Sélectionner une sous-catégorie' : "Sélectionnez d'abord une catégorie"}
-          </Text>
-        )}
-        <Ionicons name="chevron-down" size={20} color={COLORS.text.secondary} />
-      </TouchableOpacity>
-    </View>
-  );
-  
-  const renderAllergen = (a: typeof ALLERGENS[number]) => {
+  function renderAllergen(a: typeof ALLERGENS[number]) {
     const selected = selectedAllergens.includes(a.id);
     return (
       <View key={a.id} style={styles.allergenCol}>
@@ -496,7 +594,12 @@ export default function EditMenuItemScreen() {
             >
               {a.name}
             </Text>
-            <Text style={{ fontSize: 11, color: selected ? '#B91C1C' : COLORS.text.secondary }}>
+            <Text
+              style={{
+                fontSize: 11,
+                color: selected ? '#B91C1C' : COLORS.text.secondary,
+              }}
+            >
               {a.description}
             </Text>
           </View>
@@ -504,112 +607,49 @@ export default function EditMenuItemScreen() {
         </TouchableOpacity>
       </View>
     );
-  };
+  }
 
-  const renderDietary = (
+  function renderDietary(
     title: string,
     value: boolean,
     onToggle: (v: boolean) => void,
     icon: string,
     color: string,
     descriptionText: string,
-  ) => (
-    <TouchableOpacity
-      onPress={() => onToggle(!value)}
-      style={[styles.dietaryOption, value && { backgroundColor: color + '20', borderColor: color }]}
-    >
-      <Text style={{ fontSize: 20, marginRight: 12 }}>{icon}</Text>
-      <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 16, fontWeight: '500', color: value ? color : COLORS.text.primary }}>
-          {title}
-        </Text>
-        <Text style={{ fontSize: 12, color: value ? color : COLORS.text.secondary }}>
-          {descriptionText}
-        </Text>
-      </View>
-      {value && <Ionicons name="checkmark-circle" size={24} color={color} />}
-    </TouchableOpacity>
-  );
-
-  // Helper pour la galerie
-  const pickFromLibrary = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission requise', 'Donnez accès à vos photos pour continuer.');
-      return;
-    }
-    
-    const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 0.8,
-    });
-    
-    if (!res.canceled && res.assets && res.assets[0]) {
-      const asset = res.assets[0];
-      const uri = asset.uri;
-      const extension = uri.split('.').pop()?.toLowerCase() || 'jpg';
-      
-      let mimeType = 'image/jpeg';
-      switch (extension) {
-        case 'png':
-          mimeType = 'image/png';
-          break;
-        case 'webp':
-          mimeType = 'image/webp';
-          break;
-        case 'jpg':
-        case 'jpeg':
-        default:
-          mimeType = 'image/jpeg';
-          break;
-      }
-      
-      setPhoto({
-        uri: asset.uri,
-        name: `menu-item-${Date.now()}.${extension}`,
-        type: mimeType,
-      });
-    }
-  };
-
-  // Helper pour la caméra
-  const takePhoto = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission requise', 'Donnez accès à la caméra pour continuer.');
-      return;
-    }
-    
-    const res = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      quality: 0.8,
-    });
-    
-    if (!res.canceled && res.assets && res.assets[0]) {
-      const asset = res.assets[0];
-      const uri = asset.uri;
-      const extension = uri.split('.').pop()?.toLowerCase() || 'jpg';
-      
-      let mimeType = 'image/jpeg';
-      switch (extension) {
-        case 'png':
-          mimeType = 'image/png';
-          break;
-        case 'jpg':
-        case 'jpeg':
-        default:
-          mimeType = 'image/jpeg';
-          break;
-      }
-      
-      setPhoto({
-        uri: asset.uri,
-        name: `menu-item-camera-${Date.now()}.${extension}`,
-        type: mimeType,
-      });
-    }
-  };
+  ) {
+    return (
+      <TouchableOpacity
+        onPress={() => onToggle(!value)}
+        style={[
+          styles.dietaryOption,
+          value && { backgroundColor: color + '20', borderColor: color, borderWidth: 1 },
+        ]}
+      >
+        <Text style={{ fontSize: 20, marginRight: 12 }}>{icon}</Text>
+        <View style={{ flex: 1 }}>
+          <Text
+            style={{
+              fontSize: 16,
+              fontWeight: '500',
+              color: value ? color : COLORS.text.primary,
+            }}
+          >
+            {title}
+          </Text>
+          <Text
+            style={{
+              fontSize: 12,
+              color: value ? color : COLORS.text.secondary,
+            }}
+          >
+            {descriptionText}
+          </Text>
+        </View>
+        {value && <Ionicons name="checkmark-circle" size={24} color={color} />}
+      </TouchableOpacity>
+    );
+  }
+  // ---------- FIN RENDER HELPERS ----------
 
   if (isLoading) {
     return <Loading fullScreen text="Chargement du plat..." />;
@@ -624,6 +664,18 @@ export default function EditMenuItemScreen() {
           onLeftPress={() => router.back()}
           includeSafeArea={false}
         />
+        {/* Zone d’alerte en haut */}
+        <View style={{ paddingHorizontal: getResponsiveValue(SPACING.container, screenType), marginTop: getResponsiveValue(SPACING.md, screenType), zIndex: 10 }}>
+          {toast.visible && (
+            <InlineAlert
+              variant={toast.variant}
+              title={toast.title}
+              message={toast.message}
+              onDismiss={hideToast}
+              autoDismiss
+            />
+          )}
+        </View>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: layout.containerPadding }}>
           <Ionicons name="restaurant-outline" size={64} color={COLORS.text.light} style={{ marginBottom: layout.contentSpacing }} />
           <Text style={{ fontSize: 18, color: COLORS.text.secondary, textAlign: 'center', marginBottom: layout.contentSpacing }}>
@@ -655,16 +707,29 @@ export default function EditMenuItemScreen() {
         includeSafeArea={false}
       />
 
-      <View style={[styles.content, { 
-        paddingLeft: Math.max(layout.containerPadding, insets.left), 
-        paddingRight: Math.max(layout.containerPadding, insets.right), 
-        maxWidth: layout.maxContentWidth 
+      {/* 🔔 Zone d’alertes en haut */}
+      <View style={{ paddingHorizontal: getResponsiveValue(SPACING.container, screenType), marginTop: getResponsiveValue(SPACING.md, screenType), zIndex: 10 }}>
+        {toast.visible && (
+          <InlineAlert
+            variant={toast.variant}
+            title={toast.title}
+            message={toast.message}
+            onDismiss={hideToast}
+            autoDismiss
+          />
+        )}
+      </View>
+
+      <View style={[styles.content, {
+        paddingLeft: Math.max(layout.containerPadding, insets.left),
+        paddingRight: Math.max(layout.containerPadding, insets.right),
+        maxWidth: layout.maxContentWidth
       }]}>
-        <ScrollView 
-          contentContainerStyle={{ 
-            paddingVertical: layout.contentSpacing, 
-            paddingBottom: layout.contentSpacing + Math.max(layout.containerPadding, insets.bottom) 
-          }} 
+        <ScrollView
+          contentContainerStyle={{
+            paddingVertical: layout.contentSpacing,
+            paddingBottom: layout.contentSpacing + Math.max(layout.containerPadding, insets.bottom)
+          }}
           showsVerticalScrollIndicator={false}
         >
 
@@ -724,24 +789,24 @@ export default function EditMenuItemScreen() {
                     {photo.name} • {photo.type}
                   </Text>
                   <View style={styles.photoActions}>
-                    <Button 
-                      title="Remplacer" 
-                      onPress={pickFromLibrary} 
-                      variant="secondary" 
+                    <Button
+                      title="Remplacer"
+                      onPress={pickFromLibrary}
+                      variant="secondary"
                       style={styles.photoButton}
-                      leftIcon={<Ionicons name="images-outline" size={20} color={COLORS.text.primary} />}
+                      leftIcon={<Ionicons name="images-outline" size={20} />}
                     />
-                    <Button 
-                      title="Photo" 
-                      onPress={takePhoto} 
-                      variant="secondary" 
+                    <Button
+                      title="Photo"
+                      onPress={takePhoto}
+                      variant="secondary"
                       style={styles.photoButton}
-                      leftIcon={<Ionicons name="camera-outline" size={20} color={COLORS.text.primary} />}
+                      leftIcon={<Ionicons name="camera-outline" size={20} />}
                     />
-                    <Button 
-                      title="Supprimer" 
-                      onPress={() => setPhoto(null)} 
-                      variant="destructive" 
+                    <Button
+                      title="Supprimer"
+                      onPress={() => setPhoto(null)}
+                      variant="destructive"
                       style={styles.photoButtonDelete}
                       leftIcon={<Ionicons name="trash-outline" size={20} color={COLORS.error} />}
                     />
@@ -757,19 +822,19 @@ export default function EditMenuItemScreen() {
                     </Text>
                   </View>
                   <View style={styles.photoActions}>
-                    <Button 
-                      title="Choisir une photo" 
-                      onPress={pickFromLibrary} 
-                      variant="primary" 
+                    <Button
+                      title="Choisir une photo"
+                      onPress={pickFromLibrary}
+                      variant="primary"
                       style={styles.photoButton}
                       leftIcon={<Ionicons name="images-outline" size={20} color={COLORS.text.inverse} />}
                     />
-                    <Button 
-                      title="Prendre une photo" 
-                      onPress={takePhoto} 
-                      variant="secondary" 
+                    <Button
+                      title="Prendre une photo"
+                      onPress={takePhoto}
+                      variant="secondary"
                       style={styles.photoButton}
-                      leftIcon={<Ionicons name="camera-outline" size={20} color={COLORS.text.primary} />}
+                      leftIcon={<Ionicons name="camera-outline" size={20} />}
                     />
                   </View>
                 </View>
@@ -813,17 +878,17 @@ export default function EditMenuItemScreen() {
                 styles.statusContainer,
                 menuItem.is_available ? styles.statusAvailable : styles.statusUnavailable
               ]}>
-                <Ionicons 
-                  name={menuItem.is_available ? "checkmark-circle" : "pause-circle"} 
-                  size={24} 
-                  color={menuItem.is_available ? COLORS.success : COLORS.error} 
+                <Ionicons
+                  name={menuItem.is_available ? "checkmark-circle" : "pause-circle"}
+                  size={24}
+                  color={menuItem.is_available ? COLORS.success : COLORS.error}
                 />
                 <Text style={[
                   styles.statusText,
                   { color: menuItem.is_available ? COLORS.success : COLORS.error }
                 ]}>
-                  {menuItem.is_available 
-                    ? 'Ce plat est actuellement disponible' 
+                  {menuItem.is_available
+                    ? 'Ce plat est actuellement disponible'
                     : 'Ce plat est actuellement indisponible'
                   }
                 </Text>
@@ -844,21 +909,13 @@ export default function EditMenuItemScreen() {
               fullWidth
               leftIcon={
                 isUpdating ? (
-                  <ActivityIndicator 
-                    size="small" 
-                    color={COLORS.text.inverse} 
-                    style={{ marginRight: -4 }}
-                  />
+                  <ActivityIndicator size="small" color={COLORS.text.inverse} style={{ marginRight: -4 }} />
                 ) : (
-                  <Ionicons 
-                    name="checkmark-circle-outline" 
-                    size={20} 
-                    color={COLORS.text.inverse} 
-                  />
+                  <Ionicons name="checkmark-circle-outline" size={20} color={COLORS.text.inverse} />
                 )
               }
             />
-            
+
             <Button
               title="Annuler"
               onPress={() => router.back()}
@@ -895,7 +952,7 @@ export default function EditMenuItemScreen() {
                     onPress={() => { setSelectedCategory(cat); setShowCategoryModal(false); }}
                     style={[styles.selector, selectedCategory?.id === cat.id && styles.selectorSelected]}
                   >
-                    {!!cat.icon && <Text style={{ fontSize: 18, marginRight: 8 }}>{cat.icon}</Text>}
+                    {!!(cat as any).icon && <Text style={{ fontSize: 18, marginRight: 8 }}>{(cat as any).icon}</Text>}
                     <View style={{ flex: 1 }}>
                       <Text style={styles.selectedText}>{cat.name}</Text>
                       {!!cat.description && <Text style={styles.description}>{cat.description}</Text>}
@@ -1129,11 +1186,12 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop') => {
     allergenList: {
       flexDirection: 'row' as const,
       flexWrap: 'wrap' as const,
-      justifyContent: 'space-between' as const,
+      marginHorizontal: -6,
     },
     allergenCol: {
-      width: '48%' as const,
-      marginBottom: 8,
+      width: '50%' as const,
+      paddingHorizontal: 6,
+      marginBottom: 12,
     },
     allergenButton: {
       flexDirection: 'row' as const,
@@ -1151,7 +1209,7 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop') => {
       backgroundColor: '#FEE2E2',
     },
 
-    // Styles pour la section photo
+    // Photo
     photoImage: {
       width: '100%' as const,
       height: gv(200),

@@ -5,7 +5,6 @@ import {
   FlatList,
   Pressable,
   RefreshControl,
-  Alert,
   ScrollView,
   TouchableOpacity,
 } from 'react-native';
@@ -22,6 +21,7 @@ import { Header } from '@/components/ui/Header';
 import { Loading } from '@/components/ui/Loading';
 import { DailyMenuDisplay } from '@/components/menu/DailyMenuDisplay';
 import { MenuItemCard } from '@/components/menu/MenuItemCard';
+import { Alert as InlineAlert, AlertWithAction } from '@/components/ui/Alert';
 
 // Types
 import { Menu, MenuItem } from '@/types/menu';
@@ -138,9 +138,15 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', insets: any) 
     marginTop: getResponsiveValue(SPACING.xs, screenType),
   },
 
-  
   container: {
     paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
+  },
+
+  // 🔔 Zone d’alertes
+  alertsWrapper: {
+    paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
+    marginTop: getResponsiveValue(SPACING.md, screenType),
+    zIndex: 10,
   },
   
   // Navigation Catégories - Style Menu
@@ -697,6 +703,26 @@ export default function RestaurantMenuScreen() {
     showGlutenFreeOnly: false,
   });
 
+  // 🔔 Toast (auto-dismiss)
+  const [toast, setToast] = useState<{
+    visible: boolean;
+    variant: 'success' | 'error' | 'warning' | 'info';
+    title?: string;
+    message: string;
+  }>({ visible: false, variant: 'info', message: '' });
+
+  // 🔔 Confirmation (changement de resto dans le panier)
+  const [confirmCartSwitch, setConfirmCartSwitch] = useState<{
+    visible: boolean;
+    item: MenuItem | any | null;
+  }>({ visible: false, item: null });
+
+  // Utils toast
+  const showToast = useCallback((variant: 'success' | 'error' | 'warning' | 'info', message: string, title?: string) => {
+    setToast({ visible: true, variant, message, title });
+  }, []);
+  const hideToast = useCallback(() => setToast(p => ({ ...p, visible: false })), []);
+
   // Chargement des données
   const loadRestaurantData = useCallback(async () => {
     try {
@@ -738,11 +764,12 @@ export default function RestaurantMenuScreen() {
 
     } catch (error) {
       console.error('Error loading restaurant data:', error);
-      Alert.alert('Erreur', 'Impossible de charger les données du restaurant');
+      // ⛔️ Remplace Alert natif
+      showToast('error', 'Impossible de charger les données du restaurant');
     } finally {
       setIsLoading(false);
     }
-  }, [restaurantId]);
+  }, [restaurantId, showToast]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -781,24 +808,8 @@ export default function RestaurantMenuScreen() {
   }, [filteredItems]);
 
   // Handlers
-  const handleAddToCart = useCallback((item: MenuItem | any) => {
-    if (!isCartForRestaurant(parseInt(restaurantId))) {
-      Alert.alert(
-        'Changer de restaurant',
-        "Vous avez déjà des articles d'un autre restaurant. Voulez-vous vider votre panier ?",
-        [
-          { text: 'Annuler', style: 'cancel' },
-          { text: 'Continuer', onPress: () => proceedAddToCart(item) },
-        ]
-      );
-    } else {
-      proceedAddToCart(item);
-    }
-  }, [restaurantId, isCartForRestaurant]);
-
   const proceedAddToCart = useCallback((item: MenuItem | any) => {
     const itemData = {
-      // Pas d'ID ici, il sera généré automatiquement par addToCart
       menuItemId: item.id || item.menuItemId,
       name: item.name,
       description: item.description,
@@ -809,16 +820,19 @@ export default function RestaurantMenuScreen() {
       specialInstructions: '',
       customizations: {}
     };
-  
-    // addToCart gérera automatiquement la détection des doublons
-    // et incrémentera la quantité si l'article existe déjà
     addToCart(itemData);
-    
-    Alert.alert(
-      'Ajouté au panier', 
-      `${item.name} a été ajouté à votre commande`
-    );
-  }, [addToCart, restaurantId, restaurant?.name]);
+    // ✅ Toast succès (remplace Alert natif)
+    showToast('success', `${item.name} a été ajouté à votre commande`, 'Ajouté au panier');
+  }, [addToCart, restaurantId, restaurant?.name, showToast]);
+
+  const handleAddToCart = useCallback((item: MenuItem | any) => {
+    if (!isCartForRestaurant(parseInt(restaurantId))) {
+      // ❓ Demande confirmation (remplace Alert.alert)
+      setConfirmCartSwitch({ visible: true, item });
+    } else {
+      proceedAddToCart(item);
+    }
+  }, [restaurantId, isCartForRestaurant, proceedAddToCart]);
 
   const toggleFilter = useCallback((filterType: keyof FilterOptions) => {
     setFilters(prev => ({
@@ -930,6 +944,17 @@ export default function RestaurantMenuScreen() {
     return (
       <SafeAreaView style={styles.page}>
         <Header title="Menu" leftIcon="arrow-back" onLeftPress={() => router.back()} />
+        <View style={styles.alertsWrapper}>
+          {toast.visible && (
+            <InlineAlert
+              variant={toast.variant}
+              title={toast.title}
+              message={toast.message}
+              onDismiss={hideToast}
+              autoDismiss
+            />
+          )}
+        </View>
         <View style={styles.emptyStateContainer}>
           <Ionicons name="restaurant-outline" size={64} color={COLORS.text.light} />
           <Text style={styles.emptyStateText}>Restaurant non trouvé</Text>
@@ -947,6 +972,43 @@ export default function RestaurantMenuScreen() {
         rightIcon={totalCartItems > 0 ? "bag" : undefined}
         onRightPress={totalCartItems > 0 ? () => router.push('/(client)/cart') : undefined}
       />
+
+      {/* 🔔 Zone d’alertes (top) */}
+      <View style={styles.alertsWrapper}>
+        {toast.visible && (
+          <InlineAlert
+            variant={toast.variant}
+            title={toast.title}
+            message={toast.message}
+            onDismiss={hideToast}
+            autoDismiss
+          />
+        )}
+
+        {confirmCartSwitch.visible && confirmCartSwitch.item && (
+          <AlertWithAction
+            variant="info"
+            title="Changer de restaurant"
+            message="Vous avez déjà des articles d'un autre restaurant. Voulez-vous vider votre panier et continuer ?"
+            autoDismiss={false}
+            onDismiss={() => setConfirmCartSwitch({ visible: false, item: null })}
+            secondaryButton={{
+              text: 'Annuler',
+              onPress: () => setConfirmCartSwitch({ visible: false, item: null }),
+            }}
+            primaryButton={{
+              text: 'Continuer',
+              variant: 'danger',
+              onPress: () => {
+                if (confirmCartSwitch.item) {
+                  proceedAddToCart(confirmCartSwitch.item);
+                }
+                setConfirmCartSwitch({ visible: false, item: null });
+              },
+            }}
+          />
+        )}
+      </View>
 
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
