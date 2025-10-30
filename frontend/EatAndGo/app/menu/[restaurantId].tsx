@@ -1,4 +1,3 @@
-// app/menu/[restaurantId].tsx - Carte de restaurant premium avec filtres + Alert & AlertWithAction
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -6,7 +5,6 @@ import {
   SectionList,
   TouchableOpacity,
   Modal,
-  // Alert,  // ❌ on n'utilise plus l'alerte native
   ScrollView,
   ActivityIndicator,
 } from 'react-native';

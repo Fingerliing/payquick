@@ -1,10 +1,9 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Alert,
   Platform,
   ActivityIndicator,
   Animated,
@@ -18,11 +17,12 @@ import * as Notifications from 'expo-notifications';
 import * as Haptics from 'expo-haptics';
 
 import GamifiedOrderTracking from '@/components/order/GamifiedOrderTracking';
-import { 
+import {
   orderTrackingService,
-  OrderTrackingResponse, 
-  Badge 
+  OrderTrackingResponse,
+  Badge
 } from '@/services/orderTrackingService';
+import { Alert as InlineAlert } from '@/components/ui/Alert';
 
 export default function OrderTrackingScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -34,6 +34,22 @@ export default function OrderTrackingScreen() {
   const [error, setError] = useState<string | null>(null);
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [progressRate, setProgressRate] = useState<number | null>(null);
+
+  // Toast local (InlineAlert en haut de l’écran)
+  const [toast, setToast] = useState<{
+    visible: boolean;
+    variant: 'success' | 'error' | 'warning' | 'info';
+    title?: string;
+    message: string;
+  }>({ visible: false, variant: 'info', message: '' });
+
+  const showToast = useCallback(
+    (variant: 'success' | 'error' | 'warning' | 'info', message: string, title?: string) => {
+      setToast({ visible: true, variant, message, title });
+    },
+    []
+  );
+  const hideToast = useCallback(() => setToast((p) => ({ ...p, visible: false })), []);
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -78,6 +94,7 @@ export default function OrderTrackingScreen() {
       if (loading && !trackingData) {
         setError("Le chargement prend trop de temps. Vérifiez votre connexion.");
         setLoading(false);
+        showToast('warning', "Le chargement prend du temps. Vérifiez votre connexion.", '⏳ Mise à jour');
       }
     }, 10000);
 
@@ -114,7 +131,7 @@ export default function OrderTrackingScreen() {
 
   const handleTrackingUpdate = async (data: OrderTrackingResponse) => {
     console.log('📦 Tracking data received');
-    
+
     setLoading(false);
     setError(null);
 
@@ -167,7 +184,7 @@ export default function OrderTrackingScreen() {
       `${badge.icon} ${badge.name}: ${badge.description}`
     );
 
-    // Vibration élégante selon le tier
+    // Haptics + vibration
     if (Platform.OS !== 'web') {
       const vibrationPattern = {
         bronze: [0, 100],
@@ -182,7 +199,6 @@ export default function OrderTrackingScreen() {
       Vibration.vibrate(vibrationPattern);
     }
 
-    // Haptic feedback
     if (Platform.OS === 'ios') {
       if (badge.tier === 'royal' || badge.tier === 'platinum') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -195,57 +211,28 @@ export default function OrderTrackingScreen() {
   const handleMilestoneNotifications = async (data: OrderTrackingResponse) => {
     const { order_status, global_progress } = data;
 
-    // Commande confirmée
     if (order_status === 'confirmed' && trackingData?.order_status === 'pending') {
-      await sendNotification(
-        '✅ Commande confirmée',
-        'La préparation va commencer'
-      );
+      await sendNotification('✅ Commande confirmée', 'La préparation va commencer');
       vibratePattern('success');
     }
-
-    // Commande en préparation
     if (order_status === 'preparing' && trackingData?.order_status === 'confirmed') {
-      await sendNotification(
-        '👨‍🍳 Préparation démarrée',
-        'Nos chefs travaillent sur votre commande'
-      );
+      await sendNotification('👨‍🍳 Préparation démarrée', 'Nos chefs travaillent sur votre commande');
       vibratePattern('start');
     }
-
-    // Mi-parcours
     if (global_progress >= 50 && (trackingData?.global_progress || 0) < 50) {
-      await sendNotification(
-        '⭐ Mi-parcours atteint',
-        'Votre commande progresse bien !'
-      );
+      await sendNotification('⭐ Mi-parcours atteint', 'Votre commande progresse bien !');
       vibratePattern('milestone');
     }
-
-    // Presque prêt
     if (global_progress >= 85 && (trackingData?.global_progress || 0) < 85) {
-      await sendNotification(
-        '🎯 Presque prêt',
-        'Plus que quelques instants'
-      );
+      await sendNotification('🎯 Presque prêt', 'Plus que quelques instants');
       vibratePattern('milestone');
     }
-
-    // Commande prête
     if (order_status === 'ready' && trackingData?.order_status !== 'ready') {
-      await sendNotification(
-        '✨ Votre commande est prête !',
-        'Votre expérience culinaire vous attend 🍽️'
-      );
+      await sendNotification('✨ Votre commande est prête !', 'Votre expérience culinaire vous attend 🍽️');
       vibratePattern('complete');
     }
-
-    // Commande servie
     if (order_status === 'served' && trackingData?.order_status !== 'served') {
-      await sendNotification(
-        '🎉 Bon appétit !',
-        `Expérience complétée avec ${data.gamification.points.toLocaleString()} points`
-      );
+      await sendNotification('🎉 Bon appétit !', `Expérience complétée avec ${data.gamification.points.toLocaleString()} points`);
       vibratePattern('complete');
     }
   };
@@ -285,34 +272,23 @@ export default function OrderTrackingScreen() {
     console.log('🔄 Actualisation manuelle du suivi');
     setLoading(true);
     setError(null);
-    orderTrackingService.getOrderProgress(orderId)
+    orderTrackingService
+      .getOrderProgress(orderId)
       .then(handleTrackingUpdate)
       .catch((err) => {
-        setError("Impossible de charger les données");
+        setError('Impossible de charger les données');
+        showToast('error', 'Impossible de charger les données', 'Erreur');
         setLoading(false);
         console.error('Refresh error:', err);
       });
   };
 
-  const showDetailedStats = () => {
-    setShowStatsModal(true);
-  };
+  const showDetailedStats = () => setShowStatsModal(true);
 
+  // Toast InlineAlert
   const handleCallWaiter = () => {
-    Alert.alert(
-      '📞 Appeler le serveur',
-      'Voulez-vous demander de l\'aide à un membre du personnel ?',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Appeler',
-          onPress: () => {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            Alert.alert('✅', 'Un membre de notre équipe arrive bientôt !');
-          }
-        }
-      ]
-    );
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    showToast('success', "Un membre de notre équipe arrive bientôt !", '✅ Appel envoyé');
   };
 
   const handleShareProgress = async () => {
@@ -331,12 +307,11 @@ ${trackingData.gamification.message}
     `.trim();
 
     try {
-      await Share.share({
-        message,
-        title: 'Mon suivi de commande',
-      });
+      await Share.share({ message, title: 'Mon suivi de commande' });
+      showToast('info', 'Partagé avec succès', '📤 Partage');
     } catch (error) {
       console.error('Error sharing:', error);
+      showToast('error', "Le partage a échoué", 'Erreur');
     }
   };
 
@@ -352,19 +327,19 @@ ${trackingData.gamification.message}
     };
 
     return (
-      <Animated.View 
+      <Animated.View
         style={[
           styles.healthIndicator,
-          { 
+          {
             backgroundColor: health.color + '20',
             transform: [{ scale: health.status !== 'good' && health.status !== 'excellent' ? healthPulseAnim : 1 }]
           }
         ]}
       >
-        <Ionicons 
-          name={iconMap[health.status] as any} 
-          size={16} 
-          color={health.color} 
+        <Ionicons
+          name={iconMap[health.status] as any}
+          size={16}
+          color={health.color}
         />
         <Text style={[styles.healthText, { color: health.color }]}>
           {health.message}
@@ -417,7 +392,7 @@ ${trackingData.gamification.message}
             </TouchableOpacity>
           </View>
 
-          <Animated.ScrollView 
+          <Animated.ScrollView
             style={styles.modalContent}
             contentContainerStyle={styles.modalContentContainer}
           >
@@ -577,7 +552,7 @@ ${trackingData.gamification.message}
                     <View style={styles.confidenceMeter}>
                       <Text style={styles.confidenceLabel}>Précision</Text>
                       <View style={styles.confidenceBarContainer}>
-                        <View 
+                        <View
                           style={[
                             styles.confidenceBarFill,
                             { width: `${trackingData.completion_prediction.confidence}%` }
@@ -601,10 +576,23 @@ ${trackingData.gamification.message}
   if (!orderId) {
     return (
       <SafeAreaView style={styles.container}>
+        {/* 🔔 Zone d’alerte */}
+        <View style={styles.alertZone}>
+          {toast.visible && (
+            <InlineAlert
+              variant={toast.variant}
+              title={toast.title}
+              message={toast.message}
+              onDismiss={hideToast}
+              autoDismiss
+            />
+          )}
+        </View>
+
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle" size={48} color="#ef4444" />
           <Text style={styles.errorText}>Commande introuvable</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.backButton}
             onPress={() => router.back()}
           >
@@ -617,14 +605,14 @@ ${trackingData.gamification.message}
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* En-tête amélioré */}
-      <Animated.View 
+      {/* En-tête */}
+      <Animated.View
         style={[
           styles.header,
           { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }
         ]}
       >
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.headerButton}
           onPress={() => router.back()}
         >
@@ -654,30 +642,43 @@ ${trackingData.gamification.message}
         </View>
 
         <View style={styles.headerActions}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.headerButton}
             onPress={handleShareProgress}
             disabled={!trackingData}
           >
-            <Ionicons 
-              name="share-outline" 
-              size={24} 
-              color={trackingData ? "#1e293b" : "#cbd5e1"} 
+            <Ionicons
+              name="share-outline"
+              size={24}
+              color={trackingData ? "#1e293b" : "#cbd5e1"}
             />
           </TouchableOpacity>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.headerButton}
             onPress={showDetailedStats}
             disabled={!trackingData}
           >
-            <Ionicons 
-              name="stats-chart" 
-              size={24} 
-              color={trackingData ? "#1e293b" : "#cbd5e1"} 
+            <Ionicons
+              name="stats-chart"
+              size={24}
+              color={trackingData ? "#1e293b" : "#cbd5e1"}
             />
           </TouchableOpacity>
         </View>
       </Animated.View>
+
+      {/* 🔔 Zone d’alerte en haut, comme les autres écrans */}
+      <View style={styles.alertZone}>
+        {toast.visible && (
+          <InlineAlert
+            variant={toast.variant}
+            title={toast.title}
+            message={toast.message}
+            onDismiss={hideToast}
+            autoDismiss
+          />
+        )}
+      </View>
 
       {/* Contenu principal */}
       {loading && !trackingData && (
@@ -692,7 +693,7 @@ ${trackingData.gamification.message}
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle" size={48} color="#ef4444" />
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.retryButton}
             onPress={handleRefresh}
           >
@@ -704,15 +705,15 @@ ${trackingData.gamification.message}
 
       {trackingData && (
         <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
-          <GamifiedOrderTracking 
+          <GamifiedOrderTracking
             orderId={orderId}
             onRefresh={handleRefresh}
             trackingData={trackingData}
           />
 
-          {/* Actions rapides améliorées */}
+          {/* Actions rapides */}
           <View style={styles.actionsBar}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.actionButton}
               onPress={handleCallWaiter}
             >
@@ -720,7 +721,7 @@ ${trackingData.gamification.message}
               <Text style={styles.actionButtonText}>Assistance</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.actionButton, styles.actionButtonSecondary]}
               onPress={() => router.push(`/order/${orderId}`)}
             >
@@ -730,7 +731,7 @@ ${trackingData.gamification.message}
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.actionButton, styles.actionButtonTertiary]}
               onPress={showDetailedStats}
             >
@@ -753,6 +754,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',
+  },
+  alertZone: {
+    paddingHorizontal: 16,
+    marginTop: 8,
+    zIndex: 10,
   },
   header: {
     flexDirection: 'row',
