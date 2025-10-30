@@ -5,19 +5,19 @@ import {
   TextInput, 
   Switch, 
   TouchableOpacity, 
-  Alert, 
   ActivityIndicator,
   ScrollView,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { prepareGuestOrder, confirmGuestCash, getDraftStatus } from "@/services/guestOrderService";
 import { initPaymentSheet, presentPaymentSheet } from "@stripe/stripe-react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useCart } from "@/contexts/CartContext";
 import { Header } from "@/components/ui/Header";
 import { Card } from "@/components/ui/Card";
+import { Alert as InlineAlert } from "@/components/ui/Alert";
 
 export default function GuestCheckoutScreen() {
   const router = useRouter();
@@ -33,28 +33,50 @@ export default function GuestCheckoutScreen() {
   const [method, setMethod] = useState<"online" | "cash">("online");
   const [loading, setLoading] = useState(false);
 
-  // Récupère le panier courant
   const { cart, clearCart } = useCart();
 
-  // Validation améliorée du téléphone français
+  const [toast, setToast] = useState<{
+    visible: boolean;
+    variant: 'success' | 'error' | 'warning' | 'info';
+    title?: string;
+    message: string;
+  }>({ visible: false, variant: 'info', message: '' });
+
+  const showToast = (
+    variant: 'success' | 'error' | 'warning' | 'info',
+    message: string,
+    title?: string
+  ) => setToast({ visible: true, variant, message, title });
+
+  const hideToast = () => setToast((p) => ({ ...p, visible: false }));
+
   const validatePhone = (phoneNumber: string): boolean => {
-    // Accepte différents formats français
     const phoneRegex = /^(?:(?:\+33|0033|0)[1-9](?:[0-9]{8}))$/;
     const cleanPhone = phoneNumber.replace(/[\s.-]/g, '');
     return phoneRegex.test(cleanPhone);
   };
 
   const validateEmail = (email: string): boolean => {
-    if (!email) return true; // Email optionnel
+    if (!email) return true;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
 
-  // Vérification du panier
   if (cart.items.length === 0) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
         <Header title="Commande invité" leftIcon="arrow-back" onLeftPress={() => router.back()} />
+        <View style={{ paddingHorizontal: 16, marginTop: 8, zIndex: 10 }}>
+          {toast.visible && (
+            <InlineAlert
+              variant={toast.variant}
+              title={toast.title}
+              message={toast.message}
+              onDismiss={hideToast}
+              autoDismiss
+            />
+          )}
+        </View>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 16 }}>
           <Text style={{ fontSize: 16, color: '#666', textAlign: 'center', marginBottom: 16 }}>
             Votre panier est vide
@@ -70,7 +92,6 @@ export default function GuestCheckoutScreen() {
     );
   }
 
-  // Validation et mapping des items
   const items = cart.items.map((item) => {
     const menuItemId = Number(item.menuItemId || item.id);
     if (isNaN(menuItemId)) {
@@ -85,7 +106,7 @@ export default function GuestCheckoutScreen() {
 
   async function pollUntilOrder(draftId: string): Promise<number | null> {
     const started = Date.now();
-    const timeout = 30000; // 30 secondes au lieu de 20
+    const timeout = 30000;
     
     while (Date.now() - started < timeout) {
       await new Promise(r => setTimeout(r, 2000));
@@ -100,28 +121,26 @@ export default function GuestCheckoutScreen() {
   }
 
   async function onSubmit() {
-    // Validations
     if (!name.trim()) {
-      Alert.alert("Champs manquants", "Le nom est requis");
+      showToast("error", "Le nom est requis", "Champs manquants");
       return;
     }
     
     if (!validatePhone(phone)) {
-      Alert.alert("Téléphone invalide", "Veuillez saisir un numéro de téléphone français valide");
+      showToast("error", "Veuillez saisir un numéro de téléphone français valide", "Téléphone invalide");
       return;
     }
     
     if (email && !validateEmail(email)) {
-      Alert.alert("Email invalide", "Veuillez saisir une adresse email valide");
+      showToast("error", "Veuillez saisir une adresse email valide", "Email invalide");
       return;
     }
     
     if (!consent) {
-      Alert.alert("Consentement requis", "Veuillez accepter la politique de confidentialité.");
+      showToast("warning", "Veuillez accepter la politique de confidentialité.", "Consentement requis");
       return;
     }
 
-    // Validation des items du panier
     try {
       for (const item of cart.items) {
         const menuItemId = Number(item.menuItemId || item.id);
@@ -130,7 +149,7 @@ export default function GuestCheckoutScreen() {
         }
       }
     } catch (error: any) {
-      Alert.alert("Erreur", error.message);
+      showToast("error", error.message, "Erreur");
       return;
     }
 
@@ -142,7 +161,7 @@ export default function GuestCheckoutScreen() {
         table_number: tableNumber,
         items,
         customer_name: name.trim(),
-        phone: phone.replace(/[\s.-]/g, ''), // Nettoie le téléphone
+        phone: phone.replace(/[\s.-]/g, ''),
         email: email.trim() || undefined,
         payment_method: method,
         consent: true,
@@ -157,7 +176,6 @@ export default function GuestCheckoutScreen() {
         return;
       }
 
-      // Paiement en ligne avec Stripe
       if (!resp.payment_intent_client_secret) {
         throw new Error("Impossible d'initialiser le paiement");
       }
@@ -182,23 +200,19 @@ export default function GuestCheckoutScreen() {
         throw new Error(`Erreur de paiement: ${presentError.message}`);
       }
 
-      // Attendre la création de la commande via webhook
       const orderId = await pollUntilOrder(resp.draft_order_id);
       clearCart();
       
       if (orderId) {
         router.replace({ pathname: "/order/[id]", params: { id: String(orderId) } });
       } else {
-        Alert.alert(
-          "Paiement confirmé", 
-          "Votre commande est en cours de traitement. Consultez vos commandes.",
-          [{ text: "OK", onPress: () => router.replace("/orders") }]
-        );
+        showToast("success", "Votre commande est en cours de traitement. Consultez vos commandes.", "Paiement confirmé");
+        router.replace("/orders" as any);
       }
       
     } catch (error: any) {
       console.error('Guest checkout error:', error);
-      Alert.alert("Erreur", error?.message ?? "Échec de la commande. Veuillez réessayer.");
+      showToast("error", error?.message ?? "Échec de la commande. Veuillez réessayer.", "Erreur");
     } finally {
       setLoading(false);
     }
@@ -211,6 +225,18 @@ export default function GuestCheckoutScreen() {
         leftIcon="arrow-back" 
         onLeftPress={() => router.back()} 
       />
+
+      <View style={{ paddingHorizontal: 16, marginTop: 8, zIndex: 10 }}>
+        {toast.visible && (
+          <InlineAlert
+            variant={toast.variant}
+            title={toast.title}
+            message={toast.message}
+            onDismiss={hideToast}
+            autoDismiss
+          />
+        )}
+      </View>
       
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -218,7 +244,6 @@ export default function GuestCheckoutScreen() {
       >
         <ScrollView contentContainerStyle={{ padding: 16 }}>
           
-          {/* Résumé du panier */}
           <Card style={{ marginBottom: 16 }}>
             <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 12 }}>
               Votre commande
@@ -233,7 +258,6 @@ export default function GuestCheckoutScreen() {
             )}
           </Card>
 
-          {/* Informations client */}
           <Card style={{ marginBottom: 16 }}>
             <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 12 }}>
               Vos informations
@@ -274,7 +298,6 @@ export default function GuestCheckoutScreen() {
             />
           </Card>
 
-          {/* Mode de paiement */}
           <Card style={{ marginBottom: 16 }}>
             <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 12 }}>
               Mode de paiement
@@ -316,7 +339,6 @@ export default function GuestCheckoutScreen() {
             )}
           </Card>
 
-          {/* Consentement */}
           <Card style={{ marginBottom: 24 }}>
             <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
               <Switch 
@@ -332,7 +354,6 @@ export default function GuestCheckoutScreen() {
             </View>
           </Card>
 
-          {/* Bouton de validation */}
           <TouchableOpacity 
             disabled={loading} 
             onPress={onSubmit} 

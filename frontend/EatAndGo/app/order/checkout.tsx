@@ -1,9 +1,9 @@
+// checkout.tsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   ScrollView,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,6 +20,7 @@ import { Header } from '@/components/ui/Header';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Alert as InlineAlert } from '@/components/ui/Alert';
 
 // Services & Utils
 import { clientOrderService } from '@/services/clientOrderService';
@@ -51,6 +52,22 @@ export default function CheckoutScreen() {
     tableNumber || cart.tableNumber || ''
   );
 
+  // 🔔 Toast / Alert custom
+  const [toast, setToast] = useState<{
+    visible: boolean;
+    variant: 'success' | 'error' | 'warning' | 'info';
+    title?: string;
+    message: string;
+  }>({ visible: false, variant: 'info', message: '' });
+
+  const showToast = (
+    variant: 'success' | 'error' | 'warning' | 'info',
+    message: string,
+    title?: string
+  ) => setToast({ visible: true, variant, message, title });
+
+  const hideToast = () => setToast((p) => ({ ...p, visible: false }));
+
   // Hook de session collaborative
   const {
     session,
@@ -71,6 +88,7 @@ export default function CheckoutScreen() {
       }
     };
     loadQRSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Validation du panier
@@ -117,14 +135,13 @@ export default function CheckoutScreen() {
     const validation = validateCheckout();
     
     if (!validation.valid) {
-      Alert.alert('Erreur', validation.error);
+      showToast('error', validation.error || '', 'Erreur');
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      // Préparer le payload de base
       const payload: any = {
         restaurant: validation.restaurantId,
         order_type: 'dine_in' as const,
@@ -136,7 +153,6 @@ export default function CheckoutScreen() {
         items: cart.items,
       };
 
-      // Ajouter le contexte de session si disponible
       const context: any = {};
       if (session && currentParticipant) {
         context.session_id = session.id;
@@ -150,50 +166,38 @@ export default function CheckoutScreen() {
         participantId: currentParticipant?.id
       });
 
-      // Créer la commande avec le contexte de session
       const order = await clientOrderService.createFromCart(payload);
 
       if (!order || !order.id) {
         console.warn('⚠️ Order created but no data returned');
         clearCart();
-        Alert.alert(
-          'Commande passée !',
+        showToast(
+          'success',
           isInSession 
             ? 'Votre commande a été ajoutée à la session collaborative.'
             : 'Votre commande a été envoyée au restaurant.',
-          [{ text: 'OK', onPress: () => router.replace('/orders' as any) }]
+          'Commande passée !'
         );
+        router.replace('/orders' as any);
         return;
       }
 
       console.log('✅ Order created successfully:', order);
       clearCart();
 
-      // Navigation selon le contexte
       if (isInSession && session) {
-        Alert.alert(
-          'Commande ajoutée !',
+        showToast(
+          'success',
           `Votre commande #${order.order_number} a été ajoutée à la session collaborative.`,
-          [
-            { 
-              text: 'Voir la session', 
-              onPress: () => router.replace(`/client/session/${session.id}` as any) 
-            }
-          ]
+          'Commande ajoutée !'
         );
+        router.replace(`/client/session/${session.id}` as any);
       } else {
         router.replace(`/order/${order.id}` as any);
-        Alert.alert(
-          'Commande passée !',
-          'Votre commande a été envoyée au restaurant. Vous recevrez une notification quand elle sera prête.'
-        );
       }
     } catch (error: any) {
       console.error('❌ Error creating order:', error);
-      Alert.alert(
-        'Erreur',
-        error.message || 'Erreur lors de la création de la commande'
-      );
+      showToast('error', error?.message || 'Erreur lors de la création de la commande', 'Erreur');
     } finally {
       setIsSubmitting(false);
     }
@@ -213,7 +217,6 @@ export default function CheckoutScreen() {
     body: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
   };
 
-  // Chargement de la session
   if (sessionId && sessionLoading) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
@@ -222,6 +225,17 @@ export default function CheckoutScreen() {
           leftIcon="arrow-back" 
           onLeftPress={() => router.back()} 
         />
+        <View style={{ paddingHorizontal: 16, marginTop: 8, zIndex: 10 }}>
+          {toast.visible && (
+            <InlineAlert
+              variant={toast.variant}
+              title={toast.title}
+              message={toast.message}
+              onDismiss={hideToast}
+              autoDismiss
+            />
+          )}
+        </View>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={{ 
@@ -236,7 +250,6 @@ export default function CheckoutScreen() {
     );
   }
 
-  // Panier vide
   if (cart.items.length === 0) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
@@ -245,6 +258,17 @@ export default function CheckoutScreen() {
           leftIcon="arrow-back" 
           onLeftPress={() => router.back()} 
         />
+        <View style={{ paddingHorizontal: 16, marginTop: 8, zIndex: 10 }}>
+          {toast.visible && (
+            <InlineAlert
+              variant={toast.variant}
+              title={toast.title}
+              message={toast.message}
+              onDismiss={hideToast}
+              autoDismiss
+            />
+          )}
+        </View>
         <View style={{ 
           flex: 1, 
           justifyContent: 'center', 
@@ -285,8 +309,19 @@ export default function CheckoutScreen() {
         onLeftPress={() => router.back()} 
       />
 
+      <View style={{ paddingHorizontal: 16, marginTop: 8, zIndex: 10 }}>
+        {toast.visible && (
+          <InlineAlert
+            variant={toast.variant}
+            title={toast.title}
+            message={toast.message}
+            onDismiss={hideToast}
+            autoDismiss
+          />
+        )}
+      </View>
+
       <ScrollView contentContainerStyle={{ padding: spacing.container }}>
-        {/* Informations de session collaborative */}
         {isInSession && session && (
           <Card style={{ 
             marginBottom: spacing.card, 
@@ -327,7 +362,6 @@ export default function CheckoutScreen() {
           </Card>
         )}
 
-        {/* Restaurant et table */}
         <Card style={{ marginBottom: spacing.card }}>
           <Text style={{ 
             fontSize: fontSize.title, 
@@ -371,7 +405,6 @@ export default function CheckoutScreen() {
           </View>
         </Card>
 
-        {/* Formulaire client */}
         <Card style={{ marginBottom: spacing.card }}>
           <Text style={{ 
             fontSize: fontSize.title, 
@@ -401,7 +434,6 @@ export default function CheckoutScreen() {
           />
         </Card>
 
-        {/* Résumé du panier */}
         <Card style={{ marginBottom: spacing.card }}>
           <Text style={{ 
             fontSize: fontSize.title, 
@@ -476,7 +508,6 @@ export default function CheckoutScreen() {
           </View>
         </Card>
 
-        {/* Bouton de validation */}
         <Button
           title={isSubmitting ? "Envoi en cours..." : isInSession ? "Ajouter à la session" : "Passer commande"}
           onPress={handleSubmitOrder}
