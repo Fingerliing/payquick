@@ -5,13 +5,9 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Alert,
   RefreshControl,
   Image,
   Modal,
-  Switch,
-  useWindowDimensions,
-  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -34,6 +30,7 @@ import {
   SHADOWS,
 } from '@/utils/designSystem';
 import { MultiPeriodHoursEditor } from '@/components/restaurant/OpeningHoursEditor';
+import { Alert as InlineAlert } from '@/components/ui/Alert';
 
 // Hook personnalisé pour la gestion de l'édition
 const useRestaurantEditing = (restaurant: any) => {
@@ -123,8 +120,23 @@ const RestaurantDetailPage = () => {
 
   // Hooks responsifs
   const screenType = useScreenType();
-  const { width } = useWindowDimensions();
   const styles = createResponsiveStyles(screenType);
+
+  // Toast / Alert custom
+  const [toast, setToast] = useState<{
+    visible: boolean;
+    variant: 'success' | 'error' | 'warning' | 'info';
+    title?: string;
+    message: string;
+  }>({ visible: false, variant: 'info', message: '' });
+
+  const showToast = (
+    variant: 'success' | 'error' | 'warning' | 'info',
+    message: string,
+    title?: string
+  ) => setToast({ visible: true, variant, message, title });
+
+  const hideToast = () => setToast((p) => ({ ...p, visible: false }));
 
   // Configuration responsive
   const layoutConfig = {
@@ -134,7 +146,6 @@ const RestaurantDetailPage = () => {
       { mobile: 220, tablet: 280, desktop: 320 },
       screenType
     ),
-    isTabletLandscape: screenType === 'tablet' && width > 1000,
     maxContentWidth: screenType === 'desktop' ? 1200 : undefined,
   };
 
@@ -189,17 +200,17 @@ const RestaurantDetailPage = () => {
   // Gestionnaires d'événements mémorisés
   const handleEditSubmit = useCallback(async () => {
     if (!id || typeof id !== 'string') {
-      Alert.alert('Erreur', 'ID du restaurant invalide');
+      showToast('error', 'ID du restaurant invalide', 'Erreur');
       return;
     }
   
     try {
       await updateRestaurant(id, editForm);
       setIsEditing(false);
-      Alert.alert('Succès', 'Restaurant mis à jour avec succès');
-    } catch (error) {
-      console.error('❌ Erreur:', error);
-      Alert.alert('Erreur', 'Impossible de mettre à jour le restaurant');
+      showToast('success', 'Restaurant mis à jour avec succès', 'Succès');
+    } catch (e) {
+      console.error('❌ Erreur:', e);
+      showToast('error', 'Impossible de mettre à jour le restaurant', 'Erreur');
     }
   }, [id, editForm, updateRestaurant]);
 
@@ -249,9 +260,10 @@ const RestaurantDetailPage = () => {
       await updateRestaurant(id, updatedData);
       updateField('openingHours', tempHours);
       setShowHoursEditModal(false);
-    } catch (error) {
-      console.error('❌ Erreur:', error);
-      Alert.alert('Erreur', 'Impossible de sauvegarder les horaires');
+      showToast('success', 'Horaires enregistrés', 'Succès');
+    } catch (e) {
+      console.error('❌ Erreur:', e);
+      showToast('error', 'Impossible de sauvegarder les horaires', 'Erreur');
     }
   }, [tempHours, editForm, id, updateRestaurant, updateField]);
 
@@ -290,12 +302,12 @@ const RestaurantDetailPage = () => {
 
   const handleCloseRestaurant = useCallback(async () => {
     if (!id || typeof id !== 'string') {
-      Alert.alert('Erreur', 'ID du restaurant invalide');
+      showToast('error', 'ID du restaurant invalide', 'Erreur');
       return;
     }
 
     if (!closeForm.reason.trim()) {
-      Alert.alert('Erreur', 'Veuillez indiquer une raison pour la fermeture');
+      showToast('error', 'Veuillez indiquer une raison pour la fermeture', 'Erreur');
       return;
     }
     
@@ -314,11 +326,13 @@ const RestaurantDetailPage = () => {
         await loadRestaurant(id);
         setShowCloseModal(false);
         resetCloseForm();
-        Alert.alert('Succès', 'Restaurant fermé temporairement');
+        showToast('success', 'Restaurant fermé temporairement', 'Succès');
+      } else {
+        showToast('error', 'Impossible de fermer le restaurant', 'Erreur');
       }
-    } catch (error) {
-      console.error('Erreur lors de la fermeture:', error);
-      Alert.alert('Erreur', 'Impossible de fermer le restaurant');
+    } catch (e) {
+      console.error('Erreur lors de la fermeture:', e);
+      showToast('error', 'Impossible de fermer le restaurant', 'Erreur');
     } finally {
       setIsClosing(false);
     }
@@ -326,7 +340,7 @@ const RestaurantDetailPage = () => {
 
   const handleReopenRestaurant = useCallback(async () => {
     if (!id || typeof id !== 'string') {
-      Alert.alert('Erreur', 'ID du restaurant invalide');
+      showToast('error', 'ID du restaurant invalide', 'Erreur');
       return;
     }
 
@@ -337,17 +351,19 @@ const RestaurantDetailPage = () => {
       
       if (response.ok) {
         await loadRestaurant(id);
-        Alert.alert('Succès', 'Restaurant rouvert');
+        showToast('success', 'Restaurant rouvert', 'Succès');
+      } else {
+        showToast('error', 'Impossible de rouvrir le restaurant', 'Erreur');
       }
-    } catch (error) {
-      console.error('Erreur lors de la réouverture:', error);
-      Alert.alert('Erreur', 'Impossible de rouvrir le restaurant');
+    } catch (e) {
+      console.error('Erreur lors de la réouverture:', e);
+      showToast('error', 'Impossible de rouvrir le restaurant', 'Erreur');
     }
   }, [id, loadRestaurant]);
 
   const handleImagePicker = useCallback(async () => {
     if (!id || typeof id !== 'string') {
-      Alert.alert('Erreur', 'ID du restaurant invalide');
+      showToast('error', 'ID du restaurant invalide', 'Erreur');
       return;
     }
 
@@ -379,15 +395,18 @@ const RestaurantDetailPage = () => {
           
           if (response.ok) {
             await loadRestaurant(id);
-            Alert.alert('Succès', 'Image mise à jour');
+            showToast('success', 'Image mise à jour', 'Succès');
+          } else {
+            showToast('error', "Impossible de mettre à jour l'image", 'Erreur');
           }
-        } catch (error) {
-          console.error('Erreur upload image:', error);
-          Alert.alert('Erreur', 'Impossible de mettre à jour l\'image');
+        } catch (e) {
+          console.error('Erreur upload image:', e);
+          showToast('error', "Impossible de mettre à jour l'image", 'Erreur');
         }
       }
-    } catch (error) {
-      console.error('Erreur sélection image:', error);
+    } catch (e) {
+      console.error('Erreur sélection image:', e);
+      showToast('error', 'Erreur lors de la sélection de l’image', 'Erreur');
     }
   }, [id, loadRestaurant]);
 
@@ -397,8 +416,8 @@ const RestaurantDetailPage = () => {
     setRefreshing(true);
     try {
       await loadRestaurant(id);
-    } catch (error) {
-      console.error('Erreur lors du refresh:', error);
+    } catch (e) {
+      console.error('Erreur lors du refresh:', e);
     } finally {
       setRefreshing(false);
     }
@@ -456,12 +475,10 @@ const RestaurantDetailPage = () => {
       paddingBottom: layoutConfig.containerPadding + 30,
     },
 
-    // Header Section avec gradient
     headerSection: {
       marginBottom: layoutConfig.cardSpacing * 1.5,
     },
 
-    // Badge de statut amélioré
     statusBadge: {
       alignSelf: 'flex-start' as const,
       flexDirection: 'row' as const,
@@ -483,15 +500,14 @@ const RestaurantDetailPage = () => {
       marginLeft: 6,
     },
 
-    // Layout responsive
     layoutContainer: {
-      flexDirection: layoutConfig.isTabletLandscape ? 'row' as const : 'column' as const,
+      flexDirection: screenType === 'tablet' ? ('column' as const) : ('column' as const),
       gap: layoutConfig.cardSpacing * 1.5,
       alignItems: 'flex-start' as const,
     },
 
     mainColumn: {
-      flex: layoutConfig.isTabletLandscape ? 2 : 1,
+      flex: 1,
       width: '100%' as const,
     },
 
@@ -502,7 +518,6 @@ const RestaurantDetailPage = () => {
       width: '100%' as const,
     },
 
-    // Cartes améliorées avec accent doré
     card: {
       backgroundColor: COLORS.surface,
       borderRadius: BORDER_RADIUS.xl,
@@ -535,7 +550,6 @@ const RestaurantDetailPage = () => {
       ...SHADOWS.md,
     },
 
-    // Sections avec divider subtil
     sectionTitle: {
       fontSize: fontSize.subtitle,
       fontWeight: TYPOGRAPHY.fontWeight.bold,
@@ -554,7 +568,6 @@ const RestaurantDetailPage = () => {
       borderBottomColor: COLORS.variants.secondary[100],
     },
 
-    // Image améliorée avec overlay
     imageContainer: {
       position: 'relative' as const,
       marginBottom: layoutConfig.cardSpacing * 0.75,
@@ -564,17 +577,6 @@ const RestaurantDetailPage = () => {
       width: '100%' as const,
       height: layoutConfig.imageHeight,
       borderRadius: BORDER_RADIUS.xl,
-    },
-
-    imageOverlay: {
-      position: 'absolute' as const,
-      bottom: 0,
-      left: 0,
-      right: 0,
-      padding: 16,
-      borderBottomLeftRadius: BORDER_RADIUS.xl,
-      borderBottomRightRadius: BORDER_RADIUS.xl,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
     },
 
     imagePlaceholder: {
@@ -589,7 +591,6 @@ const RestaurantDetailPage = () => {
       borderStyle: 'dashed' as const,
     },
 
-    // Formulaires améliorés
     inputLabel: {
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
       color: COLORS.text.primary,
@@ -623,14 +624,12 @@ const RestaurantDetailPage = () => {
       ...SHADOWS.sm,
     },
 
-    // Actions
     actionButtonsContainer: {
       flexDirection: 'row' as const,
       marginBottom: layoutConfig.cardSpacing * 1.5,
       gap: layoutConfig.cardSpacing / 2,
     },
 
-    // Informations avec icônes
     infoRow: {
       flexDirection: 'row' as const,
       alignItems: 'flex-start' as const,
@@ -665,7 +664,6 @@ const RestaurantDetailPage = () => {
       lineHeight: fontSize.body * 1.4,
     },
 
-    // Horaires améliorés
     scheduleRow: {
       flexDirection: 'row' as const,
       alignItems: 'flex-start' as const,
@@ -694,7 +692,6 @@ const RestaurantDetailPage = () => {
       lineHeight: fontSize.small * 1.5,
     },
 
-    // Modal amélioré
     modalOverlay: {
       flex: 1,
       backgroundColor: 'rgba(0, 0, 0, 0.6)',
@@ -728,7 +725,6 @@ const RestaurantDetailPage = () => {
       marginTop: layoutConfig.cardSpacing * 1.5,
     },
 
-    // Quick action buttons premium
     quickActionButton: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
@@ -753,20 +749,6 @@ const RestaurantDetailPage = () => {
       flex: 1,
     },
 
-    // Stats badge
-    statsBadge: {
-      paddingHorizontal: 10,
-      paddingVertical: 5,
-      borderRadius: BORDER_RADIUS.md,
-      ...SHADOWS.sm,
-    },
-
-    statsBadgeText: {
-      fontSize: fontSize.small,
-      fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    },
-
-    // Divider
     divider: {
       height: 1,
       backgroundColor: COLORS.border.light,
@@ -790,6 +772,17 @@ const RestaurantDetailPage = () => {
     return (
       <SafeAreaView style={dynamicStyles.container}>
         <Header title="Restaurant" showBackButton onLeftPress={() => router.back()} />
+        <View style={{ paddingHorizontal: 16, marginTop: 8, zIndex: 10 }}>
+          {toast.visible && (
+            <InlineAlert
+              variant={toast.variant}
+              title={toast.title}
+              message={toast.message}
+              onDismiss={hideToast}
+              autoDismiss
+            />
+          )}
+        </View>
         <Loading fullScreen text="Chargement du restaurant..." />
       </SafeAreaView>
     );
@@ -799,6 +792,17 @@ const RestaurantDetailPage = () => {
     return (
       <SafeAreaView style={dynamicStyles.container}>
         <Header title="Restaurant" showBackButton onLeftPress={() => router.back()} />
+        <View style={{ paddingHorizontal: 16, marginTop: 8, zIndex: 10 }}>
+          {toast.visible && (
+            <InlineAlert
+              variant={toast.variant}
+              title={toast.title}
+              message={toast.message}
+              onDismiss={hideToast}
+              autoDismiss
+            />
+          )}
+        </View>
         <View style={[dynamicStyles.content, { flex: 1, justifyContent: 'center', alignItems: 'center' }]}>
           <Ionicons name="restaurant-outline" size={64} color={COLORS.text.light} style={{ marginBottom: 16 }} />
           <Text style={[dynamicStyles.sectionTitle, { textAlign: 'center', marginBottom: 8 }]}>
@@ -825,6 +829,18 @@ const RestaurantDetailPage = () => {
         showBackButton
         onLeftPress={() => router.back()}
       />
+
+      <View style={{ paddingHorizontal: 16, marginTop: 8, zIndex: 10 }}>
+        {toast.visible && (
+          <InlineAlert
+            variant={toast.variant}
+            title={toast.title}
+            message={toast.message}
+            onDismiss={hideToast}
+            autoDismiss
+          />
+        )}
+      </View>
 
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -1223,13 +1239,9 @@ const RestaurantDetailPage = () => {
               </View>
 
               {/* Colonne secondaire */}
-              {layoutConfig.isTabletLandscape && (
-                <View style={dynamicStyles.sideColumn}>
-                  {renderSideContent()}
-                </View>
-              )}
-
-              {!layoutConfig.isTabletLandscape && renderSideContent()}
+              <View style={dynamicStyles.sideColumn}>
+                {renderSideContent()}
+              </View>
               
             </View>
           </View>
@@ -1315,7 +1327,7 @@ const RestaurantDetailPage = () => {
         animationType="slide"
         onRequestClose={handleCloseHoursModal}
       >
-        <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.overlay }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' }}>
           <View style={{ 
             flex: 1, 
             backgroundColor: COLORS.surface, 
@@ -1483,7 +1495,7 @@ const RestaurantDetailPage = () => {
                   }}>
                     {currentRestaurant.is_stripe_active ? 'Stripe activé' : 'Stripe inactif'}
                   </Text>
-                </View>
+                </View >
                 <Ionicons 
                   name={currentRestaurant.is_stripe_active ? "checkmark-circle" : "close-circle"} 
                   size={28} 

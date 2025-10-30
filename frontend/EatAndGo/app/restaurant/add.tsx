@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   View,
   ScrollView,
-  Alert,
   TouchableOpacity,
   Image,
   Text,
@@ -26,6 +25,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Loading } from '@/components/ui/Loading';
 import { MultiPeriodHoursEditor } from '@/components/restaurant/OpeningHoursEditor';
+import { Alert as InlineAlert } from '@/components/ui/Alert';
 
 // Design System
 import {
@@ -229,6 +229,21 @@ export default function AddRestaurantScreen() {
   const [image, setImage] = useState<string | null>(null);
   const [errors, setErrors] = useState<FormValidationErrors>({});
 
+  const [toast, setToast] = useState<{
+    visible: boolean;
+    variant: 'success' | 'error' | 'warning' | 'info';
+    title?: string;
+    message: string;
+  }>({ visible: false, variant: 'info', message: '' });
+
+  const showToast = (
+    variant: 'success' | 'error' | 'warning' | 'info',
+    message: string,
+    title?: string
+  ) => setToast({ visible: true, variant, message, title });
+
+  const hideToast = () => setToast((p) => ({ ...p, visible: false }));
+
   const [formData, setFormData] = useState<CreateRestaurantData>({
     name: '',
     description: '',
@@ -270,7 +285,7 @@ export default function AddRestaurantScreen() {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== ImagePicker.PermissionStatus.GRANTED) {
-        Alert.alert('Permission refusée', "Permission d'accès aux photos requise");
+        showToast('error', "Permission d'accès aux photos requise", 'Permission refusée');
         return;
       }
 
@@ -285,8 +300,8 @@ export default function AddRestaurantScreen() {
       if (!result.canceled) {
         setImage(result.assets[0].uri);
       }
-    } catch (error) {
-      Alert.alert('Erreur', "Impossible de sélectionner l'image");
+    } catch {
+      showToast('error', "Impossible de sélectionner l'image", 'Erreur');
     }
   };
 
@@ -294,7 +309,7 @@ export default function AddRestaurantScreen() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission refusée', 'Permission de géolocalisation requise');
+        showToast('error', 'Permission de géolocalisation requise', 'Permission refusée');
         return;
       }
 
@@ -314,8 +329,8 @@ export default function AddRestaurantScreen() {
         updateField('latitude', location.coords.latitude);
         updateField('longitude', location.coords.longitude);
       }
-    } catch (error) {
-      Alert.alert('Erreur', 'Impossible de détecter votre position');
+    } catch {
+      showToast('error', 'Impossible de détecter votre position', 'Erreur');
     } finally {
       setIsLoading(false);
     }
@@ -326,7 +341,7 @@ export default function AddRestaurantScreen() {
     const validationErrors = validateRestaurantForm(formData);
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
-      Alert.alert('Champs manquants', 'Merci de corriger les champs en rouge.');
+      showToast('error', 'Merci de corriger les champs en rouge.', 'Champs manquants');
       return;
     }
 
@@ -375,11 +390,12 @@ export default function AddRestaurantScreen() {
       await createRestaurant(restaurantData);
 
       const mealVoucherStatus = formData.accepts_meal_vouchers ? 'acceptés' : 'non acceptés';
-      Alert.alert(
-        'Succès',
-        `Restaurant créé avec succès !\n\nStatut actuel: ${currentStatus ? 'Ouvert' : 'Fermé'}\nTitres-restaurant: ${mealVoucherStatus}`,
-        [{ text: 'OK', onPress: () => router.back() }]
+      showToast(
+        'success',
+        `Restaurant créé avec succès !\nStatut actuel: ${currentStatus ? 'Ouvert' : 'Fermé'}\nTitres-restaurant: ${mealVoucherStatus}`,
+        'Succès'
       );
+      router.back();
     } catch (error: any) {
       let errorMessage = 'Impossible de créer le restaurant';
 
@@ -410,7 +426,7 @@ export default function AddRestaurantScreen() {
         errorMessage = error.message;
       }
 
-      Alert.alert('Erreur', errorMessage);
+      showToast('error', errorMessage, 'Erreur');
     } finally {
       setIsLoading(false);
     }
@@ -560,6 +576,18 @@ export default function AddRestaurantScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.background, paddingTop: insets.top }}>
       <Header title="Ajouter un restaurant" showBackButton />
+
+      <View style={{ paddingHorizontal: 16, marginTop: 8, zIndex: 10 }}>
+        {toast.visible && (
+          <InlineAlert
+            variant={toast.variant}
+            title={toast.title}
+            message={toast.message}
+            onDismiss={hideToast}
+            autoDismiss
+          />
+        )}
+      </View>
 
       <KeyboardAvoidingView
         behavior={Platform.select({ ios: 'padding', android: undefined })}
