@@ -30,7 +30,7 @@ import { useResponsive } from '@/utils/responsive';
 interface Props {
   restaurantId: string;
   selectedDate?: Date;
-  onNavigateToCreate: () => void;
+  onNavigateToCreate: (selectedDate: Date) => void;
   onNavigateToEdit: (menuId: string) => void;
   onMenuUpdated?: () => void;
 }
@@ -226,7 +226,7 @@ export const DailyMenuManager: React.FC<Props> = ({
               ? "Créez le menu du jour pour commencer"
               : `Créez un menu pour le ${format(selectedDate, 'dd MMMM yyyy', { locale: fr })}`}
           </Text>
-          <TouchableOpacity style={styles.createButton} onPress={onNavigateToCreate}>
+          <TouchableOpacity style={styles.createButton} onPress={() => onNavigateToCreate(selectedDate)}>
             <View style={styles.createButtonContent}>
               <Ionicons name="add-circle" size={20} color={COLORS.surface} />
               <Text style={styles.createButtonText}>Créer le menu</Text>

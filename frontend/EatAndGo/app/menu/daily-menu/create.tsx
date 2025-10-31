@@ -58,19 +58,22 @@ type LocalAlert = {
 };
 
 export default function CreateDailyMenuScreen() {
-  const { restaurantId } = useLocalSearchParams<{ restaurantId: string }>();
+  const { restaurantId, selectedDate: selectedDateParam } = useLocalSearchParams<{ restaurantId: string; selectedDate?: string }>();
   const screenType = useScreenType();
   const responsive = useResponsive();
   const insets = useSafeAreaInsets();
   const styles = createStyles(screenType, responsive, insets);
 
+  // Initialiser avec la date passée en paramètre ou aujourd'hui
+  const initialDate = selectedDateParam ? new Date(selectedDateParam) : new Date();
+
   // États
+  const [selectedDate, setSelectedDate] = useState(initialDate);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [title, setTitle] = useState(`Menu du ${format(new Date(), 'dd MMMM', { locale: fr })}`);
+  const [title, setTitle] = useState(`Menu du ${format(initialDate, 'dd MMMM', { locale: fr })}`);
   const [description, setDescription] = useState('');
   const [specialPrice, setSpecialPrice] = useState('');
-  const [selectedDate, setSelectedDate] = useState(new Date());
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [selectedItems, setSelectedItems] = useState<Map<string, SelectedItem>>(new Map());
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
@@ -97,6 +100,11 @@ export default function CreateDailyMenuScreen() {
   useEffect(() => {
     loadMenuItems();
   }, [restaurantId]);
+
+  useEffect(() => {
+    // Mettre à jour automatiquement le titre quand la date sélectionnée change
+    setTitle(`Menu du ${format(selectedDate, 'dd MMMM', { locale: fr })}`);
+  }, [selectedDate]);
 
   const loadMenuItems = async () => {
     if (!restaurantId) return;

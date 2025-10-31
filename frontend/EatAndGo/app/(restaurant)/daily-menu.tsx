@@ -384,7 +384,13 @@ function DailyMenuScreenContent({ restaurant }: { restaurant: NonNullable<Return
         <DailyMenuManager
           restaurantId={restaurant.id}
           selectedDate={selectedDate}
-          onNavigateToCreate={() => router.push('/menu/daily-menu/create')}
+          onNavigateToCreate={(selectedDate) => router.push({
+            pathname: '/menu/daily-menu/create',
+            params: { 
+              restaurantId: restaurant.id, 
+              selectedDate: selectedDate.toISOString() 
+            }
+          })}
           onNavigateToEdit={(menuId) => router.push(`/menu/daily-menu/edit/${menuId}`)}
           onMenuUpdated={() => invalidateCache(selectedDate)}
         />
