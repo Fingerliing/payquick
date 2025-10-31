@@ -14,7 +14,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { format, subDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { LinearGradient } from 'expo-linear-gradient';
 import { dailyMenuService, DailyMenu, DailyMenuItem } from '@/services/dailyMenuService';
 import {
   COLORS,
@@ -25,7 +24,6 @@ import {
   useScreenType,
   getResponsiveValue,
   createResponsiveStyles,
-  ANIMATIONS,
 } from '@/utils/designSystem';
 import { useResponsive } from '@/utils/responsive';
 
@@ -37,12 +35,6 @@ interface Props {
   onMenuUpdated?: () => void;
 }
 
-/**
- * IMPORTANT — Correctifs inclus:
- * 1) Keys vraiment uniques par item (namespacing par catégorie) pour éviter
- *    "The specified child already has a parent" (Fabric) côté Android.
- * 2) Chargement du menu par date sélectionnée au lieu de getTodayMenu.
- */
 export const DailyMenuManager: React.FC<Props> = ({
   restaurantId,
   selectedDate = new Date(),
@@ -56,27 +48,21 @@ export const DailyMenuManager: React.FC<Props> = ({
   const [isTogglingItem, setIsTogglingItem] = useState<string | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
-  // Hooks responsive
   const screenType = useScreenType();
   const responsive = useResponsive();
   const styles = createStyles(screenType, responsive);
 
   useEffect(() => {
     loadDailyMenu();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restaurantId, selectedDate?.toISOString?.()]);
 
   const loadDailyMenu = async () => {
     try {
       setIsLoading(true);
       const dateString = format(selectedDate, 'yyyy-MM-dd');
-
-      // ✅ Correctif: charger par date sélectionnée
       const menu = await dailyMenuService.getMenuByDate(Number(restaurantId), dateString);
-
       setDailyMenu(menu);
 
-      // Étendre toutes les catégories par défaut sur desktop
       if (responsive.isDesktop && menu?.items_by_category) {
         setExpandedCategories(new Set(menu.items_by_category.map((cat: any) => cat.name)));
       }
@@ -130,7 +116,6 @@ export const DailyMenuManager: React.FC<Props> = ({
             try {
               const previousDate = format(subDays(selectedDate, 1), 'yyyy-MM-dd');
               const currentDate = format(selectedDate, 'yyyy-MM-dd');
-
               const previousMenu = await dailyMenuService.getMenuByDate(Number(restaurantId), previousDate);
 
               if (previousMenu) {
@@ -169,7 +154,7 @@ export const DailyMenuManager: React.FC<Props> = ({
         </Text>
         {!!item.special_note && (
           <Text style={styles.specialNote}>
-            <Ionicons name="information-circle" size={12} color={COLORS.text.golden} />{' '}
+            <Ionicons name="information-circle" size={12} color={COLORS.text.secondary} />{' '}
             {item.special_note}
           </Text>
         )}
@@ -203,16 +188,15 @@ export const DailyMenuManager: React.FC<Props> = ({
     return (
       <View key={`section::${categoryIndex}::${category.name}`} style={styles.categorySection} collapsable={false}>
         <TouchableOpacity style={styles.categoryHeader} onPress={() => toggleCategory(category.name)} activeOpacity={0.7}>
-          <LinearGradient colors={[COLORS.goldenSurface, COLORS.surface]} style={styles.categoryGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-            <View style={styles.categoryTitleContainer}>
-              <Text style={styles.categoryIcon}>{category.icon}</Text>
-              <Text style={styles.categoryTitle}>{category.name.toUpperCase()}</Text>
+          <View style={styles.categoryTitleContainer}>
+            <Text style={styles.categoryTitle}>{category.name}</Text>
+            {itemCount > 0 && (
               <View style={styles.categoryBadge}>
-                <Text style={styles.categoryCount}>{availableCount}/{itemCount}</Text>
+                <Text style={styles.categoryBadgeText}>{availableCount}/{itemCount}</Text>
               </View>
-            </View>
-            <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={20} color={COLORS.text.golden} />
-          </LinearGradient>
+            )}
+          </View>
+          <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={20} color={COLORS.text.secondary} />
         </TouchableOpacity>
 
         {isExpanded && (
@@ -231,27 +215,24 @@ export const DailyMenuManager: React.FC<Props> = ({
 
   const renderEmptyState = () => {
     const isDateToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
-    const isFutureDate = selectedDate > new Date();
 
     return (
       <View style={styles.noMenuContainer}>
-        <LinearGradient colors={COLORS.gradients.subtleGold} style={styles.emptyStateGradient}>
-          <Ionicons name="restaurant" size={64} color={COLORS.variants.secondary[400]} />
-          <Text style={styles.noMenuTitle}>{isFutureDate ? 'Menu non configuré' : 'Aucun menu du jour'}</Text>
+        <View style={styles.emptyStateContent}>
+          <Ionicons name="restaurant-outline" size={48} color={COLORS.text.secondary} />
+          <Text style={styles.noMenuTitle}>Aucun menu pour cette date</Text>
           <Text style={styles.noMenuSubtitle}>
             {isDateToday
-              ? 'Créez votre menu du jour pour attirer plus de clients'
-              : isFutureDate
-              ? `Planifiez le menu pour le ${format(selectedDate, 'dd MMMM', { locale: fr })}`
-              : `Aucun menu n\'était disponible le ${format(selectedDate, 'dd MMMM', { locale: fr })}`}
+              ? "Créez le menu du jour pour commencer"
+              : `Créez un menu pour le ${format(selectedDate, 'dd MMMM yyyy', { locale: fr })}`}
           </Text>
           <TouchableOpacity style={styles.createButton} onPress={onNavigateToCreate}>
-            <LinearGradient colors={COLORS.gradients.goldenHorizontal} style={styles.createButtonGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-              <Ionicons name="add-circle" size={24} color={COLORS.surface} />
-              <Text style={styles.createButtonText}>{isFutureDate ? 'Planifier ce menu' : 'Créer un menu du jour'}</Text>
-            </LinearGradient>
+            <View style={styles.createButtonContent}>
+              <Ionicons name="add-circle" size={20} color={COLORS.surface} />
+              <Text style={styles.createButtonText}>Créer le menu</Text>
+            </View>
           </TouchableOpacity>
-        </LinearGradient>
+        </View>
       </View>
     );
   };
@@ -260,162 +241,87 @@ export const DailyMenuManager: React.FC<Props> = ({
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={COLORS.variants.secondary[500]} />
-        <Text style={styles.loadingText}>Chargement du menu du jour...</Text>
       </View>
     );
   }
 
-  const content = (
-    <>
-      <View style={styles.header}>
-        <LinearGradient colors={[COLORS.surface, COLORS.goldenSurface]} style={styles.headerGradient}>
-          <View style={styles.headerContent}>
-            <Text style={styles.title}>✨ Menu du Jour</Text>
-            <Text style={styles.dateText}>{format(selectedDate, 'EEEE dd MMMM yyyy', { locale: fr })}</Text>
-          </View>
-          {dailyMenu?.special_price && (
-            <View style={styles.specialPriceBadge}>
-              <Text style={styles.specialMenuPrice}>Menu Complet : {dailyMenu.special_price}€</Text>
-            </View>
-          )}
-        </LinearGradient>
-      </View>
+  if (!dailyMenu) {
+    return (
+      <ScrollView
+        style={styles.container}
+        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
+      >
+        {renderEmptyState()}
+      </ScrollView>
+    );
+  }
 
-      {/* Actions rapides */}
-      <View style={styles.quickActions}>
-        <ScrollView horizontal={responsive.isMobile} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.actionsContainer}>
-          <TouchableOpacity style={[styles.actionButton, styles.primaryAction]} onPress={onNavigateToCreate}>
-            <LinearGradient colors={COLORS.gradients.subtleGold} style={styles.actionGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-              <Ionicons name="add-circle" size={24} color={COLORS.primary} />
-              <Text style={styles.actionButtonText}>Nouveau Menu</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionButton} onPress={duplicateYesterday}>
-            <Ionicons name="copy-outline" size={20} color={COLORS.variants.secondary[600]} />
-            <Text style={styles.actionButtonText}>Dupliquer Hier</Text>
-          </TouchableOpacity>
-
-          {dailyMenu && (
-            <TouchableOpacity style={styles.actionButton} onPress={() => onNavigateToEdit(dailyMenu.id)}>
-              <Ionicons name="create-outline" size={20} color={COLORS.variants.secondary[600]} />
-              <Text style={styles.actionButtonText}>Modifier</Text>
-            </TouchableOpacity>
-          )}
-        </ScrollView>
-      </View>
-
-      {!dailyMenu ? (
-        renderEmptyState()
-      ) : (
-        <View style={styles.menuContent}>
-          {!!dailyMenu.description && (
-            <View style={styles.descriptionCard}>
-              <Text style={styles.menuDescription}>{dailyMenu.description}</Text>
-            </View>
-          )}
-
-          <View style={styles.statsCard}>
-            <View style={styles.statItem}>
-              <Ionicons name="restaurant" size={20} color={COLORS.text.golden} />
-              <Text style={styles.statsText}>{dailyMenu.total_items_count} plats</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Ionicons name="pricetag" size={20} color={COLORS.text.golden} />
-              <Text style={styles.statsText}>~{dailyMenu.estimated_total_price}€</Text>
-            </View>
-          </View>
-
-          <View style={responsive.isDesktop ? styles.categoriesGrid : undefined}>
-            {dailyMenu.items_by_category.map((cat: any, index: number) => renderCategorySection(cat, index))}
-          </View>
-        </View>
-      )}
-    </>
-  );
+  const totalItems = dailyMenu.items_by_category?.reduce((acc: number, cat: any) => acc + cat.items.length, 0) || 0;
+  const availableItems = dailyMenu.items_by_category?.reduce(
+    (acc: number, cat: any) => acc + cat.items.filter((i: DailyMenuItem) => i.is_available).length,
+    0
+  ) || 0;
 
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={styles.scrollContent}
-      refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} colors={[COLORS.variants.secondary[500]]} tintColor={COLORS.variants.secondary[500]} />}
-      showsVerticalScrollIndicator={!responsive.isMobile}
+      refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
     >
-      {responsive.isDesktop ? <View style={styles.desktopContainer}>{content}</View> : content}
+      <View style={styles.header}>
+        <View style={styles.actionsContainer}>
+          <TouchableOpacity style={styles.actionButton} onPress={() => onNavigateToEdit(dailyMenu.id)}>
+            <Ionicons name="create-outline" size={20} color={COLORS.text.primary} />
+            <Text style={styles.actionButtonText}>Modifier</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionButton} onPress={duplicateYesterday}>
+            <Ionicons name="copy-outline" size={20} color={COLORS.text.primary} />
+            <Text style={styles.actionButtonText}>Dupliquer</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.menuContent}>
+        {dailyMenu.description && (
+          <View style={styles.descriptionCard}>
+            <Text style={styles.menuDescription}>{dailyMenu.description}</Text>
+          </View>
+        )}
+
+        <View style={styles.statsCard}>
+          <View style={styles.statItem}>
+            <Ionicons name="restaurant-outline" size={16} color={COLORS.text.secondary} />
+            <Text style={styles.statsText}>{totalItems} plats</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Ionicons name="checkmark-circle-outline" size={16} color={COLORS.success} />
+            <Text style={styles.statsText}>{availableItems} disponibles</Text>
+          </View>
+        </View>
+
+        <View style={styles.categoriesGrid}>
+          {dailyMenu.items_by_category?.map((category: any, index: number) =>
+            renderCategorySection(category, index)
+          )}
+        </View>
+      </View>
     </ScrollView>
   );
 };
 
 const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: any) => {
-  const responsiveStyles = createResponsiveStyles(screenType);
-
   return StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: COLORS.background,
     },
-    scrollContent: {
-      flexGrow: 1,
-    },
-    desktopContainer: {
-      maxWidth: 1200,
-      alignSelf: 'center',
-      width: '100%',
-      paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
-    },
     loadingContainer: {
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
-      padding: getResponsiveValue(SPACING.xl, screenType),
-    },
-    loadingText: {
-      marginTop: getResponsiveValue(SPACING.md, screenType),
-      color: COLORS.text.secondary,
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
+      backgroundColor: COLORS.background,
     },
     header: {
-      backgroundColor: COLORS.surface,
-      ...SHADOWS.md,
-      marginBottom: getResponsiveValue(SPACING.md, screenType),
-    },
-    headerGradient: {
-      padding: getResponsiveValue(SPACING.lg, screenType),
-    },
-    headerContent: {
-      flexDirection: responsive.isMobile ? 'column' : 'row',
-      justifyContent: 'space-between',
-      alignItems: responsive.isMobile ? 'center' : 'flex-start',
-    },
-    title: {
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize['2xl'], screenType),
-      fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: COLORS.primary,
-      marginBottom: getResponsiveValue(SPACING.xs, screenType),
-    },
-    dateText: {
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.md, screenType),
-      color: COLORS.text.golden,
-      fontWeight: TYPOGRAPHY.fontWeight.medium,
-      textTransform: 'capitalize',
-    },
-    specialPriceBadge: {
-      marginTop: getResponsiveValue(SPACING.md, screenType),
-      backgroundColor: COLORS.variants.secondary[100],
-      borderRadius: BORDER_RADIUS.lg,
-      padding: getResponsiveValue(SPACING.md, screenType),
-      borderWidth: 2,
-      borderColor: COLORS.variants.secondary[300],
-      ...SHADOWS.goldenGlow,
-    },
-    specialMenuPrice: {
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
-      fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: COLORS.variants.secondary[700],
-      textAlign: 'center',
-    },
-    quickActions: {
       backgroundColor: COLORS.surface,
       paddingVertical: getResponsiveValue(SPACING.md, screenType),
       paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
@@ -434,18 +340,7 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
       backgroundColor: COLORS.surface,
       borderRadius: BORDER_RADIUS.md,
       borderWidth: 1,
-      borderColor: COLORS.border.light,
-    },
-    primaryAction: {
-      borderColor: COLORS.variants.secondary[300],
-    },
-    actionGradient: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: getResponsiveValue(SPACING.xs, screenType),
-      paddingHorizontal: getResponsiveValue(SPACING.sm, screenType),
-      paddingVertical: getResponsiveValue(SPACING.xs, screenType),
-      borderRadius: BORDER_RADIUS.md,
+      borderColor: COLORS.border.default,
     },
     actionButtonText: {
       marginLeft: getResponsiveValue(SPACING.xs, screenType),
@@ -477,6 +372,8 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
       borderRadius: BORDER_RADIUS.md,
       padding: getResponsiveValue(SPACING.md, screenType),
       gap: getResponsiveValue(SPACING.md, screenType),
+      borderWidth: 1,
+      borderColor: COLORS.border.light,
     },
     statItem: {
       flexDirection: 'row',
@@ -489,7 +386,7 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
       backgroundColor: COLORS.border.light,
     },
     statsText: {
-      color: COLORS.text.golden,
+      color: COLORS.text.secondary,
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
     },
     categoriesGrid: {
@@ -499,50 +396,43 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
       backgroundColor: COLORS.surface,
       borderRadius: BORDER_RADIUS.lg,
       overflow: 'hidden',
-      ...SHADOWS.sm,
+      borderWidth: 1,
+      borderColor: COLORS.border.light,
       marginBottom: getResponsiveValue(SPACING.md, screenType),
     },
     categoryHeader: {
-      overflow: 'hidden',
-    },
-    categoryGradient: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
       padding: getResponsiveValue(SPACING.md, screenType),
+      backgroundColor: COLORS.goldenSurface,
     },
     categoryTitleContainer: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: getResponsiveValue(SPACING.sm, screenType),
       flex: 1,
     },
-    categoryIcon: {
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xl, screenType),
-    },
     categoryTitle: {
-      color: COLORS.text.golden,
-      fontWeight: TYPOGRAPHY.fontWeight.bold,
-      letterSpacing: 0.5,
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.md, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      color: COLORS.text.primary,
     },
     categoryBadge: {
-      backgroundColor: COLORS.variants.secondary[100],
+      marginLeft: getResponsiveValue(SPACING.sm, screenType),
+      backgroundColor: COLORS.variants.secondary[200],
       paddingHorizontal: getResponsiveValue(SPACING.sm, screenType),
-      paddingVertical: getResponsiveValue({ mobile: 4, tablet: 6, desktop: 8 }, screenType),
+      paddingVertical: 2,
       borderRadius: BORDER_RADIUS.full,
-      borderWidth: 1,
-      borderColor: COLORS.variants.secondary[200],
     },
-    categoryCount: {
+    categoryBadgeText: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.bold,
       color: COLORS.variants.secondary[700],
-      fontWeight: TYPOGRAPHY.fontWeight.semibold,
     },
     categoryItems: {
-      paddingHorizontal: getResponsiveValue(SPACING.md, screenType),
+      paddingHorizontal: getResponsiveValue(SPACING.sm, screenType),
       paddingBottom: getResponsiveValue(SPACING.md, screenType),
-      gap: getResponsiveValue(SPACING.xs, screenType),
     },
-    // Item row
     itemRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -570,7 +460,7 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
     },
     specialNote: {
       marginTop: 2,
-      color: COLORS.text.golden,
+      color: COLORS.text.secondary,
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
     },
     priceContainer: {
@@ -609,13 +499,15 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
     loader: {
       marginRight: getResponsiveValue(SPACING.md, screenType),
     },
-    // Empty state
     noMenuContainer: {
       backgroundColor: COLORS.surface,
       borderRadius: BORDER_RADIUS.lg,
+      margin: getResponsiveValue(SPACING.container, screenType),
       overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: COLORS.border.light,
     },
-    emptyStateGradient: {
+    emptyStateContent: {
       alignItems: 'center',
       padding: getResponsiveValue(SPACING.xl, screenType),
       gap: getResponsiveValue(SPACING.sm, screenType),
@@ -634,8 +526,10 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
       marginTop: getResponsiveValue(SPACING.sm, screenType),
       borderRadius: BORDER_RADIUS.lg,
       overflow: 'hidden',
+      backgroundColor: COLORS.primary,
+      ...SHADOWS.button,
     },
-    createButtonGradient: {
+    createButtonContent: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: getResponsiveValue(SPACING.xs, screenType),
@@ -645,6 +539,7 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
     createButtonText: {
       color: COLORS.surface,
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
     },
   });
 };
