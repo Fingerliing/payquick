@@ -1008,7 +1008,7 @@ export default function DashboardScreen() {
                 {/* Menu du Jour - Action premium en premier */}
                 <TouchableOpacity
                   style={[styles.actionCard, styles.actionCardPremium]}
-                  onPress={() => router.push('/(restaurant)/daily-menu' as any)}
+                  onPress={() => router.push('/(restaurant)/daily-menu')}
                 >
                   <View style={[styles.actionIcon, { backgroundColor: COLORS.variants.secondary[100] }]}>
                     <Ionicons name="today" size={20} color={COLORS.secondary} />

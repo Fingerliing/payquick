@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
   const { isAuthenticated, isLoading, isRestaurateur, hasValidatedProfile } = useAuth();
+  console.log('🔐 Auth Status:', { isAuthenticated, isRestaurateur, hasValidatedProfile })
   const insets = useSafeAreaInsets();
   
   useStripeDeepLink();
@@ -74,21 +75,20 @@ export default function TabLayout() {
         }}
       />
 
-      {isRestaurateur && hasValidatedProfile && (
-        <Tabs.Screen
-          name="daily-menu"
-          options={{
-            title: 'Menu du Jour',
-            tabBarIcon: ({ color, size, focused }) => (
-              <Ionicons 
-                name={focused ? "today" : "today-outline"} 
-                size={size} 
-                color={color} 
-              />
-            ),
-          }}
-        />
-      )}
+      <Tabs.Screen
+        name="daily-menu"
+        options={{
+          title: 'Menu du Jour',
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons 
+              name={focused ? "today" : "today-outline"} 
+              size={size} 
+              color={color} 
+            />
+          ),
+          href: (isRestaurateur && hasValidatedProfile) ? undefined : null,
+        }}
+      />
 
       <Tabs.Screen
         name="qrcodes"

@@ -6,12 +6,14 @@ import {
   Text, 
   TouchableOpacity,
   ActivityIndicator,
-  Animated
+  Animated,
+  Pressable,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Header } from '@/components/ui/Header';
 import { DailyMenuManager } from '@/components/menu/DailyMenuManager';
 import { useRestaurant } from '@/contexts/RestaurantContext';
+import { RestaurantAutoSelector } from '@/components/restaurant/RestaurantAutoSelector';
 import { Ionicons } from '@expo/vector-icons';
 import { format, addDays, subDays, startOfWeek, endOfWeek, isSameDay, isToday, startOfMonth, endOfMonth } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -51,8 +53,8 @@ interface MonthlyMenuIndicators {
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 const PRELOAD_DAYS = 3; // Nombre de jours à précharger avant et après
 
-export default function DailyMenuScreen() {
-  const { currentRestaurant } = useRestaurant();
+// Composant interne qui contient toute la logique
+function DailyMenuScreenContent({ restaurant }: { restaurant: NonNullable<ReturnType<typeof useRestaurant>['currentRestaurant']> }) {
   const screenType = useScreenType();
   const responsive = useResponsive();
   const styles = createStyles(screenType, responsive);
@@ -69,12 +71,6 @@ export default function DailyMenuScreen() {
   const preloadQueue = useRef<Set<string>>(new Set());
   const fadeAnim = useRef(new Animated.Value(1)).current;
   
-  // Vérification du restaurant sélectionné
-  if (!currentRestaurant) {
-    router.replace('/(restaurant)/select' as any);
-    return null;
-  }
-
   // ==================== GESTION DU CACHE ====================
   
   /**
@@ -114,7 +110,7 @@ export default function DailyMenuScreen() {
     try {
       console.log(`🌐 Chargement du menu depuis l'API pour ${dateKey}`);
       const menu = await dailyMenuService.getMenuByDate(
-        Number(currentRestaurant.id),
+        Number(restaurant.id),
         dateKey
       );
       
@@ -135,7 +131,7 @@ export default function DailyMenuScreen() {
       });
       return null;
     }
-  }, [currentRestaurant.id]);
+  }, [restaurant.id]);
 
   /**
    * Invalide le cache pour une date spécifique
@@ -204,7 +200,7 @@ export default function DailyMenuScreen() {
       console.log(`📅 Chargement des indicateurs pour ${format(month, 'MMMM yyyy', { locale: fr })}`);
       
       const response = await dailyMenuService.getMonthlyCalendar(
-        Number(currentRestaurant.id),
+        Number(restaurant.id),
         month.getFullYear(),
         month.getMonth() + 1 // L'API attend un mois de 1 à 12
       );
@@ -233,7 +229,7 @@ export default function DailyMenuScreen() {
     } finally {
       isLoadingIndicatorsRef.current = false;
     }
-  }, [currentRestaurant.id]);
+  }, [restaurant.id]);
 
   // ==================== EFFETS ====================
   
@@ -263,146 +259,152 @@ export default function DailyMenuScreen() {
     ]).start();
   }, [selectedDate]);
 
-  // ==================== HANDLERS ====================
+  // ==================== NAVIGATION DE DATE ====================
 
-  const handleNavigateToCreate = () => {
-    router.push({
-      pathname: '/menu/daily-menu/create' as any,
-      params: { 
-        restaurantId: currentRestaurant.id,
-        date: format(selectedDate, 'yyyy-MM-dd')
-      }
-    });
-  };
+  const handlePreviousDay = useCallback(() => {
+    setSelectedDate(prev => subDays(prev, 1));
+  }, []);
 
-  const handleNavigateToEdit = (menuId: string) => {
-    router.push({
-      pathname: '/menu/daily-menu/edit/[id]' as any,
-      params: { id: menuId, restaurantId: currentRestaurant.id }
-    });
-  };
+  const handleNextDay = useCallback(() => {
+    setSelectedDate(prev => addDays(prev, 1));
+  }, []);
 
-  const handleDateSelect = async (date: Date) => {
+  const handleToday = useCallback(() => {
+    setSelectedDate(new Date());
+    setShowCalendar(false);
+  }, []);
+
+  const handleDateSelect = useCallback((date: Date) => {
     setSelectedDate(date);
     setShowCalendar(false);
-    
-    // Précharger immédiatement les jours adjacents
-    preloadAdjacentMenus(date);
-  };
+  }, []);
 
-  const navigateToToday = () => {
-    const today = new Date();
-    setSelectedDate(today);
-    setCurrentMonth(today);
-  };
+  // ==================== CALENDRIER ====================
 
-  const navigateToPreviousDay = () => {
-    setSelectedDate(prev => subDays(prev, 1));
-  };
-
-  const navigateToNextDay = () => {
-    setSelectedDate(prev => addDays(prev, 1));
-  };
-
-  const changeMonth = async (direction: 'prev' | 'next') => {
+  const handlePreviousMonth = useCallback(() => {
     setCurrentMonth(prev => {
       const newMonth = new Date(prev);
-      if (direction === 'prev') {
-        newMonth.setMonth(newMonth.getMonth() - 1);
-      } else {
-        newMonth.setMonth(newMonth.getMonth() + 1);
-      }
-      // Charger les indicateurs du nouveau mois
-      loadMonthlyIndicators(newMonth);
+      newMonth.setMonth(prev.getMonth() - 1);
       return newMonth;
     });
-  };
+  }, []);
 
-  // ==================== COMPOSANTS ====================
+  const handleNextMonth = useCallback(() => {
+    setCurrentMonth(prev => {
+      const newMonth = new Date(prev);
+      newMonth.setMonth(prev.getMonth() + 1);
+      return newMonth;
+    });
+  }, []);
 
-  // Composant de navigation rapide par date avec indicateur
-  const DateNavigator = () => {
-    const dateKey = format(selectedDate, 'yyyy-MM-dd');
-    const hasMenu = monthlyIndicators[dateKey]?.hasMenu;
+  // Générer les jours du calendrier
+  const calendarDays = useMemo(() => {
+    const start = startOfWeek(startOfMonth(currentMonth), { locale: fr });
+    const end = endOfWeek(endOfMonth(currentMonth), { locale: fr });
+    const days: Date[] = [];
     
-    return (
-      <View style={styles.dateNavigator}>
+    let current = start;
+    while (current <= end) {
+      days.push(current);
+      current = addDays(current, 1);
+    }
+    
+    return days;
+  }, [currentMonth]);
+
+  // Vérifier si une date a un menu
+  const hasMenuOnDate = useCallback((date: Date): boolean => {
+    const dateKey = format(date, 'yyyy-MM-dd');
+    return monthlyIndicators[dateKey]?.hasMenu || false;
+  }, [monthlyIndicators]);
+
+  // Obtenir les infos du menu pour une date
+  const getMenuInfo = useCallback((date: Date) => {
+    const dateKey = format(date, 'yyyy-MM-dd');
+    return monthlyIndicators[dateKey];
+  }, [monthlyIndicators]);
+
+  // ==================== RENDER ====================
+
+  return (
+    <View style={styles.container}>
+      <Header 
+        title="Menu du Jour"
+        subtitle={restaurant.name}
+      />
+
+      {/* Sélecteur de date */}
+      <View style={styles.dateSelector}>
         <TouchableOpacity 
-          style={styles.navButton} 
-          onPress={navigateToPreviousDay}
+          onPress={handlePreviousDay}
+          style={styles.dateArrow}
         >
-          <Ionicons name="chevron-back" size={20} color={COLORS.text.golden} />
+          <Ionicons name="chevron-back" size={24} color={COLORS.primary} />
         </TouchableOpacity>
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={styles.dateDisplay}
           onPress={() => setShowCalendar(true)}
         >
-          <LinearGradient
-            colors={COLORS.gradients.subtleGold}
-            style={styles.dateGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <View style={styles.dateDisplayContent}>
-              <Ionicons name="calendar" size={16} color={COLORS.text.golden} />
-              <Text style={styles.dateText}>
-                {isToday(selectedDate) 
-                  ? "Aujourd'hui" 
-                  : format(selectedDate, 'EEEE dd MMMM', { locale: fr })}
-              </Text>
-              {hasMenu && (
-                <View style={styles.menuIndicatorBadge}>
-                  <Ionicons name="restaurant" size={12} color={COLORS.surface} />
-                </View>
-              )}
-              <Ionicons name="chevron-down" size={16} color={COLORS.text.golden} />
-            </View>
-          </LinearGradient>
+          <View style={styles.dateDisplayContent}>
+            <Ionicons name="calendar-outline" size={20} color={COLORS.text.golden} />
+            <Text style={styles.dateText}>
+              {format(selectedDate, 'EEEE d MMMM yyyy', { locale: fr })}
+            </Text>
+            {hasMenuOnDate(selectedDate) && (
+              <View style={styles.menuIndicatorBadge}>
+                <Ionicons name="checkmark" size={12} color={COLORS.surface} />
+              </View>
+            )}
+          </View>
         </TouchableOpacity>
-        
+
         <TouchableOpacity 
-          style={styles.navButton} 
-          onPress={navigateToNextDay}
+          onPress={handleNextDay}
+          style={styles.dateArrow}
         >
-          <Ionicons name="chevron-forward" size={20} color={COLORS.text.golden} />
+          <Ionicons name="chevron-forward" size={24} color={COLORS.primary} />
         </TouchableOpacity>
-        
-        {!isToday(selectedDate) && (
+      </View>
+
+      {/* Bouton aujourd'hui */}
+      {!isToday(selectedDate) && (
+        <View style={styles.todayButtonContainer}>
           <TouchableOpacity 
             style={styles.todayButton}
-            onPress={navigateToToday}
+            onPress={handleToday}
           >
             <Text style={styles.todayButtonText}>Aujourd'hui</Text>
           </TouchableOpacity>
-        )}
-      </View>
-    );
-  };
+        </View>
+      )}
 
-  // Modal du calendrier avec indicateurs
-  const CalendarModal = () => {
-    const calendarDays = generateCalendarDays();
-    const weekDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
-    
-    return (
+      {/* Composant principal - ✅ CORRECTION ICI */}
+      <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+        <DailyMenuManager
+          restaurantId={restaurant.id}
+          selectedDate={selectedDate}
+          onNavigateToCreate={() => router.push('/menu/daily-menu/create')}
+          onNavigateToEdit={(menuId) => router.push(`/menu/daily-menu/edit/${menuId}`)}
+          onMenuUpdated={() => invalidateCache(selectedDate)}
+        />
+      </Animated.View>
+
+      {/* Modal Calendrier */}
       <Modal
         visible={showCalendar}
         transparent
         animationType="fade"
         onRequestClose={() => setShowCalendar(false)}
       >
-        <TouchableOpacity 
+        <Pressable 
           style={styles.modalOverlay}
-          activeOpacity={1}
           onPress={() => setShowCalendar(false)}
         >
-          <View style={styles.calendarContainer}>
+          <Pressable style={styles.calendarContainer} onPress={(e) => e.stopPropagation()}>
+            {/* Header du calendrier */}
             <View style={styles.calendarHeader}>
-              <TouchableOpacity 
-                onPress={() => changeMonth('prev')}
-                style={styles.monthNavButton}
-              >
+              <TouchableOpacity onPress={handlePreviousMonth} style={styles.monthNavButton}>
                 <Ionicons name="chevron-back" size={24} color={COLORS.primary} />
               </TouchableOpacity>
               
@@ -413,36 +415,33 @@ export default function DailyMenuScreen() {
                 {isLoadingIndicatorsRef.current && (
                   <ActivityIndicator 
                     size="small" 
-                    color={COLORS.variants.secondary[500]}
+                    color={COLORS.primary}
                     style={styles.monthLoader}
                   />
                 )}
               </View>
               
-              <TouchableOpacity 
-                onPress={() => changeMonth('next')}
-                style={styles.monthNavButton}
-              >
+              <TouchableOpacity onPress={handleNextMonth} style={styles.monthNavButton}>
                 <Ionicons name="chevron-forward" size={24} color={COLORS.primary} />
               </TouchableOpacity>
             </View>
-            
+
+            {/* Jours de la semaine */}
             <View style={styles.weekDaysRow}>
-              {weekDays.map(day => (
-                <Text key={day} style={styles.weekDayText}>{day}</Text>
+              {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((day, index) => (
+                <Text key={index} style={styles.weekDayText}>{day}</Text>
               ))}
             </View>
-            
+
+            {/* Grille des jours */}
             <View style={styles.daysGrid}>
               {calendarDays.map((day, index) => {
-                const isCurrentMonth = day.getMonth() === currentMonth.getMonth();
                 const isSelected = isSameDay(day, selectedDate);
                 const isTodayDate = isToday(day);
-                const dateKey = format(day, 'yyyy-MM-dd');
-                const menuInfo = monthlyIndicators[dateKey];
+                const isCurrentMonth = day.getMonth() === currentMonth.getMonth();
+                const menuInfo = getMenuInfo(day);
                 const hasMenu = menuInfo?.hasMenu;
-                const isActiveMenu = menuInfo?.isActive;
-                
+
                 return (
                   <TouchableOpacity
                     key={index}
@@ -450,176 +449,134 @@ export default function DailyMenuScreen() {
                       styles.dayButton,
                       !isCurrentMonth && styles.dayButtonOtherMonth,
                       isSelected && styles.dayButtonSelected,
-                      isTodayDate && styles.dayButtonToday,
+                      isTodayDate && !isSelected && styles.dayButtonToday,
                     ]}
                     onPress={() => handleDateSelect(day)}
                   >
-                    <Text style={[
-                      styles.dayText,
-                      !isCurrentMonth && styles.dayTextOtherMonth,
-                      isSelected && styles.dayTextSelected,
-                      isTodayDate && styles.dayTextToday,
-                    ]}>
+                    <Text
+                      style={[
+                        styles.dayText,
+                        !isCurrentMonth && styles.dayTextOtherMonth,
+                        isSelected && styles.dayTextSelected,
+                        isTodayDate && !isSelected && styles.dayTextToday,
+                      ]}
+                    >
                       {day.getDate()}
                     </Text>
                     
-                    {/* Indicateur de menu */}
-                    {hasMenu && isCurrentMonth && (
+                    {hasMenu && (
                       <View style={styles.dayIndicatorContainer}>
-                        <View style={[
-                          styles.dayMenuIndicator,
-                          !isActiveMenu && styles.dayMenuIndicatorInactive,
-                          isSelected && styles.dayMenuIndicatorSelected
-                        ]} />
-                        {menuInfo.itemsCount && menuInfo.itemsCount > 0 && (
-                          <Text style={styles.dayMenuCount}>
-                            {menuInfo.itemsCount}
-                          </Text>
-                        )}
+                        <View 
+                          style={[
+                            styles.dayMenuIndicator,
+                            !menuInfo.isActive && styles.dayMenuIndicatorInactive,
+                            isSelected && styles.dayMenuIndicatorSelected,
+                          ]} 
+                        />
                       </View>
                     )}
                   </TouchableOpacity>
                 );
               })}
             </View>
-            
+
             {/* Légende */}
             <View style={styles.calendarLegend}>
               <View style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: COLORS.variants.secondary[500] }]} />
-                <Text style={styles.legendText}>Menu actif</Text>
+                <Text style={styles.legendText}>Avec menu</Text>
               </View>
               <View style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: COLORS.text.light }]} />
                 <Text style={styles.legendText}>Menu inactif</Text>
               </View>
             </View>
-            
+
+            {/* Footer */}
             <View style={styles.calendarFooter}>
-              <TouchableOpacity
+              <TouchableOpacity 
                 style={styles.todayFooterButton}
-                onPress={() => {
-                  handleDateSelect(new Date());
-                  setCurrentMonth(new Date());
-                }}
+                onPress={handleToday}
               >
                 <LinearGradient
-                  colors={COLORS.gradients.goldenHorizontal}
-                  style={styles.todayGradient}
+                  colors={[COLORS.secondary, COLORS.variants.secondary[700]]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
+                  style={styles.todayGradient}
                 >
-                  <Ionicons name="today" size={20} color={COLORS.surface} />
-                  <Text style={styles.todayFooterText}>Aller à aujourd'hui</Text>
+                  <Ionicons name="today" size={18} color={COLORS.surface} />
+                  <Text style={styles.todayFooterText}>Aujourd'hui</Text>
                 </LinearGradient>
               </TouchableOpacity>
               
-              <TouchableOpacity
+              <TouchableOpacity 
                 style={styles.closeButton}
                 onPress={() => setShowCalendar(false)}
               >
                 <Text style={styles.closeButtonText}>Fermer</Text>
               </TouchableOpacity>
             </View>
-          </View>
-        </TouchableOpacity>
+          </Pressable>
+        </Pressable>
       </Modal>
-    );
-  };
-
-  // Génération des jours du mois pour le calendrier
-  const generateCalendarDays = () => {
-    const start = startOfWeek(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1), { weekStartsOn: 1 });
-    const end = endOfWeek(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0), { weekStartsOn: 1 });
-    
-    const days = [];
-    let currentDate = start;
-    
-    while (currentDate <= end) {
-      days.push(new Date(currentDate));
-      currentDate = addDays(currentDate, 1);
-    }
-    
-    return days;
-  };
-
-  // Statistiques de cache (pour debug)
-  const CacheStats = () => {
-    if (!__DEV__) return null;
-    
-    return (
-      <View style={styles.cacheStats}>
-        <Text style={styles.cacheStatsText}>
-          📦 Cache: {menuCache.current.size} menus | 
-          ⏳ File: {preloadQueue.current.size} | 
-          📍 Indicateurs: {Object.keys(monthlyIndicators).length}
-        </Text>
-      </View>
-    );
-  };
-
-  return (
-    <View style={styles.container}>
-      <Header
-        title="Menus du Jour"
-        showBackButton
-        rightIcon="add-circle"
-        onRightPress={handleNavigateToCreate}
-      />
-      
-      <DateNavigator />
-      
-      {__DEV__ && <CacheStats />}
-      
-      <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
-        <DailyMenuManager
-          restaurantId={String(currentRestaurant.id)}
-          selectedDate={selectedDate}
-          onNavigateToCreate={handleNavigateToCreate}
-          onNavigateToEdit={handleNavigateToEdit}
-          onMenuUpdated={() => {
-            // Invalider le cache pour cette date
-            invalidateCache(selectedDate);
-            // Recharger les indicateurs
-            loadMonthlyIndicators(currentMonth);
-          }}
-        />
-      </Animated.View>
-      
-      <CalendarModal />
     </View>
   );
 }
 
-const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: any) => {
-  const responsiveStyles = createResponsiveStyles(screenType);
+// Composant wrapper avec gestion automatique de la sélection du restaurant
+export default function DailyMenuScreen() {
+  const { currentRestaurant } = useRestaurant();
   
+  return (
+    <RestaurantAutoSelector
+      noRestaurantMessage="Aucun restaurant pour gérer les menus"
+      createButtonText="Créer mon restaurant"
+      onRestaurantSelected={(restaurantId) => {
+        console.log('Restaurant sélectionné pour les menus du jour:', restaurantId);
+      }}
+    >
+      {currentRestaurant && <DailyMenuScreenContent restaurant={currentRestaurant} />}
+    </RestaurantAutoSelector>
+  );
+}
+
+// Styles (identiques à votre version originale)
+function createStyles(screenType: any, responsive: any) {
   return StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: COLORS.background,
     },
+    content: {
+      flex: 1,
+    },
+    todayButtonContainer: {
+      alignItems: 'center',
+      paddingVertical: getResponsiveValue(SPACING.sm, screenType),
+    },
     
-    // Date Navigator
-    dateNavigator: {
+    // Date Selector
+    dateSelector: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: COLORS.surface,
-      paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
-      paddingVertical: getResponsiveValue(SPACING.md, screenType),
-      borderBottomWidth: 1,
-      borderBottomColor: COLORS.border.light,
-      ...SHADOWS.sm,
+      justifyContent: 'space-between',
+      backgroundColor: COLORS.goldenSurface,
+      paddingHorizontal: getResponsiveValue(SPACING.md, screenType),
+      paddingVertical: getResponsiveValue(SPACING.sm, screenType),
+      borderBottomWidth: 2,
+      borderBottomColor: COLORS.border.golden,
     },
-    navButton: {
+    dateArrow: {
       padding: getResponsiveValue(SPACING.sm, screenType),
     },
     dateDisplay: {
       flex: 1,
       marginHorizontal: getResponsiveValue(SPACING.sm, screenType),
-    },
-    dateGradient: {
+      backgroundColor: COLORS.surface,
       borderRadius: BORDER_RADIUS.lg,
+      borderWidth: 1,
+      borderColor: COLORS.border.golden,
+      ...SHADOWS.sm,
     },
     dateDisplayContent: {
       flexDirection: 'row',
@@ -769,11 +726,6 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
     dayMenuIndicatorSelected: {
       backgroundColor: COLORS.surface,
     },
-    dayMenuCount: {
-      fontSize: 8,
-      color: COLORS.text.secondary,
-      marginTop: 1,
-    },
     
     // Légende du calendrier
     calendarLegend: {
@@ -838,18 +790,5 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
       fontWeight: TYPOGRAPHY.fontWeight.medium,
       color: COLORS.text.primary,
     },
-    
-    // Stats de cache (debug)
-    cacheStats: {
-      backgroundColor: COLORS.goldenSurface,
-      padding: getResponsiveValue(SPACING.xs, screenType),
-      borderBottomWidth: 1,
-      borderBottomColor: COLORS.border.golden,
-    },
-    cacheStatsText: {
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
-      color: COLORS.text.secondary,
-      textAlign: 'center',
-    },
   });
-};
+}
