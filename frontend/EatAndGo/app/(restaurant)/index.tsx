@@ -1068,7 +1068,7 @@ export default function DashboardScreen() {
                 {/* Statistiques - Nouvelle action */}
                 <TouchableOpacity
                   style={styles.actionCard}
-                  onPress={() => router.navigate('/(restaurant)/stats' as any)}
+                  onPress={() => router.navigate('/(restaurant)/statistics' as any)}
                 >
                   <View style={styles.actionIcon}>
                     <Ionicons name="stats-chart" size={20} color={COLORS.primary} />

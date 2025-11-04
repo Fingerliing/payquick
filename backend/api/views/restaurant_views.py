@@ -148,6 +148,627 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     # ============================================================================
+    # STATISTIQUES ET DASHBOARD
+    # ============================================================================
+
+    @extend_schema(
+        summary="Statistiques d'un restaurant",
+        description="Récupère les statistiques complètes d'un restaurant avec KPIs pour l'amélioration continue",
+        responses={
+            200: OpenApiResponse(description="Statistiques détaillées du restaurant"),
+            403: OpenApiResponse(description="Accès non autorisé"),
+            404: OpenApiResponse(description="Restaurant non trouvé"),
+        }
+    )
+    @action(detail=True, methods=['get'], url_path='statistics')
+    def statistics(self, request, pk=None):
+        """
+        Récupère les statistiques complètes d'un restaurant avec indicateurs d'amélioration continue
+        GET /api/v1/restaurants/{id}/statistics/
+        
+        Inclut:
+        - Statistiques générales (commandes, menus, tables)
+        - Top/Flop des plats
+        - Heures de pointe
+        - Tendances et évolutions
+        - Indicateurs de performance
+        """
+        restaurant = self.get_object()
+        
+        # Vérifier que l'utilisateur a accès à ce restaurant
+        if not request.user.is_staff and restaurant.owner != request.user.restaurateur_profile:
+            return Response(
+                {'error': 'Vous n\'avez pas accès à ces statistiques'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        try:
+            from django.db.models import Sum, Avg, F, Case, When, FloatField, DurationField
+            from api.models import OrderItem
+            
+            # Période d'analyse (30 derniers jours par défaut)
+            period_days = int(request.query_params.get('period_days', 30))
+            start_date = timezone.now() - timedelta(days=period_days)
+            
+            # ====================================================================
+            # 1. STATISTIQUES GÉNÉRALES
+            # ====================================================================
+            
+            orders_stats = Order.objects.filter(
+                restaurant=restaurant
+            ).aggregate(
+                total=Count('id'),
+                total_last_period=Count('id', filter=Q(created_at__gte=start_date)),
+                pending=Count('id', filter=Q(status='pending')),
+                in_progress=Count('id', filter=Q(status='in_progress')),
+                served=Count('id', filter=Q(status='served')),
+                cancelled=Count('id', filter=Q(status='cancelled')),
+                paid=Count('id', filter=Q(payment_status='paid')),
+                unpaid=Count('id', filter=Q(payment_status='unpaid')),
+            )
+            
+            # Taux d'annulation
+            total_orders = orders_stats['total'] or 1
+            cancellation_rate = round((orders_stats['cancelled'] / total_orders) * 100, 1)
+            payment_rate = round((orders_stats['paid'] / total_orders) * 100, 1)
+            
+            menus_stats = Menu.objects.filter(
+                restaurant=restaurant
+            ).aggregate(
+                total=Count('id'),
+                active=Count('id', filter=Q(is_available=True)),
+            )
+            
+            menu_items_stats = MenuItem.objects.filter(
+                menu__restaurant=restaurant
+            ).aggregate(
+                total=Count('id'),
+                available=Count('id', filter=Q(is_available=True)),
+            )
+            
+            # Taux de disponibilité des plats
+            availability_rate = round(
+                (menu_items_stats['available'] / (menu_items_stats['total'] or 1)) * 100, 1
+            )
+            
+            tables_stats = Table.objects.filter(
+                restaurant=restaurant
+            ).aggregate(
+                total=Count('id'),
+            )
+            
+            # ====================================================================
+            # 2. ANALYSE DES PLATS
+            # ====================================================================
+            
+            # Top 10 des plats les plus commandés
+            top_dishes = OrderItem.objects.filter(
+                order__restaurant=restaurant,
+                order__created_at__gte=start_date,
+                order__status__in=['in_progress', 'served']
+            ).values(
+                'menu_item__id',
+                'menu_item__name',
+                'menu_item__price'
+            ).annotate(
+                total_orders=Sum('quantity'),
+                revenue=Sum(F('quantity') * F('menu_item__price')),
+                orders_count=Count('order', distinct=True)
+            ).order_by('-total_orders')[:10]
+            
+            # Plats les moins commandés (pour identifier ce qui ne marche pas)
+            flop_dishes = MenuItem.objects.filter(
+                menu__restaurant=restaurant,
+                is_available=True
+            ).annotate(
+                orders_count=Count(
+                    'orderitem',
+                    filter=Q(
+                        orderitem__order__created_at__gte=start_date,
+                        orderitem__order__status__in=['in_progress', 'served']
+                    )
+                )
+            ).order_by('orders_count')[:10]
+            
+            # Plats jamais commandés (action requise)
+            never_ordered = MenuItem.objects.filter(
+                menu__restaurant=restaurant,
+                is_available=True
+            ).annotate(
+                orders_count=Count('orderitem')
+            ).filter(orders_count=0).count()
+            
+            # ====================================================================
+            # 3. ANALYSE FINANCIÈRE
+            # ====================================================================
+            
+            # Chiffre d'affaires
+            revenue_data = Order.objects.filter(
+                restaurant=restaurant,
+                payment_status='paid',
+                created_at__gte=start_date
+            ).aggregate(
+                total_revenue=Sum('total_amount'),
+                avg_order_value=Avg('total_amount'),
+                orders_count=Count('id')
+            )
+            
+            # Comparaison avec la période précédente
+            previous_start = start_date - timedelta(days=period_days)
+            previous_revenue = Order.objects.filter(
+                restaurant=restaurant,
+                payment_status='paid',
+                created_at__gte=previous_start,
+                created_at__lt=start_date
+            ).aggregate(
+                total=Sum('total_amount')
+            )['total'] or 0
+            
+            current_revenue = revenue_data['total_revenue'] or 0
+            revenue_evolution = 0
+            if previous_revenue > 0:
+                revenue_evolution = round(
+                    ((current_revenue - previous_revenue) / previous_revenue) * 100, 1
+                )
+            
+            # ====================================================================
+            # 4. HEURES DE POINTE
+            # ====================================================================
+            
+            # Distribution des commandes par heure
+            from django.db.models.functions import ExtractHour
+            
+            hourly_distribution = Order.objects.filter(
+                restaurant=restaurant,
+                created_at__gte=start_date
+            ).annotate(
+                hour=ExtractHour('created_at')
+            ).values('hour').annotate(
+                orders_count=Count('id')
+            ).order_by('hour')
+            
+            # Identifier les heures de pointe
+            peak_hours = sorted(
+                hourly_distribution,
+                key=lambda x: x['orders_count'],
+                reverse=True
+            )[:3]
+            
+            # ====================================================================
+            # 5. ANALYSE DES TABLES
+            # ====================================================================
+            
+            # Tables les plus utilisées
+            popular_tables = Order.objects.filter(
+                restaurant=restaurant,
+                created_at__gte=start_date
+            ).exclude(
+                Q(table_number__isnull=True) | Q(table_number='')
+            ).values(
+                'table_number'
+            ).annotate(
+                orders_count=Count('id'),
+                total_revenue=Sum('total_amount', filter=Q(payment_status='paid'))
+            ).order_by('-orders_count')[:5]
+
+            # On peut estimer le taux d'utilisation des tables sur la période
+            if tables_stats['total'] > 0:
+                total_table_orders = Order.objects.filter(
+                    restaurant=restaurant,
+                    created_at__gte=start_date
+                ).exclude(table_number__isnull=True).count()
+                table_usage_rate = round((total_table_orders / tables_stats['total']) * 100, 1)
+            else:
+                table_usage_rate = 0
+            
+            # ====================================================================
+            # 6. TEMPS DE SERVICE
+            # ====================================================================
+            
+            # Temps moyen entre commande et service
+            served_orders = Order.objects.filter(
+                restaurant=restaurant,
+                status='served',
+                created_at__gte=start_date,
+                updated_at__isnull=False
+            )
+            
+            avg_service_time = None
+            if served_orders.exists():
+                time_diffs = []
+                for order in served_orders:
+                    if order.updated_at and order.created_at:
+                        diff = (order.updated_at - order.created_at).total_seconds() / 60
+                        if 0 < diff < 180:  # Ignorer les valeurs aberrantes (>3h)
+                            time_diffs.append(diff)
+                
+                if time_diffs:
+                    avg_service_time = round(sum(time_diffs) / len(time_diffs), 1)
+            
+            # ====================================================================
+            # 7. INDICATEURS PAR JOUR DE LA SEMAINE
+            # ====================================================================
+            
+            from django.db.models.functions import ExtractWeekDay
+            
+            daily_stats = Order.objects.filter(
+                restaurant=restaurant,
+                created_at__gte=start_date
+            ).annotate(
+                day=ExtractWeekDay('created_at')
+            ).values('day').annotate(
+                orders_count=Count('id'),
+                revenue=Sum('total_amount', filter=Q(payment_status='paid'))
+            ).order_by('day')
+            
+            # Meilleur/pire jour
+            days_names = {
+                1: 'Dimanche', 2: 'Lundi', 3: 'Mardi', 4: 'Mercredi',
+                5: 'Jeudi', 6: 'Vendredi', 7: 'Samedi'
+            }
+            
+            best_day = None
+            worst_day = None
+            if daily_stats:
+                best = max(daily_stats, key=lambda x: x['orders_count'] or 0)
+                worst = min(daily_stats, key=lambda x: x['orders_count'] or 0)
+                best_day = {
+                    'day': days_names.get(best['day'], 'Inconnu'),
+                    'orders_count': best['orders_count']
+                }
+                worst_day = {
+                    'day': days_names.get(worst['day'], 'Inconnu'),
+                    'orders_count': worst['orders_count']
+                }
+            
+            # ====================================================================
+            # 8. CONSTRUIRE LA RÉPONSE
+            # ====================================================================
+            
+            statistics = {
+                # Période d'analyse
+                'period': {
+                    'days': period_days,
+                    'start_date': start_date.isoformat(),
+                    'end_date': timezone.now().isoformat(),
+                },
+                
+                # Vue d'ensemble
+                'overview': {
+                    'orders': orders_stats,
+                    'menus': menus_stats,
+                    'menu_items': menu_items_stats,
+                    'tables': tables_stats,
+                    'restaurant': {
+                        'name': restaurant.name,
+                        'can_receive_orders': restaurant.can_receive_orders,
+                        'is_stripe_active': restaurant.is_stripe_active,
+                    }
+                },
+                
+                # KPIs principaux
+                'kpis': {
+                    'cancellation_rate': cancellation_rate,
+                    'payment_rate': payment_rate,
+                    'availability_rate': availability_rate,
+                    'avg_order_value': float(revenue_data['avg_order_value'] or 0),
+                    'avg_service_time_minutes': avg_service_time,
+                    'table_usage_rate': table_usage_rate,
+                },
+                
+                # Performance des plats
+                'dishes_performance': {
+                    'top_dishes': [
+                        {
+                            'id': dish['menu_item__id'],
+                            'name': dish['menu_item__name'],
+                            'price': float(dish['menu_item__price'] or 0),
+                            'total_orders': dish['total_orders'],
+                            'revenue': float(dish['revenue'] or 0),
+                            'orders_count': dish['orders_count'],
+                        }
+                        for dish in top_dishes
+                    ],
+                    'underperforming_dishes': [
+                        {
+                            'id': dish.id,
+                            'name': dish.name,
+                            'price': float(dish.price),
+                            'orders_count': dish.orders_count,
+                        }
+                        for dish in flop_dishes
+                    ],
+                    'never_ordered_count': never_ordered,
+                },
+                
+                # Revenus
+                'revenue': {
+                    'current_period': float(current_revenue),
+                    'previous_period': float(previous_revenue),
+                    'evolution_percent': revenue_evolution,
+                    'avg_order_value': float(revenue_data['avg_order_value'] or 0),
+                    'total_orders': revenue_data['orders_count'],
+                },
+                
+                # Heures de pointe
+                'peak_hours': [
+                    {
+                        'hour': f"{item['hour']}:00",
+                        'orders_count': item['orders_count']
+                    }
+                    for item in peak_hours
+                ],
+                
+                # Distribution horaire complète
+                'hourly_distribution': [
+                    {
+                        'hour': item['hour'],
+                        'orders_count': item['orders_count']
+                    }
+                    for item in hourly_distribution
+                ],
+                
+                # Tables populaires
+                'popular_tables': [
+                    {
+                        'table_id': None,  # pas de FK table
+                        'table_number': table['table_number'],
+                        'orders_count': table['orders_count'],
+                        'revenue': float(table['total_revenue'] or 0),
+                    }
+                    for table in popular_tables
+                ],
+                
+                # Performance par jour
+                'daily_performance': {
+                    'distribution': [
+                        {
+                            'day': days_names.get(day['day'], 'Inconnu'),
+                            'orders_count': day['orders_count'],
+                            'revenue': float(day['revenue'] or 0),
+                        }
+                        for day in daily_stats
+                    ],
+                    'best_day': best_day,
+                    'worst_day': worst_day,
+                },
+                
+                # Recommandations d'amélioration
+                'recommendations': self._generate_recommendations(
+                    cancellation_rate,
+                    availability_rate,
+                    never_ordered,
+                    avg_service_time,
+                    table_usage_rate,
+                    revenue_evolution
+                ),
+            }
+            
+            return Response(statistics, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {'error': f'Erreur lors de la récupération des statistiques: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    def _generate_recommendations(self, cancellation_rate, availability_rate, 
+                                  never_ordered, avg_service_time, 
+                                  table_usage_rate, revenue_evolution):
+        """Génère des recommandations personnalisées basées sur les KPIs"""
+        recommendations = []
+        
+        # Taux d'annulation élevé
+        if cancellation_rate > 10:
+            recommendations.append({
+                'type': 'warning',
+                'category': 'commandes',
+                'title': 'Taux d\'annulation élevé',
+                'message': f'Votre taux d\'annulation est de {cancellation_rate}%. '
+                          'Identifiez les causes : délais trop longs, erreurs de commande, '
+                          'ou problèmes de communication avec les clients.',
+                'priority': 'high'
+            })
+        
+        # Disponibilité des plats faible
+        if availability_rate < 80:
+            recommendations.append({
+                'type': 'warning',
+                'category': 'menu',
+                'title': 'Disponibilité des plats à améliorer',
+                'message': f'Seulement {availability_rate}% de vos plats sont disponibles. '
+                          'Revoyez votre gestion des stocks ou retirez les plats '
+                          'indisponibles du menu.',
+                'priority': 'high'
+            })
+        
+        # Plats jamais commandés
+        if never_ordered > 5:
+            recommendations.append({
+                'type': 'info',
+                'category': 'menu',
+                'title': 'Optimisation du menu',
+                'message': f'{never_ordered} plats n\'ont jamais été commandés. '
+                          'Envisagez de les retirer du menu ou de les mettre en avant '
+                          'avec des promotions.',
+                'priority': 'medium'
+            })
+        
+        # Temps de service élevé
+        if avg_service_time and avg_service_time > 30:
+            recommendations.append({
+                'type': 'warning',
+                'category': 'service',
+                'title': 'Temps de service à optimiser',
+                'message': f'Le temps moyen de service est de {avg_service_time} minutes. '
+                          'Optimisez votre processus de préparation ou augmentez '
+                          'votre personnel en cuisine.',
+                'priority': 'high'
+            })
+        elif avg_service_time and avg_service_time < 15:
+            recommendations.append({
+                'type': 'success',
+                'category': 'service',
+                'title': 'Excellent temps de service',
+                'message': f'Temps moyen de {avg_service_time} minutes. Continuez ! '
+                          'Vos clients apprécient cette rapidité.',
+                'priority': 'low'
+            })
+        
+        # Utilisation des tables faible
+        if table_usage_rate < 50:
+            recommendations.append({
+                'type': 'info',
+                'category': 'tables',
+                'title': 'Optimisation de l\'espace',
+                'message': f'Seulement {table_usage_rate}% de vos tables sont utilisées. '
+                          'Envisagez de réduire le nombre de tables ou '
+                          'd\'améliorer votre visibilité.',
+                'priority': 'medium'
+            })
+        
+        # Évolution du CA négative
+        if revenue_evolution < -10:
+            recommendations.append({
+                'type': 'warning',
+                'category': 'revenus',
+                'title': 'Baisse du chiffre d\'affaires',
+                'message': f'Votre CA a baissé de {abs(revenue_evolution)}%. '
+                          'Analysez vos plats populaires et lancez des promotions '
+                          'pour relancer l\'activité.',
+                'priority': 'high'
+            })
+        elif revenue_evolution > 10:
+            recommendations.append({
+                'type': 'success',
+                'category': 'revenus',
+                'title': 'Croissance positive',
+                'message': f'Félicitations ! Votre CA a augmenté de {revenue_evolution}%. '
+                          'Maintenez cette dynamique et capitalisez sur vos succès.',
+                'priority': 'low'
+            })
+        
+        # Message positif par défaut
+        if not recommendations:
+            recommendations.append({
+                'type': 'success',
+                'category': 'general',
+                'title': 'Tout va bien !',
+                'message': 'Vos indicateurs sont dans les normes. '
+                          'Continuez à suivre vos statistiques régulièrement.',
+                'priority': 'low'
+            })
+        
+        return recommendations
+
+    @extend_schema(
+        summary="Dashboard d'un restaurant",
+        description="Récupère le dashboard complet avec statistiques, commandes récentes et tendances",
+        responses={
+            200: OpenApiResponse(description="Dashboard du restaurant"),
+            403: OpenApiResponse(description="Accès non autorisé"),
+            404: OpenApiResponse(description="Restaurant non trouvé"),
+        }
+    )
+    @action(detail=True, methods=['get'], url_path='dashboard')
+    def dashboard(self, request, pk=None):
+        """
+        Récupère le dashboard complet d'un restaurant
+        GET /api/v1/restaurants/{id}/dashboard/
+        """
+        restaurant = self.get_object()
+        
+        # Vérifier les permissions
+        if not request.user.is_staff and restaurant.owner != request.user.restaurateur_profile:
+            return Response(
+                {'error': 'Vous n\'avez pas accès à ce dashboard'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        try:
+            # Récupérer les statistiques de base
+            stats_response = self.statistics(request, pk)
+            
+            if stats_response.status_code != 200:
+                return stats_response
+            
+            # Commandes récentes (dernières 24h)
+            from django.db.models import Sum
+            from api.models import OrderItem
+            
+            recent_orders = Order.objects.filter(
+                restaurant=restaurant,
+                created_at__gte=timezone.now() - timedelta(days=1)
+            ).select_related('table').order_by('-created_at')[:10]
+            
+            # Articles populaires (top 5)
+            popular_items = OrderItem.objects.filter(
+                order__restaurant=restaurant,
+                order__created_at__gte=timezone.now() - timedelta(days=30)
+            ).values(
+                'menu_item__name'
+            ).annotate(
+                total_quantity=Sum('quantity')
+            ).order_by('-total_quantity')[:5]
+            
+            # Revenus
+            today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            week_start = today_start - timedelta(days=7)
+            month_start = today_start - timedelta(days=30)
+            
+            revenue_stats = {
+                'today': Order.objects.filter(
+                    restaurant=restaurant,
+                    payment_status='paid',
+                    created_at__gte=today_start
+                ).aggregate(total=Sum('total_amount'))['total'] or 0,
+                'week': Order.objects.filter(
+                    restaurant=restaurant,
+                    payment_status='paid',
+                    created_at__gte=week_start
+                ).aggregate(total=Sum('total_amount'))['total'] or 0,
+                'month': Order.objects.filter(
+                    restaurant=restaurant,
+                    payment_status='paid',
+                    created_at__gte=month_start
+                ).aggregate(total=Sum('total_amount'))['total'] or 0,
+            }
+            
+            # Construire le dashboard
+            dashboard_data = {
+                'statistics': stats_response.data,
+                'recent_orders': [
+                    {
+                        'id': order.id,
+                        'table_number': order.table.number if order.table else None,
+                        'status': order.status,
+                        'total_amount': float(order.total_amount) if hasattr(order, 'total_amount') else 0,
+                        'created_at': order.created_at.isoformat(),
+                        'payment_status': order.payment_status,
+                    }
+                    for order in recent_orders
+                ],
+                'popular_items': [
+                    {
+                        'name': item['menu_item__name'],
+                        'quantity': item['total_quantity'],
+                    }
+                    for item in popular_items
+                ],
+                'revenue': revenue_stats,
+            }
+            
+            return Response(dashboard_data, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response(
+                {'error': f'Erreur lors de la récupération du dashboard: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    # ============================================================================
     # MÉTHODES CRUD DE BASE
     # ============================================================================
 
@@ -1099,71 +1720,8 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         })
 
     # ============================================================================
-    # STATISTIQUES ET TABLEAUX DE BORD
+    # TABLEAUX DE BORD
     # ============================================================================
-
-    @extend_schema(
-        summary="Statistiques du restaurant",
-        description="Retourne les statistiques complètes d'un restaurant."
-    )
-    @action(detail=True, methods=["get"])
-    def statistics(self, request, pk=None):
-        """Statistiques complètes d'un restaurant"""
-        restaurant = self.get_object()
-        
-        # Statistiques des commandes
-        orders = Order.objects.filter(restaurant=restaurant)
-        total_orders = orders.count()
-        pending_orders = orders.filter(status='pending').count()
-        in_progress_orders = orders.filter(status='in_progress').count()
-        served_orders = orders.filter(status='served').count()
-        paid_orders = orders.filter(payment_status='paid').count()
-        
-        # Statistiques des tables
-        tables = Table.objects.filter(restaurant=restaurant)
-        total_tables = tables.count()
-        
-        # Statistiques des menus
-        menus = Menu.objects.filter(restaurant=restaurant)
-        total_menus = menus.count()
-        active_menus = menus.filter(is_available=True).count()
-        
-        # Statistiques des items de menu
-        try:
-            menu_items = MenuItem.objects.filter(menu__restaurant=restaurant)
-            total_items = menu_items.count()
-            available_items = menu_items.filter(is_available=True).count()
-        except:
-            total_items = 0
-            available_items = 0
-        
-        return Response({
-            "restaurant": {
-                "id": str(restaurant.id),
-                "name": restaurant.name,
-                "can_receive_orders": restaurant.can_receive_orders,
-                "is_stripe_active": restaurant.is_stripe_active
-            },
-            "orders": {
-                "total": total_orders,
-                "pending": pending_orders,
-                "in_progress": in_progress_orders,
-                "served": served_orders,
-                "paid": paid_orders,
-                "unpaid": total_orders - paid_orders
-            },
-            "tables": {
-                "total": total_tables
-            },
-            "menus": {
-                "total": total_menus,
-                "active": active_menus
-            },
-            "menu_items": {
-                "total": total_items,
-                "available": available_items
-            }
-        })
 
     @extend_schema(
         summary="Dashboard du restaurant",
