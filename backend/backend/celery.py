@@ -1,5 +1,6 @@
 from celery import Celery
 from celery.schedules import crontab
+from api.tasks import COMPTABILITE_BEAT_SCHEDULE
 import os
 
 # Configuration Django
@@ -67,6 +68,9 @@ app.conf.update(
     # Logs
     worker_hijack_root_logger=False,
     worker_log_format='[%(asctime)s: %(levelname)s/%(processName)s] %(message)s',
+
+    # Comptabilité
+    COMPTABILITE_BEAT_SCHEDULE
 )
 
 

@@ -178,3 +178,30 @@ def force_archive_abandoned_sessions(hours=12):
     except Exception as e:
         logger.exception("Erreur lors de l'archivage forcé")
         return f"Erreur: {str(e)}"
+
+# ============================================================================
+# TÂCHES COMPTABILITÉ
+# ============================================================================
+
+from api.tasks.comptabilite_tasks import (
+    generate_monthly_recap,
+    sync_stripe_daily,
+    cleanup_old_exports,
+    generate_ecritures_comptables,
+    generate_fec_async
+)
+
+# Export pour utilisation directe
+__all__ = [
+    # Tâches existantes
+    'archive_session_delayed',
+    'auto_archive_eligible_sessions',
+    'cleanup_old_archived_sessions',
+    'force_archive_abandoned_sessions',
+    # Tâches comptabilité
+    'generate_monthly_recap',
+    'sync_stripe_daily',
+    'cleanup_old_exports',
+    'generate_ecritures_comptables',
+    'generate_fec_async',
+]

@@ -16,6 +16,14 @@ class ApiConfig(AppConfig):
         except ImportError as e:
             print(f"❌ [APPS] Erreur lors du chargement des signaux: {e}")
         
+        # Importer les signaux de comptabilité
+        try:
+            import api.signals.comptabilite_signals
+            print("✅ [APPS] Signaux de comptabilité chargés")
+        except ImportError:
+            # Le module comptabilité n'est pas encore installé
+            pass
+        
         # # Créer les groupes de base si ils n'existent pas
         # self.create_default_groups()
     

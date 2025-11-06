@@ -46,4 +46,7 @@ urlpatterns = [
 
     # Mentions légales
     path('legal/', include('api.urls.v1.legal_urls')),
+
+    # Comptabilité
+    path('comptabilite/', include('api.urls.v1.comptabilite_urls')),
 ]
