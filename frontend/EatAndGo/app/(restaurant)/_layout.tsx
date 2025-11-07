@@ -273,6 +273,16 @@ export default function TabLayout() {
           ),
         }}
       />
+
+      <Tabs.Screen
+        name="comptabilite"
+        options={{
+          title: 'Comptabilité',
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="calculator" size={24} color={color} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }
