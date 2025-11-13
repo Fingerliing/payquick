@@ -304,15 +304,7 @@ export const DailyMenuDisplay: React.FC<Props> = ({
   }
 
   if (!menu) {
-    return (
-      <View style={styles.emptyContainer}>
-        <Ionicons name="restaurant-outline" size={64} color={COLORS.text.light} />
-        <Text style={styles.emptyTitle}>Pas de menu du jour</Text>
-        <Text style={styles.emptySubtitle}>
-          Ce restaurant n'a pas de menu spécial aujourd'hui
-        </Text>
-      </View>
-    );
+    return null;
   }
 
   return (

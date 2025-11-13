@@ -2,11 +2,13 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
-  FlatList,
-  Pressable,
-  RefreshControl,
   ScrollView,
+  RefreshControl,
   TouchableOpacity,
+  Pressable,
+  Switch,
+  Platform,
+  Dimensions,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,8 +22,9 @@ import { restaurantService } from '@/services/restaurantService';
 import { Header } from '@/components/ui/Header';
 import { Loading } from '@/components/ui/Loading';
 import { DailyMenuDisplay } from '@/components/menu/DailyMenuDisplay';
-import { MenuItemCard } from '@/components/menu/MenuItemCard';
 import { Alert as InlineAlert, AlertWithAction } from '@/components/ui/Alert';
+import { CategoryAccordionDisplay } from '@/components/menu/MenuDisplay';
+import { MenuItemsGrid, MenuItemsMasonry, MenuItemsTable } from '@/components/menu/MenuItemGrid';
 
 // Types
 import { Menu, MenuItem } from '@/types/menu';
@@ -38,6 +41,8 @@ import {
   TYPOGRAPHY,
 } from '@/utils/designSystem';
 
+const { width: screenWidth } = Dimensions.get('window');
+
 // =============================================================================
 // TYPES ET INTERFACES
 // =============================================================================
@@ -47,6 +52,7 @@ interface MenuCategory {
   icon?: string;
   color?: string;
   count: number;
+  items: MenuItem[];
 }
 
 interface FilterOptions {
@@ -55,882 +61,584 @@ interface FilterOptions {
   showVegetarianOnly: boolean;
   showVeganOnly: boolean;
   showGlutenFreeOnly: boolean;
+  showAvailableOnly: boolean;
+  searchQuery: string;
 }
 
-// =============================================================================
-// STYLES DYNAMIQUES
-// =============================================================================
-const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', insets: any) => ({
-  page: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  
-  // En-tête Restaurant Premium
-  restaurantHeader: {
-    backgroundColor: COLORS.goldenSurface,
-    paddingTop: getResponsiveValue(SPACING.xl, screenType),
-    paddingBottom: getResponsiveValue(SPACING.lg, screenType),
-    paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
-    borderBottomLeftRadius: BORDER_RADIUS['3xl'],
-    borderBottomRightRadius: BORDER_RADIUS['3xl'],
-    ...SHADOWS.premiumCard,
-    borderBottomWidth: 3,
-    borderBottomColor: COLORS.border.golden,
-  },
-  
-  restaurantName: {
-    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize['3xl'], screenType),
-    fontWeight: TYPOGRAPHY.fontWeight.extrabold as any,
-    color: COLORS.primary,
-    textAlign: 'center' as const,
-    marginBottom: getResponsiveValue(SPACING.xs, screenType),
-    letterSpacing: 0.5,
-  },
-  
-  restaurantSubtitle: {
-    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
-    fontWeight: TYPOGRAPHY.fontWeight.medium as any,
-    color: COLORS.text.golden,
-    textAlign: 'center' as const,
-    fontStyle: 'italic' as const,
-  },
-  
-  decorativeLine: {
-    height: 2,
-    backgroundColor: COLORS.border.golden,
-    marginVertical: getResponsiveValue(SPACING.md, screenType),
-    alignSelf: 'center' as const,
-    width: '40%',
-  },
-  
-  sessionCodeContainer: {
-    backgroundColor: COLORS.variants.secondary[50],
-    borderRadius: BORDER_RADIUS.lg,
-    padding: getResponsiveValue(SPACING.md, screenType),
-    marginTop: getResponsiveValue(SPACING.md, screenType),
-    borderWidth: 2,
-    borderColor: COLORS.variants.secondary[400],
-    borderStyle: 'dashed' as const,
-  },
-  
-  sessionCodeLabel: {
-    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
-    fontWeight: TYPOGRAPHY.fontWeight.semibold as any,
-    color: COLORS.text.secondary,
-    textAlign: 'center' as const,
-    marginBottom: getResponsiveValue(SPACING.xs, screenType),
-  },
-  
-  sessionCode: {
-    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize['2xl'], screenType),
-    fontWeight: TYPOGRAPHY.fontWeight.extrabold as any,
-    color: COLORS.variants.secondary[600],
-    textAlign: 'center' as const,
-    letterSpacing: 4,
-    fontFamily: 'monospace' as const,
-  },
-  
-  sessionCodeSubtext: {
-    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
-    color: COLORS.text.light,
-    textAlign: 'center' as const,
-    marginTop: getResponsiveValue(SPACING.xs, screenType),
-  },
-
-  container: {
-    paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
-  },
-
-  // 🔔 Zone d’alertes
-  alertsWrapper: {
-    paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
-    marginTop: getResponsiveValue(SPACING.md, screenType),
-    zIndex: 10,
-  },
-  
-  // Navigation Catégories - Style Menu
-  categoriesSection: {
-    marginVertical: getResponsiveValue(SPACING.lg, screenType),
-  },
-  
-  categoryCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.xl,
-    padding: getResponsiveValue(SPACING.md, screenType),
-    marginRight: getResponsiveValue(SPACING.sm, screenType),
-    minWidth: 120,
-    alignItems: 'center' as const,
-    borderWidth: 2,
-    borderColor: COLORS.border.light,
-    ...SHADOWS.card,
-  },
-  
-  categoryCardActive: {
-    backgroundColor: COLORS.goldenSurface,
-    borderColor: COLORS.variants.secondary[400],
-    borderWidth: 2,
-    ...SHADOWS.goldenGlow,
-  },
-  
-  categoryIcon: {
-    fontSize: 32,
-    marginBottom: 6,
-  },
-  
-  categoryName: {
-    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
-    fontWeight: TYPOGRAPHY.fontWeight.semibold as any,
-    color: COLORS.text.primary,
-    textAlign: 'center' as const,
-  },
-  
-  categoryNameActive: {
-    color: COLORS.text.golden,
-    fontWeight: TYPOGRAPHY.fontWeight.bold as any,
-  },
-  
-  categoryCount: {
-    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
-    color: COLORS.text.light,
-    marginTop: 2,
-  },
-  
-  // Section de Catégorie - Style Carte Restaurant
-  categorySection: {
-    marginBottom: getResponsiveValue(SPACING['2xl'], screenType),
-  },
-  
-  sectionTitle: {
-    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize['2xl'], screenType),
-    fontWeight: TYPOGRAPHY.fontWeight.extrabold as any,
-    color: COLORS.primary,
-    marginBottom: getResponsiveValue(SPACING.md, screenType),
-    textAlign: 'center' as const,
-    letterSpacing: 1,
-    textTransform: 'uppercase' as const,
-  },
-  
-  sectionDivider: {
-    height: 1,
-    backgroundColor: COLORS.border.golden,
-    marginBottom: getResponsiveValue(SPACING.lg, screenType),
-    width: '60%' as const,
-    alignSelf: 'center' as const,
-  },
-  
-  subSectionTitle: {
-    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
-    fontWeight: TYPOGRAPHY.fontWeight.bold as any,
-    color: COLORS.text.golden,
-    marginTop: getResponsiveValue(SPACING.lg, screenType),
-    marginBottom: getResponsiveValue(SPACING.md, screenType),
-    fontStyle: 'italic' as const,
-  },
-  
-  // Menu Item Card - Style Carte Restaurant
-  menuItemCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.xl,
-    padding: getResponsiveValue(SPACING.lg, screenType),
-    marginBottom: getResponsiveValue(SPACING.md, screenType),
-    ...SHADOWS.card,
-    borderLeftWidth: 4,
-    borderLeftColor: COLORS.variants.secondary[400],
-  },
-  
-  menuItemHeader: {
-    flexDirection: 'row' as const,
-    justifyContent: 'space-between' as const,
-    alignItems: 'flex-start' as const,
-    marginBottom: getResponsiveValue(SPACING.sm, screenType),
-  },
-  
-  menuItemNameContainer: {
-    flex: 1,
-    marginRight: getResponsiveValue(SPACING.md, screenType),
-  },
-  
-  menuItemName: {
-    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xl, screenType),
-    fontWeight: TYPOGRAPHY.fontWeight.bold as any,
-    color: COLORS.text.primary,
-    lineHeight: getResponsiveValue(TYPOGRAPHY.fontSize.xl, screenType) * 1.3,
-  },
-  
-  menuItemNameWithPhoto: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-  },
-  
-  photoIcon: {
-    marginLeft: 6,
-  },
-  
-  menuItemPrice: {
-    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize['2xl'], screenType),
-    fontWeight: TYPOGRAPHY.fontWeight.extrabold as any,
-    color: COLORS.variants.secondary[600],
-    letterSpacing: 0.5,
-  },
-  
-  menuItemDescription: {
-    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
-    fontWeight: TYPOGRAPHY.fontWeight.normal as any,
-    color: COLORS.text.secondary,
-    lineHeight: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType) * 1.5,
-    marginBottom: getResponsiveValue(SPACING.md, screenType),
-    fontStyle: 'italic' as const,
-  },
-  
-  // Tags Diététiques - Style Élégant
-  dietaryTags: {
-    flexDirection: 'row' as const,
-    flexWrap: 'wrap' as const,
-    gap: 8,
-    marginBottom: getResponsiveValue(SPACING.sm, screenType),
-  },
-  
-  dietaryTag: {
-    backgroundColor: COLORS.variants.secondary[50],
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: BORDER_RADIUS.full,
-    borderWidth: 1,
-    borderColor: COLORS.variants.secondary[300],
-  },
-  
-  dietaryTagText: {
-    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
-    color: COLORS.variants.secondary[800],
-    fontWeight: TYPOGRAPHY.fontWeight.semibold as any,
-  },
-  
-  // Allergènes
-  allergenToggle: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    paddingVertical: 8,
-    gap: 6,
-  },
-  
-  allergenToggleText: {
-    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
-    color: COLORS.text.secondary,
-    fontWeight: TYPOGRAPHY.fontWeight.medium as any,
-  },
-  
-  allergenChips: {
-    flexDirection: 'row' as const,
-    flexWrap: 'wrap' as const,
-    gap: 6,
-    marginTop: 4,
-  },
-  
-  allergenChip: {
-    backgroundColor: '#FEF2F2',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: BORDER_RADIUS.full,
-    borderWidth: 1,
-    borderColor: '#FCA5A5',
-  },
-  
-  allergenChipText: {
-    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
-    color: '#DC2626',
-    fontWeight: TYPOGRAPHY.fontWeight.medium as any,
-  },
-  
-  // Footer de l'item avec bouton
-  menuItemFooter: {
-    flexDirection: 'row' as const,
-    justifyContent: 'space-between' as const,
-    alignItems: 'center' as const,
-    marginTop: getResponsiveValue(SPACING.md, screenType),
-    paddingTop: getResponsiveValue(SPACING.sm, screenType),
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border.light,
-  },
-  
-  categoryBadge: {
-    backgroundColor: COLORS.variants.primary[100],
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: BORDER_RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.variants.primary[300],
-  },
-  
-  categoryBadgeText: {
-    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
-    color: COLORS.primary,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold as any,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
-  },
-  
-  addButton: {
-    backgroundColor: COLORS.variants.secondary[500],
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: BORDER_RADIUS.lg,
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 6,
-    ...SHADOWS.button,
-  },
-  
-  addButtonText: {
-    color: COLORS.text.inverse,
-    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
-    fontWeight: TYPOGRAPHY.fontWeight.bold as any,
-  },
-  
-  unavailableContainer: {
-    backgroundColor: COLORS.border.light,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: BORDER_RADIUS.lg,
-  },
-  
-  unavailableText: {
-    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
-    color: COLORS.text.light,
-    fontWeight: TYPOGRAPHY.fontWeight.medium as any,
-  },
-  
-  // Bouton Panier Flottant - Style Premium
-  cartButton: {
-    position: 'absolute' as const,
-    left: getResponsiveValue(SPACING.container, screenType),
-    right: getResponsiveValue(SPACING.container, screenType),
-    backgroundColor: COLORS.variants.secondary[500],
-    borderRadius: BORDER_RADIUS['2xl'],
-    padding: getResponsiveValue(SPACING.md, screenType),
-    flexDirection: 'row' as const,
-    justifyContent: 'space-between' as const,
-    alignItems: 'center' as const,
-    ...SHADOWS.xl,
-    borderWidth: 2,
-    borderColor: COLORS.variants.secondary[600],
-  },
-  
-  cartButtonContent: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 12,
-  },
-  
-  cartButtonIcon: {
-    backgroundColor: COLORS.text.inverse,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
-  },
-  
-  cartButtonText: {
-    color: COLORS.text.inverse,
-    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
-    fontWeight: TYPOGRAPHY.fontWeight.bold as any,
-  },
-  
-  cartButtonPrice: {
-    color: COLORS.text.inverse,
-    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize['2xl'], screenType),
-    fontWeight: TYPOGRAPHY.fontWeight.extrabold as any,
-  },
-  
-  // Filtres
-  filtersButton: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    backgroundColor: COLORS.surface,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: BORDER_RADIUS.full,
-    borderWidth: 1.5,
-    borderColor: COLORS.border.default,
-    gap: 6,
-    alignSelf: 'center' as const,
-    marginVertical: getResponsiveValue(SPACING.md, screenType),
-    ...SHADOWS.sm,
-  },
-  
-  filtersButtonActive: {
-    backgroundColor: COLORS.goldenSurface,
-    borderColor: COLORS.variants.secondary[400],
-  },
-  
-  filtersButtonText: {
-    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
-    color: COLORS.text.primary,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold as any,
-  },
-  
-  filtersPanel: {
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.xl,
-    padding: getResponsiveValue(SPACING.lg, screenType),
-    marginBottom: getResponsiveValue(SPACING.md, screenType),
-    ...SHADOWS.md,
-  },
-  
-  filtersPanelHeader: {
-    flexDirection: 'row' as const,
-    justifyContent: 'space-between' as const,
-    alignItems: 'center' as const,
-    marginBottom: getResponsiveValue(SPACING.md, screenType),
-  },
-  
-  filtersPanelTitle: {
-    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
-    fontWeight: TYPOGRAPHY.fontWeight.bold as any,
-    color: COLORS.text.primary,
-  },
-  
-  clearFiltersText: {
-    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
-    color: COLORS.primary,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold as any,
-  },
-  
-  filterOption: {
-    flexDirection: 'row' as const,
-    justifyContent: 'space-between' as const,
-    alignItems: 'center' as const,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border.light,
-  },
-  
-  filterOptionText: {
-    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
-    color: COLORS.text.primary,
-    fontWeight: TYPOGRAPHY.fontWeight.medium as any,
-  },
-  
-  // États vides
-  emptyStateContainer: {
-    flex: 1,
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
-    paddingVertical: getResponsiveValue(SPACING['4xl'], screenType),
-  },
-  
-  emptyStateText: {
-    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
-    color: COLORS.text.secondary,
-    textAlign: 'center' as const,
-    marginTop: getResponsiveValue(SPACING.md, screenType),
-    marginBottom: getResponsiveValue(SPACING.lg, screenType),
-  },
-  
-  // Séparateur de section
-  sectionSeparator: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    marginVertical: getResponsiveValue(SPACING.xl, screenType),
-  },
-  
-  separatorLine: {
-    flex: 1,
-    height: 2,
-    backgroundColor: COLORS.border.golden,
-  },
-  
-  separatorText: {
-    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
-    fontWeight: TYPOGRAPHY.fontWeight.bold as any,
-    color: COLORS.text.golden,
-    marginHorizontal: getResponsiveValue(SPACING.md, screenType),
-    textTransform: 'uppercase' as const,
-    letterSpacing: 1,
-  },
-});
+// Types pour les modes d'affichage
+type ViewMode = 'compact' | 'grid' | 'masonry' | 'accordion' | 'table';
 
 // =============================================================================
-// COMPOSANTS ENFANTS
+// COMPOSANT PRINCIPAL OPTIMISÉ
 // =============================================================================
-
-const RestaurantHeader = React.memo(({ restaurant, styles, sessionCode }: { restaurant: Restaurant; styles: any; sessionCode?: string | null }) => (
-  <View style={styles.restaurantHeader}>
-    <Text style={styles.restaurantName}>{restaurant.name}</Text>
-    <View style={styles.decorativeLine} />
-    <Text style={styles.restaurantSubtitle}>Notre Carte</Text>
-    
-    {sessionCode && (
-      <View style={styles.sessionCodeContainer}>
-        <Text style={styles.sessionCodeLabel}>📱 Code de session partagée</Text>
-        <Text style={styles.sessionCode}>{sessionCode}</Text>
-        <Text style={styles.sessionCodeSubtext}>Partagez ce code avec vos amis pour commander ensemble</Text>
-      </View>
-    )}
-  </View>
-));
-
-const CategoryNavigation = React.memo(({ 
-  categories, 
-  selectedCategory, 
-  onSelect, 
-  styles 
-}: {
-  categories: MenuCategory[];
-  selectedCategory: string | null;
-  onSelect: (id: string | null) => void;
-  styles: any;
-}) => (
-  <View style={styles.categoriesSection}>
-    <FlatList
-      data={categories}
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      keyExtractor={(item) => item.id}
-      renderItem={({ item }) => (
-        <TouchableOpacity
-          style={[
-            styles.categoryCard,
-            selectedCategory === item.id && styles.categoryCardActive
-          ]}
-          onPress={() => onSelect(item.id === selectedCategory ? null : item.id)}
-        >
-          {item.icon && <Text style={styles.categoryIcon}>{item.icon}</Text>}
-          <Text style={[
-            styles.categoryName,
-            selectedCategory === item.id && styles.categoryNameActive
-          ]}>
-            {item.name}
-          </Text>
-          {item.count > 0 && (
-            <Text style={styles.categoryCount}>({item.count})</Text>
-          )}
-        </TouchableOpacity>
-      )}
-      contentContainerStyle={{ paddingHorizontal: getResponsiveValue(SPACING.container, 'mobile') }}
-    />
-  </View>
-));
-
-const SectionSeparator = React.memo(({ title, styles }: { title: string; styles: any }) => (
-  <View style={styles.sectionSeparator}>
-    <View style={styles.separatorLine} />
-    <Text style={styles.separatorText}>{title}</Text>
-    <View style={styles.separatorLine} />
-  </View>
-));
-
-const FiltersPanel = React.memo(({ 
-  filters, 
-  onToggleFilter, 
-  onClearFilters, 
-  styles 
-}: {
-  filters: FilterOptions;
-  onToggleFilter: (filterType: keyof FilterOptions) => void;
-  onClearFilters: () => void;
-  styles: any;
-}) => (
-  <View style={styles.filtersPanel}>
-    <View style={styles.filtersPanelHeader}>
-      <Text style={styles.filtersPanelTitle}>Filtres diététiques</Text>
-      <TouchableOpacity onPress={onClearFilters}>
-        <Text style={styles.clearFiltersText}>Réinitialiser</Text>
-      </TouchableOpacity>
-    </View>
-    
-    <TouchableOpacity
-      style={styles.filterOption}
-      onPress={() => onToggleFilter('showVegetarianOnly')}
-    >
-      <Text style={styles.filterOptionText}>🥗 Végétarien uniquement</Text>
-      {filters.showVegetarianOnly && (
-        <Ionicons name="checkmark-circle" size={24} color={COLORS.success} />
-      )}
-    </TouchableOpacity>
-
-    <TouchableOpacity
-      style={styles.filterOption}
-      onPress={() => onToggleFilter('showVeganOnly')}
-    >
-      <Text style={styles.filterOptionText}>🌱 Vegan uniquement</Text>
-      {filters.showVeganOnly && (
-        <Ionicons name="checkmark-circle" size={24} color={COLORS.success} />
-      )}
-    </TouchableOpacity>
-
-    <TouchableOpacity
-      style={[styles.filterOption, { borderBottomWidth: 0 }]}
-      onPress={() => onToggleFilter('showGlutenFreeOnly')}
-    >
-      <Text style={styles.filterOptionText}>🚫🌾 Sans gluten uniquement</Text>
-      {filters.showGlutenFreeOnly && (
-        <Ionicons name="checkmark-circle" size={24} color={COLORS.success} />
-      )}
-    </TouchableOpacity>
-  </View>
-));
-
-// =============================================================================
-// COMPOSANT PRINCIPAL
-// =============================================================================
-export default function RestaurantMenuScreen() {
+export default function OptimizedRestaurantPage() {
   const { restaurantId } = useLocalSearchParams<{ restaurantId: string }>();
-  const { table } = useLocalSearchParams<{ table?: string }>();
-  const { cart, addToCart, isCartForRestaurant } = useCart();
-  const { session } = useSession();
   const screenType = useScreenType();
   const insets = useSafeAreaInsets();
-  
-  const styles = useMemo(() => createStyles(screenType, insets), [screenType, insets]);
+  const { session } = useSession();
+  const { cart, addToCart, clearCart } = useCart();
 
-  // États
+  // États principaux
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [menus, setMenus] = useState<Menu[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [categories, setCategories] = useState<MenuCategory[]>([]);
-  const [showFilters, setShowFilters] = useState(false);
-  const [expandedAllergens, setExpandedAllergens] = useState<Set<string>>(new Set());
-  
+
+  // 🆕 États pour l'affichage optimisé
+  const [viewMode, setViewMode] = useState<ViewMode>('compact');
+  const [showDailyMenuFirst, setShowDailyMenuFirst] = useState(true);
+  const [groupByCategory, setGroupByCategory] = useState(true);
+  const [quickFilterMode, setQuickFilterMode] = useState<'all' | 'available' | 'dietary'>('all');
+
+  // États des filtres améliorés
   const [filters, setFilters] = useState<FilterOptions>({
     selectedCategory: null,
     hideAllergens: [],
     showVegetarianOnly: false,
     showVeganOnly: false,
     showGlutenFreeOnly: false,
+    showAvailableOnly: false,
+    searchQuery: '',
+  });
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+
+  // États UI
+  const [toast, setToast] = useState({
+    visible: false,
+    variant: 'success' as 'success' | 'error' | 'info' | 'warning',
+    title: '',
+    message: '',
+  });
+  const [confirmCartSwitch, setConfirmCartSwitch] = useState({
+    visible: false,
+    item: null as MenuItem | null,
   });
 
-  // 🔔 Toast (auto-dismiss)
-  const [toast, setToast] = useState<{
-    visible: boolean;
-    variant: 'success' | 'error' | 'warning' | 'info';
-    title?: string;
-    message: string;
-  }>({ visible: false, variant: 'info', message: '' });
+  // =============================================================================
+  // STYLES OPTIMISÉS
+  // =============================================================================
+  const styles = useMemo(
+    () => ({
+      page: {
+        flex: 1,
+        backgroundColor: COLORS.background,
+      },
 
-  // 🔔 Confirmation (changement de resto dans le panier)
-  const [confirmCartSwitch, setConfirmCartSwitch] = useState<{
-    visible: boolean;
-    item: MenuItem | any | null;
-  }>({ visible: false, item: null });
+      // En-tête Restaurant Premium
+      restaurantHeader: {
+        backgroundColor: COLORS.goldenSurface,
+        paddingTop: getResponsiveValue(SPACING.xl, screenType),
+        paddingBottom: getResponsiveValue(SPACING.lg, screenType),
+        paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
+        borderBottomLeftRadius: BORDER_RADIUS['3xl'],
+        borderBottomRightRadius: BORDER_RADIUS['3xl'],
+        ...SHADOWS.premiumCard,
+        borderBottomWidth: 3,
+        borderBottomColor: COLORS.border.golden,
+      },
+      
+      restaurantName: {
+        fontSize: getResponsiveValue(TYPOGRAPHY.fontSize['3xl'], screenType),
+        fontWeight: TYPOGRAPHY.fontWeight.extrabold as any,
+        color: COLORS.primary,
+        textAlign: 'center' as const,
+        marginBottom: getResponsiveValue(SPACING.xs, screenType),
+        letterSpacing: 0.5,
+      },
+      
+      restaurantSubtitle: {
+        fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
+        fontWeight: TYPOGRAPHY.fontWeight.medium as any,
+        color: COLORS.text.golden,
+        textAlign: 'center' as const,
+        fontStyle: 'italic' as const,
+      },
 
-  // Utils toast
-  const showToast = useCallback((variant: 'success' | 'error' | 'warning' | 'info', message: string, title?: string) => {
-    setToast({ visible: true, variant, message, title });
-  }, []);
-  const hideToast = useCallback(() => setToast(p => ({ ...p, visible: false })), []);
+      // 🆕 Contrôles d'affichage optimisés
+      displayControls: {
+        backgroundColor: COLORS.surface,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.border.light,
+        ...SHADOWS.sm,
+      },
 
-  // Chargement des données
-  const loadRestaurantData = useCallback(async () => {
+      viewModeSelector: {
+        flexDirection: 'row' as const,
+        marginBottom: 12,
+      },
+
+      viewModeButton: {
+        flexDirection: 'row' as const,
+        alignItems: 'center' as const,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        marginRight: 8,
+        borderRadius: BORDER_RADIUS.lg,
+        backgroundColor: COLORS.background,
+      },
+
+      viewModeButtonActive: {
+        backgroundColor: COLORS.variants.primary[100],
+        borderWidth: 1,
+        borderColor: COLORS.variants.primary[300],
+      },
+
+      viewModeLabel: {
+        fontSize: 13,
+        fontWeight: '500' as const,
+        color: COLORS.text.secondary,
+        marginLeft: 6,
+      },
+
+      viewModeLabelActive: {
+        color: COLORS.primary,
+      },
+
+      // 🆕 Quick filters bar (utilisée dans contentContainerStyle)
+      quickFiltersBar: {
+        flexDirection: 'row' as const,
+        alignItems: 'center' as const,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        backgroundColor: COLORS.variants.primary[50],
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.border.light,
+      },
+
+      quickFilterChip: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: BORDER_RADIUS.full,
+        backgroundColor: COLORS.surface,
+        marginRight: 8,
+        borderWidth: 1,
+        borderColor: COLORS.border.light,
+      },
+
+      quickFilterChipActive: {
+        backgroundColor: COLORS.primary,
+        borderColor: COLORS.primary,
+      },
+
+      quickFilterText: {
+        fontSize: 12,
+        fontWeight: '600' as const,
+        color: COLORS.text.secondary,
+      },
+
+      quickFilterTextActive: {
+        color: COLORS.text.inverse,
+      },
+
+      // 🆕 Stats bar
+      statsBar: {
+        flexDirection: 'row' as const,
+        justifyContent: 'space-around' as const,
+        paddingVertical: 12,
+        backgroundColor: COLORS.surface,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.border.light,
+      },
+
+      statItem: {
+        alignItems: 'center' as const,
+      },
+
+      statValue: {
+        fontSize: 20,
+        fontWeight: '700' as const,
+        color: COLORS.primary,
+      },
+
+      statLabel: {
+        fontSize: 11,
+        color: COLORS.text.secondary,
+        marginTop: 2,
+      },
+
+      // Search bar
+      searchContainer: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        backgroundColor: COLORS.surface,
+      },
+
+      searchInput: {
+        backgroundColor: COLORS.background,
+        borderRadius: BORDER_RADIUS.lg,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        fontSize: 14,
+        borderWidth: 1,
+        borderColor: COLORS.border.light,
+      },
+
+      searchInputFocused: {
+        borderColor: COLORS.primary,
+        backgroundColor: COLORS.variants.primary[50],
+      },
+
+      // Settings panel
+      settingsPanel: {
+        backgroundColor: COLORS.surface,
+        padding: 16,
+        borderTopWidth: 1,
+        borderTopColor: COLORS.border.light,
+      },
+
+      settingRow: {
+        flexDirection: 'row' as const,
+        justifyContent: 'space-between' as const,
+        alignItems: 'center' as const,
+        paddingVertical: 8,
+      },
+
+      settingLabel: {
+        fontSize: 14,
+        color: COLORS.text.primary,
+      },
+
+      // Floating cart button
+      floatingCart: {
+        position: 'absolute' as const,
+        bottom: 20,
+        left: 20,
+        right: 20,
+        backgroundColor: COLORS.primary,
+        borderRadius: BORDER_RADIUS.xl,
+        flexDirection: 'row' as const,
+        justifyContent: 'space-between' as const,
+        alignItems: 'center' as const,
+        padding: 16,
+        ...SHADOWS.lg,
+      },
+
+      cartInfo: {
+        flexDirection: 'row' as const,
+        alignItems: 'center' as const,
+      },
+
+      cartBadge: {
+        backgroundColor: COLORS.secondary,
+        borderRadius: BORDER_RADIUS.full,
+        width: 32,
+        height: 32,
+        alignItems: 'center' as const,
+        justifyContent: 'center' as const,
+        marginRight: 12,
+      },
+
+      cartBadgeText: {
+        color: COLORS.text.inverse,
+        fontWeight: '700' as const,
+        fontSize: 14,
+      },
+
+      cartText: {
+        color: COLORS.text.inverse,
+        fontSize: 16,
+        fontWeight: '600' as const,
+      },
+
+      cartTotal: {
+        color: COLORS.text.inverse,
+        fontSize: 18,
+        fontWeight: '700' as const,
+      },
+    }),
+    [screenType]
+  );
+
+  // =============================================================================
+  // TOAST / NOTIFICATIONS
+  // =============================================================================
+  const showToast = useCallback(
+    (
+      variant: 'success' | 'error' | 'info' | 'warning',
+      title: string,
+      message: string
+    ) => {
+      setToast({ visible: true, variant, title, message });
+      setTimeout(() => setToast(prev => ({ ...prev, visible: false })), 3000);
+    },
+    []
+  );
+
+  // =============================================================================
+  // DATA FETCHING
+  // =============================================================================
+  const loadData = useCallback(async () => {
+    if (!restaurantId) return;
+
     try {
       setIsLoading(true);
 
+      console.log('[RestaurantScreen] restaurantId =', restaurantId);
+
       const [restaurantData, menusData] = await Promise.all([
         restaurantService.getPublicRestaurant(restaurantId),
-        menuService.getMenusByRestaurant(parseInt(restaurantId)),
+        menuService.getMenusByRestaurant(parseInt(restaurantId, 10)),
       ]);
+
+      console.log('[RestaurantScreen] restaurantData =', restaurantData);
+      console.log('[RestaurantScreen] menusData =', menusData);
 
       setRestaurant(restaurantData);
       setMenus(menusData);
-      
-      // Génération des catégories
-      const categoryMap = new Map<string, MenuCategory>();
-      
-      menusData.forEach(menu => {
-        menu.items?.forEach(item => {
-          if (item.category_name) {
-            const categoryId = item.category?.toString() || item.category_name;
-            if (!categoryMap.has(categoryId)) {
-              categoryMap.set(categoryId, {
-                id: categoryId,
-                name: item.category_name,
-                icon: item.category_icon,
-                color: COLORS.primary,
-                count: 0,
-              });
-            }
-            categoryMap.get(categoryId)!.count++;
-          }
-        });
-      });
-
-      setCategories([
-        { id: 'all', name: 'Tout', icon: '🍽️', color: COLORS.text.secondary, count: 0 },
-        ...Array.from(categoryMap.values())
-      ]);
-
     } catch (error) {
       console.error('Error loading restaurant data:', error);
-      // ⛔️ Remplace Alert natif
-      showToast('error', 'Impossible de charger les données du restaurant');
+      showToast('error', 'Erreur', 'Impossible de charger le menu');
+      setRestaurant(null);
+      setMenus([]);
     } finally {
       setIsLoading(false);
+      setRefreshing(false);
     }
   }, [restaurantId, showToast]);
 
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await loadRestaurantData();
-    setRefreshing(false);
-  }, [loadRestaurantData]);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
-  // Filtrage des items
-  const filteredItems = useMemo(() => {
-    const allItems = menus.flatMap(menu => menu.items || []);
-    
-    return allItems.filter(item => {
-      if (filters.selectedCategory && filters.selectedCategory !== 'all') {
-        const itemCategoryId = item.category?.toString() || item.category_name;
-        if (itemCategoryId !== filters.selectedCategory) return false;
+  // =============================================================================
+  // DONNÉES TRANSFORMÉES ET FILTRÉES
+  // =============================================================================
+  const allMenuItems = useMemo(() => {
+    return menus.flatMap(menu => menu.items || []);
+  }, [menus]);
+
+  // 🆕 Catégories enrichies avec items
+  const categoriesWithItems = useMemo(() => {
+    const catMap = new Map<string, MenuCategory>();
+
+    allMenuItems.forEach(item => {
+      const catName = item.category_name || 'Autres';
+      if (!catMap.has(catName)) {
+        catMap.set(catName, {
+          id: catName,
+          name: catName,
+          icon: '🍽️',
+          count: 0,
+          items: [],
+        });
       }
 
-      if (filters.showVeganOnly && !item.is_vegan) return false;
-      if (filters.showVegetarianOnly && !item.is_vegetarian) return false;
-      if (filters.showGlutenFreeOnly && !item.is_gluten_free) return false;
-
-      return true;
+      const cat = catMap.get(catName)!;
+      cat.items.push(item);
+      cat.count++;
     });
-  }, [menus, filters]);
 
-  // Groupement par catégorie
-  const itemsByCategory = useMemo(() => {
-    const grouped = filteredItems.reduce((acc, item) => {
-      const categoryName = item.category_name || 'Autres';
-      if (!acc[categoryName]) acc[categoryName] = [];
-      acc[categoryName].push(item);
-      return acc;
-    }, {} as Record<string, MenuItem[]>);
-  
-    return Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b));
+    return Array.from(catMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [allMenuItems]);
+
+  // 🆕 Application des filtres optimisée
+  const filteredItems = useMemo(() => {
+    let items = [...allMenuItems];
+
+    // Quick filter mode
+    if (quickFilterMode === 'available') {
+      items = items.filter(item => item.is_available);
+    } else if (quickFilterMode === 'dietary') {
+      items = items.filter(
+        item => item.is_vegan || item.is_vegetarian || item.is_gluten_free
+      );
+    }
+
+    // Search query
+    if (filters.searchQuery) {
+      const query = filters.searchQuery.toLowerCase();
+      items = items.filter(
+        item =>
+          item.name.toLowerCase().includes(query) ||
+          item.description?.toLowerCase().includes(query)
+      );
+    }
+
+    // Category filter
+    if (filters.selectedCategory) {
+      items = items.filter(item => item.category_name === filters.selectedCategory);
+    }
+
+    // Dietary filters
+    if (filters.showVeganOnly) {
+      items = items.filter(item => item.is_vegan);
+    }
+    if (filters.showVegetarianOnly) {
+      items = items.filter(item => item.is_vegetarian);
+    }
+    if (filters.showGlutenFreeOnly) {
+      items = items.filter(item => item.is_gluten_free);
+    }
+
+    // Available only
+    if (filters.showAvailableOnly) {
+      items = items.filter(item => item.is_available);
+    }
+
+    // Hide allergens
+    if (filters.hideAllergens.length > 0) {
+      items = items.filter(item => {
+        const itemAllergens = item.allergens || [];
+        return !filters.hideAllergens.some(allergen =>
+          itemAllergens.includes(allergen)
+        );
+      });
+    }
+
+    return items;
+  }, [allMenuItems, filters, quickFilterMode]);
+
+  // 🆕 Stats en temps réel
+  const stats = useMemo(() => {
+    const available = filteredItems.filter(item => item.is_available);
+    const dietary = filteredItems.filter(
+      item => item.is_vegan || item.is_vegetarian || item.is_gluten_free
+    );
+    const withImages = filteredItems.filter(item => item.image_url);
+
+    return {
+      total: filteredItems.length,
+      available: available.length,
+      dietary: dietary.length,
+      withImages: withImages.length,
+      categories: [...new Set(filteredItems.map(item => item.category_name))].length,
+    };
   }, [filteredItems]);
 
-  // Handlers
-  const proceedAddToCart = useCallback((item: MenuItem | any) => {
-    const itemData = {
-      menuItemId: item.id || item.menuItemId,
-      name: item.name,
-      description: item.description,
-      image: item.image,
-      price: typeof item.price === 'string' ? parseFloat(item.price) : item.price,
-      restaurantId: parseInt(restaurantId),
-      restaurantName: item.restaurantName || restaurant?.name || '',
-      specialInstructions: '',
-      customizations: {}
-    };
-    addToCart(itemData);
-    // ✅ Toast succès (remplace Alert natif)
-    showToast('success', `${item.name} a été ajouté à votre commande`, 'Ajouté au panier');
-  }, [addToCart, restaurantId, restaurant?.name, showToast]);
+  // =============================================================================
+  // HANDLERS
+  // =============================================================================
+  const handleAddToCart = useCallback(
+    (item: MenuItem) => {
+      const parsedRestaurantId = parseInt(restaurantId, 10);
 
-  const handleAddToCart = useCallback((item: MenuItem | any) => {
-    if (!isCartForRestaurant(parseInt(restaurantId))) {
-      // ❓ Demande confirmation (remplace Alert.alert)
-      setConfirmCartSwitch({ visible: true, item });
-    } else {
-      proceedAddToCart(item);
-    }
-  }, [restaurantId, isCartForRestaurant, proceedAddToCart]);
+      if (cart.items.length > 0 && cart.restaurantId && cart.restaurantId !== parsedRestaurantId) {
+        setConfirmCartSwitch({ visible: true, item });
+        return;
+      }
 
-  const toggleFilter = useCallback((filterType: keyof FilterOptions) => {
-    setFilters(prev => ({
-      ...prev,
-      [filterType]: !prev[filterType],
-    }));
-  }, []);
+      const menuItemId =
+        typeof (item as any).id === 'number'
+          ? (item as any).id
+          : parseInt(String((item as any).id), 10);
 
-  const clearFilters = useCallback(() => {
+      const cartItem: any = {
+        id: String(menuItemId),
+        menuItemId,
+        name: item.name,
+        price: (item as any).price,
+        restaurantId: parsedRestaurantId,
+        restaurantName: restaurant?.name || '',
+        imageUrl: (item as any).image_url,
+        isAvailable: (item as any).is_available,
+        customizations: {},
+        specialInstructions: '',
+      };
+
+      addToCart(cartItem);
+      showToast('success', 'Ajouté au panier', `${item.name} a été ajouté`);
+    },
+    [cart.items.length, cart.restaurantId, restaurantId, restaurant, addToCart, showToast, setConfirmCartSwitch]
+  );
+
+  const proceedAddToCart = useCallback(
+    (item: MenuItem) => {
+      const parsedRestaurantId = parseInt(restaurantId, 10);
+
+      clearCart();
+
+      const menuItemId =
+        typeof (item as any).id === 'number'
+          ? (item as any).id
+          : parseInt(String((item as any).id), 10);
+
+      const cartItem: any = {
+        id: String(menuItemId),
+        menuItemId,
+        name: item.name,
+        price: (item as any).price,
+        restaurantId: parsedRestaurantId,
+        restaurantName: restaurant?.name || '',
+        imageUrl: (item as any).image_url,
+        isAvailable: (item as any).is_available,
+        customizations: {},
+        specialInstructions: '',
+      };
+
+      addToCart(cartItem);
+      showToast('success', 'Ajouté au panier', `${item.name} a été ajouté`);
+    },
+    [clearCart, addToCart, restaurantId, restaurant, showToast]
+  );
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadData();
+  }, [loadData]);
+
+  // 🆕 Handlers pour les modes d'affichage
+  const handleViewModeChange = (mode: ViewMode) => {
+    setViewMode(mode);
+  };
+
+  const handleQuickFilter = (mode: 'all' | 'available' | 'dietary') => {
+    setQuickFilterMode(mode);
+  };
+
+  const handleCategorySelect = (categoryId: string | null) => {
+    setFilters(prev => ({ ...prev, selectedCategory: categoryId }));
+  };
+
+  const handleSearchChange = (text: string) => {
+    setFilters(prev => ({ ...prev, searchQuery: text }));
+  };
+
+  const toggleDietaryFilter = (filter: 'vegan' | 'vegetarian' | 'glutenFree') => {
+    setFilters(prev => {
+      switch (filter) {
+        case 'vegan':
+          return { ...prev, showVeganOnly: !prev.showVeganOnly };
+        case 'vegetarian':
+          return { ...prev, showVegetarianOnly: !prev.showVegetarianOnly };
+        case 'glutenFree':
+        default:
+          return { ...prev, showGlutenFreeOnly: !prev.showGlutenFreeOnly };
+      }
+    });
+  };
+
+  const clearAllFilters = () => {
     setFilters({
       selectedCategory: null,
       hideAllergens: [],
       showVegetarianOnly: false,
       showVeganOnly: false,
       showGlutenFreeOnly: false,
+      showAvailableOnly: false,
+      searchQuery: '',
     });
-  }, []);
+    setQuickFilterMode('all');
+  };
 
-  const toggleAllergens = useCallback((itemId: string) => {
-    setExpandedAllergens(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(itemId)) {
-        newSet.delete(itemId);
-      } else {
-        newSet.add(itemId);
-      }
-      return newSet;
-    });
-  }, []);
+  // =============================================================================
+  // CALCULS UI
+  // =============================================================================
+  const totalCartItems = cart.items.reduce((sum, item) => sum + item.quantity, 0);
+  const activeFiltersCount = [
+    filters.selectedCategory,
+    filters.showVeganOnly,
+    filters.showVegetarianOnly,
+    filters.showGlutenFreeOnly,
+    filters.showAvailableOnly,
+    filters.hideAllergens.length > 0,
+    filters.searchQuery,
+  ].filter(Boolean).length;
 
-  useEffect(() => {
-    if (restaurantId) {
-      loadRestaurantData();
-    }
-  }, [restaurantId, loadRestaurantData]);
-
-  const totalCartItems = cart.itemCount;
-  const activeFiltersCount = 
-    (filters.showVegetarianOnly ? 1 : 0) +
-    (filters.showVeganOnly ? 1 : 0) +
-    (filters.showGlutenFreeOnly ? 1 : 0);
-
-  // Render section de catégorie
-  const renderCategorySection = useCallback(
-    ([categoryName, items]: [string, MenuItem[]]) => {
-      const groups = items.reduce((acc, item) => {
-        const sub =
-          (item as any).subcategory_name?.trim() ??
-          (item as any).sub_category_name?.trim() ??
-          '__noSub';
-        if (!acc[sub]) acc[sub] = [];
-        acc[sub].push(item);
-        return acc;
-      }, {} as Record<string, MenuItem[]>);
-  
-      const subNames = Object.keys(groups)
-        .filter(k => k !== '__noSub')
-        .sort((a, b) => a.localeCompare(b));
-
-      return (
-        <View key={categoryName} style={styles.categorySection}>
-          <Text style={styles.sectionTitle}>{categoryName}</Text>
-          <View style={styles.sectionDivider} />
-  
-          {groups['__noSub'] && 
-            groups['__noSub'].map(item => (
-              <MenuItemCard
-                key={item.id}
-                item={item}
-                onAddToCart={handleAddToCart}
-                styles={styles}
-                showAllergens={expandedAllergens.has(item.id.toString())}
-                onToggleAllergens={() => toggleAllergens(item.id.toString())}
-              />
-            ))
-          }
-  
-          {subNames.map(subName => (
-            <View key={subName}>
-              <Text style={styles.subSectionTitle}>{subName}</Text>
-              {groups[subName].map(item => (
-                <MenuItemCard
-                  key={item.id}
-                  item={item}
-                  onAddToCart={handleAddToCart}
-                  styles={styles}
-                  showAllergens={expandedAllergens.has(item.id.toString())}
-                  onToggleAllergens={() => toggleAllergens(item.id.toString())}
-                />
-              ))}
-            </View>
-          ))}
-        </View>
-      );
-    },
-    [styles, handleAddToCart, expandedAllergens, toggleAllergens]
-  );
-
+  // =============================================================================
+  // RENDER CONDITIONS
+  // =============================================================================
   if (isLoading) {
     return (
       <SafeAreaView style={styles.page}>
@@ -944,172 +652,492 @@ export default function RestaurantMenuScreen() {
     return (
       <SafeAreaView style={styles.page}>
         <Header title="Menu" leftIcon="arrow-back" onLeftPress={() => router.back()} />
-        <View style={styles.alertsWrapper}>
-          {toast.visible && (
-            <InlineAlert
-              variant={toast.variant}
-              title={toast.title}
-              message={toast.message}
-              onDismiss={hideToast}
-              autoDismiss
-            />
-          )}
-        </View>
-        <View style={styles.emptyStateContainer}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <Ionicons name="restaurant-outline" size={64} color={COLORS.text.light} />
-          <Text style={styles.emptyStateText}>Restaurant non trouvé</Text>
+          <Text style={{ fontSize: 16, color: COLORS.text.secondary, marginTop: 16 }}>
+            Restaurant non trouvé
+          </Text>
         </View>
       </SafeAreaView>
     );
   }
 
+  // =============================================================================
+  // COMPOSANT PRINCIPAL
+  // =============================================================================
   return (
     <SafeAreaView style={styles.page}>
-      <Header
-        title=""
-        leftIcon="arrow-back"
-        onLeftPress={() => router.back()}
-        rightIcon={totalCartItems > 0 ? "bag" : undefined}
-        onRightPress={totalCartItems > 0 ? () => router.push('/(client)/cart') : undefined}
-      />
-
-      {/* 🔔 Zone d’alertes (top) */}
-      <View style={styles.alertsWrapper}>
-        {toast.visible && (
+      {/* Alerts Zone */}
+      {toast.visible && (
+        <View style={{ position: 'absolute', top: 100, left: 16, right: 16, zIndex: 999 }}>
           <InlineAlert
             variant={toast.variant}
             title={toast.title}
             message={toast.message}
-            onDismiss={hideToast}
+            onDismiss={() => setToast(prev => ({ ...prev, visible: false }))}
             autoDismiss
           />
-        )}
+        </View>
+      )}
 
-        {confirmCartSwitch.visible && confirmCartSwitch.item && (
-          <AlertWithAction
-            variant="info"
-            title="Changer de restaurant"
-            message="Vous avez déjà des articles d'un autre restaurant. Voulez-vous vider votre panier et continuer ?"
-            autoDismiss={false}
-            onDismiss={() => setConfirmCartSwitch({ visible: false, item: null })}
-            secondaryButton={{
-              text: 'Annuler',
-              onPress: () => setConfirmCartSwitch({ visible: false, item: null }),
-            }}
-            primaryButton={{
-              text: 'Continuer',
-              variant: 'danger',
-              onPress: () => {
-                if (confirmCartSwitch.item) {
-                  proceedAddToCart(confirmCartSwitch.item);
-                }
-                setConfirmCartSwitch({ visible: false, item: null });
-              },
-            }}
-          />
-        )}
-      </View>
+      {confirmCartSwitch.visible && confirmCartSwitch.item && (
+        <AlertWithAction
+          variant="info"
+          title="Changer de restaurant"
+          message="Vous avez déjà des articles d'un autre restaurant. Voulez-vous vider votre panier ?"
+          autoDismiss={false}
+          onDismiss={() => setConfirmCartSwitch({ visible: false, item: null })}
+          secondaryButton={{
+            text: 'Annuler',
+            onPress: () => setConfirmCartSwitch({ visible: false, item: null }),
+          }}
+          primaryButton={{
+            text: 'Continuer',
+            variant: 'danger',
+            onPress: () => {
+              if (confirmCartSwitch.item) {
+                proceedAddToCart(confirmCartSwitch.item);
+              }
+              setConfirmCartSwitch({ visible: false, item: null });
+            },
+          }}
+        />
+      )}
 
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         showsVerticalScrollIndicator={false}
+        stickyHeaderIndices={[2]}
       >
-        {/* En-tête Restaurant */}
-        <RestaurantHeader restaurant={restaurant} styles={styles} sessionCode={session?.share_code} />
+        {/* Restaurant Header */}
+        <View style={styles.restaurantHeader}>
+          <Text style={styles.restaurantName}>{restaurant.name}</Text>
+          <Text style={styles.restaurantSubtitle}>
+            {session?.share_code ? `Code table: ${session.share_code}` : 'Bienvenue'}
+          </Text>
+        </View>
 
-        <View style={styles.container}>
-          {/* Daily Menu Display */}
-          <DailyMenuDisplay
-            restaurantId={parseInt(restaurantId)}
-            restaurantName={restaurant.name}
-            onAddToCart={handleAddToCart}
-            isInRestaurantView={true}
-          />
+        {/* 🆕 Display Controls */}
+        <View style={styles.displayControls}>
+          {/* View Mode Selector */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
+            <TouchableOpacity
+              style={[
+                styles.viewModeButton,
+                viewMode === 'compact' && styles.viewModeButtonActive,
+              ]}
+              onPress={() => handleViewModeChange('compact')}
+            >
+              <Ionicons
+                name="list"
+                size={18}
+                color={viewMode === 'compact' ? COLORS.primary : COLORS.text.secondary}
+              />
+              <Text
+                style={[
+                  styles.viewModeLabel,
+                  viewMode === 'compact' && styles.viewModeLabelActive,
+                ]}
+              >
+                Liste
+              </Text>
+            </TouchableOpacity>
 
-          {/* Séparateur */}
-          <SectionSeparator title="Menu à la carte" styles={styles} />
+            <TouchableOpacity
+              style={[
+                styles.viewModeButton,
+                viewMode === 'grid' && styles.viewModeButtonActive,
+              ]}
+              onPress={() => handleViewModeChange('grid')}
+            >
+              <Ionicons
+                name="grid"
+                size={18}
+                color={viewMode === 'grid' ? COLORS.primary : COLORS.text.secondary}
+              />
+              <Text
+                style={[styles.viewModeLabel, viewMode === 'grid' && styles.viewModeLabelActive]}
+              >
+                Grille
+              </Text>
+            </TouchableOpacity>
 
-          {/* Navigation Catégories */}
-          <CategoryNavigation
-            categories={categories}
-            selectedCategory={filters.selectedCategory}
-            onSelect={(categoryId) => 
-              setFilters(prev => ({ ...prev, selectedCategory: categoryId }))
-            }
-            styles={styles}
-          />
+            {screenWidth >= 768 && (
+              <>
+                <TouchableOpacity
+                  style={[
+                    styles.viewModeButton,
+                    viewMode === 'masonry' && styles.viewModeButtonActive,
+                  ]}
+                  onPress={() => handleViewModeChange('masonry')}
+                >
+                  <Ionicons
+                    name="apps"
+                    size={18}
+                    color={viewMode === 'masonry' ? COLORS.primary : COLORS.text.secondary}
+                  />
+                  <Text
+                    style={[
+                      styles.viewModeLabel,
+                      viewMode === 'masonry' && styles.viewModeLabelActive,
+                    ]}
+                  >
+                    Mosaïque
+                  </Text>
+                </TouchableOpacity>
 
-          {/* Bouton Filtres */}
+                <TouchableOpacity
+                  style={[
+                    styles.viewModeButton,
+                    viewMode === 'accordion' && styles.viewModeButtonActive,
+                  ]}
+                  onPress={() => handleViewModeChange('accordion')}
+                >
+                  <Ionicons
+                    name="chevron-down"
+                    size={18}
+                    color={viewMode === 'accordion' ? COLORS.primary : COLORS.text.secondary}
+                  />
+                  <Text
+                    style={[
+                      styles.viewModeLabel,
+                      viewMode === 'accordion' && styles.viewModeLabelActive,
+                    ]}
+                  >
+                    Accordéon
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.viewModeButton,
+                    viewMode === 'table' && styles.viewModeButtonActive,
+                  ]}
+                  onPress={() => handleViewModeChange('table')}
+                >
+                  <Ionicons
+                    name="reorder-four"
+                    size={18}
+                    color={viewMode === 'table' ? COLORS.primary : COLORS.text.secondary}
+                  />
+                  <Text
+                    style={[
+                      styles.viewModeLabel,
+                      viewMode === 'table' && styles.viewModeLabelActive,
+                    ]}
+                  >
+                    Tableau
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </ScrollView>
+
+          {/* Settings row */}
+          <View style={styles.settingRow}>
+            <Text style={styles.settingLabel}>Grouper par catégorie</Text>
+            <Switch
+              value={groupByCategory}
+              onValueChange={setGroupByCategory}
+              trackColor={{ false: COLORS.border.default, true: COLORS.primary }}
+              thumbColor={Platform.OS === 'ios' ? undefined : 'white'}
+            />
+          </View>
+        </View>
+
+        {/* 🆕 Quick Filters Bar */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.quickFiltersBar}  // ✅ FIX: contentContainerStyle
+        >
           <TouchableOpacity
             style={[
-              styles.filtersButton,
-              (activeFiltersCount > 0 || showFilters) && styles.filtersButtonActive
+              styles.quickFilterChip,
+              quickFilterMode === 'all' && styles.quickFilterChipActive,
             ]}
-            onPress={() => setShowFilters(!showFilters)}
+            onPress={() => handleQuickFilter('all')}
           >
-            <Ionicons 
-              name="filter" 
-              size={18} 
-              color={activeFiltersCount > 0 ? COLORS.variants.secondary[600] : COLORS.text.secondary} 
-            />
-            <Text style={styles.filtersButtonText}>
-              Filtres {activeFiltersCount > 0 && `(${activeFiltersCount})`}
+            <Text
+              style={[
+                styles.quickFilterText,
+                quickFilterMode === 'all' && styles.quickFilterTextActive,
+              ]}
+            >
+              Tous ({allMenuItems.length})
             </Text>
-            <Ionicons 
-              name={showFilters ? "chevron-up" : "chevron-down"} 
-              size={18} 
-              color={COLORS.text.secondary} 
-            />
           </TouchableOpacity>
 
-          {/* Panneau de Filtres */}
-          {showFilters && (
-            <FiltersPanel
-              filters={filters}
-              onToggleFilter={toggleFilter}
-              onClearFilters={clearFilters}
-              styles={styles}
-            />
-          )}
+          <TouchableOpacity
+            style={[
+              styles.quickFilterChip,
+              quickFilterMode === 'available' && styles.quickFilterChipActive,
+            ]}
+            onPress={() => handleQuickFilter('available')}
+          >
+            <Text
+              style={[
+                styles.quickFilterText,
+                quickFilterMode === 'available' && styles.quickFilterTextActive,
+              ]}
+            >
+              Disponibles ({allMenuItems.filter(i => i.is_available).length})
+            </Text>
+          </TouchableOpacity>
 
-          {/* Liste des items par catégorie */}
-          {itemsByCategory.length > 0 ? (
-            itemsByCategory.map(renderCategorySection)
+          <TouchableOpacity
+            style={[
+              styles.quickFilterChip,
+              quickFilterMode === 'dietary' && styles.quickFilterChipActive,
+            ]}
+            onPress={() => handleQuickFilter('dietary')}
+          >
+            <Text
+              style={[
+                styles.quickFilterText,
+                quickFilterMode === 'dietary' && styles.quickFilterTextActive,
+              ]}
+            >
+              🌱 Diététiques
+            </Text>
+          </TouchableOpacity>
+
+          {/* Category chips */}
+          {categoriesWithItems.map(category => (
+            <TouchableOpacity
+              key={category.id}
+              style={[
+                styles.quickFilterChip,
+                filters.selectedCategory === category.name &&
+                  styles.quickFilterChipActive,
+              ]}
+              onPress={() =>
+                handleCategorySelect(
+                  filters.selectedCategory === category.name ? null : category.name
+                )
+              }
+            >
+              <Text
+                style={[
+                  styles.quickFilterText,
+                  filters.selectedCategory === category.name &&
+                    styles.quickFilterTextActive,
+                ]}
+              >
+                {category.name} ({category.count})
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* Advanced Filters Toggle */}
+        <TouchableOpacity
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingVertical: 8,
+            backgroundColor:
+              activeFiltersCount > 0
+                ? COLORS.warning
+                  ? COLORS.warning[50]
+                  : COLORS.surface
+                : COLORS.surface,
+          }}
+          onPress={() => setShowAdvancedFilters(!showAdvancedFilters)}
+        >
+          <Ionicons
+            name="options"
+            size={18}
+            color={activeFiltersCount > 0 ? COLORS.warning : COLORS.text.secondary}
+          />
+          <Text
+            style={{
+              marginLeft: 6,
+              fontSize: 13,
+              color: activeFiltersCount > 0 ? COLORS.warning : COLORS.text.secondary,
+              fontWeight: '600',
+            }}
+          >
+            Filtres avancés
+            {activeFiltersCount > 0 && ` (${activeFiltersCount})`}
+          </Text>
+          <Ionicons
+            name={showAdvancedFilters ? 'chevron-up' : 'chevron-down'}
+            size={18}
+            color={COLORS.text.secondary}
+            style={{ marginLeft: 4 }}
+          />
+        </TouchableOpacity>
+
+        {/* Advanced Filters Panel */}
+        {showAdvancedFilters && (
+          <View style={styles.settingsPanel}>
+            <View style={styles.settingRow}>
+              <Text style={styles.settingLabel}>🥗 Végétarien uniquement</Text>
+              <Switch
+                value={filters.showVegetarianOnly}
+                onValueChange={() => toggleDietaryFilter('vegetarian')}
+                trackColor={{ false: COLORS.border.default, true: COLORS.success }}
+              />
+            </View>
+            <View style={styles.settingRow}>
+              <Text style={styles.settingLabel}>🌱 Vegan uniquement</Text>
+              <Switch
+                value={filters.showVeganOnly}
+                onValueChange={() => toggleDietaryFilter('vegan')}
+                trackColor={{ false: COLORS.border.default, true: COLORS.success }}
+              />
+            </View>
+            <View style={styles.settingRow}>
+              <Text style={styles.settingLabel}>🚫🌾 Sans gluten uniquement</Text>
+              <Switch
+                value={filters.showGlutenFreeOnly}
+                onValueChange={() => toggleDietaryFilter('glutenFree')}
+                trackColor={{ false: COLORS.border.default, true: COLORS.success }}
+              />
+            </View>
+            <View style={styles.settingRow}>
+              <Text style={styles.settingLabel}>Disponibles uniquement</Text>
+              <Switch
+                value={filters.showAvailableOnly}
+                onValueChange={value =>
+                  setFilters(prev => ({ ...prev, showAvailableOnly: value }))
+                }
+                trackColor={{ false: COLORS.border.default, true: COLORS.primary }}
+              />
+            </View>
+
+            {activeFiltersCount > 0 && (
+              <TouchableOpacity
+                style={{
+                  marginTop: 12,
+                  backgroundColor: COLORS.error
+                    ? COLORS.error[500]
+                    : COLORS.primary,
+                  padding: 10,
+                  borderRadius: BORDER_RADIUS.lg,
+                  alignItems: 'center',
+                }}
+                onPress={clearAllFilters}
+              >
+                <Text style={{ color: 'white', fontWeight: '600' }}>
+                  Réinitialiser tous les filtres
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
+        {/* Daily Menu Display (if enabled) */}
+        {showDailyMenuFirst && (
+          <View style={{ paddingHorizontal: 16, marginTop: 16 }}>
+            <DailyMenuDisplay
+              restaurantId={parseInt(restaurantId, 10)}
+              restaurantName={restaurant.name}
+              onAddToCart={handleAddToCart}
+              isInRestaurantView={true}
+            />
+          </View>
+        )}
+
+        {/* 🆕 MAIN CONTENT - Utilisation des nouveaux composants optimisés */}
+        <View style={{ paddingHorizontal: 16, marginTop: 16, paddingBottom: 100 }}>
+          {filteredItems.length > 0 ? (
+            <>
+              {viewMode === 'compact' && (
+                <MenuItemsGrid
+                  items={filteredItems}
+                  onAddToCart={handleAddToCart}
+                  layout="list"
+                  showCategoryHeaders={groupByCategory}
+                />
+              )}
+
+              {viewMode === 'grid' && (
+                <MenuItemsGrid
+                  items={filteredItems}
+                  onAddToCart={handleAddToCart}
+                  layout="grid"
+                  showCategoryHeaders={groupByCategory}
+                />
+              )}
+
+              {viewMode === 'masonry' && screenWidth >= 768 && (
+                <MenuItemsMasonry items={filteredItems} onAddToCart={handleAddToCart} />
+              )}
+
+              {viewMode === 'accordion' && (
+                <CategoryAccordionDisplay
+                  items={filteredItems}
+                  onAddToCart={handleAddToCart}
+                  menuTitle="Menu à la carte"
+                />
+              )}
+
+              {viewMode === 'table' && screenWidth >= 768 && (
+                <MenuItemsTable items={filteredItems} onAddToCart={handleAddToCart} />
+              )}
+            </>
           ) : (
-            <View style={styles.emptyStateContainer}>
-              <Ionicons name="restaurant-outline" size={64} color={COLORS.text.light} />
-              <Text style={styles.emptyStateText}>
+            <View
+              style={{
+                flex: 1,
+                justifyContent: 'center',
+                alignItems: 'center',
+                paddingVertical: 60,
+              }}
+            >
+              <Ionicons name="search" size={64} color={COLORS.text.light} />
+              <Text
+                style={{
+                  fontSize: 16,
+                  color: COLORS.text.secondary,
+                  marginTop: 16,
+                  textAlign: 'center',
+                }}
+              >
                 Aucun plat ne correspond à vos critères
               </Text>
-              <TouchableOpacity onPress={clearFilters}>
-                <Text style={styles.clearFiltersText}>Réinitialiser les filtres</Text>
-              </TouchableOpacity>
+              {activeFiltersCount > 0 && (
+                <TouchableOpacity
+                  onPress={clearAllFilters}
+                  style={{
+                    marginTop: 16,
+                    paddingHorizontal: 20,
+                    paddingVertical: 10,
+                    backgroundColor: COLORS.primary,
+                    borderRadius: BORDER_RADIUS.lg,
+                  }}
+                >
+                  <Text style={{ color: 'white', fontWeight: '600' }}>
+                    Réinitialiser les filtres
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
-
-          <View style={{ height: Math.max(120, insets.bottom + 100) }} />
         </View>
       </ScrollView>
 
-      {/* Bouton panier flottant */}
+      {/* 🆕 Floating Cart Button - Design amélioré */}
       {totalCartItems > 0 && (
         <Pressable
-          style={[styles.cartButton, { bottom: Math.max(20, insets.bottom + 10) }]}
+          style={[styles.floatingCart, { bottom: Math.max(20, insets.bottom + 10) }]}
           onPress={() => router.push('/(client)/cart')}
         >
-          <View style={styles.cartButtonContent}>
-            <View style={styles.cartButtonIcon}>
-              <Ionicons name="bag" size={24} color={COLORS.variants.secondary[600]} />
+          <View style={styles.cartInfo}>
+            <View style={styles.cartBadge}>
+              <Text style={styles.cartBadgeText}>{totalCartItems}</Text>
             </View>
             <View>
-              <Text style={styles.cartButtonText}>
+              <Text style={styles.cartText}>Voir le panier</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12 }}>
                 {totalCartItems} article{totalCartItems > 1 ? 's' : ''}
               </Text>
             </View>
           </View>
-          <Text style={styles.cartButtonPrice}>
-            {cart.total.toFixed(2)}€
-          </Text>
+          <Text style={styles.cartTotal}>{cart.total.toFixed(2)}€</Text>
         </Pressable>
       )}
     </SafeAreaView>
