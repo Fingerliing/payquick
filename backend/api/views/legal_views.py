@@ -99,8 +99,8 @@ Cet export contient toutes vos données personnelles conformément à l'Article 
 
 Cordialement,
 L'équipe EatQuickeR
-Privacy Team
-privacy@eatquicker.com
+Contact Team
+contact@eatquicker.com
     '''
     
     # Version HTML (optionnel, nécessite un template)
@@ -151,11 +151,11 @@ Toutes vos données personnelles seront définitivement effacées, à l'exceptio
 
 Si vous changez d'avis, reconnectez-vous avant cette date pour annuler la suppression.
 
-Pour toute question, contactez-nous : privacy@eatquicker.com
+Pour toute question, contactez-nous : contact@eatquicker.com
 
 Cordialement,
 L'équipe EatQuickeR
-Privacy Team
+Contact Team
     '''
     
     send_mail(
@@ -427,7 +427,7 @@ Le lien sera valable 7 jours.
 
 Cordialement,
 L'équipe EatQuickeR
-privacy@eatquicker.com
+contact@eatquicker.com
             ''',
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[user.email],

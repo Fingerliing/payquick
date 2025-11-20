@@ -28,7 +28,7 @@ def send_data_export_email(user, download_url):
     email = EmailMultiAlternatives(
         subject=subject,
         body=text_content,
-        from_email='privacy@eatquicker.com',
+        from_email='contact@eatquicker.com',
         to=[user.email]
     )
     email.attach_alternative(html_content, "text/html")
