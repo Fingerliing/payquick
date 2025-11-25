@@ -1,4 +1,3 @@
-// app/(owner)/menus/add.tsx
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   View,
@@ -9,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   useWindowDimensions,
+  Animated,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,7 +22,7 @@ import { Header } from '@/components/ui/Header';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Alert as InlineAlert } from '@/components/ui/Alert'; // ✅ comme dans [restaurantId].tsx :contentReference[oaicite:3]{index=3}
+import { Alert as InlineAlert } from '@/components/ui/Alert';
 
 // Services & Types
 import { menuService } from '@/services/menuService';
@@ -39,6 +39,7 @@ import {
   BORDER_RADIUS,
   COMPONENT_CONSTANTS,
   TYPOGRAPHY,
+  SHADOWS,
 } from '@/utils/designSystem';
 
 // Allergènes (UE)
@@ -83,7 +84,7 @@ export default function AddMenuItemScreen() {
   const insets = useSafeAreaInsets();
   const [photo, setPhoto] = useState<{ uri: string; name: string; type: string } | null>(null);
 
-  // ✅ Toast state (comme dans [restaurantId].tsx)
+  // Toast state
   const [toast, setToast] = useState<{
     visible: boolean;
     variant: 'success' | 'error' | 'warning' | 'info';
@@ -100,7 +101,7 @@ export default function AddMenuItemScreen() {
   const hideToast = useCallback(() => setToast(p => ({ ...p, visible: false })), []);
 
   // Responsive styles instance
-  const styles = useMemo(() => createStyles(screenType), [screenType]);
+  const styles = useMemo(() => createStyles(screenType, insets), [screenType, insets.top]);
 
   // Layout config
   const layout = useMemo(() => ({
@@ -146,13 +147,12 @@ export default function AddMenuItemScreen() {
   const [newSubCategoryDescription, setNewSubCategoryDescription] = useState('');
 
   // VAT type state
-  const [selectedVatType, setSelectedVatType] = useState('FOOD'); // Par défaut
+  const [selectedVatType, setSelectedVatType] = useState('FOOD');
   const [showVatTypeModal, setShowVatTypeModal] = useState(false);
 
   // Effects
   useEffect(() => {
     loadCategories();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restaurantId]);
 
   useEffect(() => {
@@ -173,7 +173,6 @@ export default function AddMenuItemScreen() {
       setCategories(res.categories || []);
     } catch (e: any) {
       console.error('loadCategories error:', e);
-      // ⛔️ remplace Alert natif
       showToast('error', 'Impossible de charger les catégories', 'Erreur');
     } finally {
       setLoadingCategories(false);
@@ -187,7 +186,7 @@ export default function AddMenuItemScreen() {
     } catch (e: any) {
       console.error('loadSubCategories error:', e);
       setSubCategories([]);
-      showToast('error', 'Impossible de charger les sous-catégories', 'Erreur'); // cohérent
+      showToast('error', 'Impossible de charger les sous-catégories', 'Erreur');
     }
   };
 
@@ -215,754 +214,942 @@ export default function AddMenuItemScreen() {
       showToast('warning', 'Le nom de la catégorie est requis', 'Attention');
       return;
     }
-    if (!restaurantId) {
-      showToast('error', 'Restaurant non spécifié', 'Erreur');
-      return;
-    }
+    if (!restaurantId) return;
     try {
-      const created = await categoryService.createCategory({
+      const category = await categoryService.createCategory({
         name: newCategoryName.trim(),
-        description: newCategoryDescription.trim(),
-        icon: newCategoryIcon.trim(),
+        description: newCategoryDescription.trim() || undefined,
+        icon: newCategoryIcon.trim() || undefined,
         color: newCategoryColor,
-        is_active: true,
-        order: categories.length + 1,
       }, String(restaurantId));
-
-      setCategories(prev => [...prev, created]);
-      setSelectedCategory(created);
+      
+      setCategories(prev => [...prev, category]);
+      setSelectedCategory(category);
       setShowCreateCategoryModal(false);
       setNewCategoryName('');
       setNewCategoryDescription('');
       setNewCategoryIcon('');
       setNewCategoryColor(DEFAULT_CATEGORY_COLORS[0]);
-      showToast('success', 'Catégorie créée avec succès', 'Succès');
+      showToast('success', 'Catégorie créée avec succès');
     } catch (e: any) {
-      console.error('createCategory error:', e);
-      showToast('error', e?.message || 'Impossible de créer la catégorie', 'Erreur');
+      showToast('error', 'Erreur lors de la création de la catégorie');
     }
   };
 
   const handleCreateSubCategory = async () => {
-    if (!newSubCategoryName.trim()) {
+    if (!newSubCategoryName.trim() || !selectedCategory?.id) {
       showToast('warning', 'Le nom de la sous-catégorie est requis', 'Attention');
       return;
     }
-    if (!selectedCategory) {
-      showToast('warning', "Veuillez d'abord sélectionner une catégorie", 'Attention');
-      return;
-    }
     try {
-      const created = await categoryService.createSubCategory({
-        category: selectedCategory.id,
+      const subcategory = await categoryService.createSubCategory({
         name: newSubCategoryName.trim(),
-        description: newSubCategoryDescription.trim(),
-        is_active: true,
-        order: subCategories.length + 1,
+        description: newSubCategoryDescription.trim() || undefined,
+        category: selectedCategory.id,
       });
-      setSubCategories(prev => [...prev, created]);
-      setSelectedSubCategory(created);
+      
+      setSubCategories(prev => [...prev, subcategory]);
+      setSelectedSubCategory(subcategory);
       setShowCreateSubCategoryModal(false);
       setNewSubCategoryName('');
       setNewSubCategoryDescription('');
-      showToast('success', 'Sous-catégorie créée avec succès', 'Succès');
+      showToast('success', 'Sous-catégorie créée avec succès');
     } catch (e: any) {
-      console.error('createSubCategory error:', e);
-      showToast('error', e?.message || 'Impossible de créer la sous-catégorie', 'Erreur');
+      showToast('error', 'Erreur lors de la création de la sous-catégorie');
     }
   };
 
+  const handlePickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      setPhoto({
+        uri: asset.uri,
+        name: asset.fileName || `photo-${Date.now()}.jpg`,
+        type: asset.mimeType || 'image/jpeg',
+      });
+    }
+  };
+
+  const handleTakePhoto = async () => {
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      setPhoto({
+        uri: asset.uri,
+        name: `photo-${Date.now()}.jpg`,
+        type: 'image/jpeg',
+      });
+    }
+  };
+
+  const handleRemovePhoto = () => setPhoto(null);
+
   const handleCreate = async () => {
     if (!name.trim()) {
-      showToast('warning', 'Le nom du plat est requis', 'Attention');
+      showToast('warning', 'Le nom du plat est requis', 'Champ manquant');
       return;
     }
-    if (!price.trim() || isNaN(Number(price))) {
-      showToast('warning', 'Le prix doit être un nombre valide', 'Attention');
+    if (!price || parseFloat(price) <= 0) {
+      showToast('warning', 'Le prix doit être supérieur à 0', 'Prix invalide');
       return;
     }
-    if (!selectedCategory || !selectedCategory.id) {
-      showToast('warning', 'Veuillez sélectionner une catégorie', 'Attention');
-      return;
-    }
-    if (!menuId) {
-      showToast('error', 'Menu non spécifié', 'Erreur');
+    if (!selectedCategory) {
+      showToast('warning', 'Veuillez sélectionner une catégorie', 'Catégorie manquante');
       return;
     }
 
-    setIsCreating(true);
+    const vatType = VAT_TYPES.find(v => v.id === selectedVatType);
+    if (!vatType) return;
 
     try {
-      const form = new FormData();
+      setIsCreating(true);
 
-      // Données texte
-      form.append('name', name.trim());
-      form.append('description', description.trim());
-      form.append('price', String(Number(parseFloat(price).toFixed(2))));
-      form.append('menu', String(parseInt(String(menuId), 10)));
-      form.append('vat_category', selectedVatType);
+      // Créer un FormData pour envoyer l'image avec les données
+      const formData = new FormData();
+      
+      // Ajouter tous les champs requis
+      formData.append('menu', String(menuId));
+      formData.append('name', name.trim());
+      formData.append('price', price);
+      formData.append('category', selectedCategory.id);
+      formData.append('is_vegetarian', String(isVegetarian));
+      formData.append('is_vegan', String(isVegan));
+      formData.append('is_gluten_free', String(isGlutenFree));
+      formData.append('vat_rate', String(vatType.rate));
+      formData.append('vat_category', vatType.id);
 
-      if (selectedCategory.id) {
-        form.append('category', String(selectedCategory.id));
+      // Ajouter les champs optionnels
+      if (description.trim()) {
+        formData.append('description', description.trim());
       }
       if (selectedSubCategory?.id) {
-        form.append('subcategory', String(selectedSubCategory.id));
+        formData.append('subcategory', selectedSubCategory.id);
+      }
+      if (selectedAllergens.length > 0) {
+        formData.append('allergens', JSON.stringify(selectedAllergens));
       }
 
-      form.append('allergens', JSON.stringify(selectedAllergens));
-      form.append('is_vegetarian', String(isVegetarian));
-      form.append('is_vegan', String(isVegan));
-      form.append('is_gluten_free', String(isGlutenFree));
-
-      // Image (format RN)
+      // Ajouter l'image si présente
       if (photo) {
-        form.append('image', {
+        formData.append('image', {
           uri: photo.uri,
-          type: photo.type,
           name: photo.name,
+          type: photo.type,
         } as any);
       }
 
-      // Token
-      const token =
-        (await AsyncStorage.getItem('access_token')) ||
-        (await AsyncStorage.getItem('auth_token')) ||
-        (await AsyncStorage.getItem('token'));
-
+      console.log('Creating menu item with FormData');
+      
+      // Envoyer directement avec FormData
+      const token = await AsyncStorage.getItem('access_token') || 
+                    await AsyncStorage.getItem('auth_token') ||
+                    await AsyncStorage.getItem('token');
+      
       if (!token) {
-        showToast('error', "Token d'authentification manquant", 'Erreur');
-        return;
+        throw new Error('Token d\'authentification manquant. Veuillez vous reconnecter.');
       }
-
-      // URL
-      const baseURL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
-      const url = `${baseURL}/api/v1/menu-items/`;
-
-      // Requête
-      const response = await fetch(url, {
+      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/v1/menu-items/`, {
         method: 'POST',
-        body: form,
+        body: formData,
         headers: {
-          Authorization: `Bearer ${token}`,
-          // Pas de Content-Type: laissé à FormData
+          'Authorization': `Bearer ${token}`,
+          // Ne pas définir Content-Type, laissez le navigateur le faire automatiquement pour FormData
         },
       });
 
+      console.log('Response status:', response.status);
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({} as any));
-        console.error('❌ Erreur serveur:', errorData);
-
-        let message = "Impossible d'ajouter le plat";
-        if (errorData.details && typeof errorData.details === 'object') {
-          const parts: string[] = [];
-          for (const [field, messages] of Object.entries(errorData.details)) {
-            if (Array.isArray(messages)) {
-              parts.push(`${field}: ${messages.join(', ')}`);
-            } else if (typeof messages === 'string') {
-              parts.push(`${field}: ${messages}`);
-            }
-          }
-          if (parts.length) message = parts.join('\n');
-        } else if (errorData.message) {
-          message = errorData.message;
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        
+        try {
+          const errorJson = JSON.parse(errorText);
+          throw new Error(errorJson.message || 'Erreur lors de la création');
+        } catch {
+          throw new Error(`Erreur ${response.status}: ${errorText}`);
         }
-
-        showToast('error', message, 'Erreur');
-        return;
       }
 
-      await response.json();
-      showToast('success', 'Plat ajouté avec succès', 'Succès');
-      router.back();
-    } catch (error: any) {
-      console.error('❌ Erreur création plat:', error);
-      showToast('error', error?.message || "Impossible d'ajouter le plat", 'Erreur');
+      const result = await response.json();
+      console.log('Create response:', result);
+
+      showToast('success', 'Article créé avec succès !');
+      setTimeout(() => router.back(), 1000);
+    } catch (e: any) {
+      console.error('handleCreate error:', e);
+      
+      // Meilleure identification de l'erreur
+      if (e.message?.includes('JSON Parse error')) {
+        showToast('error', 'Erreur serveur : réponse invalide. Vérifiez l\'URL de l\'API.');
+      } else if (e.message?.includes('Network request failed')) {
+        showToast('error', 'Erreur réseau : impossible de contacter le serveur');
+      } else {
+        showToast('error', e.message || 'Erreur lors de la création de l\'article');
+      }
     } finally {
       setIsCreating(false);
     }
   };
 
-  // helper: ouvrir la galerie
-  const pickFromLibrary = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      showToast('warning', 'Donnez accès à vos photos pour continuer.', 'Permission requise');
-      return;
-    }
-
-    const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 0.8,
-    });
-
-    if (!res.canceled && res.assets && res.assets[0]) {
-      const asset = res.assets[0];
-      const uri = asset.uri;
-      const extension = uri.split('.').pop()?.toLowerCase() || 'jpg';
-
-      let mimeType = 'image/jpeg'; // default
-      switch (extension) {
-        case 'png':
-          mimeType = 'image/png';
-          break;
-        case 'webp':
-          mimeType = 'image/webp';
-          break;
-        case 'jpg':
-        case 'jpeg':
-        default:
-          mimeType = 'image/jpeg';
-          break;
-      }
-
-      setPhoto({
-        uri: asset.uri,
-        name: `menu-item-${Date.now()}.${extension}`,
-        type: mimeType,
-      });
-    }
-  };
-
-  // helper: ouvrir la caméra
-  const takePhoto = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      showToast('warning', 'Donnez accès à la caméra pour continuer.', 'Permission requise');
-      return;
-    }
-
-    const res = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      quality: 0.8,
-    });
-
-    if (!res.canceled && res.assets && res.assets[0]) {
-      const asset = res.assets[0];
-      const uri = asset.uri;
-      const extension = uri.split('.').pop()?.toLowerCase() || 'jpg';
-
-      let mimeType = 'image/jpeg'; // default for camera
-      switch (extension) {
-        case 'png':
-          mimeType = 'image/png';
-          break;
-        case 'jpg':
-        case 'jpeg':
-        default:
-          mimeType = 'image/jpeg';
-          break;
-      }
-
-      setPhoto({
-        uri: asset.uri,
-        name: `menu-item-camera-${Date.now()}.${extension}`,
-        type: mimeType,
-      });
-    }
-  };
+  const selectedVat = VAT_TYPES.find(v => v.id === selectedVatType);
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { paddingTop: insets.top }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-    >
-      <Header
-        title="Nouveau plat"
-        leftIcon="arrow-back"
-        onLeftPress={() => router.back()}
-        rightIcon="checkmark-outline"
-        onRightPress={handleCreate}
-        includeSafeArea={false}
+    <View style={styles.container}>
+      <Header 
+        title="Nouvel article" 
+        showBackButton
+        rightActions={[
+          {
+            icon: 'checkmark',
+            onPress: handleCreate,
+            disabled: isCreating,
+            loading: isCreating,
+          },
+        ]}
       />
 
-      {/* 🔔 Zone d'alertes en haut – identique au pattern de [restaurantId].tsx */}
-      <View style={{ paddingHorizontal: getResponsiveValue(SPACING.container, screenType), marginTop: getResponsiveValue(SPACING.md, screenType), zIndex: 10 }}>
-        {toast.visible && (
+      <ScrollView 
+        style={styles.content}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Photo Section - Premium Design */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>📸 Photo du plat</Text>
+            <Text style={styles.sectionSubtitle}>Recommandé pour attirer vos clients</Text>
+          </View>
+          <View style={styles.photoCard}>
+            {photo ? (
+              <View>
+                <Image source={{ uri: photo.uri }} style={styles.photoImage} resizeMode="cover" />
+                <View style={styles.photoOverlay}>
+                  <TouchableOpacity style={styles.photoOverlayButton} onPress={handleRemovePhoto}>
+                    <Ionicons name="trash-outline" size={20} color="#FFF" />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.photoOverlayButton} onPress={handlePickImage}>
+                    <Ionicons name="images-outline" size={20} color="#FFF" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.photoPlaceholder}>
+                <View style={styles.photoPlaceholderIcon}>
+                  <Ionicons name="camera-outline" size={48} color={COLORS.text.golden} />
+                </View>
+                <Text style={styles.photoPlaceholderTitle}>Ajoutez une photo</Text>
+                <Text style={styles.photoPlaceholderSubtext}>
+                  Format recommandé : 16:9 • Max 5 Mo
+                </Text>
+                <View style={styles.photoButtonsRow}>
+                  <TouchableOpacity style={styles.photoButton} onPress={handlePickImage}>
+                    <Ionicons name="images-outline" size={20} color={COLORS.primary} />
+                    <Text style={styles.photoButtonText}>Galerie</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.photoButton} onPress={handleTakePhoto}>
+                    <Ionicons name="camera-outline" size={20} color={COLORS.primary} />
+                    <Text style={styles.photoButtonText}>Appareil photo</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Basic Info Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>📝 Informations de base</Text>
+          </View>
+          <View style={styles.infoCard}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Nom du plat *</Text>
+              <Input
+                value={name}
+                onChangeText={setName}
+                placeholder="Ex: Burger Signature"
+                style={styles.input}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Description</Text>
+              <Input
+                value={description}
+                onChangeText={setDescription}
+                placeholder="Décrivez votre plat..."
+                multiline
+                numberOfLines={3}
+                style={[styles.input, styles.inputMultiline]}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Prix (€) *</Text>
+              <View style={styles.priceInputContainer}>
+                <Input
+                  value={price}
+                  onChangeText={setPrice}
+                  placeholder="0.00"
+                  keyboardType="decimal-pad"
+                  style={styles.priceInput}
+                />
+                <View style={styles.priceSymbol}>
+                  <Text style={styles.priceSymbolText}>€</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Category Section - Visual Cards */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>🏷️ Catégorisation</Text>
+            <Text style={styles.sectionSubtitle}>Aidez vos clients à naviguer dans le menu</Text>
+          </View>
+
+          <View style={styles.categoryCard}>
+            <Text style={styles.categoryLabel}>Catégorie principale *</Text>
+            <TouchableOpacity
+              style={[
+                styles.categorySelector,
+                selectedCategory && styles.categorySelectorSelected,
+              ]}
+              onPress={() => setShowCategoryModal(true)}
+            >
+              {selectedCategory ? (
+                <View style={styles.categorySelectorContent}>
+                  <View style={[styles.categoryIcon, { backgroundColor: selectedCategory.color + '20' }]}>
+                    <Text style={styles.categoryIconText}>{selectedCategory.icon || '📁'}</Text>
+                  </View>
+                  <View style={styles.categorySelectorText}>
+                    <Text style={styles.categorySelectorName}>{selectedCategory.name}</Text>
+                    {selectedCategory.description && (
+                      <Text style={styles.categorySelectorDesc}>{selectedCategory.description}</Text>
+                    )}
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={COLORS.text.secondary} />
+                </View>
+              ) : (
+                <View style={styles.categorySelectorContent}>
+                  <View style={styles.categoryIconPlaceholder}>
+                    <Ionicons name="folder-outline" size={24} color={COLORS.text.secondary} />
+                  </View>
+                  <Text style={styles.placeholderText}>Sélectionnez une catégorie</Text>
+                  <Ionicons name="chevron-forward" size={20} color={COLORS.text.secondary} />
+                </View>
+              )}
+            </TouchableOpacity>
+
+            {selectedCategory && (
+              <>
+                <View style={styles.divider} />
+                <Text style={styles.categoryLabel}>Sous-catégorie (optionnel)</Text>
+                <TouchableOpacity
+                  style={[
+                    styles.categorySelector,
+                    selectedSubCategory && styles.categorySelectorSelected,
+                  ]}
+                  onPress={() => setShowSubCategoryModal(true)}
+                >
+                  {selectedSubCategory ? (
+                    <View style={styles.categorySelectorContent}>
+                      <View style={[styles.categoryIcon, { backgroundColor: COLORS.variants.primary[100] }]}>
+                        <Text style={styles.categoryIconText}>📂</Text>
+                      </View>
+                      <View style={styles.categorySelectorText}>
+                        <Text style={styles.categorySelectorName}>{selectedSubCategory.name}</Text>
+                        {selectedSubCategory.description && (
+                          <Text style={styles.categorySelectorDesc}>{selectedSubCategory.description}</Text>
+                        )}
+                      </View>
+                      <Ionicons name="chevron-forward" size={20} color={COLORS.text.secondary} />
+                    </View>
+                  ) : (
+                    <View style={styles.categorySelectorContent}>
+                      <View style={styles.categoryIconPlaceholder}>
+                        <Ionicons name="folder-open-outline" size={24} color={COLORS.text.secondary} />
+                      </View>
+                      <Text style={styles.placeholderText}>Sélectionnez une sous-catégorie</Text>
+                      <Ionicons name="chevron-forward" size={20} color={COLORS.text.secondary} />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+
+        {/* VAT Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>💰 TVA</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.vatCard}
+            onPress={() => setShowVatTypeModal(true)}
+          >
+            <View style={styles.vatIconContainer}>
+              <Text style={styles.vatIcon}>{selectedVat?.icon}</Text>
+            </View>
+            <View style={styles.vatInfo}>
+              <Text style={styles.vatName}>{selectedVat?.name}</Text>
+              <Text style={styles.vatRate}>
+                Taux : {selectedVat ? (selectedVat.rate * 100).toFixed(1) : '0'}%
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={COLORS.text.secondary} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Allergens Section - Compact Badges */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>⚠️ Allergènes</Text>
+            <Text style={styles.sectionSubtitle}>
+              {selectedAllergens.length > 0 
+                ? `${selectedAllergens.length} sélectionné${selectedAllergens.length > 1 ? 's' : ''}`
+                : 'Aucun allergène sélectionné'}
+            </Text>
+          </View>
+          <View style={styles.allergenCard}>
+            <View style={styles.allergenGrid}>
+              {ALLERGENS.map(allergen => {
+                const selected = selectedAllergens.includes(allergen.id);
+                return (
+                  <TouchableOpacity
+                    key={allergen.id}
+                    style={[styles.allergenBadge, selected && styles.allergenBadgeSelected]}
+                    onPress={() => handleAllergenToggle(allergen.id)}
+                  >
+                    <Text style={styles.allergenBadgeIcon}>{allergen.icon}</Text>
+                    <Text style={[
+                      styles.allergenBadgeName,
+                      selected && styles.allergenBadgeNameSelected
+                    ]}>
+                      {allergen.name}
+                    </Text>
+                    {selected && (
+                      <View style={styles.allergenBadgeCheck}>
+                        <Ionicons name="checkmark" size={12} color="#FFF" />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+
+        {/* Dietary Options Section - Modern Pills */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>🌱 Options diététiques</Text>
+          </View>
+          <View style={styles.dietaryCard}>
+            <TouchableOpacity
+              style={[styles.dietaryPill, isVegetarian && styles.dietaryPillVegetarian]}
+              onPress={() => setIsVegetarian(!isVegetarian)}
+            >
+              <Text style={styles.dietaryPillIcon}>🥗</Text>
+              <View style={styles.dietaryPillContent}>
+                <Text style={[
+                  styles.dietaryPillTitle,
+                  isVegetarian && styles.dietaryPillTitleActive
+                ]}>
+                  Végétarien
+                </Text>
+                <Text style={[
+                  styles.dietaryPillDesc,
+                  isVegetarian && styles.dietaryPillDescActive
+                ]}>
+                  Sans viande ni poisson
+                </Text>
+              </View>
+              <View style={[
+                styles.dietaryPillCheckbox,
+                isVegetarian && styles.dietaryPillCheckboxActive
+              ]}>
+                {isVegetarian && <Ionicons name="checkmark" size={16} color="#FFF" />}
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.dietaryPill, isVegan && styles.dietaryPillVegan]}
+              onPress={() => handleVeganToggle(!isVegan)}
+            >
+              <Text style={styles.dietaryPillIcon}>🌿</Text>
+              <View style={styles.dietaryPillContent}>
+                <Text style={[
+                  styles.dietaryPillTitle,
+                  isVegan && styles.dietaryPillTitleActive
+                ]}>
+                  Végan
+                </Text>
+                <Text style={[
+                  styles.dietaryPillDesc,
+                  isVegan && styles.dietaryPillDescActive
+                ]}>
+                  Sans produits animaux
+                </Text>
+              </View>
+              <View style={[
+                styles.dietaryPillCheckbox,
+                isVegan && styles.dietaryPillCheckboxActive
+              ]}>
+                {isVegan && <Ionicons name="checkmark" size={16} color="#FFF" />}
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.dietaryPill, isGlutenFree && styles.dietaryPillGlutenFree]}
+              onPress={() => handleGlutenFreeToggle(!isGlutenFree)}
+            >
+              <Text style={styles.dietaryPillIcon}>🌾</Text>
+              <View style={styles.dietaryPillContent}>
+                <Text style={[
+                  styles.dietaryPillTitle,
+                  isGlutenFree && styles.dietaryPillTitleActive
+                ]}>
+                  Sans gluten
+                </Text>
+                <Text style={[
+                  styles.dietaryPillDesc,
+                  isGlutenFree && styles.dietaryPillDescActive
+                ]}>
+                  Sans blé, seigle, orge
+                </Text>
+              </View>
+              <View style={[
+                styles.dietaryPillCheckbox,
+                isGlutenFree && styles.dietaryPillCheckboxActive
+              ]}>
+                {isGlutenFree && <Ionicons name="checkmark" size={16} color="#FFF" />}
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Bottom Create Button */}
+        <View style={styles.bottomButtonContainer}>
+          <Button
+            onPress={handleCreate}
+            variant="primary"
+            disabled={isCreating || !name.trim() || !price.trim()}
+            loading={isCreating}
+            style={styles.bottomButton}
+          >
+            {isCreating ? 'Création en cours...' : 'Créer l\'article'}
+          </Button>
+        </View>
+      </ScrollView>
+
+      {/* Toast */}
+      {toast.visible && (
+        <View
+          pointerEvents="box-none"
+          style={{
+            position: 'absolute' as const,
+            left: 16,
+            right: 16,
+            bottom: 24,
+            zIndex: 1000,
+          }}
+        >
           <InlineAlert
             variant={toast.variant}
             title={toast.title}
             message={toast.message}
             onDismiss={hideToast}
             autoDismiss
+            autoDismissDuration={5000}
           />
-        )}
-      </View>
+        </View>
+      )}
 
-      <View
-        style={[
-          styles.content,
-          {
-            paddingLeft: Math.max(layout.containerPadding, insets.left),
-            paddingRight: Math.max(layout.containerPadding, insets.right),
-            maxWidth: layout.maxContentWidth,
-          },
-        ]}
+      {/* Category Modal */}
+      <Modal
+        visible={showCategoryModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCategoryModal(false)}
       >
-        <ScrollView
-          contentContainerStyle={{
-            paddingVertical: layout.contentSpacing,
-            paddingBottom: layout.contentSpacing + Math.max(layout.containerPadding, insets.bottom),
-          }}
-          showsVerticalScrollIndicator={false}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
         >
-          {/* Infos plat */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Informations</Text>
-            <Card style={styles.card}>
-              <View style={{ gap: getResponsiveValue(SPACING.sm, screenType) }}>
-                <View>
-                  <Text style={styles.label}>Nom *</Text>
-                  <Input
-                    value={name}
-                    onChangeText={setName}
-                    placeholder="Ex. Burger maison"
-                    style={styles.input}
-                  />
-                </View>
-
-                <View>
-                  <Text style={styles.label}>Description</Text>
-                  <Input
-                    value={description}
-                    onChangeText={setDescription}
-                    placeholder="Décrivez votre plat (ingrédients, goût, etc.)"
-                    style={[styles.input, styles.inputMultiline]}
-                    multiline
-                    numberOfLines={4}
-                  />
-                </View>
-
-                <View>
-                  <Text style={styles.label}>Prix (€) *</Text>
-                  <Input
-                    value={price}
-                    onChangeText={setPrice}
-                    placeholder="Ex. 12.90"
-                    keyboardType="decimal-pad"
-                    style={styles.input}
-                  />
-                </View>
-              </View>
-            </Card>
-          </View>
-
-          {/* Section TVA */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Fiscalité</Text>
-            <Card style={styles.card}>
-              <View>
-                <Text style={styles.label}>Type de TVA *</Text>
-                <TouchableOpacity
-                  onPress={() => setShowVatTypeModal(true)}
-                  style={[styles.selector, styles.selectorSelected]}
-                >
-                  <Text style={{ fontSize: 20, marginRight: 12 }}>
-                    {VAT_TYPES.find(t => t.id === selectedVatType)?.icon}
-                  </Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.selectedText}>
-                      {VAT_TYPES.find(t => t.id === selectedVatType)?.name}
-                    </Text>
-                    <Text style={styles.description}>
-                      TVA: {(((VAT_TYPES.find(t => t.id === selectedVatType)?.rate ?? 0) * 100).toFixed(1))}% •{' '}
-                      {VAT_TYPES.find(t => t.id === selectedVatType)?.description}
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-down" size={20} color={COLORS.text.secondary} />
-                </TouchableOpacity>
-              </View>
-            </Card>
-          </View>
-
-          {/* Photo du plat */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Photo du plat</Text>
-            <Card style={styles.card}>
-              {photo ? (
-                <View style={{ gap: getResponsiveValue(SPACING.sm, screenType) }}>
-                  <Image source={{ uri: photo.uri }} style={styles.photoImage} resizeMode="cover" />
-                  <Text style={styles.photoInfo}>{photo.name} • {photo.type}</Text>
-                  <View style={styles.photoActions}>
-                    <Button
-                      title="Remplacer"
-                      onPress={pickFromLibrary}
-                      variant="secondary"
-                      style={styles.photoButton}
-                      leftIcon={<Ionicons name="images-outline" size={20} color={COLORS.text.primary} />}
-                    />
-                    <Button
-                      title="Photo"
-                      onPress={takePhoto}
-                      variant="secondary"
-                      style={styles.photoButton}
-                      leftIcon={<Ionicons name="camera-outline" size={20} color={COLORS.text.primary} />}
-                    />
-                    <Button
-                      title="Supprimer"
-                      onPress={() => setPhoto(null)}
-                      variant="destructive"
-                      style={styles.photoButtonDelete}
-                      leftIcon={<Ionicons name="trash-outline" size={20} color={COLORS.error} />}
-                    />
-                  </View>
-                </View>
-              ) : (
-                <View style={{ gap: getResponsiveValue(SPACING.sm, screenType) }}>
-                  <View style={styles.photoPlaceholder}>
-                    <Text style={styles.photoPlaceholderIcon}>📷</Text>
-                    <Text style={styles.photoPlaceholderText}>Aucune photo sélectionnée</Text>
-                    <Text style={styles.photoPlaceholderSubtext}>
-                      Ajoutez une photo pour rendre votre plat plus attrayant
-                    </Text>
-                  </View>
-                  <View style={styles.photoActions}>
-                    <Button
-                      title="Choisir une photo"
-                      onPress={pickFromLibrary}
-                      variant="primary"
-                      style={styles.photoButton}
-                      leftIcon={<Ionicons name="images-outline" size={20} color={COLORS.text.inverse} />}
-                    />
-                    <Button
-                      title="Prendre une photo"
-                      onPress={takePhoto}
-                      variant="secondary"
-                      style={styles.photoButton}
-                      leftIcon={<Ionicons name="camera-outline" size={20} color={COLORS.text.primary} />}
-                    />
-                  </View>
-                </View>
-              )}
-            </Card>
-          </View>
-
-          {/* Catégories */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Catégorisation</Text>
-            {renderCategorySelector()}
-            {renderSubCategorySelector()}
-          </View>
-
-          {/* Régimes & Allergènes */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Régimes & allergènes</Text>
-            <Card style={styles.card}>
-              <View style={{ gap: getResponsiveValue(SPACING.sm, screenType) }}>
-                {renderDietary('Végétarien', isVegetarian, setIsVegetarian, '🥗', COLORS.success, 'Sans viande ni poisson')}
-                {renderDietary('Vegan', isVegan, handleVeganToggle, '🌱', COLORS.primary, 'Aucun produit animal')}
-                {renderDietary('Sans gluten', isGlutenFree, handleGlutenFreeToggle, '🚫🌾', COLORS.warning, 'Sans ingrédients contenant du gluten')}
-              </View>
-            </Card>
-
-            <View style={{ height: getResponsiveValue(SPACING.sm, screenType) }} />
-
-            <Card style={styles.card}>
-              <Text style={[styles.label, { marginBottom: 8 }]}>Allergènes (sélection multiple)</Text>
-              <View style={styles.allergenList}>
-                {ALLERGENS.map(renderAllergen)}
-              </View>
-            </Card>
-          </View>
-
-          {/* Bouton principal */}
-          <Button
-            title={isCreating ? 'Création...' : 'Ajouter le plat'}
-            onPress={handleCreate}
-            disabled={isCreating}
-            variant="primary"
-            fullWidth
-            style={{ marginTop: getResponsiveValue(SPACING.md, screenType) }}
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setShowCategoryModal(false)}
           />
-          {/* Safe area spacer for bottom */}
-          <View style={{ height: Math.max(layout.containerPadding, insets.bottom) }} />
-        </ScrollView>
-      </View>
-
-      {/* MODALES – Sélection catégorie */}
-      <Modal visible={showCategoryModal} transparent animationType="slide" onRequestClose={() => setShowCategoryModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContainer, layout.modalMaxWidth ? { alignSelf: 'center', width: layout.modalMaxWidth } : null]}>
+          <View style={[
+            styles.modalContainer,
+            { paddingBottom: insets.bottom || 16 },
+            layout.modalMaxWidth ? { maxWidth: layout.modalMaxWidth, alignSelf: 'center' as const, width: '100%' as const } : undefined
+          ]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Catégorie</Text>
+              <Text style={styles.modalTitle}>Sélectionner une catégorie</Text>
               <TouchableOpacity onPress={() => setShowCategoryModal(false)}>
-                <Ionicons name="close" size={22} color={COLORS.text.secondary} />
+                <Ionicons name="close" size={24} color={COLORS.text.primary} />
               </TouchableOpacity>
             </View>
-            <ScrollView style={styles.modalContent}>
-              {loadingCategories && <Text style={styles.placeholder}>Chargement...</Text>}
-              {!loadingCategories && categories.length === 0 && <Text style={styles.placeholder}>Aucune catégorie</Text>}
-              <View style={{ gap: 8 }}>
-                {categories.map(cat => (
-                  <TouchableOpacity
-                    key={cat.id}
-                    onPress={() => { setSelectedCategory(cat); setShowCategoryModal(false); }}
-                    style={[styles.selector, selectedCategory?.id === cat.id && styles.selectorSelected]}
-                  >
-                    {!!cat.icon && <Text style={{ fontSize: 18, marginRight: 8 }}>{cat.icon}</Text>}
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.selectedText}>{cat.name}</Text>
-                      {!!cat.description && <Text style={styles.description}>{cat.description}</Text>}
-                    </View>
-                    {selectedCategory?.id === cat.id && (
-                      <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
+            <ScrollView 
+              style={styles.modalContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {categories.map(cat => (
+                <TouchableOpacity
+                  key={cat.id}
+                  style={[
+                    styles.modalItem,
+                    selectedCategory?.id === cat.id && styles.modalItemSelected
+                  ]}
+                  onPress={() => {
+                    setSelectedCategory(cat);
+                    setShowCategoryModal(false);
+                  }}
+                >
+                  <View style={[styles.modalItemIcon, { backgroundColor: cat.color + '20' }]}>
+                    <Text style={styles.modalItemIconText}>{cat.icon || '📁'}</Text>
+                  </View>
+                  <View style={styles.modalItemText}>
+                    <Text style={styles.modalItemName}>{cat.name}</Text>
+                    {cat.description && (
+                      <Text style={styles.modalItemDesc}>{cat.description}</Text>
                     )}
-                  </TouchableOpacity>
-                ))}
-              </View>
-
+                  </View>
+                  {selectedCategory?.id === cat.id && (
+                    <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
               <TouchableOpacity
-                onPress={() => { setShowCategoryModal(false); setShowCreateCategoryModal(true); }}
-                style={[styles.selector, { justifyContent: 'center' }]}
+                style={styles.modalCreateButton}
+                onPress={() => {
+                  setShowCategoryModal(false);
+                  setShowCreateCategoryModal(true);
+                }}
               >
-                <Ionicons name="add-circle-outline" size={20} color={COLORS.primary} />
-                <Text style={[styles.selectedText, { marginLeft: 8, color: COLORS.primary }]}>Créer une catégorie</Text>
+                <Ionicons name="add-circle-outline" size={24} color={COLORS.primary} />
+                <Text style={styles.modalCreateButtonText}>Créer une nouvelle catégorie</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
-      {/* MODALES – Sélection sous-catégorie */}
-      <Modal visible={showSubCategoryModal} transparent animationType="slide" onRequestClose={() => setShowSubCategoryModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContainer, layout.modalMaxWidth ? { alignSelf: 'center', width: layout.modalMaxWidth } : null]}>
+      {/* SubCategory Modal */}
+      <Modal
+        visible={showSubCategoryModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowSubCategoryModal(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setShowSubCategoryModal(false)}
+          />
+          <View style={[
+            styles.modalContainer,
+            { paddingBottom: insets.bottom || 16 },
+            layout.modalMaxWidth ? { maxWidth: layout.modalMaxWidth, alignSelf: 'center' as const, width: '100%' as const } : undefined
+          ]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Sous-catégorie</Text>
+              <Text style={styles.modalTitle}>Sélectionner une sous-catégorie</Text>
               <TouchableOpacity onPress={() => setShowSubCategoryModal(false)}>
-                <Ionicons name="close" size={22} color={COLORS.text.secondary} />
+                <Ionicons name="close" size={24} color={COLORS.text.primary} />
               </TouchableOpacity>
             </View>
-            <ScrollView style={styles.modalContent}>
-              {subCategories.length === 0 && <Text style={styles.placeholder}>Aucune sous-catégorie</Text>}
-              <View style={{ gap: 8 }}>
-                {subCategories.map(sub => (
-                  <TouchableOpacity
-                    key={sub.id}
-                    onPress={() => { setSelectedSubCategory(sub); setShowSubCategoryModal(false); }}
-                    style={[styles.selector, selectedSubCategory?.id === sub.id && styles.selectorSelected]}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.selectedText}>{sub.name}</Text>
-                      {!!sub.description && <Text style={styles.description}>{sub.description}</Text>}
-                    </View>
-                    {selectedSubCategory?.id === sub.id && (
-                      <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
+            <ScrollView 
+              style={styles.modalContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {subCategories.map(sub => (
+                <TouchableOpacity
+                  key={sub.id}
+                  style={[
+                    styles.modalItem,
+                    selectedSubCategory?.id === sub.id && styles.modalItemSelected
+                  ]}
+                  onPress={() => {
+                    setSelectedSubCategory(sub);
+                    setShowSubCategoryModal(false);
+                  }}
+                >
+                  <View style={[styles.modalItemIcon, { backgroundColor: COLORS.variants.primary[100] }]}>
+                    <Text style={styles.modalItemIconText}>📂</Text>
+                  </View>
+                  <View style={styles.modalItemText}>
+                    <Text style={styles.modalItemName}>{sub.name}</Text>
+                    {sub.description && (
+                      <Text style={styles.modalItemDesc}>{sub.description}</Text>
                     )}
-                  </TouchableOpacity>
-                ))}
-              </View>
-
+                  </View>
+                  {selectedSubCategory?.id === sub.id && (
+                    <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
               <TouchableOpacity
-                onPress={() => { setShowSubCategoryModal(false); setShowCreateSubCategoryModal(true); }}
-                style={[styles.selector, { justifyContent: 'center' }]}
+                style={styles.modalCreateButton}
+                onPress={() => {
+                  setShowSubCategoryModal(false);
+                  setShowCreateSubCategoryModal(true);
+                }}
               >
-                <Ionicons name="add-circle-outline" size={20} color={COLORS.primary} />
-                <Text style={[styles.selectedText, { marginLeft: 8, color: COLORS.primary }]}>Créer une sous-catégorie</Text>
+                <Ionicons name="add-circle-outline" size={24} color={COLORS.primary} />
+                <Text style={styles.modalCreateButtonText}>Créer une nouvelle sous-catégorie</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
-      {/* MODALES – Création catégorie */}
-      <Modal visible={showCreateCategoryModal} transparent animationType="slide" onRequestClose={() => setShowCreateCategoryModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContainer, layout.modalMaxWidth ? { alignSelf: 'center', width: layout.modalMaxWidth } : null]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Nouvelle catégorie</Text>
-              <TouchableOpacity onPress={() => setShowCreateCategoryModal(false)}>
-                <Ionicons name="close" size={22} color={COLORS.text.secondary} />
-              </TouchableOpacity>
-            </View>
-            <View style={{ padding: 12 }}>
-              <Text style={styles.label}>Nom *</Text>
-              <Input value={newCategoryName} onChangeText={setNewCategoryName} placeholder="Ex. Plats" style={styles.input} />
-
-              <Text style={[styles.label, { marginTop: 12 }]}>Description</Text>
-              <Input value={newCategoryDescription} onChangeText={setNewCategoryDescription} placeholder="Optionnel" style={[styles.input, styles.inputMultiline]} multiline />
-
-              <Text style={[styles.label, { marginTop: 12 }]}>Icône (emoji)</Text>
-              <Input value={newCategoryIcon} onChangeText={setNewCategoryIcon} placeholder="Ex. 🍝" style={styles.input} />
-
-              <Text style={[styles.label, { marginTop: 12 }]}>Couleur</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  {DEFAULT_CATEGORY_COLORS.map(c => (
-                    <TouchableOpacity
-                      key={c}
-                      onPress={() => setNewCategoryColor(c)}
-                      style={{
-                        width: 28, height: 28, borderRadius: 14, backgroundColor: c,
-                        borderWidth: 2, borderColor: newCategoryColor === c ? COLORS.primary : 'transparent',
-                      }}
-                    />
-                  ))}
-                </View>
-              </ScrollView>
-
-              <Button title="Créer" onPress={handleCreateCategory} variant="primary" />
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* MODALES – Création sous-catégorie */}
-      <Modal visible={showCreateSubCategoryModal} transparent animationType="slide" onRequestClose={() => setShowCreateSubCategoryModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContainer, layout.modalMaxWidth ? { alignSelf: 'center', width: layout.modalMaxWidth } : null]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Nouvelle sous-catégorie</Text>
-              <TouchableOpacity onPress={() => setShowCreateSubCategoryModal(false)}>
-                <Ionicons name="close" size={22} color={COLORS.text.secondary} />
-              </TouchableOpacity>
-            </View>
-            <View style={{ padding: 12 }}>
-              <Text style={styles.label}>Nom *</Text>
-              <Input value={newSubCategoryName} onChangeText={setNewSubCategoryName} placeholder="Ex. Pizzas blanches" style={styles.input} />
-
-              <Text style={[styles.label, { marginTop: 12 }]}>Description</Text>
-              <Input value={newSubCategoryDescription} onChangeText={setNewSubCategoryDescription} placeholder="Optionnel" style={[styles.input, styles.inputMultiline]} multiline />
-
-              <Button title="Créer" onPress={handleCreateSubCategory} variant="primary" style={{ marginTop: 16 }} />
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* MODALE – Type de TVA */}
-      <Modal visible={showVatTypeModal} transparent animationType="slide" onRequestClose={() => setShowVatTypeModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContainer, layout.modalMaxWidth ? { alignSelf: 'center', width: layout.modalMaxWidth } : null]}>
+      {/* VAT Type Modal */}
+      <Modal
+        visible={showVatTypeModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowVatTypeModal(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setShowVatTypeModal(false)}
+          />
+          <View style={[
+            styles.modalContainer,
+            { paddingBottom: insets.bottom || 16 },
+            layout.modalMaxWidth ? { maxWidth: layout.modalMaxWidth, alignSelf: 'center' as const, width: '100%' as const } : undefined
+          ]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Type de TVA</Text>
               <TouchableOpacity onPress={() => setShowVatTypeModal(false)}>
-                <Ionicons name="close" size={22} color={COLORS.text.secondary} />
+                <Ionicons name="close" size={24} color={COLORS.text.primary} />
               </TouchableOpacity>
             </View>
-            <ScrollView style={styles.modalContent}>
-              {VAT_TYPES.map(type => (
+            <ScrollView 
+              style={styles.modalContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {VAT_TYPES.map(vat => (
                 <TouchableOpacity
-                  key={type.id}
-                  onPress={() => { setSelectedVatType(type.id); setShowVatTypeModal(false); }}
-                  style={[styles.selector, selectedVatType === type.id && styles.selectorSelected]}
+                  key={vat.id}
+                  style={[
+                    styles.modalItem,
+                    selectedVatType === vat.id && styles.modalItemSelected
+                  ]}
+                  onPress={() => {
+                    setSelectedVatType(vat.id);
+                    setShowVatTypeModal(false);
+                  }}
                 >
-                  <Text style={{ fontSize: 20, marginRight: 12 }}>{type.icon}</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.selectedText}>{type.name}</Text>
-                    <Text style={styles.description}>TVA: {(type.rate * 100).toFixed(1)}% • {type.description}</Text>
+                  <View style={styles.modalItemIcon}>
+                    <Text style={styles.modalItemIconText}>{vat.icon}</Text>
                   </View>
-                  {selectedVatType === type.id && <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />}
+                  <View style={styles.modalItemText}>
+                    <Text style={styles.modalItemName}>{vat.name}</Text>
+                    <Text style={styles.modalItemDesc}>
+                      {vat.description} • Taux : {(vat.rate * 100).toFixed(1)}%
+                    </Text>
+                  </View>
+                  {selectedVatType === vat.id && (
+                    <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />
+                  )}
                 </TouchableOpacity>
               ))}
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
-    </KeyboardAvoidingView>
-  );
 
-  // Render helpers
-  function renderCategorySelector() {
-    return (
-      <View style={styles.section}>
-        <Text style={styles.label}>Catégorie *</Text>
-        <TouchableOpacity onPress={() => setShowCategoryModal(true)} style={[styles.selector, selectedCategory && styles.selectorSelected]}>
-          {selectedCategory ? (
-            <>
-              {!!selectedCategory.icon && <Text style={{ fontSize: 20, marginRight: 12 }}>{selectedCategory.icon}</Text>}
-              <View style={{ flex: 1 }}>
-                <Text style={styles.selectedText}>{selectedCategory.name}</Text>
-                {!!selectedCategory.description && <Text style={styles.description}>{selectedCategory.description}</Text>}
-              </View>
-            </>
-          ) : (
-            <Text style={styles.placeholder}>Sélectionner une catégorie</Text>
-          )}
-          <Ionicons name="chevron-down" size={20} color={COLORS.text.secondary} />
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  function renderSubCategorySelector() {
-    return (
-      <View style={styles.section}>
-        <Text style={styles.label}>Sous-catégorie (optionnel)</Text>
-        <TouchableOpacity
-          onPress={() => selectedCategory && setShowSubCategoryModal(true)}
-          disabled={!selectedCategory}
-          style={[
-            styles.selector,
-            !selectedCategory && styles.selectorDisabled,
-            selectedSubCategory && styles.selectorSelected,
-          ]}
+      {/* Create Category Modal */}
+      <Modal
+        visible={showCreateCategoryModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCreateCategoryModal(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
         >
-          {selectedSubCategory ? (
-            <View style={{ flex: 1 }}>
-              <Text style={styles.selectedText}>{selectedSubCategory.name}</Text>
-              {!!selectedSubCategory.description && <Text style={styles.description}>{selectedSubCategory.description}</Text>}
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setShowCreateCategoryModal(false)}
+          />
+          <View style={[
+            styles.modalContainer,
+            { paddingBottom: insets.bottom || 16 },
+            layout.modalMaxWidth ? { maxWidth: layout.modalMaxWidth, alignSelf: 'center' as const, width: '100%' as const } : undefined
+          ]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Nouvelle catégorie</Text>
+              <TouchableOpacity onPress={() => setShowCreateCategoryModal(false)}>
+                <Ionicons name="close" size={24} color={COLORS.text.primary} />
+              </TouchableOpacity>
             </View>
-          ) : (
-            <Text style={styles.placeholder}>
-              {selectedCategory ? 'Sélectionner une sous-catégorie' : "Sélectionnez d'abord une catégorie"}
-            </Text>
-          )}
-          <Ionicons name="chevron-down" size={20} color={COLORS.text.secondary} />
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  function renderAllergen(a: typeof ALLERGENS[number]) {
-    const selected = selectedAllergens.includes(a.id);
-    return (
-      <View key={a.id} style={styles.allergenCol}>
-        <TouchableOpacity onPress={() => handleAllergenToggle(a.id)} style={[styles.allergenButton, selected && styles.allergenButtonSelected]}>
-          <Text style={{ fontSize: 16, marginRight: 8 }}>{a.icon}</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 14, fontWeight: '500', color: selected ? COLORS.error : COLORS.text.primary }}>
-              {a.name}
-            </Text>
-            <Text style={{ fontSize: 11, color: selected ? '#B91C1C' : COLORS.text.secondary }}>
-              {a.description}
-            </Text>
+            <ScrollView 
+              style={styles.modalContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.modalInputGroup}>
+                <Text style={styles.modalLabel}>Nom *</Text>
+                <Input
+                  value={newCategoryName}
+                  onChangeText={setNewCategoryName}
+                  placeholder="Ex: Entrées"
+                  style={styles.modalInput}
+                />
+              </View>
+              <View style={styles.modalInputGroup}>
+                <Text style={styles.modalLabel}>Description</Text>
+                <Input
+                  value={newCategoryDescription}
+                  onChangeText={setNewCategoryDescription}
+                  placeholder="Description de la catégorie"
+                  multiline
+                  style={styles.modalInput}
+                />
+              </View>
+              <View style={styles.modalInputGroup}>
+                <Text style={styles.modalLabel}>Icône (émoji)</Text>
+                <Input
+                  value={newCategoryIcon}
+                  onChangeText={setNewCategoryIcon}
+                  placeholder="Ex: 🍽️"
+                  style={styles.modalInput}
+                />
+              </View>
+              <View style={styles.modalInputGroup}>
+                <Text style={styles.modalLabel}>Couleur</Text>
+                <View style={styles.colorGrid}>
+                  {DEFAULT_CATEGORY_COLORS.map(color => (
+                    <TouchableOpacity
+                      key={color}
+                      style={[
+                        styles.colorOption,
+                        { backgroundColor: color },
+                        newCategoryColor === color && styles.colorOptionSelected
+                      ]}
+                      onPress={() => setNewCategoryColor(color)}
+                    >
+                      {newCategoryColor === color && (
+                        <Ionicons name="checkmark" size={20} color="#FFF" />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+              <Button
+                onPress={handleCreateCategory}
+                variant="primary"
+                style={styles.modalCreateButton2}
+              >
+                Créer la catégorie
+              </Button>
+            </ScrollView>
           </View>
-          {selected && <Ionicons name="checkmark-circle" size={20} color={COLORS.error} />}
-        </TouchableOpacity>
-      </View>
-    );
-  }
+        </KeyboardAvoidingView>
+      </Modal>
 
-  function renderDietary(
-    title: string,
-    value: boolean,
-    onToggle: (v: boolean) => void,
-    icon: string,
-    color: string,
-    descriptionText: string,
-  ) {
-    return (
-      <TouchableOpacity onPress={() => onToggle(!value)} style={[styles.dietaryOption, value && { backgroundColor: color + '20', borderColor: color }]}>
-        <Text style={{ fontSize: 20, marginRight: 12 }}>{icon}</Text>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 16, fontWeight: '500', color: value ? color : COLORS.text.primary }}>
-            {title}
-          </Text>
-          <Text style={{ fontSize: 12, color: value ? color : COLORS.text.secondary }}>
-            {descriptionText}
-          </Text>
-        </View>
-        {value && <Ionicons name="checkmark-circle" size={24} color={color} />}
-      </TouchableOpacity>
-    );
-  }
+      {/* Create SubCategory Modal */}
+      <Modal
+        visible={showCreateSubCategoryModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCreateSubCategoryModal(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setShowCreateSubCategoryModal(false)}
+          />
+          <View style={[
+            styles.modalContainer,
+            { paddingBottom: insets.bottom || 16 },
+            layout.modalMaxWidth ? { maxWidth: layout.modalMaxWidth, alignSelf: 'center' as const, width: '100%' as const } : undefined
+          ]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Nouvelle sous-catégorie</Text>
+              <TouchableOpacity onPress={() => setShowCreateSubCategoryModal(false)}>
+                <Ionicons name="close" size={24} color={COLORS.text.primary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView 
+              style={styles.modalContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.modalInputGroup}>
+                <Text style={styles.modalLabel}>Nom *</Text>
+                <Input
+                  value={newSubCategoryName}
+                  onChangeText={setNewSubCategoryName}
+                  placeholder="Ex: Salades"
+                  style={styles.modalInput}
+                />
+              </View>
+              <View style={styles.modalInputGroup}>
+                <Text style={styles.modalLabel}>Description</Text>
+                <Input
+                  value={newSubCategoryDescription}
+                  onChangeText={setNewSubCategoryDescription}
+                  placeholder="Description de la sous-catégorie"
+                  multiline
+                  style={styles.modalInput}
+                />
+              </View>
+              <Button
+                onPress={handleCreateSubCategory}
+                variant="primary"
+                style={styles.modalCreateButton2}
+              >
+                Créer la sous-catégorie
+              </Button>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+    </View>
+  );
 }
 
-// Styles
-const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop') => {
+// Styles - Modern & Premium Design
+const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', insets: { top: number; bottom: number; left: number; right: number }) => {
   const gv = (token: any): number => getResponsiveValue(token, screenType) as number;
+  
   return {
     container: {
       flex: 1 as const,
@@ -970,155 +1157,410 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop') => {
     },
     content: {
       flex: 1 as const,
-      alignSelf: 'center' as const,
-      width: '100%' as const,
     },
+    
+    // Section Styles
     section: {
-      marginBottom: gv(SPACING.lg),
+      marginBottom: gv(SPACING['2xl']),
       paddingHorizontal: gv(SPACING.container),
+    },
+    sectionHeader: {
+      marginBottom: gv(SPACING.md),
     },
     sectionTitle: {
       fontSize: gv(TYPOGRAPHY.fontSize.xl),
       fontWeight: '700' as const,
       color: COLORS.text.primary,
+      marginBottom: 4,
+    },
+    sectionSubtitle: {
+      fontSize: gv(TYPOGRAPHY.fontSize.sm),
+      color: COLORS.text.secondary,
+    },
+
+    // Photo Section - Premium
+    photoCard: {
+      backgroundColor: COLORS.surface,
+      borderRadius: BORDER_RADIUS.xl,
+      overflow: 'hidden' as const,
+      ...SHADOWS.card,
+    },
+    photoImage: {
+      width: '100%' as const,
+      height: 220,
+    },
+    photoOverlay: {
+      position: 'absolute' as const,
+      top: 12,
+      right: 12,
+      flexDirection: 'row' as const,
+      gap: 8,
+    },
+    photoOverlayButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: 'rgba(0,0,0,0.7)',
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    photoPlaceholder: {
+      paddingVertical: gv(SPACING['3xl']),
+      paddingHorizontal: gv(SPACING.xl),
+      alignItems: 'center' as const,
+      backgroundColor: COLORS.goldenSurface,
+      borderWidth: 2,
+      borderColor: COLORS.border.golden,
+      borderStyle: 'dashed' as const,
+    },
+    photoPlaceholderIcon: {
+      width: 80,
+      height: 80,
+      borderRadius: 40,
+      backgroundColor: COLORS.variants.secondary[100],
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
       marginBottom: gv(SPACING.md),
     },
-    card: {
+    photoPlaceholderTitle: {
+      fontSize: gv(TYPOGRAPHY.fontSize.lg),
+      fontWeight: '600' as const,
+      color: COLORS.text.primary,
+      marginBottom: 4,
+    },
+    photoPlaceholderSubtext: {
+      fontSize: gv(TYPOGRAPHY.fontSize.sm),
+      color: COLORS.text.secondary,
+      marginBottom: gv(SPACING.lg),
+    },
+    photoButtonsRow: {
+      flexDirection: 'row' as const,
+      gap: 12,
+    },
+    photoButton: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 8,
+      paddingHorizontal: gv(SPACING.lg),
+      paddingVertical: gv(SPACING.md),
       backgroundColor: COLORS.surface,
       borderRadius: BORDER_RADIUS.lg,
       borderWidth: 1,
-      borderColor: COLORS.border.light,
+      borderColor: COLORS.border.default,
+    },
+    photoButtonText: {
+      fontSize: gv(TYPOGRAPHY.fontSize.base),
+      fontWeight: '500' as const,
+      color: COLORS.primary,
+    },
+
+    // Info Card
+    infoCard: {
+      backgroundColor: COLORS.surface,
+      borderRadius: BORDER_RADIUS.xl,
       padding: gv(SPACING.lg),
+      ...SHADOWS.card,
+    },
+    inputGroup: {
+      marginBottom: gv(SPACING.lg),
     },
     label: {
       fontSize: gv(TYPOGRAPHY.fontSize.sm),
-      fontWeight: '500' as const,
+      fontWeight: '600' as const,
       color: COLORS.text.primary,
       marginBottom: 8,
     },
     input: {
       backgroundColor: COLORS.surface,
-      borderWidth: 1,
-      borderColor: COLORS.border.default,
-      borderRadius: BORDER_RADIUS.md,
-      paddingHorizontal: gv(SPACING.md),
-      paddingVertical: 10,
-    },
-    inputMultiline: {
-      minHeight: 100,
-      textAlignVertical: 'top' as const,
-    },
-    selector: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      backgroundColor: COLORS.surface,
-      borderWidth: 1,
+      borderWidth: 1.5,
       borderColor: COLORS.border.default,
       borderRadius: BORDER_RADIUS.lg,
-      padding: gv(SPACING.md),
-      minHeight: COMPONENT_CONSTANTS.minTouchTarget,
-      marginBottom: gv(SPACING.md),
-    },
-    selectorSelected: {
-      borderColor: COLORS.primary,
-      backgroundColor: COLORS.variants.primary[50],
-    },
-    selectorDisabled: {
-      opacity: 0.5,
-      backgroundColor: COLORS.border.light,
-    },
-    placeholder: {
-      fontSize: gv(TYPOGRAPHY.fontSize.sm),
-      color: COLORS.text.secondary,
-      flex: 1,
-    },
-    selectedText: {
+      paddingHorizontal: gv(SPACING.md),
+      paddingVertical: 12,
       fontSize: gv(TYPOGRAPHY.fontSize.base),
+      color: COLORS.text.primary,
+    },
+    inputMultiline: {
+      minHeight: 90,
+      textAlignVertical: 'top' as const,
+    },
+    priceInputContainer: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+    },
+    priceInput: {
+      flex: 1,
+      backgroundColor: COLORS.surface,
+      borderWidth: 1.5,
+      borderColor: COLORS.border.default,
+      borderRadius: BORDER_RADIUS.lg,
+      paddingHorizontal: gv(SPACING.md),
+      paddingVertical: 12,
+      fontSize: gv(TYPOGRAPHY.fontSize.lg),
       fontWeight: '600' as const,
       color: COLORS.text.primary,
     },
-    description: {
+    priceSymbol: {
+      position: 'absolute' as const,
+      right: 16,
+      backgroundColor: COLORS.variants.secondary[100],
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: BORDER_RADIUS.md,
+    },
+    priceSymbolText: {
+      fontSize: gv(TYPOGRAPHY.fontSize.lg),
+      fontWeight: '700' as const,
+      color: COLORS.text.golden,
+    },
+
+    // Category Section - Visual Cards
+    categoryCard: {
+      backgroundColor: COLORS.surface,
+      borderRadius: BORDER_RADIUS.xl,
+      padding: gv(SPACING.lg),
+      ...SHADOWS.card,
+    },
+    categoryLabel: {
+      fontSize: gv(TYPOGRAPHY.fontSize.sm),
+      fontWeight: '600' as const,
+      color: COLORS.text.primary,
+      marginBottom: gv(SPACING.sm),
+    },
+    categorySelector: {
+      backgroundColor: COLORS.background,
+      borderWidth: 1.5,
+      borderColor: COLORS.border.default,
+      borderRadius: BORDER_RADIUS.lg,
+      padding: gv(SPACING.md),
+      minHeight: 70,
+    },
+    categorySelectorSelected: {
+      borderColor: COLORS.primary,
+      backgroundColor: COLORS.variants.primary[50],
+    },
+    categorySelectorContent: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 12,
+    },
+    categoryIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: BORDER_RADIUS.lg,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    categoryIconText: {
+      fontSize: 24,
+    },
+    categoryIconPlaceholder: {
+      width: 48,
+      height: 48,
+      borderRadius: BORDER_RADIUS.lg,
+      backgroundColor: COLORS.border.light,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    categorySelectorText: {
+      flex: 1,
+    },
+    categorySelectorName: {
+      fontSize: gv(TYPOGRAPHY.fontSize.base),
+      fontWeight: '600' as const,
+      color: COLORS.text.primary,
+      marginBottom: 2,
+    },
+    categorySelectorDesc: {
       fontSize: gv(TYPOGRAPHY.fontSize.xs),
       color: COLORS.text.secondary,
     },
-    allergenList: {
+    placeholderText: {
+      flex: 1,
+      fontSize: gv(TYPOGRAPHY.fontSize.base),
+      color: COLORS.text.secondary,
+    },
+    divider: {
+      height: 1,
+      backgroundColor: COLORS.border.light,
+      marginVertical: gv(SPACING.lg),
+    },
+
+    // VAT Card
+    vatCard: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      backgroundColor: COLORS.surface,
+      borderRadius: BORDER_RADIUS.xl,
+      padding: gv(SPACING.lg),
+      ...SHADOWS.card,
+    },
+    vatIconContainer: {
+      width: 56,
+      height: 56,
+      borderRadius: BORDER_RADIUS.lg,
+      backgroundColor: COLORS.variants.secondary[100],
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      marginRight: gv(SPACING.md),
+    },
+    vatIcon: {
+      fontSize: 28,
+    },
+    vatInfo: {
+      flex: 1,
+    },
+    vatName: {
+      fontSize: gv(TYPOGRAPHY.fontSize.base),
+      fontWeight: '600' as const,
+      color: COLORS.text.primary,
+      marginBottom: 2,
+    },
+    vatRate: {
+      fontSize: gv(TYPOGRAPHY.fontSize.sm),
+      color: COLORS.text.secondary,
+    },
+
+    // Allergen Section - Compact Badges
+    allergenCard: {
+      backgroundColor: COLORS.surface,
+      borderRadius: BORDER_RADIUS.xl,
+      padding: gv(SPACING.lg),
+      ...SHADOWS.card,
+    },
+    allergenGrid: {
       flexDirection: 'row' as const,
       flexWrap: 'wrap' as const,
-      marginHorizontal: -6,
+      gap: 10,
     },
-    allergenCol: {
-      width: '50%' as const,
-      paddingHorizontal: 6,
-      marginBottom: 12,
-    },
-    allergenButton: {
+    allergenBadge: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
-      backgroundColor: COLORS.surface,
-      borderWidth: 1,
+      gap: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      backgroundColor: COLORS.background,
+      borderWidth: 1.5,
       borderColor: COLORS.border.default,
-      borderRadius: BORDER_RADIUS.lg,
-      padding: 10,
+      borderRadius: BORDER_RADIUS.full,
     },
-    allergenButtonSelected: {
-      borderColor: COLORS.error,
+    allergenBadgeSelected: {
       backgroundColor: '#FEF2F2',
+      borderColor: COLORS.error,
     },
-    dietaryOption: {
+    allergenBadgeIcon: {
+      fontSize: 16,
+    },
+    allergenBadgeName: {
+      fontSize: gv(TYPOGRAPHY.fontSize.sm),
+      fontWeight: '500' as const,
+      color: COLORS.text.primary,
+    },
+    allergenBadgeNameSelected: {
+      color: COLORS.error,
+    },
+    allergenBadgeCheck: {
+      width: 18,
+      height: 18,
+      borderRadius: 9,
+      backgroundColor: COLORS.error,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      marginLeft: 2,
+    },
+
+    // Dietary Options - Modern Pills
+    dietaryCard: {
+      backgroundColor: COLORS.surface,
+      borderRadius: BORDER_RADIUS.xl,
+      padding: gv(SPACING.lg),
+      gap: 12,
+      ...SHADOWS.card,
+    },
+    dietaryPill: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
-      borderWidth: 1,
+      padding: gv(SPACING.md),
+      backgroundColor: COLORS.background,
+      borderWidth: 1.5,
       borderColor: COLORS.border.default,
-      backgroundColor: COLORS.surface,
-      borderRadius: BORDER_RADIUS.lg,
-      padding: 12,
-    },
-    // Photo
-    photoImage: {
-      width: '100%' as const,
-      height: 180,
       borderRadius: BORDER_RADIUS.lg,
     },
-    photoInfo: {
+    dietaryPillVegetarian: {
+      backgroundColor: '#F0FDF4',
+      borderColor: '#86EFAC',
+    },
+    dietaryPillVegan: {
+      backgroundColor: '#ECFDF5',
+      borderColor: '#6EE7B7',
+    },
+    dietaryPillGlutenFree: {
+      backgroundColor: '#FEF3C7',
+      borderColor: '#FCD34D',
+    },
+    dietaryPillIcon: {
+      fontSize: 28,
+      marginRight: 12,
+    },
+    dietaryPillContent: {
+      flex: 1,
+    },
+    dietaryPillTitle: {
+      fontSize: gv(TYPOGRAPHY.fontSize.base),
+      fontWeight: '600' as const,
+      color: COLORS.text.primary,
+      marginBottom: 2,
+    },
+    dietaryPillTitleActive: {
+      color: '#047857',
+    },
+    dietaryPillDesc: {
       fontSize: gv(TYPOGRAPHY.fontSize.xs),
       color: COLORS.text.secondary,
     },
-    photoActions: {
-      flexDirection: 'row' as const,
-      gap: 8,
+    dietaryPillDescActive: {
+      color: '#059669',
     },
-    photoButton: { flex: 1 },
-    photoButtonDelete: { flex: 1 },
-    photoPlaceholder: {
-      alignItems: 'center' as const,
-      paddingVertical: 16,
-      borderWidth: 1,
+    dietaryPillCheckbox: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      borderWidth: 2,
       borderColor: COLORS.border.default,
-      borderRadius: BORDER_RADIUS.lg,
       backgroundColor: COLORS.surface,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
     },
-    photoPlaceholderIcon: { fontSize: 36, marginBottom: 8 },
-    photoPlaceholderText: { fontWeight: '600' as const, color: COLORS.text.primary },
-    photoPlaceholderSubtext: { color: COLORS.text.secondary, fontSize: gv(TYPOGRAPHY.fontSize.sm) },
+    dietaryPillCheckboxActive: {
+      backgroundColor: '#10B981',
+      borderColor: '#10B981',
+    },
 
-    // Modales
+    // Toast
+    // Modals - Modern Design
     modalOverlay: {
       flex: 1 as const,
-      backgroundColor: 'rgba(0,0,0,0.4)',
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
       justifyContent: 'flex-end' as const,
+    },
+    modalBackdrop: {
+      ...Platform.select({
+        ios: { flex: 1 },
+        default: { position: 'absolute' as const, top: 0, bottom: 0, left: 0, right: 0 },
+      }),
     },
     modalContainer: {
       backgroundColor: COLORS.surface,
       borderTopLeftRadius: BORDER_RADIUS['2xl'],
       borderTopRightRadius: BORDER_RADIUS['2xl'],
-      maxHeight: '80%' as const,
+      maxHeight: '85%' as const,
+      ...SHADOWS.xl,
     },
     modalHeader: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
       justifyContent: 'space-between' as const,
-      paddingHorizontal: gv(SPACING.container),
-      paddingVertical: 12,
+      padding: gv(SPACING.lg),
       borderBottomWidth: 1,
       borderBottomColor: COLORS.border.light,
     },
@@ -1128,7 +1570,114 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop') => {
       color: COLORS.text.primary,
     },
     modalContent: {
-      padding: gv(SPACING.container),
+      padding: gv(SPACING.lg),
+    },
+    modalItem: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 12,
+      padding: gv(SPACING.md),
+      backgroundColor: COLORS.background,
+      borderWidth: 1,
+      borderColor: COLORS.border.default,
+      borderRadius: BORDER_RADIUS.lg,
+      marginBottom: 12,
+    },
+    modalItemSelected: {
+      backgroundColor: COLORS.variants.primary[50],
+      borderColor: COLORS.primary,
+      borderWidth: 2,
+    },
+    modalItemIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: BORDER_RADIUS.lg,
+      backgroundColor: COLORS.border.light,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    modalItemIconText: {
+      fontSize: 24,
+    },
+    modalItemText: {
+      flex: 1,
+    },
+    modalItemName: {
+      fontSize: gv(TYPOGRAPHY.fontSize.base),
+      fontWeight: '600' as const,
+      color: COLORS.text.primary,
+      marginBottom: 2,
+    },
+    modalItemDesc: {
+      fontSize: gv(TYPOGRAPHY.fontSize.xs),
+      color: COLORS.text.secondary,
+    },
+    modalCreateButton: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 12,
+      padding: gv(SPACING.md),
+      backgroundColor: COLORS.variants.primary[50],
+      borderWidth: 1.5,
+      borderColor: COLORS.primary,
+      borderRadius: BORDER_RADIUS.lg,
+      borderStyle: 'dashed' as const,
+      marginTop: 8,
+    },
+    modalCreateButtonText: {
+      fontSize: gv(TYPOGRAPHY.fontSize.base),
+      fontWeight: '600' as const,
+      color: COLORS.primary,
+    },
+    modalInputGroup: {
+      marginBottom: gv(SPACING.lg),
+    },
+    modalLabel: {
+      fontSize: gv(TYPOGRAPHY.fontSize.sm),
+      fontWeight: '600' as const,
+      color: COLORS.text.primary,
+      marginBottom: 8,
+    },
+    modalInput: {
+      backgroundColor: COLORS.background,
+      borderWidth: 1.5,
+      borderColor: COLORS.border.default,
+      borderRadius: BORDER_RADIUS.lg,
+      paddingHorizontal: gv(SPACING.md),
+      paddingVertical: 12,
+      fontSize: gv(TYPOGRAPHY.fontSize.base),
+      color: COLORS.text.primary,
+    },
+    colorGrid: {
+      flexDirection: 'row' as const,
+      flexWrap: 'wrap' as const,
+      gap: 12,
+    },
+    colorOption: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      borderWidth: 2,
+      borderColor: 'transparent',
+    },
+    colorOptionSelected: {
+      borderColor: '#FFF',
+      ...SHADOWS.md,
+    },
+    modalCreateButton2: {
+      marginTop: gv(SPACING.md),
+    },
+
+    // Bottom Button
+    bottomButtonContainer: {
+      padding: gv(SPACING.lg),
+      paddingTop: gv(SPACING.xl),
+      paddingBottom: gv(SPACING.xl) + insets.bottom,
+    },
+    bottomButton: {
+      width: '100%' as const,
     },
   };
 };

@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, SectionList, TouchableOpacity, ActivityIndicator, ScrollView, Modal } from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -85,9 +85,12 @@ export default function MenuDetailScreen() {
   // État pour la modal de confirmation de suppression
   const [itemToDelete, setItemToDelete] = useState<MenuItem | null>(null);
 
-  useEffect(() => {
-    loadInitialData();
-  }, [id]);
+  // Recharger les données à chaque fois que l'écran devient actif
+  useFocusEffect(
+    useCallback(() => {
+      loadInitialData();
+    }, [id])
+  );
 
   const loadInitialData = async () => {
     if (!id) return;

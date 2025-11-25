@@ -6,17 +6,26 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, useScreenType, createResponsiveStyles, COMPONENT_CONSTANTS } from '@/utils/designSystem';
 import { useAuth } from '@/contexts/AuthContext';
 
+interface RightAction {
+  icon: keyof typeof Ionicons.glyphMap;
+  onPress: () => void | Promise<void>;
+  disabled?: boolean;
+  loading?: boolean;
+  badge?: string;
+}
+
 interface HeaderProps {
   title: string;
   subtitle?: string;
   showBackButton?: boolean;
-  leftIcon?: string;
-  rightIcon?: string;
+  leftIcon?: keyof typeof Ionicons.glyphMap;
+  rightIcon?: keyof typeof Ionicons.glyphMap;
   rightBadge?: string;
+  rightActions?: RightAction[];
   onLeftPress?: () => void;
   onRightPress?: () => void;
   backgroundColor?: string;
-  includeSafeArea?: boolean; // Option pour inclure ou non la safe area
+  includeSafeArea?: boolean;
   showLogout?: boolean;
   logoutPosition?: 'left' | 'right';
 }
@@ -30,6 +39,7 @@ export const Header: React.FC<HeaderProps> = (props) => {
     leftIcon,
     rightIcon,
     rightBadge,
+    rightActions,
     onLeftPress,
     onRightPress,
     backgroundColor = COLORS.surface,
@@ -81,8 +91,9 @@ export const Header: React.FC<HeaderProps> = (props) => {
   };
 
   const rightContainerStyle: ViewStyle = {
-    width: 40,
-    alignItems: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   };
 
   const titleContainerStyle: ViewStyle = {
@@ -104,7 +115,7 @@ export const Header: React.FC<HeaderProps> = (props) => {
               android_ripple={{ color: COLORS.border.default, borderless: true }}
             >
               <Ionicons
-                name={(leftIcon || 'arrow-back') as any}
+                name={(leftIcon || 'arrow-back') as keyof typeof Ionicons.glyphMap}
                 size={24}
                 color={COLORS.text.primary}
               />
@@ -128,9 +139,9 @@ export const Header: React.FC<HeaderProps> = (props) => {
             accessibilityRole="header"
             style={{
               fontSize: screenType === 'desktop' ? 20 : screenType === 'tablet' ? 18 : 16,
-              fontWeight: '600',
+              fontWeight: '600' as const,
               color: COLORS.text.primary,
-              textAlign: 'center',
+              textAlign: 'center' as const,
               lineHeight: screenType === 'desktop' ? 24 : screenType === 'tablet' ? 22 : 20,
             }}
           >
@@ -143,9 +154,9 @@ export const Header: React.FC<HeaderProps> = (props) => {
               style={{
                 marginTop: 2,
                 fontSize: screenType === 'desktop' ? 14 : screenType === 'tablet' ? 13 : 12,
-                fontWeight: '400',
+                fontWeight: '400' as const,
                 color: COLORS.text.secondary ?? COLORS.text.primary,
-                textAlign: 'center',
+                textAlign: 'center' as const,
                 lineHeight: screenType === 'desktop' ? 18 : screenType === 'tablet' ? 17 : 16,
               }}
             >
@@ -165,25 +176,70 @@ export const Header: React.FC<HeaderProps> = (props) => {
               <Ionicons name="log-out-outline" size={24} color={COLORS.text.primary} />
             </Pressable>
           )}
-          {rightIcon && (
+          {rightActions && rightActions.length > 0 ? (
+            rightActions.map((action, index) => (
+              <Pressable
+                key={index}
+                onPress={action.onPress}
+                disabled={action.disabled || action.loading}
+                style={[
+                  buttonStyle,
+                  (action.disabled || action.loading) && { opacity: 0.5 },
+                ]}
+                android_ripple={{ color: COLORS.border.default, borderless: true }}
+              >
+                <Ionicons
+                  name={action.icon}
+                  size={24}
+                  color={COLORS.text.primary}
+                />
+                {action.badge && (
+                  <View
+                    style={{
+                      position: 'absolute' as const,
+                      top: 2,
+                      right: 2,
+                      backgroundColor: COLORS.primary,
+                      borderRadius: 8,
+                      minWidth: 16,
+                      height: 16,
+                      justifyContent: 'center' as const,
+                      alignItems: 'center' as const,
+                      paddingHorizontal: 4,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: '#fff',
+                        fontSize: 10,
+                        fontWeight: '600' as const,
+                      }}
+                    >
+                      {action.badge}
+                    </Text>
+                  </View>
+                )}
+              </Pressable>
+            ))
+          ) : rightIcon ? (
             <Pressable
               onPress={onRightPress}
               style={buttonStyle}
               android_ripple={{ color: COLORS.border.default, borderless: true }}
             >
-              <Ionicons name={rightIcon as any} size={24} color={COLORS.text.primary} />
+              <Ionicons name={rightIcon} size={24} color={COLORS.text.primary} />
               {rightBadge && (
                 <View
                   style={{
-                    position: 'absolute',
+                    position: 'absolute' as const,
                     top: 2,
                     right: 2,
                     backgroundColor: COLORS.primary,
                     borderRadius: 8,
                     minWidth: 16,
                     height: 16,
-                    justifyContent: 'center',
-                    alignItems: 'center',
+                    justifyContent: 'center' as const,
+                    alignItems: 'center' as const,
                     paddingHorizontal: 4,
                   }}
                 >
@@ -191,7 +247,7 @@ export const Header: React.FC<HeaderProps> = (props) => {
                     style={{
                       color: '#fff',
                       fontSize: 10,
-                      fontWeight: '600',
+                      fontWeight: '600' as const,
                     }}
                   >
                     {rightBadge}
@@ -199,7 +255,7 @@ export const Header: React.FC<HeaderProps> = (props) => {
                 </View>
               )}
             </Pressable>
-          )}
+          ) : null}
         </View>
       </View>
     </View>
