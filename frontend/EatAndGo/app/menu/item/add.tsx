@@ -745,14 +745,13 @@ export default function AddMenuItemScreen() {
         {/* Bottom Create Button */}
         <View style={styles.bottomButtonContainer}>
           <Button
+            title={isCreating ? 'Création en cours...' : 'Créer l\'article'}
             onPress={handleCreate}
             variant="primary"
             disabled={isCreating || !name.trim() || !price.trim()}
             loading={isCreating}
             style={styles.bottomButton}
-          >
-            {isCreating ? 'Création en cours...' : 'Créer l\'article'}
-          </Button>
+          />
         </View>
       </ScrollView>
 
@@ -1069,12 +1068,11 @@ export default function AddMenuItemScreen() {
                 </View>
               </View>
               <Button
+                title="Créer la catégorie"
                 onPress={handleCreateCategory}
                 variant="primary"
                 style={styles.modalCreateButton2}
-              >
-                Créer la catégorie
-              </Button>
+              />
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
@@ -1132,12 +1130,11 @@ export default function AddMenuItemScreen() {
                 />
               </View>
               <Button
+                title="Créer la sous-catégorie"
                 onPress={handleCreateSubCategory}
                 variant="primary"
                 style={styles.modalCreateButton2}
-              >
-                Créer la sous-catégorie
-              </Button>
+              />
             </ScrollView>
           </View>
         </KeyboardAvoidingView>

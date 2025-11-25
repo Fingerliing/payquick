@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, SectionList, TouchableOpacity, ActivityIndicator, ScrollView, Modal } from 'react-native';
+import { View, Text, SectionList, TouchableOpacity, ActivityIndicator, ScrollView, Modal, Image } from 'react-native';
 import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -881,6 +881,74 @@ export default function MenuDetailScreen() {
         onPress={() => router.push(`/menu/item/edit/${item.id}` as any)}
       >
         <Card variant="default" style={dynamicStyles.menuItemCard}>
+          {/* Photo du plat */}
+          {item.image_url && (
+            <View style={{
+              width: '100%',
+              height: 180,
+              borderRadius: BORDER_RADIUS.lg,
+              overflow: 'hidden',
+              marginBottom: getResponsiveValue(SPACING.md, screenType),
+              backgroundColor: COLORS.variants.secondary[50],
+              borderWidth: 2,
+              borderColor: COLORS.border.golden,
+            }}>
+              <Image
+                source={{ uri: item.image_url }}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                }}
+                resizeMode="cover"
+              />
+              {/* Badge "Nouveau" si créé récemment (moins de 7 jours) */}
+              {item.created_at && new Date(item.created_at).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000 && (
+                <View style={{
+                  position: 'absolute',
+                  top: 12,
+                  left: 12,
+                  backgroundColor: COLORS.variants.secondary[600],
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: BORDER_RADIUS.full,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  ...SHADOWS.md,
+                }}>
+                  <Ionicons name="sparkles" size={14} color={COLORS.secondary} style={{ marginRight: 4 }} />
+                  <Text style={{
+                    color: COLORS.text.inverse,
+                    fontSize: 12,
+                    fontWeight: '700',
+                  }}>
+                    Nouveau
+                  </Text>
+                </View>
+              )}
+              {/* Badge de disponibilité sur l'image */}
+              {!item.is_available && (
+                <View style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  backgroundColor: 'rgba(0, 0, 0, 0.75)',
+                  paddingVertical: 8,
+                  alignItems: 'center',
+                }}>
+                  <Text style={{
+                    color: COLORS.text.inverse,
+                    fontSize: 13,
+                    fontWeight: '700',
+                    letterSpacing: 0.5,
+                  }}>
+                    INDISPONIBLE
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+          
           {/* En-tête avec nom et prix */}
           <View style={dynamicStyles.itemHeader}>
             <Text style={dynamicStyles.itemName}>{item.name}</Text>
