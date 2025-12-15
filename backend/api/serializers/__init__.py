@@ -6,3 +6,4 @@ from .payment_serializers import *
 from .admin_serializers import *
 from .guest_serializers import *
 from .table_serializers import *
+from .notification_serializers import *

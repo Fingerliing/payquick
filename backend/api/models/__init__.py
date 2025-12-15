@@ -81,6 +81,13 @@ from .accounting_models import (
     ExportComptable
 )
 
+# Notification
+from .notification_models import (
+    PushNotificationToken,
+    NotificationPreferences,
+    Notification
+)
+
 __all__ = [
     # Validators
     'validate_siret',
@@ -142,4 +149,9 @@ __all__ = [
     'EcritureComptable',
     'RecapitulatifTVA',
     'ExportComptable',
+    
+    # Notification
+    'PushNotificationToken',
+    'NotificationPreferences',
+    'Notification',
 ]

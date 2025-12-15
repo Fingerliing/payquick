@@ -49,4 +49,7 @@ urlpatterns = [
 
     # Comptabilité
     path('comptabilite/', include('api.urls.v1.comptabilite_urls')),
+
+    # Notifications
+    path('notifications/', include('api.urls.v1.notification_urls')),
 ]
