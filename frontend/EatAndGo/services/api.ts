@@ -1,17 +1,31 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
 import { ApiError, ApiResponse } from '../types/common';
+
+// Clés de stockage (doit correspondre à AuthContext)
+const STORAGE_KEYS = {
+  ACCESS_TOKEN: 'access_token',
+  REFRESH_TOKEN: 'refresh_token',
+  USER_DATA: 'user_data',
+};
 
 /**
  * ApiClient
  * - Gère la baseURL (EXPO_PUBLIC_API_URL ou localhost)
  * - Ajoute automatiquement le Bearer token si présent dans AsyncStorage
  * - Normalise les chemins pour éviter les doubles slashs
+ * - Gère automatiquement le refresh token et la redirection vers login en cas d'expiration
  * - Expose des helpers génériques: get/post/put/patch/delete/options
  */
 class ApiClient {
   private client: AxiosInstance;
   private baseURL: string;
+  private isRefreshing = false;
+  private failedQueue: Array<{
+    resolve: (value: any) => void;
+    reject: (reason?: any) => void;
+  }> = [];
 
   constructor() {
     this.baseURL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
@@ -25,10 +39,10 @@ class ApiClient {
     });
 
     // Intercepteur requêtes: injecte le token s'il existe
-    this.client.interceptors.request.use(async (config) => {
+    this.client.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
       // Essaye plusieurs clés possibles sans casser si absentes
       const token =
-        (await AsyncStorage.getItem('access_token')) ||
+        (await AsyncStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN)) ||
         (await AsyncStorage.getItem('auth_token')) ||
         (await AsyncStorage.getItem('token')) ||
         undefined;
@@ -45,11 +59,153 @@ class ApiClient {
       return config;
     });
 
-    // Intercepteur réponses: laisse passer, la gestion d'erreur se fait dans handleError
+    // Intercepteur réponses: gère les erreurs 401 avec refresh token automatique
     this.client.interceptors.response.use(
       (response) => response,
-      (error) => Promise.reject(this.handleError(error))
+      async (error) => {
+        const originalRequest = error.config;
+
+        // Si c'est une erreur 401 et qu'on n'a pas déjà essayé de refresh
+        if (error.response?.status === 401 && !originalRequest._retry) {
+          // Ne pas intercepter les requêtes de login ou de refresh
+          const isAuthEndpoint = originalRequest.url?.includes('/auth/login') || 
+                                  originalRequest.url?.includes('/auth/refresh') ||
+                                  originalRequest.url?.includes('/auth/register');
+          
+          if (isAuthEndpoint) {
+            return Promise.reject(this.handleError(error));
+          }
+
+          // Si on est déjà en train de rafraîchir, mettre la requête en file d'attente
+          if (this.isRefreshing) {
+            return new Promise((resolve, reject) => {
+              this.failedQueue.push({ resolve, reject });
+            })
+              .then((token) => {
+                originalRequest.headers['Authorization'] = `Bearer ${token}`;
+                return this.client(originalRequest);
+              })
+              .catch((err) => Promise.reject(err));
+          }
+
+          originalRequest._retry = true;
+          this.isRefreshing = true;
+
+          try {
+            const newToken = await this.attemptTokenRefresh();
+            
+            if (newToken) {
+              // Succès du refresh - réessayer la requête originale
+              this.processQueue(null, newToken);
+              originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
+              return this.client(originalRequest);
+            } else {
+              // Échec du refresh - rediriger vers login
+              this.processQueue(new Error('Token refresh failed'), null);
+              await this.handleSessionExpired();
+              return Promise.reject(this.handleError(error));
+            }
+          } catch (refreshError) {
+            this.processQueue(refreshError as Error, null);
+            await this.handleSessionExpired();
+            return Promise.reject(this.handleError(error));
+          } finally {
+            this.isRefreshing = false;
+          }
+        }
+
+        return Promise.reject(this.handleError(error));
+      }
     );
+  }
+
+  /**
+   * Tente de rafraîchir le token d'accès
+   */
+  private async attemptTokenRefresh(): Promise<string | null> {
+    try {
+      const refreshToken = await AsyncStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+      
+      if (!refreshToken) {
+        console.log('🔑 Pas de refresh token disponible');
+        return null;
+      }
+
+      console.log('🔄 Tentative de rafraîchissement du token...');
+      
+      // Appel direct sans passer par l'intercepteur
+      const response = await axios.post(
+        `${this.baseURL}/api/v1/auth/refresh/`,
+        { refresh: refreshToken },
+        {
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 10000,
+        }
+      );
+
+      const newAccessToken = response.data?.access;
+      
+      if (newAccessToken) {
+        await AsyncStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, newAccessToken);
+        console.log('✅ Token rafraîchi avec succès');
+        return newAccessToken;
+      }
+
+      return null;
+    } catch (error: any) {
+      console.error('❌ Échec du rafraîchissement du token:', error?.response?.status || error.message);
+      return null;
+    }
+  }
+
+  /**
+   * Traite la file d'attente des requêtes en attente
+   */
+  private processQueue(error: Error | null, token: string | null): void {
+    this.failedQueue.forEach((promise) => {
+      if (error) {
+        promise.reject(error);
+      } else {
+        promise.resolve(token);
+      }
+    });
+    this.failedQueue = [];
+  }
+
+  /**
+   * Gère l'expiration de session - nettoie les données et redirige vers login
+   */
+  private async handleSessionExpired(): Promise<void> {
+    console.log('🚪 Session expirée - redirection vers la page de connexion...');
+    
+    try {
+      // Nettoyer toutes les données d'authentification
+      await AsyncStorage.multiRemove([
+        STORAGE_KEYS.ACCESS_TOKEN,
+        STORAGE_KEYS.REFRESH_TOKEN,
+        STORAGE_KEYS.USER_DATA,
+      ]);
+      console.log('🗑️ Données d\'authentification supprimées');
+    } catch (cleanupError) {
+      console.error('⚠️ Erreur lors du nettoyage des données:', cleanupError);
+    }
+
+    // Rediriger vers la page de connexion
+    // Utiliser setTimeout pour éviter les problèmes de navigation pendant le rendu
+    setTimeout(() => {
+      try {
+        router.replace('/(auth)/login');
+        console.log('✅ Redirection vers login effectuée');
+      } catch (navError) {
+        console.error('❌ Erreur de navigation:', navError);
+        // Fallback: essayer une navigation alternative
+        try {
+          router.push('/(auth)/login');
+        } catch (fallbackError) {
+          console.error('❌ Erreur navigation fallback:', fallbackError);
+        }
+      }
+    }, 100);
   }
 
   /** Évite les doubles slashs et gère les URLs absolues */
@@ -141,14 +297,13 @@ class ApiClient {
     data?: any,
     config?: AxiosRequestConfig
   ): Promise<T> {
-    // ✅ CORRECTION: Gérer FormData spécialement
+    // Gérer FormData spécialement
     let requestConfig = { ...config };
     
     if (data instanceof FormData) {
       // Pour FormData, ne pas définir Content-Type - Axios le gère automatiquement
       requestConfig.headers = {
         ...requestConfig.headers,
-        // Ne PAS définir Content-Type pour FormData
       };
       // Supprimer le Content-Type par défaut s'il existe
       delete requestConfig.headers?.['Content-Type'];
@@ -167,10 +322,19 @@ class ApiClient {
     data?: any,
     config?: AxiosRequestConfig
   ): Promise<T> {
+    let requestConfig = { ...config };
+    
+    if (data instanceof FormData) {
+      requestConfig.headers = {
+        ...requestConfig.headers,
+      };
+      delete requestConfig.headers?.['Content-Type'];
+    }
+
     const response = await this.client.put<ApiResponse<T> | T>(
       this.buildUrl(url),
       data,
-      config
+      requestConfig
     );
     return this.extractData<T>(response);
   }
@@ -180,10 +344,19 @@ class ApiClient {
     data?: any,
     config?: AxiosRequestConfig
   ): Promise<T> {
+    let requestConfig = { ...config };
+    
+    if (data instanceof FormData) {
+      requestConfig.headers = {
+        ...requestConfig.headers,
+      };
+      delete requestConfig.headers?.['Content-Type'];
+    }
+
     const response = await this.client.patch<ApiResponse<T> | T>(
       this.buildUrl(url),
       data,
-      config
+      requestConfig
     );
     return this.extractData<T>(response);
   }
@@ -199,9 +372,6 @@ class ApiClient {
     return this.extractData<T>(response);
   }
 
-  /**
-   * Méthode OPTIONS pour récupérer les métadonnées d'un endpoint
-   */
   async options<T = any>(
     url: string,
     config?: AxiosRequestConfig
@@ -211,6 +381,23 @@ class ApiClient {
       config
     );
     return this.extractData<T>(response);
+  }
+
+  /**
+   * Méthode utilitaire pour forcer la déconnexion depuis l'extérieur
+   * Utile si d'autres parties de l'app détectent une session expirée
+   */
+  async forceLogout(): Promise<void> {
+    await this.handleSessionExpired();
+  }
+
+  /**
+   * Vérifie si le token actuel est probablement valide
+   * Ne garantit pas la validité côté serveur
+   */
+  async hasValidToken(): Promise<boolean> {
+    const token = await AsyncStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+    return !!token;
   }
 }
 
