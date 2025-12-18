@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "161444086922",
+    "project_id": "eatquicker-aa915",
+    "storage_bucket": "eatquicker-aa915.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:161444086922:android:25dc177d2d63f53f839973",
+        "android_client_info": {
+          "package_name": "com.fingerliing.EatQuickeR"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA-OMHH_R7mVNjulUEHroQGPYLKdngMjNE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

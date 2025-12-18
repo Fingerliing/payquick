@@ -1,87 +1,55 @@
 {
   "expo": {
     "name": "EatQuickeR",
-    "slug": "EatQuickeR",
+    "slug": "eatquicker",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "eatquicker",
-    "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1E3A5F"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
-      "UIFileSharingEnabled": true,
-      "LSSupportsOpeningDocumentsInPlace": true,
-      "infoPlist": {
-        "NSCameraUsageDescription": "Cette application utilise la caméra pour scanner les QR codes des restaurants."
-      }
+      "bundleIdentifier": "com.fingerliing.EatQuickeR"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1E3A5F"
       },
-      "edgeToEdgeEnabled": true,
-      "intentFilters": [
-        {
-          "action": "VIEW",
-          "data": [
-            {
-              "scheme": "eatquicker"
-            }
-          ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
-        }
-      ],
-      "permissions": [
-        "android.permission.CAMERA",
-        "WRITE_EXTERNAL_STORAGE",
-        "READ_EXTERNAL_STORAGE",
-        "android.permission.RECORD_AUDIO"
-      ],
-      "package": "com.fingerliing.EatQuickeR"
+      "package": "com.fingerliing.EatQuickeR",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
-      "bundler": "metro",
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
     },
     "plugins": [
       "expo-router",
       [
-        "expo-splash-screen",
+        "expo-notifications",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
-        }
-      ],
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "Permettre à EatQuickeR d'accéder à la caméra pour scanner les QR codes des menus de restaurant."
-        }
-      ],
-      [
-        "expo-document-picker",
-        {
-          "iCloudContainerEnvironment": "Production"
+          "icon": "./assets/notification-icon.png",
+          "color": "#1E3A5F",
+          "defaultChannel": "default",
+          "sounds": []
         }
       ]
     ],
-    "experiments": {
-      "typedRoutes": true
-    },
     "extra": {
-      "API_URL": "http://192.168.1.163:8000",
-      "router": {},
+      "router": {
+        "origin": false
+      },
       "eas": {
         "projectId": "aec49fe2-48a9-417e-9552-31fc13700804"
       }
-    }
+    },
+    "scheme": "eatquicker"
   }
 }

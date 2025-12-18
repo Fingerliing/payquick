@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { QRAccessButtons } from '@/components/qrCode/QRAccessButton';
+import { NotificationBadge } from '@/components/common/NotificationBadge';
 import { 
   useScreenType, 
   getResponsiveValue, 
@@ -50,9 +51,32 @@ export default function ClientHome() {
       paddingBottom: Math.max(insets.bottom, 20),
     },
     
+    // Container du header avec le badge
+    headerRow: {
+      flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
+      alignItems: 'flex-start' as const,
+      paddingHorizontal: layoutConfig.containerPadding,
+      paddingTop: getResponsiveValue(SPACING.md, screenType),
+    },
+    
+    // Placeholder pour équilibrer le layout (même largeur que le badge)
+    headerPlaceholder: {
+      width: 44,
+    },
+    
+    notificationBadgeContainer: {
+      backgroundColor: COLORS.surface,
+      borderRadius: BORDER_RADIUS.full,
+      padding: getResponsiveValue(SPACING.xs, screenType),
+      ...SHADOWS.sm,
+      borderWidth: 1,
+      borderColor: COLORS.border.light,
+    },
+    
     header: {
       paddingHorizontal: layoutConfig.containerPadding,
-      paddingTop: layoutConfig.headerSpacing,
+      paddingTop: getResponsiveValue(SPACING.sm, screenType), // Réduit car headerRow au-dessus
       paddingBottom: getResponsiveValue(SPACING.lg, screenType),
       alignItems: 'center' as const,
       maxWidth: layoutConfig.contentMaxWidth,
@@ -285,6 +309,11 @@ export default function ClientHome() {
     screenType
   );
 
+  const notificationIconSize = getResponsiveValue(
+    { mobile: 24, tablet: 26, desktop: 28 },
+    screenType
+  );
+
   const quickActions = [
     // {
     //   id: 'browse',
@@ -329,6 +358,24 @@ export default function ClientHome() {
         showsVerticalScrollIndicator={false}
         bounces={true}
       >
+        {/* ====== NOUVEAU: Barre avec le badge de notifications ====== */}
+        <View style={viewStyles.headerRow}>
+          {/* Placeholder pour centrer le logo */}
+          <View style={viewStyles.headerPlaceholder} />
+          
+          {/* Espace central vide */}
+          <View style={{ flex: 1 }} />
+          
+          {/* Badge de notifications */}
+          <View style={viewStyles.notificationBadgeContainer}>
+            <NotificationBadge 
+              size={notificationIconSize} 
+              color={COLORS.primary}
+            />
+          </View>
+        </View>
+        {/* ====== FIN NOUVEAU ====== */}
+
         <View style={viewStyles.header}>
           <View style={viewStyles.titleContainer}>
             <View style={viewStyles.decorativeBadge} />
