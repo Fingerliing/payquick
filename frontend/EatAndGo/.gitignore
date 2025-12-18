@@ -1,3 +1,7 @@
+# Dossiers natifs générés par expo prebuild
+/android/
+/ios/
+
 # Dependencies
 node_modules/
 npm-debug.log*
