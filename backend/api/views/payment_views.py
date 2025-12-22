@@ -131,7 +131,7 @@ class CreateCheckoutSessionView(APIView):
 
             # Création de la session Stripe Checkout
             session = stripe.checkout.Session.create(
-                payment_method_types=["card"],
+                payment_method_types=["card", "link"],
                 line_items=line_items,
                 mode="payment",
                 success_url=f"{settings.DOMAIN}/success?order={order_id}",

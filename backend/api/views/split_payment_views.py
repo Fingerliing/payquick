@@ -333,7 +333,7 @@ class PayPortionView(APIView):
             # Créer le PaymentIntent
             amount_cents = int(portion.amount * 100)  # Convertir en centimes
             
-            # Commission 2% (optionnel, selon votre modèle business)
+            # Commission 2%
             platform_fee_cents = amount_cents * 2 // 100
             
             payment_intent = stripe.PaymentIntent.create(
@@ -345,7 +345,7 @@ class PayPortionView(APIView):
                     'split_payment': 'true'
                 },
                 automatic_payment_methods={'enabled': True},
-                # application_fee_amount=platform_fee_cents,  # Décommentez si vous voulez une commission
+                application_fee_amount=platform_fee_cents,
             )
             
             return Response({
