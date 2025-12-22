@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -43,39 +43,9 @@ export function LegalDocument({
   acceptButtonText = "J'ai lu et j'accepte",
 }: LegalDocumentProps) {
   const router = useRouter();
-  const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
-  const [contentHeight, setContentHeight] = useState(0);
-  const [scrollViewHeight, setScrollViewHeight] = useState(0);
-
-  const handleScroll = (event: any) => {
-    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
-    // Augmenter la tolérance à 100px pour détecter plus facilement qu'on est en bas
-    const paddingToBottom = 100;
-    const isCloseToBottom =
-      layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom;
-
-    if (isCloseToBottom && !hasScrolledToBottom) {
-      setHasScrolledToBottom(true);
-    }
-  };
-
-  const handleContentSizeChange = (width: number, height: number) => {
-    setContentHeight(height);
-  };
-
-  const handleLayout = (event: any) => {
-    setScrollViewHeight(event.nativeEvent.layout.height);
-  };
-
-  // Si le contenu est plus petit que la vue, activer directement le bouton
-  React.useEffect(() => {
-    if (contentHeight > 0 && scrollViewHeight > 0 && contentHeight <= scrollViewHeight) {
-      setHasScrolledToBottom(true);
-    }
-  }, [contentHeight, scrollViewHeight]);
 
   const handleAcceptPress = () => {
-    if (hasScrolledToBottom && onAccept) {
+    if (onAccept) {
       onAccept();
     }
   };
@@ -101,10 +71,6 @@ export function LegalDocument({
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
-        onScroll={showAcceptButton ? handleScroll : undefined}
-        onContentSizeChange={showAcceptButton ? handleContentSizeChange : undefined}
-        onLayout={showAcceptButton ? handleLayout : undefined}
-        scrollEventThrottle={400}
         showsVerticalScrollIndicator={true}
       >
         <View style={styles.content}>
@@ -154,43 +120,25 @@ export function LegalDocument({
             </View>
           ))}
 
-          {/* Spacer pour être sûr qu'on peut scroller */}
+          {/* Spacer pour le footer */}
           {showAcceptButton && <View style={styles.bottomSpacer} />}
         </View>
       </ScrollView>
 
-      {/* Bouton d'acceptation */}
+      {/* Bouton d'acceptation - toujours actif */}
       {showAcceptButton && (
         <View style={styles.footer}>
-          {!hasScrolledToBottom && (
-            <View style={styles.scrollHint}>
-              <Ionicons name="arrow-down" size={16} color={COLORS.text.secondary} />
-              <Text style={styles.scrollHintText}>
-                Faites défiler jusqu'en bas pour accepter
-              </Text>
-            </View>
-          )}
-          
           <TouchableOpacity
-            style={[
-              styles.acceptButton,
-              !hasScrolledToBottom && styles.acceptButtonDisabled,
-            ]}
+            style={styles.acceptButton}
             onPress={handleAcceptPress}
-            disabled={!hasScrolledToBottom}
             activeOpacity={0.8}
           >
             <Ionicons
-              name={hasScrolledToBottom ? "checkmark-circle" : "lock-closed"}
+              name="checkmark-circle"
               size={20}
-              color={hasScrolledToBottom ? COLORS.text.inverse : COLORS.text.light}
+              color={COLORS.text.inverse}
             />
-            <Text
-              style={[
-                styles.acceptButtonText,
-                !hasScrolledToBottom && styles.acceptButtonTextDisabled,
-              ]}
-            >
+            <Text style={styles.acceptButtonText}>
               {acceptButtonText}
             </Text>
           </TouchableOpacity>
@@ -303,20 +251,6 @@ const styles = StyleSheet.create({
     borderTopColor: COLORS.border.default,
     ...SHADOWS.lg,
   },
-  scrollHint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    gap: 8,
-    backgroundColor: COLORS.border.light,
-  },
-  scrollHintText: {
-    fontSize: 13,
-    color: COLORS.text.secondary,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
-  },
   acceptButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -331,23 +265,9 @@ const styles = StyleSheet.create({
     gap: 8,
     ...SHADOWS.button,
   },
-  acceptButtonDisabled: {
-    backgroundColor: COLORS.border.default,
-    ...Platform.select({
-      ios: {
-        shadowOpacity: 0,
-      },
-      android: {
-        elevation: 0,
-      },
-    }),
-  },
   acceptButtonText: {
     color: COLORS.text.inverse,
     fontSize: 16,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
-  },
-  acceptButtonTextDisabled: {
-    color: COLORS.text.light,
   },
 });

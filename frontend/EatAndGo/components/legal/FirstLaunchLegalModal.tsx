@@ -18,17 +18,11 @@ import { COLORS, BORDER_RADIUS, SHADOWS, TYPOGRAPHY } from '@/utils/designSystem
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-// Clés de stockage pour les acceptations temporaires
-const TERMS_ACCEPTED_KEY = '@legal_terms_temp_accepted';
-const PRIVACY_ACCEPTED_KEY = '@legal_privacy_temp_accepted';
-
 export function FirstLaunchLegalModal() {
   const router = useRouter();
   const pathname = usePathname();
   const [visible, setVisible] = useState(false);
   const [shouldShow, setShouldShow] = useState(false);
-  // Indique si nous sommes en train de naviguer vers un document
-  const isNavigatingRef = useRef(false);
   const {
     termsAccepted,
     privacyAccepted,
@@ -57,25 +51,15 @@ export function FirstLaunchLegalModal() {
       setVisible(false);
       return;
     }
-    // Si nous venons de déclencher une navigation, ne pas réafficher immédiatement
-    if (isNavigatingRef.current) {
-      return;
-    }
     if (shouldShow) {
       setVisible(true);
     }
   }, [pathname, shouldShow]);
 
-  // Réinitialiser le flag de navigation après un changement de route
-  useEffect(() => {
-    isNavigatingRef.current = false;
-  }, [pathname]);
-
   const checkIfNeedsAcceptance = async () => {
     try {
       const needsUpdate = await checkLegalUpdates();
       console.log('📋 Modal - Affichage nécessaire:', needsUpdate);
-      // Mettre à jour uniquement l'état shouldShow. L'affichage de la modal est géré ailleurs.
       setShouldShow(needsUpdate);
     } catch (error) {
       console.error('❌ Modal CGU - Erreur:', error);
@@ -85,20 +69,33 @@ export function FirstLaunchLegalModal() {
 
   const openTerms = () => {
     console.log('📄 Ouverture des CGU');
-    // Marquer le début d'une navigation vers un document pour éviter un clignotement
-    isNavigatingRef.current = true;
-    // Cacher temporairement la modal pour la lecture
     setVisible(false);
-    router.push('/(legal)/terms?fromModal=true');
+    router.push('/(legal)/terms');
   };
 
   const openPrivacy = () => {
     console.log('🛡️ Ouverture de la politique');
-    // Marquer le début d'une navigation vers un document pour éviter un clignotement
-    isNavigatingRef.current = true;
-    // Cacher temporairement la modal pour la lecture
     setVisible(false);
-    router.push('/(legal)/privacy?fromModal=true');
+    router.push('/(legal)/privacy');
+  };
+
+  // Toggle direct des checkboxes
+  const toggleTermsAccepted = async () => {
+    if (termsAccepted) {
+      // Si déjà accepté, on décoche (reset)
+      setTermsAccepted(false);
+    } else {
+      // Sinon on accepte
+      await acceptTerms();
+    }
+  };
+
+  const togglePrivacyAccepted = async () => {
+    if (privacyAccepted) {
+      setPrivacyAccepted(false);
+    } else {
+      await acceptPrivacy();
+    }
   };
 
   const handleAccept = async () => {
@@ -114,7 +111,6 @@ export function FirstLaunchLegalModal() {
       await resetAcceptances();
 
       console.log('✅ Acceptation enregistrée');
-      // Ne plus afficher la modal tant que l'utilisateur a validé
       setShouldShow(false);
       setVisible(false);
     } catch (error) {
@@ -148,7 +144,7 @@ export function FirstLaunchLegalModal() {
               showsVerticalScrollIndicator={false}
             >
               <Text style={styles.description}>
-                Pour continuer, veuillez lire et accepter nos documents légaux.
+                Pour continuer, veuillez accepter nos documents légaux.
               </Text>
 
               {/* CGU Section */}
@@ -168,17 +164,21 @@ export function FirstLaunchLegalModal() {
                   <Ionicons name="chevron-forward" size={18} color={COLORS.primary} />
                 </TouchableOpacity>
 
-                {/* Checkbox - lecture seule, géré par le Context */}
-                <View style={styles.checkboxRow}>
+                {/* Checkbox cliquable directement */}
+                <TouchableOpacity 
+                  style={styles.checkboxRow}
+                  onPress={toggleTermsAccepted}
+                  activeOpacity={0.7}
+                >
                   <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked]}>
                     {termsAccepted && (
                       <Ionicons name="checkmark" size={18} color={COLORS.text.inverse} />
                     )}
                   </View>
                   <Text style={styles.checkboxLabel}>
-                    {termsAccepted ? '✓ CGU acceptées' : 'En attente d\'acceptation'}
+                    J'accepte les Conditions Générales d'Utilisation
                   </Text>
-                </View>
+                </TouchableOpacity>
               </View>
 
               {/* Privacy Section */}
@@ -198,24 +198,28 @@ export function FirstLaunchLegalModal() {
                   <Ionicons name="chevron-forward" size={18} color={COLORS.primary} />
                 </TouchableOpacity>
 
-                {/* Checkbox - lecture seule, géré par le Context */}
-                <View style={styles.checkboxRow}>
+                {/* Checkbox cliquable directement */}
+                <TouchableOpacity 
+                  style={styles.checkboxRow}
+                  onPress={togglePrivacyAccepted}
+                  activeOpacity={0.7}
+                >
                   <View style={[styles.checkbox, privacyAccepted && styles.checkboxChecked]}>
                     {privacyAccepted && (
                       <Ionicons name="checkmark" size={18} color={COLORS.text.inverse} />
                     )}
                   </View>
                   <Text style={styles.checkboxLabel}>
-                    {privacyAccepted ? '✓ Politique acceptée' : 'En attente d\'acceptation'}
+                    J'accepte la Politique de Confidentialité
                   </Text>
-                </View>
+                </TouchableOpacity>
               </View>
 
               {/* Help text */}
               <View style={styles.helpBox}>
                 <Ionicons name="information-circle" size={20} color={COLORS.text.secondary} />
                 <Text style={styles.helpText}>
-                  Consultez et acceptez chaque document en cliquant sur "Consulter le document"
+                  Vous pouvez consulter les documents avant de les accepter en cliquant sur "Consulter le document"
                 </Text>
               </View>
             </ScrollView>

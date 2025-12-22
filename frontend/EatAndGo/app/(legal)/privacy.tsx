@@ -14,8 +14,6 @@ export default function PrivacyScreen() {
     try {
       await acceptPrivacy();
       console.log('✅ Politique acceptée via Context');
-      
-      // Retourner à l'écran précédent
       router.back();
     } catch (error) {
       console.error('❌ Erreur lors de l\'acceptation:', error);

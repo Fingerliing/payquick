@@ -14,8 +14,6 @@ export default function TermsScreen() {
     try {
       await acceptTerms();
       console.log('✅ CGU acceptées via Context');
-      
-      // Retourner à l'écran précédent
       router.back();
     } catch (error) {
       console.error('❌ Erreur lors de l\'acceptation:', error);
