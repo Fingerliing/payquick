@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { MaterialIcons } from '@expo/vector-icons';
 import { RestaurateurProfile } from '@/types/user';
 import { stripeService } from '@/services/stripeService';
+import { StripeCommissionInfo } from './StripeCommissionInfo';
 
 interface StripeAccountStatusProps {
   onStatusChange?: (isValidated: boolean) => void;
@@ -48,6 +49,8 @@ export default function StripeAccountStatus({
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [commissionAccepted, setCommissionAccepted] = useState(false);
+  const [showCommissionInfo, setShowCommissionInfo] = useState(false);
 
   // Helper pour accéder au profil restaurateur de manière sécurisée
   const getRestaurateurProfile = (): RestaurateurProfile | null => {
@@ -96,6 +99,11 @@ export default function StripeAccountStatus({
   const handleSetupAccount = async () => {
     setActionLoading(true);
     setError(null);
+
+    if (!commissionAccepted) {
+      setShowCommissionInfo(true);
+      return;
+    }
     
     try {
       if (!account || account.status === 'no_account') {
@@ -282,22 +290,37 @@ export default function StripeAccountStatus({
           </View>
         ) : showActions && statusInfo.actionText && (
           <View style={styles.actionContainer}>
-            <TouchableOpacity
-              style={[styles.actionButton, actionLoading && styles.actionButtonDisabled]}
-              onPress={handleSetupAccount}
-              disabled={actionLoading}
-            >
-              {actionLoading ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <>
-                  <MaterialIcons name="launch" size={16} color="#fff" style={{ marginRight: 8 }} />
-                  <Text style={styles.actionButtonText}>
-                    {statusInfo.actionText}
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
+            {showCommissionInfo ? (
+              // Afficher les conditions tarifaires
+              <StripeCommissionInfo
+                showAcceptButton
+                isAccepted={commissionAccepted}
+                onAccept={() => {
+                  setCommissionAccepted(true);
+                  setShowCommissionInfo(false);
+                  // Lancer l'onboarding après acceptation
+                  handleSetupAccount();
+                }}
+              />
+            ) : (
+              // Afficher le bouton de configuration
+              <TouchableOpacity
+                style={[styles.actionButton, actionLoading && styles.actionButtonDisabled]}
+                onPress={handleSetupAccount}
+                disabled={actionLoading}
+              >
+                {actionLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <MaterialIcons name="launch" size={16} color="#fff" style={{ marginRight: 8 }} />
+                    <Text style={styles.actionButtonText}>
+                      {statusInfo.actionText}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
 
             {account?.requirements?.currently_due && account.requirements.currently_due.length > 0 && (
               <View style={styles.requirementsContainer}>

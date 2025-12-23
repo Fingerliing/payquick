@@ -8,6 +8,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.db import transaction
 from decimal import Decimal
+from api.utils.commission_utils import calculate_platform_fee_cents
 
 from api.models import (
     Order, RestaurateurProfile,

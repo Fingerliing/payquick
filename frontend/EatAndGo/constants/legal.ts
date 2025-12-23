@@ -199,6 +199,30 @@ export const TERMS_OF_SERVICE = {
       ]
     },
     {
+      title: "TARIFICATION ET COMMISSION",
+      subsections: [
+        {
+          title: "Commission plateforme",
+          content: "Pour chaque commande payée via l'application, EatQuickeR prélève une commission de 2% sur le montant TTC de la commande.",
+          bulletPoints: [
+            "La commission est prélevée automatiquement lors du paiement par carte bancaire",
+            "Le restaurateur reçoit le montant de la commande diminué de la commission EatQuickeR",
+            "Cette commission couvre les frais de mise en relation et de gestion de la plateforme",
+            "Les frais bancaires Stripe sont à la charge du restaurateur (selon la grille tarifaire Stripe)"
+          ]
+        },
+        {
+          title: "Exemple de calcul",
+          content: "Pour une commande de 50€ payée par carte :",
+          bulletPoints: [
+            "Commission EatQuickeR (2%) : 1,00€",
+            "Frais Stripe (~1,4% + 0,25€) : environ 0,95€",
+            "Montant net restaurateur : environ 48,05€"
+          ]
+        }
+      ]
+    },
+    {
       title: "OBLIGATIONS DES UTILISATEURS",
       subsections: [
         {

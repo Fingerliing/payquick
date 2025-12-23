@@ -45,6 +45,7 @@ import {
   BORDER_RADIUS,
   TYPOGRAPHY,
 } from '@/utils/designSystem';
+import RevenueCommissionCard from '@/components/stripe/RevenueCommissionCard';
 
 // ============================================================================
 // TYPES
@@ -394,6 +395,14 @@ function StatisticsScreenContent({ restaurant }: { restaurant: Restaurant }) {
             <KPIsPanel kpis={stats.kpis} chartWidth={layoutConfig.chartWidth} />
 
             {/* 3. Analyse des revenus */}
+            <RevenueCommissionCard
+              grossRevenueCard={stats.revenue.current_period * 0.7}  // Estimation 70% carte
+              grossRevenueCash={stats.revenue.current_period * 0.3}  // Estimation 30% espèces
+              cardOrdersCount={Math.round(stats.overview.orders.paid * 0.7)}
+              cashOrdersCount={Math.round(stats.overview.orders.paid * 0.3)}
+              periodLabel={`${stats.period.days} jours`}
+              showDetails={true}
+            />
             <RevenueAnalysisPanel revenue={stats.revenue} chartWidth={layoutConfig.chartWidth} />
 
             {/* 4. Performance des plats */}
