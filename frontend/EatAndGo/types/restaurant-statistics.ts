@@ -1,18 +1,5 @@
-/**
- * ============================================================================
- * TYPES RESTAURANT - VERSION UNIFIÉE ET ÉTENDUE
- * ============================================================================
- * 
- * Ce fichier combine:
- * - Types de base restaurant (existants)
- * - Types de statistiques avancées (nouveaux)
- * - Types pour analytics et KPIs
- * 
- * Compatibilité backend Django maintenue
- */
-
 // ============================================================================
-// TYPES DE BASE RESTAURANT (EXISTANTS - CONSERVÉS)
+// TYPES DE BASE RESTAURANT
 // ============================================================================
 
 /**
@@ -210,7 +197,7 @@ export const PRICE_RANGE_OPTIONS: PriceRangeOption[] = [
 ];
 
 // ============================================================================
-// TYPES STATISTIQUES BASIQUES (EXISTANTS - ÉTENDUS)
+// TYPES STATISTIQUES BASIQUES
 // ============================================================================
 
 /**
@@ -251,7 +238,7 @@ export interface RestaurantWithStats extends Restaurant {
 }
 
 // ============================================================================
-// TYPES STATISTIQUES AVANCÉES (NOUVEAUX)
+// TYPES STATISTIQUES AVANCÉES
 // ============================================================================
 
 /**
@@ -376,14 +363,50 @@ export interface DishesPerformance {
 // ============================================================================
 
 /**
- * Analyse détaillée des revenus
+ * Détail des revenus pour une méthode de paiement
+ */
+export interface PaymentMethodRevenue {
+  total: number;
+  count: number;
+  avg_order: number;
+}
+
+/**
+ * Répartition des revenus par méthode de paiement
+ */
+export interface RevenueByPaymentMethod {
+  card: PaymentMethodRevenue;
+  cash: PaymentMethodRevenue;
+}
+
+/**
+ * Détail de la commission plateforme
+ */
+export interface CommissionDetails {
+  platform_fee: number;
+  platform_rate: number;  // En pourcentage (ex: 2 pour 2%)
+  net_revenue: number;
+}
+
+/**
+ * Structure complète des revenus
  */
 export interface Revenue {
-  current_period: number;      // CA période actuelle
-  previous_period: number;     // CA période précédente
-  evolution_percent: number;   // Évolution en %
-  avg_order_value: number;     // Ticket moyen
-  total_orders: number;        // Nombre total de commandes
+  current_period: number;
+  previous_period: number;
+  evolution_percent: number;
+  avg_order_value: number;
+  
+  // Détail par méthode de paiement
+  by_payment_method?: RevenueByPaymentMethod;
+  
+  // Commission et revenu net
+  commission?: CommissionDetails;
+  
+  //Totaux pour faciliter l'affichage
+  gross_total?: number;
+  net_total?: number;
+  total_orders?: number;
 }
 
 // ============================================================================

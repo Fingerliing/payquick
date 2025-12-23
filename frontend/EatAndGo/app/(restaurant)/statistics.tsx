@@ -394,24 +394,36 @@ function StatisticsScreenContent({ restaurant }: { restaurant: Restaurant }) {
             {/* 2. KPIs principaux */}
             <KPIsPanel kpis={stats.kpis} chartWidth={layoutConfig.chartWidth} />
 
-            {/* 3. Analyse des revenus */}
+            {/* 3. Revenus avec commission - NOUVEAU */}
             <RevenueCommissionCard
-              grossRevenueCard={stats.revenue.current_period * 0.7}  // Estimation 70% carte
-              grossRevenueCash={stats.revenue.current_period * 0.3}  // Estimation 30% espèces
-              cardOrdersCount={Math.round(stats.overview.orders.paid * 0.7)}
-              cashOrdersCount={Math.round(stats.overview.orders.paid * 0.3)}
+              grossRevenueCard={
+                stats.revenue.by_payment_method?.card.total ?? 
+                stats.revenue.current_period
+              }
+              grossRevenueCash={
+                stats.revenue.by_payment_method?.cash.total ?? 0
+              }
+              cardOrdersCount={
+                stats.revenue.by_payment_method?.card.count ?? 
+                stats.overview.orders.paid
+              }
+              cashOrdersCount={
+                stats.revenue.by_payment_method?.cash.count ?? 0
+              }
               periodLabel={`${stats.period.days} jours`}
               showDetails={true}
             />
-            <RevenueAnalysisPanel revenue={stats.revenue} chartWidth={layoutConfig.chartWidth} />
 
-            {/* 4. Performance des plats */}
-            <TopDishesChart dishes={stats.dishes_performance.top_dishes} chartWidth={layoutConfig.chartWidth} />
+            {/* 4. Analyse des revenus (graphiques) */}
+            <RevenueAnalysisPanel 
+              revenue={stats.revenue} 
+              chartWidth={layoutConfig.chartWidth} 
+            />
 
-            {/* 5. Plats sous-performants */}
-            <UnderperformingDishesPanel
-              dishes={stats.dishes_performance.underperforming_dishes}
-              neverOrderedCount={stats.dishes_performance.never_ordered_count}
+            {/* 5. Performance des plats */}
+            <TopDishesChart 
+              dishes={stats.dishes_performance.top_dishes} 
+              chartWidth={layoutConfig.chartWidth} 
             />
 
             {/* 6. Heures de pointe */}

@@ -282,16 +282,51 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             # 3. ANALYSE FINANCIÈRE
             # ====================================================================
             
-            # Chiffre d'affaires
-            revenue_data = Order.objects.filter(
+            # Constante de commission plateforme (2%)
+            PLATFORM_COMMISSION_RATE = Decimal('0.02')
+            
+            # Revenus par méthode de paiement - CARTE
+            card_revenue = Order.objects.filter(
                 restaurant=restaurant,
                 payment_status='paid',
+                payment_method__in=['online', 'card', 'stripe'],
                 created_at__gte=start_date
             ).aggregate(
-                total_revenue=Sum('total_amount'),
-                avg_order_value=Avg('total_amount'),
-                orders_count=Count('id')
+                total=Sum('total_amount'),
+                count=Count('id')
             )
+            
+            # Revenus par méthode de paiement - ESPÈCES
+            cash_revenue = Order.objects.filter(
+                restaurant=restaurant,
+                payment_status='paid',
+                payment_method__in=['cash', 'cash_pending'],
+                created_at__gte=start_date
+            ).aggregate(
+                total=Sum('total_amount'),
+                count=Count('id')
+            )
+            
+            # Valeurs avec fallback à 0
+            card_total = Decimal(str(card_revenue['total'] or 0))
+            card_count = card_revenue['count'] or 0
+            cash_total = Decimal(str(cash_revenue['total'] or 0))
+            cash_count = cash_revenue['count'] or 0
+            
+            # Calcul des totaux
+            gross_total = card_total + cash_total
+            total_orders_paid = card_count + cash_count
+            
+            # Commission plateforme (uniquement sur paiements carte)
+            platform_fee = (card_total * PLATFORM_COMMISSION_RATE).quantize(
+                Decimal('0.01'), rounding=ROUND_HALF_UP
+            )
+            net_revenue = gross_total - platform_fee
+            
+            # Tickets moyens
+            avg_order_value = float(gross_total / max(total_orders_paid, 1))
+            avg_card_order = float(card_total / max(card_count, 1))
+            avg_cash_order = float(cash_total / max(cash_count, 1))
             
             # Comparaison avec la période précédente
             previous_start = start_date - timedelta(days=period_days)
@@ -302,15 +337,23 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                 created_at__lt=start_date
             ).aggregate(
                 total=Sum('total_amount')
-            )['total'] or 0
+            )['total'] or Decimal('0')
             
-            current_revenue = revenue_data['total_revenue'] or 0
+            # Évolution en pourcentage
             revenue_evolution = 0
             if previous_revenue > 0:
+                previous_decimal = Decimal(str(previous_revenue))
                 revenue_evolution = round(
-                    ((current_revenue - previous_revenue) / previous_revenue) * 100, 1
+                    float((gross_total - previous_decimal) / previous_decimal) * 100, 1
                 )
             
+            # Pour compatibilité avec le reste du code
+            revenue_data = {
+                'total_revenue': gross_total,
+                'avg_order_value': Decimal(str(avg_order_value)),
+                'orders_count': total_orders_paid,
+            }
+
             # ====================================================================
             # 4. HEURES DE POINTE
             # ====================================================================
@@ -483,11 +526,36 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                 
                 # Revenus
                 'revenue': {
-                    'current_period': float(current_revenue),
+                    'current_period': float(gross_total),
                     'previous_period': float(previous_revenue),
                     'evolution_percent': revenue_evolution,
-                    'avg_order_value': float(revenue_data['avg_order_value'] or 0),
-                    'total_orders': revenue_data['orders_count'],
+                    'avg_order_value': avg_order_value,
+                    
+                    # Détail par méthode de paiement
+                    'by_payment_method': {
+                        'card': {
+                            'total': float(card_total),
+                            'count': card_count,
+                            'avg_order': avg_card_order,
+                        },
+                        'cash': {
+                            'total': float(cash_total),
+                            'count': cash_count,
+                            'avg_order': avg_cash_order,
+                        },
+                    },
+                    
+                    # Commission et revenu net
+                    'commission': {
+                        'platform_fee': float(platform_fee),
+                        'platform_rate': float(PLATFORM_COMMISSION_RATE * 100),  # 2
+                        'net_revenue': float(net_revenue),
+                    },
+                    
+                    # Totaux simplifiés pour le frontend
+                    'gross_total': float(gross_total),
+                    'net_total': float(net_revenue),
+                    'total_orders': total_orders_paid,
                 },
                 
                 # Heures de pointe
