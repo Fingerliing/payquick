@@ -4,6 +4,7 @@ Tests unitaires pour les modèles collaboratifs
 - CollaborativeTableSession
 - SessionParticipant
 - ActiveSessionManager
+
 """
 
 import pytest
@@ -57,7 +58,7 @@ def restaurant(restaurateur_profile):
 def table(restaurant):
     return Table.objects.create(
         restaurant=restaurant,
-        identifiant="T01"
+        number="T01"
     )
 
 
@@ -81,6 +82,36 @@ def participant(collaborative_session, user):
         user=user,
         role='host',
         status='active'
+    )
+
+
+# =============================================================================
+# HELPER FUNCTION FOR ORDER CREATION
+# =============================================================================
+
+def create_test_order(restaurant, table_number, collaborative_session=None, participant=None, order_suffix="001"):
+    """
+    Helper to create Order with all required fields.
+    
+    Order model requires:
+    - restaurant (ForeignKey to Restaurant)
+    - table_number (CharField, NOT a ForeignKey to Table)
+    - order_number (CharField, unique)
+    - subtotal (DecimalField)
+    - total_amount (DecimalField)
+    
+    Order does NOT have:
+    - restaurateur field
+    - table ForeignKey field
+    """
+    return Order.objects.create(
+        restaurant=restaurant,
+        table_number=table_number,
+        order_number=f"ORD-TEST-{order_suffix}",
+        subtotal=Decimal('50.00'),
+        total_amount=Decimal('55.00'),
+        collaborative_session=collaborative_session,
+        participant=participant
     )
 
 
@@ -268,22 +299,29 @@ class TestCollaborativeTableSession:
         collaborative_session.status = 'cancelled'
         assert collaborative_session.can_be_archived is True
 
-    def test_total_orders_count(self, collaborative_session, restaurateur_profile, restaurant, table):
-        """Test de la propriété total_orders_count"""
+    def test_total_orders_count(self, collaborative_session, restaurant, table):
+        """
+        Test de la propriété total_orders_count
+        
+        Order model uses:
+        - restaurant (ForeignKey to Restaurant) - NOT restaurateur
+        - table_number (CharField) - NOT table ForeignKey
+        - Requires order_number, subtotal, total_amount
+        """
         assert collaborative_session.total_orders_count == 0
         
-        # Créer des commandes associées
-        Order.objects.create(
-            restaurateur=restaurateur_profile,
+        # Créer des commandes associées avec les bons champs
+        create_test_order(
             restaurant=restaurant,
-            table=table,
-            collaborative_session=collaborative_session
+            table_number=table.number,
+            collaborative_session=collaborative_session,
+            order_suffix="001"
         )
-        Order.objects.create(
-            restaurateur=restaurateur_profile,
+        create_test_order(
             restaurant=restaurant,
-            table=table,
-            collaborative_session=collaborative_session
+            table_number=table.number,
+            collaborative_session=collaborative_session,
+            order_suffix="002"
         )
         
         assert collaborative_session.total_orders_count == 2
@@ -380,17 +418,24 @@ class TestSessionParticipant:
                 status='active'
             )
 
-    def test_orders_count_property(self, participant, collaborative_session, restaurateur_profile, restaurant, table):
-        """Test de la propriété orders_count"""
+    def test_orders_count_property(self, participant, collaborative_session, restaurant, table):
+        """
+        Test de la propriété orders_count
+        
+        Order model uses:
+        - restaurant (ForeignKey to Restaurant) - NOT restaurateur
+        - table_number (CharField) - NOT table ForeignKey
+        - Requires order_number, subtotal, total_amount
+        """
         assert participant.orders_count == 0
         
-        # Créer une commande associée au participant
-        Order.objects.create(
-            restaurateur=restaurateur_profile,
+        # Créer une commande associée au participant avec les bons champs
+        create_test_order(
             restaurant=restaurant,
-            table=table,
+            table_number=table.number,
             collaborative_session=collaborative_session,
-            participant=participant
+            participant=participant,
+            order_suffix="003"
         )
         
         assert participant.orders_count == 1

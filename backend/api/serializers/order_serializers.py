@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from api.models import Order, OrderItem, TableSession
+from api.models import Order, OrderItem, TableSession, MenuItem
 from django.utils import timezone
 from decimal import Decimal, InvalidOperation
 from django.db import transaction
@@ -507,3 +507,18 @@ class OrderStatsSerializer(serializers.Serializer):
     average_order_value = serializers.DecimalField(max_digits=10, decimal_places=2)
     orders_by_status = serializers.DictField()
     average_preparation_time = serializers.IntegerField()
+
+class OrderItemCreateSerializer(serializers.Serializer):
+    """Serializer pour la création d'items de commande (validation entrées)"""
+    
+    menu_item = serializers.PrimaryKeyRelatedField(
+        queryset=MenuItem.objects.all()
+    )
+    quantity = serializers.IntegerField(min_value=1, max_value=50)
+    customizations = serializers.JSONField(required=False, default=dict)
+    special_instructions = serializers.CharField(required=False, allow_blank=True)
+
+    def validate_quantity(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("La quantité doit être positive")
+        return value

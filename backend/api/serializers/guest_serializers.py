@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from api.models import Order, Restaurant, Table
 
 class GuestItemSerializer(serializers.ModelSerializer):
     menu_item_id = serializers.IntegerField()
@@ -29,3 +30,48 @@ class DraftStatusQuery(serializers.ModelSerializer):
 class DraftStatusResponse(serializers.ModelSerializer):
     status = serializers.CharField()
     order_id = serializers.IntegerField(allow_null=True)
+
+class GuestInfoSerializer(serializers.Serializer):
+    """Serializer pour les informations d'un guest"""
+    guest_name = serializers.CharField(max_length=120, required=False, allow_blank=True)
+    guest_phone = serializers.RegexField(
+        r"^(\+33|0)[1-9]\d{8}$",
+        required=False,
+        allow_blank=True
+    )
+
+
+class GuestOrderSerializer(serializers.ModelSerializer):
+    """Serializer pour les commandes guest"""
+    restaurant_id = serializers.UUIDField(write_only=True, required=False)
+    table_id = serializers.UUIDField(write_only=True, required=False)
+    items = serializers.ListField(child=serializers.DictField(), required=False, default=list)
+    
+    class Meta:
+        model = Order
+        fields = [
+            'id', 'guest_name', 'guest_phone', 'restaurant', 'table',
+            'restaurant_id', 'table_id', 'items', 'status', 'total_amount',
+            'total', 'user', 'created_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'user']
+        extra_kwargs = {
+            'total_amount': {'required': False},
+            'total': {'required': False},
+        }
+
+
+class GuestSessionSerializer(serializers.Serializer):
+    """Serializer pour les sessions guest"""
+    restaurant_id = serializers.UUIDField(required=False)
+    table_number = serializers.CharField(max_length=50, required=False)
+    guest_name = serializers.CharField(max_length=120, required=False)
+
+
+class GuestCartSerializer(serializers.Serializer):
+    """Serializer pour le panier guest"""
+    items = serializers.ListField(child=serializers.DictField(), default=list)
+    restaurant_id = serializers.UUIDField(required=False)
+    table_number = serializers.CharField(required=False)
+    guest_name = serializers.CharField(max_length=120, required=False)
+    guest_phone = serializers.CharField(max_length=20, required=False)

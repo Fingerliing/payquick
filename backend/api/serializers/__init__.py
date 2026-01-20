@@ -7,3 +7,4 @@ from .admin_serializers import *
 from .guest_serializers import *
 from .table_serializers import *
 from .notification_serializers import *
+from .daily_menu_serializers import *
