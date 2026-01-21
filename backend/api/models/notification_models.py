@@ -5,6 +5,7 @@ Modèles pour le système de notifications push EatQuickeR
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
+from datetime import time
 import uuid
 
 
@@ -83,8 +84,8 @@ class NotificationPreferences(models.Model):
     
     # Heures silencieuses (ne pas déranger)
     quiet_hours_enabled = models.BooleanField(default=False)
-    quiet_hours_start = models.TimeField(null=True, blank=True, default="22:00")
-    quiet_hours_end = models.TimeField(null=True, blank=True, default="08:00")
+    quiet_hours_start = models.TimeField(null=True, blank=True, default=time(22, 0))
+    quiet_hours_end = models.TimeField(null=True, blank=True, default=time(8, 0))
     
     # Son et vibration
     sound_enabled = models.BooleanField(default=True)
