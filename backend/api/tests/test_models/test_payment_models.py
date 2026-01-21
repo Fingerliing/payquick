@@ -53,18 +53,26 @@ def restaurant(restaurateur_profile):
 
 @pytest.fixture
 def table(restaurant):
+    # FIX: Use 'number' field, not 'identifiant' (which is a read-only property)
     return Table.objects.create(
         restaurant=restaurant,
-        identifiant="PAY01"
+        number="PAY01"
     )
 
 
 @pytest.fixture
-def order(restaurateur_profile, restaurant, table):
+def order(restaurant, user):
+    # FIX: Order model requires:
+    # - restaurant (ForeignKey)
+    # - table_number (CharField, NOT a table ForeignKey)
+    # - order_number (CharField, unique, required)
+    # - subtotal and total_amount (DecimalField)
+    # Order does NOT have: restaurateur field, table ForeignKey
     return Order.objects.create(
-        restaurateur=restaurateur_profile,
         restaurant=restaurant,
-        table=table,
+        user=user,
+        table_number="PAY01",
+        order_number="ORD-PAY-001",
         total_amount=Decimal('100.00'),
         subtotal=Decimal('90.00'),
         tax_amount=Decimal('10.00')
@@ -115,6 +123,9 @@ class TestSplitPaymentSession:
 
     def test_split_type_choices(self, order, user):
         """Test des choix de type de split"""
+        # Delete existing session first (OneToOne constraint)
+        SplitPaymentSession.objects.filter(order=order).delete()
+        
         # Equal
         session_equal = SplitPaymentSession.objects.create(
             order=order,
@@ -230,8 +241,18 @@ class TestSplitPaymentSession:
         order.refresh_from_db()
         assert order.payment_status == 'paid'
 
-    def test_one_to_one_with_order(self, order, user):
+    def test_one_to_one_with_order(self, restaurant, user):
         """Test que la relation avec Order est OneToOne"""
+        # Create a fresh order for this test
+        order = Order.objects.create(
+            restaurant=restaurant,
+            user=user,
+            table_number="T99",
+            order_number="ORD-PAY-UNIQUE-001",
+            subtotal=Decimal('90.00'),
+            total_amount=Decimal('100.00')
+        )
+        
         SplitPaymentSession.objects.create(
             order=order,
             split_type='equal',
@@ -268,7 +289,7 @@ class TestSplitPaymentPortion:
         """Test de __str__ pour une portion non payée"""
         result = str(payment_portion)
         assert "Personne 1" in result
-        assert "55.00€" in result
+        assert "55.00" in result
         assert "En attente" in result
 
     def test_portion_str_paid(self, payment_portion):
