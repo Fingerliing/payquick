@@ -167,7 +167,7 @@ class Order(models.Model):
         """Calcule la répartition de la TVA par taux"""
         vat_breakdown = {}
         
-        for item in self.order_items.all():
+        for item in self.items.all():
             vat_key = f"{(item.vat_rate * 100):.1f}"
             if vat_key not in vat_breakdown:
                 vat_breakdown[vat_key] = {
