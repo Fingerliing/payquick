@@ -43,21 +43,26 @@ class GuestInfoSerializer(serializers.Serializer):
 
 class GuestOrderSerializer(serializers.ModelSerializer):
     """Serializer pour les commandes guest"""
+    # Map model fields to guest-friendly API names
+    guest_name = serializers.CharField(source='customer_name', required=False, allow_blank=True)
+    guest_phone = serializers.CharField(source='phone', required=False, allow_blank=True)
+    table = serializers.CharField(source='table_number', required=False, allow_blank=True)
+    
     restaurant_id = serializers.UUIDField(write_only=True, required=False)
     table_id = serializers.UUIDField(write_only=True, required=False)
-    items = serializers.ListField(child=serializers.DictField(), required=False, default=list)
+    # write_only to avoid conflict with Order.items RelatedManager
+    items = serializers.ListField(child=serializers.DictField(), required=False, default=list, write_only=True)
     
     class Meta:
         model = Order
         fields = [
             'id', 'guest_name', 'guest_phone', 'restaurant', 'table',
             'restaurant_id', 'table_id', 'items', 'status', 'total_amount',
-            'total', 'user', 'created_at'
+            'user', 'created_at'
         ]
         read_only_fields = ['id', 'created_at', 'user']
         extra_kwargs = {
             'total_amount': {'required': False},
-            'total': {'required': False},
         }
 
 

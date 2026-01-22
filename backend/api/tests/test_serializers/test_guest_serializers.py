@@ -54,18 +54,29 @@ def restaurant(restaurateur_profile):
 def table(restaurant):
     return Table.objects.create(
         restaurant=restaurant,
-        identifiant="GST01"
+        number=1,
+        qr_code="GST01"
     )
 
 
 @pytest.fixture
-def guest_order(restaurateur_profile, restaurant, table):
+def guest_order(restaurant, table):
+    """
+    Order model uses:
+    - restaurant (ForeignKey)
+    - table_number (CharField, NOT ForeignKey)
+    - order_number (required, unique)
+    - customer_name / phone (based on conftest)
+    
+    Note: The GuestOrderSerializer expects guest_name/guest_phone fields.
+    Using customer_name/phone as that's what the Order model has.
+    """
     return Order.objects.create(
-        restaurateur=restaurateur_profile,
         restaurant=restaurant,
-        table=table,
-        guest_name="Jean Invité",
-        guest_phone="+33612345678",
+        table_number=table.qr_code,
+        order_number="ORD-GUEST-001",
+        customer_name="Jean Invité",
+        phone="+33612345678",
         total_amount=Decimal('45.00'),
         subtotal=Decimal('40.00'),
         tax_amount=Decimal('5.00'),
@@ -158,8 +169,9 @@ class TestGuestOrderSerializer:
         serializer = GuestOrderSerializer(guest_order)
         data = serializer.data
         
+        # Serializer maps customer_name -> guest_name via source
         assert data['guest_name'] == "Jean Invité"
-        assert 'total_amount' in data or 'total' in data
+        assert 'total_amount' in data
 
     def test_serialize_order_status(self, guest_order):
         """Test que le statut est inclus"""
@@ -169,7 +181,7 @@ class TestGuestOrderSerializer:
         if 'status' in data:
             assert data['status'] == 'pending'
 
-    def test_deserialize_guest_order_creation(self, restaurant, table, restaurateur_profile):
+    def test_deserialize_guest_order_creation(self, restaurant, table):
         """Test de désérialisation pour créer une commande guest"""
         data = {
             'guest_name': 'Nouveau Guest',
@@ -396,7 +408,7 @@ class TestGuestValidation:
 class TestGuestUseCases:
     """Tests des cas d'utilisation typiques pour les guests"""
 
-    def test_guest_can_place_order_without_account(self, restaurant, table, restaurateur_profile):
+    def test_guest_can_place_order_without_account(self, restaurant, table):
         """Test qu'un guest peut passer commande sans compte"""
         data = {
             'guest_name': 'Client Sans Compte',
