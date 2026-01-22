@@ -91,9 +91,10 @@ class OrderCreateSerializer(serializers.ModelSerializer):
     
     def validate_order_type(self, value):
         """Validation du type de commande"""
-        if value not in ['dine_in', 'takeaway', 'delivery']:
+        # Match the Order model's ORDER_TYPE_CHOICES
+        if value not in ['dine_in', 'takeaway']:
             raise serializers.ValidationError(
-                "Type de commande invalide. Valeurs acceptées: dine_in, takeaway, delivery"
+                "Type de commande invalide. Valeurs acceptées: dine_in, takeaway"
             )
         return value
     
@@ -407,8 +408,9 @@ class OrderStatusUpdateSerializer(serializers.ModelSerializer):
 class TableSessionSerializer(serializers.ModelSerializer):
     """Serializer pour les sessions de table"""
     
-    orders_count = serializers.ReadOnlyField()
-    total_amount = serializers.ReadOnlyField()
+    # Use SerializerMethodField to avoid buggy model properties that reference Order without importing
+    orders_count = serializers.SerializerMethodField()
+    total_amount = serializers.SerializerMethodField()
     duration = serializers.ReadOnlyField()
     orders = serializers.SerializerMethodField()
     
@@ -424,8 +426,21 @@ class TableSessionSerializer(serializers.ModelSerializer):
     
     def get_orders(self, obj):
         """Retourne les commandes de la session"""
-        orders = obj.orders.all()
+        # Query Order directly to avoid NameError in model's orders property
+        orders = Order.objects.filter(table_session_id=obj.id)
         return OrderListSerializer(orders, many=True, context=self.context).data
+    
+    def get_orders_count(self, obj):
+        """Nombre de commandes dans la session"""
+        return Order.objects.filter(table_session_id=obj.id).count()
+    
+    def get_total_amount(self, obj):
+        """Montant total de la session"""
+        from django.db.models import Sum
+        result = Order.objects.filter(table_session_id=obj.id).aggregate(
+            total=Sum('total_amount')
+        )
+        return result['total'] or 0
 
 
 class OrderWithTableInfoSerializer(serializers.ModelSerializer):
