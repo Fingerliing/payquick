@@ -60,6 +60,15 @@ class MenuItemSerializer(serializers.ModelSerializer):
             return request.build_absolute_uri(obj.image.url)
         return None
     
+    def validate_price(self, value):
+        """Validation du prix - doit être positif"""
+        from decimal import Decimal
+        if value is not None and Decimal(str(value)) <= 0:
+            raise serializers.ValidationError(
+                "Le prix doit être supérieur à zéro"
+            )
+        return value
+    
     def validate_image(self, value):
         """Validation du fichier image"""
         if value is None:
