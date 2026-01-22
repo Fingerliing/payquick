@@ -64,7 +64,8 @@ def restaurant(restaurateur_profile):
 def table(restaurant):
     return Table.objects.create(
         restaurant=restaurant,
-        identifiant="SER01"
+        number=1,
+        qr_code="SER01"
     )
 
 
@@ -269,10 +270,10 @@ class TestSessionCreateSerializer:
 class TestSessionJoinSerializer:
     """Tests pour SessionJoinSerializer"""
 
-    def test_valid_join_with_share_code(self):
+    def test_valid_join_with_share_code(self, collaborative_session):
         """Test de jointure valide avec code de partage"""
         data = {
-            'share_code': 'ABC123',
+            'share_code': collaborative_session.share_code,
             'guest_name': 'Pierre'
         }
         serializer = SessionJoinSerializer(data=data)
@@ -287,18 +288,27 @@ class TestSessionJoinSerializer:
         assert not serializer.is_valid()
         assert 'share_code' in serializer.errors
 
-    def test_optional_guest_name(self):
+    def test_invalid_share_code(self):
+        """Test qu'un code invalide est rejeté"""
+        data = {
+            'share_code': 'INVALID'
+        }
+        serializer = SessionJoinSerializer(data=data)
+        assert not serializer.is_valid()
+        assert 'share_code' in serializer.errors
+
+    def test_optional_guest_name(self, collaborative_session):
         """Test que guest_name est optionnel"""
         data = {
-            'share_code': 'ABC123'
+            'share_code': collaborative_session.share_code
         }
         serializer = SessionJoinSerializer(data=data)
         assert serializer.is_valid(), serializer.errors
 
-    def test_optional_guest_phone(self):
+    def test_optional_guest_phone(self, collaborative_session):
         """Test que guest_phone est optionnel"""
         data = {
-            'share_code': 'ABC123',
+            'share_code': collaborative_session.share_code,
             'guest_phone': '0612345678'
         }
         serializer = SessionJoinSerializer(data=data)
