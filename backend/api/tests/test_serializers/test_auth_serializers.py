@@ -547,7 +547,7 @@ class TestRestaurantBasicSerializer:
         if 'owner_stripe_validated' in data:
             assert data['owner_stripe_validated'] == restaurant.owner.stripe_verified
 
-    def test_orders_count_with_orders(self, restaurant, order, factory):
+    def test_orders_count_with_orders(self, restaurant, order_for_restaurant, factory):
         """Test du compteur de commandes avec des commandes"""
         request = factory.get('/')
         serializer = RestaurantBasicSerializer(restaurant, context={'request': request})
@@ -556,7 +556,7 @@ class TestRestaurantBasicSerializer:
         if 'total_orders' in data:
             assert data['total_orders'] >= 1
 
-    def test_pending_orders_count(self, restaurant, order, factory):
+    def test_pending_orders_count(self, restaurant, order_for_restaurant, factory):
         """Test du compteur de commandes en attente"""
         request = factory.get('/')
         serializer = RestaurantBasicSerializer(restaurant, context={'request': request})
@@ -600,7 +600,8 @@ class TestAuthSerializerEdgeCases:
             'username': 'user@domain.com',
             'password': 'strongpass123',
             'nom': 'Email User',
-            'role': 'client'
+            'role': 'client',
+            'telephone': '0612345678'  # FIX: Added required telephone field for clients
         }
         serializer = RegisterSerializer(data=data)
         assert serializer.is_valid(), serializer.errors
@@ -611,7 +612,8 @@ class TestAuthSerializerEdgeCases:
             'username': 'special@example.com',
             'password': 'strongpass123',
             'nom': 'Jean-Pierre O\'Connor',
-            'role': 'client'
+            'role': 'client',
+            'telephone': '0698765432'  # FIX: Added required telephone field for clients
         }
         serializer = RegisterSerializer(data=data)
         assert serializer.is_valid(), serializer.errors
@@ -622,7 +624,8 @@ class TestAuthSerializerEdgeCases:
             'username': 'unicode@example.com',
             'password': 'strongpass123',
             'nom': '田中太郎',
-            'role': 'client'
+            'role': 'client',
+            'telephone': '0611223344'  # FIX: Added required telephone field for clients
         }
         serializer = RegisterSerializer(data=data)
         assert serializer.is_valid(), serializer.errors
@@ -633,7 +636,8 @@ class TestAuthSerializerEdgeCases:
             'username': 'longpass@example.com',
             'password': 'a' * 200,
             'nom': 'Long Password',
-            'role': 'client'
+            'role': 'client',
+            'telephone': '0655443322'  # FIX: Added required telephone field for clients
         }
         serializer = RegisterSerializer(data=data)
         # Peut être accepté ou non selon les règles
@@ -645,8 +649,22 @@ class TestAuthSerializerEdgeCases:
             'username': 'weakpass@example.com',
             'password': '123',  # Très faible
             'nom': 'Weak Password',
-            'role': 'client'
+            'role': 'client',
+            'telephone': '0677889900'  # FIX: Added telephone field (though validation will fail on password)
         }
         serializer = RegisterSerializer(data=data)
         # La validation de force peut être au niveau du serializer ou du modèle
         serializer.is_valid()
+
+    def test_client_registration_without_telephone_fails(self):
+        """Test que l'inscription client sans téléphone échoue"""
+        data = {
+            'username': 'nophone@example.com',
+            'password': 'strongpass123',
+            'nom': 'No Phone',
+            'role': 'client'
+            # Pas de téléphone
+        }
+        serializer = RegisterSerializer(data=data)
+        assert not serializer.is_valid()
+        assert 'telephone' in serializer.errors

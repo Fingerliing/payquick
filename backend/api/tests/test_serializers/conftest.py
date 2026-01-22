@@ -12,6 +12,18 @@ Organisation:
 - Sessions collaboratives
 - Paiements
 - Notifications
+
+IMPORTANT - Modèle Order:
+Le modèle Order n'a PAS les champs suivants:
+- restaurateur (ForeignKey) - N'EXISTE PAS
+- table (ForeignKey) - N'EXISTE PAS
+
+Le modèle Order a:
+- restaurant (ForeignKey vers Restaurant)
+- table_number (CharField) - PAS une ForeignKey
+- order_number (CharField, unique, requis)
+- user (ForeignKey vers User, optionnel)
+- subtotal, tax_amount, total_amount (DecimalField)
 """
 
 import pytest
@@ -286,6 +298,8 @@ def opening_hours(db, restaurant):
 
 # =============================================================================
 # FIXTURES - Tables
+# FIX: Suppression du paramètre 'identifiant' qui est une propriété en lecture seule
+#      La propriété 'identifiant' retourne 'qr_code', donc on utilise qr_code directement
 # =============================================================================
 
 @pytest.fixture
@@ -295,8 +309,8 @@ def table(db, restaurant):
     return Table.objects.create(
         restaurant=restaurant,
         number=1,
-        identifiant="T001",
-        qr_code="R1T001",
+        # FIX: Supprimé 'identifiant="T001"' - c'est une propriété read-only
+        qr_code="R1T001",  # identifiant retourne qr_code
         capacity=4,
         is_active=True
     )
@@ -309,7 +323,7 @@ def inactive_table(db, restaurant):
     return Table.objects.create(
         restaurant=restaurant,
         number=99,
-        identifiant="T099",
+        # FIX: Supprimé 'identifiant="T099"'
         qr_code="R1T099",
         capacity=2,
         is_active=False
@@ -325,7 +339,7 @@ def multiple_tables(db, restaurant):
         t = Table.objects.create(
             restaurant=restaurant,
             number=i,
-            identifiant=f"T{str(i).zfill(3)}",
+            # FIX: Supprimé 'identifiant=f"T{str(i).zfill(3)}"'
             qr_code=f"R{restaurant.id}T{str(i).zfill(3)}",
             capacity=4 if i <= 3 else 6,
             is_active=True
@@ -505,17 +519,27 @@ def multiple_menu_items(db, menu, menu_category, second_menu_category, dessert_c
 
 # =============================================================================
 # FIXTURES - Commandes
+# FIX: Le modèle Order n'a PAS de champ 'restaurateur' ni 'table' (ForeignKey)
+#      Il a: restaurant, table_number (CharField), order_number, user, subtotal, total_amount
 # =============================================================================
 
 @pytest.fixture
-def order(db, restaurant, restaurateur_profile, table, user):
-    """Commande de test basique"""
+def order(db, restaurant, table, user):
+    """
+    Commande de test basique
+    
+    FIX: Supprimé 'restaurateur' et 'table' qui n'existent pas dans le modèle Order
+    Le modèle Order utilise:
+    - restaurant (ForeignKey vers Restaurant)
+    - table_number (CharField, PAS une ForeignKey vers Table)
+    - order_number (requis, unique)
+    """
     from api.models import Order
     return Order.objects.create(
         restaurant=restaurant,
-        restaurateur=restaurateur_profile,
-        table=table,
-        table_number=table.identifiant,
+        # FIX: Supprimé restaurateur=restaurateur_profile (n'existe pas)
+        # FIX: Supprimé table=table (n'existe pas, utiliser table_number)
+        table_number=table.identifiant,  # CharField, pas ForeignKey
         user=user,
         order_number="ORD-TEST-001",
         customer_name="Jean Client",
@@ -530,13 +554,11 @@ def order(db, restaurant, restaurateur_profile, table, user):
 
 
 @pytest.fixture
-def confirmed_order(db, restaurant, restaurateur_profile, table, user):
+def confirmed_order(db, restaurant, table, user):
     """Commande confirmée"""
     from api.models import Order
     return Order.objects.create(
         restaurant=restaurant,
-        restaurateur=restaurateur_profile,
-        table=table,
         table_number=table.identifiant,
         user=user,
         order_number="ORD-TEST-002",
@@ -549,13 +571,11 @@ def confirmed_order(db, restaurant, restaurateur_profile, table, user):
 
 
 @pytest.fixture
-def preparing_order(db, restaurant, restaurateur_profile, table, user):
+def preparing_order(db, restaurant, table, user):
     """Commande en préparation"""
     from api.models import Order
     order = Order.objects.create(
         restaurant=restaurant,
-        restaurateur=restaurateur_profile,
-        table=table,
         table_number=table.identifiant,
         user=user,
         order_number="ORD-TEST-003",
@@ -572,13 +592,11 @@ def preparing_order(db, restaurant, restaurateur_profile, table, user):
 
 
 @pytest.fixture
-def ready_order(db, restaurant, restaurateur_profile, table, user):
+def ready_order(db, restaurant, table, user):
     """Commande prête"""
     from api.models import Order
     return Order.objects.create(
         restaurant=restaurant,
-        restaurateur=restaurateur_profile,
-        table=table,
         table_number=table.identifiant,
         user=user,
         order_number="ORD-TEST-004",
@@ -592,19 +610,16 @@ def ready_order(db, restaurant, restaurateur_profile, table, user):
 
 
 @pytest.fixture
-def served_order(db, restaurant, restaurateur_profile, table, user):
+def served_order(db, restaurant, table, user):
     """Commande servie"""
     from api.models import Order
     return Order.objects.create(
         restaurant=restaurant,
-        restaurateur=restaurateur_profile,
-        table=table,
         table_number=table.identifiant,
         user=user,
         order_number="ORD-TEST-005",
         status='served',
         payment_status='paid',
-        is_paid=True,
         subtotal=Decimal('60.00'),
         tax_amount=Decimal('6.00'),
         total_amount=Decimal('66.00'),
@@ -614,13 +629,11 @@ def served_order(db, restaurant, restaurateur_profile, table, user):
 
 
 @pytest.fixture
-def cancelled_order(db, restaurant, restaurateur_profile, table, user):
+def cancelled_order(db, restaurant, table, user):
     """Commande annulée"""
     from api.models import Order
     return Order.objects.create(
         restaurant=restaurant,
-        restaurateur=restaurateur_profile,
-        table=table,
         table_number=table.identifiant,
         user=user,
         order_number="ORD-TEST-006",
@@ -629,6 +642,29 @@ def cancelled_order(db, restaurant, restaurateur_profile, table, user):
         subtotal=Decimal('25.00'),
         tax_amount=Decimal('2.50'),
         total_amount=Decimal('27.50')
+    )
+
+
+@pytest.fixture
+def order_for_restaurant(db, restaurant, table, user):
+    """
+    Commande liée à un restaurant spécifique pour les tests de RestaurantBasicSerializer.
+    Alias de 'order' mais avec un nom explicite pour les tests de comptage.
+    """
+    from api.models import Order
+    return Order.objects.create(
+        restaurant=restaurant,
+        table_number=table.identifiant,
+        user=user,
+        order_number="ORD-REST-001",
+        customer_name="Client Restaurant",
+        phone="0612345678",
+        order_type='dine_in',
+        status='pending',
+        payment_status='pending',
+        subtotal=Decimal('40.00'),
+        tax_amount=Decimal('4.00'),
+        total_amount=Decimal('44.00')
     )
 
 
@@ -689,7 +725,7 @@ def collaborative_session(db, restaurant, table, user):
     return CollaborativeTableSession.objects.create(
         restaurant=restaurant,
         table=table,
-        table_number=table.identifiant,
+        table_number=table.identifiant,  # Utilise la propriété
         host=user,
         host_name="Jean Client",
         max_participants=6,
@@ -911,7 +947,7 @@ def table_session(db, restaurant, table):
     from api.models import TableSession
     return TableSession.objects.create(
         restaurant=restaurant,
-        table_number=table.identifiant,
+        table_number=table.identifiant,  # Utilise la propriété
         is_active=True,
         primary_customer_name="Client Test",
         primary_phone="0612345678",
@@ -963,7 +999,9 @@ def valid_table_data(restaurant):
     return {
         'restaurant': restaurant.id,
         'number': 10,
-        'identifiant': 'NEW_T010',
+        # FIX: Supprimé 'identifiant' car c'est une propriété read-only
+        # Utiliser 'qr_code' à la place si nécessaire
+        'qr_code': 'NEW_T010',
         'capacity': 4
     }
 

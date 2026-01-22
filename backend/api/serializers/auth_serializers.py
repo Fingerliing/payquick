@@ -181,7 +181,8 @@ class ClientProfileSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = ClientProfile
-        fields = ['id', 'user', 'phone', 'type']
+        # FIX: Added 'has_validated_profile' to fields list
+        fields = ['id', 'user', 'phone', 'type', 'has_validated_profile']
     
     def get_type(self, obj):
         return 'client'
@@ -194,7 +195,8 @@ class RestaurateurProfileSerializer(serializers.ModelSerializer):
     type = serializers.SerializerMethodField()
     has_validated_profile = serializers.SerializerMethodField()
     nom = serializers.SerializerMethodField()
-    siret = serializers.CharField(source='siret')
+    # FIX: Removed redundant source='siret' - DRF automatically maps field name to model field
+    siret = serializers.CharField()
     telephone = serializers.SerializerMethodField()
     
     class Meta:
@@ -279,30 +281,54 @@ class UserMeSerializer(serializers.ModelSerializer):
 
     def get_email(self, obj):
         return obj.email or obj.username
-    
+
     def get_role(self, obj):
         """Détermine le rôle de l'utilisateur"""
-        if ClientProfile.objects.filter(user=obj).exists():
-            return "client"
-        elif RestaurateurProfile.objects.filter(user=obj).exists():
-            return "restaurateur"
-        return "unknown"
+        try:
+            if ClientProfile.objects.filter(user=obj).exists():
+                return "client"
+            elif RestaurateurProfile.objects.filter(user=obj).exists():
+                return "restaurateur"
+            return "unknown"
+        except Exception as e:
+            logger.error(f"Erreur lors de la détermination du rôle: {str(e)}")
+            return "unknown"
+    
+    def get_profile(self, obj):
+        """Récupère le profil selon le rôle"""
+        role = self.get_role(obj)
+        
+        if role == "client":
+            try:
+                profile = ClientProfile.objects.get(user=obj)
+                return ClientProfileSerializer(profile).data
+            except ClientProfile.DoesNotExist:
+                return None
+                
+        elif role == "restaurateur":
+            try:
+                profile = RestaurateurProfile.objects.get(user=obj)
+                return RestaurateurProfileSerializer(profile).data
+            except RestaurateurProfile.DoesNotExist:
+                return None
+        
+        return None
 
     def get_nom(self, obj):
-        return obj.first_name
+        """Récupère le nom de l'utilisateur"""
+        return obj.first_name or obj.username
     
     def get_telephone(self, obj):
+        """Récupère le téléphone selon le rôle"""
         try:
             if hasattr(obj, 'clientprofile'):
                 return obj.clientprofile.phone
-            elif hasattr(obj, 'restaurateur_profile'):
-                # Si vous avez un champ téléphone sur RestaurateurProfile, l'utiliser
-                return getattr(obj.restaurateur_profile, 'telephone', '')
-            return ''
+            return None
         except:
-            return ''
+            return None
     
     def get_siret(self, obj):
+        """Récupère le SIRET pour les restaurateurs"""
         try:
             if hasattr(obj, 'restaurateur_profile'):
                 return obj.restaurateur_profile.siret
@@ -311,39 +337,31 @@ class UserMeSerializer(serializers.ModelSerializer):
             return None
     
     def get_has_validated_profile(self, obj):
-        try:
-            if hasattr(obj, 'restaurateur_profile'):
+        """Retourne le statut de validation"""
+        role = self.get_role(obj)
+        
+        if role == "restaurateur":
+            try:
                 return obj.restaurateur_profile.stripe_verified
-            elif hasattr(obj, 'clientprofile'):
-                return True  # Les clients sont toujours validés
-            return False
-        except:
-            return False
-           
-    def get_profile(self, obj):
-        """Récupère le profil selon le rôle"""
-        try:
-            client_profile = ClientProfile.objects.get(user=obj)
-            return ClientProfileSerializer(client_profile).data
-        except ClientProfile.DoesNotExist:
-            pass
-        
-        try:
-            restaurateur_profile = RestaurateurProfile.objects.get(user=obj)
-            return RestaurateurProfileSerializer(restaurateur_profile).data
-        except RestaurateurProfile.DoesNotExist:
-            pass
-        
-        return {}
+            except:
+                return False
+        elif role == "client":
+            return True
+        return False
     
     def get_restaurants(self, obj):
-        """Récupère les restaurants pour les restaurateurs"""
-        try:
-            restaurateur_profile = RestaurateurProfile.objects.get(user=obj)
-            restaurants = Restaurant.objects.filter(owner=restaurateur_profile)
-            return RestaurantBasicSerializer(restaurants, many=True).data
-        except RestaurateurProfile.DoesNotExist:
-            return []
+        """Récupère les restaurants pour un restaurateur"""
+        role = self.get_role(obj)
+        
+        if role == "restaurateur":
+            try:
+                restaurateur_profile = RestaurateurProfile.objects.get(user=obj)
+                restaurants = Restaurant.objects.filter(owner=restaurateur_profile)
+                return RestaurantBasicSerializer(restaurants, many=True).data
+            except RestaurateurProfile.DoesNotExist:
+                return []
+        
+        return []
     
     def get_stats(self, obj):
         """Calcule les statistiques selon le rôle"""
@@ -355,11 +373,12 @@ class UserMeSerializer(serializers.ModelSerializer):
                 restaurants = Restaurant.objects.filter(owner=restaurateur_profile)
                 
                 total_restaurants = restaurants.count()
+                # FIX: Query orders through restaurant, not restaurateur field
                 total_orders = Order.objects.filter(
-                    restaurateur=restaurateur_profile
+                    restaurant__in=restaurants
                 ).count()
                 pending_orders = Order.objects.filter(
-                    restaurateur=restaurateur_profile,
+                    restaurant__in=restaurants,
                     status='pending'
                 ).count()
                 
@@ -436,8 +455,9 @@ class UserMeSerializer(serializers.ModelSerializer):
         if role == "restaurateur":
             try:
                 restaurateur_profile = RestaurateurProfile.objects.get(user=obj)
+                # FIX: Query through restaurant__owner instead of non-existent restaurateur field
                 recent_orders = Order.objects.filter(
-                    restaurateur=restaurateur_profile
+                    restaurant__owner=restaurateur_profile
                 ).order_by('-created_at')[:5]
                 
                 return [
@@ -445,9 +465,10 @@ class UserMeSerializer(serializers.ModelSerializer):
                         'id': order.id,
                         'restaurant_name': order.restaurant.name if order.restaurant else 'N/A',
                         'restaurant_id': order.restaurant.id if order.restaurant else None,
-                        'table': order.table.identifiant if order.table else 'N/A',
+                        # FIX: Use table_number (CharField) instead of table.identifiant (doesn't exist)
+                        'table': order.table_number or 'N/A',
                         'status': order.status,
-                        'is_paid': order.is_paid,
+                        'is_paid': getattr(order, 'is_paid', order.payment_status == 'paid'),
                         'created_at': order.created_at.isoformat(),
                         'items_count': order.order_items.count() if hasattr(order, 'order_items') else 0,
                     }
@@ -481,7 +502,6 @@ class MeViewWithSerializer(APIView):
                 'clientprofile',
                 'restaurateur_profile',
                 'restaurateur_profile__restaurants',
-                'restaurateur_profile__orders'
             ).get(pk=user.pk)
             
             serializer = UserMeSerializer(user)
