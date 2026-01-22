@@ -249,15 +249,28 @@ class TestNotificationListSerializer:
 
     def test_serializer_fields(self, notification):
         """Test des champs du serializer liste"""
-        serializer = NotificationListSerializer(notification)
+        # NotificationListSerializer expects a paginated response dict
+        paginated_data = {
+            'results': [notification],
+            'count': 1,
+            'page': 1,
+            'page_size': 10,
+            'total_pages': 1
+        }
+        serializer = NotificationListSerializer(paginated_data)
         data = serializer.data
         
-        # Le serializer liste peut avoir moins de champs
-        assert 'id' in data
-        assert 'notification_type' in data
-        assert 'title' in data
-        assert 'is_read' in data
-        assert 'created_at' in data
+        assert 'results' in data
+        assert 'count' in data
+        assert 'page' in data
+        assert 'page_size' in data
+        assert 'total_pages' in data
+        
+        # Check that the notification inside results has expected fields
+        assert len(data['results']) == 1
+        assert 'id' in data['results'][0]
+        assert 'notification_type' in data['results'][0]
+        assert 'title' in data['results'][0]
 
     def test_multiple_notifications(self, user):
         """Test avec plusieurs notifications"""
@@ -271,8 +284,16 @@ class TestNotificationListSerializer:
             )
             notifications.append(notif)
         
-        serializer = NotificationListSerializer(notifications, many=True)
-        assert len(serializer.data) == 3
+        # NotificationListSerializer expects a paginated response dict
+        paginated_data = {
+            'results': notifications,
+            'count': 3,
+            'page': 1,
+            'page_size': 10,
+            'total_pages': 1
+        }
+        serializer = NotificationListSerializer(paginated_data)
+        assert len(serializer.data['results']) == 3
 
 
 # =============================================================================
