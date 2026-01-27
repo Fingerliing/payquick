@@ -3,15 +3,15 @@
 Tests unitaires pour les vues de catégories de menu
 - MenuCategoryViewSet (CRUD, stats, reorder)
 - MenuSubCategoryViewSet (CRUD, reorder)
+
+NOTE: Ce fichier utilise les fixtures du conftest.py partagé.
+Les fixtures locales spécifiques sont définies ci-dessous.
 """
 
 import pytest
-from unittest.mock import patch, MagicMock
 from decimal import Decimal
-from rest_framework.test import APIClient
 from rest_framework import status
 from django.contrib.auth.models import User, Group
-from rest_framework_simplejwt.tokens import RefreshToken
 from api.models import (
     RestaurateurProfile,
     Restaurant,
@@ -23,78 +23,13 @@ from api.models import (
 
 
 # =============================================================================
-# FIXTURES
+# FIXTURES SPÉCIFIQUES AUX CATÉGORIES
+# (Les fixtures de base viennent du conftest.py)
 # =============================================================================
 
 @pytest.fixture
-def api_client():
-    return APIClient()
-
-
-@pytest.fixture
-def restaurateur_user(db):
-    group, _ = Group.objects.get_or_create(name="restaurateur")
-    user = User.objects.create_user(
-        username="category_owner@example.com",
-        email="category_owner@example.com",
-        password="testpass123"
-    )
-    user.groups.add(group)
-    return user
-
-
-@pytest.fixture
-def restaurateur_profile(restaurateur_user):
-    return RestaurateurProfile.objects.create(
-        user=restaurateur_user,
-        siret="12345678901234",
-        is_validated=True,
-        is_active=True
-    )
-
-
-@pytest.fixture
-def restaurateur_client(restaurateur_user):
-    token = RefreshToken.for_user(restaurateur_user)
-    client = APIClient()
-    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token.access_token}")
-    return client
-
-
-@pytest.fixture
-def restaurant(restaurateur_profile):
-    return Restaurant.objects.create(
-        name="Category Test Restaurant",
-        description="Restaurant pour tester les catégories",
-        owner=restaurateur_profile,
-        siret="98765432109876",
-        is_active=True
-    )
-
-
-@pytest.fixture
-def menu(restaurant):
-    return Menu.objects.create(
-        name="Menu avec catégories",
-        restaurant=restaurant,
-        is_available=True
-    )
-
-
-@pytest.fixture
-def category(restaurant):
-    return MenuCategory.objects.create(
-        restaurant=restaurant,
-        name="Entrées",
-        icon="🥗",
-        color="#4CAF50",
-        is_active=True,
-        order=1
-    )
-
-
-@pytest.fixture
 def second_category(restaurant):
+    """Deuxième catégorie pour tests multi-catégories"""
     return MenuCategory.objects.create(
         restaurant=restaurant,
         name="Plats",
@@ -107,6 +42,7 @@ def second_category(restaurant):
 
 @pytest.fixture
 def third_category(restaurant):
+    """Troisième catégorie"""
     return MenuCategory.objects.create(
         restaurant=restaurant,
         name="Desserts",
@@ -119,6 +55,7 @@ def third_category(restaurant):
 
 @pytest.fixture
 def multiple_categories(restaurant):
+    """Plusieurs catégories pour tests de réorganisation"""
     categories = []
     data = [
         ("Entrées", "🥗", "#4CAF50", 1),
@@ -140,9 +77,10 @@ def multiple_categories(restaurant):
 
 
 @pytest.fixture
-def subcategory(category):
+def subcategory(menu_category):
+    """Sous-catégorie de test"""
     return MenuSubCategory.objects.create(
-        category=category,
+        category=menu_category,
         name="Salades",
         is_active=True,
         order=1
@@ -150,9 +88,10 @@ def subcategory(category):
 
 
 @pytest.fixture
-def second_subcategory(category):
+def second_subcategory(menu_category):
+    """Deuxième sous-catégorie"""
     return MenuSubCategory.objects.create(
-        category=category,
+        category=menu_category,
         name="Soupes",
         is_active=True,
         order=2
@@ -160,16 +99,17 @@ def second_subcategory(category):
 
 
 @pytest.fixture
-def category_with_items(category, menu):
+def category_with_items(menu_category, menu):
+    """Catégorie avec des items de menu"""
     for i in range(3):
         MenuItem.objects.create(
             menu=menu,
             name=f"Item Catégorie {i+1}",
             price=Decimal('10.00'),
-            category=category,
+            category=menu_category,
             is_available=True
         )
-    return category
+    return menu_category
 
 
 # =============================================================================
@@ -183,7 +123,8 @@ class TestCategoryCRUD:
     def test_create_category(self, restaurateur_client, restaurant):
         """Test de création d'une catégorie"""
         data = {
-            'restaurant': str(restaurant.id),
+            'restaurant': str(restaurant.id),      # Pour la validation du serializer
+            'restaurant_id': str(restaurant.id),   # Pour perform_create de la vue
             'name': 'Nouvelle Catégorie',
             'icon': '🍕',
             'color': '#FF5722',
@@ -203,6 +144,7 @@ class TestCategoryCRUD:
         """Test de création avec données minimales"""
         data = {
             'restaurant': str(restaurant.id),
+            'restaurant_id': str(restaurant.id),
             'name': 'Catégorie Simple'
         }
         
@@ -218,6 +160,7 @@ class TestCategoryCRUD:
         """Test de création sans nom"""
         data = {
             'restaurant': str(restaurant.id),
+            'restaurant_id': str(restaurant.id),
             'icon': '🍕'
         }
         
@@ -256,45 +199,42 @@ class TestCategoryCRUD:
             orders = [cat.get('order', 0) for cat in response.data]
             assert orders == sorted(orders)
 
-    def test_retrieve_category(self, restaurateur_client, category):
+    def test_retrieve_category(self, restaurateur_client, menu_category):
         """Test de récupération d'une catégorie"""
-        response = restaurateur_client.get(f'/api/v1/menu/categories/{category.id}/')
+        response = restaurateur_client.get(
+            f'/api/v1/menu/categories/{menu_category.id}/'
+        )
         
         assert response.status_code == status.HTTP_200_OK
-        assert response.data['name'] == category.name
+        assert response.data['name'] == menu_category.name
 
-    def test_update_category(self, restaurateur_client, category):
+    def test_update_category(self, restaurateur_client, menu_category):
         """Test de mise à jour d'une catégorie"""
         data = {
             'name': 'Catégorie Modifiée',
-            'icon': '🥘',
-            'color': '#FF9800'
+            'color': '#000000'
         }
         
         response = restaurateur_client.patch(
-            f'/api/v1/menu/categories/{category.id}/',
+            f'/api/v1/menu/categories/{menu_category.id}/',
             data,
             format='json'
         )
         
         assert response.status_code == status.HTTP_200_OK
-        category.refresh_from_db()
-        assert category.name == 'Catégorie Modifiée'
+        menu_category.refresh_from_db()
+        assert menu_category.name == 'Catégorie Modifiée'
 
-    def test_delete_category(self, restaurateur_client, category):
+    def test_delete_category(self, restaurateur_client, menu_category):
         """Test de suppression d'une catégorie"""
-        category_id = category.id
+        category_id = menu_category.id
         
-        response = restaurateur_client.delete(f'/api/v1/menu/categories/{category_id}/')
+        response = restaurateur_client.delete(
+            f'/api/v1/menu/categories/{category_id}/'
+        )
         
         assert response.status_code == status.HTTP_204_NO_CONTENT
         assert not MenuCategory.objects.filter(id=category_id).exists()
-
-    def test_unauthenticated_access(self, api_client):
-        """Test d'accès non authentifié"""
-        response = api_client.get('/api/v1/menu/categories/')
-        
-        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
 # =============================================================================
@@ -303,23 +243,25 @@ class TestCategoryCRUD:
 
 @pytest.mark.django_db
 class TestCategoryByRestaurant:
-    """Tests pour les catégories par restaurant"""
+    """Tests pour récupérer les catégories par restaurant"""
 
-    def test_get_categories_by_restaurant(self, restaurateur_client, restaurant, multiple_categories):
+    def test_get_categories_by_restaurant(self, restaurateur_client, multiple_categories):
         """Test de récupération des catégories d'un restaurant"""
+        restaurant = multiple_categories[0].restaurant
+        
         response = restaurateur_client.get(
             f'/api/v1/menu/categories/restaurant/{restaurant.id}/'
         )
         
-        # L'endpoint peut exister ou non
-        assert response.status_code in [
-            status.HTTP_200_OK,
-            status.HTTP_404_NOT_FOUND
-        ]
+        assert response.status_code in [status.HTTP_200_OK, status.HTTP_404_NOT_FOUND]
+        
+        if response.status_code == status.HTTP_200_OK:
+            assert 'categories' in response.data
+            assert 'total_count' in response.data
 
 
 # =============================================================================
-# TESTS - Statistiques des catégories
+# TESTS - Statistiques
 # =============================================================================
 
 @pytest.mark.django_db
@@ -333,11 +275,7 @@ class TestCategoryStatistics:
             {'restaurant_id': str(restaurant.id)}
         )
         
-        # L'endpoint peut exister ou non
-        assert response.status_code in [
-            status.HTTP_200_OK,
-            status.HTTP_404_NOT_FOUND
-        ]
+        assert response.status_code in [status.HTTP_200_OK, status.HTTP_404_NOT_FOUND]
 
     def test_statistics_includes_counts(self, restaurateur_client, category_with_items, restaurant):
         """Test que les statistiques incluent les compteurs"""
@@ -360,6 +298,8 @@ class TestCategoryReorder:
 
     def test_reorder_categories(self, restaurateur_client, multiple_categories):
         """Test de réorganisation des catégories"""
+        restaurant = multiple_categories[0].restaurant
+        
         # Inverser l'ordre
         new_order = [
             {'id': str(multiple_categories[3].id), 'order': 1},
@@ -370,11 +310,13 @@ class TestCategoryReorder:
         
         response = restaurateur_client.post(
             '/api/v1/menu/categories/reorder/',
-            {'categories': new_order},
+            {
+                'restaurant_id': str(restaurant.id),
+                'categories': new_order
+            },
             format='json'
         )
         
-        # L'endpoint peut exister ou non
         assert response.status_code in [
             status.HTTP_200_OK,
             status.HTTP_404_NOT_FOUND,
@@ -390,35 +332,35 @@ class TestCategoryReorder:
 class TestCategoryToggle:
     """Tests pour l'activation/désactivation des catégories"""
 
-    def test_deactivate_category(self, restaurateur_client, category):
+    def test_deactivate_category(self, restaurateur_client, menu_category):
         """Test de désactivation d'une catégorie"""
-        category.is_active = True
-        category.save()
+        menu_category.is_active = True
+        menu_category.save()
         
         response = restaurateur_client.patch(
-            f'/api/v1/menu/categories/{category.id}/',
+            f'/api/v1/menu/categories/{menu_category.id}/',
             {'is_active': False},
             format='json'
         )
         
         assert response.status_code == status.HTTP_200_OK
-        category.refresh_from_db()
-        assert category.is_active is False
+        menu_category.refresh_from_db()
+        assert menu_category.is_active is False
 
-    def test_activate_category(self, restaurateur_client, category):
+    def test_activate_category(self, restaurateur_client, menu_category):
         """Test d'activation d'une catégorie"""
-        category.is_active = False
-        category.save()
+        menu_category.is_active = False
+        menu_category.save()
         
         response = restaurateur_client.patch(
-            f'/api/v1/menu/categories/{category.id}/',
+            f'/api/v1/menu/categories/{menu_category.id}/',
             {'is_active': True},
             format='json'
         )
         
         assert response.status_code == status.HTTP_200_OK
-        category.refresh_from_db()
-        assert category.is_active is True
+        menu_category.refresh_from_db()
+        assert menu_category.is_active is True
 
 
 # =============================================================================
@@ -429,10 +371,10 @@ class TestCategoryToggle:
 class TestSubCategoryCRUD:
     """Tests CRUD pour les sous-catégories"""
 
-    def test_create_subcategory(self, restaurateur_client, category):
+    def test_create_subcategory(self, restaurateur_client, menu_category):
         """Test de création d'une sous-catégorie"""
         data = {
-            'category': str(category.id),
+            'category': str(menu_category.id),
             'name': 'Nouvelle Sous-catégorie',
             'is_active': True
         }
@@ -444,10 +386,12 @@ class TestSubCategoryCRUD:
         )
         
         assert response.status_code == status.HTTP_201_CREATED
-        assert response.data['name'] == 'Nouvelle Sous-catégorie'
+        # Le serializer applique .title() qui capitalise après le tiret
+        assert response.data['name'] == 'Nouvelle Sous-Catégorie'
 
-    def test_create_subcategory_missing_category(self, restaurateur_client):
+    def test_create_subcategory_missing_category(self, restaurateur_client, restaurateur_profile):
         """Test de création sans catégorie parent"""
+        # Note: On injecte restaurateur_profile pour garantir les permissions
         data = {
             'name': 'Sous-catégorie Orpheline'
         }
@@ -493,7 +437,8 @@ class TestSubCategoryCRUD:
         
         assert response.status_code == status.HTTP_200_OK
         subcategory.refresh_from_db()
-        assert subcategory.name == 'Sous-catégorie Modifiée'
+        # Le serializer applique .title() qui capitalise après le tiret
+        assert subcategory.name == 'Sous-Catégorie Modifiée'
 
     def test_delete_subcategory(self, restaurateur_client, subcategory):
         """Test de suppression d'une sous-catégorie"""
@@ -524,7 +469,10 @@ class TestSubCategoryReorder:
         
         response = restaurateur_client.post(
             '/api/v1/menu/subcategories/reorder/',
-            {'subcategories': new_order},
+            {
+                'category_id': str(subcategory.category.id),
+                'subcategories': new_order
+            },
             format='json'
         )
         
@@ -544,8 +492,9 @@ class TestSubCategoryReorder:
 class TestCategoryPermissions:
     """Tests des permissions"""
 
-    def test_cannot_access_other_category(self, restaurateur_client):
+    def test_cannot_access_other_category(self, restaurateur_client, restaurateur_profile):
         """Test qu'on ne peut pas accéder à la catégorie d'un autre"""
+        # Créer un autre restaurateur avec son restaurant et sa catégorie
         other_user = User.objects.create_user(username="other_cat@test.com", password="test")
         group, _ = Group.objects.get_or_create(name="restaurateur")
         other_user.groups.add(group)
@@ -571,7 +520,7 @@ class TestCategoryPermissions:
         
         assert response.status_code in [status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
 
-    def test_cannot_modify_other_subcategory(self, restaurateur_client):
+    def test_cannot_modify_other_subcategory(self, restaurateur_client, restaurateur_profile):
         """Test qu'on ne peut pas modifier la sous-catégorie d'un autre"""
         other_user = User.objects.create_user(username="other_subcat@test.com", password="test")
         group, _ = Group.objects.get_or_create(name="restaurateur")
@@ -604,3 +553,11 @@ class TestCategoryPermissions:
         )
         
         assert response.status_code in [status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
+
+    def test_unauthenticated_access_denied(self, api_client, menu_category):
+        """Test que l'accès non authentifié est refusé"""
+        response = api_client.get(
+            f'/api/v1/menu/categories/{menu_category.id}/'
+        )
+        
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED

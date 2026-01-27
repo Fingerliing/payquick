@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 Fixtures partagées pour les tests des vues
+
+Ce fichier centralise toutes les fixtures communes utilisées dans les tests de vues.
+Les fichiers de test individuels ne devraient définir que les fixtures spécifiques
+à leur domaine.
 """
 
 import pytest
@@ -111,8 +115,14 @@ def auth_client(user):
 
 
 @pytest.fixture
-def restaurateur_client(restaurateur_user):
-    """Client API authentifié (restaurateur)"""
+def restaurateur_client(restaurateur_user, restaurateur_profile):
+    """
+    Client API authentifié (restaurateur)
+    
+    IMPORTANT: Cette fixture dépend de restaurateur_profile pour garantir
+    que le profil existe avant toute requête API. Sans cela, les permissions
+    comme IsValidatedRestaurateur échouent avec 403.
+    """
     token = RefreshToken.for_user(restaurateur_user)
     client = APIClient()
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {token.access_token}")
@@ -164,6 +174,18 @@ def second_restaurant(restaurateur_profile):
 
 
 @pytest.fixture
+def inactive_restaurant(restaurateur_profile):
+    """Restaurant inactif pour tests"""
+    return Restaurant.objects.create(
+        name="Restaurant Inactif",
+        description="Restaurant inactif",
+        owner=restaurateur_profile,
+        siret="22222222222222",
+        is_active=False
+    )
+
+
+@pytest.fixture
 def table(restaurant):
     """Table de test"""
     return Table.objects.create(
@@ -181,7 +203,7 @@ def multiple_tables(restaurant):
     """Plusieurs tables pour un restaurant"""
     tables = []
     for i in range(1, 6):
-        table = Table.objects.create(
+        t = Table.objects.create(
             restaurant=restaurant,
             number=i,
             identifiant=f"T{str(i).zfill(3)}",
@@ -189,7 +211,7 @@ def multiple_tables(restaurant):
             capacity=4,
             is_active=True
         )
-        tables.append(table)
+        tables.append(t)
     return tables
 
 

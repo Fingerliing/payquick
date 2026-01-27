@@ -118,7 +118,7 @@ class MenuSubCategoryCreateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = MenuSubCategory
-        fields = ['restaurant', 'category', 'name', 'description', 'is_active', 'order']
+        fields = ['category', 'name', 'description', 'is_active', 'order']
     
     def validate_name(self, value):
         return MenuSubCategorySerializer().validate_name(value)
