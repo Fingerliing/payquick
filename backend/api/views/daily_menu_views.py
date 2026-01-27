@@ -597,7 +597,8 @@ class PublicDailyMenuViewSet(viewsets.ReadOnlyModelViewSet):
             restaurants_with_menu.append({
                 'restaurant_id': str(menu.restaurant.id),
                 'restaurant_name': menu.restaurant.name,
-                'restaurant_logo': menu.restaurant.logo.url if menu.restaurant.logo else None,
+                # FIX: Le modèle Restaurant utilise 'image', pas 'logo'
+                'restaurant_image': menu.restaurant.image.url if menu.restaurant.image else None,
                 'menu_title': menu.title,
                 'special_price': float(menu.special_price) if menu.special_price else None,
                 'items_count': menu.total_items_count

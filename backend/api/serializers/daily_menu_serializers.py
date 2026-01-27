@@ -160,7 +160,8 @@ class DailyMenuPublicSerializer(serializers.ModelSerializer):
     """Serializer pour l'API publique (côté client)"""
     
     restaurant_name = serializers.CharField(source='restaurant.name', read_only=True)
-    restaurant_logo = serializers.ImageField(source='restaurant.logo', read_only=True)
+    # FIX: Le modèle Restaurant utilise 'image', pas 'logo'
+    restaurant_image = serializers.SerializerMethodField()
     items_by_category = serializers.SerializerMethodField()
     total_items_count = serializers.ReadOnlyField()
     estimated_total_price = serializers.ReadOnlyField()
@@ -168,10 +169,19 @@ class DailyMenuPublicSerializer(serializers.ModelSerializer):
     class Meta:
         model = DailyMenu
         fields = [
-            'id', 'restaurant_name', 'restaurant_logo', 'date', 'title', 
+            'id', 'restaurant_name', 'restaurant_image', 'date', 'title', 
             'description', 'special_price', 'items_by_category', 
             'total_items_count', 'estimated_total_price'
         ]
+    
+    def get_restaurant_image(self, obj):
+        """Retourne l'URL de l'image du restaurant"""
+        if obj.restaurant and obj.restaurant.image:
+            try:
+                return obj.restaurant.image.url
+            except (ValueError, AttributeError):
+                pass
+        return None
     
     def get_items_by_category(self, obj):
         """Items groupés par catégorie pour affichage client"""
