@@ -33,8 +33,8 @@ class TestOpeningPeriodSerializer:
     def test_valid_period(self):
         """Test avec une période valide"""
         data = {
-            'open_time': '12:00',
-            'close_time': '14:30'
+            'startTime': '12:00',
+            'endTime': '14:30'
         }
         serializer = OpeningPeriodSerializer(data=data)
         assert serializer.is_valid(), serializer.errors
@@ -42,8 +42,8 @@ class TestOpeningPeriodSerializer:
     def test_time_format(self):
         """Test du format des heures"""
         data = {
-            'open_time': '09:00',
-            'close_time': '17:00'
+            'startTime': '09:00',
+            'endTime': '17:00'
         }
         serializer = OpeningPeriodSerializer(data=data)
         assert serializer.is_valid(), serializer.errors
@@ -51,8 +51,8 @@ class TestOpeningPeriodSerializer:
     def test_invalid_time_format(self):
         """Test avec un format d'heure invalide"""
         data = {
-            'open_time': '25:00',  # Heure invalide
-            'close_time': '14:30'
+            'startTime': '25:00',  # Heure invalide
+            'endTime': '14:30'
         }
         serializer = OpeningPeriodSerializer(data=data)
         assert not serializer.is_valid()
@@ -65,8 +65,9 @@ class TestOpeningPeriodSerializer:
             serializer = OpeningPeriodSerializer(period)
             data = serializer.data
             
-            assert 'open_time' in data
-            assert 'close_time' in data
+            # Le serializer utilise camelCase
+            assert 'startTime' in data
+            assert 'endTime' in data
 
 
 # =============================================================================
@@ -79,49 +80,53 @@ class TestOpeningHoursSerializer:
 
     def test_serializer_fields(self, opening_hours):
         """Test des champs du serializer"""
-        oh = opening_hours[0]  # Lundi
+        oh = opening_hours[0]  # Premier jour
         serializer = OpeningHoursSerializer(oh)
         data = serializer.data
         
         assert 'id' in data
-        assert 'day_of_week' in data
-        assert 'is_closed' in data
+        # Le serializer utilise camelCase
+        assert 'dayOfWeek' in data
+        assert 'isClosed' in data
         assert 'periods' in data
 
     def test_closed_day(self, opening_hours):
-        """Test d'un jour fermé (dimanche)"""
-        sunday = [oh for oh in opening_hours if oh.day_of_week == 'sunday'][0]
+        """Test d'un jour fermé (dimanche = 6)"""
+        # day_of_week est un entier: 0=Lundi, 6=Dimanche
+        sunday = [oh for oh in opening_hours if oh.day_of_week == 6][0]
         serializer = OpeningHoursSerializer(sunday)
         
-        assert serializer.data['is_closed'] is True
+        assert serializer.data['isClosed'] is True
         assert serializer.data['periods'] == []
 
     def test_open_day_with_periods(self, opening_hours):
         """Test d'un jour ouvert avec périodes"""
-        monday = [oh for oh in opening_hours if oh.day_of_week == 'monday'][0]
+        # day_of_week est un entier: 0=Lundi
+        monday = [oh for oh in opening_hours if oh.day_of_week == 0][0]
         serializer = OpeningHoursSerializer(monday)
         
-        assert serializer.data['is_closed'] is False
+        assert serializer.data['isClosed'] is False
         assert len(serializer.data['periods']) == 2  # Midi + Soir
 
     def test_periods_nested(self, opening_hours):
         """Test que les périodes sont correctement imbriquées"""
-        monday = [oh for oh in opening_hours if oh.day_of_week == 'monday'][0]
+        # day_of_week est un entier: 0=Lundi
+        monday = [oh for oh in opening_hours if oh.day_of_week == 0][0]
         serializer = OpeningHoursSerializer(monday)
         
         periods = serializer.data['periods']
         for period in periods:
-            assert 'open_time' in period
-            assert 'close_time' in period
+            # Le serializer utilise camelCase
+            assert 'startTime' in period
+            assert 'endTime' in period
 
     def test_valid_days_of_week(self):
-        """Test des jours de la semaine valides"""
-        valid_days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
-        
-        for day in valid_days:
+        """Test des jours de la semaine valides (0-6)"""
+        # day_of_week est un entier: 0=Lundi ... 6=Dimanche
+        for day in range(7):
             data = {
-                'day_of_week': day,
-                'is_closed': False,
+                'dayOfWeek': day,
+                'isClosed': False,
                 'periods': []
             }
             serializer = OpeningHoursSerializer(data=data)

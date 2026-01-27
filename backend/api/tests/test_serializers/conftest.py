@@ -267,10 +267,10 @@ def opening_hours(db, restaurant):
     from api.models import OpeningHours, OpeningPeriod
     
     hours_list = []
-    days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+    # day_of_week est un entier: 0=Lundi, 1=Mardi, ..., 6=Dimanche
     
-    for day in days:
-        is_closed = day == 'sunday'
+    for day in range(7):  # 0 à 6
+        is_closed = (day == 6)  # Dimanche fermé
         oh = OpeningHours.objects.create(
             restaurant=restaurant,
             day_of_week=day,
@@ -281,14 +281,14 @@ def opening_hours(db, restaurant):
             # Service midi
             OpeningPeriod.objects.create(
                 opening_hours=oh,
-                open_time=time(12, 0),
-                close_time=time(14, 30)
+                start_time=time(12, 0),
+                end_time=time(14, 30)
             )
             # Service soir
             OpeningPeriod.objects.create(
                 opening_hours=oh,
-                open_time=time(19, 0),
-                close_time=time(22, 30)
+                start_time=time(19, 0),
+                end_time=time(22, 30)
             )
         
         hours_list.append(oh)
@@ -999,8 +999,6 @@ def valid_table_data(restaurant):
     return {
         'restaurant': restaurant.id,
         'number': 10,
-        # FIX: Supprimé 'identifiant' car c'est une propriété read-only
-        # Utiliser 'qr_code' à la place si nécessaire
         'qr_code': 'NEW_T010',
         'capacity': 4
     }
