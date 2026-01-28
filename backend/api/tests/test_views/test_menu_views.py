@@ -45,16 +45,29 @@ def restaurateur_user(db):
 
 @pytest.fixture
 def restaurateur_profile(restaurateur_user):
+    """
+    RestaurateurProfile with stripe_verified=True.
+    
+    The IsOwnerOrReadOnly permission class checks stripe_verified
+    for non-safe methods (POST, PUT, PATCH, DELETE).
+    """
     return RestaurateurProfile.objects.create(
         user=restaurateur_user,
         siret="12345678901234",
         is_validated=True,
-        is_active=True
+        is_active=True,
+        stripe_verified=True  # Required for IsOwnerOrReadOnly permission
     )
 
 
 @pytest.fixture
-def restaurateur_client(restaurateur_user):
+def restaurateur_client(restaurateur_user, restaurateur_profile):
+    """
+    Authenticated client for restaurateur.
+    
+    IMPORTANT: Depends on restaurateur_profile to ensure the profile
+    exists before making API requests.
+    """
     token = RefreshToken.for_user(restaurateur_user)
     client = APIClient()
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {token.access_token}")
@@ -248,7 +261,7 @@ class TestMenuToggle:
         assert menu.is_available is False
 
     def test_activate_menu(self, restaurateur_client, menu, second_menu):
-        """Test d'activation forcée"""
+        """Test de l'action activate spécifique"""
         menu.is_available = False
         menu.save()
         second_menu.is_available = True
@@ -263,7 +276,7 @@ class TestMenuToggle:
         assert second_menu.is_available is False
 
     def test_deactivate_menu(self, restaurateur_client, menu):
-        """Test de désactivation forcée"""
+        """Test de l'action deactivate spécifique"""
         menu.is_available = True
         menu.save()
         
@@ -280,21 +293,31 @@ class TestMenuToggle:
 
 @pytest.mark.django_db
 class TestMenuPublic:
-    """Tests pour l'accès public aux menus"""
+    """Tests pour les endpoints publics de menu"""
 
-    def test_public_menus_by_restaurant(self, api_client, menu, second_menu):
-        """Test de récupération des menus publics"""
-        restaurant = menu.restaurant
-        
-        response = api_client.get(
-            f'/api/v1/menus/restaurants/public/{restaurant.id}/menus/'
-        )
+    def test_public_menus_by_restaurant(self, api_client, restaurant, menu):
+        """Test d'accès public aux menus d'un restaurant"""
+        # Use unauthenticated api_client for public endpoint
+        response = api_client.get(f'/api/v1/menus/public/{restaurant.id}/menus/')
         
         assert response.status_code == status.HTTP_200_OK
-        # Seul le menu disponible doit être retourné
-        menu_names = [m['name'] for m in response.data]
-        assert menu.name in menu_names
-        assert second_menu.name not in menu_names  # Non disponible
+        # Should return only available menus
+        assert isinstance(response.data, list)
+
+    def test_public_menus_only_available(self, api_client, restaurant, menu, second_menu):
+        """Test que seuls les menus disponibles sont retournés"""
+        menu.is_available = True
+        menu.save()
+        second_menu.is_available = False
+        second_menu.save()
+        
+        response = api_client.get(f'/api/v1/menus/public/{restaurant.id}/menus/')
+        
+        assert response.status_code == status.HTTP_200_OK
+        # Only the available menu should be returned
+        available_names = [m['name'] for m in response.data]
+        assert menu.name in available_names
+        assert second_menu.name not in available_names
 
 
 # =============================================================================
@@ -476,15 +499,16 @@ class TestMenuItemFiltering:
 class TestMenuPermissions:
     """Tests des permissions"""
 
-    def test_cannot_access_other_menu(self, restaurateur_client):
+    def test_cannot_access_other_menu(self, restaurateur_client, restaurateur_profile):
         """Test qu'on ne peut pas accéder au menu d'un autre"""
-        # Créer un autre restaurateur
+        # Créer un autre restaurateur with stripe_verified=True
         other_user = User.objects.create_user(username="other_menu@test.com", password="test")
         group, _ = Group.objects.get_or_create(name="restaurateur")
         other_user.groups.add(group)
         other_profile = RestaurateurProfile.objects.create(
             user=other_user,
-            siret="99999999999999"
+            siret="99999999999999",
+            stripe_verified=True
         )
         other_restaurant = Restaurant.objects.create(
             name="Autre Restaurant",
@@ -500,14 +524,15 @@ class TestMenuPermissions:
         
         assert response.status_code in [status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
 
-    def test_cannot_modify_other_menu_item(self, restaurateur_client, menu_category):
+    def test_cannot_modify_other_menu_item(self, restaurateur_client, menu_category, restaurateur_profile):
         """Test qu'on ne peut pas modifier l'item d'un autre"""
         other_user = User.objects.create_user(username="other_item@test.com", password="test")
         group, _ = Group.objects.get_or_create(name="restaurateur")
         other_user.groups.add(group)
         other_profile = RestaurateurProfile.objects.create(
             user=other_user,
-            siret="77777777777777"
+            siret="77777777777777",
+            stripe_verified=True
         )
         other_restaurant = Restaurant.objects.create(
             name="Autre Restaurant Item",
