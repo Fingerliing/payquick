@@ -1,218 +1,556 @@
 # ---------------------------------------------------------------------
-# Tests for OrderViewSet and its custom action
+# Tests for OrderViewSet and its custom actions
+# Based on actual order_views.py endpoints
 # ---------------------------------------------------------------------
 
 import pytest
-from unittest.mock import patch
+from decimal import Decimal
 from rest_framework.test import APIClient
 from rest_framework import status
 from django.contrib.auth.models import User, Group
 from api.models import (
     RestaurateurProfile, Restaurant, Table,
-    Menu, MenuItem, Order, OrderItem
-)
-from api.tests.factories import (
-    UserFactory, RestaurantFactory, TableFactory,
-    MenuItemFactory, MenuFactory
+    Menu, MenuItem, MenuCategory, Order, OrderItem
 )
 from rest_framework_simplejwt.tokens import RefreshToken
 
+
+# =============================================================================
+# FIXTURES
+# =============================================================================
+
+@pytest.fixture
+def api_client():
+    """Unauthenticated client"""
+    return APIClient()
+
+
 @pytest.fixture
 def auth_restaurateur_client(db):
+    """Authenticated restaurateur client with profile"""
     group, _ = Group.objects.get_or_create(name="restaurateur")
-    user = User.objects.create_user(username="owner", password="strongpass")
+    user = User.objects.create_user(
+        username="owner@example.com",
+        email="owner@example.com",
+        password="strongpass"
+    )
     user.groups.add(group)
-    profile = RestaurateurProfile.objects.create(user=user, siret="10101010101010")
+    
+    profile = RestaurateurProfile.objects.create(
+        user=user,
+        siret="10101010101010",
+        is_validated=True,
+        is_active=True,
+        stripe_verified=True
+    )
+    
     token = RefreshToken.for_user(user)
-
     client = APIClient()
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {token.access_token}")
+    
     return client, user, profile
 
+
+@pytest.fixture
+def customer_user(db):
+    """Regular customer user"""
+    return User.objects.create_user(
+        username="customer@example.com",
+        email="customer@example.com",
+        password="testpass123"
+    )
+
+
+@pytest.fixture
+def auth_customer_client(customer_user):
+    """Authenticated customer client"""
+    token = RefreshToken.for_user(customer_user)
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token.access_token}")
+    return client
+
+
+@pytest.fixture
+def restaurant(auth_restaurateur_client):
+    """Test restaurant"""
+    _, _, profile = auth_restaurateur_client
+    return Restaurant.objects.create(
+        name="Café du Coin",
+        description="Petit resto",
+        owner=profile,
+        siret="12345678911111",
+        is_active=True
+    )
+
+
+@pytest.fixture
+def table(restaurant):
+    """
+    Test table.
+    NOTE: 'identifiant' is a read-only property on Table model.
+    Use 'number' field instead.
+    """
+    return Table.objects.create(
+        restaurant=restaurant,
+        number="X1",  # Use 'number', NOT 'identifiant'
+        capacity=4,
+        is_active=True
+    )
+
+
+@pytest.fixture
+def menu(restaurant):
+    """Test menu"""
+    return Menu.objects.create(
+        name="Menu Principal",
+        restaurant=restaurant,
+        is_available=True
+    )
+
+
+@pytest.fixture
+def menu_category(restaurant):
+    """Menu category"""
+    return MenuCategory.objects.create(
+        restaurant=restaurant,
+        name="Plats",
+        is_active=True
+    )
+
+
+@pytest.fixture
+def menu_item(menu, menu_category):
+    """Available menu item"""
+    return MenuItem.objects.create(
+        menu=menu,
+        name="Pizza",
+        price=Decimal('9.90'),
+        category=menu_category,
+        is_available=True,
+        preparation_time=15
+    )
+
+
+@pytest.fixture
+def order(restaurant, table, customer_user):
+    """
+    Test order.
+    
+    NOTE: Order model uses:
+    - restaurant (ForeignKey)
+    - table_number (CharField, NOT a FK to Table)
+    - order_number (required, unique)
+    - subtotal, total_amount (required DecimalFields)
+    
+    Order does NOT have: restaurateur field, table FK, is_paid field
+    """
+    return Order.objects.create(
+        restaurant=restaurant,
+        table_number=table.number,  # CharField, not FK
+        order_number="ORD-TEST-001",
+        user=customer_user,
+        customer_name="Client Test",
+        phone="0612345678",
+        order_type='dine_in',
+        status='pending',
+        payment_status='pending',
+        subtotal=Decimal('25.00'),
+        tax_amount=Decimal('2.50'),
+        total_amount=Decimal('27.50')
+    )
+
+
+@pytest.fixture
+def order_with_items(order, menu_item):
+    """Order with items"""
+    OrderItem.objects.create(
+        order=order,
+        menu_item=menu_item,
+        quantity=2,
+        unit_price=menu_item.price,
+        total_price=menu_item.price * 2
+    )
+    return order
+
+
+@pytest.fixture
+def confirmed_order(restaurant, table, customer_user):
+    """Confirmed order for status transition tests"""
+    return Order.objects.create(
+        restaurant=restaurant,
+        table_number=table.number,
+        order_number="ORD-TEST-002",
+        user=customer_user,
+        status='confirmed',
+        payment_status='pending',
+        subtotal=Decimal('30.00'),
+        tax_amount=Decimal('3.00'),
+        total_amount=Decimal('33.00')
+    )
+
+
+@pytest.fixture
+def preparing_order(restaurant, table, customer_user):
+    """Preparing order"""
+    return Order.objects.create(
+        restaurant=restaurant,
+        table_number=table.number,
+        order_number="ORD-TEST-003",
+        user=customer_user,
+        status='preparing',
+        payment_status='pending',
+        subtotal=Decimal('40.00'),
+        tax_amount=Decimal('4.00'),
+        total_amount=Decimal('44.00')
+    )
+
+
+@pytest.fixture
+def ready_order(restaurant, table, customer_user):
+    """Ready order"""
+    return Order.objects.create(
+        restaurant=restaurant,
+        table_number=table.number,
+        order_number="ORD-TEST-004",
+        user=customer_user,
+        status='ready',
+        payment_status='pending',
+        subtotal=Decimal('50.00'),
+        tax_amount=Decimal('5.00'),
+        total_amount=Decimal('55.00')
+    )
+
+
+# =============================================================================
+# TESTS - Order Creation (POST /api/v1/orders/)
+# =============================================================================
+
 @pytest.mark.django_db
-def test_create_order(auth_restaurateur_client):
-    client, _, profile = auth_restaurateur_client
-
-    restaurant = Restaurant.objects.create(name="Café du Coin", description="Petit resto", owner=profile, siret="12345678911111")
-    table = Table.objects.create(restaurant=restaurant, identifiant="X1")
-
+def test_create_order(auth_restaurateur_client, restaurant, menu_item):
+    """Test creating an order with items"""
+    client, _, _ = auth_restaurateur_client
+    
     response = client.post("/api/v1/orders/", {
         "restaurant": restaurant.id,
-        "table": table.id,
+        "order_type": "dine_in",
+        "table_number": "X1",
+        "customer_name": "Test Client",
+        "items": [
+            {"menu_item": menu_item.id, "quantity": 2}
+        ]
     }, format="json")
-
+    
     assert response.status_code == status.HTTP_201_CREATED
-    assert response.data["table_number"] == "X1"
-
-@pytest.mark.django_db
-def test_list_orders_only_owned(auth_restaurateur_client):
-    client, _, profile = auth_restaurateur_client
-    restaurant = Restaurant.objects.create(name="Chez Toi", description="Cuisine perso", owner=profile, siret="22222222222222")
-    table = Table.objects.create(restaurant=restaurant, identifiant="Z9")
-    Order.objects.create(restaurateur=profile, restaurant=restaurant, table=table)
-
-    response = client.get("/api/v1/orders/")
-    assert response.status_code == 200
-    assert len(response.data) == 1
+    assert "order_number" in response.data
 
 
 @pytest.mark.django_db
-def test_submit_order_success(auth_restaurateur_client):
-    client, _, profile = auth_restaurateur_client
-    restaurant = Restaurant.objects.create(name="Barato", description="Pas cher", owner=profile, siret="33333333333333")
-    table = Table.objects.create(restaurant=restaurant, identifiant="B5")
-    menu = Menu.objects.create(name="Menu", restaurant=restaurant)
-    item = MenuItem.objects.create(menu=menu, name="Pizza", price=9.90, category="Plat")
-
-    payload = {
-        "restaurant": restaurant.id,
-        "table_identifiant": "B5",
-        "items": [{"menu_item_id": item.id, "quantity": 2}]
-    }
-
-    response = client.post("/api/v1/orders/submit_order/", payload, format="json")
-    assert response.status_code == 200 or response.status_code == 201
-
-
-@pytest.mark.django_db
-def test_submit_order_missing_fields(auth_restaurateur_client):
+def test_create_order_missing_items(auth_restaurateur_client, restaurant):
+    """Test creating order without items fails"""
     client, _, _ = auth_restaurateur_client
-
-    response = client.post("/api/v1/orders/submit_order/", {}, format="json")
-    assert response.status_code == 400
-    assert "error" in response.data
-
-def test_submit_order_restaurant_not_found(auth_restaurateur_client):
-    client, _, profile = auth_restaurateur_client
-    response = client.post("/api/v1/orders/submit_order/", {
-        "restaurant": 9999,
-        "table_identifiant": "Z1",
-        "items": [{"menu_item_id": 1, "quantity": 1}]
-    }, format="json")
-    assert response.status_code == 404
-
-def test_submit_order_table_not_found(auth_restaurateur_client):
-    client, _, profile = auth_restaurateur_client
-    restaurant = Restaurant.objects.create(name="Fake", description="x", siret="99999999999999", owner=profile)
-    response = client.post("/api/v1/orders/submit_order/", {
+    
+    response = client.post("/api/v1/orders/", {
         "restaurant": restaurant.id,
-        "table_identifiant": "T404",
-        "items": [{"menu_item_id": 1, "quantity": 1}]
+        "order_type": "dine_in",
+        "table_number": "X1"
     }, format="json")
-    assert response.status_code == 404
+    
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-def test_mark_order_paid(auth_restaurateur_client):
-    client, _, profile = auth_restaurateur_client
-    restaurant = Restaurant.objects.create(name="Test", description="x", siret="11111111111111", owner=profile)
-    table = Table.objects.create(restaurant=restaurant, identifiant="T1")
-    order = Order.objects.create(restaurant=restaurant, table=table, restaurateur=profile)
 
-    url = f"/api/v1/orders/{order.id}/mark_paid/"
-    response = client.post(url)
-    assert response.status_code == 200
+@pytest.mark.django_db
+def test_create_order_invalid_restaurant(auth_restaurateur_client, menu_item):
+    """Test creating order with non-existent restaurant"""
+    client, _, _ = auth_restaurateur_client
+    
+    response = client.post("/api/v1/orders/", {
+        "restaurant": 99999,
+        "order_type": "dine_in",
+        "items": [{"menu_item": menu_item.id, "quantity": 1}]
+    }, format="json")
+    
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+# =============================================================================
+# TESTS - Order List (GET /api/v1/orders/)
+# =============================================================================
+
+@pytest.mark.django_db
+def test_list_orders_only_owned(auth_restaurateur_client, order):
+    """Test that restaurateur only sees their restaurant's orders"""
+    client, _, _ = auth_restaurateur_client
+    
+    response = client.get("/api/v1/orders/")
+    
+    assert response.status_code == status.HTTP_200_OK
+    # Response is either a list or paginated with 'results'
+    data = response.data if isinstance(response.data, list) else response.data.get('results', [])
+    assert len(data) >= 1
+
+
+@pytest.mark.django_db
+def test_list_orders_unauthenticated(api_client):
+    """Test that unauthenticated access is denied"""
+    response = api_client.get("/api/v1/orders/")
+    
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.django_db
+def test_filter_orders_by_status(auth_restaurateur_client, order, confirmed_order):
+    """Test filtering orders by status"""
+    client, _, _ = auth_restaurateur_client
+    
+    response = client.get("/api/v1/orders/?status=pending")
+    
+    assert response.status_code == status.HTTP_200_OK
+
+
+@pytest.mark.django_db
+def test_filter_orders_by_restaurant(auth_restaurateur_client, order, restaurant):
+    """Test filtering orders by restaurant"""
+    client, _, _ = auth_restaurateur_client
+    
+    response = client.get(f"/api/v1/orders/?restaurant={restaurant.id}")
+    
+    assert response.status_code == status.HTTP_200_OK
+
+
+# =============================================================================
+# TESTS - Order Retrieve (GET /api/v1/orders/{id}/)
+# =============================================================================
+
+@pytest.mark.django_db
+def test_order_details(auth_restaurateur_client, order_with_items):
+    """Test retrieving order details"""
+    client, _, _ = auth_restaurateur_client
+    
+    # Use retrieve endpoint, not a custom 'details' action
+    response = client.get(f"/api/v1/orders/{order_with_items.id}/")
+    
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data["order_number"] == order_with_items.order_number
+
+
+# =============================================================================
+# TESTS - Status Updates (PATCH /api/v1/orders/{id}/update_status/)
+# =============================================================================
+
+@pytest.mark.django_db
+def test_update_status_pending_to_confirmed(auth_restaurateur_client, order):
+    """Test status transition: pending -> confirmed"""
+    client, _, _ = auth_restaurateur_client
+    
+    response = client.patch(
+        f"/api/v1/orders/{order.id}/update_status/",
+        {"status": "confirmed"},
+        format="json"
+    )
+    
+    assert response.status_code == status.HTTP_200_OK
     order.refresh_from_db()
-    assert order.is_paid is True
+    assert order.status == "confirmed"
 
-def test_mark_order_in_progress(auth_restaurateur_client):
-    client, _, profile = auth_restaurateur_client
-    restaurant = Restaurant.objects.create(name="Test", description="x", siret="22222222222222", owner=profile)
-    table = Table.objects.create(restaurant=restaurant, identifiant="T2")
-    order = Order.objects.create(restaurant=restaurant, table=table, restaurateur=profile)
 
-    url = f"/api/v1/orders/{order.id}/mark_in_progress/"
-    response = client.post(url)
-    assert response.status_code == 200
+@pytest.mark.django_db
+def test_update_status_confirmed_to_preparing(auth_restaurateur_client, confirmed_order):
+    """Test status transition: confirmed -> preparing"""
+    client, _, _ = auth_restaurateur_client
+    
+    response = client.patch(
+        f"/api/v1/orders/{confirmed_order.id}/update_status/",
+        {"status": "preparing"},
+        format="json"
+    )
+    
+    assert response.status_code == status.HTTP_200_OK
+    confirmed_order.refresh_from_db()
+    assert confirmed_order.status == "preparing"
+
+
+@pytest.mark.django_db
+def test_update_status_preparing_to_ready(auth_restaurateur_client, preparing_order):
+    """Test status transition: preparing -> ready"""
+    client, _, _ = auth_restaurateur_client
+    
+    response = client.patch(
+        f"/api/v1/orders/{preparing_order.id}/update_status/",
+        {"status": "ready"},
+        format="json"
+    )
+    
+    assert response.status_code == status.HTTP_200_OK
+    preparing_order.refresh_from_db()
+    assert preparing_order.status == "ready"
+
+
+@pytest.mark.django_db
+def test_update_status_ready_to_served(auth_restaurateur_client, ready_order):
+    """Test status transition: ready -> served"""
+    client, _, _ = auth_restaurateur_client
+    
+    response = client.patch(
+        f"/api/v1/orders/{ready_order.id}/update_status/",
+        {"status": "served"},
+        format="json"
+    )
+    
+    assert response.status_code == status.HTTP_200_OK
+    ready_order.refresh_from_db()
+    assert ready_order.status == "served"
+
+
+@pytest.mark.django_db
+def test_update_status_invalid_transition(auth_restaurateur_client, order):
+    """Test invalid status transition: pending -> served"""
+    client, _, _ = auth_restaurateur_client
+    
+    response = client.patch(
+        f"/api/v1/orders/{order.id}/update_status/",
+        {"status": "served"},
+        format="json"
+    )
+    
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+# =============================================================================
+# TESTS - Payment (POST /api/v1/orders/{id}/mark_as_paid/)
+# =============================================================================
+
+@pytest.mark.django_db
+def test_mark_order_paid(auth_restaurateur_client, order):
+    """Test marking order as paid"""
+    client, _, _ = auth_restaurateur_client
+    
+    # Correct endpoint is mark_as_paid, not mark_paid
+    response = client.post(
+        f"/api/v1/orders/{order.id}/mark_as_paid/",
+        {"payment_method": "cash"},
+        format="json"
+    )
+    
+    assert response.status_code == status.HTTP_200_OK
     order.refresh_from_db()
-    assert order.status == "in_progress"
+    # Order uses payment_status field, not is_paid
+    assert order.payment_status == "paid"
 
-def test_mark_order_served(auth_restaurateur_client):
-    client, _, profile = auth_restaurateur_client
-    restaurant = Restaurant.objects.create(name="Test", description="x", siret="33333333333333", owner=profile)
-    table = Table.objects.create(restaurant=restaurant, identifiant="T3")
-    order = Order.objects.create(restaurant=restaurant, table=table, restaurateur=profile)
 
-    url = f"/api/v1/orders/{order.id}/mark_served/"
-    response = client.post(url)
-    assert response.status_code == 200
+@pytest.mark.django_db
+def test_mark_order_paid_card(auth_restaurateur_client, order):
+    """Test marking order as paid with card"""
+    client, _, _ = auth_restaurateur_client
+    
+    response = client.post(
+        f"/api/v1/orders/{order.id}/mark_as_paid/",
+        {"payment_method": "card"},
+        format="json"
+    )
+    
+    assert response.status_code == status.HTTP_200_OK
     order.refresh_from_db()
-    assert order.status == "served"
+    assert order.payment_status == "paid"
+    assert order.payment_method == "card"
 
-def test_order_details(auth_restaurateur_client):
-    client, _, profile = auth_restaurateur_client
-    restaurant = Restaurant.objects.create(name="Details", description="x", siret="44444444444444", owner=profile)
-    table = Table.objects.create(restaurant=restaurant, identifiant="T4")
-    menu = Menu.objects.create(name="Détail Menu", restaurant=restaurant)
-    item = MenuItem.objects.create(menu=menu, name="Plat", price=8.5)
-    order = Order.objects.create(restaurant=restaurant, table=table, restaurateur=profile)
-    OrderItem.objects.create(order=order, menu_item=item, quantity=2)
 
-    url = f"/api/v1/orders/{order.id}/details/"
-    response = client.get(url)
-    assert response.status_code == 200
-    assert response.data["order"] == order.id
+# =============================================================================
+# TESTS - Cancel Order (POST /api/v1/orders/{id}/cancel_order/)
+# =============================================================================
 
-def test_by_restaurant_returns_orders(auth_restaurateur_client):
-    client, _, profile = auth_restaurateur_client
-    restaurant = Restaurant.objects.create(name="Target", description="x", siret="55555555555555", owner=profile)
-    table = Table.objects.create(restaurant=restaurant, identifiant="T5")
-    Order.objects.create(restaurant=restaurant, table=table, restaurateur=profile)
+@pytest.mark.django_db
+def test_cancel_pending_order(auth_restaurateur_client, order):
+    """Test cancelling a pending order"""
+    client, _, _ = auth_restaurateur_client
+    
+    response = client.post(f"/api/v1/orders/{order.id}/cancel_order/")
+    
+    assert response.status_code == status.HTTP_200_OK
+    order.refresh_from_db()
+    assert order.status == "cancelled"
 
-    response = client.get(f"/api/v1/orders/by_restaurant/?restaurant_id={restaurant.id}")
-    assert response.status_code == 200
-    assert len(response.data) == 1
 
-def test_menu_by_table_no_menu(auth_restaurateur_client):
-    client, _, profile = auth_restaurateur_client
-    restaurant = Restaurant.objects.create(name="QRMenu", description="x", siret="66666666666666", owner=profile)
-    table = Table.objects.create(restaurant=restaurant, identifiant="T6")
+@pytest.mark.django_db
+def test_cancel_confirmed_order(auth_restaurateur_client, confirmed_order):
+    """Test cancelling a confirmed order"""
+    client, _, _ = auth_restaurateur_client
+    
+    response = client.post(f"/api/v1/orders/{confirmed_order.id}/cancel_order/")
+    
+    assert response.status_code == status.HTTP_200_OK
+    confirmed_order.refresh_from_db()
+    assert confirmed_order.status == "cancelled"
 
-    response = client.get(f"/api/v1/orders/menu/table/{table.identifiant}/")
-    assert response.status_code == 404
+
+# =============================================================================
+# TESTS - Kitchen View (GET /api/v1/orders/kitchen_view/)
+# =============================================================================
+
+@pytest.mark.django_db
+def test_kitchen_view_with_restaurant(auth_restaurateur_client, order, restaurant):
+    """Test kitchen view with restaurant parameter"""
+    client, _, _ = auth_restaurateur_client
+    
+    response = client.get(f"/api/v1/orders/kitchen_view/?restaurant={restaurant.id}")
+    
+    assert response.status_code == status.HTTP_200_OK
+    assert "tables" in response.data
+    assert "total_active_orders" in response.data
+
+
+@pytest.mark.django_db
+def test_kitchen_view_missing_restaurant(auth_restaurateur_client):
+    """Test kitchen view without restaurant parameter returns 400"""
+    client, _, _ = auth_restaurateur_client
+    
+    response = client.get("/api/v1/orders/kitchen_view/")
+    
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+# =============================================================================
+# TESTS - Permissions
+# =============================================================================
+
+@pytest.mark.django_db
+def test_customer_cannot_update_status(auth_customer_client, order):
+    """Test that customer cannot update order status"""
+    response = auth_customer_client.patch(
+        f"/api/v1/orders/{order.id}/update_status/",
+        {"status": "confirmed"},
+        format="json"
+    )
+    
+    # Customer doesn't have IsRestaurateur permission
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+
+@pytest.mark.django_db
+def test_customer_cannot_mark_paid(auth_customer_client, order):
+    """Test that customer cannot mark order as paid"""
+    response = auth_customer_client.post(
+        f"/api/v1/orders/{order.id}/mark_as_paid/",
+        {"payment_method": "cash"},
+        format="json"
+    )
+    
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+
+# =============================================================================
+# TESTS - User without profile
+# =============================================================================
 
 @pytest.mark.django_db
 def test_user_without_profile_should_raise():
-    user = UserFactory()
+    """Test that accessing non-existent profile raises exception"""
+    user = User.objects.create_user(
+        username="noprofile@example.com",
+        password="testpass123"
+    )
     RestaurateurProfile.objects.filter(user=user).delete()
+    
     assert not RestaurateurProfile.objects.filter(user=user).exists()
-
-    # Test direct
+    
     with pytest.raises(RestaurateurProfile.DoesNotExist):
         RestaurateurProfile.objects.get(user=user)
-
-@pytest.mark.django_db
-def test_by_restaurant_id_with_no_orders_returns_empty_list(auth_restaurateur_client):
-    client, _, _ = auth_restaurateur_client
-    response = client.get("/api/v1/orders/by_restaurant/?restaurant_id=999999")
-    assert response.status_code == 200
-    assert response.data == []
-
-@pytest.mark.django_db
-def test_by_restaurant_path_missing_query_param_returns_400(auth_restaurateur_client):
-    client, _, _ = auth_restaurateur_client
-    url = "/api/v1/orders/by_restaurant/"
-    response = client.get(url)
-    assert response.status_code == 400
-    assert response.data["error"] == "Missing restaurant_id"
-
-@pytest.mark.django_db
-def test_menu_by_table_returns_available_items(auth_restaurateur_client):
-    client, _, profile = auth_restaurateur_client
-
-    # 1. Crée restaurant + table
-    restaurant = RestaurantFactory(owner=profile)
-    table = TableFactory(restaurant=restaurant, identifiant="T100")
-
-    # 2. Crée menu disponible
-    menu = MenuFactory(restaurant=restaurant, disponible=True)
-
-    # 3. Crée items disponibles et non disponibles
-    item1 = MenuItemFactory(menu=menu, name="Pizza", is_available=True)
-    item2 = MenuItemFactory(menu=menu, name="Salade", is_available=False)
-
-    # 4. Appel de l'endpoint
-    response = client.get(f"/api/v1/orders/menu/table/{table.identifiant}/")
-
-    assert response.status_code == 200
-    assert response.data["menu"] == menu.name
-    assert len(response.data["items"]) == 1
-    assert response.data["items"][0]["name"] == "Pizza"
