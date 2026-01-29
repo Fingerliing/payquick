@@ -22,18 +22,18 @@ logger = logging.getLogger(__name__)
 )
 class SendReceiptEmailView(APIView):
     def post(self, request):
+        order_id = request.data.get('order_id')
+        email = request.data.get('email')
+        
+        if not order_id or not email:
+            return Response({
+                'success': False,
+                'message': 'order_id et email sont requis'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        order = get_object_or_404(Order, id=order_id)
+        
         try:
-            order_id = request.data.get('order_id')
-            email = request.data.get('email')
-            
-            if not order_id or not email:
-                return Response({
-                    'success': False,
-                    'message': 'order_id et email sont requis'
-                }, status=status.HTTP_400_BAD_REQUEST)
-            
-            order = get_object_or_404(Order, id=order_id)
-            
             # Générer le contenu du ticket
             receipt_data = self._generate_receipt_data(order)
             
@@ -132,9 +132,9 @@ class SendReceiptEmailView(APIView):
 )
 class GetReceiptDataView(APIView):
     def get(self, request, order_id):
+        order = get_object_or_404(Order, id=order_id)
+        
         try:
-            order = get_object_or_404(Order, id=order_id)
-            
             # Construire les données du ticket directement depuis l'objet Order
             receipt_data = {
                 'order_id': order.id,
@@ -237,20 +237,20 @@ class GetReceiptDataView(APIView):
 )
 class GenerateReceiptPDFView(APIView):
     def get(self, request, order_id):
+        order = get_object_or_404(Order, id=order_id)
+        
+        # Import reportlab only when needed
         try:
-            order = get_object_or_404(Order, id=order_id)
-            
-            # Import reportlab only when needed
-            try:
-                from reportlab.pdfgen import canvas
-                from reportlab.lib.pagesizes import A4
-                from reportlab.lib.units import cm
-                from io import BytesIO
-            except ImportError:
-                return Response({
-                    'error': 'PDF generation not available (reportlab not installed)'
-                }, status=status.HTTP_501_NOT_IMPLEMENTED)
-            
+            from reportlab.pdfgen import canvas
+            from reportlab.lib.pagesizes import A4
+            from reportlab.lib.units import cm
+            from io import BytesIO
+        except ImportError:
+            return Response({
+                'error': 'PDF generation not available (reportlab not installed)'
+            }, status=status.HTTP_501_NOT_IMPLEMENTED)
+        
+        try:
             # Create PDF
             buffer = BytesIO()
             p = canvas.Canvas(buffer, pagesize=A4)
