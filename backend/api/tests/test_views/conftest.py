@@ -187,11 +187,15 @@ def inactive_restaurant(restaurateur_profile):
 
 @pytest.fixture
 def table(restaurant):
-    """Table de test"""
+    """
+    Table de test
+    
+    NOTE: 'identifiant' is a read-only property on Table model.
+    It's auto-generated from qr_code. Use 'number' field instead.
+    """
     return Table.objects.create(
         restaurant=restaurant,
-        number=1,
-        identifiant="T001",
+        number="1",  # CharField, not integer
         qr_code="R1T001",
         capacity=4,
         is_active=True
@@ -200,13 +204,16 @@ def table(restaurant):
 
 @pytest.fixture
 def multiple_tables(restaurant):
-    """Plusieurs tables pour un restaurant"""
+    """
+    Plusieurs tables pour un restaurant
+    
+    NOTE: 'identifiant' is a read-only property derived from qr_code.
+    """
     tables = []
     for i in range(1, 6):
         t = Table.objects.create(
             restaurant=restaurant,
-            number=i,
-            identifiant=f"T{str(i).zfill(3)}",
+            number=str(i),  # CharField
             qr_code=f"R{restaurant.id}T{str(i).zfill(3)}",
             capacity=4,
             is_active=True
@@ -305,15 +312,25 @@ def multiple_menu_items(menu, menu_category):
 # =============================================================================
 
 @pytest.fixture
-def order(restaurateur_profile, restaurant, table, user):
-    """Commande de test"""
+def order(restaurant, table, user):
+    """
+    Commande de test
+    
+    NOTE: Order model uses:
+    - restaurant (ForeignKey to Restaurant)
+    - table_number (CharField, NOT a ForeignKey to Table)
+    - order_number (CharField, unique, required)
+    - subtotal, total_amount (DecimalField, required)
+    
+    Order does NOT have: restaurateur field, table ForeignKey, is_paid field
+    """
     return Order.objects.create(
-        restaurateur=restaurateur_profile,
         restaurant=restaurant,
-        table=table,
-        table_number=table.identifiant,
+        table_number=table.number,  # CharField, not FK
+        order_number="ORD-TEST-001",
         user=user,
         status='pending',
+        payment_status='pending',
         total_amount=Decimal('50.00'),
         subtotal=Decimal('45.45'),
         tax_amount=Decimal('4.55')
@@ -327,21 +344,26 @@ def order_with_items(order, menu_item):
         order=order,
         menu_item=menu_item,
         quantity=2,
-        unit_price=menu_item.price
+        unit_price=menu_item.price,
+        total_price=menu_item.price * 2
     )
     return order
 
 
 @pytest.fixture
-def preparing_order(restaurateur_profile, restaurant, table, user):
-    """Commande en préparation"""
+def preparing_order(restaurant, table, user):
+    """
+    Commande en préparation
+    
+    NOTE: Order model does NOT have restaurateur or table FK fields.
+    """
     return Order.objects.create(
-        restaurateur=restaurateur_profile,
         restaurant=restaurant,
-        table=table,
-        table_number=table.identifiant,
+        table_number=table.number,  # CharField, not FK
+        order_number="ORD-TEST-002",
         user=user,
         status='preparing',
+        payment_status='pending',
         total_amount=Decimal('50.00'),
         subtotal=Decimal('45.45'),
         tax_amount=Decimal('4.55')
@@ -354,11 +376,16 @@ def preparing_order(restaurateur_profile, restaurant, table, user):
 
 @pytest.fixture
 def collaborative_session(restaurant, table, user):
-    """Session collaborative de test"""
+    """
+    Session collaborative de test
+    
+    NOTE: table.identifiant is a read-only property (alias for qr_code).
+    Use table.number for the table_number field.
+    """
     return CollaborativeTableSession.objects.create(
         restaurant=restaurant,
         table=table,
-        table_number=table.identifiant,
+        table_number=table.number,
         host=user,
         host_name="Hôte Test",
         max_participants=6,

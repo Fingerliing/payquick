@@ -8,15 +8,20 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.db import transaction
 from decimal import Decimal
+import logging
+
 from api.utils.commission_utils import calculate_platform_fee_cents
 
 from api.models import (
     Order, RestaurateurProfile,
-    DraftOrder, OrderItem, MenuItem
+    DraftOrder, OrderItem, MenuItem,
+    SplitPaymentPortion
 )
 from api.throttles import StripeCheckoutThrottle
 import stripe
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
+
+logger = logging.getLogger(__name__)
 
 # Initialise ta clé Stripe globale
 stripe.api_key = settings.STRIPE_SECRET_KEY
@@ -106,11 +111,13 @@ class CreateCheckoutSessionView(APIView):
     throttle_classes = [StripeCheckoutThrottle]
     def post(self, request, order_id):
         try:
-            order = Order.objects.get(id=order_id)
-            if getattr(order, "is_paid", False):
+            order = Order.objects.select_related('restaurant__owner').get(id=order_id)
+            
+            # Check if order is already paid (Order uses payment_status field, not is_paid)
+            if order.payment_status == 'paid':
                 return Response({"error": "Order already paid."}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Préparer les items de la commande
+            # Préparer les items de la commande (OrderItem related_name is 'items')
             line_items = [
                 {
                     "price_data": {
@@ -120,10 +127,11 @@ class CreateCheckoutSessionView(APIView):
                     },
                     "quantity": item.quantity,
                 }
-                for item in order.order_items.all()
+                for item in order.items.all()
             ]
 
-            restaurateur = getattr(order, "restaurateur", None)
+            # Get restaurateur through restaurant.owner (Order doesn't have restaurateur field)
+            restaurateur = getattr(order.restaurant, "owner", None)
             if not restaurateur or not restaurateur.stripe_account_id:
                 return Response({"error": "No Stripe account linked."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -171,7 +179,7 @@ class StripeWebhookView(APIView):
             event = stripe.Webhook.construct_event(
                 payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
             )
-        except (ValueError, stripe.error.SignatureVerificationError) as e:
+        except (ValueError, stripe.SignatureVerificationError) as e:
             logger.warning(f"Invalid webhook signature: {e}")
             return HttpResponse(status=400)
 
@@ -186,6 +194,8 @@ class StripeWebhookView(APIView):
                 self._handle_payment_intent_failed(event)
             elif event_type == "checkout.session.completed":
                 self._handle_checkout_session_completed(event)
+            elif event_type == "identity.verification_session.verified":
+                self._handle_identity_verified(event)
             else:
                 logger.info(f"Unhandled event type: {event_type}")
 
@@ -390,6 +400,23 @@ class StripeWebhookView(APIView):
                     logger.info(f"Order {order_id} marked as paid via checkout session")
             except Order.DoesNotExist:
                 logger.error(f"Order {order_id} not found for checkout session")
+
+    def _handle_identity_verified(self, event):
+        """Traiter une session Identity vérifiée"""
+        verification_session = event["data"]["object"]
+        metadata = verification_session.get("metadata", {})
+        restaurateur_id = metadata.get("restaurateur_id")
+        
+        if restaurateur_id:
+            try:
+                profile = RestaurateurProfile.objects.get(id=restaurateur_id)
+                profile.stripe_verified = True
+                profile.save(update_fields=["stripe_verified"])
+                logger.info(f"Restaurateur {restaurateur_id} identity verified")
+            except RestaurateurProfile.DoesNotExist:
+                logger.error(f"RestaurateurProfile {restaurateur_id} not found for identity verification")
+        else:
+            logger.warning("Identity verification event without restaurateur_id in metadata")
 
     def _send_completion_notifications(self, order):
         """Envoyer les notifications de finalisation de commande"""
