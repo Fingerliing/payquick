@@ -2,6 +2,18 @@
 """
 Tests unitaires pour les vues de restaurants
 - RestaurantViewSet (CRUD, horaires, stats, tables, menus)
+
+IMPORTANT - Model field notes:
+- Table: Use 'number' field (not 'identifiant' which is a read-only property)
+- Order: Uses 'restaurant' FK (not 'restaurateur')
+- Order: Uses 'table_number' CharField (not 'table' FK)
+- Order: Requires 'order_number', 'subtotal', 'total_amount'
+
+RestaurantCreateSerializer required fields:
+- name, address, city, zipCode, priceRange
+- cuisine (choices: french, italian, asian, mexican, indian, american, mediterranean, japanese, chinese, thai, other)
+- phone (validated format)
+- email (valid email)
 """
 
 import pytest
@@ -67,10 +79,16 @@ def restaurateur_client(restaurateur_user):
 
 @pytest.fixture
 def restaurant(restaurateur_profile):
+    """Test restaurant with all required fields"""
     return Restaurant.objects.create(
         name="Le Bon Resto",
         description="Restaurant de test",
-        address="123 Rue Test, 75001 Paris",
+        address="123 Rue Test",
+        city="Paris",
+        zip_code="75001",
+        phone="0123456789",
+        email="contact@lebonresto.fr",
+        cuisine="french",
         owner=restaurateur_profile,
         siret="98765432109876",
         is_active=True
@@ -79,12 +97,14 @@ def restaurant(restaurateur_profile):
 
 @pytest.fixture
 def restaurant_with_tables(restaurant):
+    """
+    Restaurant with tables.
+    NOTE: Table.identifiant is a read-only property. Use 'number' field.
+    """
     for i in range(1, 6):
         Table.objects.create(
             restaurant=restaurant,
-            number=i,
-            identifiant=f"T{str(i).zfill(3)}",
-            qr_code=f"R{restaurant.id}T{str(i).zfill(3)}",
+            number=str(i),  # Use number, NOT identifiant
             capacity=4,
             is_active=True
         )
@@ -109,18 +129,27 @@ def restaurant_with_menu(restaurant):
 
 @pytest.fixture
 def restaurant_with_orders(restaurant, restaurateur_profile):
+    """
+    Restaurant with orders.
+    
+    NOTE: 
+    - Table.identifiant is read-only property. Use 'number' field.
+    - Order uses 'restaurant' FK (not 'restaurateur')
+    - Order uses 'table_number' CharField (not 'table' FK)
+    - Order requires 'order_number' and 'subtotal'
+    """
     table = Table.objects.create(
         restaurant=restaurant,
-        number=1,
-        identifiant="T001"
+        number="1"  # Use number, NOT identifiant
     )
     for i in range(5):
         Order.objects.create(
-            restaurant=restaurant,
-            restaurateur=restaurateur_profile,
-            table=table,
-            table_number="T001",
+            restaurant=restaurant,  # FK to Restaurant, not restaurateur
+            table_number=table.number,  # CharField, not FK
+            order_number=f"ORD-REST-{i+1:03d}",  # Required unique field
             status='pending' if i < 2 else 'served',
+            payment_status='pending' if i < 2 else 'paid',
+            subtotal=Decimal('45.00'),  # Required
             total_amount=Decimal('50.00')
         )
     return restaurant
@@ -139,8 +168,13 @@ class TestRestaurantCRUD:
         data = {
             'name': 'Nouveau Restaurant',
             'description': 'Un super restaurant',
-            'address': '456 Rue Nouvelle, 75002 Paris',
-            'siret': '11111111111111'
+            'address': '456 Rue Nouvelle',
+            'city': 'Paris',
+            'zipCode': '75002',
+            'priceRange': 2,
+            'cuisine': 'french',  # Required - choices field
+            'phone': '0123456789',  # Required
+            'email': 'contact@nouveau-resto.fr',  # Required
         }
         
         response = restaurateur_client.post('/api/v1/restaurants/', data, format='json')
@@ -149,10 +183,18 @@ class TestRestaurantCRUD:
         assert response.data['name'] == 'Nouveau Restaurant'
         assert Restaurant.objects.filter(name='Nouveau Restaurant').exists()
 
-    def test_create_restaurant_missing_name(self, restaurateur_client):
-        """Test de création sans nom"""
+    def test_create_restaurant_missing_name(self, restaurateur_client, restaurateur_profile):
+        """Test de création sans nom (requires profile for 400 vs 403)"""
         data = {
-            'description': 'Un restaurant sans nom'
+            'description': 'Un restaurant sans nom',
+            'address': '123 Rue Test',
+            'city': 'Paris',
+            'zipCode': '75001',
+            'priceRange': 2,
+            'cuisine': 'french',
+            'phone': '0123456789',
+            'email': 'test@example.com',
+            # name is missing - should fail validation
         }
         
         response = restaurateur_client.post('/api/v1/restaurants/', data, format='json')
@@ -175,6 +217,12 @@ class TestRestaurantCRUD:
         other_profile = RestaurateurProfile.objects.create(user=other_user, siret="99999999999999")
         Restaurant.objects.create(
             name="Autre Restaurant",
+            address="456 Rue Autre",
+            city="Lyon",
+            zip_code="69001",
+            phone="0456789012",
+            email="autre@resto.fr",
+            cuisine="italian",
             owner=other_profile,
             siret="88888888888888"
         )
@@ -415,6 +463,12 @@ class TestRestaurantPermissions:
         )
         other_restaurant = Restaurant.objects.create(
             name="Autre Restaurant",
+            address="789 Rue Autre",
+            city="Marseille",
+            zip_code="13001",
+            phone="0491234567",
+            email="autre@example.com",
+            cuisine="asian",
             owner=other_profile,
             siret="88888888888888"
         )
@@ -434,6 +488,12 @@ class TestRestaurantPermissions:
         )
         other_restaurant = Restaurant.objects.create(
             name="Autre Restaurant 2",
+            address="321 Rue Encore",
+            city="Nice",
+            zip_code="06000",
+            phone="0493123456",
+            email="autre2@example.com",
+            cuisine="mexican",
             owner=other_profile,
             siret="66666666666666"
         )
