@@ -4,12 +4,12 @@ from rest_framework import status
 from django.contrib.auth.models import User, Group
 from api.models import RestaurateurProfile, Restaurant, Table
 from rest_framework_simplejwt.tokens import RefreshToken
-from django.core.files.uploadedfile import SimpleUploadedFile
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 
 @pytest.fixture
-def restaurateur_client():
+def restaurateur_client(db):
+    """Authenticated restaurateur client"""
     group, _ = Group.objects.get_or_create(name="restaurateur")
     user = User.objects.create_user(username="qruser", password="strongpass")
     user.groups.add(group)
@@ -24,10 +24,26 @@ def restaurateur_client():
 @pytest.mark.django_db
 @patch("api.views.qrcode_views.generate_qr_for_table")
 def test_generate_qr_code_success(mock_generate, restaurateur_client):
+    """
+    Test successful QR code generation.
+    
+    NOTE: Table model uses 'number' field (CharField).
+    'identifiant' is a read-only property (alias for qr_code).
+    """
     client, _, profile = restaurateur_client
     restaurant = Restaurant.objects.create(name="QR Bistro", description="Scan & Go", owner=profile, siret="56565656565656")
-    table1 = Table.objects.create(restaurant=restaurant, identifiant="T1", qr_code_file=SimpleUploadedFile("t1.png", b"file"))
-    table2 = Table.objects.create(restaurant=restaurant, identifiant="T2", qr_code_file=SimpleUploadedFile("t2.png", b"file"))
+    
+    # Use 'number' field, NOT 'identifiant' (which is a read-only property)
+    table1 = Table.objects.create(restaurant=restaurant, number="T1")
+    table2 = Table.objects.create(restaurant=restaurant, number="T2")
+    
+    # Mock the side effect to simulate qr_code_file being set
+    def mock_qr_generation(table):
+        # Simulate what generate_qr_for_table does - sets qr_code_file
+        table.qr_code_file = MagicMock()
+        table.qr_code_file.url = f"/media/qr_{table.identifiant}.png"
+    
+    mock_generate.side_effect = mock_qr_generation
 
     url = f"/api/v1/qrcode/factory/{restaurant.id}/"
     response = client.post(url)
