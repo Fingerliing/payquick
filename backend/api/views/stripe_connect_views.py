@@ -10,7 +10,7 @@ from django.http import HttpResponse
 from api.models import RestaurateurProfile, ClientProfile, Restaurant
 import json
 import logging
-from datetime import datetime
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +60,7 @@ def create_stripe_account(request):
         
         # Sauvegarder l'ID du compte Stripe
         restaurateur_profile.stripe_account_id = account.id
-        restaurateur_profile.stripe_account_created = datetime.now()
+        restaurateur_profile.stripe_account_created = timezone.now()
         restaurateur_profile.save()
         
         # Créer un lien d'onboarding avec des URLs adaptées à votre app
