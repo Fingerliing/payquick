@@ -1,6 +1,14 @@
 # -*- coding: utf-8 -*-
 """
 Tests unitaires pour les vues de paiement divisé
+
+IMPORTANT - Model field notes:
+- Table: Use 'number' field (not 'identifiant' which is a read-only property)
+- Restaurant: Requires city, zip_code, phone, email, cuisine
+- Order: Uses 'restaurant' FK (not 'restaurateur')
+- Order: Uses 'table_number' CharField (not 'table' FK)
+- Order: Requires 'order_number', 'subtotal', 'total_amount'
+- OrderItem: Requires 'total_price' in addition to 'unit_price'
 """
 
 import pytest
@@ -33,7 +41,7 @@ def api_client():
 
 
 @pytest.fixture
-def user():
+def user(db):
     return User.objects.create_user(username="splitviewuser", password="testpass123")
 
 
@@ -50,25 +58,45 @@ def restaurateur_profile(restaurateur_user):
     return RestaurateurProfile.objects.create(
         user=restaurateur_user,
         siret="12345678901234",
-        stripe_account_id="acct_test_split"
+        stripe_account_id="acct_test_split",
+        stripe_verified=True,
+        is_validated=True,
+        is_active=True
     )
 
 
 @pytest.fixture
 def restaurant(restaurateur_profile):
+    """
+    Test restaurant with all required fields.
+    
+    Required fields: name, address, city, zip_code, phone, email, cuisine
+    """
     return Restaurant.objects.create(
         name="Split View Test Restaurant",
         description="Restaurant de test",
+        address="123 Rue Split Payment",
+        city="Paris",
+        zip_code="75001",
+        phone="0123456789",
+        email="split@resto.fr",
+        cuisine="french",
         owner=restaurateur_profile,
-        siret="98765432109876"
+        siret="98765432109876",
+        is_active=True
     )
 
 
 @pytest.fixture
 def table(restaurant):
+    """
+    Test table.
+    
+    NOTE: 'identifiant' is a read-only property. Use 'number' field.
+    """
     return Table.objects.create(
         restaurant=restaurant,
-        identifiant="SPLV01"
+        number="SPLV01"
     )
 
 
@@ -110,24 +138,39 @@ def restaurateur_client(restaurateur_user):
 
 @pytest.fixture
 def order(restaurateur_profile, restaurant, table, user):
+    """
+    Test order with correct model fields.
+    
+    NOTE:
+    - Order uses 'restaurant' FK (not 'restaurateur')
+    - Order uses 'table_number' CharField (not 'table' FK)
+    - Order requires 'order_number', 'subtotal', 'total_amount'
+    """
     return Order.objects.create(
-        restaurateur=restaurateur_profile,
         restaurant=restaurant,
-        table=table,
+        table_number=table.number,  # CharField, not FK
+        order_number="ORD-SPLIT-001",  # Required unique field
         user=user,
         total_amount=Decimal('100.00'),
         subtotal=Decimal('90.00'),
-        tax_amount=Decimal('10.00')
+        tax_amount=Decimal('10.00'),
+        payment_status='pending'
     )
 
 
 @pytest.fixture
 def order_with_items(order, menu_item):
+    """
+    Order with items.
+    
+    NOTE: OrderItem requires both 'unit_price' and 'total_price'.
+    """
     OrderItem.objects.create(
         order=order,
         menu_item=menu_item,
         quantity=4,
-        unit_price=Decimal('25.00')
+        unit_price=Decimal('25.00'),
+        total_price=Decimal('100.00')  # unit_price * quantity
     )
     return order
 
@@ -178,7 +221,7 @@ class TestCreateSplitPaymentSession:
         }
         
         response = auth_client.post(
-            f'/api/v1/split-payment/create/{order.id}/',
+            f'/api/v1/split-payments/create/{order.id}/',
             data,
             format='json'
         )
@@ -199,7 +242,7 @@ class TestCreateSplitPaymentSession:
         }
         
         response = auth_client.post(
-            f'/api/v1/split-payment/create/{order.id}/',
+            f'/api/v1/split-payments/create/{order.id}/',
             data,
             format='json'
         )
@@ -217,7 +260,7 @@ class TestCreateSplitPaymentSession:
         }
         
         response = api_client.post(
-            f'/api/v1/split-payment/create/{order.id}/',
+            f'/api/v1/split-payments/create/{order.id}/',
             data,
             format='json'
         )
@@ -235,7 +278,7 @@ class TestCreateSplitPaymentSession:
         }
         
         response = auth_client.post(
-            '/api/v1/split-payment/create/999999/',
+            '/api/v1/split-payments/create/999999/',
             data,
             format='json'
         )
@@ -252,7 +295,7 @@ class TestCreateSplitPaymentSession:
         }
         
         response = auth_client.post(
-            f'/api/v1/split-payment/create/{order.id}/',
+            f'/api/v1/split-payments/create/{order.id}/',
             data,
             format='json'
         )
@@ -272,7 +315,7 @@ class TestGetSplitPaymentSession:
         """Test de récupération d'une session existante"""
         order_id = split_session_with_portions.order.id
         
-        response = auth_client.get(f'/api/v1/split-payment/session/{order_id}/')
+        response = auth_client.get(f'/api/v1/split-payments/session/{order_id}/')
         
         assert response.status_code == status.HTTP_200_OK
         assert 'portions' in response.data
@@ -280,7 +323,7 @@ class TestGetSplitPaymentSession:
 
     def test_get_nonexistent_session(self, auth_client, order):
         """Test de récupération d'une session inexistante"""
-        response = auth_client.get(f'/api/v1/split-payment/session/{order.id}/')
+        response = auth_client.get(f'/api/v1/split-payments/session/{order.id}/')
         
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
@@ -288,7 +331,7 @@ class TestGetSplitPaymentSession:
         """Test de récupération sans authentification"""
         order_id = split_session.order.id
         
-        response = api_client.get(f'/api/v1/split-payment/session/{order_id}/')
+        response = api_client.get(f'/api/v1/split-payments/session/{order_id}/')
         
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
@@ -317,7 +360,7 @@ class TestPayPortion:
         }
         
         response = auth_client.post(
-            f'/api/v1/split-payment/pay-portion/{order_id}/',
+            f'/api/v1/split-payments/pay-portion/{order_id}/',
             data,
             format='json'
         )
@@ -338,7 +381,7 @@ class TestPayPortion:
         }
         
         response = auth_client.post(
-            f'/api/v1/split-payment/pay-portion/{order_id}/',
+            f'/api/v1/split-payments/pay-portion/{order_id}/',
             data,
             format='json'
         )
@@ -354,7 +397,7 @@ class TestPayPortion:
         }
         
         response = auth_client.post(
-            f'/api/v1/split-payment/pay-portion/{order_id}/',
+            f'/api/v1/split-payments/pay-portion/{order_id}/',
             data,
             format='json'
         )
@@ -374,7 +417,7 @@ class TestSplitPaymentStatus:
         """Test de récupération du statut"""
         order_id = split_session_with_portions.order.id
         
-        response = auth_client.get(f'/api/v1/split-payment/status/{order_id}/')
+        response = auth_client.get(f'/api/v1/split-payments/status/{order_id}/')
         
         assert response.status_code == status.HTTP_200_OK
         assert 'status' in response.data or 'is_completed' in response.data
@@ -387,7 +430,7 @@ class TestSplitPaymentStatus:
         
         order_id = split_session_with_portions.order.id
         
-        response = auth_client.get(f'/api/v1/split-payment/status/{order_id}/')
+        response = auth_client.get(f'/api/v1/split-payments/status/{order_id}/')
         
         assert response.status_code == status.HTTP_200_OK
 
@@ -402,7 +445,7 @@ class TestSplitPaymentStatus:
         
         order_id = split_session_with_portions.order.id
         
-        response = auth_client.get(f'/api/v1/split-payment/status/{order_id}/')
+        response = auth_client.get(f'/api/v1/split-payments/status/{order_id}/')
         
         assert response.status_code == status.HTTP_200_OK
 
@@ -431,7 +474,7 @@ class TestPayRemainingPortions:
         order_id = split_session_with_portions.order.id
         
         response = auth_client.post(
-            f'/api/v1/split-payment/pay-remaining/{order_id}/',
+            f'/api/v1/split-payments/pay-remaining/{order_id}/',
             format='json'
         )
         
@@ -447,7 +490,7 @@ class TestPayRemainingPortions:
         order_id = split_session_with_portions.order.id
         
         response = auth_client.post(
-            f'/api/v1/split-payment/pay-remaining/{order_id}/',
+            f'/api/v1/split-payments/pay-remaining/{order_id}/',
             format='json'
         )
         
@@ -466,7 +509,7 @@ class TestCancelSplitPaymentSession:
         """Test d'annulation d'une session"""
         order_id = split_session.order.id
         
-        response = auth_client.delete(f'/api/v1/split-payment/session/{order_id}/')
+        response = auth_client.delete(f'/api/v1/split-payments/session/{order_id}/')
         
         if response.status_code == status.HTTP_200_OK:
             split_session.refresh_from_db()
@@ -480,7 +523,7 @@ class TestCancelSplitPaymentSession:
         
         order_id = split_session_with_portions.order.id
         
-        response = auth_client.delete(f'/api/v1/split-payment/session/{order_id}/')
+        response = auth_client.delete(f'/api/v1/split-payments/session/{order_id}/')
         
         # Ne devrait pas permettre l'annulation si des portions sont payées
         assert response.status_code in [status.HTTP_400_BAD_REQUEST, status.HTTP_200_OK, status.HTTP_405_METHOD_NOT_ALLOWED]
