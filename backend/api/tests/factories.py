@@ -64,7 +64,7 @@ class TableFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = Table
 
-    identifiant = factory.Sequence(lambda n: f"TBL{n:03}")
+    number = factory.Sequence(lambda n: f"T{n:03}")
     restaurant = factory.SubFactory(RestaurantFactory)
 
 class OrderFactory(factory.django.DjangoModelFactory):
