@@ -13,9 +13,9 @@ from .factories import UserFactory
 @pytest.fixture
 def user_with_groups():
     user = User.objects.create_user(username="testuser", password="12345")
-    group_resto = Group.objects.create(name="restaurateur")
-    group_admin = Group.objects.create(name="admin")
-    group_client = Group.objects.create(name="client")
+    group_resto, _ = Group.objects.get_or_create(name="restaurateur")
+    group_admin, _ = Group.objects.get_or_create(name="admin")
+    group_client, _ = Group.objects.get_or_create(name="client")
     user.groups.add(group_resto, group_admin, group_client)
     return user
 
