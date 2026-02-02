@@ -25,6 +25,7 @@ class UserFactory(factory.django.DjangoModelFactory):
 class RestaurateurProfileFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = RestaurateurProfile
+        skip_postgeneration_save = True
 
     user = factory.SubFactory(UserFactory)
     siret = factory.Sequence(lambda n: f"1234567890{n:04}")
@@ -43,6 +44,13 @@ class RestaurantFactory(factory.django.DjangoModelFactory):
     name = factory.Sequence(lambda n: f"Restaurant {n}")
     siret = factory.Sequence(lambda n: f"1234567890{n:04}")
     owner = factory.SubFactory(RestaurateurProfileFactory)
+    address = factory.Sequence(lambda n: f"{n} Rue de Paris")
+    city = "Paris"
+    zip_code = "75001"
+    country = "France"
+    phone = "0123456789"
+    email = factory.LazyAttribute(lambda o: f"contact@{o.name.lower().replace(' ', '')}.fr")
+    cuisine = "french"
 
 class MenuFactory(factory.django.DjangoModelFactory):
     class Meta:
