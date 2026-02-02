@@ -16,8 +16,26 @@ import string
 
 
 class PhoneVerification(models.Model):
-    """Modèle pour gérer la vérification des numéros de téléphone"""
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='phone_verifications')
+    """
+    Modèle pour gérer la vérification des numéros de téléphone.
+    
+    Supporte:
+    - Utilisateurs authentifiés (user renseigné)
+    - Utilisateurs non authentifiés (user=None, ex: inscription)
+    
+    La vérification est identifiée par:
+    - id (verification_id) - recommandé
+    - phone_number + user (si authentifié)
+    - phone_number seul (si non authentifié)
+    """
+    user = models.ForeignKey(
+        User, 
+        on_delete=models.CASCADE, 
+        related_name='phone_verifications',
+        null=True,  # NOUVEAU: Permet les vérifications sans compte
+        blank=True,
+        help_text="Utilisateur associé (optionnel pour vérification pré-inscription)"
+    )
     phone_number = models.CharField(max_length=20)
     code = models.CharField(max_length=6)
     is_verified = models.BooleanField(default=False)
@@ -30,19 +48,28 @@ class PhoneVerification(models.Model):
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['user', 'phone_number', 'is_verified']),
+            models.Index(fields=['phone_number', 'is_verified']),  # NOUVEAU: Pour recherche sans user
             models.Index(fields=['code', 'created_at']),
         ]
     
+    def __str__(self):
+        user_str = self.user.username if self.user else "Anonymous"
+        return f"PhoneVerification({user_str}, {self.phone_number})"
+    
     def is_expired(self):
+        """Vérifie si le code a expiré"""
         from django.conf import settings
-        expiry_time = self.created_at + timedelta(minutes=settings.SMS_CODE_EXPIRY_MINUTES)
+        expiry_minutes = getattr(settings, 'SMS_CODE_EXPIRY_MINUTES', 5)
+        expiry_time = self.created_at + timedelta(minutes=expiry_minutes)
         return timezone.now() > expiry_time
     
     def can_resend(self):
+        """Vérifie si on peut renvoyer un code (cooldown respecté)"""
         from django.conf import settings
         if not self.last_resend_at:
             return True
-        cooldown = timedelta(seconds=settings.SMS_RESEND_COOLDOWN_SECONDS)
+        cooldown_seconds = getattr(settings, 'SMS_RESEND_COOLDOWN_SECONDS', 60)
+        cooldown = timedelta(seconds=cooldown_seconds)
         return timezone.now() > (self.last_resend_at + cooldown)
     
     def generate_code(self):
@@ -51,14 +78,15 @@ class PhoneVerification(models.Model):
         return self.code
     
     def increment_attempts(self):
+        """Incrémente le compteur de tentatives"""
         self.attempts += 1
         self.save(update_fields=['attempts'])
         
     def mark_verified(self):
+        """Marque la vérification comme réussie"""
         self.is_verified = True
         self.verified_at = timezone.now()
         self.save(update_fields=['is_verified', 'verified_at'])
-
 
 class PendingRegistration(models.Model):
     """
