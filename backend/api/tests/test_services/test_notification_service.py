@@ -14,7 +14,10 @@ def test_send_push_notification_filters_invalid_tokens(monkeypatch):
     def fake_post(*args, **kwargs):
         raise AssertionError("request should not be sent")
 
-    monkeypatch.setattr("api.services.notification_service.requests.post", fake_post)
+    import importlib
+    module = importlib.import_module("api.services.notification_service")
+    dummy_requests = types.SimpleNamespace(post=fake_post, exceptions=types.SimpleNamespace())
+    monkeypatch.setattr(module, "requests", dummy_requests)
 
     result = service._send_push_notification(tokens=["invalid-token"], title="t", body="b")
     assert result is False
@@ -26,7 +29,10 @@ def test_send_push_notification_success(monkeypatch):
     def fake_post(*args, **kwargs):
         return types.SimpleNamespace(status_code=200, json=lambda: {"data": []})
 
-    monkeypatch.setattr("api.services.notification_service.requests.post", fake_post)
+    import importlib
+    module = importlib.import_module("api.services.notification_service")
+    dummy_requests = types.SimpleNamespace(post=fake_post, exceptions=types.SimpleNamespace())
+    monkeypatch.setattr(module, "requests", dummy_requests)
 
     result = service._send_push_notification(
         tokens=["ExponentPushToken[abc]"],
@@ -46,8 +52,13 @@ def test_send_push_notification_timeout(monkeypatch):
     def fake_post(*args, **kwargs):
         raise DummyTimeout()
 
-    monkeypatch.setattr("api.services.notification_service.requests.exceptions.Timeout", DummyTimeout)
-    monkeypatch.setattr("api.services.notification_service.requests.post", fake_post)
+    import importlib
+    module = importlib.import_module("api.services.notification_service")
+    dummy_requests = types.SimpleNamespace(
+        post=fake_post,
+        exceptions=types.SimpleNamespace(Timeout=DummyTimeout),
+    )
+    monkeypatch.setattr(module, "requests", dummy_requests)
 
     result = service._send_push_notification(
         tokens=["ExponentPushToken[abc]"],
