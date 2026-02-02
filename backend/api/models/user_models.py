@@ -50,7 +50,7 @@ class RestaurateurProfile(models.Model):
 
 class ClientProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    phone = models.CharField(max_length=10)
+    phone = models.CharField(max_length=20)
 
     def __str__(self):
         return f"{self.user.username} - {self.phone}"
