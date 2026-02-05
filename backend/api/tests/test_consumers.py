@@ -144,14 +144,6 @@ def valid_token(user):
     return str(refresh.access_token)
 
 
-@pytest.fixture
-def restaurateur_token(restaurateur_user):
-    """Token JWT valide pour le restaurateur"""
-    from rest_framework_simplejwt.tokens import RefreshToken
-    refresh = RefreshToken.for_user(restaurateur_user)
-    return str(refresh.access_token)
-
-
 # =============================================================================
 # TESTS - BaseAuthenticatedConsumer
 # =============================================================================
@@ -984,3 +976,360 @@ class TestConsumerErrorHandling:
         with patch.object(consumer, 'get_session_data', new_callable=AsyncMock) as mock:
             mock.return_value = {'id': 'test', 'status': 'active'}
             await consumer.send_session_status()
+
+
+# =============================================================================
+# TESTS SUPPLÉMENTAIRES - Couverture des branches manquantes
+# =============================================================================
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+class TestOrderConsumerConnectBranches:
+    """Tests pour les branches de connect() de OrderConsumer"""
+
+    async def test_connect_auth_failure(self, user, order, valid_token):
+        """Test connexion avec échec d'authentification (lignes 72-74)"""
+        consumer = OrderConsumer()
+        consumer.scope = {
+            'query_string': b'token=valid_token&orders=1,2,3'
+        }
+        consumer.channel_layer = MagicMock()
+        consumer.channel_name = "test_channel"
+        consumer.close = AsyncMock()
+        
+        # Simuler échec d'authentification
+        with patch.object(consumer, 'authenticate_connection', new_callable=AsyncMock) as mock_auth:
+            mock_auth.return_value = None  # Auth échoue
+            await consumer.connect()
+        
+        # Doit fermer avec code 4003
+        consumer.close.assert_called_with(code=4003)
+
+    async def test_connect_empty_order_ids_after_parse(self, user, valid_token):
+        """Test connexion avec order_ids vides après parsing (lignes 84-87)"""
+        consumer = OrderConsumer()
+        consumer.scope = {
+            'query_string': f'token={valid_token}&orders=,,,'.encode()
+        }
+        consumer.channel_layer = MagicMock()
+        consumer.channel_name = "test_channel"
+        consumer.close = AsyncMock()
+        
+        with patch.object(consumer, 'authenticate_connection', new_callable=AsyncMock) as mock_auth:
+            mock_auth.return_value = user
+            await consumer.connect()
+        
+        # Doit fermer avec code 4005 (no valid order IDs)
+        consumer.close.assert_called_with(code=4005)
+
+    async def test_connect_no_accessible_orders(self, user, valid_token):
+        """Test connexion sans commandes accessibles (lignes 91-94)"""
+        consumer = OrderConsumer()
+        consumer.scope = {
+            'query_string': f'token={valid_token}&orders=99999'.encode()
+        }
+        consumer.channel_layer = MagicMock()
+        consumer.channel_name = "test_channel"
+        consumer.close = AsyncMock()
+        
+        with patch.object(consumer, 'authenticate_connection', new_callable=AsyncMock) as mock_auth:
+            mock_auth.return_value = user
+            with patch.object(consumer, 'get_user_accessible_orders', new_callable=AsyncMock) as mock_orders:
+                mock_orders.return_value = []  # Aucune commande accessible
+                await consumer.connect()
+        
+        # Doit fermer avec code 4006
+        consumer.close.assert_called_with(code=4006)
+
+    async def test_connect_full_success(self, user, order, valid_token):
+        """Test connexion réussie complète (lignes 97-119)"""
+        consumer = OrderConsumer()
+        consumer.scope = {
+            'query_string': f'token={valid_token}&orders={order.id}'.encode()
+        }
+        consumer.channel_layer = MagicMock()
+        consumer.channel_layer.group_add = AsyncMock()
+        consumer.channel_name = "test_channel"
+        consumer.accept = AsyncMock()
+        consumer.send = AsyncMock()
+        consumer.close = AsyncMock()
+        
+        with patch.object(consumer, 'authenticate_connection', new_callable=AsyncMock) as mock_auth:
+            mock_auth.return_value = user
+            with patch.object(consumer, 'get_user_accessible_orders', new_callable=AsyncMock) as mock_orders:
+                mock_orders.return_value = [order.id]
+                with patch.object(consumer, 'send_initial_statuses', new_callable=AsyncMock):
+                    await consumer.connect()
+        
+        # Vérifie que la connexion est acceptée
+        consumer.accept.assert_called_once()
+        # Vérifie que le groupe est rejoint
+        consumer.channel_layer.group_add.assert_called()
+        # Vérifie que les infos sont stockées
+        assert consumer.user == user
+        assert consumer.order_ids == [order.id]
+
+    async def test_connect_exception_handling(self, valid_token):
+        """Test gestion d'exception dans connect()"""
+        consumer = OrderConsumer()
+        consumer.scope = {
+            'query_string': f'token={valid_token}&orders=1'.encode()
+        }
+        consumer.close = AsyncMock()
+        
+        with patch.object(consumer, 'authenticate_connection', new_callable=AsyncMock) as mock_auth:
+            mock_auth.side_effect = Exception("Connection error")
+            await consumer.connect()
+        
+        # Doit fermer avec code 4000
+        consumer.close.assert_called_with(code=4000)
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+class TestOrderConsumerDisconnectBranches:
+    """Tests pour les branches de disconnect() de OrderConsumer"""
+
+    async def test_disconnect_with_exception(self, user, order):
+        """Test déconnexion avec exception (lignes 134-135)"""
+        consumer = OrderConsumer()
+        consumer.user = user
+        consumer.order_ids = [order.id]
+        consumer.channel_name = "test_channel"
+        consumer.channel_layer = MagicMock()
+        consumer.channel_layer.group_discard = AsyncMock(side_effect=Exception("Disconnect error"))
+        
+        # Ne doit pas lever d'exception
+        await consumer.disconnect(1000)
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+class TestOrderConsumerReceiveBranches:
+    """Tests pour les branches de receive() de OrderConsumer"""
+
+    async def test_receive_general_exception(self, user, order):
+        """Test receive avec exception générale (lignes 153-154)"""
+        consumer = OrderConsumer()
+        consumer.user = user
+        consumer.order_ids = [order.id]
+        consumer.send = AsyncMock(side_effect=Exception("Processing error"))
+        
+        # Ne doit pas lever d'exception (même avec un ping qui échoue)
+        await consumer.receive(json.dumps({'type': 'ping'}))
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+class TestSessionConsumerConnectBranches:
+    """Tests pour les branches de connect() de SessionConsumer"""
+
+    async def test_connect_session_not_found(self):
+        """Test connexion avec session inexistante (lignes 252-255)"""
+        consumer = SessionConsumer()
+        consumer.scope = {
+            'url_route': {'kwargs': {'session_id': '00000000-0000-0000-0000-000000000000'}},
+            'query_string': b''
+        }
+        consumer.channel_layer = MagicMock()
+        consumer.close = AsyncMock()
+        
+        with patch.object(consumer, 'check_session_exists', new_callable=AsyncMock) as mock_check:
+            mock_check.return_value = False
+            await consumer.connect()
+        
+        # Doit fermer avec code 4404
+        consumer.close.assert_called_with(code=4404)
+
+    async def test_connect_with_token_success(self, collaborative_session, user, valid_token):
+        """Test connexion réussie avec token (lignes 234-277)"""
+        consumer = SessionConsumer()
+        consumer.scope = {
+            'url_route': {'kwargs': {'session_id': str(collaborative_session.id)}},
+            'query_string': f'token={valid_token}'.encode()
+        }
+        consumer.channel_layer = MagicMock()
+        consumer.channel_layer.group_add = AsyncMock()
+        consumer.channel_name = "test_channel"
+        consumer.accept = AsyncMock()
+        consumer.send = AsyncMock()
+        consumer.close = AsyncMock()
+        
+        with patch.object(consumer, 'authenticate_connection', new_callable=AsyncMock) as mock_auth:
+            mock_auth.return_value = user
+            with patch.object(consumer, 'check_session_exists', new_callable=AsyncMock) as mock_check:
+                mock_check.return_value = True
+                with patch.object(consumer, 'send_session_status', new_callable=AsyncMock):
+                    await consumer.connect()
+        
+        # Vérifie que la connexion est acceptée
+        consumer.accept.assert_called_once()
+        assert consumer.user == user
+        assert consumer.session_id == str(collaborative_session.id)
+
+    async def test_connect_guest_no_token(self, collaborative_session):
+        """Test connexion invité sans token (lignes 247-248)"""
+        consumer = SessionConsumer()
+        consumer.scope = {
+            'url_route': {'kwargs': {'session_id': str(collaborative_session.id)}},
+            'query_string': b''
+        }
+        consumer.channel_layer = MagicMock()
+        consumer.channel_layer.group_add = AsyncMock()
+        consumer.channel_name = "test_channel"
+        consumer.accept = AsyncMock()
+        consumer.send = AsyncMock()
+        
+        with patch.object(consumer, 'check_session_exists', new_callable=AsyncMock) as mock_check:
+            mock_check.return_value = True
+            with patch.object(consumer, 'send_session_status', new_callable=AsyncMock):
+                await consumer.connect()
+        
+        # Vérifie que l'utilisateur est None (invité)
+        assert consumer.user is None
+        consumer.accept.assert_called_once()
+
+    async def test_connect_exception_handling(self, collaborative_session):
+        """Test gestion d'exception dans connect() (lignes 279-281)"""
+        consumer = SessionConsumer()
+        consumer.scope = {
+            'url_route': {'kwargs': {'session_id': str(collaborative_session.id)}},
+            'query_string': b''
+        }
+        consumer.close = AsyncMock()
+        
+        with patch.object(consumer, 'check_session_exists', new_callable=AsyncMock) as mock_check:
+            mock_check.side_effect = Exception("Connection error")
+            await consumer.connect()
+        
+        # Doit fermer avec code 4000
+        consumer.close.assert_called_with(code=4000)
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+class TestSessionConsumerDisconnectBranches:
+    """Tests pour les branches de disconnect() de SessionConsumer"""
+
+    async def test_disconnect_with_exception(self, collaborative_session):
+        """Test déconnexion avec exception (lignes 292-293)"""
+        consumer = SessionConsumer()
+        consumer.session_id = str(collaborative_session.id)
+        consumer.session_group_name = f"session_{collaborative_session.id}"
+        consumer.channel_name = "test_channel"
+        consumer.channel_layer = MagicMock()
+        consumer.channel_layer.group_discard = AsyncMock(side_effect=Exception("Disconnect error"))
+        
+        # Ne doit pas lever d'exception
+        await consumer.disconnect(1000)
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+class TestSessionConsumerReceiveBranches:
+    """Tests pour les branches de receive() de SessionConsumer"""
+
+    async def test_receive_unknown_message_type(self):
+        """Test receive avec type de message inconnu (ligne 307)"""
+        consumer = SessionConsumer()
+        consumer.send = AsyncMock()
+        
+        # Ne doit pas lever d'exception, juste logger
+        await consumer.receive(json.dumps({'type': 'unknown_type_xyz'}))
+        
+        # send n'est pas appelé pour un type inconnu
+        consumer.send.assert_not_called()
+
+    async def test_receive_general_exception(self):
+        """Test receive avec exception générale (lignes 311-312)"""
+        consumer = SessionConsumer()
+        consumer.send = AsyncMock(side_effect=Exception("Processing error"))
+        
+        # Ne doit pas lever d'exception
+        await consumer.receive(json.dumps({'type': 'ping'}))
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+class TestSessionConsumerHandlerExceptions:
+    """Tests pour les exceptions dans les handlers de SessionConsumer"""
+
+    async def test_session_archived_handler_exception(self):
+        """Test session_archived avec exception (lignes 348-349)"""
+        consumer = SessionConsumer()
+        consumer.send = AsyncMock(side_effect=Exception("Send error"))
+        
+        # Ne doit pas lever d'exception
+        await consumer.session_archived({'session_id': 'test'})
+
+    async def test_session_completed_handler_exception(self):
+        """Test session_completed avec exception (lignes 364-365)"""
+        consumer = SessionConsumer()
+        consumer.send = AsyncMock(side_effect=Exception("Send error"))
+        
+        # Ne doit pas lever d'exception
+        await consumer.session_completed({'session_id': 'test'})
+
+    async def test_table_released_handler_exception(self):
+        """Test table_released avec exception (lignes 380-381)"""
+        consumer = SessionConsumer()
+        consumer.send = AsyncMock(side_effect=Exception("Send error"))
+        
+        # Ne doit pas lever d'exception
+        await consumer.table_released({'table_id': 'test'})
+
+    async def test_participant_joined_handler_exception(self):
+        """Test participant_joined avec exception (lignes 406-407)"""
+        consumer = SessionConsumer()
+        consumer.send = AsyncMock(side_effect=Exception("Send error"))
+        
+        # Ne doit pas lever d'exception
+        await consumer.participant_joined({'participant': {'id': 'p1'}})
+
+    async def test_participant_left_handler_exception(self):
+        """Test participant_left avec exception (lignes 417-418)"""
+        consumer = SessionConsumer()
+        consumer.send = AsyncMock(side_effect=Exception("Send error"))
+        
+        # Ne doit pas lever d'exception
+        await consumer.participant_left({'participant_id': 'p1'})
+
+    async def test_participant_approved_handler_exception(self):
+        """Test participant_approved avec exception (lignes 428-429)"""
+        consumer = SessionConsumer()
+        consumer.send = AsyncMock(side_effect=Exception("Send error"))
+        
+        # Ne doit pas lever d'exception
+        await consumer.participant_approved({'participant': {'id': 'p1'}})
+
+    async def test_order_created_handler_exception(self):
+        """Test order_created avec exception (lignes 439-440)"""
+        consumer = SessionConsumer()
+        consumer.send = AsyncMock(side_effect=Exception("Send error"))
+        
+        # Ne doit pas lever d'exception
+        await consumer.order_created({'order': {'id': 'o1'}})
+
+    async def test_order_updated_handler_exception(self):
+        """Test order_updated avec exception (lignes 450-451)"""
+        consumer = SessionConsumer()
+        consumer.send = AsyncMock(side_effect=Exception("Send error"))
+        
+        # Ne doit pas lever d'exception
+        await consumer.order_updated({'order': {'id': 'o1'}})
+
+    async def test_session_locked_handler_exception(self):
+        """Test session_locked avec exception (lignes 461-462)"""
+        consumer = SessionConsumer()
+        consumer.send = AsyncMock(side_effect=Exception("Send error"))
+        
+        # Ne doit pas lever d'exception
+        await consumer.session_locked({'locked_by': 'user1'})
+
+    async def test_session_unlocked_handler_exception(self):
+        """Test session_unlocked avec exception (lignes 471-472)"""
+        consumer = SessionConsumer()
+        consumer.send = AsyncMock(side_effect=Exception("Send error"))
+        
+        # Ne doit pas lever d'exception
+        await consumer.session_unlocked({})
