@@ -59,48 +59,83 @@ class TestApiConfigReadyMethod:
         
         On simule ce que fait ready() quand l'import échoue.
         """
-        # Sauvegarder l'import original
-        real_import = builtins.__import__
+        from api.apps import ApiConfig
+        import api
         
-        # Créer un mock qui échoue pour api.signals
+        config = ApiConfig('api', api)
+        
+        # Sauvegarder et supprimer le module signals
+        saved_modules = {}
+        for mod_name in list(sys.modules.keys()):
+            if mod_name.startswith('api.signals'):
+                saved_modules[mod_name] = sys.modules.pop(mod_name)
+        
+        # Patcher pour simuler l'échec de l'import
+        original_import = builtins.__import__
+        
         def failing_import(name, *args, **kwargs):
             if name == 'api.signals':
-                raise ImportError("Test: module not found")
-            return real_import(name, *args, **kwargs)
+                raise ImportError("Simulated: api.signals not found")
+            return original_import(name, *args, **kwargs)
         
-        # Simuler le comportement de ready()
-        with patch.object(builtins, '__import__', failing_import):
-            try:
-                __import__('api.signals')
-                print("✅ [APPS] Signaux d'assignation des groupes chargés")
-            except ImportError as e:
-                print(f"❌ [APPS] Erreur lors du chargement des signaux: {e}")
-        
-        captured = capsys.readouterr()
-        assert "❌ [APPS] Erreur lors du chargement des signaux:" in captured.out
-
-    def test_ready_comptabilite_import_error_handling(self):
-        """
-        Test de la gestion d'erreur pour comptabilite_signals (ligne 22)
-        
-        Le module api.signals.comptabilite_signals n'existe probablement pas,
-        donc cette branche est exécutée silencieusement.
-        """
-        exception_was_caught = False
-        
-        # Simuler le comportement de ready()
         try:
-            # Tenter d'importer un module qui n'existe pas
-            __import__('api.signals.comptabilite_signals')
-            print("✅ [APPS] Signaux de comptabilité chargés")
-        except ImportError:
-            # Le module comptabilité n'est pas encore installé
-            exception_was_caught = True
-            pass
+            with patch.object(builtins, '__import__', failing_import):
+                config.ready()
+            
+            captured = capsys.readouterr()
+            assert "❌" in captured.out or "Erreur" in captured.out
+        finally:
+            # Restaurer les modules
+            sys.modules.update(saved_modules)
+
+    def test_ready_comptabilite_import_error_handling(self, capsys):
+        """
+        Test de la gestion d'erreur pour comptabilite_signals
         
-        # Vérifie que soit le module existe, soit l'exception a été gérée
-        module_exists = 'api.signals.comptabilite_signals' in sys.modules
-        assert module_exists or exception_was_caught
+        Le module api.signals.comptabilite_signals n'existe pas,
+        donc la branche except est exécutée silencieusement dans ready().
+        """
+        from api.apps import ApiConfig
+        import api
+        
+        config = ApiConfig('api', api)
+        
+        # S'assurer que le module n'existe pas
+        sys.modules.pop('api.signals.comptabilite_signals', None)
+        
+        # Appeler ready() - le module comptabilite_signals n'existe pas
+        # donc la branche except sera exécutée silencieusement
+        config.ready()
+        # Pas d'exception = le except ImportError a bien fonctionné
+
+    def test_ready_comptabilite_import_success(self, capsys):
+        """
+        Test ready() quand api.signals.comptabilite_signals s'importe avec succès (ligne 22)
+        
+        On simule l'existence du module pour couvrir la branche de succès.
+        """
+        from api.apps import ApiConfig
+        import api
+        
+        config = ApiConfig('api', api)
+        
+        # Créer un faux module comptabilite_signals
+        fake_comptabilite_module = MagicMock()
+        fake_comptabilite_module.__name__ = 'api.signals.comptabilite_signals'
+        
+        # Injecter le faux module dans sys.modules AVANT d'appeler ready()
+        sys.modules['api.signals.comptabilite_signals'] = fake_comptabilite_module
+        
+        try:
+            # Appeler ready() - l'import de comptabilite_signals devrait réussir
+            config.ready()
+            
+            captured = capsys.readouterr()
+            # Vérifier que le message de succès pour comptabilité a été affiché
+            assert "✅ [APPS] Signaux de comptabilité chargés" in captured.out
+        finally:
+            # Nettoyer - supprimer le faux module
+            sys.modules.pop('api.signals.comptabilite_signals', None)
 
     def test_ready_called_new_instance(self, capsys):
         """Test d'appel direct de ready() sur une nouvelle instance"""
@@ -128,38 +163,6 @@ class TestApiConfigReadyMethod:
             # Restaurer les modules
             sys.modules.update(modules_to_restore)
 
-    def test_ready_with_missing_signals_module(self, capsys):
-        """Test ready() quand le module signals est temporairement absent"""
-        from api.apps import ApiConfig
-        import api
-        
-        config = ApiConfig('api', api)
-        
-        # Sauvegarder et supprimer le module signals
-        saved_signals = sys.modules.get('api.signals')
-        if 'api.signals' in sys.modules:
-            del sys.modules['api.signals']
-        
-        # Patcher __import__ pour simuler l'absence du module
-        real_import = builtins.__import__
-        
-        def mock_import(name, globals=None, locals=None, fromlist=(), level=0):
-            if name == 'api.signals' and level == 0:
-                raise ImportError("Simulated: api.signals not found")
-            return real_import(name, globals, locals, fromlist, level)
-        
-        try:
-            with patch.object(builtins, '__import__', mock_import):
-                config.ready()
-            
-            captured = capsys.readouterr()
-            # La branche except doit avoir été exécutée
-            assert "❌" in captured.out or "Erreur" in captured.out
-            
-        finally:
-            # Restaurer le module
-            if saved_signals is not None:
-                sys.modules['api.signals'] = saved_signals
 
 
 @pytest.mark.django_db
@@ -181,8 +184,8 @@ class TestApiConfigEdgeCases:
 
     def test_signals_module_content(self):
         """Test que le module signals est bien chargé avec du contenu"""
-        # Si api.signals existe, vérifier qu'il contient quelque chose
-        if 'api.signals' in sys.modules:
-            signals_module = sys.modules['api.signals']
-            # Le module devrait avoir un __file__ ou __path__
-            assert hasattr(signals_module, '__name__')
+        # Le module api.signals devrait être chargé à ce stade
+        assert 'api.signals' in sys.modules
+        signals_module = sys.modules['api.signals']
+        # Le module devrait avoir un __name__
+        assert hasattr(signals_module, '__name__')
