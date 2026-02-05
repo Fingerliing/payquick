@@ -216,8 +216,16 @@ class OrderNotificationService:
             logger.warning(f"⚠️ SSE fallback failed: {e}")
 
 
-# Instance globale du service WebSocket/SSE
-notification_service = OrderNotificationService()
+# Instance globale du service WebSocket/SSE (lazy-loaded)
+notification_service = None
+
+
+def get_notification_service():
+    """Récupère l'instance du service de notifications WebSocket/SSE."""
+    global notification_service
+    if notification_service is None:
+        notification_service = OrderNotificationService()
+    return notification_service
 
 
 # =============================================================================
@@ -249,7 +257,7 @@ def order_updated(sender, instance, created, **kwargs):
         if created:
             # Nouvelle commande créée
             logger.info(f"📝 New order created: {instance.id}")
-            notification_service.send_order_update(
+            get_notification_service().send_order_update(
                 order_id=instance.id,
                 status=getattr(instance, "status", None),
                 waiting_time=getattr(instance, "waiting_time", None),
@@ -268,7 +276,7 @@ def order_updated(sender, instance, created, **kwargs):
             logger.info(
                 f"📊 Order {instance.id} status changed: {old_status} → {current_status}"
             )
-            notification_service.send_order_update(
+            get_notification_service().send_order_update(
                 order_id=instance.id,
                 status=current_status,
                 waiting_time=current_waiting_time,
@@ -285,7 +293,7 @@ def order_updated(sender, instance, created, **kwargs):
             logger.info(
                 f"⏱️ Order {instance.id} waiting time updated: {old_waiting_time} → {current_waiting_time}"
             )
-            notification_service.send_order_update(
+            get_notification_service().send_order_update(
                 order_id=instance.id,
                 status=current_status,
                 waiting_time=current_waiting_time,
@@ -305,7 +313,7 @@ def order_updated(sender, instance, created, **kwargs):
 def notify_order_update(order_id, status=None, waiting_time=None, **extra_data):
     """Fonction utilitaire pour envoyer des notifications manuellement"""
     try:
-        result = notification_service.send_order_update(
+        result = get_notification_service().send_order_update(
             order_id=order_id,
             status=status,
             waiting_time=waiting_time,
@@ -321,7 +329,7 @@ def notify_order_update(order_id, status=None, waiting_time=None, **extra_data):
 def notify_custom_event(order_id, event_type, message, **data):
     """Envoyer un événement personnalisé"""
     try:
-        result = notification_service.send_order_update(
+        result = get_notification_service().send_order_update(
             order_id=order_id,
             data={
                 "action": "custom_event",

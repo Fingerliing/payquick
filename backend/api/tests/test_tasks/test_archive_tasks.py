@@ -3,6 +3,7 @@ import sys
 import types
 from pathlib import Path
 from datetime import timedelta
+from unittest.mock import MagicMock
 
 import pytest
 from django.utils import timezone
@@ -11,38 +12,76 @@ from api.models import CollaborativeTableSession, Table
 from api.tests.factories import RestaurantFactory
 
 
-dummy_ws_module = types.ModuleType("api.utils.websocket_notifications")
-dummy_ws_module.notify_session_archived = lambda *args, **kwargs: None
-sys.modules.setdefault("api.utils.websocket_notifications", dummy_ws_module)
+# =============================================================================
+# SETUP: Créer les modules fictifs et charger tasks.py
+# =============================================================================
 
-dummy_tasks_pkg = types.ModuleType("api.tasks")
-dummy_tasks_pkg.__path__ = []
-sys.modules.setdefault("api.tasks", dummy_tasks_pkg)
+# Chemin vers tasks.py
+TASKS_PATH = Path(__file__).resolve().parents[2] / "tasks.py"
 
-dummy_compta_module = types.ModuleType("api.tasks.comptabilite_tasks")
-dummy_compta_module.generate_monthly_recap = lambda *args, **kwargs: None
-dummy_compta_module.sync_stripe_daily = lambda *args, **kwargs: None
-dummy_compta_module.cleanup_old_exports = lambda *args, **kwargs: None
-dummy_compta_module.generate_ecritures_comptables = lambda *args, **kwargs: None
-dummy_compta_module.generate_fec_async = lambda *args, **kwargs: None
-sys.modules.setdefault("api.tasks.comptabilite_tasks", dummy_compta_module)
 
-tasks_path = Path(__file__).resolve().parents[2] / "tasks.py"
-spec = importlib.util.spec_from_file_location("api.tasks_main", tasks_path)
+def setup_dummy_modules():
+    """Configure les modules fictifs pour permettre l'import initial."""
+    if "api.utils.websocket_notifications" not in sys.modules:
+        dummy_ws = types.ModuleType("api.utils.websocket_notifications")
+        dummy_ws.notify_session_archived = lambda *args, **kwargs: None
+        sys.modules["api.utils.websocket_notifications"] = dummy_ws
+    
+    if "api.tasks" not in sys.modules:
+        dummy_pkg = types.ModuleType("api.tasks")
+        dummy_pkg.__path__ = []
+        sys.modules["api.tasks"] = dummy_pkg
+    
+    if "api.tasks.comptabilite_tasks" not in sys.modules:
+        dummy_compta = types.ModuleType("api.tasks.comptabilite_tasks")
+        dummy_compta.generate_monthly_recap = lambda *args, **kwargs: None
+        dummy_compta.sync_stripe_daily = lambda *args, **kwargs: None
+        dummy_compta.cleanup_old_exports = lambda *args, **kwargs: None
+        dummy_compta.generate_ecritures_comptables = lambda *args, **kwargs: None
+        dummy_compta.generate_fec_async = lambda *args, **kwargs: None
+        sys.modules["api.tasks.comptabilite_tasks"] = dummy_compta
+
+
+# Configurer une fois au chargement
+setup_dummy_modules()
+
+# Charger le module tasks une seule fois
+spec = importlib.util.spec_from_file_location("api.tasks_main", TASKS_PATH)
 tasks_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(tasks_module)
 
 
+# =============================================================================
+# FIXTURES
+# =============================================================================
+
+@pytest.fixture(autouse=True)
+def patch_notify_session_archived():
+    """Patch notify_session_archived dans le namespace du module tasks."""
+    notify_mock = MagicMock()
+    original = tasks_module.notify_session_archived
+    tasks_module.notify_session_archived = notify_mock
+    yield notify_mock
+    tasks_module.notify_session_archived = original
+
+
+@pytest.fixture
+def notify_mock(patch_notify_session_archived):
+    """Accès au mock notify_session_archived"""
+    return patch_notify_session_archived
+
+@pytest.fixture
+def fresh_tasks_module(patch_notify_session_archived):
+    """Compat: certains tests configurent un side_effect sur le mock WebSocket."""
+    return patch_notify_session_archived
+
+# =============================================================================
+# TESTS
+# =============================================================================
+
 @pytest.mark.django_db
-def test_archive_session_delayed_archives(monkeypatch):
-    called = {}
-
-    def fake_notify(session_id, reason=None):
-        called["session_id"] = session_id
-        called["reason"] = reason
-
-    monkeypatch.setattr(tasks_module, "notify_session_archived", fake_notify)
-
+def test_archive_session_delayed_archives(notify_mock):
+    """Test l'archivage différé d'une session"""
     restaurant = RestaurantFactory()
     table = Table.objects.create(restaurant=restaurant, number="10")
     session = CollaborativeTableSession.objects.create(
@@ -57,18 +96,13 @@ def test_archive_session_delayed_archives(monkeypatch):
     session.refresh_from_db()
     assert session.is_archived is True
     assert "archivée" in result
-    assert called["session_id"] == str(session.id)
+    notify_mock.assert_called_once()
+    assert notify_mock.call_args[1]["session_id"] == str(session.id)
 
 
 @pytest.mark.django_db
-def test_auto_archive_eligible_sessions(monkeypatch):
-    calls = []
-
-    def fake_notify(session_id, reason=None):
-        calls.append((session_id, reason))
-
-    monkeypatch.setattr(tasks_module, "notify_session_archived", fake_notify)
-
+def test_auto_archive_eligible_sessions(notify_mock):
+    """Test l'archivage automatique des sessions éligibles"""
     restaurant = RestaurantFactory()
     table = Table.objects.create(restaurant=restaurant, number="11")
     session = CollaborativeTableSession.objects.create(
@@ -83,11 +117,12 @@ def test_auto_archive_eligible_sessions(monkeypatch):
 
     session.refresh_from_db()
     assert session.is_archived is True
-    assert calls
+    assert notify_mock.call_count >= 1
 
 
 @pytest.mark.django_db
 def test_cleanup_old_archived_sessions():
+    """Test le nettoyage des vieilles sessions archivées"""
     restaurant = RestaurantFactory()
     table = Table.objects.create(restaurant=restaurant, number="12")
     session = CollaborativeTableSession.objects.create(
@@ -106,14 +141,8 @@ def test_cleanup_old_archived_sessions():
 
 
 @pytest.mark.django_db
-def test_force_archive_abandoned_sessions(monkeypatch):
-    calls = []
-
-    def fake_notify(session_id, reason=None):
-        calls.append((session_id, reason))
-
-    monkeypatch.setattr(tasks_module, "notify_session_archived", fake_notify)
-
+def test_force_archive_abandoned_sessions(notify_mock):
+    """Test l'archivage forcé des sessions abandonnées"""
     restaurant = RestaurantFactory()
     table = Table.objects.create(restaurant=restaurant, number="13")
     session = CollaborativeTableSession.objects.create(
@@ -132,4 +161,4 @@ def test_force_archive_abandoned_sessions(monkeypatch):
     assert session.status == "cancelled"
     assert session.is_archived is True
     assert "archivée" in result
-    assert calls
+    assert notify_mock.call_count >= 1

@@ -14,10 +14,12 @@ Couvre:
 
 import pytest
 import sys
+from contextlib import contextmanager
 from unittest.mock import patch, MagicMock, PropertyMock
 from decimal import Decimal
 from datetime import datetime
 from django.contrib.auth.models import User, Group
+from django.db.models.signals import post_save, pre_save
 from django.utils import timezone
 
 from api.models import (
@@ -52,13 +54,71 @@ from api.signals import (
     notify_order_update,
     notify_custom_event,
     test_websocket_notification as ws_test_notification,
+    send_session_participant_notifications,
+    send_restaurant_status_notifications,
+    capture_restaurant_stripe_change,
     DEFAULT_GROUPS,
 )
 
 
 # =============================================================================
+# UTILITAIRES POUR ISOLATION DES SIGNAUX
+# =============================================================================
+
+@contextmanager
+def disable_signal(signal, receiver, sender):
+    """
+    Context manager pour désactiver temporairement un signal Django.
+    
+    Usage:
+        with disable_signal(post_save, my_handler, MyModel):
+            MyModel.objects.create(...)  # Le signal ne sera pas appelé
+    """
+    signal.disconnect(receiver, sender=sender)
+    try:
+        yield
+    finally:
+        signal.connect(receiver, sender=sender)
+
+
+@contextmanager
+def disable_signals(signals_to_disable):
+    """
+    Context manager pour désactiver plusieurs signaux à la fois.
+    
+    Args:
+        signals_to_disable: Liste de tuples (signal, receiver, sender)
+    
+    Usage:
+        with disable_signals([
+            (post_save, handler1, Model1),
+            (pre_save, handler2, Model2),
+        ]):
+            # Code sans signaux
+    """
+    # Déconnecter tous les signaux
+    for signal, receiver, sender in signals_to_disable:
+        signal.disconnect(receiver, sender=sender)
+    try:
+        yield
+    finally:
+        # Reconnecter tous les signaux
+        for signal, receiver, sender in signals_to_disable:
+            signal.connect(receiver, sender=sender)
+
+
+# =============================================================================
 # FIXTURES
 # =============================================================================
+
+@pytest.fixture(autouse=True)
+def reset_notification_service():
+    """Réinitialise le service de notification global avant chaque test"""
+    import api.signals
+    api.signals.notification_service = None
+    yield
+    api.signals.notification_service = None
+
 
 @pytest.fixture
 def user(db):
@@ -113,9 +173,13 @@ def admin_group(db):
 
 @pytest.fixture
 def restaurateur_profile(db, restaurateur_user):
-    """Profil restaurateur (sans déclencher le signal)"""
-    # Désactiver temporairement le signal pour créer le profil sans effet de bord
-    with patch('api.signals.assign_restaurateur_group'):
+    """Profil restaurateur (sans déclencher les signaux)"""
+    # Désactiver les signaux post_save pour RestaurateurProfile
+    signals_to_disable = [
+        (post_save, assign_restaurateur_group, RestaurateurProfile),
+        (post_save, update_restaurant_stripe_status, RestaurateurProfile),
+    ]
+    with disable_signals(signals_to_disable):
         profile = RestaurateurProfile.objects.create(
             user=restaurateur_user,
             siret="12345678901234",
@@ -128,8 +192,13 @@ def restaurateur_profile(db, restaurateur_user):
 
 @pytest.fixture
 def restaurant(db, restaurateur_profile):
-    """Restaurant de test"""
-    with patch('api.signals.check_restaurant_stripe_activation'):
+    """Restaurant de test (sans déclencher les signaux)"""
+    signals_to_disable = [
+        (post_save, check_restaurant_stripe_activation, Restaurant),
+        (post_save, send_restaurant_status_notifications, Restaurant),
+        (pre_save, capture_restaurant_stripe_change, Restaurant),
+    ]
+    with disable_signals(signals_to_disable):
         return Restaurant.objects.create(
             name="Signal Test Restaurant",
             description="Restaurant pour tests signaux",
@@ -154,21 +223,28 @@ def table(db, restaurant):
 
 @pytest.fixture
 def order(db, restaurant, user):
-    """Commande de test"""
-    with patch('api.signals.order_updated'):
-        with patch('api.signals.send_order_push_notifications'):
-            return Order.objects.create(
-                order_number="ORD-SIG-001",
-                restaurant=restaurant,
-                user=user,
-                table_number="SIG01",
-                subtotal=Decimal("25.00"),
-                tax_amount=Decimal("2.50"),
-                total_amount=Decimal("27.50"),
-                status="pending",
-                payment_status="unpaid",
-                payment_method="card"
-            )
+    """Commande de test (sans déclencher les signaux)"""
+    signals_to_disable = [
+        (post_save, order_updated, Order),
+        (post_save, send_order_push_notifications, Order),
+        (post_save, send_payment_push_notifications, Order),
+        (post_save, update_order_timestamps, Order),
+        (pre_save, capture_order_changes, Order),
+        (pre_save, capture_payment_status_change, Order),
+    ]
+    with disable_signals(signals_to_disable):
+        return Order.objects.create(
+            order_number="ORD-SIG-001",
+            restaurant=restaurant,
+            user=user,
+            table_number="SIG01",
+            subtotal=Decimal("25.00"),
+            tax_amount=Decimal("2.50"),
+            total_amount=Decimal("27.50"),
+            status="pending",
+            payment_status="unpaid",
+            payment_method="card"
+        )
 
 
 @pytest.fixture
@@ -184,15 +260,19 @@ def collaborative_session(db, restaurant, table):
 
 @pytest.fixture
 def session_participant(db, collaborative_session, user):
-    """Participant de session"""
-    with patch('api.signals.send_session_participant_notifications'):
-        with patch('api.signals.participant_post_save'):
-            return SessionParticipant.objects.create(
-                session=collaborative_session,
-                user=user,
-                role="member",
-                status="pending"
-            )
+    """Participant de session (sans déclencher les signaux)"""
+    signals_to_disable = [
+        (post_save, send_session_participant_notifications, SessionParticipant),
+        (post_save, participant_post_save, SessionParticipant),
+        (pre_save, capture_participant_status_change, SessionParticipant),
+    ]
+    with disable_signals(signals_to_disable):
+        return SessionParticipant.objects.create(
+            session=collaborative_session,
+            user=user,
+            role="member",
+            status="pending"
+        )
 
 
 # =============================================================================
@@ -439,7 +519,13 @@ class TestCheckRestaurantStripeActivation:
 
     def test_logs_on_creation(self, restaurateur_profile, capsys):
         """Test le logging à la création"""
-        with patch('api.signals.check_restaurant_stripe_activation'):
+        # Créer le restaurant avec les signaux désactivés
+        signals_to_disable = [
+            (post_save, check_restaurant_stripe_activation, Restaurant),
+            (post_save, send_restaurant_status_notifications, Restaurant),
+            (pre_save, capture_restaurant_stripe_change, Restaurant),
+        ]
+        with disable_signals(signals_to_disable):
             restaurant = Restaurant.objects.create(
                 name="New Restaurant",
                 owner=restaurateur_profile,
@@ -506,90 +592,76 @@ class TestCheckRestaurantStripeActivation:
 class TestOrderNotificationService:
     """Tests pour OrderNotificationService"""
 
-    def test_init_with_channel_layer(self, monkeypatch):
+    def test_init_with_channel_layer(self):
         """Test l'initialisation avec channel layer"""
         mock_channel_layer = MagicMock()
-        monkeypatch.setattr('api.signals.get_channel_layer', lambda: mock_channel_layer)
         
-        service = OrderNotificationService()
-        
-        assert service.channel_layer == mock_channel_layer
+        with patch('api.signals.get_channel_layer', return_value=mock_channel_layer):
+            # Créer l'instance APRÈS le patch
+            service = OrderNotificationService()
+            assert service.channel_layer == mock_channel_layer
 
-    def test_init_without_channel_layer(self, monkeypatch):
+    def test_init_without_channel_layer(self):
         """Test l'initialisation sans channel layer"""
-        monkeypatch.setattr('api.signals.get_channel_layer', lambda: None)
-        
-        service = OrderNotificationService()
-        
-        assert service.channel_layer is None
+        with patch('api.signals.get_channel_layer', return_value=None):
+            service = OrderNotificationService()
+            assert service.channel_layer is None
 
-    def test_send_order_update_success(self, monkeypatch):
+    def test_send_order_update_success(self):
         """Test l'envoi d'une mise à jour réussie"""
         mock_channel_layer = MagicMock()
-        monkeypatch.setattr('api.signals.get_channel_layer', lambda: mock_channel_layer)
-        monkeypatch.setattr('api.signals.async_to_sync', lambda f: f)
         
-        service = OrderNotificationService()
-        result = service.send_order_update(
-            order_id=123,
-            status="confirmed",
-            waiting_time=15,
-            data={"test": True}
-        )
-        
-        assert result is True
-        mock_channel_layer.group_send.assert_called_once()
+        with patch('api.signals.get_channel_layer', return_value=mock_channel_layer):
+            with patch('api.signals.async_to_sync', side_effect=lambda f: f):
+                service = OrderNotificationService()
+                result = service.send_order_update(
+                    order_id=123,
+                    status="confirmed",
+                    waiting_time=15,
+                    data={"test": True}
+                )
+                
+                assert result is True
+                mock_channel_layer.group_send.assert_called_once()
 
-    def test_send_order_update_no_channel_layer(self, monkeypatch):
+    def test_send_order_update_no_channel_layer(self):
         """Test l'envoi sans channel layer"""
-        monkeypatch.setattr('api.signals.get_channel_layer', lambda: None)
-        
-        service = OrderNotificationService()
-        result = service.send_order_update(order_id=123, status="confirmed")
-        
-        assert result is False
+        with patch('api.signals.get_channel_layer', return_value=None):
+            service = OrderNotificationService()
+            result = service.send_order_update(order_id=123, status="confirmed")
+            assert result is False
 
-    def test_send_order_update_exception(self, monkeypatch):
+    def test_send_order_update_exception(self):
         """Test la gestion d'erreur lors de l'envoi"""
         mock_channel_layer = MagicMock()
         mock_channel_layer.group_send = MagicMock(side_effect=Exception("Send error"))
-        monkeypatch.setattr('api.signals.get_channel_layer', lambda: mock_channel_layer)
-        monkeypatch.setattr('api.signals.async_to_sync', lambda f: f)
         
-        service = OrderNotificationService()
-        result = service.send_order_update(order_id=123, status="confirmed")
-        
-        assert result is False
+        with patch('api.signals.get_channel_layer', return_value=mock_channel_layer):
+            with patch('api.signals.async_to_sync', side_effect=lambda f: f):
+                service = OrderNotificationService()
+                result = service.send_order_update(order_id=123, status="confirmed")
+                assert result is False
 
-    def test_send_sse_update_success(self, monkeypatch):
+    def test_send_sse_update_success(self):
         """Test l'envoi SSE réussi"""
         mock_broadcast = MagicMock()
-        monkeypatch.setattr(
-            'api.views.websocket_views.broadcast_to_sse',
-            mock_broadcast
-        )
         
-        service = OrderNotificationService()
-        service.send_sse_update(order_id=123, status="ready")
-        
-        mock_broadcast.assert_called_once()
-
-    def test_send_sse_update_import_error(self, monkeypatch):
-        """Test l'envoi SSE avec erreur d'import"""
-        def raise_import_error(*args, **kwargs):
-            raise ImportError("SSE not available")
-        
-        monkeypatch.setattr(
-            'api.signals.OrderNotificationService.send_sse_update',
-            raise_import_error
-        )
-        
-        service = OrderNotificationService()
-        # Ne doit pas lever d'exception
-        try:
+        with patch('api.views.websocket_views.broadcast_to_sse', mock_broadcast):
+            service = OrderNotificationService()
             service.send_sse_update(order_id=123, status="ready")
-        except ImportError:
-            pass  # Attendu dans certains cas
+            mock_broadcast.assert_called_once()
+
+    def test_send_sse_update_import_error(self):
+        """Test l'envoi SSE avec erreur d'import"""
+        # Simuler une erreur d'import en patchant broadcast_to_sse pour lever ImportError
+        with patch('api.signals.OrderNotificationService.send_sse_update', side_effect=ImportError("SSE not available")):
+            service = OrderNotificationService()
+            # Ne doit pas lever d'exception dans le contexte réel
+            # Ici on vérifie juste que le patch fonctionne
+            try:
+                service.send_sse_update(order_id=123, status="ready")
+            except ImportError:
+                pass  # Attendu
 
 
 # =============================================================================
@@ -664,43 +736,41 @@ class TestCaptureOrderChanges:
 class TestOrderUpdated:
     """Tests pour order_updated"""
 
-    def test_sends_notification_on_creation(self, order, monkeypatch):
+    def test_sends_notification_on_creation(self, order):
         """Test l'envoi de notification à la création"""
         mock_service = MagicMock()
-        monkeypatch.setattr('api.signals.notification_service', mock_service)
         
-        order_updated(sender=Order, instance=order, created=True)
-        
-        mock_service.send_order_update.assert_called_once()
-        call_args = mock_service.send_order_update.call_args
-        assert call_args[1]['data']['action'] == 'created'
+        with patch('api.signals.get_notification_service', return_value=mock_service):
+            order_updated(sender=Order, instance=order, created=True)
+            
+            mock_service.send_order_update.assert_called_once()
+            call_args = mock_service.send_order_update.call_args
+            assert call_args[1]['data']['action'] == 'created'
 
-    def test_sends_notification_on_status_change(self, order, monkeypatch):
+    def test_sends_notification_on_status_change(self, order):
         """Test l'envoi de notification lors d'un changement de statut"""
         mock_service = MagicMock()
-        monkeypatch.setattr('api.signals.notification_service', mock_service)
         
         order._old_status = "pending"
         order.status = "confirmed"
         
-        order_updated(sender=Order, instance=order, created=False)
-        
-        mock_service.send_order_update.assert_called()
+        with patch('api.signals.get_notification_service', return_value=mock_service):
+            order_updated(sender=Order, instance=order, created=False)
+            mock_service.send_order_update.assert_called()
 
-    def test_no_notification_without_change(self, order, monkeypatch):
+    def test_no_notification_without_change(self, order):
         """Test qu'aucune notification n'est envoyée sans changement"""
         mock_service = MagicMock()
-        monkeypatch.setattr('api.signals.notification_service', mock_service)
         
         order._old_status = "pending"
         order.status = "pending"
         order._old_waiting_time = None
         order.waiting_time = None
         
-        order_updated(sender=Order, instance=order, created=False)
-        
-        # Pas d'appel car pas de changement
-        mock_service.send_order_update.assert_not_called()
+        with patch('api.signals.get_notification_service', return_value=mock_service):
+            order_updated(sender=Order, instance=order, created=False)
+            # Pas d'appel car pas de changement
+            mock_service.send_order_update.assert_not_called()
 
 
 # =============================================================================
@@ -1009,66 +1079,56 @@ class TestParticipantNotifications:
         
         assert session_participant._old_participant_status == "pending"
 
-    def test_participant_post_save_approved(self, session_participant, monkeypatch):
+    def test_participant_post_save_approved(self, session_participant):
         """Test la notification quand un participant est approuvé"""
         mock_notify = MagicMock()
-        monkeypatch.setattr('api.signals.notify_participant_approved', mock_notify)
-        
         session_participant.status = "active"
         
-        participant_post_save(
-            sender=SessionParticipant,
-            instance=session_participant,
-            created=False
-        )
-        
-        mock_notify.assert_called_once()
+        with patch('api.signals.notify_participant_approved', mock_notify):
+            participant_post_save(
+                sender=SessionParticipant,
+                instance=session_participant,
+                created=False
+            )
+            mock_notify.assert_called_once()
 
-    def test_participant_post_save_not_approved(self, session_participant, monkeypatch):
+    def test_participant_post_save_not_approved(self, session_participant):
         """Test qu'aucune notification si le statut n'est pas active"""
         mock_notify = MagicMock()
-        monkeypatch.setattr('api.signals.notify_participant_approved', mock_notify)
-        
         session_participant.status = "pending"
         
-        participant_post_save(
-            sender=SessionParticipant,
-            instance=session_participant,
-            created=False
-        )
-        
-        mock_notify.assert_not_called()
+        with patch('api.signals.notify_participant_approved', mock_notify):
+            participant_post_save(
+                sender=SessionParticipant,
+                instance=session_participant,
+                created=False
+            )
+            mock_notify.assert_not_called()
 
-    def test_participant_post_save_on_creation(self, session_participant, monkeypatch):
+    def test_participant_post_save_on_creation(self, session_participant):
         """Test qu'aucune notification à la création"""
         mock_notify = MagicMock()
-        monkeypatch.setattr('api.signals.notify_participant_approved', mock_notify)
-        
         session_participant.status = "active"
         
-        participant_post_save(
-            sender=SessionParticipant,
-            instance=session_participant,
-            created=True
-        )
-        
-        mock_notify.assert_not_called()
+        with patch('api.signals.notify_participant_approved', mock_notify):
+            participant_post_save(
+                sender=SessionParticipant,
+                instance=session_participant,
+                created=True
+            )
+            mock_notify.assert_not_called()
 
-    def test_participant_post_save_exception(self, session_participant, monkeypatch):
+    def test_participant_post_save_exception(self, session_participant):
         """Test la gestion d'erreur"""
-        def raise_error(*args, **kwargs):
-            raise Exception("Notification error")
-        
-        monkeypatch.setattr('api.signals.notify_participant_approved', raise_error)
-        
         session_participant.status = "active"
         
-        # Ne doit pas lever d'exception
-        participant_post_save(
-            sender=SessionParticipant,
-            instance=session_participant,
-            created=False
-        )
+        with patch('api.signals.notify_participant_approved', side_effect=Exception("Notification error")):
+            # Ne doit pas lever d'exception
+            participant_post_save(
+                sender=SessionParticipant,
+                instance=session_participant,
+                created=False
+            )
 
 
 # =============================================================================
@@ -1079,105 +1139,89 @@ class TestParticipantNotifications:
 class TestNotifyOrderUpdate:
     """Tests pour notify_order_update"""
 
-    def test_notify_order_update_success(self, monkeypatch):
+    def test_notify_order_update_success(self):
         """Test l'envoi réussi d'une notification"""
-        from api.signals import notify_order_update
-        
         mock_service = MagicMock()
         mock_service.send_order_update.return_value = True
-        monkeypatch.setattr('api.signals.notification_service', mock_service)
         
-        result = notify_order_update(
-            order_id=123,
-            status="confirmed",
-            waiting_time=15,
-            extra_field="test"
-        )
-        
-        assert result is True
-        mock_service.send_order_update.assert_called_once()
+        with patch('api.signals.get_notification_service', return_value=mock_service):
+            result = notify_order_update(
+                order_id=123,
+                status="confirmed",
+                waiting_time=15,
+                extra_field="test"
+            )
+            
+            assert result is True
+            mock_service.send_order_update.assert_called_once()
 
-    def test_notify_order_update_failure(self, monkeypatch):
+    def test_notify_order_update_failure(self):
         """Test l'échec de l'envoi"""
-        from api.signals import notify_order_update
-        
         mock_service = MagicMock()
         mock_service.send_order_update.return_value = False
-        monkeypatch.setattr('api.signals.notification_service', mock_service)
         
-        result = notify_order_update(order_id=123, status="test")
-        
-        assert result is False
+        with patch('api.signals.get_notification_service', return_value=mock_service):
+            result = notify_order_update(order_id=123, status="test")
+            assert result is False
 
-    def test_notify_order_update_exception(self, monkeypatch):
+    def test_notify_order_update_exception(self):
         """Test la gestion d'exception"""
-        from api.signals import notify_order_update
-        
         mock_service = MagicMock()
         mock_service.send_order_update.side_effect = Exception("Send error")
-        monkeypatch.setattr('api.signals.notification_service', mock_service)
         
-        result = notify_order_update(order_id=123, status="test")
-        
-        assert result is False
+        with patch('api.signals.get_notification_service', return_value=mock_service):
+            result = notify_order_update(order_id=123, status="test")
+            assert result is False
 
 
 @pytest.mark.django_db
 class TestNotifyCustomEvent:
     """Tests pour notify_custom_event"""
 
-    def test_notify_custom_event_success(self, monkeypatch):
+    def test_notify_custom_event_success(self):
         """Test l'envoi réussi d'un événement personnalisé"""
-        from api.signals import notify_custom_event
-        
         mock_service = MagicMock()
         mock_service.send_order_update.return_value = True
-        monkeypatch.setattr('api.signals.notification_service', mock_service)
         
-        result = notify_custom_event(
-            order_id=123,
-            event_type="test_event",
-            message="Test message",
-            custom_data="value"
-        )
-        
-        assert result is True
-        mock_service.send_order_update.assert_called_once()
-        call_args = mock_service.send_order_update.call_args
-        assert call_args[1]['data']['event_type'] == 'test_event'
-        assert call_args[1]['data']['message'] == 'Test message'
+        with patch('api.signals.get_notification_service', return_value=mock_service):
+            result = notify_custom_event(
+                order_id=123,
+                event_type="test_event",
+                message="Test message",
+                custom_data="value"
+            )
+            
+            assert result is True
+            mock_service.send_order_update.assert_called_once()
+            call_args = mock_service.send_order_update.call_args
+            assert call_args[1]['data']['event_type'] == 'test_event'
+            assert call_args[1]['data']['message'] == 'Test message'
 
-    def test_notify_custom_event_failure(self, monkeypatch):
+    def test_notify_custom_event_failure(self):
         """Test l'échec de l'envoi"""
-        from api.signals import notify_custom_event
-        
         mock_service = MagicMock()
         mock_service.send_order_update.return_value = False
-        monkeypatch.setattr('api.signals.notification_service', mock_service)
         
-        result = notify_custom_event(
-            order_id=123,
-            event_type="test",
-            message="Test"
-        )
-        
-        assert result is False
+        with patch('api.signals.get_notification_service', return_value=mock_service):
+            result = notify_custom_event(
+                order_id=123,
+                event_type="test",
+                message="Test"
+            )
+            assert result is False
 
-    def test_notify_custom_event_exception(self, monkeypatch):
+    def test_notify_custom_event_exception(self):
         """Test la gestion d'exception"""
-        from api.signals import notify_custom_event
-        
         mock_service = MagicMock()
         mock_service.send_order_update.side_effect = Exception("Error")
-        monkeypatch.setattr('api.signals.notification_service', mock_service)
         
-        result = notify_custom_event(
-            order_id=123,
-            event_type="test",
-            message="Test"
-        )
-        
-        assert result is False
+        with patch('api.signals.get_notification_service', return_value=mock_service):
+            result = notify_custom_event(
+                order_id=123,
+                event_type="test",
+                message="Test"
+            )
+            assert result is False
 
 
 @pytest.mark.django_db
@@ -1192,38 +1236,38 @@ class TestWebsocketNotificationFunction:
         
         assert result is False
 
-    def test_calls_notify_custom_event_in_debug(self, settings, monkeypatch):
+    def test_calls_notify_custom_event_in_debug(self, settings):
         """Test que la fonction appelle notify_custom_event en mode DEBUG"""
         settings.DEBUG = True
         
         mock_notify = MagicMock(return_value=True)
-        monkeypatch.setattr('api.signals.notify_custom_event', mock_notify)
         
-        result = ws_test_notification(
-            order_id=123,
-            test_message="Hello test"
-        )
-        
-        assert result is True
-        mock_notify.assert_called_once()
-        call_args = mock_notify.call_args
-        assert call_args[1]['order_id'] == 123
-        assert call_args[1]['event_type'] == 'test'
-        assert call_args[1]['message'] == 'Hello test'
-        assert call_args[1]['test'] is True
+        with patch('api.signals.notify_custom_event', mock_notify):
+            result = ws_test_notification(
+                order_id=123,
+                test_message="Hello test"
+            )
+            
+            assert result is True
+            mock_notify.assert_called_once()
+            call_args = mock_notify.call_args
+            assert call_args[1]['order_id'] == 123
+            assert call_args[1]['event_type'] == 'test'
+            assert call_args[1]['message'] == 'Hello test'
+            assert call_args[1]['test'] is True
 
-    def test_with_default_message(self, settings, monkeypatch):
+    def test_with_default_message(self, settings):
         """Test avec le message par défaut"""
         settings.DEBUG = True
         
         mock_notify = MagicMock(return_value=True)
-        monkeypatch.setattr('api.signals.notify_custom_event', mock_notify)
         
-        result = ws_test_notification(order_id=456)
-        
-        assert result is True
-        call_args = mock_notify.call_args
-        assert call_args[1]['message'] == 'Test notification'
+        with patch('api.signals.notify_custom_event', mock_notify):
+            result = ws_test_notification(order_id=456)
+            
+            assert result is True
+            call_args = mock_notify.call_args
+            assert call_args[1]['message'] == 'Test notification'
 
 
 # =============================================================================
@@ -1267,7 +1311,8 @@ class TestSignalIntegration:
 
     def test_order_status_change_sets_timestamps(self, restaurant, user):
         """Test que les timestamps sont définis lors des changements de statut"""
-        with patch('api.signals.send_order_push_notifications'):
+        # Créer la commande avec les signaux de push désactivés
+        with patch('api.signals.notification_service', MagicMock()):
             order = Order.objects.create(
                 order_number="ORD-INT-001",
                 restaurant=restaurant,
@@ -1281,15 +1326,17 @@ class TestSignalIntegration:
             )
         
         # Passer à ready
-        order.status = "ready"
-        order.save()
+        with patch('api.signals.notification_service', MagicMock()):
+            order.status = "ready"
+            order.save()
         
         order.refresh_from_db()
         assert order.ready_at is not None
         
         # Passer à served
-        order.status = "served"
-        order.save()
+        with patch('api.signals.notification_service', MagicMock()):
+            order.status = "served"
+            order.save()
         
         order.refresh_from_db()
         assert order.served_at is not None
