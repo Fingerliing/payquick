@@ -191,6 +191,27 @@ class TestPushNotificationToken:
         push_token.refresh_from_db()
         assert push_token.is_active is False
 
+    def test_token_str_guest(self):
+        """Test __str__ pour un token invité sans user (ligne 60)"""
+        token = PushNotificationToken.objects.create(
+            user=None,
+            expo_token="ExponentPushToken[guest_token]",
+            guest_phone="0612345678",
+            device_platform="android"
+        )
+        result = str(token)
+        assert "0612345678" in result
+        assert "android" in result
+
+    def test_mark_as_used(self, push_token):
+        """Test de la méthode mark_as_used (lignes 64-65)"""
+        assert push_token.last_used_at is None
+        
+        push_token.mark_as_used()
+        
+        push_token.refresh_from_db()
+        assert push_token.last_used_at is not None
+
 
 # =============================================================================
 # TESTS - NotificationPreferences
@@ -266,6 +287,58 @@ class TestNotificationPreferences:
         notification_preferences.refresh_from_db()
         assert notification_preferences.promotions is True
         assert notification_preferences.quiet_hours_enabled is False
+
+    def test_is_quiet_time_disabled(self, user):
+        """Test is_quiet_time retourne False quand désactivé (ligne 108)"""
+        prefs = NotificationPreferences.objects.create(
+            user=user,
+            quiet_hours_enabled=False,
+            quiet_hours_start=time(22, 0),
+            quiet_hours_end=time(8, 0)
+        )
+        assert prefs.is_quiet_time() is False
+
+    @pytest.mark.parametrize("now_time,expected", [
+        (time(12, 0), True),   # dans la plage
+        (time(9, 0), False),   # avant la plage
+        (time(15, 0), False),  # après la plage
+    ])
+    def test_is_quiet_time_same_day(self, user, now_time, expected):
+        """Test is_quiet_time quand start <= end (ligne 115)"""
+        from unittest.mock import patch
+        from datetime import datetime
+
+        prefs = NotificationPreferences.objects.create(
+            user=user,
+            quiet_hours_enabled=True,
+            quiet_hours_start=time(10, 0),
+            quiet_hours_end=time(14, 0)
+        )
+        
+        mock_dt = timezone.make_aware(datetime(2025, 1, 15, now_time.hour, now_time.minute))
+        with patch('django.utils.timezone.localtime', return_value=mock_dt):
+            assert prefs.is_quiet_time() is expected
+
+    @pytest.mark.parametrize("now_time,expected", [
+        (time(23, 0), True),   # après start (avant minuit)
+        (time(3, 0), True),    # avant end (après minuit)
+        (time(12, 0), False),  # en journée, hors plage
+    ])
+    def test_is_quiet_time_crossing_midnight(self, user, now_time, expected):
+        """Test is_quiet_time quand passage de minuit start > end (ligne 118)"""
+        from unittest.mock import patch
+        from datetime import datetime
+
+        prefs = NotificationPreferences.objects.create(
+            user=user,
+            quiet_hours_enabled=True,
+            quiet_hours_start=time(22, 0),
+            quiet_hours_end=time(8, 0)
+        )
+        
+        mock_dt = timezone.make_aware(datetime(2025, 1, 15, now_time.hour, now_time.minute))
+        with patch('django.utils.timezone.localtime', return_value=mock_dt):
+            assert prefs.is_quiet_time() is expected
 
 
 # =============================================================================
@@ -436,3 +509,52 @@ class TestNotification:
             notif.save()
             
             assert notif.read_at is not None
+
+    def test_mark_as_read_method(self, notification):
+        """Test de la méthode mark_as_read (lignes 200-203)"""
+        assert notification.is_read is False
+        assert notification.read_at is None
+        
+        notification.mark_as_read()
+        
+        notification.refresh_from_db()
+        assert notification.is_read is True
+        assert notification.read_at is not None
+
+    def test_mark_as_read_idempotent(self, notification):
+        """Test que mark_as_read ne modifie pas si déjà lu"""
+        notification.mark_as_read()
+        first_read_at = notification.read_at
+        
+        # Appeler une seconde fois ne devrait pas changer read_at
+        notification.mark_as_read()
+        assert notification.read_at == first_read_at
+
+    def test_is_expired_true(self, user):
+        """Test is_expired retourne True quand expiré (lignes 208-210)"""
+        from datetime import timedelta
+        notif = Notification.objects.create(
+            user=user,
+            notification_type='system',
+            title="Expired",
+            body="This is expired",
+            expires_at=timezone.now() - timedelta(hours=1)
+        )
+        assert notif.is_expired is True
+
+    def test_is_expired_false(self, user):
+        """Test is_expired retourne False quand pas encore expiré"""
+        from datetime import timedelta
+        notif = Notification.objects.create(
+            user=user,
+            notification_type='system',
+            title="Not expired",
+            body="Still valid",
+            expires_at=timezone.now() + timedelta(hours=1)
+        )
+        assert notif.is_expired is False
+
+    def test_is_expired_no_expiry(self, notification):
+        """Test is_expired retourne False quand pas de date d'expiration"""
+        assert notification.expires_at is None
+        assert notification.is_expired is False
