@@ -320,8 +320,6 @@ class MenuItem(models.Model):
             vegan_incompatible = {'milk', 'eggs'}
             if any(allergen in vegan_incompatible for allergen in self.allergens):
                 raise ValidationError("Un plat vegan ne peut pas contenir de lait ou d'œufs")
-            if not self.is_vegetarian:
-                self.is_vegetarian = True
     
         if self.subcategory and self.category:
             if self.subcategory.category != self.category:
@@ -395,6 +393,7 @@ class TableSession(models.Model):
     @property
     def orders(self):
         """Toutes les commandes de cette session"""
+        from api.models import Order
         return Order.objects.filter(table_session_id=self.id)
     
     @property
@@ -825,4 +824,3 @@ class DailyMenuTemplateItem(models.Model):
     
     def __str__(self):
         return f"{self.template.name} - {self.menu_item.name}"
-
