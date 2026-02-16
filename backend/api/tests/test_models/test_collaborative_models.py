@@ -490,3 +490,85 @@ class TestActiveSessionManager:
         all_sessions = CollaborativeTableSession.all_objects.all()
         assert active_session in all_sessions
         assert archived_session in all_sessions
+
+
+# =============================================================================
+# TESTS SUPPLÉMENTAIRES - Couverture complète
+# =============================================================================
+
+@pytest.mark.django_db
+class TestCollaborativeTableSessionAdditional:
+    """Tests supplémentaires pour couverture complète"""
+
+    def test_archive_with_existing_notes(self, collaborative_session):
+        """
+        Test archive() avec reason quand session_notes existe déjà (ligne 238)
+        """
+        # Définir des notes existantes
+        collaborative_session.session_notes = "Notes existantes"
+        collaborative_session.save()
+        
+        # Archiver avec une raison
+        collaborative_session.archive(reason="Nouvelle raison")
+        
+        # Vérifier que les notes sont concaténées
+        assert "Notes existantes" in collaborative_session.session_notes
+        assert "Nouvelle raison" in collaborative_session.session_notes
+        assert "\n" in collaborative_session.session_notes
+
+    def test_auto_archive_eligible_not_archivable(self, collaborative_session):
+        """
+        Test auto_archive_eligible quand can_be_archived est False (ligne 275-276)
+        """
+        # Session active ne peut pas être archivée
+        collaborative_session.status = 'active'
+        collaborative_session.save()
+        
+        assert collaborative_session.can_be_archived is False
+        assert collaborative_session.auto_archive_eligible is False
+
+    def test_auto_archive_eligible_already_archived(self, collaborative_session):
+        """
+        Test auto_archive_eligible quand déjà archivée (ligne 275-276)
+        """
+        collaborative_session.status = 'completed'
+        collaborative_session.is_archived = True
+        collaborative_session.save()
+        
+        assert collaborative_session.auto_archive_eligible is False
+
+    def test_auto_archive_eligible_completed_recent(self, collaborative_session):
+        """
+        Test auto_archive_eligible quand completed récemment (< 5 min) (lignes 279-281)
+        """
+        collaborative_session.status = 'completed'
+        collaborative_session.completed_at = timezone.now()  # Juste maintenant
+        collaborative_session.is_archived = False
+        collaborative_session.save()
+        
+        # Moins de 5 minutes, ne devrait pas être éligible
+        assert collaborative_session.auto_archive_eligible is False
+
+    def test_auto_archive_eligible_completed_old(self, collaborative_session):
+        """
+        Test auto_archive_eligible quand completed depuis > 5 min (lignes 279-281)
+        """
+        collaborative_session.status = 'completed'
+        collaborative_session.completed_at = timezone.now() - timedelta(minutes=10)  # 10 min avant
+        collaborative_session.is_archived = False
+        collaborative_session.save()
+        
+        # Plus de 5 minutes, devrait être éligible
+        assert collaborative_session.auto_archive_eligible is True
+
+    def test_auto_archive_eligible_cancelled_no_completed_at(self, collaborative_session):
+        """
+        Test auto_archive_eligible pour session annulée sans completed_at (ligne 283)
+        """
+        collaborative_session.status = 'cancelled'
+        collaborative_session.completed_at = None
+        collaborative_session.is_archived = False
+        collaborative_session.save()
+        
+        # Annulée mais pas de completed_at, devrait retourner False
+        assert collaborative_session.auto_archive_eligible is False

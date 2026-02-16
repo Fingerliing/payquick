@@ -150,9 +150,6 @@ class CollaborativeTableSession(models.Model):
             models.Index(fields=['is_archived', 'archived_at']),
         ]
     
-    def __str__(self):
-        return f"Session {self.share_code} - Table {self.table_number}"
-    
     def save(self, *args, **kwargs):
         if not self.share_code:
             self.share_code = self.generate_share_code()
@@ -397,4 +394,3 @@ class SessionParticipant(models.Model):
         self.status = 'left'
         self.left_at = timezone.now()
         self.save()
-
