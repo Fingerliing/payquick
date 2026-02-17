@@ -8,11 +8,13 @@ Tests unitaires pour les modèles restaurant
 """
 
 import pytest
+from contextlib import contextmanager
 from datetime import time, timedelta
 from decimal import Decimal
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
+from django.db.models.signals import post_save, pre_save
 from django.utils import timezone
 from api.models import (
     Restaurant,
@@ -21,6 +23,32 @@ from api.models import (
     RestaurantHoursTemplate,
     RestaurateurProfile,
 )
+
+
+@contextmanager
+def disable_all_signals():
+    """Désactive les signaux qui interfèrent avec les tests."""
+    from api.signals import (
+        assign_restaurateur_group,
+        update_restaurant_stripe_status,
+        check_restaurant_stripe_activation,
+        send_restaurant_status_notifications,
+        capture_restaurant_stripe_change,
+    )
+    signals_to_disable = [
+        (post_save, assign_restaurateur_group, RestaurateurProfile),
+        (post_save, update_restaurant_stripe_status, RestaurateurProfile),
+        (post_save, check_restaurant_stripe_activation, Restaurant),
+        (post_save, send_restaurant_status_notifications, Restaurant),
+        (pre_save, capture_restaurant_stripe_change, Restaurant),
+    ]
+    for signal, receiver, sender in signals_to_disable:
+        signal.disconnect(receiver, sender=sender)
+    try:
+        yield
+    finally:
+        for signal, receiver, sender in signals_to_disable:
+            signal.connect(receiver, sender=sender)
 
 
 # =============================================================================
@@ -38,30 +66,31 @@ def user():
 
 @pytest.fixture
 def restaurateur_profile(user):
-    return RestaurateurProfile.objects.create(
-        user=user,
-        siret="12345678901234",
-        is_validated=True,
-        is_active=True,
-        stripe_verified=True
-    )
+    with disable_all_signals():
+        return RestaurateurProfile.objects.create(
+            user=user,
+            siret="12345678901234",
+            is_validated=True,
+            is_active=True,
+            stripe_verified=True
+        )
 
 
 @pytest.fixture
 def restaurant(restaurateur_profile):
-    # FIX: Added cuisine field which is required (no default in model)
-    return Restaurant.objects.create(
-        name="Le Petit Bistro",
-        description="Un restaurant familial",
-        owner=restaurateur_profile,
-        siret="98765432109876",
-        address="123 Rue de Paris",
-        city="Paris",
-        zip_code="75001",
-        phone="0140000000",
-        email="contact@petitbistro.fr",
-        cuisine="french"  # Required field - no default in model
-    )
+    with disable_all_signals():
+        return Restaurant.objects.create(
+            name="Le Petit Bistro",
+            description="Un restaurant familial",
+            owner=restaurateur_profile,
+            siret="98765432109876",
+            address="123 Rue de Paris",
+            city="Paris",
+            zip_code="75001",
+            phone="0140000000",
+            email="contact@petitbistro.fr",
+            cuisine="french"
+        )
 
 
 @pytest.fixture
@@ -106,47 +135,50 @@ class TestRestaurant:
 
     def test_siret_unique_constraint(self, restaurateur_profile):
         """Test que le SIRET est unique"""
-        Restaurant.objects.create(
-            name="Restaurant 1",
-            description="Desc 1",
-            owner=restaurateur_profile,
-            siret="11111111111111",
-            address="Addr 1",
-            city="Paris",
-            zip_code="75001",
-            phone="0140000001",
-            email="r1@test.fr",
-            cuisine="french"
-        )
-        
-        with pytest.raises(IntegrityError):
+        with disable_all_signals():
             Restaurant.objects.create(
-                name="Restaurant 2",
-                description="Desc 2",
+                name="Restaurant 1",
+                description="Desc 1",
                 owner=restaurateur_profile,
                 siret="11111111111111",
-                address="Addr 2",
+                address="Addr 1",
                 city="Paris",
-                zip_code="75002",
-                phone="0140000002",
-                email="r2@test.fr",
+                zip_code="75001",
+                phone="0140000001",
+                email="r1@test.fr",
                 cuisine="french"
             )
+        
+        with pytest.raises(IntegrityError):
+            with disable_all_signals():
+                Restaurant.objects.create(
+                    name="Restaurant 2",
+                    description="Desc 2",
+                    owner=restaurateur_profile,
+                    siret="11111111111111",
+                    address="Addr 2",
+                    city="Paris",
+                    zip_code="75002",
+                    phone="0140000002",
+                    email="r2@test.fr",
+                    cuisine="french"
+                )
 
     def test_default_values(self, restaurateur_profile):
         """Test des valeurs par défaut"""
-        restaurant = Restaurant.objects.create(
-            name="Default Restaurant",
-            description="Test",
-            owner=restaurateur_profile,
-            siret="22222222222222",
-            address="Test Address",
-            city="Paris",
-            zip_code="75001",
-            phone="0140000000",
-            email="default@test.fr",
-            cuisine="french"  # Required - no default
-        )
+        with disable_all_signals():
+            restaurant = Restaurant.objects.create(
+                name="Default Restaurant",
+                description="Test",
+                owner=restaurateur_profile,
+                siret="22222222222222",
+                address="Test Address",
+                city="Paris",
+                zip_code="75001",
+                phone="0140000000",
+                email="default@test.fr",
+                cuisine="french"  # Required - no default
+            )
         
         assert restaurant.is_active is True
         assert restaurant.is_stripe_active is False
@@ -164,7 +196,8 @@ class TestRestaurant:
         restaurant.zip_code = "75001"
         restaurant.city = "Paris"
         restaurant.country = "France"
-        restaurant.save()
+        with disable_all_signals():
+            restaurant.save()
         
         expected = "123 Rue Test, 75001 Paris, France"
         assert restaurant.full_address == expected
@@ -180,62 +213,81 @@ class TestRestaurant:
 
     def test_can_receive_orders_all_conditions_true(self, restaurant, restaurateur_profile):
         """Test de can_receive_orders quand tout est activé"""
-        restaurateur_profile.stripe_verified = True
-        restaurateur_profile.is_active = True
-        restaurateur_profile.save()
-        
-        restaurant.is_stripe_active = True
-        restaurant.is_active = True
-        restaurant.is_manually_overridden = False
-        restaurant.save()
+        with disable_all_signals():
+            restaurateur_profile.stripe_verified = True
+            restaurateur_profile.is_active = True
+            restaurateur_profile.save()
+            
+            restaurant.is_stripe_active = True
+            restaurant.is_active = True
+            restaurant.is_manually_overridden = False
+            restaurant.save()
         
         assert restaurant.can_receive_orders is True
 
     def test_can_receive_orders_manually_closed(self, restaurant, restaurateur_profile):
         """Test de can_receive_orders quand fermé manuellement"""
-        restaurateur_profile.stripe_verified = True
-        restaurateur_profile.is_active = True
-        restaurateur_profile.save()
-        
-        restaurant.is_stripe_active = True
-        restaurant.is_active = True
-        restaurant.is_manually_overridden = True
-        restaurant.save()
+        with disable_all_signals():
+            restaurateur_profile.stripe_verified = True
+            restaurateur_profile.is_active = True
+            restaurateur_profile.save()
+            
+            restaurant.is_stripe_active = True
+            restaurant.is_active = True
+            restaurant.is_manually_overridden = True
+            restaurant.save()
         
         assert restaurant.can_receive_orders is False
 
     def test_can_receive_orders_expired_override(self, restaurant, restaurateur_profile):
-        """Test que l'override expiré est nettoyé automatiquement"""
-        restaurateur_profile.stripe_verified = True
-        restaurateur_profile.is_active = True
-        restaurateur_profile.save()
-        
-        restaurant.is_stripe_active = True
-        restaurant.is_active = True
-        restaurant.is_manually_overridden = True
-        restaurant.manual_override_until = timezone.now() - timedelta(hours=1)
-        restaurant.save()
-        
-        # L'accès à can_receive_orders devrait nettoyer l'override expiré
-        assert restaurant.can_receive_orders is True
+        """Test que l'override expiré est nettoyé par can_receive_orders (lignes 188-191)"""
+        with disable_all_signals():
+            restaurateur_profile.stripe_verified = True
+            restaurateur_profile.is_active = True
+            restaurateur_profile.save()
+
+            restaurant.is_stripe_active = True
+            restaurant.is_active = True
+            restaurant.save()
+
+        # Use QuerySet.update() to bypass Restaurant.save() which would clean
+        # the override itself — we need the property to hit lines 188-191
+        Restaurant.objects.filter(pk=restaurant.pk).update(
+            is_manually_overridden=True,
+            manual_override_until=timezone.now() - timedelta(hours=1),
+            manual_override_reason="Test expired"
+        )
+        restaurant.refresh_from_db()
+
+        # Accessing can_receive_orders should hit the cleanup branch (188-191)
+        with disable_all_signals():
+            assert restaurant.can_receive_orders is True
+
+        # Verify the override was cleaned in DB
+        restaurant.refresh_from_db()
+        assert restaurant.is_manually_overridden is False
+        assert restaurant.manual_override_reason is None
+        assert restaurant.manual_override_until is None
 
     def test_can_receive_orders_owner_not_verified(self, restaurant, restaurateur_profile):
         """Test de can_receive_orders quand le propriétaire n'est pas vérifié"""
-        restaurateur_profile.stripe_verified = False
-        restaurateur_profile.save()
-        
-        restaurant.is_stripe_active = True
-        restaurant.is_active = True
-        restaurant.save()
+        with disable_all_signals():
+            restaurateur_profile.stripe_verified = False
+            restaurateur_profile.save()
+            
+            restaurant.is_stripe_active = True
+            restaurant.is_active = True
+            restaurant.save()
         
         assert restaurant.can_receive_orders is False
 
     def test_manual_override_cleanup_on_save(self, restaurant):
         """Test que l'override expiré est nettoyé au save"""
-        restaurant.is_manually_overridden = True
-        restaurant.manual_override_reason = "Test"
-        restaurant.manual_override_until = timezone.now() - timedelta(hours=1)
-        restaurant.save()
+        with disable_all_signals():
+            restaurant.is_manually_overridden = True
+            restaurant.manual_override_reason = "Test"
+            restaurant.manual_override_until = timezone.now() - timedelta(hours=1)
+            restaurant.save()
         
         restaurant.refresh_from_db()
         assert restaurant.is_manually_overridden is False
@@ -246,25 +298,27 @@ class TestRestaurant:
         valid_cuisines = ['french', 'italian', 'japanese', 'chinese', 'indian', 'mexican', 'other']
         
         for i, cuisine in enumerate(valid_cuisines):
-            restaurant = Restaurant.objects.create(
-                name=f"Restaurant {cuisine}",
-                description="Test",
-                owner=restaurateur_profile,
-                siret=f"3333333333{str(i).zfill(4)}",
-                address="Test Address",
-                city="Paris",
-                zip_code="75001",
-                phone="0140000000",
-                email=f"{cuisine}@test.fr",
-                cuisine=cuisine
-            )
+            with disable_all_signals():
+                restaurant = Restaurant.objects.create(
+                    name=f"Restaurant {cuisine}",
+                    description="Test",
+                    owner=restaurateur_profile,
+                    siret=f"3333333333{str(i).zfill(4)}",
+                    address="Test Address",
+                    city="Paris",
+                    zip_code="75001",
+                    phone="0140000000",
+                    email=f"{cuisine}@test.fr",
+                    cuisine=cuisine
+                )
             assert restaurant.cuisine == cuisine
 
     def test_accepts_meal_vouchers(self, restaurant):
         """Test du champ titres-restaurant"""
         restaurant.accepts_meal_vouchers = True
         restaurant.meal_voucher_info = "Edenred, Sodexo acceptés"
-        restaurant.save()
+        with disable_all_signals():
+            restaurant.save()
         
         restaurant.refresh_from_db()
         assert restaurant.accepts_meal_vouchers is True
@@ -275,7 +329,8 @@ class TestRestaurant:
         # FIX: Use Decimal for DecimalField comparisons
         restaurant.latitude = Decimal('48.856600')
         restaurant.longitude = Decimal('2.352200')
-        restaurant.save()
+        with disable_all_signals():
+            restaurant.save()
         
         restaurant.refresh_from_db()
         assert restaurant.latitude == Decimal('48.856600')
@@ -283,18 +338,19 @@ class TestRestaurant:
 
     def test_cascade_delete_with_owner(self, restaurateur_profile, user):
         """Test que le restaurant est supprimé avec le profil propriétaire"""
-        restaurant = Restaurant.objects.create(
-            name="To Delete",
-            description="Test",
-            owner=restaurateur_profile,
-            siret="44444444444444",
-            address="Test Address",
-            city="Paris",
-            zip_code="75001",
-            phone="0140000000",
-            email="delete@test.fr",
-            cuisine="french"
-        )
+        with disable_all_signals():
+            restaurant = Restaurant.objects.create(
+                name="To Delete",
+                description="Test",
+                owner=restaurateur_profile,
+                siret="44444444444444",
+                address="Test Address",
+                city="Paris",
+                zip_code="75001",
+                phone="0140000000",
+                email="delete@test.fr",
+                cuisine="french"
+            )
         restaurant_id = restaurant.id
         
         user.delete()  # Cascade supprime RestaurateurProfile et Restaurant
@@ -308,30 +364,31 @@ class TestRestaurant:
 
     def test_ordering(self, restaurateur_profile):
         """Test de l'ordre par défaut (created_at desc)"""
-        r1 = Restaurant.objects.create(
-            name="First",
-            description="Test",
-            owner=restaurateur_profile,
-            siret="55555555555555",
-            address="Test Address 1",
-            city="Paris",
-            zip_code="75001",
-            phone="0140000001",
-            email="first@test.fr",
-            cuisine="french"
-        )
-        r2 = Restaurant.objects.create(
-            name="Second",
-            description="Test",
-            owner=restaurateur_profile,
-            siret="66666666666666",
-            address="Test Address 2",
-            city="Paris",
-            zip_code="75002",
-            phone="0140000002",
-            email="second@test.fr",
-            cuisine="french"
-        )
+        with disable_all_signals():
+            r1 = Restaurant.objects.create(
+                name="First",
+                description="Test",
+                owner=restaurateur_profile,
+                siret="55555555555555",
+                address="Test Address 1",
+                city="Paris",
+                zip_code="75001",
+                phone="0140000001",
+                email="first@test.fr",
+                cuisine="french"
+            )
+            r2 = Restaurant.objects.create(
+                name="Second",
+                description="Test",
+                owner=restaurateur_profile,
+                siret="66666666666666",
+                address="Test Address 2",
+                city="Paris",
+                zip_code="75002",
+                phone="0140000002",
+                email="second@test.fr",
+                cuisine="french"
+            )
         
         restaurants = list(Restaurant.objects.filter(owner=restaurateur_profile))
         # Le plus récent en premier
@@ -453,6 +510,74 @@ class TestOpeningHours:
         restaurant.delete()
         
         assert not OpeningHours.objects.filter(id=hours_id).exists()
+
+    def test_opening_hours_str_undefined(self, restaurant):
+        """Test de __str__ quand non fermé, pas de périodes, pas de legacy (ligne 316)"""
+        hours = OpeningHours.objects.create(
+            restaurant=restaurant,
+            day_of_week=6,  # Samedi
+            is_closed=False
+            # Pas de opening_time/closing_time, pas de périodes
+        )
+        result = str(hours)
+        assert "Samedi" in result
+        assert "Non défini" in result
+
+    def test_clean_overlapping_periods(self, restaurant):
+        """Test que clean() détecte les chevauchements de périodes (lignes 320-334)"""
+        hours = OpeningHours.objects.create(
+            restaurant=restaurant,
+            day_of_week=6,
+            is_closed=False
+        )
+        # Créer deux périodes qui se chevauchent : 12h-15h et 14h-18h
+        OpeningPeriod.objects.create(
+            opening_hours=hours,
+            start_time=time(12, 0),
+            end_time=time(15, 0),
+            name="Service midi"
+        )
+        OpeningPeriod.objects.create(
+            opening_hours=hours,
+            start_time=time(14, 0),
+            end_time=time(18, 0),
+            name="Service soir"
+        )
+
+        with pytest.raises(ValidationError, match="Chevauchement"):
+            hours.clean()
+
+    def test_clean_no_overlap(self, restaurant):
+        """Test que clean() passe quand les périodes ne se chevauchent pas"""
+        hours = OpeningHours.objects.create(
+            restaurant=restaurant,
+            day_of_week=5,
+            is_closed=False
+        )
+        OpeningPeriod.objects.create(
+            opening_hours=hours,
+            start_time=time(12, 0),
+            end_time=time(14, 30),
+            name="Service midi"
+        )
+        OpeningPeriod.objects.create(
+            opening_hours=hours,
+            start_time=time(19, 0),
+            end_time=time(22, 30),
+            name="Service soir"
+        )
+        # Should not raise
+        hours.clean()
+
+    def test_clean_closed_day_skips_validation(self, restaurant):
+        """Test que clean() ne valide pas les périodes si fermé (lignes 323-324)"""
+        hours = OpeningHours.objects.create(
+            restaurant=restaurant,
+            day_of_week=0,
+            is_closed=True
+        )
+        # Should not raise even without periods
+        hours.clean()
 
 
 # =============================================================================
