@@ -6,9 +6,11 @@ Tests unitaires pour les modèles de paiement
 """
 
 import pytest
+from contextlib import contextmanager
 from decimal import Decimal
-from django.utils import timezone
 from django.contrib.auth.models import User
+from django.db.models.signals import post_save, pre_save
+from django.utils import timezone
 from api.models import (
     SplitPaymentSession,
     SplitPaymentPortion,
@@ -19,41 +21,86 @@ from api.models import (
 )
 
 
+@contextmanager
+def disable_all_signals():
+    """Désactive temporairement tous les signaux post_save/pre_save susceptibles d'interférer."""
+    from api.signals import (
+        assign_restaurateur_group,
+        update_restaurant_stripe_status,
+        check_restaurant_stripe_activation,
+        send_restaurant_status_notifications,
+        capture_restaurant_stripe_change,
+        order_updated,
+        send_order_push_notifications,
+        send_payment_push_notifications,
+        update_order_timestamps,
+        capture_order_changes,
+        capture_payment_status_change,
+        capture_portion_payment_change,
+        send_split_payment_notifications,
+    )
+    signals_to_disable = [
+        (post_save, assign_restaurateur_group, RestaurateurProfile),
+        (post_save, update_restaurant_stripe_status, RestaurateurProfile),
+        (post_save, check_restaurant_stripe_activation, Restaurant),
+        (post_save, send_restaurant_status_notifications, Restaurant),
+        (pre_save, capture_restaurant_stripe_change, Restaurant),
+        (post_save, order_updated, Order),
+        (post_save, send_order_push_notifications, Order),
+        (post_save, send_payment_push_notifications, Order),
+        (post_save, update_order_timestamps, Order),
+        (pre_save, capture_order_changes, Order),
+        (pre_save, capture_payment_status_change, Order),
+        (pre_save, capture_portion_payment_change, SplitPaymentPortion),
+        (post_save, send_split_payment_notifications, SplitPaymentPortion),
+    ]
+    for signal, receiver, sender in signals_to_disable:
+        signal.disconnect(receiver, sender=sender)
+    try:
+        yield
+    finally:
+        for signal, receiver, sender in signals_to_disable:
+            signal.connect(receiver, sender=sender)
+
+
 # =============================================================================
 # FIXTURES
 # =============================================================================
 
 @pytest.fixture
 def user():
-    return User.objects.create_user(username="paymentuser", password="testpass123")
+    with disable_all_signals():
+        return User.objects.create_user(username="paymentuser", password="testpass123")
 
 
 @pytest.fixture
 def second_user():
-    return User.objects.create_user(username="secondpaymentuser", password="testpass123")
+    with disable_all_signals():
+        return User.objects.create_user(username="secondpaymentuser", password="testpass123")
 
 
 @pytest.fixture
 def restaurateur_profile(user):
-    return RestaurateurProfile.objects.create(
-        user=user,
-        siret="12345678901234"
-    )
+    with disable_all_signals():
+        return RestaurateurProfile.objects.create(
+            user=user,
+            siret="12345678901234"
+        )
 
 
 @pytest.fixture
 def restaurant(restaurateur_profile):
-    return Restaurant.objects.create(
-        name="Payment Test Restaurant",
-        description="Restaurant de test paiement",
-        owner=restaurateur_profile,
-        siret="98765432109876"
-    )
+    with disable_all_signals():
+        return Restaurant.objects.create(
+            name="Payment Test Restaurant",
+            description="Restaurant de test paiement",
+            owner=restaurateur_profile,
+            siret="98765432109876"
+        )
 
 
 @pytest.fixture
 def table(restaurant):
-    # FIX: Use 'number' field, not 'identifiant' (which is a read-only property)
     return Table.objects.create(
         restaurant=restaurant,
         number="PAY01"
@@ -62,21 +109,16 @@ def table(restaurant):
 
 @pytest.fixture
 def order(restaurant, user):
-    # FIX: Order model requires:
-    # - restaurant (ForeignKey)
-    # - table_number (CharField, NOT a table ForeignKey)
-    # - order_number (CharField, unique, required)
-    # - subtotal and total_amount (DecimalField)
-    # Order does NOT have: restaurateur field, table ForeignKey
-    return Order.objects.create(
-        restaurant=restaurant,
-        user=user,
-        table_number="PAY01",
-        order_number="ORD-PAY-001",
-        total_amount=Decimal('100.00'),
-        subtotal=Decimal('90.00'),
-        tax_amount=Decimal('10.00')
-    )
+    with disable_all_signals():
+        return Order.objects.create(
+            restaurant=restaurant,
+            user=user,
+            table_number="PAY01",
+            order_number="ORD-PAY-001",
+            total_amount=Decimal('100.00'),
+            subtotal=Decimal('90.00'),
+            tax_amount=Decimal('10.00')
+        )
 
 
 @pytest.fixture
@@ -232,7 +274,8 @@ class TestSplitPaymentSession:
         assert split_payment_session.status == 'active'
         assert split_payment_session.completed_at is None
         
-        split_payment_session.mark_as_completed()
+        with disable_all_signals():
+            split_payment_session.mark_as_completed()
         
         assert split_payment_session.status == 'completed'
         assert split_payment_session.completed_at is not None
@@ -243,15 +286,15 @@ class TestSplitPaymentSession:
 
     def test_one_to_one_with_order(self, restaurant, user):
         """Test que la relation avec Order est OneToOne"""
-        # Create a fresh order for this test
-        order = Order.objects.create(
-            restaurant=restaurant,
-            user=user,
-            table_number="T99",
-            order_number="ORD-PAY-UNIQUE-001",
-            subtotal=Decimal('90.00'),
-            total_amount=Decimal('100.00')
-        )
+        with disable_all_signals():
+            order = Order.objects.create(
+                restaurant=restaurant,
+                user=user,
+                table_number="T99",
+                order_number="ORD-PAY-UNIQUE-001",
+                subtotal=Decimal('90.00'),
+                total_amount=Decimal('100.00')
+            )
         
         SplitPaymentSession.objects.create(
             order=order,
@@ -295,7 +338,8 @@ class TestSplitPaymentPortion:
     def test_portion_str_paid(self, payment_portion):
         """Test de __str__ pour une portion payée"""
         payment_portion.is_paid = True
-        payment_portion.save()
+        with disable_all_signals():
+            payment_portion.save()
         
         result = str(payment_portion)
         assert "Payé" in result
@@ -314,11 +358,12 @@ class TestSplitPaymentPortion:
         assert payment_portion.is_paid is False
         assert payment_portion.paid_at is None
         
-        payment_portion.mark_as_paid(
-            payment_intent_id="pi_test_123",
-            user=user,
-            payment_method='card'
-        )
+        with disable_all_signals():
+            payment_portion.mark_as_paid(
+                payment_intent_id="pi_test_123",
+                user=user,
+                payment_method='card'
+            )
         
         assert payment_portion.is_paid is True
         assert payment_portion.paid_at is not None
@@ -342,14 +387,16 @@ class TestSplitPaymentPortion:
         
         assert split_payment_session.status == 'active'
         
-        portion2.mark_as_paid(payment_intent_id="pi_test")
+        with disable_all_signals():
+            portion2.mark_as_paid(payment_intent_id="pi_test")
         
         split_payment_session.refresh_from_db()
         assert split_payment_session.status == 'completed'
 
     def test_default_payment_method(self, payment_portion):
         """Test de la méthode de paiement par défaut"""
-        payment_portion.mark_as_paid(payment_intent_id="pi_test")
+        with disable_all_signals():
+            payment_portion.mark_as_paid(payment_intent_id="pi_test")
         assert payment_portion.payment_method == 'online'
 
     def test_multiple_portions_per_session(self, split_payment_session):
