@@ -32,29 +32,23 @@ from api.models import (
 # SETUP: Créer les modules fictifs pour contourner les imports manquants
 # =============================================================================
 
-# Chemin vers tasks.py
-# Structure: api/tests/test_tasks.py -> api/tasks.py
 TASKS_PATH = Path(__file__).resolve().parents[1] / "tasks.py"
 if not TASKS_PATH.exists():
-    # Fallback: api/tests/test_tasks/test_tasks.py -> api/tasks.py
     TASKS_PATH = Path(__file__).resolve().parents[2] / "tasks.py"
 
 
 def setup_dummy_modules():
     """Configure les modules fictifs pour permettre l'import initial."""
-    # Module fictif pour api.utils.websocket_notifications
     if "api.utils.websocket_notifications" not in sys.modules:
         dummy_ws = types.ModuleType("api.utils.websocket_notifications")
         dummy_ws.notify_session_archived = lambda *args, **kwargs: None
         sys.modules["api.utils.websocket_notifications"] = dummy_ws
-    
-    # Module fictif pour api.tasks (package)
+
     if "api.tasks" not in sys.modules:
         dummy_pkg = types.ModuleType("api.tasks")
         dummy_pkg.__path__ = []
         sys.modules["api.tasks"] = dummy_pkg
-    
-    # Module fictif pour api.tasks.comptabilite_tasks
+
     if "api.tasks.comptabilite_tasks" not in sys.modules:
         dummy_compta = types.ModuleType("api.tasks.comptabilite_tasks")
         dummy_compta.generate_monthly_recap = lambda *args, **kwargs: None
@@ -65,12 +59,11 @@ def setup_dummy_modules():
         sys.modules["api.tasks.comptabilite_tasks"] = dummy_compta
 
 
-# Configurer une fois au chargement du module de test
 setup_dummy_modules()
 
-# Charger le module tasks une seule fois
 spec = importlib.util.spec_from_file_location("api.tasks_main", TASKS_PATH)
 tasks_module = importlib.util.module_from_spec(spec)
+sys.modules["api.tasks_main"] = tasks_module
 spec.loader.exec_module(tasks_module)
 
 
@@ -81,31 +74,38 @@ spec.loader.exec_module(tasks_module)
 @pytest.fixture(autouse=True)
 def patch_notify_session_archived():
     """
-    Patch notify_session_archived dans les globals de la fonction.
-    
-    Le décorateur @shared_task de Celery wrappe la fonction, mais la référence
-    à notify_session_archived est dans les __globals__ de la fonction originale.
-    On doit patcher là pour que ça fonctionne.
+    Patch notify_session_archived dans les __globals__ réels des fonctions de tâche.
+    Utilise func_globals pour garantir que le patch atteint la closure Celery.
     """
     notify_mock = MagicMock()
-    
-    # Accéder aux globals de la fonction wrappée
-    # @shared_task crée un objet Task, la vraie fonction est dans __wrapped__
+
     try:
-        func_globals = tasks_module.archive_session_delayed.__wrapped__.__globals__
+        func_globals = tasks_module.archive_session_delayed.run.__globals__
     except AttributeError:
-        # Si pas de __wrapped__, essayer directement
-        func_globals = tasks_module.archive_session_delayed.__globals__
-    
-    # Sauvegarder et remplacer
+        try:
+            func_globals = tasks_module.archive_session_delayed.__wrapped__.__globals__
+        except AttributeError:
+            func_globals = tasks_module.__dict__
+
     original = func_globals.get('notify_session_archived')
     func_globals['notify_session_archived'] = notify_mock
-    
+
+    # Patch aussi dans le module websocket pour intercepter les signaux Django
+    ws_mod = sys.modules.get('api.utils.websocket_notifications')
+    original_ws = None
+    if ws_mod:
+        original_ws = getattr(ws_mod, 'notify_session_archived', None)
+        ws_mod.notify_session_archived = notify_mock
+
     yield notify_mock
-    
-    # Restaurer
+
     if original is not None:
         func_globals['notify_session_archived'] = original
+    else:
+        func_globals.pop('notify_session_archived', None)
+
+    if ws_mod and original_ws is not None:
+        ws_mod.notify_session_archived = original_ws
 
 
 @pytest.fixture
@@ -174,15 +174,20 @@ def active_session(db, restaurant, table):
 
 @pytest.fixture
 def completed_session(db, restaurant, table):
-    """Session collaborative complétée"""
+    """Session collaborative complétée (bypass signaux d'archivage automatique)"""
     session = CollaborativeTableSession.objects.create(
         restaurant=restaurant,
         table=table,
         table_number="TASK02",
-        status="completed",
+        status="active",
         is_archived=False,
-        completed_at=timezone.now() - timedelta(minutes=10)
     )
+    CollaborativeTableSession.all_objects.filter(id=session.id).update(
+        status="completed",
+        completed_at=timezone.now() - timedelta(minutes=10),
+        is_archived=False,
+    )
+    session.refresh_from_db()
     return session
 
 
@@ -202,7 +207,7 @@ def archived_session(db, restaurant, table):
 @pytest.fixture
 def old_archived_session(db, restaurant):
     """Vieille session archivée (pour cleanup)"""
-    table = Table.objects.create(
+    t = Table.objects.create(
         restaurant=restaurant,
         number="TASK04",
         qr_code="TASKTEST04",
@@ -211,12 +216,11 @@ def old_archived_session(db, restaurant):
     )
     session = CollaborativeTableSession.objects.create(
         restaurant=restaurant,
-        table=table,
+        table=t,
         table_number="TASK04",
         status="completed",
         is_archived=True
     )
-    # Mettre à jour archived_at pour qu'elle soit ancienne
     CollaborativeTableSession.all_objects.filter(id=session.id).update(
         archived_at=timezone.now() - timedelta(days=35)
     )
@@ -226,7 +230,7 @@ def old_archived_session(db, restaurant):
 @pytest.fixture
 def abandoned_session(db, restaurant):
     """Session abandonnée (créée il y a longtemps)"""
-    table = Table.objects.create(
+    t = Table.objects.create(
         restaurant=restaurant,
         number="TASK05",
         qr_code="TASKTEST05",
@@ -235,12 +239,11 @@ def abandoned_session(db, restaurant):
     )
     session = CollaborativeTableSession.objects.create(
         restaurant=restaurant,
-        table=table,
+        table=t,
         table_number="TASK05",
         status="active",
         is_archived=False
     )
-    # Mettre à jour created_at pour simuler une session abandonnée
     CollaborativeTableSession.all_objects.filter(id=session.id).update(
         created_at=timezone.now() - timedelta(hours=15)
     )
@@ -258,7 +261,7 @@ class TestArchiveSessionDelayed:
     def test_archives_completed_session(self, completed_session, notify_mock):
         """Test l'archivage d'une session complétée"""
         result = tasks_module.archive_session_delayed(str(completed_session.id))
-        
+
         completed_session.refresh_from_db()
         assert completed_session.is_archived is True
         assert "archivée" in result
@@ -271,7 +274,7 @@ class TestArchiveSessionDelayed:
             str(completed_session.id),
             reason=custom_reason
         )
-        
+
         completed_session.refresh_from_db()
         assert completed_session.is_archived is True
         notify_mock.assert_called_once_with(
@@ -282,16 +285,15 @@ class TestArchiveSessionDelayed:
     def test_already_archived_session(self, archived_session, notify_mock):
         """Test avec une session déjà archivée"""
         result = tasks_module.archive_session_delayed(str(archived_session.id))
-        
+
         assert "déjà archivée" in result
         notify_mock.assert_not_called()
 
     def test_non_archivable_session(self, active_session, notify_mock):
         """Test avec une session non archivable (active)"""
         result = tasks_module.archive_session_delayed(str(active_session.id))
-        
+
         active_session.refresh_from_db()
-        # Une session active ne devrait pas être archivable
         assert "non éligible" in result or active_session.is_archived is False
         notify_mock.assert_not_called()
 
@@ -299,19 +301,17 @@ class TestArchiveSessionDelayed:
         """Test avec une session inexistante"""
         fake_uuid = "00000000-0000-0000-0000-000000000000"
         result = tasks_module.archive_session_delayed(fake_uuid)
-        
+
         assert "introuvable" in result
         notify_mock.assert_not_called()
 
     def test_websocket_notification_failure(self, completed_session, notify_mock):
         """Test que l'échec WebSocket n'empêche pas l'archivage"""
-        # Configurer le mock pour lever une exception
         notify_mock.side_effect = Exception("WebSocket error")
-        
+
         result = tasks_module.archive_session_delayed(str(completed_session.id))
-        
+
         completed_session.refresh_from_db()
-        # L'archivage doit quand même réussir
         assert completed_session.is_archived is True
         assert "archivée" in result
 
@@ -326,36 +326,31 @@ class TestAutoArchiveEligibleSessions:
 
     def test_archives_eligible_sessions(self, restaurant, notify_mock):
         """Test l'archivage des sessions éligibles"""
-        # Créer des sessions éligibles (completed, > 5 minutes)
         table1 = Table.objects.create(
             restaurant=restaurant, number="AUTO01", qr_code="AUTO01"
         )
         table2 = Table.objects.create(
             restaurant=restaurant, number="AUTO02", qr_code="AUTO02"
         )
-        
+
         session1 = CollaborativeTableSession.objects.create(
-            restaurant=restaurant,
-            table=table1,
-            table_number="AUTO01",
-            status="completed",
-            is_archived=False,
-            completed_at=timezone.now() - timedelta(minutes=10)
+            restaurant=restaurant, table=table1, table_number="AUTO01",
+            status="active", is_archived=False
         )
         session2 = CollaborativeTableSession.objects.create(
-            restaurant=restaurant,
-            table=table2,
-            table_number="AUTO02",
+            restaurant=restaurant, table=table2, table_number="AUTO02",
+            status="active", is_archived=False
+        )
+        CollaborativeTableSession.all_objects.filter(id__in=[session1.id, session2.id]).update(
             status="completed",
             is_archived=False,
-            completed_at=timezone.now() - timedelta(minutes=15)
+            completed_at=timezone.now() - timedelta(minutes=10),
         )
-        
+
         result = tasks_module.auto_archive_eligible_sessions()
-        
+
         session1.refresh_from_db()
         session2.refresh_from_db()
-        
         assert session1.is_archived is True
         assert session2.is_archived is True
         assert notify_mock.call_count == 2
@@ -366,16 +361,17 @@ class TestAutoArchiveEligibleSessions:
             restaurant=restaurant, number="RECENT01", qr_code="RECENT01"
         )
         session = CollaborativeTableSession.objects.create(
-            restaurant=restaurant,
-            table=table,
-            table_number="RECENT01",
+            restaurant=restaurant, table=table, table_number="RECENT01",
+            status="active", is_archived=False
+        )
+        CollaborativeTableSession.all_objects.filter(id=session.id).update(
             status="completed",
             is_archived=False,
-            completed_at=timezone.now() - timedelta(minutes=2)  # < 5 minutes
+            completed_at=timezone.now() - timedelta(minutes=2),
         )
-        
+
         result = tasks_module.auto_archive_eligible_sessions()
-        
+
         session.refresh_from_db()
         assert session.is_archived is False
         notify_mock.assert_not_called()
@@ -383,7 +379,7 @@ class TestAutoArchiveEligibleSessions:
     def test_skips_active_sessions(self, active_session, notify_mock):
         """Test que les sessions actives ne sont pas archivées"""
         result = tasks_module.auto_archive_eligible_sessions()
-        
+
         active_session.refresh_from_db()
         assert active_session.is_archived is False
         notify_mock.assert_not_called()
@@ -394,16 +390,17 @@ class TestAutoArchiveEligibleSessions:
             restaurant=restaurant, number="CANCEL01", qr_code="CANCEL01"
         )
         session = CollaborativeTableSession.objects.create(
-            restaurant=restaurant,
-            table=table,
-            table_number="CANCEL01",
+            restaurant=restaurant, table=table, table_number="CANCEL01",
+            status="active", is_archived=False
+        )
+        CollaborativeTableSession.all_objects.filter(id=session.id).update(
             status="cancelled",
             is_archived=False,
-            completed_at=timezone.now() - timedelta(minutes=10)
+            completed_at=timezone.now() - timedelta(minutes=10),
         )
-        
+
         result = tasks_module.auto_archive_eligible_sessions()
-        
+
         session.refresh_from_db()
         assert session.is_archived is True
         notify_mock.assert_called_once()
@@ -411,16 +408,16 @@ class TestAutoArchiveEligibleSessions:
     def test_handles_empty_eligible_list(self, notify_mock):
         """Test quand il n'y a pas de sessions éligibles"""
         result = tasks_module.auto_archive_eligible_sessions()
-        
+
         assert "0" in result
         notify_mock.assert_not_called()
 
     def test_handles_websocket_failure(self, completed_session, notify_mock):
         """Test que l'échec WebSocket n'empêche pas l'archivage"""
         notify_mock.side_effect = Exception("WebSocket error")
-        
+
         result = tasks_module.auto_archive_eligible_sessions()
-        
+
         completed_session.refresh_from_db()
         assert completed_session.is_archived is True
 
@@ -436,54 +433,48 @@ class TestCleanupOldArchivedSessions:
     def test_deletes_old_sessions(self, old_archived_session):
         """Test la suppression des vieilles sessions"""
         session_id = old_archived_session.id
-        
+
         result = tasks_module.cleanup_old_archived_sessions(days=30)
-        
+
         assert not CollaborativeTableSession.all_objects.filter(id=session_id).exists()
         assert "supprimée" in result
 
     def test_keeps_recent_archived_sessions(self, archived_session):
         """Test que les sessions archivées récentes sont gardées"""
-        # archived_session a archived_at = now - 31 days, ce qui est juste au-dessus de 30
-        # Mettons une date plus récente
         CollaborativeTableSession.all_objects.filter(id=archived_session.id).update(
             archived_at=timezone.now() - timedelta(days=10)
         )
-        
+
         session_id = archived_session.id
-        
+
         result = tasks_module.cleanup_old_archived_sessions(days=30)
-        
+
         assert CollaborativeTableSession.all_objects.filter(id=session_id).exists()
 
     def test_with_custom_days_parameter(self, archived_session):
         """Test avec un paramètre days personnalisé"""
-        # La session est archivée depuis 31 jours
         session_id = archived_session.id
-        
-        # Avec days=40, la session de 31 jours ne devrait pas être supprimée
+
         result = tasks_module.cleanup_old_archived_sessions(days=40)
-        
+
         assert CollaborativeTableSession.all_objects.filter(id=session_id).exists()
-        
-        # Avec days=20, elle devrait être supprimée
+
         result = tasks_module.cleanup_old_archived_sessions(days=20)
-        
+
         assert not CollaborativeTableSession.all_objects.filter(id=session_id).exists()
 
     def test_handles_no_old_sessions(self):
         """Test quand il n'y a pas de vieilles sessions"""
         result = tasks_module.cleanup_old_archived_sessions(days=30)
-        
+
         assert "0" in result
 
     def test_keeps_non_archived_sessions(self, completed_session):
         """Test que les sessions non archivées sont gardées"""
         session_id = completed_session.id
-        
+
         result = tasks_module.cleanup_old_archived_sessions(days=0)
-        
-        # Non archivée, donc pas supprimée
+
         assert CollaborativeTableSession.all_objects.filter(id=session_id).exists()
 
 
@@ -497,13 +488,12 @@ class TestForceArchiveAbandonedSessions:
 
     def test_archives_abandoned_sessions(self, abandoned_session, notify_mock):
         """Test l'archivage des sessions abandonnées"""
-        # Recharger la session pour avoir created_at à jour
         abandoned_session.refresh_from_db()
-        
+
         result = tasks_module.force_archive_abandoned_sessions(hours=12)
-        
+
         abandoned_session.refresh_from_db()
-        
+
         assert abandoned_session.status == "cancelled"
         assert abandoned_session.is_archived is True
         assert "archivée" in result
@@ -512,9 +502,9 @@ class TestForceArchiveAbandonedSessions:
     def test_skips_recent_active_sessions(self, active_session, notify_mock):
         """Test que les sessions actives récentes ne sont pas archivées"""
         result = tasks_module.force_archive_abandoned_sessions(hours=12)
-        
+
         active_session.refresh_from_db()
-        
+
         assert active_session.status == "active"
         assert active_session.is_archived is False
         notify_mock.assert_not_called()
@@ -534,11 +524,11 @@ class TestForceArchiveAbandonedSessions:
         CollaborativeTableSession.all_objects.filter(id=session.id).update(
             created_at=timezone.now() - timedelta(hours=15)
         )
-        
+
         result = tasks_module.force_archive_abandoned_sessions(hours=12)
-        
+
         session.refresh_from_db()
-        
+
         assert session.status == "cancelled"
         assert session.is_archived is True
 
@@ -557,41 +547,37 @@ class TestForceArchiveAbandonedSessions:
         CollaborativeTableSession.all_objects.filter(id=session.id).update(
             created_at=timezone.now() - timedelta(hours=5)
         )
-        
-        # Avec hours=4, la session de 5h devrait être archivée
+
         result = tasks_module.force_archive_abandoned_sessions(hours=4)
-        
+
         session.refresh_from_db()
-        
+
         assert session.is_archived is True
 
     def test_skips_already_archived_sessions(self, archived_session, notify_mock):
         """Test que les sessions déjà archivées sont ignorées"""
-        # Mettre created_at dans le passé
         CollaborativeTableSession.all_objects.filter(id=archived_session.id).update(
             created_at=timezone.now() - timedelta(hours=15)
         )
-        
+
         result = tasks_module.force_archive_abandoned_sessions(hours=12)
-        
-        # Pas d'appel car déjà archivée
+
         notify_mock.assert_not_called()
 
     def test_handles_websocket_notification_failure(self, abandoned_session, notify_mock):
         """Test que l'échec WebSocket n'empêche pas l'archivage"""
         notify_mock.side_effect = Exception("WebSocket error")
-        
+
         result = tasks_module.force_archive_abandoned_sessions(hours=12)
-        
+
         abandoned_session.refresh_from_db()
-        
-        # L'archivage doit quand même réussir
+
         assert abandoned_session.is_archived is True
 
     def test_handles_no_abandoned_sessions(self, notify_mock):
         """Test quand il n'y a pas de sessions abandonnées"""
         result = tasks_module.force_archive_abandoned_sessions(hours=12)
-        
+
         assert "0" in result
         notify_mock.assert_not_called()
 
@@ -647,7 +633,6 @@ class TestTasksIntegration:
 
     def test_full_lifecycle(self, restaurant, notify_mock):
         """Test du cycle de vie complet d'une session"""
-        # 1. Créer une session active
         table = Table.objects.create(
             restaurant=restaurant, number="LIFE01", qr_code="LIFE01"
         )
@@ -658,31 +643,29 @@ class TestTasksIntegration:
             status="active",
             is_archived=False
         )
-        
-        # 2. Compléter la session
-        session.status = "completed"
-        session.completed_at = timezone.now() - timedelta(minutes=10)
-        session.save()
-        
-        # 3. L'archivage automatique devrait fonctionner
+
+        CollaborativeTableSession.all_objects.filter(id=session.id).update(
+            status="completed",
+            completed_at=timezone.now() - timedelta(minutes=10),
+            is_archived=False,
+        )
+
         result = tasks_module.auto_archive_eligible_sessions()
-        
+
         session.refresh_from_db()
         assert session.is_archived is True
-        
-        # 4. Après 30 jours, le cleanup devrait la supprimer
+
         CollaborativeTableSession.all_objects.filter(id=session.id).update(
             archived_at=timezone.now() - timedelta(days=35)
         )
-        
+
         session_id = session.id
         result = tasks_module.cleanup_old_archived_sessions(days=30)
-        
+
         assert not CollaborativeTableSession.all_objects.filter(id=session_id).exists()
 
     def test_abandoned_then_cleanup(self, restaurant, notify_mock):
         """Test d'une session abandonnée puis nettoyée"""
-        # 1. Créer une session abandonnée
         table = Table.objects.create(
             restaurant=restaurant, number="ABAND01", qr_code="ABAND01"
         )
@@ -696,20 +679,18 @@ class TestTasksIntegration:
         CollaborativeTableSession.all_objects.filter(id=session.id).update(
             created_at=timezone.now() - timedelta(hours=15)
         )
-        
-        # 2. L'archivage forcé devrait l'archiver
+
         result = tasks_module.force_archive_abandoned_sessions(hours=12)
-        
+
         session.refresh_from_db()
         assert session.is_archived is True
         assert session.status == "cancelled"
-        
-        # 3. Après 30 jours, le cleanup devrait la supprimer
+
         CollaborativeTableSession.all_objects.filter(id=session.id).update(
             archived_at=timezone.now() - timedelta(days=35)
         )
-        
+
         session_id = session.id
         result = tasks_module.cleanup_old_archived_sessions(days=30)
-        
+
         assert not CollaborativeTableSession.all_objects.filter(id=session_id).exists()

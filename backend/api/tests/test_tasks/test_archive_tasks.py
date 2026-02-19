@@ -16,7 +16,6 @@ from api.tests.factories import RestaurantFactory
 # SETUP: Créer les modules fictifs et charger tasks.py
 # =============================================================================
 
-# Chemin vers tasks.py
 TASKS_PATH = Path(__file__).resolve().parents[2] / "tasks.py"
 
 
@@ -26,12 +25,12 @@ def setup_dummy_modules():
         dummy_ws = types.ModuleType("api.utils.websocket_notifications")
         dummy_ws.notify_session_archived = lambda *args, **kwargs: None
         sys.modules["api.utils.websocket_notifications"] = dummy_ws
-    
+
     if "api.tasks" not in sys.modules:
         dummy_pkg = types.ModuleType("api.tasks")
         dummy_pkg.__path__ = []
         sys.modules["api.tasks"] = dummy_pkg
-    
+
     if "api.tasks.comptabilite_tasks" not in sys.modules:
         dummy_compta = types.ModuleType("api.tasks.comptabilite_tasks")
         dummy_compta.generate_monthly_recap = lambda *args, **kwargs: None
@@ -42,12 +41,11 @@ def setup_dummy_modules():
         sys.modules["api.tasks.comptabilite_tasks"] = dummy_compta
 
 
-# Configurer une fois au chargement
 setup_dummy_modules()
 
-# Charger le module tasks une seule fois
 spec = importlib.util.spec_from_file_location("api.tasks_main", TASKS_PATH)
 tasks_module = importlib.util.module_from_spec(spec)
+sys.modules["api.tasks_main"] = tasks_module
 spec.loader.exec_module(tasks_module)
 
 
@@ -57,12 +55,38 @@ spec.loader.exec_module(tasks_module)
 
 @pytest.fixture(autouse=True)
 def patch_notify_session_archived():
-    """Patch notify_session_archived dans le namespace du module tasks."""
+    """
+    Patch notify_session_archived dans les __globals__ réels des fonctions de tâche.
+    Utilise func_globals pour garantir que le patch atteint la closure Celery.
+    """
     notify_mock = MagicMock()
-    original = tasks_module.notify_session_archived
-    tasks_module.notify_session_archived = notify_mock
+
+    try:
+        func_globals = tasks_module.archive_session_delayed.run.__globals__
+    except AttributeError:
+        try:
+            func_globals = tasks_module.archive_session_delayed.__wrapped__.__globals__
+        except AttributeError:
+            func_globals = tasks_module.__dict__
+
+    original = func_globals.get('notify_session_archived')
+    func_globals['notify_session_archived'] = notify_mock
+
+    ws_mod = sys.modules.get('api.utils.websocket_notifications')
+    original_ws = None
+    if ws_mod:
+        original_ws = getattr(ws_mod, 'notify_session_archived', None)
+        ws_mod.notify_session_archived = notify_mock
+
     yield notify_mock
-    tasks_module.notify_session_archived = original
+
+    if original is not None:
+        func_globals['notify_session_archived'] = original
+    else:
+        func_globals.pop('notify_session_archived', None)
+
+    if ws_mod and original_ws is not None:
+        ws_mod.notify_session_archived = original_ws
 
 
 @pytest.fixture
@@ -70,10 +94,12 @@ def notify_mock(patch_notify_session_archived):
     """Accès au mock notify_session_archived"""
     return patch_notify_session_archived
 
+
 @pytest.fixture
 def fresh_tasks_module(patch_notify_session_archived):
     """Compat: certains tests configurent un side_effect sur le mock WebSocket."""
     return patch_notify_session_archived
+
 
 # =============================================================================
 # TESTS
@@ -88,7 +114,11 @@ def test_archive_session_delayed_archives(notify_mock):
         restaurant=restaurant,
         table=table,
         table_number="10",
+        status="active",
+    )
+    CollaborativeTableSession.all_objects.filter(id=session.id).update(
         status="completed",
+        is_archived=False,
     )
 
     result = tasks_module.archive_session_delayed(session.id, reason="test")
@@ -109,8 +139,12 @@ def test_auto_archive_eligible_sessions(notify_mock):
         restaurant=restaurant,
         table=table,
         table_number="11",
+        status="active",
+    )
+    CollaborativeTableSession.all_objects.filter(id=session.id).update(
         status="completed",
         completed_at=timezone.now() - timedelta(minutes=6),
+        is_archived=False,
     )
 
     tasks_module.auto_archive_eligible_sessions()
