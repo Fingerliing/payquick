@@ -40,19 +40,24 @@ class ApiClient {
 
     // Intercepteur requêtes: injecte le token s'il existe
     this.client.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
-      // Essaye plusieurs clés possibles sans casser si absentes
-      const token =
-        (await AsyncStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN)) ||
-        (await AsyncStorage.getItem('auth_token')) ||
-        (await AsyncStorage.getItem('token')) ||
-        undefined;
+      
+      // Ne pas injecter le token sur les endpoints publics
+      const PUBLIC_ENDPOINTS = ['/auth/login', '/auth/register', '/auth/refresh'];
+      const isPublicEndpoint = PUBLIC_ENDPOINTS.some(ep => config.url?.includes(ep));
 
-      if (token) {
-        config.headers = config.headers ?? {};
-        (config.headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+      if (!isPublicEndpoint) {
+        const token =
+          (await AsyncStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN)) ||
+          (await AsyncStorage.getItem('auth_token')) ||
+          (await AsyncStorage.getItem('token')) ||
+          undefined;
+
+        if (token) {
+          config.headers = config.headers ?? {};
+          (config.headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+        }
       }
 
-      // Normalise l'URL pour éviter les // ou les chemins relatifs
       if (config.url) {
         config.url = this.buildUrl(config.url);
       }

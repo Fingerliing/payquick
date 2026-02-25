@@ -113,13 +113,21 @@ class ApiClient {
       },
       ...options,
     };
+  
+    // Ne pas injecter le token sur les endpoints publics
+    const PUBLIC_ENDPOINTS = ['/auth/login', '/auth/register', '/auth/refresh'];
+    const isPublicEndpoint = PUBLIC_ENDPOINTS.some(ep => endpoint.includes(ep));
 
-    const token = await AsyncStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
-    if (token) {
-      config.headers = {
-        ...config.headers,
-        Authorization: `Bearer ${token}`,
-      };
+    let token: string | null = null;
+  
+    if (!isPublicEndpoint) {
+      const token = await AsyncStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+      if (token) {
+        config.headers = {
+          ...config.headers,
+          Authorization: `Bearer ${token}`,
+        };
+      }
     }
 
     try {
