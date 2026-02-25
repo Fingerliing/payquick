@@ -12,7 +12,10 @@ import { NotificationProvider as SessionNotificationProvider } from '@/component
 import { NotificationProvider as PushNotificationProvider } from '@/contexts/NotificationContext';
 import { SessionProvider } from '@/contexts/SessionContext';
 
-SplashScreen.preventAutoHideAsync();
+try {
+  SplashScreen.preventAutoHideAsync();
+} catch {
+}
 
 function SplashScreenManager({ children }: { children: React.ReactNode }) {
   const { isLoading: authLoading } = useAuth();

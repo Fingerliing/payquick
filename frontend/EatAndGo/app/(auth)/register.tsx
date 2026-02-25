@@ -178,7 +178,21 @@ export default function RegisterScreen() {
     if (!validateForm()) return;
   
     setLoading(true);
-    try {
+    try {  
+      await register({
+        username: formData.username.trim().toLowerCase(),
+        password: formData.password,
+        nom: formData.nom.trim(),
+        role: formData.role,
+        telephone: formData.role === 'client' ? formData.telephone.trim() : '',
+        siret: formData.role === 'restaurateur' ? formData.siret.trim() : '',
+      });
+
+      await login({
+        username: formData.username.trim().toLowerCase(),
+        password: formData.password,
+      });
+
       // Enregistrer le consentement légal
       try {
         await legalService.recordConsent({
@@ -189,19 +203,7 @@ export default function RegisterScreen() {
       } catch (error) {
         console.error('Erreur lors de l\'enregistrement du consentement:', error);
       }
-  
-      await register({
-        username: formData.username.trim().toLowerCase(),
-        password: formData.password,
-        nom: formData.nom.trim(),
-        role: formData.role,
-        telephone: formData.role === 'client' ? formData.telephone.trim() : '',
-        siret: formData.role === 'restaurateur' ? formData.siret.trim() : '',
-      });
-      await login({
-        username: formData.username.trim().toLowerCase(),
-        password: formData.password,
-      });
+
       router.replace('/');
     } catch (error: any) {
       handleRegistrationError(error);
@@ -673,7 +675,7 @@ export default function RegisterScreen() {
                     rightIcon={showPassword ? "eye-off-outline" : "eye-outline"}
                     onRightIconPress={() => setShowPassword(!showPassword)}
                     secureTextEntry={!showPassword}
-                    helperText="Minimum 8 caractères"
+                    helperText={"Minimum 10 caractères\nUne majuscule et une minuscule\nUn chiffre\nUn caractère spécial (!@#$%...)\nDifférent de votre adresse email"}
                     returnKeyType="next"
                     required
                   />
