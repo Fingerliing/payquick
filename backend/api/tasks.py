@@ -179,13 +179,13 @@ def force_archive_abandoned_sessions(hours=12):
 # TÂCHES COMPTABILITÉ
 # ============================================================================
 
-from api.tasks.comptabilite_tasks import (
-    generate_monthly_recap,
-    sync_stripe_daily,
-    cleanup_old_exports,
-    generate_ecritures_comptables,
-    generate_fec_async
-)
+# from api.tasks.comptabilite_tasks import (
+#     generate_monthly_recap,
+#     sync_stripe_daily,
+#     cleanup_old_exports,
+#     generate_ecritures_comptables,
+#     generate_fec_async
+# )
 
 # Export pour utilisation directe
 __all__ = [

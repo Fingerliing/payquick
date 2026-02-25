@@ -44,6 +44,28 @@ services:
     command: redis-server --appendonly yes
     restart: unless-stopped
 
+  celery_worker:
+    build: .
+    command: celery -A backend worker -l info
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+
+  celery_beat:
+    build: .
+    command: celery -A backend beat -l info
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+
 volumes:
   postgres_data:
   redis_data:
