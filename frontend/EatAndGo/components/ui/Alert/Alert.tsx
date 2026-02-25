@@ -460,6 +460,7 @@ const createButtonStyles = (screenType: 'mobile' | 'tablet' | 'desktop') => {
       backgroundColor: '#EF4444',
     },
     secondaryButtonWrapper: {
+      backgroundColor: COLORS.surface,
       borderWidth: 1,
       borderColor: COLORS.border.light,
       borderRadius: getResponsiveValue({ mobile: BORDER_RADIUS.sm, tablet: BORDER_RADIUS.sm, desktop: BORDER_RADIUS.sm }, screenType),

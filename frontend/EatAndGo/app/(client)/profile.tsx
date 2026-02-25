@@ -5,6 +5,7 @@ import {
   ScrollView,
   Pressable,
   useWindowDimensions,
+  Modal
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -514,36 +515,42 @@ export default function ClientProfileScreen() {
       </ScrollView>
 
       {/* 💬 Alert personnalisée */}
-      {showLogoutAlert && (
-        <View
-          style={{
-            position: 'absolute',
-            bottom: 30,
-            left: 20,
-            right: 20,
-          }}
-        >
-          <AlertWithAction
-            variant="warning"
-            title="Déconnexion"
-            message="Êtes-vous sûr de vouloir vous déconnecter ?"
-            onDismiss={() => setShowLogoutAlert(false)}
-            autoDismiss={false}
-            primaryButton={{
-              text: 'Déconnexion',
-              onPress: () => {
-                logout();
-                setShowLogoutAlert(false);
-              },
-              variant: 'danger',
-            }}
-            secondaryButton={{
-              text: 'Annuler',
-              onPress: () => setShowLogoutAlert(false),
-            }}
-          />
+      <Modal
+        transparent
+        visible={showLogoutAlert}
+        animationType="fade"
+        onRequestClose={() => setShowLogoutAlert(false)}
+      >
+        <View style={{
+          flex: 1,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          justifyContent: 'center',
+          alignItems: 'center',
+          paddingHorizontal: 20,
+        }}>
+          <View style={{ width: '100%' }}>
+            <AlertWithAction
+              variant="warning"
+              title="Déconnexion"
+              message="Êtes-vous sûr de vouloir vous déconnecter ?"
+              onDismiss={() => setShowLogoutAlert(false)}
+              autoDismiss={false}
+              primaryButton={{
+                text: 'Déconnexion',
+                onPress: () => {
+                  logout();
+                  setShowLogoutAlert(false);
+                },
+                variant: 'danger',
+              }}
+              secondaryButton={{
+                text: 'Annuler',
+                onPress: () => setShowLogoutAlert(false),
+              }}
+            />
+          </View>
         </View>
-      )}
+      </Modal>
 
       <LegalFooter />
     </SafeAreaView>

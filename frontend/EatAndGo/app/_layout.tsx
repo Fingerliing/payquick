@@ -32,8 +32,8 @@ function SplashScreenManager({ children }: { children: React.ReactNode }) {
     // Cacher le splash screen si l'auth est chargée OU si on a timeout
     if (!authLoading || hasTimeout) {
       console.log(`📱 Masquage du splash screen - Auth chargée: ${!authLoading}, Timeout: ${hasTimeout}`);
-      SplashScreen.hideAsync().catch(error => {
-        console.error('Erreur lors du masquage du splash screen:', error);
+      SplashScreen.hideAsync().catch(() => {
+        // console.error('Erreur lors du masquage du splash screen:', error);
       });
     }
   }, [authLoading, hasTimeout]);
