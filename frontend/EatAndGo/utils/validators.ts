@@ -18,37 +18,66 @@ export class ValidationUtils {
     }
   }
 
-  static isStrongPassword(password: string): {
-    isValid: boolean;
-    errors: string[];
-  } {
-    const errors: string[] = [];
+static isStrongPassword(
+  password: string,
+  options?: { username?: string; nom?: string }
+): { isValid: boolean; errors: string[] } {
+  const errors: string[] = [];
 
-    if (password.length < 8) {
-      errors.push('Le mot de passe doit contenir au moins 8 caractères');
-    }
-
-    if (!/[a-z]/.test(password)) {
-      errors.push('Le mot de passe doit contenir au moins une minuscule');
-    }
-
-    if (!/[A-Z]/.test(password)) {
-      errors.push('Le mot de passe doit contenir au moins une majuscule');
-    }
-
-    if (!/[0-9]/.test(password)) {
-      errors.push('Le mot de passe doit contenir au moins un chiffre');
-    }
-
-    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-      errors.push('Le mot de passe doit contenir au moins un caractère spécial');
-    }
-
-    return {
-      isValid: errors.length === 0,
-      errors,
-    };
+  if (password.length < 10) {
+    errors.push('Le mot de passe doit contenir au moins 10 caractères');
   }
+
+  if (!/[a-z]/.test(password)) {
+    errors.push('Le mot de passe doit contenir au moins une minuscule');
+  }
+
+  if (!/[A-Z]/.test(password)) {
+    errors.push('Le mot de passe doit contenir au moins une majuscule');
+  }
+
+  if (!/[0-9]/.test(password)) {
+    errors.push('Le mot de passe doit contenir au moins un chiffre');
+  }
+
+  if (!/[!@#$%^&*(),.?":{}|<>\-_=+\[\]\\;'`~]/.test(password)) {
+    errors.push('Le mot de passe doit contenir au moins un caractère spécial (!@#$%^&*...)');
+  }
+
+  // Vérification similarité avec l'email (username)
+  if (options?.username) {
+    const emailLocal = options.username.split('@')[0].toLowerCase();
+    if (
+      password.toLowerCase() === options.username.toLowerCase() ||
+      password.toLowerCase().includes(emailLocal) ||
+      emailLocal.includes(password.toLowerCase())
+    ) {
+      errors.push('Le mot de passe ne doit pas ressembler à votre adresse email');
+    }
+  }
+
+  // Vérification similarité avec le nom
+  if (options?.nom) {
+    const nomLower = options.nom.trim().toLowerCase();
+    if (
+      nomLower.length >= 3 &&
+      (password.toLowerCase().includes(nomLower) || nomLower.includes(password.toLowerCase()))
+    ) {
+      errors.push('Le mot de passe ne doit pas contenir votre nom');
+    }
+  }
+
+  // Mots de passe trop communs
+  const commonPasswords = ['password', 'motdepasse', '123456789', 'azerty123', 'qwerty123'];
+  if (commonPasswords.some(p => password.toLowerCase().includes(p))) {
+    errors.push('Ce mot de passe est trop courant, choisissez-en un plus original');
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+  };
+}
 
   static isUrl(url: string): boolean {
     try {

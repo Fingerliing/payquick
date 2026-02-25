@@ -22,6 +22,7 @@ import { COLORS, SPACING, TYPOGRAPHY, SHADOWS, RADIUS } from '@/styles/tokens';
 import { useResponsive } from '@/utils/responsive';
 import { legalService } from '@/services/legalService';
 import { Alert as CustomAlert } from '@/components/ui/Alert';
+import { ValidationUtils } from '@/utils/validators';
 
 const APP_LOGO = require('@/assets/images/logo.png');
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -59,6 +60,7 @@ export default function RegisterScreen() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [termsError, setTermsError] = useState<string | undefined>(undefined);
 
   // ✅ état pour l'alerte personnalisée
   const [customAlert, setCustomAlert] = useState<{
@@ -74,7 +76,8 @@ export default function RegisterScreen() {
   // Validation selon les règles Django
   const validateForm = useCallback((): boolean => {
     const newErrors: FormErrors = {};
-    
+    let hasTermsError = false;
+  
     // Validation email (username)
     const email = formData.username.trim();
     if (!email) {
@@ -82,21 +85,27 @@ export default function RegisterScreen() {
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       newErrors.username = 'Format d\'email invalide';
     }
-    
-    // Validation nom (minimum 2 caractères selon Django)
+  
+    // Validation nom (minimum 2 caractères)
     if (!formData.nom.trim()) {
       newErrors.nom = 'Nom requis';
     } else if (formData.nom.trim().length < 2) {
       newErrors.nom = 'Minimum 2 caractères';
     }
-    
-    // Validation mot de passe (minimum 8 caractères selon Django)
+  
+    // Validation mot de passe renforcée
     if (!formData.password) {
       newErrors.password = 'Mot de passe requis';
-    } else if (formData.password.length < 8) {
-      newErrors.password = 'Minimum 8 caractères';
+    } else {
+      const passwordValidation = ValidationUtils.isStrongPassword(formData.password, {
+        username: formData.username.trim(),
+        nom: formData.nom.trim(),
+      });
+      if (!passwordValidation.isValid) {
+        newErrors.password = passwordValidation.errors[0]; // Affiche la première erreur
+      }
     }
-    
+  
     // Validation selon le rôle
     if (formData.role === 'client') {
       if (!formData.telephone.trim()) {
@@ -109,11 +118,19 @@ export default function RegisterScreen() {
         newErrors.siret = 'SIRET doit contenir exactement 14 chiffres';
       }
     }
-    
+  
+    // Validation de l'acceptation des conditions (obligatoire)
+    if (!acceptedTerms) {
+      hasTermsError = true;
+      setTermsError('Vous devez accepter les conditions pour vous inscrire');
+    } else {
+      setTermsError(undefined);
+    }
+  
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0 && acceptedTerms;
+    return Object.keys(newErrors).length === 0 && !hasTermsError;
   }, [formData, acceptedTerms]);
-
+  
   const handleRegistrationError = (error: any) => {
     console.error('Registration error:', error);
     
@@ -158,27 +175,25 @@ export default function RegisterScreen() {
   };
 
   const handleSubmit = useCallback(async () => {
-    if (!validateForm()) {
-      if (acceptedTerms) {
-        try {
-          await legalService.recordConsent({
-            terms_version: '1.0.0',
-            privacy_version: '1.0.0',
-            consent_date: new Date().toISOString(),
-          });
-        } catch (error) {
-          console.error('Erreur lors de l\'enregistrement du consentement:', error);
-        }
-      }
-    };
-    
+    if (!validateForm()) return;
+  
     setLoading(true);
     try {
-      // Envoyer les données au format attendu par Django
+      // Enregistrer le consentement légal
+      try {
+        await legalService.recordConsent({
+          terms_version: '1.0.0',
+          privacy_version: '1.0.0',
+          consent_date: new Date().toISOString(),
+        });
+      } catch (error) {
+        console.error('Erreur lors de l\'enregistrement du consentement:', error);
+      }
+  
       await register({
-        username: formData.username.trim().toLowerCase(), // Email comme username
+        username: formData.username.trim().toLowerCase(),
         password: formData.password,
-        nom: formData.nom.trim(), // Nom complet
+        nom: formData.nom.trim(),
         role: formData.role,
         telephone: formData.role === 'client' ? formData.telephone.trim() : '',
         siret: formData.role === 'restaurateur' ? formData.siret.trim() : '',
@@ -193,8 +208,7 @@ export default function RegisterScreen() {
     } finally {
       setLoading(false);
     }
-  }, [formData, register, validateForm, acceptedTerms]);
-
+  }, [formData, register, login, validateForm]);
   const updateFormData = useCallback((field: keyof RegisterFormData) => 
     (value: string) => {
       setFormData(prev => ({ ...prev, [field]: value }));
@@ -217,11 +231,10 @@ export default function RegisterScreen() {
     setErrors(prev => ({ ...prev, telephone: undefined, siret: undefined }));
   }, []);
 
-  const isFormValid = formData.username.trim() && 
-                     formData.nom.trim() && 
-                     formData.password && 
-                     acceptedTerms &&
-                     ((formData.role === 'client' && formData.telephone.trim()) ||
+  const isFormValid = formData.username.trim() &&
+                      formData.nom.trim() &&
+                      formData.password &&
+                      ((formData.role === 'client' && formData.telephone.trim()) ||
                       (formData.role === 'restaurateur' && formData.siret.trim()));
 
   // Utilisation du système responsive existant
@@ -699,33 +712,60 @@ export default function RegisterScreen() {
                 </View>
 
                 {/* Checkbox des conditions */}
-                <View style={styles.termsContainer}>
-                  <TouchableOpacity 
-                    style={styles.checkbox}
-                    onPress={() => setAcceptedTerms(!acceptedTerms)}
+                <View>
+                  <TouchableOpacity
+                    style={styles.termsContainer}
+                    onPress={() => {
+                      setAcceptedTerms(!acceptedTerms);
+                      if (!acceptedTerms) setTermsError(undefined);
+                    }}
                     activeOpacity={0.8}
                   >
-                    {acceptedTerms && (
-                      <Ionicons name="checkmark" size={16} color="#FFFFFF" />
-                    )}
+                    <View style={[
+                      styles.checkbox,
+                      termsError ? { borderColor: COLORS.error || '#E53E3E' } : {}
+                    ]}>
+                      {acceptedTerms && (
+                        <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                      )}
+                    </View>
+
+                    <Text style={styles.termsText}>
+                      J'accepte les{' '}
+                      <Text
+                        style={styles.termsLink}
+                        onPress={(e) => {
+                          e.stopPropagation?.();
+                          router.push('/(legal)/terms');
+                        }}
+                      >
+                        conditions d'utilisation
+                      </Text>
+                      {' '}et la{' '}
+                      <Text
+                        style={styles.termsLink}
+                        onPress={(e) => {
+                          e.stopPropagation?.();
+                          router.push('/(legal)/privacy');
+                        }}
+                      >
+                        politique de confidentialité
+                      </Text>
+                      {' '}<Text style={{ color: COLORS.error || '#E53E3E' }}>*</Text>
+                    </Text>
                   </TouchableOpacity>
-                  
-                  <Text style={styles.termsText}>
-                    J'accepte les{' '}
-                    <Text 
-                      style={styles.termsLink}
-                      onPress={() => router.push('/(legal)/terms')}
-                    >
-                      conditions d'utilisation
+
+                  {termsError && (
+                    <Text style={{
+                      color: COLORS.error || '#E53E3E',
+                      fontSize: 12,
+                      marginTop: -8,
+                      marginBottom: 4,
+                      marginLeft: 32,
+                    }}>
+                      {termsError}
                     </Text>
-                    {' '}et la{' '}
-                    <Text 
-                      style={styles.termsLink}
-                      onPress={() => router.push('/(legal)/privacy')}
-                    >
-                      politique de confidentialité
-                    </Text>
-                  </Text>
+                  )}
                 </View>
 
                 <Button

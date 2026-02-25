@@ -1,9 +1,10 @@
-import React, { forwardRef, useState } from 'react';
+import React, { forwardRef, useRef, useState } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
+  Pressable,
   ViewStyle,
   TextStyle,
   TextInputProps,
@@ -45,9 +46,17 @@ export const Input = forwardRef<TextInput, InputProps>(({
 }, ref) => {
   const [isFocused, setIsFocused] = useState(false);
   const screenType = useScreenType();
-  
+  const internalRef = useRef<TextInput>(null);
+
+  // Résoudre la ref : utiliser la ref externe si fournie, sinon la ref interne
+  const resolvedRef = (ref as React.RefObject<TextInput>) || internalRef;
+
   const hasError = !!error;
-  const hasValue = !!props.value || !!props.defaultValue;
+
+  // Quand on appuie n'importe où dans le conteneur, on focus le TextInput
+  const handleContainerPress = () => {
+    resolvedRef.current?.focus();
+  };
 
   // STYLES RESPONSIVES
   const containerStyle: ViewStyle = {
@@ -68,10 +77,10 @@ export const Input = forwardRef<TextInput, InputProps>(({
     borderWidth: 1.5,
     borderRadius: BORDER_RADIUS.lg,
     backgroundColor: COLORS.surface,
-    borderColor: hasError 
-      ? COLORS.error 
-      : isFocused 
-        ? COLORS.primary 
+    borderColor: hasError
+      ? COLORS.error
+      : isFocused
+        ? COLORS.primary
         : COLORS.border.light,
     paddingHorizontal: getResponsiveValue(SPACING.md, screenType),
     paddingVertical: getResponsiveValue(SPACING.sm, screenType),
@@ -88,10 +97,10 @@ export const Input = forwardRef<TextInput, InputProps>(({
     ...(style as TextStyle),
   };
 
-  const iconColor = hasError 
-    ? COLORS.error 
-    : isFocused 
-      ? COLORS.primary 
+  const iconColor = hasError
+    ? COLORS.error
+    : isFocused
+      ? COLORS.primary
       : COLORS.text.light;
 
   const messageStyle: TextStyle = {
@@ -110,14 +119,14 @@ export const Input = forwardRef<TextInput, InputProps>(({
         </Text>
       )}
 
-      {/* Input Container */}
-      <View style={inputContainerStyle}>
+      {/* Input Container — Pressable sur toute la surface */}
+      <Pressable onPress={handleContainerPress} style={inputContainerStyle}>
         {leftIcon && (
           <Ionicons name={leftIcon} size={20} color={iconColor} />
         )}
 
         <TextInput
-          ref={ref}
+          ref={resolvedRef}
           style={textInputStyle}
           placeholderTextColor={COLORS.text.light}
           onFocus={() => setIsFocused(true)}
@@ -126,11 +135,14 @@ export const Input = forwardRef<TextInput, InputProps>(({
         />
 
         {rightIcon && (
-          <TouchableOpacity onPress={onRightIconPress}>
+          <TouchableOpacity
+            onPress={onRightIconPress}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
             <Ionicons name={rightIcon} size={20} color={iconColor} />
           </TouchableOpacity>
         )}
-      </View>
+      </Pressable>
 
       {/* Error / Helper Text */}
       {(error || helperText) && (
