@@ -185,9 +185,9 @@ class CollaborativeSessionService {
     participantId: string,
     action: 'approve' | 'reject' | 'remove' | 'make_host',
     reason?: string
-  ): Promise<{ message: string; participant: SessionParticipant }> {
+  ) {
     const response = await apiClient.post(
-      `/api/v1/session-participants/${participantId}/participant_action/`,
+      `/api/v1/collaborative-sessions/participants/${participantId}/participant_action/`,
       { action, reason }
     );
     return response;

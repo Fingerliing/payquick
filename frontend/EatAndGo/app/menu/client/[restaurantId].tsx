@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,15 +9,18 @@ import {
   Switch,
   Platform,
   Dimensions,
+  Alert,
+  Share,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Clipboard from 'expo-clipboard';
 
 // UI Components
 import { useCart } from '@/contexts/CartContext';
 import { menuService } from '@/services/menuService';
-import { useSession } from '@/contexts/SessionContext';
+import { useCollaborativeSession } from '@/hooks/session/useCollaborativeSession';
 import { restaurantService } from '@/services/restaurantService';
 import { Header } from '@/components/ui/Header';
 import { Loading } from '@/components/ui/Loading';
@@ -72,10 +75,17 @@ type ViewMode = 'compact' | 'grid' | 'masonry' | 'accordion' | 'table';
 // COMPOSANT PRINCIPAL OPTIMISÉ
 // =============================================================================
 export default function OptimizedRestaurantPage() {
-  const { restaurantId } = useLocalSearchParams<{ restaurantId: string }>();
+  const { restaurantId, sessionId } = useLocalSearchParams<{
+    restaurantId: string;
+    sessionId?: string;
+  }>();
   const screenType = useScreenType();
   const insets = useSafeAreaInsets();
-  const { session } = useSession();
+
+  const { session, isHost, approveParticipant, rejectParticipant } = useCollaborativeSession({
+    sessionId: sessionId as string | undefined,
+  });
+
   const { cart, addToCart, clearCart } = useCart();
 
   // États principaux
@@ -84,7 +94,7 @@ export default function OptimizedRestaurantPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // 🆕 États pour l'affichage optimisé
+  // États pour l'affichage optimisé
   const [viewMode, setViewMode] = useState<ViewMode>('compact');
   const [showDailyMenuFirst, setShowDailyMenuFirst] = useState(true);
   const [groupByCategory, setGroupByCategory] = useState(true);
@@ -114,6 +124,85 @@ export default function OptimizedRestaurantPage() {
     item: null as MenuItem | null,
   });
 
+  // Session banner
+  const [codeCopied, setCodeCopied] = useState(false);
+
+  // Ref pour tracker les pending précédents
+  const prevPendingCountRef = useRef(0);
+
+  // =============================================================================
+  // ALERTE HÔTE — nouveaux participants en attente
+  // =============================================================================
+  useEffect(() => {
+    if (!session || !isHost) return;
+  
+    const pendingParticipants = session.participants?.filter(
+      (p) => p.status === 'pending'
+    ) ?? [];
+  
+    const currentCount = pendingParticipants.length;
+  
+    if (currentCount > prevPendingCountRef.current) {
+      const newest = pendingParticipants[currentCount - 1];
+  
+      Alert.alert(
+        '🔔 Nouvelle demande',
+        `${newest?.display_name ?? 'Quelqu\'un'} souhaite rejoindre votre session.`,
+        [
+          {
+            text: '❌ Refuser',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await rejectParticipant(newest.id);
+              } catch {
+                Alert.alert('Erreur', 'Impossible de refuser la demande');
+              }
+            },
+          },
+          {
+            text: '✅ Accepter',
+            onPress: async () => {
+              try {
+                await approveParticipant(newest.id);
+              } catch {
+                Alert.alert('Erreur', 'Impossible d\'accepter la demande');
+              }
+            },
+          },
+        ]
+      );
+    }
+  
+    prevPendingCountRef.current = currentCount;
+  }, [session?.participants, isHost]);
+  
+  // =============================================================================
+  // HANDLERS SESSION BANNER
+  // =============================================================================
+  const handleCopyCode = useCallback(async () => {
+    if (!session?.share_code) return;
+    try {
+      await Clipboard.setStringAsync(session.share_code);
+      setCodeCopied(true);
+      setTimeout(() => setCodeCopied(false), 2000);
+    } catch {
+      Alert.alert('Erreur', 'Impossible de copier le code');
+    }
+  }, [session?.share_code]);
+
+  const handleShareCode = useCallback(async () => {
+    if (!session?.share_code || !restaurant) return;
+    try {
+      await Share.share({
+        message: `🍽️ Rejoins-moi au restaurant ${restaurant.name} !\n\nCode de session : ${session.share_code}\n\nEntre ce code dans EatQuickeR pour rejoindre ma table.`,
+        title: 'Rejoins notre table',
+      });
+    } catch {
+      // ignore cancel
+    }
+  }, [session?.share_code, restaurant]);
+
   // =============================================================================
   // STYLES OPTIMISÉS
   // =============================================================================
@@ -136,7 +225,7 @@ export default function OptimizedRestaurantPage() {
         borderBottomWidth: 3,
         borderBottomColor: COLORS.border.golden,
       },
-      
+
       restaurantName: {
         fontSize: getResponsiveValue(TYPOGRAPHY.fontSize['3xl'], screenType),
         fontWeight: TYPOGRAPHY.fontWeight.extrabold as any,
@@ -145,7 +234,7 @@ export default function OptimizedRestaurantPage() {
         marginBottom: getResponsiveValue(SPACING.xs, screenType),
         letterSpacing: 0.5,
       },
-      
+
       restaurantSubtitle: {
         fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
         fontWeight: TYPOGRAPHY.fontWeight.medium as any,
@@ -154,7 +243,53 @@ export default function OptimizedRestaurantPage() {
         fontStyle: 'italic' as const,
       },
 
-      // 🆕 Contrôles d'affichage optimisés
+      // Session Banner
+      sessionBanner: {
+        marginHorizontal: 16,
+        marginTop: 12,
+        marginBottom: 4,
+        borderRadius: 12,
+        backgroundColor: '#1E2A78',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        flexDirection: 'row' as const,
+        alignItems: 'center' as const,
+        justifyContent: 'space-between' as const,
+        shadowColor: '#1E2A78',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.25,
+        shadowRadius: 6,
+        elevation: 4,
+      },
+      sessionBannerLeft: {
+        flexDirection: 'row' as const,
+        alignItems: 'center' as const,
+        gap: 6,
+        flex: 1,
+      },
+      sessionBannerLabel: {
+        color: 'rgba(255,255,255,0.85)',
+        fontSize: 12,
+        fontWeight: '500' as const,
+      },
+      sessionCodeRow: {
+        flexDirection: 'row' as const,
+        alignItems: 'center' as const,
+        gap: 8,
+      },
+      sessionCodeText: {
+        color: '#fff',
+        fontSize: 22,
+        fontWeight: 'bold' as const,
+        letterSpacing: 5,
+      },
+      sessionIconBtn: {
+        padding: 6,
+        borderRadius: 8,
+        backgroundColor: 'rgba(255,255,255,0.15)',
+      },
+
+      // Contrôles d'affichage
       displayControls: {
         backgroundColor: COLORS.surface,
         paddingVertical: 12,
@@ -162,11 +297,6 @@ export default function OptimizedRestaurantPage() {
         borderBottomWidth: 1,
         borderBottomColor: COLORS.border.light,
         ...SHADOWS.sm,
-      },
-
-      viewModeSelector: {
-        flexDirection: 'row' as const,
-        marginBottom: 12,
       },
 
       viewModeButton: {
@@ -180,104 +310,21 @@ export default function OptimizedRestaurantPage() {
       },
 
       viewModeButtonActive: {
-        backgroundColor: COLORS.variants.primary[100],
+        backgroundColor: COLORS.variants?.primary?.[50] ?? COLORS.primary + '15',
         borderWidth: 1,
-        borderColor: COLORS.variants.primary[300],
+        borderColor: COLORS.primary,
       },
 
       viewModeLabel: {
+        marginLeft: 4,
         fontSize: 13,
-        fontWeight: '500' as const,
         color: COLORS.text.secondary,
-        marginLeft: 6,
+        fontWeight: '500' as const,
       },
 
       viewModeLabelActive: {
         color: COLORS.primary,
-      },
-
-      // 🆕 Quick filters bar (utilisée dans contentContainerStyle)
-      quickFiltersBar: {
-        flexDirection: 'row' as const,
-        alignItems: 'center' as const,
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        backgroundColor: COLORS.variants.primary[50],
-        borderBottomWidth: 1,
-        borderBottomColor: COLORS.border.light,
-      },
-
-      quickFilterChip: {
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: BORDER_RADIUS.full,
-        backgroundColor: COLORS.surface,
-        marginRight: 8,
-        borderWidth: 1,
-        borderColor: COLORS.border.light,
-      },
-
-      quickFilterChipActive: {
-        backgroundColor: COLORS.primary,
-        borderColor: COLORS.primary,
-      },
-
-      quickFilterText: {
-        fontSize: 12,
         fontWeight: '600' as const,
-        color: COLORS.text.secondary,
-      },
-
-      quickFilterTextActive: {
-        color: COLORS.text.inverse,
-      },
-
-      // 🆕 Stats bar
-      statsBar: {
-        flexDirection: 'row' as const,
-        justifyContent: 'space-around' as const,
-        paddingVertical: 12,
-        backgroundColor: COLORS.surface,
-        borderBottomWidth: 1,
-        borderBottomColor: COLORS.border.light,
-      },
-
-      statItem: {
-        alignItems: 'center' as const,
-      },
-
-      statValue: {
-        fontSize: 20,
-        fontWeight: '700' as const,
-        color: COLORS.primary,
-      },
-
-      statLabel: {
-        fontSize: 11,
-        color: COLORS.text.secondary,
-        marginTop: 2,
-      },
-
-      // Search bar
-      searchContainer: {
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        backgroundColor: COLORS.surface,
-      },
-
-      searchInput: {
-        backgroundColor: COLORS.background,
-        borderRadius: BORDER_RADIUS.lg,
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-        fontSize: 14,
-        borderWidth: 1,
-        borderColor: COLORS.border.light,
-      },
-
-      searchInputFocused: {
-        borderColor: COLORS.primary,
-        backgroundColor: COLORS.variants.primary[50],
       },
 
       // Settings panel
@@ -298,6 +345,44 @@ export default function OptimizedRestaurantPage() {
       settingLabel: {
         fontSize: 14,
         color: COLORS.text.primary,
+      },
+
+      // Quick filters
+      quickFilterButton: {
+        paddingHorizontal: 14,
+        paddingVertical: 7,
+        borderRadius: BORDER_RADIUS.full,
+        backgroundColor: COLORS.surface,
+        marginRight: 8,
+        borderWidth: 1,
+        borderColor: COLORS.border.light,
+      },
+
+      quickFilterButtonActive: {
+        backgroundColor: COLORS.primary,
+        borderColor: COLORS.primary,
+      },
+
+      quickFilterText: {
+        fontSize: 13,
+        color: COLORS.text.secondary,
+        fontWeight: '500' as const,
+      },
+
+      quickFilterTextActive: {
+        color: '#fff',
+        fontWeight: '600' as const,
+      },
+
+      // Search input
+      searchInput: {
+        backgroundColor: COLORS.background,
+        borderRadius: BORDER_RADIUS.lg,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        fontSize: 14,
+        borderWidth: 1,
+        borderColor: COLORS.border.light,
       },
 
       // Floating cart button
@@ -409,7 +494,6 @@ export default function OptimizedRestaurantPage() {
     return menus.flatMap(menu => menu.items || []);
   }, [menus]);
 
-  // 🆕 Catégories enrichies avec items
   const categoriesWithItems = useMemo(() => {
     const catMap = new Map<string, MenuCategory>();
 
@@ -433,11 +517,9 @@ export default function OptimizedRestaurantPage() {
     return Array.from(catMap.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [allMenuItems]);
 
-  // 🆕 Application des filtres optimisée
   const filteredItems = useMemo(() => {
     let items = [...allMenuItems];
 
-    // Quick filter mode
     if (quickFilterMode === 'available') {
       items = items.filter(item => item.is_available);
     } else if (quickFilterMode === 'dietary') {
@@ -446,7 +528,6 @@ export default function OptimizedRestaurantPage() {
       );
     }
 
-    // Search query
     if (filters.searchQuery) {
       const query = filters.searchQuery.toLowerCase();
       items = items.filter(
@@ -456,12 +537,10 @@ export default function OptimizedRestaurantPage() {
       );
     }
 
-    // Category filter
     if (filters.selectedCategory) {
       items = items.filter(item => item.category_name === filters.selectedCategory);
     }
 
-    // Dietary filters
     if (filters.showVeganOnly) {
       items = items.filter(item => item.is_vegan);
     }
@@ -471,13 +550,10 @@ export default function OptimizedRestaurantPage() {
     if (filters.showGlutenFreeOnly) {
       items = items.filter(item => item.is_gluten_free);
     }
-
-    // Available only
     if (filters.showAvailableOnly) {
       items = items.filter(item => item.is_available);
     }
 
-    // Hide allergens
     if (filters.hideAllergens.length > 0) {
       items = items.filter(item => {
         const itemAllergens = item.allergens || [];
@@ -490,7 +566,6 @@ export default function OptimizedRestaurantPage() {
     return items;
   }, [allMenuItems, filters, quickFilterMode]);
 
-  // 🆕 Stats en temps réel
   const stats = useMemo(() => {
     const available = filteredItems.filter(item => item.is_available);
     const dietary = filteredItems.filter(
@@ -578,7 +653,6 @@ export default function OptimizedRestaurantPage() {
     loadData();
   }, [loadData]);
 
-  // 🆕 Handlers pour les modes d'affichage
   const handleViewModeChange = (mode: ViewMode) => {
     setViewMode(mode);
   };
@@ -713,19 +787,49 @@ export default function OptimizedRestaurantPage() {
         <View style={styles.restaurantHeader}>
           <Text style={styles.restaurantName}>{restaurant.name}</Text>
           <Text style={styles.restaurantSubtitle}>
-            {session?.share_code ? `Code table: ${session.share_code}` : 'Bienvenue'}
+            {session?.share_code
+              ? `Table ${session.table_number} • ${session.participant_count} participant(s)`
+              : 'Bienvenue'}
           </Text>
         </View>
 
-        {/* 🆕 Display Controls */}
+        {/* Session Collaborative Banner */}
+        {session?.share_code && (
+          <View style={styles.sessionBanner}>
+            <View style={styles.sessionBannerLeft}>
+              <Ionicons name="people" size={18} color="#fff" />
+              <Text style={styles.sessionBannerLabel}>Session collaborative</Text>
+            </View>
+            <View style={styles.sessionCodeRow}>
+              <Text style={styles.sessionCodeText}>{session.share_code}</Text>
+              <TouchableOpacity
+                style={styles.sessionIconBtn}
+                onPress={handleCopyCode}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name={codeCopied ? 'checkmark' : 'copy-outline'}
+                  size={18}
+                  color={codeCopied ? '#4CAF50' : '#fff'}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.sessionIconBtn}
+                onPress={handleShareCode}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="share-social-outline" size={18} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Display Controls */}
         <View style={styles.displayControls}>
           {/* View Mode Selector */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
             <TouchableOpacity
-              style={[
-                styles.viewModeButton,
-                viewMode === 'compact' && styles.viewModeButtonActive,
-              ]}
+              style={[styles.viewModeButton, viewMode === 'compact' && styles.viewModeButtonActive]}
               onPress={() => handleViewModeChange('compact')}
             >
               <Ionicons
@@ -733,21 +837,13 @@ export default function OptimizedRestaurantPage() {
                 size={18}
                 color={viewMode === 'compact' ? COLORS.primary : COLORS.text.secondary}
               />
-              <Text
-                style={[
-                  styles.viewModeLabel,
-                  viewMode === 'compact' && styles.viewModeLabelActive,
-                ]}
-              >
+              <Text style={[styles.viewModeLabel, viewMode === 'compact' && styles.viewModeLabelActive]}>
                 Liste
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[
-                styles.viewModeButton,
-                viewMode === 'grid' && styles.viewModeButtonActive,
-              ]}
+              style={[styles.viewModeButton, viewMode === 'grid' && styles.viewModeButtonActive]}
               onPress={() => handleViewModeChange('grid')}
             >
               <Ionicons
@@ -755,9 +851,7 @@ export default function OptimizedRestaurantPage() {
                 size={18}
                 color={viewMode === 'grid' ? COLORS.primary : COLORS.text.secondary}
               />
-              <Text
-                style={[styles.viewModeLabel, viewMode === 'grid' && styles.viewModeLabelActive]}
-              >
+              <Text style={[styles.viewModeLabel, viewMode === 'grid' && styles.viewModeLabelActive]}>
                 Grille
               </Text>
             </TouchableOpacity>
@@ -765,10 +859,7 @@ export default function OptimizedRestaurantPage() {
             {screenWidth >= 768 && (
               <>
                 <TouchableOpacity
-                  style={[
-                    styles.viewModeButton,
-                    viewMode === 'masonry' && styles.viewModeButtonActive,
-                  ]}
+                  style={[styles.viewModeButton, viewMode === 'masonry' && styles.viewModeButtonActive]}
                   onPress={() => handleViewModeChange('masonry')}
                 >
                   <Ionicons
@@ -776,21 +867,13 @@ export default function OptimizedRestaurantPage() {
                     size={18}
                     color={viewMode === 'masonry' ? COLORS.primary : COLORS.text.secondary}
                   />
-                  <Text
-                    style={[
-                      styles.viewModeLabel,
-                      viewMode === 'masonry' && styles.viewModeLabelActive,
-                    ]}
-                  >
+                  <Text style={[styles.viewModeLabel, viewMode === 'masonry' && styles.viewModeLabelActive]}>
                     Mosaïque
                   </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[
-                    styles.viewModeButton,
-                    viewMode === 'accordion' && styles.viewModeButtonActive,
-                  ]}
+                  style={[styles.viewModeButton, viewMode === 'accordion' && styles.viewModeButtonActive]}
                   onPress={() => handleViewModeChange('accordion')}
                 >
                   <Ionicons
@@ -798,21 +881,13 @@ export default function OptimizedRestaurantPage() {
                     size={18}
                     color={viewMode === 'accordion' ? COLORS.primary : COLORS.text.secondary}
                   />
-                  <Text
-                    style={[
-                      styles.viewModeLabel,
-                      viewMode === 'accordion' && styles.viewModeLabelActive,
-                    ]}
-                  >
+                  <Text style={[styles.viewModeLabel, viewMode === 'accordion' && styles.viewModeLabelActive]}>
                     Accordéon
                   </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[
-                    styles.viewModeButton,
-                    viewMode === 'table' && styles.viewModeButtonActive,
-                  ]}
+                  style={[styles.viewModeButton, viewMode === 'table' && styles.viewModeButtonActive]}
                   onPress={() => handleViewModeChange('table')}
                 >
                   <Ionicons
@@ -820,12 +895,7 @@ export default function OptimizedRestaurantPage() {
                     size={18}
                     color={viewMode === 'table' ? COLORS.primary : COLORS.text.secondary}
                   />
-                  <Text
-                    style={[
-                      styles.viewModeLabel,
-                      viewMode === 'table' && styles.viewModeLabelActive,
-                    ]}
-                  >
+                  <Text style={[styles.viewModeLabel, viewMode === 'table' && styles.viewModeLabelActive]}>
                     Tableau
                   </Text>
                 </TouchableOpacity>
@@ -840,194 +910,154 @@ export default function OptimizedRestaurantPage() {
               value={groupByCategory}
               onValueChange={setGroupByCategory}
               trackColor={{ false: COLORS.border.default, true: COLORS.primary }}
-              thumbColor={Platform.OS === 'ios' ? undefined : 'white'}
+              thumbColor={Platform.OS === 'ios' ? undefined : groupByCategory ? COLORS.primary : COLORS.border.default}
+            />
+          </View>
+
+          <View style={styles.settingRow}>
+            <Text style={styles.settingLabel}>Menu du jour en premier</Text>
+            <Switch
+              value={showDailyMenuFirst}
+              onValueChange={setShowDailyMenuFirst}
+              trackColor={{ false: COLORS.border.default, true: COLORS.primary }}
             />
           </View>
         </View>
 
-        {/* 🆕 Quick Filters Bar */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.quickFiltersBar}  // ✅ FIX: contentContainerStyle
-        >
-          <TouchableOpacity
-            style={[
-              styles.quickFilterChip,
-              quickFilterMode === 'all' && styles.quickFilterChipActive,
-            ]}
-            onPress={() => handleQuickFilter('all')}
-          >
-            <Text
-              style={[
-                styles.quickFilterText,
-                quickFilterMode === 'all' && styles.quickFilterTextActive,
-              ]}
-            >
-              Tous ({allMenuItems.length})
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.quickFilterChip,
-              quickFilterMode === 'available' && styles.quickFilterChipActive,
-            ]}
-            onPress={() => handleQuickFilter('available')}
-          >
-            <Text
-              style={[
-                styles.quickFilterText,
-                quickFilterMode === 'available' && styles.quickFilterTextActive,
-              ]}
-            >
-              Disponibles ({allMenuItems.filter(i => i.is_available).length})
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.quickFilterChip,
-              quickFilterMode === 'dietary' && styles.quickFilterChipActive,
-            ]}
-            onPress={() => handleQuickFilter('dietary')}
-          >
-            <Text
-              style={[
-                styles.quickFilterText,
-                quickFilterMode === 'dietary' && styles.quickFilterTextActive,
-              ]}
-            >
-              🌱 Diététiques
-            </Text>
-          </TouchableOpacity>
-
-          {/* Category chips */}
-          {categoriesWithItems.map(category => (
-            <TouchableOpacity
-              key={category.id}
-              style={[
-                styles.quickFilterChip,
-                filters.selectedCategory === category.name &&
-                  styles.quickFilterChipActive,
-              ]}
-              onPress={() =>
-                handleCategorySelect(
-                  filters.selectedCategory === category.name ? null : category.name
-                )
-              }
-            >
-              <Text
-                style={[
-                  styles.quickFilterText,
-                  filters.selectedCategory === category.name &&
-                    styles.quickFilterTextActive,
-                ]}
-              >
-                {category.name} ({category.count})
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        {/* Advanced Filters Toggle */}
-        <TouchableOpacity
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            paddingVertical: 8,
-            backgroundColor:
-              activeFiltersCount > 0
-                ? COLORS.warning
-                  ? COLORS.warning[50]
-                  : COLORS.surface
-                : COLORS.surface,
-          }}
-          onPress={() => setShowAdvancedFilters(!showAdvancedFilters)}
-        >
-          <Ionicons
-            name="options"
-            size={18}
-            color={activeFiltersCount > 0 ? COLORS.warning : COLORS.text.secondary}
-          />
-          <Text
-            style={{
-              marginLeft: 6,
-              fontSize: 13,
-              color: activeFiltersCount > 0 ? COLORS.warning : COLORS.text.secondary,
-              fontWeight: '600',
-            }}
-          >
-            Filtres avancés
-            {activeFiltersCount > 0 && ` (${activeFiltersCount})`}
-          </Text>
-          <Ionicons
-            name={showAdvancedFilters ? 'chevron-up' : 'chevron-down'}
-            size={18}
-            color={COLORS.text.secondary}
-            style={{ marginLeft: 4 }}
-          />
-        </TouchableOpacity>
-
-        {/* Advanced Filters Panel */}
-        {showAdvancedFilters && (
-          <View style={styles.settingsPanel}>
-            <View style={styles.settingRow}>
-              <Text style={styles.settingLabel}>🥗 Végétarien uniquement</Text>
-              <Switch
-                value={filters.showVegetarianOnly}
-                onValueChange={() => toggleDietaryFilter('vegetarian')}
-                trackColor={{ false: COLORS.border.default, true: COLORS.success }}
-              />
-            </View>
-            <View style={styles.settingRow}>
-              <Text style={styles.settingLabel}>🌱 Vegan uniquement</Text>
-              <Switch
-                value={filters.showVeganOnly}
-                onValueChange={() => toggleDietaryFilter('vegan')}
-                trackColor={{ false: COLORS.border.default, true: COLORS.success }}
-              />
-            </View>
-            <View style={styles.settingRow}>
-              <Text style={styles.settingLabel}>🚫🌾 Sans gluten uniquement</Text>
-              <Switch
-                value={filters.showGlutenFreeOnly}
-                onValueChange={() => toggleDietaryFilter('glutenFree')}
-                trackColor={{ false: COLORS.border.default, true: COLORS.success }}
-              />
-            </View>
-            <View style={styles.settingRow}>
-              <Text style={styles.settingLabel}>Disponibles uniquement</Text>
-              <Switch
-                value={filters.showAvailableOnly}
-                onValueChange={value =>
-                  setFilters(prev => ({ ...prev, showAvailableOnly: value }))
-                }
-                trackColor={{ false: COLORS.border.default, true: COLORS.primary }}
-              />
-            </View>
-
-            {activeFiltersCount > 0 && (
+        {/* Quick Filters */}
+        <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
+          {/* Mode rapide */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
+            {(['all', 'available', 'dietary'] as const).map(mode => (
               <TouchableOpacity
-                style={{
-                  marginTop: 12,
-                  backgroundColor: COLORS.error
-                    ? COLORS.error[500]
-                    : COLORS.primary,
-                  padding: 10,
-                  borderRadius: BORDER_RADIUS.lg,
-                  alignItems: 'center',
-                }}
-                onPress={clearAllFilters}
+                key={mode}
+                style={[styles.quickFilterButton, quickFilterMode === mode && styles.quickFilterButtonActive]}
+                onPress={() => handleQuickFilter(mode)}
               >
-                <Text style={{ color: 'white', fontWeight: '600' }}>
-                  Réinitialiser tous les filtres
+                <Text style={[styles.quickFilterText, quickFilterMode === mode && styles.quickFilterTextActive]}>
+                  {mode === 'all' ? 'Tout' : mode === 'available' ? 'Disponibles' : '🥗 Diétiques'}
                 </Text>
               </TouchableOpacity>
-            )}
-          </View>
-        )}
+            ))}
+
+            {categoriesWithItems.map(category => (
+              <TouchableOpacity
+                key={category.id}
+                style={[
+                  styles.quickFilterButton,
+                  filters.selectedCategory === category.name && styles.quickFilterButtonActive,
+                ]}
+                onPress={() =>
+                  handleCategorySelect(
+                    filters.selectedCategory === category.name ? null : category.name
+                  )
+                }
+              >
+                <Text
+                  style={[
+                    styles.quickFilterText,
+                    filters.selectedCategory === category.name && styles.quickFilterTextActive,
+                  ]}
+                >
+                  {category.name} ({category.count})
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {/* Advanced Filters Toggle */}
+          <TouchableOpacity
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              paddingVertical: 8,
+              backgroundColor: COLORS.surface,
+              borderRadius: BORDER_RADIUS.lg,
+              marginBottom: 4,
+            }}
+            onPress={() => setShowAdvancedFilters(!showAdvancedFilters)}
+          >
+            <Ionicons
+              name="options"
+              size={18}
+              color={activeFiltersCount > 0 ? COLORS.warning : COLORS.text.secondary}
+            />
+            <Text
+              style={{
+                marginLeft: 6,
+                fontSize: 13,
+                color: activeFiltersCount > 0 ? COLORS.warning : COLORS.text.secondary,
+                fontWeight: '600',
+              }}
+            >
+              Filtres avancés{activeFiltersCount > 0 && ` (${activeFiltersCount})`}
+            </Text>
+            <Ionicons
+              name={showAdvancedFilters ? 'chevron-up' : 'chevron-down'}
+              size={18}
+              color={COLORS.text.secondary}
+              style={{ marginLeft: 4 }}
+            />
+          </TouchableOpacity>
+
+          {/* Advanced Filters Panel */}
+          {showAdvancedFilters && (
+            <View style={styles.settingsPanel}>
+              <View style={styles.settingRow}>
+                <Text style={styles.settingLabel}>🥗 Végétarien uniquement</Text>
+                <Switch
+                  value={filters.showVegetarianOnly}
+                  onValueChange={() => toggleDietaryFilter('vegetarian')}
+                  trackColor={{ false: COLORS.border.default, true: COLORS.success }}
+                />
+              </View>
+              <View style={styles.settingRow}>
+                <Text style={styles.settingLabel}>🌱 Vegan uniquement</Text>
+                <Switch
+                  value={filters.showVeganOnly}
+                  onValueChange={() => toggleDietaryFilter('vegan')}
+                  trackColor={{ false: COLORS.border.default, true: COLORS.success }}
+                />
+              </View>
+              <View style={styles.settingRow}>
+                <Text style={styles.settingLabel}>🚫🌾 Sans gluten uniquement</Text>
+                <Switch
+                  value={filters.showGlutenFreeOnly}
+                  onValueChange={() => toggleDietaryFilter('glutenFree')}
+                  trackColor={{ false: COLORS.border.default, true: COLORS.success }}
+                />
+              </View>
+              <View style={styles.settingRow}>
+                <Text style={styles.settingLabel}>Disponibles uniquement</Text>
+                <Switch
+                  value={filters.showAvailableOnly}
+                  onValueChange={value =>
+                    setFilters(prev => ({ ...prev, showAvailableOnly: value }))
+                  }
+                  trackColor={{ false: COLORS.border.default, true: COLORS.primary }}
+                />
+              </View>
+
+              {activeFiltersCount > 0 && (
+                <TouchableOpacity
+                  style={{
+                    marginTop: 12,
+                    backgroundColor: COLORS.primary,
+                    padding: 10,
+                    borderRadius: BORDER_RADIUS.lg,
+                    alignItems: 'center',
+                  }}
+                  onPress={clearAllFilters}
+                >
+                  <Text style={{ color: 'white', fontWeight: '600' }}>
+                    Réinitialiser tous les filtres
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+        </View>
 
         {/* Daily Menu Display (if enabled) */}
         {showDailyMenuFirst && (
@@ -1041,7 +1071,7 @@ export default function OptimizedRestaurantPage() {
           </View>
         )}
 
-        {/* 🆕 MAIN CONTENT - Utilisation des nouveaux composants optimisés */}
+        {/* MAIN CONTENT */}
         <View style={{ paddingHorizontal: 16, marginTop: 16, paddingBottom: 100 }}>
           {filteredItems.length > 0 ? (
             <>
@@ -1120,7 +1150,7 @@ export default function OptimizedRestaurantPage() {
         </View>
       </ScrollView>
 
-      {/* 🆕 Floating Cart Button - Design amélioré */}
+      {/* Floating Cart Button */}
       {totalCartItems > 0 && (
         <Pressable
           style={[styles.floatingCart, { bottom: Math.max(20, insets.bottom + 10) }]}

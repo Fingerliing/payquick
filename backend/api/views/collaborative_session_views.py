@@ -54,8 +54,8 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
             'restaurant', 'table'
         ).prefetch_related(
             Prefetch('participants', queryset=SessionParticipant.objects.filter(
-                status='active'
-            ))
+                status__in=['active', 'pending']
+            ).order_by('joined_at'))
         )
 
         # Si authentifié, montrer aussi ses sessions
@@ -246,11 +246,36 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
                 session=session,
                 user=request.user
             ).first()
-            if existing and existing.status == 'active':
-                return Response({
-                    'error': 'Vous êtes déjà dans cette session',
-                    'participant': SessionParticipantSerializer(existing).data
-                }, status=status.HTTP_400_BAD_REQUEST)
+            if existing:
+                if existing.status == 'active':
+                    # Déjà dans la session — retourner directement
+                    return Response({
+                        'message': 'Déjà dans la session',
+                        'participant': SessionParticipantSerializer(existing).data,
+                        'session': CollaborativeSessionSerializer(session, context={'request': request}).data,
+                        'requires_approval': False,
+                        'participant_id': str(existing.id),
+                    }, status=status.HTTP_200_OK)
+                elif existing.status == 'left':
+                    # Réactiver le participant existant
+                    existing.status = 'active' if not session.require_approval else 'pending'
+                    existing.left_at = None
+                    existing.save()
+                    participant = existing
+                    status_choice = existing.status
+                    # Sauter la création, aller directement à la notification
+                    try:
+                        if status_choice == 'active':
+                            notify_participant_joined(str(session.id), SessionParticipantSerializer(participant).data)
+                    except Exception as e:
+                        logger.warning(f"Notification rejoin échouée: {e}")
+                    return Response({
+                        'message': 'Rejoint à nouveau avec succès',
+                        'participant': SessionParticipantSerializer(participant).data,
+                        'session': CollaborativeSessionSerializer(session, context={'request': request}).data,
+                        'requires_approval': session.require_approval,
+                        'participant_id': str(participant.id),
+                    }, status=status.HTTP_200_OK)
 
         # Créer le participant
         status_choice = 'pending' if session.require_approval else 'active'
@@ -264,15 +289,31 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
             role='member'
         )
 
-        # 🔔 Notifier les autres participants
-        if status_choice == 'active':
-            try:
+        # 🔔 Notifier selon le statut
+        try:
+            if status_choice == 'active':
                 notify_participant_joined(
                     str(session.id),
                     SessionParticipantSerializer(participant).data
                 )
-            except Exception as e:
-                logger.warning(f"Notification participant joined échouée: {e}")
+            else:
+                # Participant en attente → notifier l'hôte via session_update
+                notify_session_update(
+                    str(session.id),
+                    {
+                        'event': 'participant_pending',
+                        'actor': serializer.validated_data.get('guest_name', 'Inconnu'),
+                        'data': {
+                            'participant': SessionParticipantSerializer(participant).data,
+                            'pending_count': SessionParticipant.objects.filter(
+                                session=session,
+                                status='pending'
+                            ).count()
+                        }
+                    }
+                )
+        except Exception as e:
+            logger.warning(f"Notification participant joined/pending échouée: {e}")
 
         return Response({
             'message': 'Rejoint avec succès' if status_choice == 'active' else 'En attente d\'approbation',
@@ -661,12 +702,18 @@ class SessionParticipantViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [AllowAny]
 
     def get_queryset(self):
-        """Filtrer les participants"""
+        # Pour les actions de détail (participant_action, etc.)
+        # on doit pouvoir accéder au participant directement par pk
+        if self.kwargs.get('pk'):
+            return SessionParticipant.objects.select_related('user', 'session')
+
+        # Pour les listes, filtrer par session_id
         session_id = self.request.query_params.get('session_id')
         if session_id:
             return SessionParticipant.objects.filter(
                 session_id=session_id
             ).select_related('user', 'session')
+
         return SessionParticipant.objects.none()
 
     @extend_schema(

@@ -19,6 +19,8 @@ export type SessionWebSocketEvent =
 
 interface WebSocketMessage {
   type: string;
+  event?: string;
+  actor?: string;
   data?: any;
   participant?: any;
   participant_id?: string;
@@ -140,7 +142,12 @@ export class SessionWebSocket extends EventEmitter {
           break;
 
         case 'session_update':
-          this.emit('session_update', message.data);
+          this.emit('session_update', {
+            event: message.event,
+            actor: message.actor,
+            data: message.data,
+            session_id: message.session_id,
+          });
           break;
 
         case 'participant_joined':

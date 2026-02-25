@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -57,6 +57,8 @@ export const SessionDashboard: React.FC<SessionDashboardProps> = ({
     unlockSession,
     completeSession,
     leaveSession,
+    approveParticipant,
+    rejectParticipant,
     refresh,
     isActive,
     isLocked,
@@ -65,6 +67,34 @@ export const SessionDashboard: React.FC<SessionDashboardProps> = ({
 
   // Écoute des événements de session
   const { sessionData, participants, orders, isConnected } = useSessionEvents(sessionId);
+
+  // Fusionner les participants WebSocket avec ceux de la session API
+  const allParticipants = participants.length > 0
+  ? participants
+  : (session?.participants ?? []);
+
+  const pendingParticipants = allParticipants.filter(p => p.status === 'pending');
+
+  const prevPendingCountRef = useRef(0);
+
+  useEffect(() => {
+    const currentCount = pendingParticipants.length;
+    if (currentCount > prevPendingCountRef.current) {
+      const newest = pendingParticipants[currentCount - 1];
+      Alert.alert(
+        '🔔 Nouvelle demande',
+        `${newest?.display_name || 'Quelqu\'un'} souhaite rejoindre la session.`,
+        [
+          { text: 'Ignorer', style: 'cancel' },
+          {
+            text: 'Voir les demandes',
+            onPress: () => { /* scroll vers la carte pending si besoin */ }
+          },
+        ]
+      );
+    }
+    prevPendingCountRef.current = currentCount;
+  }, [pendingParticipants.length]);
 
   // Notifications automatiques
   useSessionNotifications(sessionId);
@@ -316,6 +346,41 @@ export const SessionDashboard: React.FC<SessionDashboardProps> = ({
           ))}
         </Card>
 
+        {/* Participants en attente d'approbation */}
+        {isHost && pendingParticipants.length > 0 && (
+          <Card style={styles.pendingCard}>
+            <Text style={styles.pendingCardTitle}>
+              ⏳ En attente d'approbation ({pendingParticipants.length})
+            </Text>
+            {pendingParticipants.map(participant => (
+              <View key={participant.id} style={styles.pendingParticipantRow}>
+                <View style={styles.pendingParticipantInfo}>
+                  <Ionicons name="person-outline" size={18} color="#666" />
+                  <Text style={styles.pendingParticipantName}>
+                    {participant.display_name}
+                  </Text>
+                </View>
+                <View style={styles.pendingActions}>
+                  <TouchableOpacity
+                    style={styles.approveBtn}
+                    onPress={() => approveParticipant(participant.id)}
+                  >
+                    <Ionicons name="checkmark" size={18} color="#fff" />
+                    <Text style={styles.approveBtnText}>Accepter</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.rejectBtn}
+                    onPress={() => rejectParticipant(participant.id)}
+                  >
+                    <Ionicons name="close" size={18} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))
+          }
+        </Card>
+        )}
+
         {/* Vue des commandes */}
         <SessionOrdersView
           sessionId={sessionId}
@@ -508,6 +573,62 @@ const styles = StyleSheet.create({
   },
   leaveButton: {
     width: '100%',
+  },
+  pendingCard: {
+    margin: 16,
+    padding: 16,
+    borderWidth: 2,
+    borderColor: '#FF9800',
+    backgroundColor: '#FFF8E1',
+  },
+  pendingCardTitle: {
+    fontSize: 15,
+    fontWeight: 'bold' as const,
+    color: '#E65100',
+    marginBottom: 12,
+  },
+  pendingParticipantRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#FFE0B2',
+  },
+  pendingParticipantInfo: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+    flex: 1,
+  },
+  pendingParticipantName: {
+    fontSize: 15,
+    color: '#333',
+  },
+  pendingActions: {
+    flexDirection: 'row' as const,
+    gap: 8,
+  },
+  approveBtn: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 4,
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  approveBtnText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600' as const,
+  },
+  rejectBtn: {
+    backgroundColor: '#F44336',
+    padding: 6,
+    borderRadius: 8,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
 });
 

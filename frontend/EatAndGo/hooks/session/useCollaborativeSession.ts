@@ -55,10 +55,16 @@ export const useCollaborativeSession = (options: UseCollaborativeSessionOptions 
       const storedParticipantId = await AsyncStorage.getItem(
         `session_participant_${sessionId}`
       );
-      
+      console.log('[USE_COLLAB_SESSION] sessionId:', sessionId);
+      console.log('[USE_COLLAB_SESSION] storedParticipantId depuis AsyncStorage:', storedParticipantId);
+      console.log('[USE_COLLAB_SESSION] session.participants:', JSON.stringify(session.participants?.map(p => ({ id: p.id, status: p.status, is_host: p.is_host }))));
+
       const currentParticipant = session.participants.find(
         p => p.id === storedParticipantId && p.status === 'active'
       ) || null;
+
+      console.log('[USE_COLLAB_SESSION] currentParticipant:', JSON.stringify(currentParticipant));
+      console.log('[USE_COLLAB_SESSION] isHost calculé:', currentParticipant?.is_host || false);
 
       const isHost = currentParticipant?.is_host || false;
       const canManage = isHost;
@@ -315,6 +321,7 @@ export const useCollaborativeSession = (options: UseCollaborativeSessionOptions 
     if (!sessionId || !autoRefresh) return;
 
     intervalRef.current = setInterval(() => {
+      console.log('[AUTOREFREH] 🔄 Polling session:', sessionId);
       loadSession();
     }, refreshInterval);
 

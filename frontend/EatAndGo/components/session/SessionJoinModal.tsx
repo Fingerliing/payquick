@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { collaborativeSessionService, CollaborativeSession } from '@/services/collaborativeSessionService';
 
@@ -34,9 +35,12 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
   onSessionJoined,
   onOrderAlone, // Déstructuration du nouveau callback
 }) => {
-  const [mode, setMode] = useState<'choose' | 'create' | 'join'>('choose');
   const [loading, setLoading] = useState(false);
   const [existingSession, setExistingSession] = useState<CollaborativeSession | null>(null);
+  const [mode, setMode] = useState<'choose' | 'create' | 'join' | 'pending'>('choose');
+  const [pendingParticipantId, setPendingParticipantId] = useState<string | null>(null);
+  const [pendingSessionId, setPendingSessionId] = useState<string | null>(null);
+  const [pendingSession, setPendingSession] = useState<CollaborativeSession | null>(null);
 
   // États pour créer une session
   const [hostName, setHostName] = useState('');
@@ -62,26 +66,9 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
         tableNumber
       );
       setExistingSession(session);
-      
+      // Pré-remplir le code si session trouvée
       if (session) {
-        // S'il y a une session active, proposer de la rejoindre
-        Alert.alert(
-          'Session active détectée',
-          `Une session existe déjà pour cette table (Code: ${session.share_code}). Voulez-vous la rejoindre ?`,
-          [
-            { 
-              text: 'Non, commander seul', 
-              onPress: handleOrderAlone // Appeler la fonction de commande seul
-            },
-            { 
-              text: 'Rejoindre', 
-              onPress: () => {
-                setShareCode(session.share_code);
-                setMode('join');
-              }
-            }
-          ]
-        );
+        setShareCode(session.share_code);
       }
     } catch (error) {
       console.error('Error checking session:', error);
@@ -102,7 +89,7 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
       Alert.alert('Erreur', 'Veuillez entrer votre nom');
       return;
     }
-
+  
     setLoading(true);
     try {
       const session = await collaborativeSessionService.createSession({
@@ -115,10 +102,27 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
         session_type: sessionType,
         split_payment_enabled: true,
       });
+  
+      // Sauvegarder l'ID du participant hôte
+      const hostParticipant = session.participants?.find(p => p.is_host);
+      console.log('[SESSION_CREATE] session.id:', session.id);
+      console.log('[SESSION_CREATE] participants:', JSON.stringify(session.participants));
+      console.log('[SESSION_CREATE] hostParticipant trouvé:', JSON.stringify(hostParticipant));
 
+      if (hostParticipant) {
+        const storageKey = `session_participant_${session.id}`;
+        await AsyncStorage.setItem(
+          `session_participant_${session.id}`,
+          hostParticipant.id
+        );
+        console.log('[SESSION_CREATE] ✅ AsyncStorage.setItem:', storageKey, '->', hostParticipant.id);
+        } else {
+          console.log('[SESSION_CREATE] ❌ Aucun hostParticipant trouvé dans session.participants');
+        }
+  
       Alert.alert(
         'Session créée !',
-        `Partagez le code ${session.share_code} avec vos amis pour qu'ils rejoignent la session.`,
+        `Partagez le code ${session.share_code} avec vos amis.`,
         [{ text: 'OK', onPress: () => {
           onSessionCreated?.(session);
           onClose();
@@ -156,24 +160,28 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
       Alert.alert('Erreur', 'Veuillez entrer votre nom');
       return;
     }
-
+  
     setLoading(true);
     try {
       const result = await collaborativeSessionService.joinSession({
         share_code: shareCode.toUpperCase(),
         guest_name: guestName,
       });
-
-      const message = result.requires_approval
-        ? 'Demande envoyée ! En attente de l\'approbation de l\'hôte.'
-        : 'Vous avez rejoint la session avec succès !';
-
-      Alert.alert('Succès', message, [
-        { text: 'OK', onPress: () => {
-          onSessionJoined?.(result.session);
-          onClose();
-        }}
-      ]);
+  
+      if (result.requires_approval) {
+        // ⏳ Ne PAS appeler onSessionJoined — le participant est encore pending
+        setMode('pending');
+        setPendingParticipantId(result.participant_id);
+        setPendingSession(result.session);
+      } else {
+        // ✅ Accès direct
+        Alert.alert('Bienvenue !', 'Vous avez rejoint la session avec succès !', [
+          { text: 'OK', onPress: () => {
+            onSessionJoined?.(result.session);
+            onClose();
+          }}
+        ]);
+      }
     } catch (error: any) {
       Alert.alert('Erreur', error.message || 'Impossible de rejoindre la session');
     } finally {
@@ -181,12 +189,92 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
     }
   };
 
+  // Polling toutes les 5s pour détecter l'approbation
+  useEffect(() => {
+    if (mode !== 'pending' || !pendingParticipantId || !pendingSessionId) return;
+  
+    const interval = setInterval(async () => {
+      try {
+        const session = await collaborativeSessionService.getSession(pendingSessionId);
+        const me = session.participants?.find((p: any) => p.id === pendingParticipantId);
+  
+        if (me?.status === 'active') {
+          clearInterval(interval);
+          Alert.alert('✅ Accepté !', "L'hôte vous a accepté dans la session.", [
+            {
+              text: 'Accéder au menu',
+              onPress: () => {
+                onSessionJoined?.(session);
+                onClose();
+              },
+            },
+          ]);
+        } else if (me?.status === 'removed') {
+          clearInterval(interval);
+          Alert.alert('❌ Refusé', "L'hôte a refusé votre demande.", [
+            { text: 'OK', onPress: () => setMode('choose') },
+          ]);
+        }
+      } catch {
+        // ignorer les erreurs réseau temporaires
+      }
+    }, 5000);
+  
+    return () => clearInterval(interval);
+  }, [mode, pendingParticipantId, pendingSessionId]);
+  
+  const renderPendingMode = () => (
+    <View style={styles.pendingContainer}>
+      <ActivityIndicator size="large" color="#1E2A78" />
+      <Text style={styles.pendingTitle}>En attente d'approbation</Text>
+      <Text style={styles.pendingSubtitle}>
+        L'hôte de la session doit valider votre demande.{'\n'}
+        Vous serez automatiquement redirigé une fois accepté.
+      </Text>
+      <View style={styles.pendingCodeBox}>
+        <Text style={styles.pendingCodeLabel}>Code de session</Text>
+        <Text style={styles.pendingCode}>{shareCode}</Text>
+      </View>
+      <TouchableOpacity
+        style={styles.secondaryButton}
+        onPress={() => {
+          setMode('choose');
+          setPendingParticipantId(null);
+          setPendingSession(null);
+        }}
+      >
+        <Text style={styles.secondaryButtonText}>Annuler</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
   const renderChooseMode = () => (
     <View style={styles.modeContainer}>
       <Text style={styles.title}>Commander sur cette table</Text>
       <Text style={styles.subtitle}>
         Choisissez comment vous souhaitez commander
       </Text>
+
+      {/* Carte rejoindre session existante */}
+      {existingSession && (
+        <TouchableOpacity
+          style={[styles.optionCard, { borderWidth: 2, borderColor: '#4CAF50', backgroundColor: '#F1F8E9' }]}
+          onPress={() => setMode('join')}
+        >
+          <View style={[styles.optionIcon, { backgroundColor: '#C8E6C9' }]}>
+            <Ionicons name="enter" size={32} color="#2E7D32" />
+          </View>
+          <View style={styles.optionContent}>
+            <Text style={[styles.optionTitle, { color: '#2E7D32' }]}>
+              Rejoindre la session en cours
+            </Text>
+            <Text style={styles.optionDescription}>
+              Code : {existingSession.share_code} · {existingSession.participant_count} participant(s)
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={24} color="#2E7D32" />
+        </TouchableOpacity>
+      )}
 
       <TouchableOpacity
         style={styles.optionCard}
@@ -439,6 +527,7 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
           {mode === 'choose' && renderChooseMode()}
           {mode === 'create' && renderCreateMode()}
           {mode === 'join' && renderJoinMode()}
+          {mode === 'pending' && renderPendingMode()}
         </View>
       </View>
     </Modal>
@@ -664,5 +753,42 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.5,
+  },
+
+  pendingContainer: {
+    alignItems: 'center' as const,
+    padding: 32,
+    gap: 16,
+  },
+  pendingTitle: {
+    fontSize: 20,
+    fontWeight: 'bold' as const,
+    color: '#1E2A78',
+    marginTop: 16,
+  },
+  pendingSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center' as const,
+    lineHeight: 22,
+  },
+  pendingCodeBox: {
+    backgroundColor: '#E8EAF6',
+    borderRadius: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    alignItems: 'center' as const,
+    marginVertical: 8,
+  },
+  pendingCodeLabel: {
+    fontSize: 11,
+    color: '#666',
+    marginBottom: 4,
+  },
+  pendingCode: {
+    fontSize: 28,
+    fontWeight: 'bold' as const,
+    color: '#1E2A78',
+    letterSpacing: 6,
   },
 });

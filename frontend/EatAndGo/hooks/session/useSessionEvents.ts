@@ -27,7 +27,19 @@ export const useSessionEvents = (sessionId: string | null) => {
     // Mise à jour de session
     const unsubscribeUpdate = on('session_update', (data) => {
       console.log('🔄 Session update:', data);
-      setSessionData((prev: any) => ({ ...prev, ...data }));
+    
+      if (data.event === 'participant_pending') {
+        // Ajouter le participant pending à la liste locale
+        const pendingParticipant = data.data?.participant;
+        if (pendingParticipant) {
+          setParticipants((prev) => {
+            if (prev.find((p: any) => p.id === pendingParticipant.id)) return prev;
+            return [...prev, pendingParticipant];
+          });
+        }
+      } else {
+        setSessionData((prev: any) => ({ ...prev, ...data.data }));
+      }
     });
 
     // Participant rejoint
@@ -97,6 +109,21 @@ export const useSessionEvents = (sessionId: string | null) => {
       setSessionData((prev: any) => ({ ...prev, status: 'completed' }));
     });
 
+    // Demande d'approbation en attente → forcer refresh de la session complète
+    const unsubscribePending = on('session_update', (data) => {
+      if (data.event === 'participant_pending') {
+        console.log('⏳ Nouveau participant en attente:', data.actor);
+        // Mettre à jour les participants localement
+        const pendingParticipant = data.data?.participant;
+        if (pendingParticipant) {
+          setParticipants((prev) => {
+            if (prev.find((p) => p.id === pendingParticipant.id)) return prev;
+            return [...prev, pendingParticipant];
+          });
+        }
+      }
+    });
+    
     // Nettoyage
     return () => {
       unsubscribeState();
@@ -104,6 +131,7 @@ export const useSessionEvents = (sessionId: string | null) => {
       unsubscribeJoined();
       unsubscribeLeft();
       unsubscribeApproved();
+      unsubscribePending();
       unsubscribeOrderCreated();
       unsubscribeOrderUpdated();
       unsubscribeLocked();
