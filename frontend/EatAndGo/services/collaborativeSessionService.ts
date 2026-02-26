@@ -202,6 +202,22 @@ class CollaborativeSessionService {
   }
 
   /**
+   * Récupérer les sessions actives de l'utilisateur (active | locked | payment).
+   * Utile pour détecter une session en cours après un changement de device ou un
+   * effacement du cache local.
+   */
+  async getMyActiveSessions(): Promise<CollaborativeSession[]> {
+    const response = await apiClient.get('/api/v1/collaborative-sessions/', {
+      params: {
+        status: 'active,locked,payment',
+        participant: 'me',
+      },
+    });
+    // L'API peut renvoyer { results: [...] } (pagination DRF) ou directement un tableau
+    return response.results ?? response ?? [];
+  }
+
+  /**
    * Vérifier si une session active existe pour une table
    */
   async checkActiveSession(

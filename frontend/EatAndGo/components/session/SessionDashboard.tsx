@@ -6,7 +6,6 @@ import {
   ScrollView,
   RefreshControl,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -21,6 +20,7 @@ import { useSessionNotifications } from '@/components/session/SessionNotificatio
 import { SessionArchiveWarning } from '@/components/session/SessionArchiveWarning';
 import { SessionOrdersView } from '@/components/session/SessionOrdersView';
 import { SessionQRCodeModal, SessionCodeDisplay } from '@/components/session/SessionQRCodeModal';
+import { Alert, AlertWithAction } from '@/components/ui/Alert';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -44,6 +44,21 @@ export const SessionDashboard: React.FC<SessionDashboardProps> = ({
 }) => {
   const [showQRModal, setShowQRModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  // ── Alertes déclaratives ────────────────────────────────────────────────
+  // Notification : nouveau participant en attente
+  const [newPendingName, setNewPendingName] = useState<string | null>(null);
+  // Session archivée (message + redirect au dismiss)
+  const [archivedMessage, setArchivedMessage] = useState<string | null>(null);
+  // Confirmations
+  const [lockConfirmVisible, setLockConfirmVisible] = useState(false);
+  const [completeConfirmVisible, setCompleteConfirmVisible] = useState(false);
+  const [leaveConfirmVisible, setLeaveConfirmVisible] = useState(false);
+  // Erreurs
+  const [lockError, setLockError] = useState<string | null>(null);
+  const [unlockError, setUnlockError] = useState<string | null>(null);
+  const [completeError, setCompleteError] = useState<string | null>(null);
+  const [leaveError, setLeaveError] = useState<string | null>(null);
 
   // Hooks de gestion de session
   const {
@@ -81,17 +96,7 @@ export const SessionDashboard: React.FC<SessionDashboardProps> = ({
     const currentCount = pendingParticipants.length;
     if (currentCount > prevPendingCountRef.current) {
       const newest = pendingParticipants[currentCount - 1];
-      Alert.alert(
-        '🔔 Nouvelle demande',
-        `${newest?.display_name || 'Quelqu\'un'} souhaite rejoindre la session.`,
-        [
-          { text: 'Ignorer', style: 'cancel' },
-          {
-            text: 'Voir les demandes',
-            onPress: () => { /* scroll vers la carte pending si besoin */ }
-          },
-        ]
-      );
+      setNewPendingName(newest?.display_name || 'Quelqu\'un');
     }
     prevPendingCountRef.current = currentCount;
   }, [pendingParticipants.length]);
@@ -104,9 +109,7 @@ export const SessionDashboard: React.FC<SessionDashboardProps> = ({
     sessionId,
     autoRedirect: true,
     onSessionArchived: (data) => {
-      Alert.alert('Session archivée', data.message || 'Cette session a été archivée', [
-        { text: 'OK', onPress: () => router.replace('/(tabs)/dashboard') },
-      ]);
+      setArchivedMessage(data.message || 'Cette session a été archivée.');
     },
     onTableReleased: (data) => {
       console.log(`Table ${data.table_number} libérée`);
@@ -121,82 +124,60 @@ export const SessionDashboard: React.FC<SessionDashboardProps> = ({
   };
 
   // Gérer le verrouillage
-  const handleLock = async () => {
-    Alert.alert(
-      'Verrouiller la session',
-      'Les participants ne pourront plus rejoindre cette session',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Verrouiller',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await lockSession();
-            } catch (error: any) {
-              Alert.alert('Erreur', error.message);
-            }
-          },
-        },
-      ]
-    );
+  const handleLock = () => {
+    setLockError(null);
+    setLockConfirmVisible(true);
+  };
+
+  const handleConfirmLock = async () => {
+    setLockConfirmVisible(false);
+    try {
+      await lockSession();
+    } catch (error: any) {
+      setLockError(error.message ?? 'Impossible de verrouiller la session.');
+    }
   };
 
   // Gérer le déverrouillage
   const handleUnlock = async () => {
+    setUnlockError(null);
     try {
       await unlockSession();
     } catch (error: any) {
-      Alert.alert('Erreur', error.message);
+      setUnlockError(error.message ?? 'Impossible de déverrouiller la session.');
     }
   };
 
   // Terminer la session
-  const handleComplete = async () => {
-    Alert.alert(
-      'Terminer la session',
-      'Êtes-vous sûr ? Cette action marquera la fin du repas.',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Terminer',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await completeSession();
-            } catch (error: any) {
-              Alert.alert('Erreur', error.message);
-            }
-          },
-        },
-      ]
-    );
+  const handleComplete = () => {
+    setCompleteError(null);
+    setCompleteConfirmVisible(true);
+  };
+
+  const handleConfirmComplete = async () => {
+    setCompleteConfirmVisible(false);
+    try {
+      await completeSession();
+    } catch (error: any) {
+      setCompleteError(error.message ?? 'Impossible de terminer la session.');
+    }
   };
 
   // Quitter la session
-  const handleLeave = async () => {
-    Alert.alert(
-      'Quitter la session',
-      isHost
-        ? 'Vous êtes l\'hôte. Si vous quittez, la session continuera sans vous.'
-        : 'Êtes-vous sûr de vouloir quitter cette session ?',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Quitter',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await leaveSession();
-              onLeaveSession?.();
-              router.replace('/(tabs)/dashboard');
-            } catch (error: any) {
-              Alert.alert('Erreur', error.message);
-            }
-          },
-        },
-      ]
-    );
+  const handleLeave = () => {
+    setLeaveError(null);
+    setLeaveConfirmVisible(true);
+  };
+
+  const handleConfirmLeave = async () => {
+    setLeaveConfirmVisible(false);
+    try {
+      await leaveSession();
+      onLeaveSession?.();
+      router.replace('/(tabs)/dashboard');
+    } catch (error: any) {
+      setLeaveError(error.message ?? 'Impossible de quitter la session.');
+    }
   };
 
   if (loading && !session) {
@@ -391,6 +372,154 @@ export const SessionDashboard: React.FC<SessionDashboardProps> = ({
           }}
         />
 
+        {/* ── Alertes inline ───────────────────────────────────────────────── */}
+        <View style={styles.alertsContainer}>
+
+          {/* Nouvelle demande de participation */}
+          {newPendingName && (
+            <AlertWithAction
+              variant="info"
+              title="🔔 Nouvelle demande"
+              message={`${newPendingName} souhaite rejoindre la session.`}
+              autoDismiss={false}
+              primaryButton={{
+                text: 'Voir les demandes',
+                variant: 'primary',
+                onPress: () => setNewPendingName(null),
+              }}
+              secondaryButton={{
+                text: 'Ignorer',
+                onPress: () => setNewPendingName(null),
+              }}
+            />
+          )}
+
+          {/* Session archivée */}
+          {archivedMessage && (
+            <AlertWithAction
+              variant="warning"
+              title="Session archivée"
+              message={archivedMessage}
+              autoDismiss={false}
+              primaryButton={{
+                text: 'OK',
+                variant: 'primary',
+                onPress: () => {
+                  setArchivedMessage(null);
+                  router.replace('/(tabs)/dashboard');
+                },
+              }}
+            />
+          )}
+
+          {/* Confirmation verrouillage */}
+          {lockConfirmVisible && (
+            <AlertWithAction
+              variant="warning"
+              title="Verrouiller la session ?"
+              message="Les participants ne pourront plus rejoindre cette session."
+              autoDismiss={false}
+              primaryButton={{
+                text: 'Verrouiller',
+                variant: 'danger',
+                onPress: handleConfirmLock,
+              }}
+              secondaryButton={{
+                text: 'Annuler',
+                onPress: () => setLockConfirmVisible(false),
+              }}
+            />
+          )}
+
+          {/* Erreur verrouillage / déverrouillage */}
+          {lockError && (
+            <Alert
+              variant="error"
+              title="Erreur"
+              message={lockError}
+              autoDismiss
+              autoDismissDuration={5000}
+              onDismiss={() => setLockError(null)}
+            />
+          )}
+          {unlockError && (
+            <Alert
+              variant="error"
+              title="Erreur"
+              message={unlockError}
+              autoDismiss
+              autoDismissDuration={5000}
+              onDismiss={() => setUnlockError(null)}
+            />
+          )}
+
+          {/* Confirmation terminer */}
+          {completeConfirmVisible && (
+            <AlertWithAction
+              variant="warning"
+              title="Terminer la session ?"
+              message="Cette action marquera la fin du repas pour tous les participants."
+              autoDismiss={false}
+              primaryButton={{
+                text: 'Terminer',
+                variant: 'danger',
+                onPress: handleConfirmComplete,
+              }}
+              secondaryButton={{
+                text: 'Annuler',
+                onPress: () => setCompleteConfirmVisible(false),
+              }}
+            />
+          )}
+
+          {/* Erreur terminer */}
+          {completeError && (
+            <Alert
+              variant="error"
+              title="Erreur"
+              message={completeError}
+              autoDismiss
+              autoDismissDuration={5000}
+              onDismiss={() => setCompleteError(null)}
+            />
+          )}
+
+          {/* Confirmation quitter */}
+          {leaveConfirmVisible && (
+            <AlertWithAction
+              variant={isHost ? 'info' : 'warning'}
+              title="Quitter la session ?"
+              message={
+                isHost
+                  ? "Vous êtes l'hôte. Si vous quittez, la session continuera sans vous."
+                  : 'Êtes-vous sûr de vouloir quitter cette session ?'
+              }
+              autoDismiss={false}
+              primaryButton={{
+                text: 'Quitter',
+                variant: 'danger',
+                onPress: handleConfirmLeave,
+              }}
+              secondaryButton={{
+                text: 'Annuler',
+                onPress: () => setLeaveConfirmVisible(false),
+              }}
+            />
+          )}
+
+          {/* Erreur quitter */}
+          {leaveError && (
+            <Alert
+              variant="error"
+              title="Erreur"
+              message={leaveError}
+              autoDismiss
+              autoDismissDuration={5000}
+              onDismiss={() => setLeaveError(null)}
+            />
+          )}
+        </View>
+
         {/* Bouton quitter */}
         <View style={styles.leaveContainer}>
           <Button 
@@ -573,6 +702,11 @@ const styles = StyleSheet.create({
   },
   leaveButton: {
     width: '100%',
+  },
+  alertsContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 4,
+    gap: 8,
   },
   pendingCard: {
     margin: 16,

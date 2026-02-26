@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { collaborativeSessionService } from '@/services/collaborativeSessionService';
 
 // =============================================================================
-// TYPES (importés du service)
+// TYPES
 // =============================================================================
 
 export interface SessionParticipant {
@@ -54,8 +54,9 @@ interface SessionContextType {
   participantId: string | null;
   isHost: boolean;
   isLoading: boolean;
-  
-  // Actions
+  /** true une fois que le chargement initial depuis AsyncStorage est terminé */
+  isSessionInitialized: boolean;
+
   createSession: (data: {
     restaurant_id: number;
     table_number: string;
@@ -67,32 +68,25 @@ interface SessionContextType {
     split_payment_enabled?: boolean;
     session_notes?: string;
   }) => Promise<CollaborativeSession>;
-  
+
   joinSession: (data: {
     share_code: string;
     guest_name?: string;
     guest_phone?: string;
     notes?: string;
   }) => Promise<void>;
-  
+
   leaveSession: () => Promise<void>;
-  
   refreshSession: () => Promise<void>;
-  
   clearSession: () => void;
-  
   getSessionByCode: (code: string) => Promise<CollaborativeSession>;
 }
 
 // =============================================================================
-// CONTEXTE
+// CONTEXTE & CONSTANTES
 // =============================================================================
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
-
-// =============================================================================
-// CONSTANTES
-// =============================================================================
 
 const SESSION_STORAGE_KEY = '@eatandgo_session';
 const PARTICIPANT_ID_STORAGE_KEY = '@eatandgo_participant_id';
@@ -105,8 +99,9 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [session, setSession] = useState<CollaborativeSession | null>(null);
   const [participantId, setParticipantId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  // ← NOUVEAU : indique que le chargement initial depuis AsyncStorage est terminé
+  const [isSessionInitialized, setIsSessionInitialized] = useState(false);
 
-  // Calculer si l'utilisateur est l'hôte
   const isHost = session?.participants?.some(
     p => p.id === participantId && p.is_host
   ) ?? false;
@@ -127,24 +122,35 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       ]);
 
       if (storedSession) {
-        const parsedSession = JSON.parse(storedSession);
+        const parsedSession: CollaborativeSession = JSON.parse(storedSession);
         setSession(parsedSession);
-        
+
         if (storedParticipantId) {
           setParticipantId(storedParticipantId);
         }
 
-        // Rafraîchir la session pour obtenir l'état le plus récent
+        // Tenter un refresh pour obtenir l'état serveur le plus récent.
+        // En cas d'échec réseau on GARDE la session en cache plutôt que de la supprimer —
+        // on ne clear que si l'API répond explicitement que la session n'existe plus (404).
         try {
           await refreshSessionById(parsedSession.id);
-        } catch (error) {
-          console.error('Erreur lors du rafraîchissement de la session:', error);
-          // Si la session n'existe plus, la nettoyer
-          await clearSession();
+        } catch (error: any) {
+          const status = error?.response?.status ?? error?.status;
+          if (status === 404) {
+            // Session définitivement supprimée côté serveur
+            console.info('[SessionContext] Session introuvable (404), nettoyage.');
+            await clearSession();
+          } else {
+            // Erreur réseau ou serveur temporaire : on conserve les données locales
+            console.warn('[SessionContext] Refresh échoué (non-404), session locale conservée:', error?.message);
+          }
         }
       }
     } catch (error) {
-      console.error('Erreur lors du chargement de la session:', error);
+      console.error('[SessionContext] Erreur chargement initial:', error);
+    } finally {
+      // ← Toujours marquer comme initialisé, même en cas d'erreur
+      setIsSessionInitialized(true);
     }
   };
 
@@ -158,15 +164,15 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   ) => {
     try {
       await AsyncStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionData));
-      
+
       if (participantIdData) {
         await AsyncStorage.setItem(PARTICIPANT_ID_STORAGE_KEY, participantIdData);
         setParticipantId(participantIdData);
       }
-      
+
       setSession(sessionData);
     } catch (error) {
-      console.error('Erreur lors de la sauvegarde de la session:', error);
+      console.error('[SessionContext] Erreur sauvegarde:', error);
     }
   }, []);
 
@@ -188,15 +194,11 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setIsLoading(true);
     try {
       const newSession = await collaborativeSessionService.createSession(data);
-
-      // L'hôte est automatiquement le premier participant
       const hostParticipant = newSession.participants?.find(p => p.is_host);
-      
       await saveSession(newSession, hostParticipant?.id);
-      
       return newSession;
     } catch (error) {
-      console.error('Erreur lors de la création de la session:', error);
+      console.error('[SessionContext] Erreur création:', error);
       throw error;
     } finally {
       setIsLoading(false);
@@ -216,10 +218,9 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setIsLoading(true);
     try {
       const result = await collaborativeSessionService.joinSession(data);
-      
       await saveSession(result.session, result.participant_id);
     } catch (error) {
-      console.error('Erreur lors de la connexion à la session:', error);
+      console.error('[SessionContext] Erreur rejoindre:', error);
       throw error;
     } finally {
       setIsLoading(false);
@@ -238,37 +239,12 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       await collaborativeSessionService.leaveSession(session.id, participantId);
       await clearSession();
     } catch (error) {
-      console.error('Erreur lors de la déconnexion de la session:', error);
+      console.error('[SessionContext] Erreur quitter:', error);
       throw error;
     } finally {
       setIsLoading(false);
     }
   }, [session, participantId]);
-
-  // =============================================================================
-  // RAFRAÎCHIR LA SESSION
-  // =============================================================================
-
-  const refreshSessionById = async (sessionId: string) => {
-    try {
-      const updatedSession = await collaborativeSessionService.getSession(sessionId);
-      await saveSession(updatedSession, participantId || undefined);
-    } catch (error) {
-      console.error('Erreur lors du rafraîchissement de la session:', error);
-      throw error;
-    }
-  };
-
-  const refreshSession = useCallback(async () => {
-    if (!session) return;
-
-    setIsLoading(true);
-    try {
-      await refreshSessionById(session.id);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [session, participantId, saveSession]);
 
   // =============================================================================
   // NETTOYER LA SESSION
@@ -280,9 +256,40 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setSession(null);
       setParticipantId(null);
     } catch (error) {
-      console.error('Erreur lors du nettoyage de la session:', error);
+      console.error('[SessionContext] Erreur nettoyage:', error);
     }
   }, []);
+
+
+  // =============================================================================
+  // RAFRAÎCHIR LA SESSION
+  // =============================================================================
+
+  const refreshSessionById = async (sessionId: string) => {
+    const updatedSession = await collaborativeSessionService.getSession(sessionId);
+    await saveSession(updatedSession, participantId || undefined);
+  };
+
+  const refreshSession = useCallback(async () => {
+    if (!session) return;
+
+    setIsLoading(true);
+    try {
+      await refreshSessionById(session.id);
+    } catch (error: any) {
+      const status = error?.response?.status ?? error?.status ?? error?.code;
+      if (status === 404) {
+        // Session supprimée ou archivée côté serveur → nettoyer silencieusement
+        console.info('[SessionContext] Session introuvable au refresh (404), nettoyage.');
+        await clearSession();
+      } else {
+        console.error('[SessionContext] Erreur refresh:', error);
+        throw error;
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [session, participantId, saveSession, clearSession]);
 
   // =============================================================================
   // OBTENIR UNE SESSION PAR CODE
@@ -291,10 +298,9 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const getSessionByCode = useCallback(async (code: string) => {
     setIsLoading(true);
     try {
-      const sessionData = await collaborativeSessionService.getSessionByCode(code);
-      return sessionData;
+      return await collaborativeSessionService.getSessionByCode(code);
     } catch (error) {
-      console.error('Erreur lors de la récupération de la session:', error);
+      console.error('[SessionContext] Erreur getByCode:', error);
       throw error;
     } finally {
       setIsLoading(false);
@@ -310,6 +316,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     participantId,
     isHost,
     isLoading,
+    isSessionInitialized, // ← NOUVEAU
     createSession,
     joinSession,
     leaveSession,
@@ -331,13 +338,12 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
 export const useSession = () => {
   const context = useContext(SessionContext);
-  
+
   if (context === undefined) {
     throw new Error('useSession doit être utilisé à l\'intérieur d\'un SessionProvider');
   }
-  
+
   return context;
 };
 
-// Export du contexte pour les tests
 export { SessionContext };
