@@ -49,7 +49,8 @@ from .order_models import (
 from .collaborative_models import (
     ActiveSessionManager,
     CollaborativeTableSession,
-    SessionParticipant
+    SessionParticipant,
+    SessionCartItem
 )
 
 # Payment

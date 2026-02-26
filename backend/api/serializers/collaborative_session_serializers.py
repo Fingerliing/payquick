@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from api.models import (
-    CollaborativeTableSession, SessionParticipant, Order, Restaurant, Table
+    CollaborativeTableSession, SessionParticipant, SessionCartItem, Order, Restaurant, Table
 )
 from django.contrib.auth.models import User
 
@@ -194,3 +194,60 @@ class SessionSummarySerializer(serializers.Serializer):
     
     # Statistiques
     stats = serializers.DictField()
+
+class SessionCartItemSerializer(serializers.ModelSerializer):
+    """Serializer pour un article du panier partagé"""
+
+    participant_name = serializers.CharField(
+        source='participant.display_name',
+        read_only=True
+    )
+    menu_item_name = serializers.CharField(
+        source='menu_item.name',
+        read_only=True
+    )
+    menu_item_price = serializers.DecimalField(
+        source='menu_item.price',
+        max_digits=10,
+        decimal_places=2,
+        read_only=True
+    )
+    menu_item_image = serializers.ImageField(
+        source='menu_item.image',
+        read_only=True
+    )
+    total_price = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        read_only=True
+    )
+    # Write-only : ID de l'article de menu
+    menu_item = serializers.PrimaryKeyRelatedField(
+        queryset=__import__(
+            'api.models', fromlist=['MenuItem']
+        ).MenuItem.objects.all()
+    )
+
+    class Meta:
+        model = SessionCartItem
+        fields = [
+            'id', 'participant', 'participant_name',
+            'menu_item', 'menu_item_name', 'menu_item_price', 'menu_item_image',
+            'quantity', 'special_instructions', 'customizations',
+            'total_price', 'added_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'added_at', 'updated_at', 'participant']
+
+
+class SessionCartSerializer(serializers.Serializer):
+    """Serializer pour l'état complet du panier partagé"""
+
+    items = SessionCartItemSerializer(many=True)
+    total = serializers.SerializerMethodField()
+    items_count = serializers.SerializerMethodField()
+
+    def get_total(self, items):
+        return sum(item.total_price for item in items)
+
+    def get_items_count(self, items):
+        return sum(item.quantity for item in items)

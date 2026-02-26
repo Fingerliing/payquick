@@ -394,3 +394,51 @@ class SessionParticipant(models.Model):
         self.status = 'left'
         self.left_at = timezone.now()
         self.save()
+
+class SessionCartItem(models.Model):
+    """
+    Article dans le panier partagé d'une session collaborative.
+    Représente l'intention d'un participant d'ajouter un article
+    AVANT que la commande finale soit passée.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    session = models.ForeignKey(
+        'CollaborativeTableSession',
+        on_delete=models.CASCADE,
+        related_name='cart_items'
+    )
+    participant = models.ForeignKey(
+        'SessionParticipant',
+        on_delete=models.CASCADE,
+        related_name='cart_items'
+    )
+    menu_item = models.ForeignKey(
+        'MenuItem',
+        on_delete=models.CASCADE,
+        related_name='session_cart_items'
+    )
+
+    quantity = models.PositiveIntegerField(default=1)
+    special_instructions = models.TextField(blank=True)
+    customizations = models.JSONField(default=dict, blank=True)
+
+    added_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['added_at']
+        indexes = [
+            models.Index(fields=['session', 'participant']),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.participant.display_name} → "
+            f"{self.menu_item.name} x{self.quantity}"
+        )
+
+    @property
+    def total_price(self):
+        return self.menu_item.price * self.quantity

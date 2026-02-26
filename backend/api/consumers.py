@@ -266,6 +266,9 @@ class SessionConsumer(BaseAuthenticatedConsumer):
             # Envoyer le statut initial
             await self.send_session_status()
             
+            # Envoyer l'état actuel du panier
+            await self.send_cart_state()
+            
             # Confirmer la connexion
             await self.send(text_data=json.dumps({
                 'type': 'connected',
@@ -303,6 +306,9 @@ class SessionConsumer(BaseAuthenticatedConsumer):
                     'type': 'pong',
                     'timestamp': time.time()
                 }))
+            elif message_type == 'cart_ping':
+                # Le client demande l'état actuel du panier
+                await self.send_cart_state()
             else:
                 logger.warning(f"Unknown message type: {message_type}")
                 
@@ -470,6 +476,55 @@ class SessionConsumer(BaseAuthenticatedConsumer):
             }))
         except Exception as e:
             logger.error(f"Error sending session_unlocked: {e}")
+
+    # ==================== HANDLERS POUR ÉVÉNEMENTS SESSION PANIER ====================
+
+    async def cart_updated(self, event):
+        """
+        Reçoit un événement 'cart_updated' depuis le channel layer
+        et le propage à tous les clients WebSocket connectés.
+        """
+        await self.send(text_data=json.dumps({
+            'type': 'cart_update',
+            'items': event['items'],
+            'total': event['total'],
+            'items_count': event['items_count'],
+            'timestamp': time.time(),
+        }))
+
+
+    async def send_cart_state(self):
+        """
+        Envoie l'état actuel du panier de la session au client qui vient
+        de se connecter (appelé depuis connect()).
+        """
+        try:
+            items, total, count = await self._get_cart_data()
+            await self.send(text_data=json.dumps({
+                'type': 'cart_state',
+                'items': items,
+                'total': total,
+                'items_count': count,
+                'timestamp': time.time(),
+            }))
+        except Exception as e:
+            logger.error(f"Error sending cart state: {e}")
+
+
+    @database_sync_to_async
+    def _get_cart_data(self):
+        """Récupère les données du panier depuis la base."""
+        from api.models import SessionCartItem
+        from api.serializers.collaborative_session_serializers import SessionCartItemSerializer
+
+        items = SessionCartItem.objects.filter(
+            session_id=self.session_id
+        ).select_related('participant', 'menu_item')
+
+        items_data = SessionCartItemSerializer(items, many=True).data
+        total = float(sum(item.total_price for item in items))
+        count = sum(item.quantity for item in items)
+        return items_data, total, count
     
     # ==================== HELPERS ====================
     

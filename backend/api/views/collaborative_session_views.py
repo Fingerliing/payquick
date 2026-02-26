@@ -693,6 +693,183 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
         
         return False
 
+    @action(detail=True, methods=['get'])
+    def cart(self, request, pk=None):
+        """
+        GET /api/sessions/{id}/cart/
+        Retourne le panier partagé complet de la session.
+        """
+        session = self.get_object()
+        items = session.cart_items.select_related(
+            'participant', 'menu_item'
+        )
+        serializer = SessionCartItemSerializer(items, many=True)
+        
+        total = sum(item.total_price for item in items)
+        return Response({
+            'items': serializer.data,
+            'total': float(total),
+            'items_count': sum(item.quantity for item in items),
+        })
+
+
+    @action(detail=True, methods=['post'])
+    def cart_add(self, request, pk=None):
+        """
+        POST /api/sessions/{id}/cart_add/
+        Ajoute un article au panier partagé.
+        Body: { menu_item, quantity, special_instructions, customizations }
+        """
+        session = self.get_object()
+
+        # Récupérer le participant courant
+        participant = self._get_current_participant(request, session)
+        if not participant:
+            return Response(
+                {'error': 'Participant introuvable dans cette session'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        serializer = SessionCartItemSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # Fusionner si l'article existe déjà pour ce participant
+        menu_item = serializer.validated_data['menu_item']
+        instructions = serializer.validated_data.get('special_instructions', '')
+
+        existing = session.cart_items.filter(
+            participant=participant,
+            menu_item=menu_item,
+            special_instructions=instructions,
+        ).first()
+
+        if existing:
+            existing.quantity += serializer.validated_data.get('quantity', 1)
+            existing.customizations = {
+                **existing.customizations,
+                **serializer.validated_data.get('customizations', {})
+            }
+            existing.save()
+            item = existing
+        else:
+            item = SessionCartItem.objects.create(
+                session=session,
+                participant=participant,
+                **serializer.validated_data
+            )
+
+        # Broadcast WebSocket à tous les participants
+        _broadcast_cart_update(session)
+
+        return Response(
+            SessionCartItemSerializer(item).data,
+            status=status.HTTP_201_CREATED
+        )
+
+
+    @action(detail=True, methods=['patch'], url_path=r'cart_update/(?P<item_id>[^/.]+)')
+    def cart_update_item(self, request, pk=None, item_id=None):
+        """
+        PATCH /api/sessions/{id}/cart_update/{item_id}/
+        Met à jour la quantité ou les instructions d'un article.
+        """
+        session = self.get_object()
+        participant = self._get_current_participant(request, session)
+
+        try:
+            item = session.cart_items.get(id=item_id, participant=participant)
+        except SessionCartItem.DoesNotExist:
+            return Response(
+                {'error': 'Article introuvable'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        quantity = request.data.get('quantity')
+        if quantity is not None:
+            if int(quantity) <= 0:
+                item.delete()
+                _broadcast_cart_update(session)
+                return Response(status=status.HTTP_204_NO_CONTENT)
+            item.quantity = int(quantity)
+
+        if 'special_instructions' in request.data:
+            item.special_instructions = request.data['special_instructions']
+        if 'customizations' in request.data:
+            item.customizations = request.data['customizations']
+
+        item.save()
+        _broadcast_cart_update(session)
+        return Response(SessionCartItemSerializer(item).data)
+
+
+    @action(detail=True, methods=['delete'], url_path=r'cart_remove/(?P<item_id>[^/.]+)')
+    def cart_remove_item(self, request, pk=None, item_id=None):
+        """
+        DELETE /api/sessions/{id}/cart_remove/{item_id}/
+        Supprime un article du panier partagé.
+        """
+        session = self.get_object()
+        participant = self._get_current_participant(request, session)
+
+        try:
+            item = session.cart_items.get(id=item_id, participant=participant)
+        except SessionCartItem.DoesNotExist:
+            return Response(
+                {'error': 'Article introuvable'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        item.delete()
+        _broadcast_cart_update(session)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+    @action(detail=True, methods=['delete'])
+    def cart_clear(self, request, pk=None):
+        """
+        DELETE /api/sessions/{id}/cart_clear/
+        Vide les articles du participant courant dans le panier partagé.
+        """
+        session = self.get_object()
+        participant = self._get_current_participant(request, session)
+        session.cart_items.filter(participant=participant).delete()
+        _broadcast_cart_update(session)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+    # ─── Helper privé ──────────────────────────────────────────────────────────
+
+    def _get_current_participant(self_view, request, session):
+        """Récupère le participant de la session pour l'utilisateur courant."""
+        from api.models import SessionParticipant
+        if request.user and request.user.is_authenticated:
+            return session.participants.filter(
+                user=request.user,
+                status='active'
+            ).first()
+        return None
+
+
+    def _broadcast_cart_update(session):
+        """Broadcast l'état complet du panier à tous les participants via WS."""
+        from asgiref.sync import async_to_sync
+        from channels.layers import get_channel_layer
+        from api.serializers.collaborative_session_serializers import SessionCartItemSerializer
+
+        items = session.cart_items.select_related('participant', 'menu_item').all()
+        items_data = SessionCartItemSerializer(items, many=True).data
+        total = float(sum(item.total_price for item in items))
+
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f'session_{session.id}',
+            {
+                'type': 'cart_updated',
+                'items': items_data,
+                'total': total,
+                'items_count': sum(item.quantity for item in items),
+            }
+        )
 
 class SessionParticipantViewSet(viewsets.ReadOnlyModelViewSet):
     """
