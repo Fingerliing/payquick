@@ -138,9 +138,28 @@ export default function ClientHome() {
     }
   };
 
-  const handleDismissServerSession = () => {
-    setServerSession(null);
-    setRejoinError(null);
+  const handleDismissServerSession = async () => {
+    if (!serverSession) {
+      setServerSession(null);
+      setRejoinError(null);
+      return;
+    }
+
+    setIsRejoining(true);
+    try {
+      // Rejoindre silencieusement pour obtenir le participantId dans le contexte,
+      // puis quitter proprement côté serveur
+      await joinSession({ share_code: serverSession.share_code });
+      await leaveSession();
+    } catch (error) {
+      // Si la session n'est plus accessible, on force juste le clear local
+      console.warn('[ClientHome] Dismiss server session error, forcing clear:', error);
+      await clearSession();
+    } finally {
+      setServerSession(null);
+      setRejoinError(null);
+      setIsRejoining(false);
+    }
   };
 
   // ── Quitter / terminer la session locale — ouvre la confirmation ──
@@ -906,7 +925,10 @@ export default function ClientHome() {
                   onPress={handleDismissServerSession}
                   disabled={isRejoining}
                 >
-                  <Ionicons name="close" size={16} color="rgba(255,255,255,0.5)" />
+                  {isRejoining
+                    ? <ActivityIndicator size="small" color="rgba(255,255,255,0.5)" />
+                    : <Ionicons name="close" size={16} color="rgba(255,255,255,0.5)" />
+                  }
                 </Pressable>
               </View>
             </View>

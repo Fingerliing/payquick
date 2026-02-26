@@ -99,7 +99,6 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [session, setSession] = useState<CollaborativeSession | null>(null);
   const [participantId, setParticipantId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  // ← NOUVEAU : indique que le chargement initial depuis AsyncStorage est terminé
   const [isSessionInitialized, setIsSessionInitialized] = useState(false);
 
   const isHost = session?.participants?.some(
@@ -316,7 +315,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     participantId,
     isHost,
     isLoading,
-    isSessionInitialized, // ← NOUVEAU
+    isSessionInitialized,
     createSession,
     joinSession,
     leaveSession,
