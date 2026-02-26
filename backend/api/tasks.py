@@ -53,28 +53,42 @@ def archive_session_delayed(session_id, reason="Archivage automatique après com
 @shared_task(name='api.tasks.auto_archive_eligible_sessions')
 def auto_archive_eligible_sessions():
     """
-    Tâche périodique pour archiver automatiquement les sessions éligibles
-    AVEC notifications WebSocket
+    Tâche périodique (*/15min) pour archiver automatiquement :
+    - Les sessions completed/cancelled depuis plus de 5 minutes
+    - Les sessions active/locked sans activité depuis plus de 30 minutes
     """
     from api.models import CollaborativeTableSession
 
     logger.info("🔄 Démarrage de l'archivage automatique des sessions...")
 
     try:
-        cutoff_time = timezone.now() - timedelta(minutes=5)
+        now = timezone.now()
+        cutoff_completed = now - timedelta(minutes=5)
+        cutoff_inactive  = now - timedelta(minutes=30)
 
-        eligible_sessions = CollaborativeTableSession.objects.filter(
+        # --- Cas 1 : sessions terminées/annulées en attente d'archivage ---
+        completed_sessions = CollaborativeTableSession.objects.filter(
             status__in=['completed', 'cancelled'],
             is_archived=False,
-            completed_at__lt=cutoff_time
+            completed_at__lt=cutoff_completed
         )
 
-        count = 0
-        for session in eligible_sessions:
+        # --- Cas 2 : sessions actives/verrouillées sans activité récente ---
+        # updated_at (auto_now=True) reflète la dernière écriture sur l'objet.
+        # Une session qui n'a pas bougé depuis 30 min est considérée abandonnée.
+        stale_sessions = CollaborativeTableSession.objects.filter(
+            status__in=['active', 'locked'],
+            is_archived=False,
+            updated_at__lt=cutoff_inactive
+        )
+
+        count_completed = 0
+        count_stale     = 0
+
+        for session in completed_sessions:
             try:
                 session.archive(reason="Archivage automatique (5min après completion)")
-                count += 1
-
+                count_completed += 1
                 try:
                     notify_session_archived(
                         session_id=str(session.id),
@@ -82,17 +96,39 @@ def auto_archive_eligible_sessions():
                     )
                 except Exception as e:
                     logger.warning(f"Notification WebSocket échouée pour {session.id}: {e}")
-
             except Exception as e:
-                logger.error(f"Erreur archivage session {session.id}: {e}")
+                logger.error(f"Erreur archivage session complétée {session.id}: {e}")
 
-        logger.info(f"✅ {count} session(s) archivée(s) automatiquement")
-        return f"{count} session(s) archivée(s)"
+        for session in stale_sessions:
+            try:
+                # Marquer cancelled avant d'archiver pour cohérence des données
+                # (utilise update() pour ne pas déclencher auto_now sur updated_at)
+                CollaborativeTableSession.objects.filter(id=session.id).update(
+                    status='cancelled'
+                )
+                session.refresh_from_db()
+                session.archive(reason="Archivage automatique (inactivité >30min)")
+                count_stale += 1
+                try:
+                    notify_session_archived(
+                        session_id=str(session.id),
+                        reason="Session inactive archivée automatiquement"
+                    )
+                except Exception as e:
+                    logger.warning(f"Notification WebSocket échouée pour {session.id}: {e}")
+            except Exception as e:
+                logger.error(f"Erreur archivage session inactive {session.id}: {e}")
+
+        total = count_completed + count_stale
+        logger.info(
+            f"✅ {total} session(s) archivée(s) "
+            f"({count_completed} complétées, {count_stale} inactives)"
+        )
+        return f"{total} session(s) archivée(s)"
 
     except Exception as e:
         logger.exception("Erreur lors de l'archivage automatique")
         return f"Erreur: {str(e)}"
-
 
 @shared_task(name='api.tasks.cleanup_old_archived_sessions')
 def cleanup_old_archived_sessions(days=30):

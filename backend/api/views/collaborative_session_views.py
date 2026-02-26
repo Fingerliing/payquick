@@ -109,26 +109,51 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
                         'error': 'Table non trouvée'
                     }, status=status.HTTP_404_NOT_FOUND)
             
-            # 🆕 DÉTECTION DE CONFLITS - Vérifier sessions actives sur cette table
+            # DÉTECTION DE CONFLITS - Vérifier sessions actives sur cette table
             existing_active_sessions = CollaborativeTableSession.objects.filter(
                 table_id=data.get('table_id'),
                 table_number=data['table_number'],
                 status__in=['active', 'locked', 'payment'],
                 is_archived=False  # Important: exclure les archivées
             )
+
+            STALE_SESSION_MINUTES = 30
             
             if existing_active_sessions.exists():
                 existing = existing_active_sessions.first()
-                
-                # Si la session existante est completed, l'archiver automatiquement
+                stale_threshold = timezone.now() - timedelta(minutes=STALE_SESSION_MINUTES)
+
                 if existing.status == 'completed':
+                    # Session terminée mais pas encore archivée → archivage immédiat
                     existing.archive(reason="Nouvelle session créée sur la même table")
                     logger.info(
-                        f"Session {existing.id} archivée automatiquement "
+                        f"Session {existing.id} (completed) archivée automatiquement "
                         f"(nouvelle session sur table {data['table_number']})"
                     )
+
+                elif existing.updated_at < stale_threshold:
+                    # Session active/locked mais abandonnée sans activité depuis >30min
+                    # → archivage silencieux, on ne bloque pas la création
+                    CollaborativeTableSession.objects.filter(id=existing.id).update(
+                        status='cancelled'   # update() ne déclenche pas auto_now sur updated_at
+                    )
+                    existing.refresh_from_db()
+                    existing.archive(reason=f"Session abandonnée (inactivité >{STALE_SESSION_MINUTES}min)")
+                    logger.info(
+                        f"Session {existing.id} ({existing.status}) archivée automatiquement "
+                        f"— inactivité depuis {existing.updated_at} "
+                        f"(nouvelle session sur table {data['table_number']})"
+                    )
+                    try:
+                        notify_session_archived(
+                            session_id=str(existing.id),
+                            reason="Session abandonnée remplacée par une nouvelle"
+                        )
+                    except Exception as e:
+                        logger.warning(f"Notification WebSocket échouée pour {existing.id}: {e}")
+
                 else:
-                    # Session vraiment active - conflit !
+                    # Session vraiment active et récente → conflit légitime
                     return Response({
                         'error': 'Session active existante',
                         'conflict': True,
@@ -138,6 +163,7 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
                             'status': existing.status,
                             'participant_count': existing.participant_count,
                             'created_at': existing.created_at,
+                            'last_activity': existing.updated_at,   # aide le frontend à afficher l'ancienneté
                         },
                         'suggestion': (
                             'Une session est déjà active sur cette table. '

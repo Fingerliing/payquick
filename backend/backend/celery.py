@@ -44,8 +44,8 @@ def setup_periodic_tasks(sender, **kwargs):
         },
         'force-archive-abandoned-sessions': {
             'task': 'api.tasks.force_archive_abandoned_sessions',
-            'schedule': crontab(hour='*/6', minute=0),
-            'kwargs': {'hours': 12},
+            'schedule': crontab(minute='*/15'),
+            'kwargs': {'hours': 1},
             'options': {'expires': 3600}
         },
         **COMPTABILITE_BEAT_SCHEDULE,
