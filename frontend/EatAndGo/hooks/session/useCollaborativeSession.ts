@@ -6,10 +6,19 @@ import {
 } from '@/services/collaborativeSessionService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Clé globale utilisée par SessionContext — à connaître pour le fallback
+const GLOBAL_PARTICIPANT_ID_KEY = '@eatandgo_participant_id';
+
 interface UseCollaborativeSessionOptions {
   sessionId?: string;
   autoRefresh?: boolean;
   refreshInterval?: number;
+  /**
+   * ID du participant courant passé directement depuis SessionContext.
+   * Prioritaire sur toute lecture AsyncStorage — évite les bugs quand
+   * les clés AsyncStorage ont été vidées (restart appli, archivage session...).
+   */
+  externalParticipantId?: string | null;
 }
 
 interface SessionState {
@@ -25,8 +34,16 @@ export const useCollaborativeSession = (options: UseCollaborativeSessionOptions 
   const {
     sessionId,
     autoRefresh = true,
-    refreshInterval = 10000, // 10 secondes
+    refreshInterval = 10000,
+    externalParticipantId,
   } = options;
+
+  // Ref pour que loadSession accède toujours à la valeur courante
+  // sans être recréé à chaque changement de externalParticipantId
+  const externalParticipantIdRef = useRef(externalParticipantId);
+  useEffect(() => {
+    externalParticipantIdRef.current = externalParticipantId;
+  }, [externalParticipantId]);
 
   const [state, setState] = useState<SessionState>({
     session: null,
@@ -48,19 +65,45 @@ export const useCollaborativeSession = (options: UseCollaborativeSessionOptions 
 
     try {
       const session = await collaborativeSessionService.getSession(sessionId);
-      
+
       if (!mountedRef.current) return;
 
-      // Trouver le participant actuel
-      const storedParticipantId = await AsyncStorage.getItem(
-        `session_participant_${sessionId}`
-      );
+      // ─────────────────────────────────────────────────────────────────────
+      // RÉSOLUTION DU PARTICIPANT ACTUEL — ordre de priorité :
+      //
+      //   1. externalParticipantId (passé depuis SessionContext, en mémoire)
+      //      → source la plus fiable, non dépendante d'AsyncStorage
+      //
+      //   2. `session_participant_${sessionId}` (clé spécifique)
+      //      → créée par useCollaborativeSession.createSession/joinSession
+      //
+      //   3. `@eatandgo_participant_id` (clé globale)
+      //      → créée par SessionContext.createSession
+      // ─────────────────────────────────────────────────────────────────────
+      let resolvedParticipantId: string | null = externalParticipantIdRef.current ?? null;
+
+      if (!resolvedParticipantId) {
+        resolvedParticipantId = await AsyncStorage.getItem(`session_participant_${sessionId}`);
+      }
+
+      if (!resolvedParticipantId) {
+        const globalId = await AsyncStorage.getItem(GLOBAL_PARTICIPANT_ID_KEY);
+        if (globalId && session.participants.some(p => p.id === globalId)) {
+          resolvedParticipantId = globalId;
+          // Réécrire sous la clé spécifique pour accélérer les prochains appels
+          await AsyncStorage.setItem(`session_participant_${sessionId}`, globalId);
+        }
+      }
+
       console.log('[USE_COLLAB_SESSION] sessionId:', sessionId);
-      console.log('[USE_COLLAB_SESSION] storedParticipantId depuis AsyncStorage:', storedParticipantId);
-      console.log('[USE_COLLAB_SESSION] session.participants:', JSON.stringify(session.participants?.map(p => ({ id: p.id, status: p.status, is_host: p.is_host }))));
+      console.log('[USE_COLLAB_SESSION] resolvedParticipantId:', resolvedParticipantId,
+        externalParticipantIdRef.current ? '(depuis SessionContext)' : '(depuis AsyncStorage)');
+      console.log('[USE_COLLAB_SESSION] session.participants:', JSON.stringify(
+        session.participants?.map(p => ({ id: p.id, status: p.status, is_host: p.is_host }))
+      ));
 
       const currentParticipant = session.participants.find(
-        p => p.id === storedParticipantId && p.status === 'active'
+        p => p.id === resolvedParticipantId && p.status === 'active'
       ) || null;
 
       console.log('[USE_COLLAB_SESSION] currentParticipant:', JSON.stringify(currentParticipant));
@@ -79,7 +122,7 @@ export const useCollaborativeSession = (options: UseCollaborativeSessionOptions 
       });
     } catch (error) {
       if (!mountedRef.current) return;
-      
+
       setState(prev => ({
         ...prev,
         loading: false,
@@ -103,7 +146,7 @@ export const useCollaborativeSession = (options: UseCollaborativeSessionOptions 
         guest_phone: guestPhone,
       });
 
-      // Stocker l'ID du participant
+      // Stocker sous la clé spécifique à la session
       await AsyncStorage.setItem(
         `session_participant_${result.session.id}`,
         result.participant_id
@@ -127,7 +170,7 @@ export const useCollaborativeSession = (options: UseCollaborativeSessionOptions 
       return result;
     } catch (error) {
       if (!mountedRef.current) throw error;
-      
+
       setState(prev => ({
         ...prev,
         loading: false,
@@ -144,14 +187,15 @@ export const useCollaborativeSession = (options: UseCollaborativeSessionOptions 
     try {
       const session = await collaborativeSessionService.createSession(data);
 
-      // L'hôte est automatiquement le premier participant
       const hostParticipant = session.participants.find(p => p.is_host) || null;
 
       if (hostParticipant) {
+        // Stocker sous les DEUX clés pour assurer la compatibilité
         await AsyncStorage.setItem(
           `session_participant_${session.id}`,
           hostParticipant.id
         );
+        await AsyncStorage.setItem(GLOBAL_PARTICIPANT_ID_KEY, hostParticipant.id);
       }
 
       if (!mountedRef.current) return session;
@@ -168,7 +212,7 @@ export const useCollaborativeSession = (options: UseCollaborativeSessionOptions 
       return session;
     } catch (error) {
       if (!mountedRef.current) throw error;
-      
+
       setState(prev => ({
         ...prev,
         loading: false,
@@ -188,7 +232,6 @@ export const useCollaborativeSession = (options: UseCollaborativeSessionOptions 
         state.currentParticipant.id
       );
 
-      // Nettoyer le stockage local
       await AsyncStorage.removeItem(`session_participant_${sessionId}`);
 
       if (!mountedRef.current) return;
@@ -211,7 +254,6 @@ export const useCollaborativeSession = (options: UseCollaborativeSessionOptions 
     if (!sessionId || !state.canManage) {
       throw new Error('Vous n\'avez pas les permissions nécessaires');
     }
-
     try {
       await collaborativeSessionService.sessionAction(sessionId, 'lock');
       await loadSession();
@@ -225,7 +267,6 @@ export const useCollaborativeSession = (options: UseCollaborativeSessionOptions 
     if (!sessionId || !state.canManage) {
       throw new Error('Vous n\'avez pas les permissions nécessaires');
     }
-
     try {
       await collaborativeSessionService.sessionAction(sessionId, 'unlock');
       await loadSession();
@@ -239,7 +280,6 @@ export const useCollaborativeSession = (options: UseCollaborativeSessionOptions 
     if (!sessionId || !state.canManage) {
       throw new Error('Vous n\'avez pas les permissions nécessaires');
     }
-
     try {
       await collaborativeSessionService.sessionAction(sessionId, 'complete');
       await loadSession();
@@ -253,7 +293,6 @@ export const useCollaborativeSession = (options: UseCollaborativeSessionOptions 
     if (!state.canManage) {
       throw new Error('Vous n\'avez pas les permissions nécessaires');
     }
-
     try {
       await collaborativeSessionService.participantAction(participantId, 'approve');
       await loadSession();
@@ -267,7 +306,6 @@ export const useCollaborativeSession = (options: UseCollaborativeSessionOptions 
     if (!state.canManage) {
       throw new Error('Vous n\'avez pas les permissions nécessaires');
     }
-
     try {
       await collaborativeSessionService.participantAction(participantId, 'reject');
       await loadSession();
@@ -281,7 +319,6 @@ export const useCollaborativeSession = (options: UseCollaborativeSessionOptions 
     if (!state.canManage) {
       throw new Error('Vous n\'avez pas les permissions nécessaires');
     }
-
     try {
       await collaborativeSessionService.participantAction(participantId, 'remove');
       await loadSession();
@@ -295,7 +332,6 @@ export const useCollaborativeSession = (options: UseCollaborativeSessionOptions 
     if (!state.canManage) {
       throw new Error('Vous n\'avez pas les permissions nécessaires');
     }
-
     try {
       await collaborativeSessionService.participantAction(participantId, 'make_host');
       await loadSession();
@@ -387,10 +423,7 @@ export const useActiveTableSession = (
   const [checked, setChecked] = useState(false);
 
   const checkActiveSession = useCallback(async () => {
-    if (!restaurantId || !tableNumber) {
-      setChecked(true);
-      return null;
-    }
+    if (!restaurantId || !tableNumber) return;
 
     setLoading(true);
     try {
@@ -399,15 +432,11 @@ export const useActiveTableSession = (
         tableNumber
       );
       setActiveSession(session);
-      setChecked(true);
-      return session;
-    } catch (error) {
-      console.error('Error checking active session:', error);
+    } catch {
       setActiveSession(null);
-      setChecked(true);
-      return null;
     } finally {
       setLoading(false);
+      setChecked(true);
     }
   }, [restaurantId, tableNumber]);
 
@@ -443,10 +472,7 @@ export const useSessionStorage = () => {
     participantId: string
   ) => {
     try {
-      await AsyncStorage.setItem(
-        `session_participant_${sessionId}`,
-        participantId
-      );
+      await AsyncStorage.setItem(`session_participant_${sessionId}`, participantId);
     } catch (error) {
       console.error('Error storing session:', error);
     }
@@ -464,7 +490,7 @@ export const useSessionStorage = () => {
     try {
       const keys = await AsyncStorage.getAllKeys();
       const sessionKeys = keys.filter(k => k.startsWith('session_participant_'));
-      
+
       const sessions = await Promise.all(
         sessionKeys.map(async key => {
           const sessionId = key.replace('session_participant_', '');

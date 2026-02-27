@@ -46,17 +46,35 @@ export class SessionWebSocket extends EventEmitter {
   private pingInterval: ReturnType<typeof setInterval> | null = null;
   private isIntentionallyClosed = false;
 
-  constructor(sessionId: string, baseUrl?: string) {
+  /**
+   * @param sessionId  UUID de la session
+   * @param fullUrl    URL WebSocket COMPLÈTE (avec token si nécessaire).
+   *                   Si absent, on construit l'URL depuis EXPO_PUBLIC_API_URL.
+   *
+   * ⚠️  BREAKING CHANGE par rapport à l'ancienne signature :
+   *     L'ancien paramètre s'appelait `baseUrl` et le constructeur y accolait
+   *     `/ws/session/${sessionId}/`. Comme `getOrCreateEntry` passait déjà une
+   *     URL complète (chemin + token), cela doublait le chemin :
+   *
+   *       baseUrl  = ws://host/ws/session/{id}/?token=TOKEN
+   *       résultat = ws://host/ws/session/{id}/?token=TOKEN/ws/session/{id}/
+   *
+   *     Maintenant `fullUrl` est utilisé tel quel.
+   */
+  constructor(sessionId: string, fullUrl?: string) {
     super();
     this.sessionId = sessionId;
 
-    // ✅ FIX: Utilise EXPO_PUBLIC_API_URL au lieu de window.location (inexistant en React Native)
-    const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
-    const wsProtocol = apiUrl.startsWith('https') ? 'wss:' : 'ws:';
-    const host = apiUrl.replace(/^https?:\/\//, '');
-    const defaultBaseUrl = `${wsProtocol}//${host}`;
-
-    this.url = `${baseUrl || defaultBaseUrl}/ws/session/${sessionId}/`;
+    if (fullUrl) {
+      // URL complète fournie par l'appelant — on la prend telle quelle
+      this.url = fullUrl;
+    } else {
+      // Construction par défaut sans token (connexion invité)
+      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
+      const wsProtocol = apiUrl.startsWith('https') ? 'wss:' : 'ws:';
+      const host = apiUrl.replace(/^https?:\/\//, '');
+      this.url = `${wsProtocol}//${host}/ws/session/${sessionId}/`;
+    }
   }
 
   /**
@@ -69,15 +87,14 @@ export class SessionWebSocket extends EventEmitter {
     }
 
     this.isIntentionallyClosed = false;
-    
+
     try {
       this.ws = new WebSocket(this.url);
-      
-      this.ws.onopen = this.handleOpen.bind(this);
+
+      this.ws.onopen    = this.handleOpen.bind(this);
       this.ws.onmessage = this.handleMessage.bind(this);
-      this.ws.onerror = this.handleError.bind(this);
-      this.ws.onclose = this.handleClose.bind(this);
-      
+      this.ws.onerror   = this.handleError.bind(this);
+      this.ws.onclose   = this.handleClose.bind(this);
     } catch (error) {
       console.error('Error creating WebSocket:', error);
       this.emit('error', error);
@@ -90,7 +107,7 @@ export class SessionWebSocket extends EventEmitter {
   disconnect(): void {
     this.isIntentionallyClosed = true;
     this.stopPing();
-    
+
     if (this.ws) {
       this.ws.close();
       this.ws = null;
@@ -122,10 +139,10 @@ export class SessionWebSocket extends EventEmitter {
     return this.ws?.readyState === WebSocket.OPEN;
   }
 
-  // Gestionnaires d'événements privés
+  // ── Gestionnaires d'événements privés ────────────────────────────────────
 
   private handleOpen(): void {
-    console.log('WebSocket connected');
+    console.log('WebSocket connected:', this.url.split('?')[0]); // sans le token dans les logs
     this.reconnectAttempts = 0;
     this.emit('connected');
     this.startPing();
@@ -134,10 +151,10 @@ export class SessionWebSocket extends EventEmitter {
   private handleMessage(event: MessageEvent): void {
     try {
       const message: WebSocketMessage = JSON.parse(event.data);
-      
+
       switch (message.type) {
         case 'pong':
-          // Réponse au ping, ne rien faire
+          // Réponse au ping — rien à faire
           break;
 
         case 'session_state':
@@ -146,9 +163,9 @@ export class SessionWebSocket extends EventEmitter {
 
         case 'session_update':
           this.emit('session_update', {
-            event: message.event,
-            actor: message.actor,
-            data: message.data,
+            event:      message.event,
+            actor:      message.actor,
+            data:       message.data,
             session_id: message.session_id,
           });
           break;
@@ -184,30 +201,28 @@ export class SessionWebSocket extends EventEmitter {
         case 'session_completed':
           this.emit('session_completed', {
             will_archive_in: message.will_archive_in,
-            message: message.message
+            message:         message.message,
           });
           break;
 
-        //Handler pour session archivée
         case 'session_archived':
           console.log('🗄️ Session archived:', message.reason);
           this.emit('session_archived', {
-            session_id: message.session_id,
-            message: message.message,
-            reason: message.reason,
+            session_id:         message.session_id,
+            message:            message.message,
+            reason:             message.reason,
             redirect_suggested: message.redirect_suggested,
-            timestamp: message.timestamp
+            timestamp:          message.timestamp,
           });
           break;
 
-        //Handler pour table libérée
         case 'table_released':
           console.log('🆓 Table released:', message.table_number);
           this.emit('table_released', {
-            table_id: message.table_id,
+            table_id:     message.table_id,
             table_number: message.table_number,
-            message: message.message,
-            timestamp: message.timestamp
+            message:      message.message,
+            timestamp:    message.timestamp,
           });
           break;
 
@@ -233,24 +248,17 @@ export class SessionWebSocket extends EventEmitter {
     if (!this.isIntentionallyClosed && this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++;
       const delay = this.reconnectDelay * this.reconnectAttempts;
-      
       console.log(`Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
-      
-      setTimeout(() => {
-        this.connect();
-      }, delay);
+      setTimeout(() => this.connect(), delay);
     }
   }
 
   private startPing(): void {
     this.stopPing();
-    
-    // Envoyer un ping toutes les 30 secondes
+    // Ping toutes les 30 secondes
     this.pingInterval = setInterval(() => {
-      if (this.isConnected()) {
-        this.send({ type: 'ping' });
-      }
-    }, 30000);
+      if (this.isConnected()) this.send({ type: 'ping' });
+    }, 30_000);
   }
 
   private stopPing(): void {

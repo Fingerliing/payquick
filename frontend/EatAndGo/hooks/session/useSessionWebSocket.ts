@@ -1,5 +1,3 @@
-// hooks/useSessionWebSocket.ts
-
 import { useState, useEffect, useRef, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SessionWebSocket, SessionWebSocketEvent } from '@/services/sessionWebSocket';
@@ -84,6 +82,7 @@ export const useSessionWebSocket = (
   const [error, setError] = useState<Error | null>(null);
   const entryRef = useRef<WsEntry | null>(null);
   const mountedRef = useRef(true);
+  const pendingSubsRef = useRef<Array<{ event: SessionWebSocketEvent; handler: (...args: any[]) => void }>>([]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -98,6 +97,12 @@ export const useSessionWebSocket = (
       entry = getOrCreateEntry(sessionId, token);
       entry.refCount += 1;
       entryRef.current = entry;
+
+      // Flush des abonnements en attente
+      pendingSubsRef.current.forEach(({ event, handler }) => {
+        entry.ws.on(event, handler);
+      });
+      pendingSubsRef.current = [];
 
       // Synchroniser l'état local
       setIsConnected(entry.isConnected);
@@ -137,10 +142,21 @@ export const useSessionWebSocket = (
 
   const on = useCallback((event: SessionWebSocketEvent, handler: (...args: any[]) => void) => {
     const ws = entryRef.current?.ws;
-    ws?.on(event, handler);
-    return () => {
-      ws?.off(event, handler);
-    };
+  
+    // WS pas encore prête -> on met en attente
+    if (!ws) {
+      const item = { event, handler };
+      pendingSubsRef.current.push(item);
+  
+      return () => {
+        pendingSubsRef.current = pendingSubsRef.current.filter(
+          (x) => x.event !== event || x.handler !== handler
+        );
+      };
+    }
+  
+    ws.on(event, handler);
+    return () => ws.off(event, handler);
   }, []);
 
   const requestUpdate = useCallback(() => {
