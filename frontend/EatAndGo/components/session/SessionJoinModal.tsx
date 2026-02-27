@@ -13,6 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { collaborativeSessionService, CollaborativeSession } from '@/services/collaborativeSessionService';
 import { useSession } from '@/contexts/SessionContext';
+import { useSessionWebSocket } from '@/hooks/session/useSessionWebSocket';
 import { Alert } from '@/components/ui/Alert';
 
 // ---------------------------------------------------------------------------
@@ -52,7 +53,7 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
   onSessionJoined,
   onOrderAlone,
 }) => {
-  // SessionContext — source de vérité pour persister le participantId en mémoire
+  // ── SessionContext : persiste participantId en mémoire React après création ─
   const { createSession: ctxCreateSession } = useSession();
 
   const [loading, setLoading] = useState(false);
@@ -61,6 +62,15 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
   const [pendingParticipantId, setPendingParticipantId] = useState<string | null>(null);
   const [pendingSessionId, setPendingSessionId] = useState<string | null>(null);
   const [pendingSession, setPendingSession] = useState<CollaborativeSession | null>(null);
+
+  // ── WebSocket branché sur la session en cours d'approbation ───────────────
+  // Null tant que l'invité n'est pas en mode pending → pas de connexion inutile
+  const { on: onWsEvent } = useSessionWebSocket(
+    mode === 'pending' ? pendingSessionId : null
+  );
+
+  // Ref pour éviter de déclencher l'approbation deux fois (WS + polling)
+  const approvalHandledRef = useRef(false);
 
   // États formulaire — création
   const [hostName, setHostName] = useState('');
@@ -134,10 +144,8 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
 
     setLoading(true);
     try {
-      // ✅ On passe par SessionContext pour que participantId soit persisté
-      // en mémoire React ET dans AsyncStorage dès la création.
-      // Sans ça, useCollaborativeSession reçoit ctxParticipantId=null au
-      // premier rendu et calcule isHost=false → l'UI d'approbation n'apparaît pas.
+      // ✅ Via SessionContext pour que participantId soit persisté en mémoire
+      // dès la création — sans ça, isHost=false au premier rendu du menu.
       const session = await ctxCreateSession({
         restaurant_id: restaurantId,
         table_number: tableNumber,
@@ -215,10 +223,10 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
       });
 
       if (result.requires_approval) {
-        // ⏳ En attente d'approbation — pas de callback immédiat
+        // ⏳ En attente d'approbation
         setMode('pending');
         setPendingParticipantId(result.participant_id);
-        setPendingSessionId(result.session.id); // ✅ MANQUAIT : sans ça le useEffect de polling ne démarre jamais
+        setPendingSessionId(result.session.id); // ✅ déclenche le WebSocket + le polling
         setPendingSession(result.session);
       } else {
         // ✅ Accès direct
@@ -244,18 +252,85 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
   };
 
   // ---------------------------------------------------------------------------
-  // Polling approbation (mode pending)
+  // Approbation instantanée via WebSocket (primaire)
   // ---------------------------------------------------------------------------
 
   useEffect(() => {
     if (mode !== 'pending' || !pendingParticipantId || !pendingSessionId) return;
 
+    approvalHandledRef.current = false; // reset à chaque entrée en mode pending
+    console.log('[MODAL-PENDING] 🔌 WS listener enregistré pour session:', pendingSessionId);
+
+    const unsubApproved = onWsEvent('participant_approved', async (participant: any) => {
+      console.log('[MODAL-PENDING] ✅ participant_approved reçu:', participant?.id, '(attendu:', pendingParticipantId, ')');
+      // Vérifier que c'est bien notre participant
+      if (participant?.id !== pendingParticipantId) return;
+      if (approvalHandledRef.current) return;
+      approvalHandledRef.current = true;
+
+      try {
+        // Récupérer la session à jour pour passer l'objet complet au callback
+        const session = await collaborativeSessionService.getSession(pendingSessionId);
+        showAlert({
+          variant: 'success',
+          title: '✅ Accepté !',
+          message: "L'hôte vous a accepté dans la session.",
+          onDismiss: () => {
+            onSessionJoined?.(session);
+            onClose();
+          },
+        });
+      } catch {
+        // Fallback minimal si le fetch échoue — on utilise la session en cache
+        if (pendingSession) {
+          onSessionJoined?.(pendingSession);
+          onClose();
+        }
+      }
+    });
+
+    // Écouter aussi le rejet via session_update (participant removed)
+    const unsubUpdate = onWsEvent('session_update', (data: any) => {
+      if (data?.event !== 'participant_removed') return;
+      if (data?.data?.participant?.id !== pendingParticipantId) return;
+      if (approvalHandledRef.current) return;
+      approvalHandledRef.current = true;
+
+      showAlert({
+        variant: 'error',
+        title: '❌ Refusé',
+        message: "L'hôte a refusé votre demande.",
+        onDismiss: () => setMode('choose'),
+      });
+    });
+
+    return () => {
+      unsubApproved();
+      unsubUpdate();
+    };
+  }, [mode, pendingParticipantId, pendingSessionId, onWsEvent]);
+
+  // ---------------------------------------------------------------------------
+  // Polling approbation (fallback si WebSocket indisponible)
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    if (mode !== 'pending' || !pendingParticipantId || !pendingSessionId) return;
+
+    // Intervalle allongé à 10s car le WebSocket prend le relai en temps réel
     const interval = setInterval(async () => {
+      if (approvalHandledRef.current) {
+        clearInterval(interval);
+        return;
+      }
+
       try {
         const session = await collaborativeSessionService.getSession(pendingSessionId);
         const me = session.participants?.find((p: any) => p.id === pendingParticipantId);
 
         if (me?.status === 'active') {
+          if (approvalHandledRef.current) return;
+          approvalHandledRef.current = true;
           clearInterval(interval);
           showAlert({
             variant: 'success',
@@ -267,6 +342,8 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
             },
           });
         } else if (me?.status === 'removed') {
+          if (approvalHandledRef.current) return;
+          approvalHandledRef.current = true;
           clearInterval(interval);
           showAlert({
             variant: 'error',
@@ -278,7 +355,7 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
       } catch {
         // Ignorer les erreurs réseau temporaires
       }
-    }, 5000);
+    }, 10000);
 
     return () => clearInterval(interval);
   }, [mode, pendingParticipantId, pendingSessionId]);

@@ -33,9 +33,13 @@ import {
   SHADOWS,
 } from '@/utils/designSystem';
 import type { CollaborativeSession } from '@/contexts/SessionContext';
+import { useSessionWebSocket } from '@/hooks/session/useSessionWebSocket';
 
 // =============================================================================
 // COMPOSANT : POLLING D'APPROBATION
+//
+// WebSocket (primaire) → réaction instantanée dès que l'hôte approuve
+// Polling HTTP (fallback, 10s) → si le WS se déconnecte ou manque un event
 // =============================================================================
 
 const PendingApprovalPoller: React.FC<{
@@ -44,22 +48,83 @@ const PendingApprovalPoller: React.FC<{
   onApproved: (session: CollaborativeSession) => void;
   onRejected: () => void;
 }> = ({ sessionId, participantId, onApproved, onRejected }) => {
+  // Verrou : évite de déclencher approved/rejected deux fois
+  // si WS et polling se chevauchent
+  const handledRef = useRef(false);
+
+  const { on: onWsEvent } = useSessionWebSocket(sessionId);
+
+  // ── WebSocket (primaire) ──────────────────────────────────────────────
   useEffect(() => {
-    const interval = setInterval(async () => {
+    handledRef.current = false;
+    console.log('[PENDING-POLLER] 🔌 WS listener enregistré pour session:', sessionId, '| participantId:', participantId);
+
+    const unsubApproved = onWsEvent('participant_approved', async (participant: any) => {
+      console.log('[PENDING-POLLER] ✅ participant_approved reçu:', participant?.id, '(attendu:', participantId, ')');
+
+      // Si participantId est connu → vérifier que c'est bien le nôtre.
+      // Si participantId est undefined (conversion snake→camel ratée côté service),
+      // on accepte tout événement participant_approved sur cette session :
+      // le poller est monté uniquement pendant l'attente d'approbation de CE participant.
+      if (participantId && participant?.id !== participantId) return;
+      if (handledRef.current) return;
+      handledRef.current = true;
+
       try {
         const session = await collaborativeSessionService.getSession(sessionId);
-        const me = session.participants?.find((p: any) => p.id === participantId);
+        onApproved(session);
+      } catch {
+        // Fetch échoué juste après l'approbation WS — le polling fallback reprend dans max 10s
+        handledRef.current = false;
+      }
+    });
+
+    // Rejet via session_update (participant_removed)
+    const unsubUpdate = onWsEvent('session_update', (data: any) => {
+      if (data?.event !== 'participant_removed') return;
+      // Même logique : si participantId connu → vérifier, sinon accepter
+      if (participantId && data?.data?.participant?.id !== participantId) return;
+      if (handledRef.current) return;
+      handledRef.current = true;
+      onRejected();
+    });
+
+    return () => {
+      unsubApproved();
+      unsubUpdate();
+    };
+  }, [sessionId, participantId, onWsEvent, onApproved, onRejected]);
+
+  // ── Polling HTTP (fallback) ───────────────────────────────────────────
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (handledRef.current) {
+        clearInterval(interval);
+        return;
+      }
+      try {
+        const session = await collaborativeSessionService.getSession(sessionId);
+        // Si participantId connu → chercher ce participant précis.
+        // Sinon → chercher le premier participant qui vient d'être approuvé (active + non-hôte).
+        const me = participantId
+          ? session.participants?.find((p: any) => p.id === participantId)
+          : session.participants?.find((p: any) => !p.is_host && (p.status === 'active' || p.status === 'removed'));
+
         if (me?.status === 'active') {
+          if (handledRef.current) return;
+          handledRef.current = true;
           clearInterval(interval);
           onApproved(session);
         } else if (me?.status === 'removed') {
+          if (handledRef.current) return;
+          handledRef.current = true;
           clearInterval(interval);
           onRejected();
         }
       } catch {
         // Ignorer les erreurs réseau temporaires
       }
-    }, 5000);
+    }, 10000); // 10s : le WS prend le relai en temps réel
     return () => clearInterval(interval);
   }, [sessionId, participantId, onApproved, onRejected]);
 
@@ -166,7 +231,7 @@ export default function ClientHome() {
       if (result.requires_approval) {
         setPendingApproval({
           sessionId: result.session.id,
-          participantId: result.participant_id,
+          participantId: result.participant_id ?? (result as any).participantId,
           session: result.session,
         });
         setPendingModalVisible(true);
@@ -277,7 +342,9 @@ export default function ClientHome() {
       if (result.requires_approval) {
         setPendingApproval({
           sessionId: result.session.id,
-          participantId: result.participant_id,
+          // Le service peut retourner participant_id (snake) ou participantId (camel)
+          // selon que l'intercepteur axios fait la conversion ou non
+          participantId: result.participant_id ?? (result as any).participantId,
           session: result.session,
         });
         setPendingModalVisible(true);
@@ -294,8 +361,16 @@ export default function ClientHome() {
         },
       });
     } catch (error: any) {
-      const msg = error?.response?.data?.detail ?? error?.message;
-      setCodeError(msg ?? 'Impossible de rejoindre cette session.');
+      const details = error?.response?.data?.details?.share_code?.[0];
+      const detail = error?.response?.data?.detail;
+      const msg = details ?? detail ?? error?.message;
+      // "Code invalide" de l'API = session introuvable (archivée ou jamais créée)
+      const isNotFound = msg?.toLowerCase().includes('invalide') || msg?.toLowerCase().includes('invalid');
+      setCodeError(
+        isNotFound
+          ? 'Aucune session active avec ce code. Vérifiez le code et réessayez.'
+          : (msg ?? 'Impossible de rejoindre cette session.')
+      );
     } finally {
       setIsJoiningByCode(false);
     }
