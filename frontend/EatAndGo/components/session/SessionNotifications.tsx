@@ -247,6 +247,19 @@ export const useSessionNotifications = (sessionId: string | null) => {
       });
     });
 
+    const unsubPending = on('session_update', (data: any) => {
+      if (data.event === 'participant_pending') {
+        const name = data.actor || 'Quelqu\'un';
+        showNotification({
+          type: 'warning',
+          title: '⏳ Demande d\'accès',
+          message: `${name} souhaite rejoindre la session`,
+          icon: 'person-add-outline',
+          duration: 8000,
+        });
+      }
+    });
+
     const unsubLeft = on('participant_left', () => {
       showNotification({
         type: 'info',
@@ -331,6 +344,7 @@ export const useSessionNotifications = (sessionId: string | null) => {
 
     return () => {
       unsubJoined();
+      unsubPending();
       unsubLeft();
       unsubOrderCreated();
       unsubOrderUpdated();

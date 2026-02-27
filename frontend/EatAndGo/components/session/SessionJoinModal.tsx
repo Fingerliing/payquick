@@ -6,13 +6,25 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { collaborativeSessionService, CollaborativeSession } from '@/services/collaborativeSessionService';
+import { Alert } from '@/components/ui/Alert';
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+interface AlertState {
+  variant: 'success' | 'error' | 'warning' | 'info';
+  title?: string;
+  message: string;
+  /** Callback exécuté APRÈS la disparition de l'alerte */
+  onDismiss?: () => void;
+}
 
 interface SessionJoinModalProps {
   visible: boolean;
@@ -22,8 +34,12 @@ interface SessionJoinModalProps {
   tableId?: number;
   onSessionCreated?: (session: CollaborativeSession) => void;
   onSessionJoined?: (session: CollaborativeSession) => void;
-  onOrderAlone?: () => void; // Nouveau callback pour commander seul
+  onOrderAlone?: () => void;
 }
+
+// ---------------------------------------------------------------------------
+// Composant
+// ---------------------------------------------------------------------------
 
 export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
   visible,
@@ -33,7 +49,7 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
   tableId,
   onSessionCreated,
   onSessionJoined,
-  onOrderAlone, // Déstructuration du nouveau callback
+  onOrderAlone,
 }) => {
   const [loading, setLoading] = useState(false);
   const [existingSession, setExistingSession] = useState<CollaborativeSession | null>(null);
@@ -42,22 +58,33 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
   const [pendingSessionId, setPendingSessionId] = useState<string | null>(null);
   const [pendingSession, setPendingSession] = useState<CollaborativeSession | null>(null);
 
-  // États pour créer une session
+  // États formulaire — création
   const [hostName, setHostName] = useState('');
   const [maxParticipants, setMaxParticipants] = useState('10');
   const [requireApproval, setRequireApproval] = useState(false);
   const [sessionType, setSessionType] = useState<'collaborative' | 'individual'>('collaborative');
 
-  // États pour rejoindre une session
+  // États formulaire — rejoindre
   const [shareCode, setShareCode] = useState('');
   const [guestName, setGuestName] = useState('');
   const [sessionPreview, setSessionPreview] = useState<CollaborativeSession | null>(null);
+
+  // ── Alerte centralisée ────────────────────────────────────────────────────
+  const [alertState, setAlertState] = useState<AlertState | null>(null);
+
+  // Raccourcis pour afficher une alerte
+  const showAlert = (state: AlertState) => setAlertState(state);
+  const dismissAlert = () => setAlertState(null);
+
+  // ---------------------------------------------------------------------------
+  // Vérification session existante à l'ouverture
+  // ---------------------------------------------------------------------------
 
   useEffect(() => {
     if (visible) {
       checkExistingSession();
     }
-  }, [visible, restaurantId, tableNumber]);
+  }, [visible]);
 
   const checkExistingSession = async () => {
     try {
@@ -66,30 +93,41 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
         tableNumber
       );
       setExistingSession(session);
-      // Pré-remplir le code si session trouvée
-      if (session) {
-        setShareCode(session.share_code);
-      }
-    } catch (error) {
-      console.error('Error checking session:', error);
+    } catch {
+      setExistingSession(null);
     }
   };
 
-  // Nouvelle fonction pour gérer la commande seul
-  const handleOrderAlone = () => {
-    if (onOrderAlone) {
-      onOrderAlone(); // Appeler le callback si fourni
-    } else {
-      onClose(); // Sinon, simplement fermer la modale (comportement par défaut)
+  // ---------------------------------------------------------------------------
+  // Handlers
+  // ---------------------------------------------------------------------------
+
+  const handleOrderAlone = async () => {
+    try {
+      await AsyncStorage.setItem('orderMode', 'solo');
+      await AsyncStorage.setItem('currentRestaurantId', restaurantId.toString());
+      await AsyncStorage.setItem('currentTableNumber', tableNumber);
+      onOrderAlone?.();
+      onClose();
+    } catch (error) {
+      showAlert({
+        variant: 'error',
+        title: 'Erreur',
+        message: 'Impossible de démarrer la commande solo.',
+      });
     }
   };
 
   const handleCreateSession = async () => {
     if (!hostName.trim()) {
-      Alert.alert('Erreur', 'Veuillez entrer votre nom');
+      showAlert({
+        variant: 'warning',
+        title: 'Champ requis',
+        message: 'Veuillez entrer votre nom pour créer la session.',
+      });
       return;
     }
-  
+
     setLoading(true);
     try {
       const session = await collaborativeSessionService.createSession({
@@ -97,39 +135,27 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
         table_number: tableNumber,
         table_id: tableId,
         host_name: hostName,
-        max_participants: parseInt(maxParticipants),
-        require_approval: requireApproval,
         session_type: sessionType,
-        split_payment_enabled: true,
+        max_participants: parseInt(maxParticipants, 10) || 10,
+        require_approval: requireApproval,
       });
-  
-      // Sauvegarder l'ID du participant hôte
-      const hostParticipant = session.participants?.find(p => p.is_host);
-      console.log('[SESSION_CREATE] session.id:', session.id);
-      console.log('[SESSION_CREATE] participants:', JSON.stringify(session.participants));
-      console.log('[SESSION_CREATE] hostParticipant trouvé:', JSON.stringify(hostParticipant));
 
-      if (hostParticipant) {
-        const storageKey = `session_participant_${session.id}`;
-        await AsyncStorage.setItem(
-          `session_participant_${session.id}`,
-          hostParticipant.id
-        );
-        console.log('[SESSION_CREATE] ✅ AsyncStorage.setItem:', storageKey, '->', hostParticipant.id);
-        } else {
-          console.log('[SESSION_CREATE] ❌ Aucun hostParticipant trouvé dans session.participants');
-        }
-  
-      Alert.alert(
-        'Session créée !',
-        `Partagez le code ${session.share_code} avec vos amis.`,
-        [{ text: 'OK', onPress: () => {
+      // ✅ Succès — callback déclenché après fermeture de l'alerte
+      showAlert({
+        variant: 'success',
+        title: 'Session créée !',
+        message: `Partagez le code ${session.share_code} avec vos amis.`,
+        onDismiss: () => {
           onSessionCreated?.(session);
           onClose();
-        }}]
-      );
+        },
+      });
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Impossible de créer la session');
+      showAlert({
+        variant: 'error',
+        title: 'Erreur',
+        message: error.message || 'Impossible de créer la session.',
+      });
     } finally {
       setLoading(false);
     }
@@ -137,7 +163,11 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
 
   const handlePreviewSession = async () => {
     if (shareCode.length !== 6) {
-      Alert.alert('Erreur', 'Le code doit contenir 6 caractères');
+      showAlert({
+        variant: 'warning',
+        title: 'Code invalide',
+        message: 'Le code doit contenir exactement 6 caractères.',
+      });
       return;
     }
 
@@ -148,7 +178,11 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
       );
       setSessionPreview(session);
     } catch (error: any) {
-      Alert.alert('Erreur', 'Code de session invalide');
+      showAlert({
+        variant: 'error',
+        title: 'Code introuvable',
+        message: 'Aucune session active ne correspond à ce code.',
+      });
       setSessionPreview(null);
     } finally {
       setLoading(false);
@@ -157,105 +191,98 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
 
   const handleJoinSession = async () => {
     if (!guestName.trim()) {
-      Alert.alert('Erreur', 'Veuillez entrer votre nom');
+      showAlert({
+        variant: 'warning',
+        title: 'Champ requis',
+        message: 'Veuillez entrer votre nom pour rejoindre la session.',
+      });
       return;
     }
-  
+
     setLoading(true);
     try {
       const result = await collaborativeSessionService.joinSession({
         share_code: shareCode.toUpperCase(),
         guest_name: guestName,
       });
-  
+
       if (result.requires_approval) {
-        // ⏳ Ne PAS appeler onSessionJoined — le participant est encore pending
+        // ⏳ En attente d'approbation — pas de callback immédiat
         setMode('pending');
         setPendingParticipantId(result.participant_id);
         setPendingSession(result.session);
       } else {
         // ✅ Accès direct
-        Alert.alert('Bienvenue !', 'Vous avez rejoint la session avec succès !', [
-          { text: 'OK', onPress: () => {
+        showAlert({
+          variant: 'success',
+          title: 'Bienvenue !',
+          message: 'Vous avez rejoint la session avec succès.',
+          onDismiss: () => {
             onSessionJoined?.(result.session);
             onClose();
-          }}
-        ]);
+          },
+        });
       }
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Impossible de rejoindre la session');
+      showAlert({
+        variant: 'error',
+        title: 'Erreur',
+        message: error.message || 'Impossible de rejoindre la session.',
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  // Polling toutes les 5s pour détecter l'approbation
+  // ---------------------------------------------------------------------------
+  // Polling approbation (mode pending)
+  // ---------------------------------------------------------------------------
+
   useEffect(() => {
     if (mode !== 'pending' || !pendingParticipantId || !pendingSessionId) return;
-  
+
     const interval = setInterval(async () => {
       try {
         const session = await collaborativeSessionService.getSession(pendingSessionId);
         const me = session.participants?.find((p: any) => p.id === pendingParticipantId);
-  
+
         if (me?.status === 'active') {
           clearInterval(interval);
-          Alert.alert('✅ Accepté !', "L'hôte vous a accepté dans la session.", [
-            {
-              text: 'Accéder au menu',
-              onPress: () => {
-                onSessionJoined?.(session);
-                onClose();
-              },
+          showAlert({
+            variant: 'success',
+            title: '✅ Accepté !',
+            message: "L'hôte vous a accepté dans la session.",
+            onDismiss: () => {
+              onSessionJoined?.(session);
+              onClose();
             },
-          ]);
+          });
         } else if (me?.status === 'removed') {
           clearInterval(interval);
-          Alert.alert('❌ Refusé', "L'hôte a refusé votre demande.", [
-            { text: 'OK', onPress: () => setMode('choose') },
-          ]);
+          showAlert({
+            variant: 'error',
+            title: '❌ Refusé',
+            message: "L'hôte a refusé votre demande.",
+            onDismiss: () => setMode('choose'),
+          });
         }
       } catch {
-        // ignorer les erreurs réseau temporaires
+        // Ignorer les erreurs réseau temporaires
       }
     }, 5000);
-  
+
     return () => clearInterval(interval);
   }, [mode, pendingParticipantId, pendingSessionId]);
-  
-  const renderPendingMode = () => (
-    <View style={styles.pendingContainer}>
-      <ActivityIndicator size="large" color="#1E2A78" />
-      <Text style={styles.pendingTitle}>En attente d'approbation</Text>
-      <Text style={styles.pendingSubtitle}>
-        L'hôte de la session doit valider votre demande.{'\n'}
-        Vous serez automatiquement redirigé une fois accepté.
-      </Text>
-      <View style={styles.pendingCodeBox}>
-        <Text style={styles.pendingCodeLabel}>Code de session</Text>
-        <Text style={styles.pendingCode}>{shareCode}</Text>
-      </View>
-      <TouchableOpacity
-        style={styles.secondaryButton}
-        onPress={() => {
-          setMode('choose');
-          setPendingParticipantId(null);
-          setPendingSession(null);
-        }}
-      >
-        <Text style={styles.secondaryButtonText}>Annuler</Text>
-      </TouchableOpacity>
-    </View>
-  );
+
+  // ---------------------------------------------------------------------------
+  // Renders des différents modes
+  // ---------------------------------------------------------------------------
 
   const renderChooseMode = () => (
     <View style={styles.modeContainer}>
       <Text style={styles.title}>Commander sur cette table</Text>
-      <Text style={styles.subtitle}>
-        Choisissez comment vous souhaitez commander
-      </Text>
+      <Text style={styles.subtitle}>Choisissez comment vous souhaitez commander</Text>
 
-      {/* Carte rejoindre session existante */}
       {existingSession && (
         <TouchableOpacity
           style={[styles.optionCard, { borderWidth: 2, borderColor: '#4CAF50', backgroundColor: '#F1F8E9' }]}
@@ -276,10 +303,7 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
         </TouchableOpacity>
       )}
 
-      <TouchableOpacity
-        style={styles.optionCard}
-        onPress={() => setMode('create')}
-      >
+      <TouchableOpacity style={styles.optionCard} onPress={() => setMode('create')}>
         <View style={styles.optionIcon}>
           <Ionicons name="people" size={32} color="#1E2A78" />
         </View>
@@ -292,26 +316,18 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
         <Ionicons name="chevron-forward" size={24} color="#666" />
       </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.optionCard}
-        onPress={() => setMode('join')}
-      >
+      <TouchableOpacity style={styles.optionCard} onPress={() => setMode('join')}>
         <View style={styles.optionIcon}>
           <Ionicons name="enter" size={32} color="#1E2A78" />
         </View>
         <View style={styles.optionContent}>
           <Text style={styles.optionTitle}>Rejoindre une session</Text>
-          <Text style={styles.optionDescription}>
-            Entrez le code partagé par votre groupe
-          </Text>
+          <Text style={styles.optionDescription}>Entrez le code partagé par votre groupe</Text>
         </View>
         <Ionicons name="chevron-forward" size={24} color="#666" />
       </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.soloButton}
-        onPress={handleOrderAlone} // Modifié pour appeler handleOrderAlone
-      >
+      <TouchableOpacity style={styles.soloButton} onPress={handleOrderAlone}>
         <Text style={styles.soloButtonText}>Commander seul(e)</Text>
       </TouchableOpacity>
     </View>
@@ -336,39 +352,23 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
         <Text style={styles.label}>Type de session</Text>
         <View style={styles.radioGroup}>
           <TouchableOpacity
-            style={[
-              styles.radioOption,
-              sessionType === 'collaborative' && styles.radioOptionActive
-            ]}
+            style={[styles.radioOption, sessionType === 'collaborative' && styles.radioOptionActive]}
             onPress={() => setSessionType('collaborative')}
           >
-            <Text style={[
-              styles.radioText,
-              sessionType === 'collaborative' && styles.radioTextActive
-            ]}>
+            <Text style={[styles.radioText, sessionType === 'collaborative' && styles.radioTextActive]}>
               Collaborative
             </Text>
-            <Text style={styles.radioDescription}>
-              Tout le monde voit les commandes
-            </Text>
+            <Text style={styles.radioDescription}>Tout le monde voit les commandes</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[
-              styles.radioOption,
-              sessionType === 'individual' && styles.radioOptionActive
-            ]}
+            style={[styles.radioOption, sessionType === 'individual' && styles.radioOptionActive]}
             onPress={() => setSessionType('individual')}
           >
-            <Text style={[
-              styles.radioText,
-              sessionType === 'individual' && styles.radioTextActive
-            ]}>
+            <Text style={[styles.radioText, sessionType === 'individual' && styles.radioTextActive]}>
               Individuelle
             </Text>
-            <Text style={styles.radioDescription}>
-              Chacun commande séparément
-            </Text>
+            <Text style={styles.radioDescription}>Chacun commande séparément</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -391,16 +391,11 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
         <View style={[styles.checkbox, requireApproval && styles.checkboxActive]}>
           {requireApproval && <Ionicons name="checkmark" size={18} color="#FFF" />}
         </View>
-        <Text style={styles.checkboxLabel}>
-          Approuver manuellement les nouveaux participants
-        </Text>
+        <Text style={styles.checkboxLabel}>Approuver manuellement les nouveaux participants</Text>
       </TouchableOpacity>
 
       <View style={styles.buttonContainer}>
-        <TouchableOpacity
-          style={styles.secondaryButton}
-          onPress={() => setMode('choose')}
-        >
+        <TouchableOpacity style={styles.secondaryButton} onPress={() => setMode('choose')}>
           <Text style={styles.secondaryButtonText}>Retour</Text>
         </TouchableOpacity>
 
@@ -409,9 +404,7 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
           onPress={handleCreateSession}
           disabled={loading}
         >
-          {loading ? (
-            <ActivityIndicator color="#FFF" />
-          ) : (
+          {loading ? <ActivityIndicator color="#FFF" /> : (
             <Text style={styles.primaryButtonText}>Créer la session</Text>
           )}
         </TouchableOpacity>
@@ -438,14 +431,12 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
             style={[
               styles.primaryButton,
               { flex: 0, paddingHorizontal: 20 },
-              (loading || shareCode.length !== 6) && styles.buttonDisabled
+              (loading || shareCode.length !== 6) && styles.buttonDisabled,
             ]}
             onPress={handlePreviewSession}
             disabled={loading || shareCode.length !== 6}
           >
-            {loading ? (
-              <ActivityIndicator color="#FFF" />
-            ) : (
+            {loading ? <ActivityIndicator color="#FFF" /> : (
               <Text style={styles.primaryButtonText}>Vérifier</Text>
             )}
           </TouchableOpacity>
@@ -486,24 +477,19 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
       </View>
 
       <View style={styles.buttonContainer}>
-        <TouchableOpacity
-          style={styles.secondaryButton}
-          onPress={() => setMode('choose')}
-        >
+        <TouchableOpacity style={styles.secondaryButton} onPress={() => setMode('choose')}>
           <Text style={styles.secondaryButtonText}>Retour</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[
             styles.primaryButton,
-            (loading || !sessionPreview || !sessionPreview.can_join) && styles.buttonDisabled
+            (loading || !sessionPreview || !sessionPreview.can_join) && styles.buttonDisabled,
           ]}
           onPress={handleJoinSession}
           disabled={loading || !sessionPreview || !sessionPreview.can_join}
         >
-          {loading ? (
-            <ActivityIndicator color="#FFF" />
-          ) : (
+          {loading ? <ActivityIndicator color="#FFF" /> : (
             <Text style={styles.primaryButtonText}>Rejoindre</Text>
           )}
         </TouchableOpacity>
@@ -511,28 +497,71 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
     </ScrollView>
   );
 
+  const renderPendingMode = () => (
+    <View style={styles.pendingContainer}>
+      <ActivityIndicator size="large" color="#1E2A78" />
+      <Text style={styles.pendingTitle}>En attente d'approbation</Text>
+      <Text style={styles.pendingSubtitle}>
+        L'hôte de la session doit valider votre demande.{'\n'}
+        Vous serez automatiquement redirigé une fois accepté.
+      </Text>
+      <View style={styles.pendingCodeBox}>
+        <Text style={styles.pendingCodeLabel}>Code de session</Text>
+        <Text style={styles.pendingCode}>{shareCode}</Text>
+      </View>
+      <TouchableOpacity
+        style={styles.secondaryButton}
+        onPress={() => {
+          setMode('choose');
+          setPendingParticipantId(null);
+          setPendingSession(null);
+        }}
+      >
+        <Text style={styles.secondaryButtonText}>Annuler</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  // ---------------------------------------------------------------------------
+  // Rendu principal
+  // ---------------------------------------------------------------------------
+
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
           <TouchableOpacity style={styles.closeButton} onPress={onClose}>
             <Ionicons name="close" size={28} color="#333" />
           </TouchableOpacity>
 
-          {mode === 'choose' && renderChooseMode()}
-          {mode === 'create' && renderCreateMode()}
-          {mode === 'join' && renderJoinMode()}
+          {/* ── Alerte centralisée ── */}
+          {alertState && (
+            <Alert
+              variant={alertState.variant}
+              title={alertState.title}
+              message={alertState.message}
+              autoDismiss
+              autoDismissDuration={4000}
+              onDismiss={() => {
+                dismissAlert();
+                alertState.onDismiss?.();
+              }}
+            />
+          )}
+
+          {mode === 'choose'  && renderChooseMode()}
+          {mode === 'create'  && renderCreateMode()}
+          {mode === 'join'    && renderJoinMode()}
           {mode === 'pending' && renderPendingMode()}
         </View>
       </View>
     </Modal>
   );
 };
+
+// ---------------------------------------------------------------------------
+// Styles
+// ---------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
   modalOverlay: {
@@ -601,17 +630,17 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   soloButton: {
-    marginTop: 16,
     padding: 16,
     alignItems: 'center',
+    marginTop: 8,
   },
   soloButtonText: {
     fontSize: 16,
-    color: '#1E2A78',
-    fontWeight: '500',
+    color: '#999',
+    textDecorationLine: 'underline',
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   label: {
     fontSize: 14,
@@ -620,35 +649,37 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#F8F9FA',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: '#DDD',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: '#333',
   },
   codeInput: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
     letterSpacing: 4,
+    textAlign: 'center',
+    fontWeight: 'bold',
   },
   radioGroup: {
+    flexDirection: 'row',
     gap: 12,
   },
   radioOption: {
-    backgroundColor: '#F8F9FA',
-    padding: 16,
+    flex: 1,
+    padding: 12,
     borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#E0E0E0',
+    borderWidth: 1,
+    borderColor: '#DDD',
+    backgroundColor: '#F8F9FA',
   },
   radioOptionActive: {
     borderColor: '#1E2A78',
     backgroundColor: '#E8EAF6',
   },
   radioText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: '#666',
     marginBottom: 4,
@@ -657,20 +688,20 @@ const styles = StyleSheet.create({
     color: '#1E2A78',
   },
   radioDescription: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#999',
   },
   checkboxContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
   },
   checkbox: {
     width: 24,
     height: 24,
     borderRadius: 4,
     borderWidth: 2,
-    borderColor: '#E0E0E0',
+    borderColor: '#DDD',
     marginRight: 12,
     justifyContent: 'center',
     alignItems: 'center',
@@ -680,26 +711,62 @@ const styles = StyleSheet.create({
     borderColor: '#1E2A78',
   },
   checkboxLabel: {
+    flex: 1,
     fontSize: 14,
     color: '#333',
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+    marginBottom: 20,
+  },
+  primaryButton: {
     flex: 1,
+    backgroundColor: '#1E2A78',
+    padding: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  secondaryButton: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#DDD',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondaryButtonText: {
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '600',
+  },
+  buttonDisabled: {
+    opacity: 0.5,
   },
   previewCard: {
-    backgroundColor: '#E8EAF6',
+    backgroundColor: '#F0F4FF',
+    borderRadius: 8,
     padding: 16,
-    borderRadius: 12,
-    marginBottom: 20,
+    marginBottom: 16,
   },
   previewHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
+    gap: 8,
   },
   previewTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1E2A78',
-    marginLeft: 8,
   },
   previewInfo: {
     flexDirection: 'row',
@@ -713,82 +780,48 @@ const styles = StyleSheet.create({
   previewValue: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1E2A78',
+    color: '#333',
   },
   warningText: {
-    color: '#F44336',
     fontSize: 14,
+    color: '#D97706',
     marginTop: 8,
   },
-  buttonContainer: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 20,
-  },
-  primaryButton: {
-    flex: 1,
-    backgroundColor: '#1E2A78',
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  primaryButtonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  secondaryButton: {
-    flex: 1,
-    backgroundColor: '#F8F9FA',
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  secondaryButtonText: {
-    color: '#1E2A78',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-
   pendingContainer: {
-    alignItems: 'center' as const,
-    padding: 32,
-    gap: 16,
+    paddingVertical: 32,
+    alignItems: 'center',
   },
   pendingTitle: {
     fontSize: 20,
-    fontWeight: 'bold' as const,
+    fontWeight: 'bold',
     color: '#1E2A78',
     marginTop: 16,
+    marginBottom: 8,
   },
   pendingSubtitle: {
     fontSize: 14,
     color: '#666',
-    textAlign: 'center' as const,
+    textAlign: 'center',
     lineHeight: 22,
+    marginBottom: 24,
   },
   pendingCodeBox: {
-    backgroundColor: '#E8EAF6',
+    backgroundColor: '#F0F4FF',
     borderRadius: 12,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    alignItems: 'center' as const,
-    marginVertical: 8,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 24,
+    width: '100%',
   },
   pendingCodeLabel: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#666',
     marginBottom: 4,
   },
   pendingCode: {
     fontSize: 28,
-    fontWeight: 'bold' as const,
+    fontWeight: 'bold',
     color: '#1E2A78',
-    letterSpacing: 6,
+    letterSpacing: 4,
   },
 });

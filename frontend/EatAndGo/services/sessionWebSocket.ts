@@ -49,10 +49,13 @@ export class SessionWebSocket extends EventEmitter {
   constructor(sessionId: string, baseUrl?: string) {
     super();
     this.sessionId = sessionId;
-    
-    // Construire l'URL WebSocket
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const defaultBaseUrl = `${wsProtocol}//${window.location.host}`;
+
+    // ✅ FIX: Utilise EXPO_PUBLIC_API_URL au lieu de window.location (inexistant en React Native)
+    const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
+    const wsProtocol = apiUrl.startsWith('https') ? 'wss:' : 'ws:';
+    const host = apiUrl.replace(/^https?:\/\//, '');
+    const defaultBaseUrl = `${wsProtocol}//${host}`;
+
     this.url = `${baseUrl || defaultBaseUrl}/ws/session/${sessionId}/`;
   }
 

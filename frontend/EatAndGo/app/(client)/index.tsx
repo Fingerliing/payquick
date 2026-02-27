@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
   KeyboardAvoidingView,
   TouchableWithoutFeedback,
   Keyboard,
+  TouchableOpacity,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,9 +34,45 @@ import {
 } from '@/utils/designSystem';
 import type { CollaborativeSession } from '@/contexts/SessionContext';
 
+// =============================================================================
+// COMPOSANT : POLLING D'APPROBATION
+// =============================================================================
+
+const PendingApprovalPoller: React.FC<{
+  sessionId: string;
+  participantId: string;
+  onApproved: (session: CollaborativeSession) => void;
+  onRejected: () => void;
+}> = ({ sessionId, participantId, onApproved, onRejected }) => {
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const session = await collaborativeSessionService.getSession(sessionId);
+        const me = session.participants?.find((p: any) => p.id === participantId);
+        if (me?.status === 'active') {
+          clearInterval(interval);
+          onApproved(session);
+        } else if (me?.status === 'removed') {
+          clearInterval(interval);
+          onRejected();
+        }
+      } catch {
+        // Ignorer les erreurs réseau temporaires
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [sessionId, participantId, onApproved, onRejected]);
+
+  return null;
+};
+
+// =============================================================================
+// COMPOSANT PRINCIPAL
+// =============================================================================
+
 export default function ClientHome() {
   const { user } = useAuth();
-  const { session, participantId, isHost, isSessionInitialized, leaveSession, clearSession, refreshSession, joinSession } = useSession();
+  const { session, participantId, isHost, isSessionInitialized, leaveSession, clearSession, refreshSession, joinSession, activatePendingSession } = useSession();
   const screenType = useScreenType();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -48,9 +85,7 @@ export default function ClientHome() {
   const [isRejoining, setIsRejoining] = useState(false);
 
   // ── Alertes déclaratives ──
-  // Confirmation quitter/terminer la session
   const [exitAlertVisible, setExitAlertVisible] = useState(false);
-  // Erreur rejoindre la session serveur
   const [rejoinError, setRejoinError] = useState<string | null>(null);
 
   // ── Modal "Rejoindre par code" ──
@@ -60,6 +95,14 @@ export default function ClientHome() {
   const [isJoiningByCode, setIsJoiningByCode] = useState(false);
   const codeInputRef = useRef<TextInput>(null);
 
+  // ── Modal "En attente d'approbation" ──
+  const [pendingApproval, setPendingApproval] = useState<{
+    sessionId: string;
+    participantId: string;
+    session: CollaborativeSession;
+  } | null>(null);
+  const [pendingModalVisible, setPendingModalVisible] = useState(false);
+
   const hasActiveSession =
     isSessionInitialized &&
     session !== null &&
@@ -68,12 +111,10 @@ export default function ClientHome() {
   // ── Rafraîchir et chercher une session côté serveur à chaque focus ──
   useFocusEffect(
     React.useCallback(() => {
-      // Rafraîchir la session locale si elle existe
       refreshSession().catch(() => {
         // Silencieux si pas de réseau
       });
 
-      // Si pas de session locale et utilisateur authentifié → vérifier le serveur
       if (isSessionInitialized && !session && user) {
         checkServerForActiveSession();
       }
@@ -93,7 +134,6 @@ export default function ClientHome() {
       );
       setServerSession(active ?? null);
     } catch {
-      // Endpoint optionnel — on ignore silencieusement
       setServerSession(null);
     } finally {
       setIsCheckingServer(false);
@@ -120,8 +160,19 @@ export default function ClientHome() {
     setRejoinError(null);
     setIsRejoining(true);
     try {
-      await joinSession({ share_code: serverSession.share_code });
+      const result = await joinSession({ share_code: serverSession.share_code });
       setServerSession(null);
+
+      if (result.requires_approval) {
+        setPendingApproval({
+          sessionId: result.session.id,
+          participantId: result.participant_id,
+          session: result.session,
+        });
+        setPendingModalVisible(true);
+        return;
+      }
+
       router.push({
         pathname: `/menu/client/${serverSession.restaurant}` as any,
         params: {
@@ -147,12 +198,11 @@ export default function ClientHome() {
 
     setIsRejoining(true);
     try {
-      // Rejoindre silencieusement pour obtenir le participantId dans le contexte,
-      // puis quitter proprement côté serveur
-      await joinSession({ share_code: serverSession.share_code });
-      await leaveSession();
+      const result = await joinSession({ share_code: serverSession.share_code });
+      if (!result.requires_approval) {
+        await leaveSession();
+      }
     } catch (error) {
-      // Si la session n'est plus accessible, on force juste le clear local
       console.warn('[ClientHome] Dismiss server session error, forcing clear:', error);
       await clearSession();
     } finally {
@@ -162,7 +212,7 @@ export default function ClientHome() {
     }
   };
 
-  // ── Quitter / terminer la session locale — ouvre la confirmation ──
+  // ── Quitter / terminer la session locale ──
   const handleExitSession = () => {
     if (!session) return;
     setExitAlertVisible(true);
@@ -211,7 +261,6 @@ export default function ClientHome() {
     setCodeError(null);
     setIsJoiningByCode(true);
     try {
-      // D'abord vérifier que la session existe
       const found = await collaborativeSessionService.getSessionByCode(trimmed);
       if (!found) {
         setCodeError('Aucune session trouvée avec ce code.');
@@ -221,9 +270,20 @@ export default function ClientHome() {
         setCodeError('Cette session n\'est plus active.');
         return;
       }
-      // Rejoindre
-      await joinSession({ share_code: trimmed });
+
+      const result = await joinSession({ share_code: trimmed });
       handleCloseCodeModal();
+
+      if (result.requires_approval) {
+        setPendingApproval({
+          sessionId: result.session.id,
+          participantId: result.participant_id,
+          session: result.session,
+        });
+        setPendingModalVisible(true);
+        return;
+      }
+
       router.push({
         pathname: `/menu/client/${found.restaurant}` as any,
         params: {
@@ -240,6 +300,34 @@ export default function ClientHome() {
       setIsJoiningByCode(false);
     }
   };
+
+  // ── Callbacks approbation ──
+  const handleApproved = useCallback((approvedSession: CollaborativeSession) => {
+    setPendingModalVisible(false);
+    const pending = pendingApproval;
+    setPendingApproval(null);
+    if (!pending) return;
+
+    // Sauvegarder maintenant que le participant est actif
+    activatePendingSession(approvedSession, pending.participantId);
+
+    router.push({
+      pathname: `/menu/client/${approvedSession.restaurant}` as any,
+      params: {
+        restaurantId: approvedSession.restaurant.toString(),
+        tableNumber: approvedSession.table_number,
+        sessionId: approvedSession.id,
+        code: approvedSession.share_code,
+      },
+    });
+  }, [pendingApproval, activatePendingSession]);
+
+  const handleRejected = useCallback(() => {
+    setPendingModalVisible(false);
+    setPendingApproval(null);
+    // Afficher une alerte discrète
+    setRejoinError("L'hôte a refusé votre demande d'accès.");
+  }, []);
 
   // ═══════════════════════════════════════════════════════════════════════
   // STYLES
@@ -532,6 +620,30 @@ export default function ClientHome() {
 
     joinButtonDisabled: {
       opacity: 0.6,
+    },
+
+    // ── MODAL EN ATTENTE D'APPROBATION ───────────────────────────────────
+    pendingModalSheet: {
+      backgroundColor: COLORS.surface,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      paddingTop: 12,
+      paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
+      paddingBottom: Math.max(insets.bottom + 16, 32),
+      alignItems: 'center' as const,
+      ...SHADOWS.lg,
+    },
+
+    pendingCodeBox: {
+      backgroundColor: COLORS.background,
+      borderRadius: BORDER_RADIUS.lg,
+      paddingVertical: 12,
+      paddingHorizontal: 24,
+      borderWidth: 1.5,
+      borderColor: COLORS.border.light,
+      alignItems: 'center' as const,
+      marginTop: 24,
+      marginBottom: 8,
     },
 
     // ─────────────────────────────────────────────────────────────────────
@@ -1099,6 +1211,71 @@ export default function ClientHome() {
             </KeyboardAvoidingView>
           </View>
         </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* ══════════════════════════════════════════════════════════════
+          MODAL : EN ATTENTE D'APPROBATION
+      ══════════════════════════════════════════════════════════════ */}
+      <Modal
+        visible={pendingModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {/* Bloquer fermeture accidentelle */}}
+      >
+        <View style={viewStyles.modalOverlay}>
+          <View style={viewStyles.pendingModalSheet}>
+            <View style={viewStyles.modalHandle} />
+
+            <ActivityIndicator size="large" color="#6366F1" style={{ marginBottom: 16 }} />
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+              <Ionicons name="time-outline" size={22} color="#6366F1" style={{ marginRight: 8 }} />
+              <Text style={viewStyles.modalTitle}>En attente d'approbation</Text>
+            </View>
+
+            <Text style={[viewStyles.modalSubtitle, { textAlign: 'center' }]}>
+              L'hôte doit valider votre demande.{'\n'}
+              Vous serez redirigé automatiquement une fois accepté.
+            </Text>
+
+            {pendingApproval && (
+              <>
+                <View style={viewStyles.pendingCodeBox}>
+                  <Text style={{ fontSize: 11, color: COLORS.text.secondary, marginBottom: 4 }}>
+                    Code de session
+                  </Text>
+                  <Text style={{
+                    fontSize: 24,
+                    fontWeight: '800',
+                    color: COLORS.primary,
+                    letterSpacing: 4,
+                  }}>
+                    {pendingApproval.session.share_code}
+                  </Text>
+                </View>
+
+                <PendingApprovalPoller
+                  sessionId={pendingApproval.sessionId}
+                  participantId={pendingApproval.participantId}
+                  onApproved={handleApproved}
+                  onRejected={handleRejected}
+                />
+              </>
+            )}
+
+            <TouchableOpacity
+              style={{ marginTop: 16, padding: 12 }}
+              onPress={() => {
+                setPendingModalVisible(false);
+                setPendingApproval(null);
+              }}
+            >
+              <Text style={{ color: COLORS.text.secondary, textAlign: 'center', fontSize: 14 }}>
+                Annuler
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
     </View>
   );

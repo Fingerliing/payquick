@@ -49,6 +49,13 @@ export interface CollaborativeSession {
   session_notes?: string;
 }
 
+export interface JoinSessionResult {
+  requires_approval: boolean;
+  participant_id: string;
+  session: CollaborativeSession;
+  message: string;
+}
+
 interface SessionContextType {
   session: CollaborativeSession | null;
   participantId: string | null;
@@ -74,12 +81,13 @@ interface SessionContextType {
     guest_name?: string;
     guest_phone?: string;
     notes?: string;
-  }) => Promise<void>;
+  }) => Promise<JoinSessionResult>;
 
   leaveSession: () => Promise<void>;
   refreshSession: () => Promise<void>;
   clearSession: () => void;
   getSessionByCode: (code: string) => Promise<CollaborativeSession>;
+  activatePendingSession: (session: CollaborativeSession, participantId: string) => Promise<void>;
 }
 
 // =============================================================================
@@ -213,11 +221,19 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     guest_name?: string;
     guest_phone?: string;
     notes?: string;
-  }) => {
+  }): Promise<JoinSessionResult> => {
     setIsLoading(true);
     try {
       const result = await collaborativeSessionService.joinSession(data);
-      await saveSession(result.session, result.participant_id);
+
+      // Ne sauvegarder dans le contexte que si le participant est actif.
+      // Un participant en attente d'approbation ne doit pas être traité
+      // comme "en session" tant que l'hôte n'a pas validé.
+      if (!result.requires_approval) {
+        await saveSession(result.session, result.participant_id);
+      }
+
+      return result;
     } catch (error) {
       console.error('[SessionContext] Erreur rejoindre:', error);
       throw error;
@@ -307,6 +323,17 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   // =============================================================================
+  // ACTIVER UNE SESSION EN ATTENTE (après approbation par l'hôte)
+  // =============================================================================
+
+  const activatePendingSession = useCallback(async (
+    sessionData: CollaborativeSession,
+    pendingParticipantId: string
+  ) => {
+    await saveSession(sessionData, pendingParticipantId);
+  }, [saveSession]);
+
+  // =============================================================================
   // VALEUR DU CONTEXTE
   // =============================================================================
 
@@ -322,6 +349,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     refreshSession,
     clearSession,
     getSessionByCode,
+    activatePendingSession,
   };
 
   return (

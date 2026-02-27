@@ -1,7 +1,76 @@
 // hooks/useSessionWebSocket.ts
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SessionWebSocket, SessionWebSocketEvent } from '@/services/sessionWebSocket';
+
+// =============================================================================
+// REGISTRE SINGLETON — une seule instance WS par sessionId
+// =============================================================================
+
+interface WsEntry {
+  ws: SessionWebSocket;
+  refCount: number;
+  isConnected: boolean;
+  connectedListeners: Set<() => void>;
+  disconnectedListeners: Set<() => void>;
+}
+
+const wsRegistry = new Map<string, WsEntry>();
+
+function getOrCreateEntry(sessionId: string, token: string | null): WsEntry {
+  if (wsRegistry.has(sessionId)) {
+    return wsRegistry.get(sessionId)!;
+  }
+
+  const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
+  const wsProtocol = API_URL.startsWith('https') ? 'wss:' : 'ws:';
+  const baseUrl = `${wsProtocol}//${API_URL.replace(/^https?:\/\//, '')}/ws/session/${sessionId}/`;
+  const url = token ? `${baseUrl}?token=${token}` : baseUrl;
+
+  const ws = new SessionWebSocket(sessionId, url);
+
+  const entry: WsEntry = {
+    ws,
+    refCount: 0,
+    isConnected: false,
+    connectedListeners: new Set(),
+    disconnectedListeners: new Set(),
+  };
+
+  ws.on('connected', () => {
+    entry.isConnected = true;
+    entry.connectedListeners.forEach(fn => fn());
+  });
+
+  ws.on('disconnected', () => {
+    entry.isConnected = false;
+    entry.disconnectedListeners.forEach(fn => fn());
+  });
+
+  wsRegistry.set(sessionId, entry);
+  ws.connect();
+
+  return entry;
+}
+
+function releaseEntry(sessionId: string) {
+  const entry = wsRegistry.get(sessionId);
+  if (!entry) return;
+
+  entry.refCount -= 1;
+
+  if (entry.refCount <= 0) {
+    entry.ws.disconnect();
+    entry.ws.removeAllListeners();
+    wsRegistry.delete(sessionId);
+    console.log(`🧹 WebSocket singleton détruit pour session ${sessionId}`);
+  }
+}
+
+// =============================================================================
+// HOOK
+// =============================================================================
 
 interface UseSessionWebSocketOptions {
   autoConnect?: boolean;
@@ -11,79 +80,83 @@ export const useSessionWebSocket = (
   sessionId: string | null,
   options: UseSessionWebSocketOptions = {}
 ) => {
-  const { autoConnect = true } = options;
-  
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const wsRef = useRef<SessionWebSocket | null>(null);
+  const entryRef = useRef<WsEntry | null>(null);
+  const mountedRef = useRef(true);
 
-  // Créer la connexion WebSocket
   useEffect(() => {
-    if (!sessionId) {
-      return;
-    }
+    mountedRef.current = true;
+    if (!sessionId) return;
 
-    const ws = new SessionWebSocket(sessionId);
-    wsRef.current = ws;
+    let entry: WsEntry;
 
-    // Gestionnaires d'événements
-    ws.on('connected', () => {
-      console.log('✅ WebSocket connecté');
-      setIsConnected(true);
-      setError(null);
+    // Récupérer le token au montage pour l'URL WS
+    AsyncStorage.getItem('access_token').then(token => {
+      if (!mountedRef.current) return;
+
+      entry = getOrCreateEntry(sessionId, token);
+      entry.refCount += 1;
+      entryRef.current = entry;
+
+      // Synchroniser l'état local
+      setIsConnected(entry.isConnected);
+
+      const onConnected = () => {
+        if (mountedRef.current) setIsConnected(true);
+      };
+      const onDisconnected = () => {
+        if (mountedRef.current) setIsConnected(false);
+      };
+      const onError = (err: Error) => {
+        if (mountedRef.current) setError(err);
+      };
+
+      entry.connectedListeners.add(onConnected);
+      entry.disconnectedListeners.add(onDisconnected);
+      entry.ws.on('error', onError);
+
+      // Cleanup de ce consommateur
+      return () => {
+        entry.connectedListeners.delete(onConnected);
+        entry.disconnectedListeners.delete(onDisconnected);
+        entry.ws.off('error', onError);
+        releaseEntry(sessionId);
+        entryRef.current = null;
+      };
     });
 
-    ws.on('disconnected', () => {
-      console.log('🔌 WebSocket déconnecté');
-      setIsConnected(false);
-    });
-
-    ws.on('error', (err) => {
-      console.error('❌ WebSocket erreur:', err);
-      setError(err);
-    });
-
-    // Connexion automatique
-    if (autoConnect) {
-      ws.connect();
-    }
-
-    // Nettoyage
     return () => {
-      console.log('🧹 Nettoyage WebSocket');
-      ws.disconnect();
-      ws.removeAllListeners();
+      mountedRef.current = false;
+      if (entryRef.current) {
+        releaseEntry(sessionId);
+        entryRef.current = null;
+      }
     };
-  }, [sessionId, autoConnect]);
+  }, [sessionId]);
 
-  // Méthodes utilitaires
-  const connect = useCallback(() => {
-    wsRef.current?.connect();
-  }, []);
-
-  const disconnect = useCallback(() => {
-    wsRef.current?.disconnect();
+  const on = useCallback((event: SessionWebSocketEvent, handler: (...args: any[]) => void) => {
+    const ws = entryRef.current?.ws;
+    ws?.on(event, handler);
+    return () => {
+      ws?.off(event, handler);
+    };
   }, []);
 
   const requestUpdate = useCallback(() => {
-    wsRef.current?.requestUpdate();
+    entryRef.current?.ws.requestUpdate();
   }, []);
 
-  const on = useCallback((event: SessionWebSocketEvent, handler: (...args: any[]) => void) => {
-    wsRef.current?.on(event, handler);
-    // Retourner une fonction de nettoyage
-    return () => {
-      wsRef.current?.off(event, handler);
-    };
-  }, []);
+  const disconnect = useCallback(() => {
+    if (sessionId) releaseEntry(sessionId);
+  }, [sessionId]);
 
   return {
     isConnected,
     error,
-    connect,
-    disconnect,
     requestUpdate,
+    disconnect,
     on,
-    ws: wsRef.current,
+    ws: entryRef.current?.ws ?? null,
   };
 };

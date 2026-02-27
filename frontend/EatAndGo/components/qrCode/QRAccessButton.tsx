@@ -25,6 +25,7 @@ import {
 } from '@/utils/designSystem';
 import { useActiveTableSession } from '@/hooks/session/useCollaborativeSession';
 import { SessionJoinModal } from '@/components/session/SessionJoinModal';
+import { collaborativeSessionService } from '@/services/collaborativeSessionService';
 
 interface QRAccessButtonsProps {
   onSuccess?: (restaurantId: number, tableNumber: string, code: string) => void;
@@ -113,17 +114,41 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
 
   const processCode = async (codeData: string) => {
     if (isProcessing) return;
-    
     setIsProcessing(true);
-    
+  
     try {
-      // Utiliser les utilitaires QR pour parser et sauvegarder
-      const sessionData = await QRSessionUtils.createSessionFromCode(codeData);
-      
+      const trimmed = codeData.trim();
+  
+      // Détecter un share code de session (6 caractères alphanumériques)
+      // Format généré par generate_share_code() : 3 lettres + 3 chiffres ex: ABC123
+      if (/^[A-Z0-9]{6}$/i.test(trimmed)) {
+        try {
+          const session = await collaborativeSessionService.getSessionByCode(
+            trimmed.toUpperCase()
+          );
+          if (session) {
+            // C'est bien un share code → ouvrir SessionJoinModal directement
+            setShowCodeInput(false);
+            setAccessCode('');
+            setScannedData({
+              restaurantId: typeof session.restaurant === 'number'
+                ? session.restaurant
+                : parseInt(session.restaurant as any),
+              tableNumber: session.table_number,
+              code: trimmed.toUpperCase(),
+            });
+            // scannedData déclenche showSessionModal via le useEffect existant
+            return;
+          }
+        } catch {
+          // Pas une session connue, on essaie comme QR de table
+        }
+      }
+  
+      // Essayer comme QR de table (R123T05, URL, etc.)
+      const sessionData = await QRSessionUtils.createSessionFromCode(trimmed);
+  
       if (sessionData) {
-        console.log('📋 Processed QR/Code successfully:', sessionData);
-
-        // Stocker les données pour vérification de session
         setScannedData({
           restaurantId: parseInt(sessionData.restaurantId),
           tableNumber: sessionData.tableNumber || '',
@@ -132,17 +157,13 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
       } else {
         throw new Error('Format de code non reconnu');
       }
-      
+  
     } catch (error) {
       console.error('Erreur traitement code:', error);
       Alert.alert(
-        'Code invalide', 
-        'Le code saisi ne correspond pas à un format valide. Vérifiez le code ou scannez le QR code.',
-        [
-          { text: 'Réessayer', onPress: () => setShowCodeInput(true) },
-          { text: 'Scanner QR', onPress: () => setShowScanner(true) },
-          { text: 'OK', style: 'cancel' }
-        ]
+        'Code invalide',
+        'Le code saisi ne correspond à aucune session ni table.\n\nVérifiez le code ou scannez le QR code.',
+        [{ text: 'OK' }]
       );
     } finally {
       setIsProcessing(false);
