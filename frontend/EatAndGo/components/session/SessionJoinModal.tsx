@@ -12,6 +12,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { collaborativeSessionService, CollaborativeSession } from '@/services/collaborativeSessionService';
+import { useSession } from '@/contexts/SessionContext';
 import { Alert } from '@/components/ui/Alert';
 
 // ---------------------------------------------------------------------------
@@ -51,6 +52,9 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
   onSessionJoined,
   onOrderAlone,
 }) => {
+  // SessionContext — source de vérité pour persister le participantId en mémoire
+  const { createSession: ctxCreateSession } = useSession();
+
   const [loading, setLoading] = useState(false);
   const [existingSession, setExistingSession] = useState<CollaborativeSession | null>(null);
   const [mode, setMode] = useState<'choose' | 'create' | 'join' | 'pending'>('choose');
@@ -130,7 +134,11 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
 
     setLoading(true);
     try {
-      const session = await collaborativeSessionService.createSession({
+      // ✅ On passe par SessionContext pour que participantId soit persisté
+      // en mémoire React ET dans AsyncStorage dès la création.
+      // Sans ça, useCollaborativeSession reçoit ctxParticipantId=null au
+      // premier rendu et calcule isHost=false → l'UI d'approbation n'apparaît pas.
+      const session = await ctxCreateSession({
         restaurant_id: restaurantId,
         table_number: tableNumber,
         table_id: tableId,
@@ -210,6 +218,7 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
         // ⏳ En attente d'approbation — pas de callback immédiat
         setMode('pending');
         setPendingParticipantId(result.participant_id);
+        setPendingSessionId(result.session.id); // ✅ MANQUAIT : sans ça le useEffect de polling ne démarre jamais
         setPendingSession(result.session);
       } else {
         // ✅ Accès direct
