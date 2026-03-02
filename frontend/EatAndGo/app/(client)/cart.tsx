@@ -15,7 +15,8 @@ import { Ionicons } from '@expo/vector-icons';
 // Contexts & Hooks
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { useCollaborativeSession, useActiveTableSession } from '@/hooks/session/useCollaborativeSession';
+import { useSession } from '@/contexts/SessionContext';
+import { useSessionCart } from '@/hooks/session/useSessionCart';
 
 // Components
 import { Header } from '@/components/ui/Header';
@@ -499,19 +500,17 @@ export default function CartScreen() {
   // HOOKS
   // ============================================================================
 
-  const { activeSession, hasActiveSession, loading: checkingSession } = useActiveTableSession(
-    cart.restaurantId,
-    currentTableNumber
-  );
+  // SessionContext : source de vérité pour la session active en mémoire
+  const { session: ctxSession, participantId: ctxParticipantId } = useSession();
+  const ctxSessionId = ctxSession?.id ?? null;
 
-  const {
-    session,
-    currentParticipant,
-    isHost,
-    joinSession,
-    createSession,
-  } = useCollaborativeSession({
-    sessionId: activeSession?.id,
+  // Mode session collaborative
+  const isSessionMode = !!ctxSessionId;
+
+  const sessionCart = useSessionCart({
+    sessionId: ctxSessionId,
+    participantId: ctxParticipantId,
+    enabled: isSessionMode,
   });
 
   // ============================================================================
@@ -555,11 +554,14 @@ export default function CartScreen() {
   const handleQuantityChange = useCallback(async (itemId: string, newQuantity: number) => {
     try {
       setUpdatingItems(prev => new Set(prev).add(itemId));
-      await updateQuantity(itemId, newQuantity);
+      if (isSessionMode) {
+        await sessionCart.updateItem(itemId, { quantity: newQuantity });
+      } else {
+        await updateQuantity(itemId, newQuantity);
+      }
       showSuccess('Quantité mise à jour');
     } catch (error) {
       showError('Erreur lors de la mise à jour de la quantité');
-      console.error('Error updating quantity:', error);
     } finally {
       setUpdatingItems(prev => {
         const newSet = new Set(prev);
@@ -567,7 +569,7 @@ export default function CartScreen() {
         return newSet;
       });
     }
-  }, [updateQuantity, showSuccess, showError]);
+  }, [isSessionMode, sessionCart, updateQuantity, showSuccess, showError]);
 
   const handleRemoveItem = useCallback((itemId: string) => {
     setItemToRemove(itemId);
@@ -575,16 +577,18 @@ export default function CartScreen() {
 
   const confirmRemoveItem = useCallback(async () => {
     if (!itemToRemove) return;
-
     try {
-      await removeFromCart(itemToRemove);
+      if (isSessionMode) {
+        await sessionCart.removeItem(itemToRemove);
+      } else {
+        await removeFromCart(itemToRemove);
+      }
       showSuccess('Article retiré du panier');
       setItemToRemove(null);
     } catch (error) {
-      showError('Erreur lors du retrait de l\'article');
-      console.error('Error removing item:', error);
+      showError("Erreur lors du retrait de l'article");
     }
-  }, [itemToRemove, removeFromCart, showSuccess, showError]);
+  }, [itemToRemove, isSessionMode, sessionCart, removeFromCart, showSuccess, showError]);
 
   const handleClearCart = useCallback(() => {
     setShowClearConfirmation(true);
@@ -592,44 +596,69 @@ export default function CartScreen() {
 
   const confirmClearCart = useCallback(async () => {
     try {
-      await clearCart();
+      if (isSessionMode) {
+        await sessionCart.clearMyItems();
+      } else {
+        await clearCart();
+      }
       setShowClearConfirmation(false);
       showSuccess('Panier vidé');
     } catch (error) {
       showError('Erreur lors de la suppression du panier');
-      console.error('Error clearing cart:', error);
     }
-  }, [clearCart, showSuccess, showError]);
+  }, [isSessionMode, sessionCart, clearCart, showSuccess, showError]);
 
   const handleCheckout = useCallback(async () => {
-    if (cart.items.length === 0) {
+    const hasItems = isSessionMode
+      ? sessionCart.items_count > 0
+      : cart.items.length > 0;
+
+    if (!hasItems) {
       showError('Votre panier est vide. Ajoutez des articles pour continuer.');
       return;
     }
-
     if (!cart.restaurantId) {
       showError('Restaurant non trouvé. Veuillez scanner à nouveau le QR code.');
       return;
     }
-
     try {
       setIsCreatingOrder(true);
-      navigateToCheckout();
+      navigateToCheckout(isSessionMode ? ctxSessionId : undefined);
     } catch (error) {
       showError('Erreur lors de la préparation de la commande');
-      console.error('Error during checkout:', error);
     } finally {
       setIsCreatingOrder(false);
     }
-  }, [cart.items.length, cart.restaurantId, navigateToCheckout, showError]);
+  }, [isSessionMode, sessionCart.items_count, cart.items.length, cart.restaurantId, ctxSessionId, navigateToCheckout, showError]);
 
   // ============================================================================
   // MEMOIZED VALUES
   // ============================================================================
 
-  const cartItems = useMemo(() => cart.items || [], [cart.items]);
-  const itemCount = useMemo(() => cart.itemCount || 0, [cart.itemCount]);
-  const totalAmount = useMemo(() => cart.total || 0, [cart.total]);
+  // En mode session : mapper SessionCartItem → CartItem pour réutiliser les composants existants
+  const cartItems = useMemo(() => {
+    if (isSessionMode) {
+      return sessionCart.items.map(item => ({
+        id: item.id,
+        name: item.menu_item_name,
+        price: parseFloat(item.menu_item_price || '0'),
+        quantity: item.quantity,
+        image: item.menu_item_image,
+        specialInstructions: item.special_instructions || undefined,
+      }));
+    }
+    return cart.items || [];
+  }, [isSessionMode, sessionCart.items, cart.items]);
+
+  const itemCount = useMemo(
+    () => isSessionMode ? sessionCart.items_count : (cart.itemCount || 0),
+    [isSessionMode, sessionCart.items_count, cart.itemCount]
+  );
+
+  const totalAmount = useMemo(
+    () => isSessionMode ? sessionCart.total : (cart.total || 0),
+    [isSessionMode, sessionCart.total, cart.total]
+  );
 
   // ============================================================================
   // RENDER
@@ -670,7 +699,7 @@ export default function CartScreen() {
           restaurantName={cart.restaurantName || 'Restaurant'}
           tableNumber={currentTableNumber}
           itemCount={itemCount}
-          hasActiveSession={hasActiveSession}
+          hasActiveSession={isSessionMode}
           screenType={screenType}
         />
 
