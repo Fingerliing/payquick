@@ -195,7 +195,7 @@ export default function CheckoutScreen() {
             : 'Votre commande a été envoyée au restaurant.',
           'Commande passée !'
         );
-        router.replace('/orders' as any);
+        // router.replace('/orders' as any);
         return;
       }
 
@@ -208,7 +208,7 @@ export default function CheckoutScreen() {
           `Votre commande #${order.order_number} a été ajoutée à la session collaborative.`,
           'Commande ajoutée !'
         );
-        router.replace(`/client/session/${session.id}` as any);
+        router.replace(`/order/payment?orderId=${order.id}` as any);
       } else {
         router.replace(`/order/${order.id}` as any);
       }
@@ -536,7 +536,7 @@ export default function CheckoutScreen() {
         </Card>
 
         <Button
-          title={isSubmitting ? "Envoi en cours..." : isSessionMode ? "Confirmer la session" : "Passer commande"}
+          title={isSubmitting ? "Envoi en cours..." : isSessionMode ? "Passer commande" : "Valider la commande"}
           onPress={handleSubmitOrder}
           disabled={isSubmitting}
           fullWidth

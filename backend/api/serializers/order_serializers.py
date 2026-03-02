@@ -230,8 +230,9 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         
         # Calculer le sous-total et le total
         subtotal = sum(item['total_price'] for item in items_data)
-        tax_amount = subtotal * Decimal('0.1')  # TVA 10%
-        total_amount = subtotal + tax_amount
+        # Les prix sont TTC : TVA = TTC - (TTC / 1.1) pour un taux de 10%
+        tax_amount = subtotal - (subtotal / Decimal('1.1')).quantize(Decimal('0.01'))
+        total_amount = subtotal  # Le client paie exactement le prix affiché
         
         validated_data.update({
             'subtotal': subtotal,

@@ -1314,7 +1314,7 @@ function createStyles(screenType: 'mobile' | 'tablet' | 'desktop') {
       shadowOpacity: 0.1,
       shadowRadius: 12,
       elevation: 4,
-      position: isTabletOrLarger ? 'sticky' : 'relative',
+      position: isTabletOrLarger ? 'absolute' : 'relative',
       top: isTabletOrLarger ? 0 : undefined,
     },
 
