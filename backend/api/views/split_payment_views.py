@@ -332,21 +332,28 @@ class PayPortionView(APIView):
             
             # Créer le PaymentIntent
             amount_cents = int(portion.amount * 100)  # Convertir en centimes
-            
-            # Commission 2%
-            platform_fee_cents = amount_cents * 2 // 100
-            
-            payment_intent = stripe.PaymentIntent.create(
-                amount=amount_cents,
-                currency='eur',
-                metadata={
+
+            # Récupérer le compte Stripe connecté du restaurateur
+            stripe_account_id = getattr(order.restaurant.owner, 'stripe_account_id', None)
+
+            intent_params = {
+                'amount': amount_cents,
+                'currency': 'eur',
+                'metadata': {
                     'order_id': str(order.id),
                     'portion_id': str(portion.id),
                     'split_payment': 'true'
                 },
-                automatic_payment_methods={'enabled': True},
-                application_fee_amount=platform_fee_cents,
-            )
+                'automatic_payment_methods': {'enabled': True},
+            }
+
+            # application_fee_amount n'est autorisé que si transfer_data[destination] est présent
+            if stripe_account_id:
+                platform_fee_cents = amount_cents * 2 // 100
+                intent_params['application_fee_amount'] = platform_fee_cents
+                intent_params['transfer_data'] = {'destination': stripe_account_id}
+
+            payment_intent = stripe.PaymentIntent.create(**intent_params)
             
             return Response({
                 'client_secret': payment_intent.client_secret,
@@ -480,19 +487,29 @@ class PayRemainingPortionsView(APIView):
             # Calculer le montant total restant
             remaining_amount = sum(portion.amount for portion in unpaid_portions)
             amount_cents = int(remaining_amount * 100)
-            
-            # Créer le PaymentIntent
-            payment_intent = stripe.PaymentIntent.create(
-                amount=amount_cents,
-                currency='eur',
-                metadata={
+
+            # Récupérer le compte Stripe connecté du restaurateur
+            stripe_account_id = getattr(order.restaurant.owner, 'stripe_account_id', None)
+
+            intent_params = {
+                'amount': amount_cents,
+                'currency': 'eur',
+                'metadata': {
                     'order_id': str(order.id),
                     'split_payment': 'true',
                     'remaining_payment': 'true',
                     'portion_ids': ','.join(str(p.id) for p in unpaid_portions)
                 },
-                automatic_payment_methods={'enabled': True},
-            )
+                'automatic_payment_methods': {'enabled': True},
+            }
+
+            # Appliquer la commission seulement si le restaurant a un compte Stripe connecté
+            if stripe_account_id:
+                platform_fee_cents = amount_cents * 2 // 100
+                intent_params['application_fee_amount'] = platform_fee_cents
+                intent_params['transfer_data'] = {'destination': stripe_account_id}
+
+            payment_intent = stripe.PaymentIntent.create(**intent_params)
             
             return Response({
                 'client_secret': payment_intent.client_secret,
