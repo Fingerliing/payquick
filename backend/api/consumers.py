@@ -484,13 +484,16 @@ class SessionConsumer(BaseAuthenticatedConsumer):
         Reçoit un événement 'cart_updated' depuis le channel layer
         et le propage à tous les clients WebSocket connectés.
         """
-        await self.send(text_data=json.dumps({
-            'type': 'cart_update',
-            'items': event['items'],
-            'total': event['total'],
-            'items_count': event['items_count'],
-            'timestamp': time.time(),
-        }))
+        try:
+            await self.send(text_data=json.dumps({
+                'type': 'cart_update',
+                'items': event.get('items', []),
+                'total': event.get('total', 0),
+                'items_count': event.get('items_count', 0),
+                'timestamp': time.time(),
+            }))
+        except Exception as e:
+            logger.warning(f"cart_updated: impossible d'envoyer au client: {e}")
 
 
     async def send_cart_state(self):
@@ -498,6 +501,8 @@ class SessionConsumer(BaseAuthenticatedConsumer):
         Envoie l'état actuel du panier de la session au client qui vient
         de se connecter (appelé depuis connect()).
         """
+        if not getattr(self, 'session_id', None):
+            return
         try:
             items, total, count = await self._get_cart_data()
             await self.send(text_data=json.dumps({
@@ -514,16 +519,19 @@ class SessionConsumer(BaseAuthenticatedConsumer):
     @database_sync_to_async
     def _get_cart_data(self):
         """Récupère les données du panier depuis la base."""
+        import json as _json
         from api.models import SessionCartItem
         from api.serializers.collaborative_session_serializers import SessionCartItemSerializer
 
         items = SessionCartItem.objects.filter(
             session_id=self.session_id
-        ).select_related('participant', 'menu_item')
+        ).select_related('participant', 'participant__user', 'menu_item')
 
-        items_data = SessionCartItemSerializer(items, many=True).data
-        total = float(sum(item.total_price for item in items))
-        count = sum(item.quantity for item in items)
+        serializer = SessionCartItemSerializer(items, many=True)
+        # Convertir UUID/Decimal/datetime en types JSON natifs via round-trip
+        items_data = _json.loads(_json.dumps(list(serializer.data), default=str))
+        total = float(sum(float(item.get('total_price', 0)) for item in items_data))
+        count = sum(int(item.get('quantity', 0)) for item in items_data)
         return items_data, total, count
     
     # ==================== HELPERS ====================

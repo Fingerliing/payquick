@@ -46,6 +46,14 @@ interface UseSessionCartOptions {
   enabled?: boolean;
 }
 
+// ─── Helper ───────────────────────────────────────────────────────────────
+
+function computeSummary(items: SessionCartItem[]) {
+  const total = items.reduce((acc, i) => acc + parseFloat(i.total_price || '0'), 0);
+  const items_count = items.reduce((acc, i) => acc + i.quantity, 0);
+  return { total: Math.round(total * 100) / 100, items_count };
+}
+
 // ─── Hook ─────────────────────────────────────────────────────────────────
 
 export const useSessionCart = ({
@@ -77,7 +85,7 @@ export const useSessionCart = ({
     return headers;
   }, []);
 
-  const sessionBase = `${API_URL}/api/sessions/${sessionId}`;
+  const sessionBase = `${API_URL}/api/v1/collaborative-sessions/${sessionId}`;
 
   // ── Charger le panier via REST (snapshot initial) ───────────────────────
 
@@ -110,20 +118,24 @@ export const useSessionCart = ({
     const wsProtocol = API_URL.startsWith('https') ? 'wss:' : 'ws:';
     const baseHost = API_URL.replace(/^https?:\/\//, '');
     let wsUrl = `${wsProtocol}//${baseHost}/ws/session/${sessionId}/`;
-    if (token) wsUrl += `?token=${token}`;
+    if (token) wsUrl += `?token=${encodeURIComponent(token)}`;
 
-    if (wsRef.current) wsRef.current.close();
+    if (wsRef.current) {
+      wsRef.current.onclose = null;
+      wsRef.current.close();
+      wsRef.current = null;
+    }
 
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
     ws.onopen = () => {
-      console.log('🛒 SessionCart WS: Connected');
       reconnectAttemptsRef.current = 0;
       setState(prev => ({ ...prev, isConnected: true }));
     };
 
     ws.onmessage = (event) => {
+      console.log('🛒 WS message reçu:', event.data.substring(0, 150));
       try {
         const data = JSON.parse(event.data);
 
@@ -157,7 +169,6 @@ export const useSessionCart = ({
     };
 
     ws.onclose = (e) => {
-      console.log('🛒 SessionCart WS: Closed', e.code);
       setState(prev => ({ ...prev, isConnected: false }));
 
       if (!e.wasClean && enabled && reconnectAttemptsRef.current < MAX_RECONNECT) {
@@ -177,7 +188,11 @@ export const useSessionCart = ({
 
     return () => {
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
-      wsRef.current?.close();
+      if (wsRef.current) {
+        wsRef.current.onclose = null;
+        wsRef.current.close();
+        wsRef.current = null;
+      }
     };
   }, [sessionId, enabled]);
 
@@ -185,27 +200,66 @@ export const useSessionCart = ({
 
   const addItem = useCallback(async (payload: AddCartItemPayload): Promise<SessionCartItem | null> => {
     if (!sessionId) return null;
+  
+    const optimisticId = `optimistic-${Date.now()}`;
+    const optimisticItem: SessionCartItem = {
+      id:                   optimisticId,
+      participant:          participantId ?? '',
+      participant_name:     'Vous',
+      menu_item:            payload.menu_item,
+      menu_item_name:       '',
+      menu_item_price:      '0.00',
+      quantity:             payload.quantity ?? 1,
+      special_instructions: payload.special_instructions ?? '',
+      customizations:       payload.customizations ?? {},
+      total_price:          '0.00',
+      added_at:             new Date().toISOString(),
+      updated_at:           new Date().toISOString(),
+    };
+  
+    // Mise à jour optimiste via callback fonctionnel (pas de stale closure)
+    setState(s => {
+      const next = [...s.items, optimisticItem];
+      return { ...s, items: next, ...computeSummary(next) };
+    });
+  
     try {
       const headers = await getAuthHeaders();
+    
       const res = await fetch(`${sessionBase}/cart_add/`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ quantity: 1, ...payload }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.json();
-      // Le WS recevra cart_update → état auto-actualisé
+    
+      const responseText = await res.text();
+    
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${responseText}`);
+      return JSON.parse(responseText);
     } catch (err: any) {
-      setState(prev => ({ ...prev, error: err.message }));
+      console.error('🛒 cart_add → ERREUR:', err.message);
+      // Rollback : retirer l'item optimiste
+      setState(s => {
+        const rolled = s.items.filter(i => i.id !== optimisticId);
+        return { ...s, items: rolled, ...computeSummary(rolled), error: err.message };
+      });
       return null;
     }
-  }, [sessionId, sessionBase, getAuthHeaders]);
+    // ✅ state.items retiré des dépendances : on utilise le callback fonctionnel
+  }, [sessionId, sessionBase, getAuthHeaders, participantId]);
 
   const updateItem = useCallback(async (
     itemId: string,
     updates: { quantity?: number; special_instructions?: string; customizations?: Record<string, any> }
   ): Promise<void> => {
     if (!sessionId) return;
+
+    const prev = state.items;
+    const optimisticItems = prev.map(item =>
+      item.id === itemId ? { ...item, ...updates } : item
+    );
+    setState(s => ({ ...s, items: optimisticItems, ...computeSummary(optimisticItems) }));
+
     try {
       const headers = await getAuthHeaders();
       const res = await fetch(`${sessionBase}/cart_update/${itemId}/`, {
@@ -215,35 +269,49 @@ export const useSessionCart = ({
       });
       if (!res.ok && res.status !== 204) throw new Error(`HTTP ${res.status}`);
     } catch (err: any) {
-      setState(prev => ({ ...prev, error: err.message }));
+      setState(s => ({ ...s, items: prev, ...computeSummary(prev), error: err.message }));
     }
-  }, [sessionId, sessionBase, getAuthHeaders]);
+  }, [sessionId, sessionBase, getAuthHeaders, state.items]);
 
   const removeItem = useCallback(async (itemId: string): Promise<void> => {
     if (!sessionId) return;
+
+    const prev = state.items;
+    const optimisticItems = prev.filter(i => i.id !== itemId);
+    setState(s => ({ ...s, items: optimisticItems, ...computeSummary(optimisticItems) }));
+
     try {
       const headers = await getAuthHeaders();
-      await fetch(`${sessionBase}/cart_remove/${itemId}/`, {
+      const res = await fetch(`${sessionBase}/cart_remove/${itemId}/`, {
         method: 'DELETE',
         headers,
       });
+      if (!res.ok && res.status !== 204) throw new Error(`HTTP ${res.status}`);
     } catch (err: any) {
-      setState(prev => ({ ...prev, error: err.message }));
+      setState(s => ({ ...s, items: prev, ...computeSummary(prev), error: err.message }));
     }
-  }, [sessionId, sessionBase, getAuthHeaders]);
+  }, [sessionId, sessionBase, getAuthHeaders, state.items]);
 
   const clearMyItems = useCallback(async (): Promise<void> => {
     if (!sessionId) return;
+
+    const prev = state.items;
+    const optimisticItems = participantId
+      ? prev.filter(i => i.participant !== participantId)
+      : [];
+    setState(s => ({ ...s, items: optimisticItems, ...computeSummary(optimisticItems) }));
+
     try {
       const headers = await getAuthHeaders();
-      await fetch(`${sessionBase}/cart_clear/`, {
+      const res = await fetch(`${sessionBase}/cart_clear/`, {
         method: 'DELETE',
         headers,
       });
+      if (!res.ok && res.status !== 204) throw new Error(`HTTP ${res.status}`);
     } catch (err: any) {
-      setState(prev => ({ ...prev, error: err.message }));
+      setState(s => ({ ...s, items: prev, ...computeSummary(prev), error: err.message }));
     }
-  }, [sessionId, sessionBase, getAuthHeaders]);
+  }, [sessionId, sessionBase, getAuthHeaders, participantId, state.items]);
 
   // ── Items groupés par participant ─────────────────────────────────────────
 

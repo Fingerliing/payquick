@@ -9,7 +9,7 @@ from drf_spectacular.utils import extend_schema, OpenApiParameter
 
 from api.models import (
     CollaborativeTableSession, SessionParticipant, 
-    Order, Restaurant, Table
+    Order, Restaurant, Table, SessionCartItem
 )
 from api.serializers.collaborative_session_serializers import (
     CollaborativeSessionSerializer,
@@ -18,6 +18,7 @@ from api.serializers.collaborative_session_serializers import (
     SessionParticipantSerializer,
     SessionActionSerializer,
     ParticipantActionSerializer,
+    SessionCartItemSerializer,
     SessionOrderSerializer,
     SessionSummarySerializer
 )
@@ -730,12 +731,12 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
             'participant', 'menu_item'
         )
         serializer = SessionCartItemSerializer(items, many=True)
-        
-        total = sum(item.total_price for item in items)
+        items_data = list(serializer.data)
+        total = float(sum(float(item.get('total_price', 0)) for item in items_data))
         return Response({
-            'items': serializer.data,
-            'total': float(total),
-            'items_count': sum(item.quantity for item in items),
+            'items': items_data,
+            'total': total,
+            'items_count': sum(int(item.get('quantity', 0)) for item in items_data),
         })
 
 
@@ -876,26 +877,45 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
         return None
 
 
-    def _broadcast_cart_update(session):
-        """Broadcast l'état complet du panier à tous les participants via WS."""
-        from asgiref.sync import async_to_sync
-        from channels.layers import get_channel_layer
-        from api.serializers.collaborative_session_serializers import SessionCartItemSerializer
+# ─── Fonction utilitaire au niveau module ─────────────────────────────────────
 
-        items = session.cart_items.select_related('participant', 'menu_item').all()
-        items_data = SessionCartItemSerializer(items, many=True).data
-        total = float(sum(item.total_price for item in items))
+def _broadcast_cart_update(session):
+    """
+    Broadcast l'état complet du panier à tous les participants via WS.
+    Définie au niveau module pour être accessible depuis les méthodes
+    de CollaborativeSessionViewSet via le scope global Python (LEGB).
+    """
+    import json
+    from asgiref.sync import async_to_sync
+    from channels.layers import get_channel_layer
+    from api.serializers.collaborative_session_serializers import SessionCartItemSerializer
 
-        channel_layer = get_channel_layer()
+    channel_layer = get_channel_layer()
+    if not channel_layer:
+        logger.warning("_broadcast_cart_update: channel layer indisponible")
+        return
+
+    try:
+        items = session.cart_items.select_related(
+            'participant', 'participant__user', 'menu_item'
+        ).all()
+        serializer = SessionCartItemSerializer(items, many=True)
+        items_data = json.loads(json.dumps(list(serializer.data), default=str))
+        total = float(sum(float(item.get('total_price', 0)) for item in items_data))
+        items_count = sum(int(item.get('quantity', 0)) for item in items_data)
+
         async_to_sync(channel_layer.group_send)(
             f'session_{session.id}',
             {
                 'type': 'cart_updated',
                 'items': items_data,
                 'total': total,
-                'items_count': sum(item.quantity for item in items),
+                'items_count': items_count,
             }
         )
+    except Exception as exc:
+        logger.error(f"_broadcast_cart_update failed (session {session.id}): {exc}")
+
 
 class SessionParticipantViewSet(viewsets.ReadOnlyModelViewSet):
     """

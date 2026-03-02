@@ -19,6 +19,12 @@ interface WebSocketState {
   };
 }
 
+interface CartState {
+  items: any[];
+  total: number;
+  items_count: number;
+}
+
 export const useDualWebSocket = (config: DualWebSocketConfig = {}) => {
   const {
     apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000',
@@ -35,6 +41,11 @@ export const useDualWebSocket = (config: DualWebSocketConfig = {}) => {
 
   const [orderUpdates, setOrderUpdates] = useState<any[]>([]);
   const [sessionUpdates, setSessionUpdates] = useState<any[]>([]);
+  const [cartState, setCartState] = useState<CartState>({
+    items: [],
+    total: 0,
+    items_count: 0,
+  });
 
   const wsOrderRef = useRef<WebSocket | null>(null);
   const wsSessionRef = useRef<WebSocket | null>(null);
@@ -211,6 +222,25 @@ export const useDualWebSocket = (config: DualWebSocketConfig = {}) => {
               setSessionUpdates((prev) => [...prev, data]);
               break;
 
+            case 'cart_state':
+              console.log('🛒 SessionWS: Cart state', data);
+              setCartState({
+                items:       data.items       ?? [],
+                total:       data.total       ?? 0,
+                items_count: data.items_count ?? 0,
+              });
+              break;
+
+            case 'cart_update':
+              console.log('🛒 SessionWS: Cart update', data);
+              setCartState({
+                items:       data.items       ?? [],
+                total:       data.total       ?? 0,
+                items_count: data.items_count ?? 0,
+              });
+              setSessionUpdates((prev) => [...prev, data]);
+              break;
+
             case 'pong':
               // Keep-alive response
               break;
@@ -304,6 +334,7 @@ export const useDualWebSocket = (config: DualWebSocketConfig = {}) => {
     isSessionConnected: state.session.connected,
     orderUpdates,
     sessionUpdates,
+    cart: cartState,
 
     // Contrôle des connexions
     connectOrders: connectOrderWebSocket,
@@ -326,54 +357,6 @@ export const useDualWebSocket = (config: DualWebSocketConfig = {}) => {
     // Nettoyer les mises à jour
     clearOrderUpdates: () => setOrderUpdates([]),
     clearSessionUpdates: () => setSessionUpdates([]),
+    clearCartState: () => setCartState({ items: [], total: 0, items_count: 0 }),
   };
 };
-
-// ============================================================================
-// EXEMPLE D'UTILISATION
-// ============================================================================
-
-/*
-import { useDualWebSocket } from '@/hooks/useDualWebSocket';
-
-function OrderTrackingScreen() {
-  const { user } = useAuth();
-  const { orderId, sessionId } = useLocalSearchParams();
-
-  const {
-    isOrderConnected,
-    isSessionConnected,
-    orderUpdates,
-    sessionUpdates,
-  } = useDualWebSocket({
-    orderIds: [orderId],
-    sessionId: sessionId || undefined,
-    token: user?.token,
-    autoConnect: true,
-  });
-
-  // Écouter les mises à jour de commande
-  useEffect(() => {
-    const latestUpdate = orderUpdates[orderUpdates.length - 1];
-    if (latestUpdate?.type === 'order_update') {
-      console.log('New order status:', latestUpdate.status);
-      // Mettre à jour l'UI
-    }
-  }, [orderUpdates]);
-
-  // Écouter les mises à jour de session
-  useEffect(() => {
-    const latestUpdate = sessionUpdates[sessionUpdates.length - 1];
-    if (latestUpdate?.type === 'participant_joined') {
-      alert(`${latestUpdate.participant.display_name} a rejoint !`);
-    }
-  }, [sessionUpdates]);
-
-  return (
-    <View>
-      <Text>Order WS: {isOrderConnected ? '✅' : '❌'}</Text>
-      <Text>Session WS: {isSessionConnected ? '✅' : '❌'}</Text>
-    </View>
-  );
-}
-*/

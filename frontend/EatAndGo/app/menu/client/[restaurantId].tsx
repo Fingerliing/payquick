@@ -23,6 +23,7 @@ import { useSession } from '@/contexts/SessionContext';
 import { menuService } from '@/services/menuService';
 import { useCollaborativeSession } from '@/hooks/session/useCollaborativeSession';
 import { useSessionWebSocket } from '@/hooks/session/useSessionWebSocket';
+import { useSessionCart } from '@/hooks/session/useSessionCart';
 import { restaurantService } from '@/services/restaurantService';
 import { Header } from '@/components/ui/Header';
 import { Loading } from '@/components/ui/Loading';
@@ -87,6 +88,12 @@ export default function OptimizedRestaurantPage() {
   // participantId est stocké en mémoire React par SessionContext, même après
   // que AsyncStorage ait été vidé (restart appli, archivage de session...).
   const { participantId: ctxParticipantId } = useSession();
+
+  // ─── Session cart : panier partagé en temps réel ──────────────────────────
+  const sessionCart = useSessionCart({
+    sessionId: sessionId as string | undefined,
+    enabled: !!sessionId,
+  });
 
   // ─── Session collaborative ────────────────────────────────────────────────
   const { session, isHost, approveParticipant, rejectParticipant, refresh } =
@@ -333,25 +340,46 @@ export default function OptimizedRestaurantPage() {
     return count;
   }, [filters]);
 
-  const totalCartItems = useMemo(() => cart.itemCount || 0, [cart.itemCount]);
+  const totalCartItems = useMemo(
+    () => sessionId ? sessionCart.items_count : (cart.itemCount || 0),
+    [sessionId, sessionCart.items_count, cart.itemCount]
+  );
+
+  console.log('totalCartItems', totalCartItems);
 
   // =============================================================================
   // HANDLERS
   // =============================================================================
   const handleAddToCart = useCallback(
-    (item: MenuItem) => {
+    async (item: MenuItem) => {
       const parsedRestaurantId = parseInt(restaurantId, 10);
-
-      if (cart.items.length > 0 && cart.restaurantId && cart.restaurantId !== parsedRestaurantId) {
-        setConfirmCartSwitch({ visible: true, item });
-        return;
-      }
-
       const menuItemId =
         typeof (item as any).id === 'number'
           ? (item as any).id
           : parseInt(String((item as any).id), 10);
-
+  
+      // ── Mode session collaborative : envoie à l'API de session ───────────
+      if (sessionId) {
+        try {
+          await sessionCart.addItem({
+            menu_item: menuItemId,
+            quantity: 1,
+          });
+          // Forcer le rafraîchissement REST en fallback (si WS lent ou coupé)
+          await sessionCart.refresh();
+          showToast('success', 'Ajouté au panier partagé', `${item.name} a été ajouté`);
+        } catch (err) {
+          showToast('error', "Erreur lors de l'ajout au panier partagé", 'Erreur');
+        }
+        return;
+      }
+  
+      // ── Mode solo : panier local CartContext ──────────────────────────────
+      if (cart.items.length > 0 && cart.restaurantId && cart.restaurantId !== parsedRestaurantId) {
+        setConfirmCartSwitch({ visible: true, item });
+        return;
+      }
+  
       const cartItem: any = {
         id: String(menuItemId),
         menuItemId,
@@ -364,11 +392,11 @@ export default function OptimizedRestaurantPage() {
         customizations: {},
         specialInstructions: '',
       };
-
+  
       addToCart(cartItem);
       showToast('success', 'Ajouté au panier', `${item.name} a été ajouté`);
     },
-    [cart.items.length, cart.restaurantId, restaurantId, restaurant, addToCart, showToast]
+    [sessionId, sessionCart, cart.items.length, cart.restaurantId, restaurantId, restaurant, addToCart, showToast]
   );
 
   const proceedAddToCart = useCallback(
@@ -978,7 +1006,9 @@ export default function OptimizedRestaurantPage() {
               </Text>
             </View>
           </View>
-          <Text style={styles.cartTotal}>{cart.total.toFixed(2)}€</Text>
+          <Text style={styles.cartTotal}>
+            {(sessionId ? sessionCart.total : cart.total).toFixed(2)}€
+          </Text>
         </Pressable>
       )}
     </SafeAreaView>

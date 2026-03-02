@@ -696,6 +696,8 @@ class TestSessionCartAPI:
             assert response.data['items_count'] == 3  # 1 + 2
             expected_total = Decimal('12.50') + Decimal('9.90') * 2
             assert float(response.data['total']) == pytest.approx(float(expected_total))
+            # total doit etre un float natif (pas un Decimal) car issu de list(serializer.data)
+            assert isinstance(response.data['total'], float)
 
     # ── POST /cart_add/ ──────────────────────────────────────────────────────
 
@@ -1110,3 +1112,194 @@ class TestSessionCartAPI:
             status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND
         ]
+
+# =============================================================================
+# TESTS - _broadcast_cart_update (comportements directs)
+# =============================================================================
+
+@pytest.mark.django_db
+class TestBroadcastCartUpdate:
+    """Tests unitaires pour la fonction _broadcast_cart_update.
+
+    Ces tests ciblent les corrections apportées :
+    - guard sur channel_layer None
+    - conversion ReturnList → list Python native
+    - conversion Decimal → float via .get()
+    - absorption des exceptions de group_send
+    """
+
+    def _get_broadcast_fn(self):
+        """Importe la fonction depuis le module (définie au niveau module)."""
+        from api.views.collaborative_session_views import _broadcast_cart_update
+        return _broadcast_cart_update
+
+    def test_broadcast_no_channel_layer_does_not_raise(
+        self, collaborative_session, participant, menu_item
+    ):
+        """Test que _broadcast_cart_update ne lève pas d'exception si le channel
+        layer est indisponible (Redis absent en CI par exemple)."""
+        SessionCartItem.objects.create(
+            session=collaborative_session,
+            participant=participant,
+            menu_item=menu_item,
+            quantity=1
+        )
+
+        _broadcast_cart_update = self._get_broadcast_fn()
+
+        with patch(
+            'channels.layers.get_channel_layer',
+            return_value=None
+        ):
+            # Ne doit pas lever d'exception
+            _broadcast_cart_update(collaborative_session)
+
+    def test_broadcast_calls_group_send_with_correct_type(
+        self, collaborative_session, participant, menu_item
+    ):
+        """Test que group_send est appelé avec type='cart_updated'."""
+        SessionCartItem.objects.create(
+            session=collaborative_session,
+            participant=participant,
+            menu_item=menu_item,
+            quantity=2
+        )
+
+        _broadcast_cart_update = self._get_broadcast_fn()
+
+        mock_layer = MagicMock()
+        with patch(
+            'channels.layers.get_channel_layer',
+            return_value=mock_layer
+        ):
+            with patch(
+                'asgiref.sync.async_to_sync',
+                side_effect=lambda f: f
+            ):
+                _broadcast_cart_update(collaborative_session)
+
+        mock_layer.group_send.assert_called_once()
+        call_args = mock_layer.group_send.call_args[0]
+        group_name, payload = call_args[0], call_args[1]
+        assert group_name == f'session_{collaborative_session.id}'
+        assert payload['type'] == 'cart_updated'
+
+    def test_broadcast_items_data_is_plain_list(
+        self, collaborative_session, participant, menu_item
+    ):
+        """Test que les items broadcastés sont une list Python native,
+        pas un ReturnList DRF (non JSON-sérialisable par Redis)."""
+        SessionCartItem.objects.create(
+            session=collaborative_session,
+            participant=participant,
+            menu_item=menu_item,
+            quantity=1
+        )
+
+        _broadcast_cart_update = self._get_broadcast_fn()
+
+        captured_payload = {}
+
+        def fake_group_send(group, payload):
+            captured_payload.update(payload)
+
+        mock_layer = MagicMock()
+        mock_layer.group_send = fake_group_send
+
+        with patch(
+            'channels.layers.get_channel_layer',
+            return_value=mock_layer
+        ):
+            with patch(
+                'asgiref.sync.async_to_sync',
+                side_effect=lambda f: f
+            ):
+                _broadcast_cart_update(collaborative_session)
+
+        assert type(captured_payload['items']) is list
+        assert isinstance(captured_payload['total'], float)
+        assert isinstance(captured_payload['items_count'], int)
+
+    def test_broadcast_total_is_float_not_decimal(
+        self, collaborative_session, participant, menu_item
+    ):
+        """Test que le total broadcasté est un float (pas un Decimal) afin
+        d'être sérialisable en JSON par le channel layer."""
+        from decimal import Decimal
+        SessionCartItem.objects.create(
+            session=collaborative_session,
+            participant=participant,
+            menu_item=menu_item,
+            quantity=2   # 12.50 × 2 = 25.00
+        )
+
+        _broadcast_cart_update = self._get_broadcast_fn()
+
+        captured_payload = {}
+
+        def fake_group_send(group, payload):
+            captured_payload.update(payload)
+
+        mock_layer = MagicMock()
+        mock_layer.group_send = fake_group_send
+
+        with patch(
+            'channels.layers.get_channel_layer',
+            return_value=mock_layer
+        ):
+            with patch(
+                'asgiref.sync.async_to_sync',
+                side_effect=lambda f: f
+            ):
+                _broadcast_cart_update(collaborative_session)
+
+        assert type(captured_payload['total']) is float
+        assert captured_payload['total'] == pytest.approx(25.0)
+        assert not isinstance(captured_payload['total'], Decimal)
+
+    def test_broadcast_exception_in_group_send_does_not_propagate(
+        self, collaborative_session
+    ):
+        """Test que les exceptions levées par group_send sont absorbées
+        (le try/except dans _broadcast_cart_update protège le flux principal)."""
+        _broadcast_cart_update = self._get_broadcast_fn()
+
+        mock_layer = MagicMock()
+
+        with patch(
+            'channels.layers.get_channel_layer',
+            return_value=mock_layer
+        ):
+            with patch(
+                'asgiref.sync.async_to_sync',
+                side_effect=lambda f: f
+            ):
+                mock_layer.group_send.side_effect = Exception("Redis unavailable")
+                # Ne doit pas lever d'exception
+                _broadcast_cart_update(collaborative_session)
+
+    def test_broadcast_empty_cart(self, collaborative_session):
+        """Test _broadcast_cart_update avec un panier vide (aucun article)."""
+        _broadcast_cart_update = self._get_broadcast_fn()
+
+        captured_payload = {}
+
+        def fake_group_send(group, payload):
+            captured_payload.update(payload)
+
+        mock_layer = MagicMock()
+        mock_layer.group_send = fake_group_send
+
+        with patch(
+            'channels.layers.get_channel_layer',
+            return_value=mock_layer
+        ):
+            with patch(
+                'asgiref.sync.async_to_sync',
+                side_effect=lambda f: f
+            ):
+                _broadcast_cart_update(collaborative_session)
+
+        assert captured_payload['items'] == []
+        assert captured_payload['total'] == 0.0
+        assert captured_payload['items_count'] == 0

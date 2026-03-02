@@ -477,6 +477,12 @@ class TestSessionConsumerHandlerExceptions:
         consumer.send = AsyncMock(side_effect=Exception("Send error"))
         await consumer.session_unlocked({})
 
+    async def test_cart_updated_handler_exception(self):
+        """Test que cart_updated absorbe les exceptions (try/except garanti)."""
+        consumer = SessionConsumer()
+        consumer.send = AsyncMock(side_effect=Exception("Send error"))
+        await consumer.cart_updated({"items": [], "total": 0.0, "items_count": 0})
+
 
 # =============================================================================
 # TESTS - SessionConsumer : panier partagé  ← NOUVEAU
@@ -549,12 +555,10 @@ class TestSessionConsumerCartHandlers:
         assert sent_payload['items_count'] == 0
 
     async def test_cart_updated_exception_does_not_propagate(self):
-        """Test que cart_updated ne propage pas les exceptions.
+        """Test que cart_updated absorbe les exceptions sans les propager.
 
-        Si le handler possède un try/except (comme les autres handlers de
-        SessionConsumer), les exceptions sont loggées silencieusement.
-        Sinon l'exception remonte. Le test accepte les deux comportements
-        tant que l'implémentation n'est pas encore finalisée.
+        Le handler possède désormais un try/except explicite : toute erreur
+        d'envoi WebSocket est loggée silencieusement et ne doit jamais remonter.
         """
         consumer = SessionConsumer()
         consumer.send = AsyncMock(side_effect=Exception("WebSocket send error"))
@@ -566,11 +570,8 @@ class TestSessionConsumerCartHandlers:
             'items_count': 0,
         }
 
-        # Accepter les deux comportements : exception swallowed ou propagée
-        try:
-            await consumer.cart_updated(event)
-        except Exception:
-            pass  # Implémentation sans try/except : comportement temporairement attendu
+        # Ne doit jamais lever d'exception
+        await consumer.cart_updated(event)
 
     async def test_cart_updated_includes_multiple_participants(self):
         """Test cart_updated avec plusieurs participants"""
@@ -671,13 +672,19 @@ class TestSessionConsumerCartHandlers:
     async def test_get_cart_data_returns_correct_structure(
         self, collaborative_session, cart_item
     ):
-        """Test que _get_cart_data retourne (items, total, count)"""
+        """Test que _get_cart_data retourne (items, total, count) avec les bons types.
+
+        items doit etre une list Python native (pas un ReturnList DRF) pour
+        etre JSON-serialisable par le channel layer Redis.
+        """
         consumer = SessionConsumer()
         consumer.session_id = str(collaborative_session.id)
 
         items, total, count = await consumer._get_cart_data()
 
         assert isinstance(items, list)
+        # Verifier que c est une liste Python native, pas un ReturnList DRF
+        assert type(items) is list
         assert isinstance(total, float)
         assert isinstance(count, int)
 
@@ -762,6 +769,56 @@ class TestSessionConsumerCartHandlers:
             await consumer.receive(json.dumps({'type': 'cart_ping'}))
 
         send_cart_mock.assert_called_once()
+
+    async def test_send_cart_state_without_session_id_is_noop(self):
+        """Test que send_cart_state retourne immediatement si session_id est absent.
+
+        Le guard 'if not getattr(self, session_id, None): return' protege
+        contre les appels accidentels avant que session_id ne soit attribue.
+        """
+        consumer = SessionConsumer()
+        # session_id intentionnellement absent
+        consumer.send = AsyncMock()
+
+        await consumer.send_cart_state()
+
+        # Aucun envoi ne doit avoir eu lieu
+        consumer.send.assert_not_called()
+
+    async def test_send_cart_state_with_none_session_id_is_noop(self):
+        """Test que send_cart_state retourne immediatement si session_id est None."""
+        consumer = SessionConsumer()
+        consumer.session_id = None
+        consumer.send = AsyncMock()
+
+        await consumer.send_cart_state()
+
+        consumer.send.assert_not_called()
+
+    async def test_cart_updated_uses_safe_get_for_missing_keys(self):
+        """Test que cart_updated fonctionne meme si l event manque des cles.
+
+        Le handler utilise event.get() avec valeur par defaut, ce qui evite
+        un KeyError si le broadcast n a pas inclus tous les champs.
+        """
+        consumer = SessionConsumer()
+        consumer.send = AsyncMock()
+
+        # Event incomplet : manque total et items_count
+        incomplete_event = {
+            'type': 'cart_updated',
+            'items': [],
+        }
+
+        await consumer.cart_updated(incomplete_event)
+
+        consumer.send.assert_called_once()
+        import json as _json
+        sent = _json.loads(consumer.send.call_args[1]['text_data'])
+        assert sent['type'] == 'cart_update'
+        assert sent['items'] == []
+        assert sent['total'] == 0       # valeur par defaut
+        assert sent['items_count'] == 0  # valeur par defaut
 
 
 # =============================================================================
