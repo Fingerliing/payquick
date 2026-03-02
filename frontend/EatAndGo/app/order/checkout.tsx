@@ -13,7 +13,8 @@ import { Ionicons } from '@expo/vector-icons';
 // Contexts & Hooks
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { useCollaborativeSession } from '@/hooks/session/useCollaborativeSession';
+import { useSession } from '@/contexts/SessionContext';
+import { useSessionCart } from '@/hooks/session/useSessionCart';
 
 // Components
 import { Header } from '@/components/ui/Header';
@@ -68,15 +69,20 @@ export default function CheckoutScreen() {
 
   const hideToast = () => setToast((p) => ({ ...p, visible: false }));
 
-  // Hook de session collaborative
-  const {
-    session,
-    currentParticipant,
-    isInSession,
-    loading: sessionLoading,
-  } = useCollaborativeSession({
-    sessionId: sessionId,
+  // SessionContext : source de vérité pour la session active
+  const { session, participantId: ctxParticipantId } = useSession();
+  const isSessionMode = !!session && !!sessionId;
+
+  // Panier partagé en mode session
+  const sessionCart = useSessionCart({
+    sessionId: session?.id,
+    participantId: ctxParticipantId,
+    enabled: isSessionMode,
   });
+
+  // Aliases pour compatibilité avec le reste du code
+  const isInSession = isSessionMode;
+  const currentParticipant = session?.participants?.find(p => p.id === ctxParticipantId) ?? null;
 
   // Charger les données de session QR au montage
   useEffect(() => {
@@ -115,7 +121,8 @@ export default function CheckoutScreen() {
       return { valid: false, error: 'Numéro de table requis' };
     }
 
-    if (cart.items.length === 0) {
+    const itemsToValidate = isSessionMode ? sessionCart.items : cart.items;
+    if (itemsToValidate.length === 0) {
       return { valid: false, error: 'Panier vide' };
     }
 
@@ -150,7 +157,17 @@ export default function CheckoutScreen() {
         phone: '',
         payment_method: 'cash',
         notes: notes.trim() || null,
-        items: cart.items,
+        items: isSessionMode
+          ? sessionCart.items.map(i => ({
+              id: i.id,
+              menuItemId: i.menu_item,
+              name: i.menu_item_name,
+              price: parseFloat(i.menu_item_price || '0'),
+              quantity: i.quantity,
+              specialInstructions: i.special_instructions || '',
+              customizations: i.customizations || {},
+            }))
+          : cart.items,
       };
 
       const context: any = {};
@@ -170,7 +187,7 @@ export default function CheckoutScreen() {
 
       if (!order || !order.id) {
         console.warn('⚠️ Order created but no data returned');
-        clearCart();
+        isSessionMode ? await sessionCart.clearMyItems() : clearCart();
         showToast(
           'success',
           isInSession 
@@ -183,7 +200,7 @@ export default function CheckoutScreen() {
       }
 
       console.log('✅ Order created successfully:', order);
-      clearCart();
+      isSessionMode ? await sessionCart.clearMyItems() : clearCart();
 
       if (isInSession && session) {
         showToast(
@@ -217,7 +234,7 @@ export default function CheckoutScreen() {
     body: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
   };
 
-  if (sessionId && sessionLoading) {
+  if (false) { // supprimé : SessionContext est synchrone, pas de sessionLoading
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
         <Header 
@@ -250,7 +267,8 @@ export default function CheckoutScreen() {
     );
   }
 
-  if (cart.items.length === 0) {
+  const activeItems = isSessionMode ? sessionCart.items : cart.items;
+  if (activeItems.length === 0) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
         <Header 
@@ -441,10 +459,19 @@ export default function CheckoutScreen() {
             color: COLORS.text.primary,
             marginBottom: getResponsiveValue(SPACING.sm, screenType)
           }}>
-            Résumé ({cart.itemCount} article{cart.itemCount > 1 ? 's' : ''})
+            Résumé ({(isSessionMode ? sessionCart.items_count : cart.itemCount)} article{(isSessionMode ? sessionCart.items_count : cart.itemCount) > 1 ? 's' : ''})
           </Text>
           
-          {cart.items.map((item) => (
+          {(isSessionMode
+            ? sessionCart.items.map(i => ({
+                id: i.id,
+                name: i.menu_item_name,
+                price: parseFloat(i.menu_item_price || '0'),
+                quantity: i.quantity,
+                specialInstructions: i.special_instructions || undefined,
+              }))
+            : cart.items
+          ).map((item) => (
             <View 
               key={item.id}
               style={{ 
@@ -503,13 +530,13 @@ export default function CheckoutScreen() {
               fontWeight: TYPOGRAPHY.fontWeight.bold, 
               color: COLORS.primary 
             }}>
-              {cart.total.toFixed(2)} €
+              {(isSessionMode ? sessionCart.total : cart.total).toFixed(2)} €
             </Text>
           </View>
         </Card>
 
         <Button
-          title={isSubmitting ? "Envoi en cours..." : isInSession ? "Ajouter à la session" : "Passer commande"}
+          title={isSubmitting ? "Envoi en cours..." : isSessionMode ? "Confirmer la session" : "Passer commande"}
           onPress={handleSubmitOrder}
           disabled={isSubmitting}
           fullWidth
