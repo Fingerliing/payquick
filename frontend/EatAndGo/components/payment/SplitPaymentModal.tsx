@@ -12,6 +12,7 @@ import {
   ViewStyle,
   TextStyle,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -72,6 +73,7 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
   ]);
 
   const screenType = useScreenType();
+  const insets = useSafeAreaInsets();
   const totalWithTip = totalAmount + tipAmount;
 
   // Styles définis avec typage explicite (styles conservés identiques)
@@ -81,14 +83,8 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
   };
 
   const headerStyle: ViewStyle = {
-    backgroundColor: COLORS.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border.light,
-    shadowColor: COLORS.shadow?.light || '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: COLORS.primary,
+    paddingTop: insets.top,
   };
 
   const headerContentStyle: ViewStyle = {
@@ -101,12 +97,12 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
   const headerTitleStyle: TextStyle = {
     fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xl, screenType),
     fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: COLORS.text.primary,
+    color: COLORS.text.inverse,
   };
 
   const headerSubtitleStyle: TextStyle = {
     fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
-    color: COLORS.text.secondary,
+    color: 'rgba(255,255,255,0.70)',
     marginTop: getResponsiveValue(SPACING.xs, screenType) / 2,
   };
 
@@ -322,20 +318,22 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
   };
 
   const addButtonStyle: ViewStyle = {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     padding: getResponsiveValue(SPACING.md, screenType),
     borderWidth: 2,
     borderColor: COLORS.border.light,
     borderRadius: BORDER_RADIUS.lg,
     backgroundColor: COLORS.surface + '50',
     marginTop: getResponsiveValue(SPACING.sm, screenType),
+    gap: getResponsiveValue(SPACING.xs, screenType),
   };
 
   const addButtonTextStyle: TextStyle = {
     fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.md, screenType),
     color: COLORS.text.secondary,
     fontWeight: TYPOGRAPHY.fontWeight.medium,
-    marginTop: getResponsiveValue(SPACING.xs, screenType) / 2,
   };
 
   const validationCardStyle: ViewStyle = {
@@ -374,13 +372,14 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
     flexDirection: 'row',
     gap: getResponsiveValue(SPACING.md, screenType),
     padding: getResponsiveValue(SPACING.lg, screenType),
+    paddingBottom: Math.max(insets.bottom, getResponsiveValue(SPACING.lg, screenType)),
     backgroundColor: COLORS.surface,
     borderTopWidth: 1,
     borderTopColor: COLORS.border.light,
-    shadowColor: COLORS.shadow?.light || '#000',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
     elevation: 5,
   };
 
@@ -394,10 +393,16 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
     return distributeAmountEvenly(totalWithTip, people);
   }, [totalWithTip, numberOfPeople]);
 
+  const parseAmount = (value: string): number => {
+    // Gère la virgule française (12,50 → 12.50)
+    const normalized = value.replace(',', '.');
+    const parsed = parseFloat(normalized);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
   const customTotal = useMemo(() => {
     return customPortions.reduce((sum, portion) => {
-      const amount = parseFloat(portion.amount) || 0;
-      return sum + amount;
+      return sum + parseAmount(portion.amount);
     }, 0);
   }, [customPortions]);
 
@@ -435,7 +440,7 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
 
   const handleConfirm = () => {
     if (mode === 'none') {
-      onClose();
+      onConfirm('none', []);
       return;
     }
 
@@ -459,10 +464,10 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
       }
 
       const portions = customPortions
-        .filter(p => parseFloat(p.amount) > 0)
+        .filter(p => parseAmount(p.amount) > 0)
         .map((p, i) => ({
           name: p.name.trim() || `Personne ${i + 1}`,
-          amount: parseFloat(p.amount),
+          amount: parseAmount(p.amount),
         }));
 
       if (portions.length < 2) {
@@ -476,7 +481,7 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
 
   const canConfirm = mode === 'none' || 
     (mode === 'equal' && parseInt(numberOfPeople) >= 2) ||
-    (mode === 'custom' && customValidation.isValid && customPortions.filter(p => parseFloat(p.amount) > 0).length >= 2);
+    (mode === 'custom' && customValidation.isValid && customPortions.filter(p => parseAmount(p.amount) > 0).length >= 2);
 
   const renderModeButton = (
     modeValue: SplitPaymentMode,
@@ -517,7 +522,7 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
         style={modalStyle} 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        {/* Header amélioré */}
+        {/* Header charte graphique */}
         <View style={headerStyle}>
           <View style={headerContentStyle}>
             <View style={{ flex: 1 }}>
@@ -526,13 +531,47 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
                 Choisissez comment répartir le paiement
               </Text>
             </View>
-            <Button
-              title=""
-              leftIcon="close"
+
+            {/* Total en pilule dorée */}
+            <View style={{
+              backgroundColor: COLORS.secondary,
+              paddingHorizontal: 14,
+              paddingVertical: 8,
+              borderRadius: 14,
+              alignItems: 'center',
+              marginRight: getResponsiveValue(SPACING.sm, screenType),
+            }}>
+              <Text style={{
+                fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
+                color: COLORS.primary,
+                fontWeight: TYPOGRAPHY.fontWeight.semibold,
+                textTransform: 'uppercase',
+                letterSpacing: 0.5,
+              }}>
+                Total
+              </Text>
+              <Text style={{
+                fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
+                fontWeight: TYPOGRAPHY.fontWeight.bold,
+                color: COLORS.primary,
+              }}>
+                {formatCurrency(totalWithTip)}
+              </Text>
+            </View>
+
+            <TouchableOpacity
               onPress={onClose}
-              variant="ghost"
-              size="sm"
-            />
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                backgroundColor: 'rgba(255,255,255,0.15)',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Ionicons name="close" size={iconSize} color={COLORS.text.inverse} />
+            </TouchableOpacity>
           </View>
         </View>
 
