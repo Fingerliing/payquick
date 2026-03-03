@@ -7,9 +7,7 @@ import {
   TouchableOpacity,
   Pressable,
   Switch,
-  Platform,
   Dimensions,
-  Alert,
   Share,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -160,6 +158,7 @@ export default function OptimizedRestaurantPage() {
     visible: false,
     item: null as MenuItem | null,
   });
+  const [pendingRequest, setPendingRequest] = useState<{ id: string; name: string } | null>(null);
 
   // Session banner
   const [codeCopied, setCodeCopied] = useState(false);
@@ -189,33 +188,10 @@ export default function OptimizedRestaurantPage() {
     if (currentCount > prevPendingCountRef.current) {
       const newest = pendingParticipants[currentCount - 1];
 
-      Alert.alert(
-        '🔔 Nouvelle demande',
-        `${newest?.display_name ?? 'Quelqu\'un'} souhaite rejoindre votre session.`,
-        [
-          {
-            text: '❌ Refuser',
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                await rejectParticipant(newest.id);
-              } catch {
-                Alert.alert('Erreur', 'Impossible de refuser la demande');
-              }
-            },
-          },
-          {
-            text: '✅ Accepter',
-            onPress: async () => {
-              try {
-                await approveParticipant(newest.id);
-              } catch {
-                Alert.alert('Erreur', 'Impossible d\'accepter la demande');
-              }
-            },
-          },
-        ]
-      );
+      setPendingRequest({
+        id: newest.id,
+        name: newest?.display_name ?? "Quelqu'un",
+      });
     }
 
     prevPendingCountRef.current = currentCount;
@@ -474,7 +450,7 @@ export default function OptimizedRestaurantPage() {
       setCodeCopied(true);
       setTimeout(() => setCodeCopied(false), 2000);
     } catch {
-      Alert.alert('Erreur', 'Impossible de copier le code');
+      showToast('error', 'Erreur', 'Impossible de copier le code');
     }
   }, [session?.share_code]);
 
@@ -723,6 +699,42 @@ export default function OptimizedRestaurantPage() {
       {toast.visible && (
         <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
           <InlineAlert variant={toast.variant} title={toast.title} message={toast.message} />
+        </View>
+      )}
+
+      {/* Demande de participation */}
+      {pendingRequest && (
+        <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
+          <AlertWithAction
+            variant="info"
+            title="🔔 Nouvelle demande"
+            message={`${pendingRequest.name} souhaite rejoindre votre session.`}
+            primaryButton={{
+              text: '✅ Accepter',
+              variant: 'primary',
+              onPress: async () => {
+                const id = pendingRequest.id;
+                setPendingRequest(null);
+                try {
+                  await approveParticipant(id);
+                } catch {
+                  showToast('error', 'Erreur', "Impossible d'accepter la demande");
+                }
+              },
+            }}
+            secondaryButton={{
+              text: '❌ Refuser',
+              onPress: async () => {
+                const id = pendingRequest.id;
+                setPendingRequest(null);
+                try {
+                  await rejectParticipant(id);
+                } catch {
+                  showToast('error', 'Erreur', 'Impossible de refuser la demande');
+                }
+              },
+            }}
+          />
         </View>
       )}
 
