@@ -62,7 +62,8 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
         # Si authentifié, montrer aussi ses sessions
         if self.request.user.is_authenticated:
             queryset = queryset.filter(
-                Q(participants__user=self.request.user) |
+                Q(participants__user=self.request.user,
+                participants__status__in=['active', 'pending']) |
                 Q(host=self.request.user)
             ).distinct()
 
