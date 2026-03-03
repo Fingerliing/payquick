@@ -274,608 +274,605 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
                 session=session,
                 user=request.user
             ).first()
-            if existing:
-                if existing.status == 'active':
-                    # Déjà dans la session — retourner directement
-                    return Response({
-                        'message': 'Déjà dans la session',
-                        'participant': SessionParticipantSerializer(existing).data,
-                        'session': CollaborativeSessionSerializer(session, context={'request': request}).data,
-                        'requires_approval': False,
-                        'participant_id': str(existing.id),
-                    }, status=status.HTTP_200_OK)
-                elif existing.status == 'left':
-                    # Réactiver le participant existant
-                    existing.status = 'active' if not session.require_approval else 'pending'
-                    existing.left_at = None
-                    existing.save()
-                    participant = existing
-                    status_choice = existing.status
-                    # Sauter la création, aller directement à la notification
-                    try:
-                        if status_choice == 'active':
-                            notify_participant_joined(str(session.id), SessionParticipantSerializer(participant).data)
-                    except Exception as e:
-                        logger.warning(f"Notification rejoin échouée: {e}")
-                    return Response({
-                        'message': 'Rejoint à nouveau avec succès',
-                        'participant': SessionParticipantSerializer(participant).data,
-                        'session': CollaborativeSessionSerializer(session, context={'request': request}).data,
-                        'requires_approval': session.require_approval,
-                        'participant_id': str(participant.id),
-                    }, status=status.HTTP_200_OK)
-
-        # Créer le participant
-        status_choice = 'pending' if session.require_approval else 'active'
-        participant = SessionParticipant.objects.create(
-            session=session,
-            user=request.user if request.user.is_authenticated else None,
-            guest_name=serializer.validated_data.get('guest_name', ''),
-            guest_phone=serializer.validated_data.get('guest_phone', ''),
-            notes=serializer.validated_data.get('notes', ''),
-            status=status_choice,
-            role='member'
-        )
-
-        # 🔔 Notifier selon le statut
-        try:
-            if status_choice == 'active':
-                notify_participant_joined(
-                    str(session.id),
-                    SessionParticipantSerializer(participant).data
-                )
-            else:
-                # Participant en attente → notifier l'hôte via session_update
-                notify_session_update(
-                    str(session.id),
-                    {
-                        'event': 'participant_pending',
-                        'actor': serializer.validated_data.get('guest_name', 'Inconnu'),
-                        'data': {
-                            'participant': SessionParticipantSerializer(participant).data,
-                            'pending_count': SessionParticipant.objects.filter(
-                                session=session,
-                                status='pending'
-                            ).count()
-                        }
-                    }
-                )
-        except Exception as e:
-            logger.warning(f"Notification participant joined/pending échouée: {e}")
-
-        return Response({
-            'message': 'Rejoint avec succès' if status_choice == 'active' else 'En attente d\'approbation',
-            'participant': SessionParticipantSerializer(participant).data,
-            'session': CollaborativeSessionSerializer(session, context={'request': request}).data,
-            'requires_approval': session.require_approval
-        }, status=status.HTTP_201_CREATED)
-
-    @extend_schema(
-        summary="Quitter une session"
-    )
-    @action(detail=True, methods=['post'])
-    def leave(self, request, pk=None):
-        """
-        Permet à un participant de quitter la session
-        """
-        session = self.get_object()
-
-        try:
-            # Trouver le participant
-            if request.user.is_authenticated:
-                participant = SessionParticipant.objects.get(
-                    session=session,
-                    user=request.user
-                )
-            else:
-                # Pour les invités, on peut utiliser un ID de participant
-                participant_id = request.data.get('participant_id')
-                if not participant_id:
-                    return Response({
-                        'error': 'participant_id requis'
-                    }, status=status.HTTP_400_BAD_REQUEST)
-
-                participant = SessionParticipant.objects.get(
-                    session=session,
-                    id=participant_id
-                )
-
-            # Vérifier que ce n'est pas l'hôte
-            if participant.is_host:
-                return Response({
-                    'error': "L'hôte ne peut pas quitter la session. Annulez-la ou transférez le rôle d'hôte."
-                }, status=status.HTTP_403_FORBIDDEN)
-
-            # Marquer comme parti
-            participant.status = 'left'
-            participant.left_at = timezone.now()
-            participant.save()
-
-            # 🔔 Notifier
-            try:
-                notify_participant_left(str(session.id), str(participant.id))
-            except Exception as e:
-                logger.warning(f"Notification participant left échouée: {e}")
-
-            return Response({
-                'message': 'Vous avez quitté la session',
-                'participant': SessionParticipantSerializer(participant).data
-            })
-
-        except SessionParticipant.DoesNotExist:
-            return Response({
-                'error': 'Participant non trouvé dans cette session'
-            }, status=status.HTTP_404_NOT_FOUND)
-
-    @extend_schema(
-        summary="Obtenir une session par son code"
-    )
-    @action(detail=False, methods=['get'])
-    def get_by_code(self, request):
-        """
-        Récupère une session par son code de partage
-        """
-        share_code = request.query_params.get('share_code')
-        if not share_code:
-            return Response({
-                'error': 'share_code requis'
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            session = CollaborativeTableSession.objects.get(
-                share_code=share_code
-            )
-            return Response(
-                CollaborativeSessionSerializer(
-                    session,
-                    context={'request': request}
-                ).data
-            )
-        except CollaborativeTableSession.DoesNotExist:
-            return Response({
-                'error': 'Session non trouvée'
-            }, status=status.HTTP_404_NOT_FOUND)
-
-    @extend_schema(
-        summary="Actions sur une session (lock, unlock, complete, cancel)"
-    )
-    @action(detail=True, methods=['post'])
-    def session_action(self, request, pk=None):
-        """
-        Effectue une action sur la session
-        AVEC archivage automatique après completion
-        """
-        session = self.get_object()
-        serializer = SessionActionSerializer(data=request.data)
-
-        if not serializer.is_valid():
-            return Response(
-                serializer.errors,
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        action_type = serializer.validated_data['action']
-        actor = self._actor_name(request)
-
-        try:
-            if action_type == 'lock':
-                session.lock_session()
-                message = 'Session verrouillée'
-                
-                # 🔔 Notifier
-                try:
-                    notify_session_locked(str(session.id))
-                except Exception as e:
-                    logger.warning(f"Notification lock échouée: {e}")
-
-            elif action_type == 'unlock':
-                session.unlock_session()
-                message = 'Session déverrouillée'
-                
-                # 🔔 Notifier
-                try:
-                    notify_session_unlocked(str(session.id))
-                except Exception as e:
-                    logger.warning(f"Notification unlock échouée: {e}")
-
-            elif action_type == 'complete':
-                # Vérifier que toutes les commandes sont payées
-                unpaid_orders = session.orders.exclude(
-                    payment_status='paid'
-                ).count()
-
-                if unpaid_orders > 0:
-                    return Response({
-                        'error': f'{unpaid_orders} commande(s) non payée(s)',
-                        'unpaid_count': unpaid_orders
-                    }, status=status.HTTP_400_BAD_REQUEST)
-
-                session.mark_completed()
-                
-                # 🔔 Notifier la completion
-                try:
-                    notify_session_completed(str(session.id))
-                except Exception as e:
-                    logger.warning(f"Notification completion échouée: {e}")
-                
-                # 🆕 ARCHIVAGE AUTOMATIQUE PROGRAMMÉ
-                # Programmer l'archivage dans 5 minutes
-                try:
-                    from celery import current_app
-                    current_app.send_task(
-                        'api.tasks.archive_session_delayed',
-                        args=[str(session.id)],
-                        countdown=300  # 5 minutes
-                    )
-                    logger.info(f"✅ Archivage programmé pour session {session.id} dans 5 minutes")
-                except Exception as e:
-                    logger.error(f"❌ Erreur programmation archivage: {e}")
-                
-                message = 'Session terminée (archivage automatique dans 5 minutes)'
-
-            elif action_type == 'cancel':
-                session.status = 'cancelled'
-                session.save()
-                
-                # 🆕 Archiver immédiatement les sessions annulées
-                try:
-                    session.archive(reason="Session annulée par l'utilisateur")
-                    
-                    # 🔔 Notifier l'archivage
-                    notify_session_archived(
-                        str(session.id),
-                        "Session annulée"
-                    )
-                except Exception as e:
-                    logger.error(f"Erreur lors de l'archivage de session annulée: {e}")
-                
-                message = 'Session annulée et archivée'
-
-            else:
-                return Response({
-                    'error': f'Action inconnue: {action_type}'
-                }, status=status.HTTP_400_BAD_REQUEST)
-
-            # 🔔 Émettre une mise à jour générique
-            self._notify_session_update(session, event=action_type, actor=actor)
-
-            return Response({
-                'message': message,
-                'session': CollaborativeSessionSerializer(
-                    session,
-                    context={'request': request}
-                ).data
-            })
-
-        except Exception as e:
-            logger.exception("Erreur session_action")
-            return Response({
-                'error': "Erreur lors de l'action",
-                'details': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    @extend_schema(
-        summary="Obtenir le résumé complet d'une session"
-    )
-    @action(detail=True, methods=['get'])
-    def summary(self, request, pk=None):
-        """
-        Retourne un résumé complet de la session avec toutes les commandes
-        """
-        session = self.get_object()
-
-        # Récupérer toutes les commandes de la session
-        orders = session.orders.select_related('participant').prefetch_related('items')
-
-        # Calculer la répartition des paiements
-        payment_breakdown = {}
-        for participant in session.participants.filter(status='active'):
-            participant_orders = orders.filter(participant=participant)
-            total = participant_orders.aggregate(
-                total=Sum('total_amount')
-            )['total'] or 0
-
-            payment_breakdown[str(participant.id)] = {
-                'name': participant.display_name,
-                'total': float(total),
-                'orders_count': participant_orders.count(),
-                'paid': participant_orders.filter(
-                    payment_status='paid'
-                ).count()
-            }
-
-        # Vérifier si on peut finaliser
-        can_finalize = (
-            session.status in ['active', 'locked'] and
-            orders.exclude(payment_status='paid').count() == 0
-        )
-
-        # Statistiques
-        stats = {
-            'total_participants': session.participant_count,
-            'total_orders': orders.count(),
-            'total_amount': float(session.total_amount),
-            'paid_orders': orders.filter(payment_status='paid').count(),
-            'pending_orders': orders.filter(payment_status='unpaid').count(),
-        }
-
-        return Response({
-            'session': CollaborativeSessionSerializer(
-                session, 
-                context={'request': request}
-            ).data,
-            'orders': SessionOrderSerializer(
-                orders, 
-                many=True, 
-                context={'request': request}
-            ).data,
-            'payment_breakdown': payment_breakdown,
-            'can_finalize': can_finalize,
-            'stats': stats
-        })
-
-    @extend_schema(
-        summary="Archiver manuellement une session"
-    )
-    @action(detail=True, methods=['post'])
-    def archive_session(self, request, pk=None):
-        """
-        🆕 Archive manuellement une session (libère la table)
-        Nécessite permissions (admin ou hôte)
-        """
-        session = self.get_object()
-        reason = request.data.get('reason', 'Archivage manuel')
-        
-        # Vérifier les permissions (admin ou hôte)
-        if not self._can_manage_session(request, session):
-            return Response({
-                'error': 'Non autorisé'
-            }, status=status.HTTP_403_FORBIDDEN)
-        
-        # Vérifier que la session peut être archivée
-        if not session.can_be_archived:
-            return Response({
-                'error': f'La session ne peut pas être archivée (statut: {session.status})',
-                'hint': 'Seules les sessions completed ou cancelled peuvent être archivées'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
-        if session.is_archived:
-            return Response({
-                'error': 'Session déjà archivée'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Archiver
-        try:
-            session.archive(reason=reason)
-            
-            # 🔔 Notifier
-            notify_session_archived(str(session.id), reason)
-            
-            logger.info(f"✅ Session {session.id} archivée manuellement par {self._actor_name(request)}")
-        except Exception as e:
-            logger.error(f"Erreur lors de l'archivage: {e}")
-            return Response({
-                'error': 'Erreur lors de l\'archivage',
-                'details': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-        return Response({
-            'message': 'Session archivée avec succès',
-            'session': CollaborativeSessionSerializer(
-                session,
-                context={'request': request}
-            ).data
-        })
-
-    # ==============================
-    # Utilitaires de notification
-    # ==============================
-    def _actor_name(self, request):
-        """Récupère le nom de l'acteur depuis la requête"""
-        if request.user.is_authenticated:
-            return getattr(request.user, 'username', None) or getattr(request.user, 'email', None) or f"User {request.user.id}"
-        return 'Invité'
-
-    def _notify_session_update(self, session, event='update', actor=None):
-        """Émet une notification générique de mise à jour de session"""
-        try:
-            payload = {
-                'event': event,
-                'actor': actor,
-                'session': CollaborativeSessionSerializer(session, context={'request': self.request}).data
-            }
-            notify_session_update(str(session.id), payload)
-            logger.info(f"✅ Session update notified: {event} by {actor}")
-        except Exception as e:
-            logger.warning(f"⚠️ Notif session_update échouée: {e}")
-
-    def _get_cannot_join_reason(self, session):
-        """Retourne la raison pour laquelle on ne peut pas rejoindre"""
-        if session.status == 'completed':
-            return 'Session terminée'
-        elif session.status == 'cancelled':
-            return 'Session annulée'
-        elif session.status == 'locked' and not session.allow_join_after_lock:
-            return 'Session verrouillée'
-        elif session.is_full:
-            return 'Session complète'
-        return 'Session non disponible'
-
-    # ==============================
-    # HELPER METHODS
-    # ==============================
-    def _can_manage_session(self, request, session):
-        """Vérifie si l'utilisateur peut gérer la session"""
-        # Super admin
-        if request.user.is_staff:
-            return True
-        
-        # Propriétaire du restaurant
-        if hasattr(request.user, 'restaurateur_profile'):
-            if session.restaurant in request.user.restaurateur_profile.restaurants.all():
-                return True
-        
-        # Hôte de la session
-        if request.user.is_authenticated and session.host == request.user:
-            return True
-        
-        return False
-
-    @action(detail=True, methods=['get'])
-    def cart(self, request, pk=None):
-        """
-        GET /api/sessions/{id}/cart/
-        Retourne le panier partagé complet de la session.
-        """
-        session = self.get_object()
-        items = session.cart_items.select_related(
-            'participant', 'menu_item'
-        )
-        serializer = SessionCartItemSerializer(items, many=True)
-        items_data = list(serializer.data)
-        total = float(sum(float(item.get('total_price', 0)) for item in items_data))
-        return Response({
-            'items': items_data,
-            'total': total,
-            'items_count': sum(int(item.get('quantity', 0)) for item in items_data),
-        })
-
-
-    @action(detail=True, methods=['post'])
-    def cart_add(self, request, pk=None):
-        """
-        POST /api/sessions/{id}/cart_add/
-        Ajoute un article au panier partagé.
-        Body: { menu_item, quantity, special_instructions, customizations }
-        """
-        session = self.get_object()
-
-        # Récupérer le participant courant
-        participant = self._get_current_participant(request, session)
-        if not participant:
-            return Response(
-                {'error': 'Participant introuvable dans cette session'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-        serializer = SessionCartItemSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        # Fusionner si l'article existe déjà pour ce participant
-        menu_item = serializer.validated_data['menu_item']
-        instructions = serializer.validated_data.get('special_instructions', '')
-
-        existing = session.cart_items.filter(
-            participant=participant,
-            menu_item=menu_item,
-            special_instructions=instructions,
-        ).first()
-
         if existing:
-            existing.quantity += serializer.validated_data.get('quantity', 1)
-            existing.customizations = {
-                **existing.customizations,
-                **serializer.validated_data.get('customizations', {})
-            }
-            existing.save()
-            item = existing
-        else:
-            item = SessionCartItem.objects.create(
-                session=session,
-                participant=participant,
-                **serializer.validated_data
+            if existing.status == 'active':
+                return Response({
+                    'message': 'Déjà dans la session',
+                    'participant': SessionParticipantSerializer(existing).data,
+                    'session': CollaborativeSessionSerializer(session, context={'request': request}).data,
+                    'requires_approval': False,
+                    'participant_id': str(existing.id),
+                }, status=status.HTTP_200_OK)
+            else:
+                # Couvre 'left', 'pending', 'rejected', 'kicked' — tout sauf 'active'
+                existing.status = 'active' if not session.require_approval else 'pending'
+                existing.left_at = None
+                existing.save()
+                participant = existing
+                status_choice = existing.status
+                try:
+                    if status_choice == 'active':
+                        notify_participant_joined(str(session.id), SessionParticipantSerializer(participant).data)
+                except Exception as e:
+                    logger.warning(f"Notification rejoin échouée: {e}")
+                return Response({
+                    'message': 'Rejoint à nouveau avec succès',
+                    'participant': SessionParticipantSerializer(participant).data,
+                    'session': CollaborativeSessionSerializer(session, context={'request': request}).data,
+                    'requires_approval': session.require_approval,
+                    'participant_id': str(participant.id),
+                }, status=status.HTTP_200_OK)
+                # Créer le participant
+                status_choice = 'pending' if session.require_approval else 'active'
+                participant = SessionParticipant.objects.create(
+                    session=session,
+                    user=request.user if request.user.is_authenticated else None,
+                    guest_name=serializer.validated_data.get('guest_name', ''),
+                    guest_phone=serializer.validated_data.get('guest_phone', ''),
+                    notes=serializer.validated_data.get('notes', ''),
+                    status=status_choice,
+                    role='member'
+                )
+
+                # 🔔 Notifier selon le statut
+                try:
+                    if status_choice == 'active':
+                        notify_participant_joined(
+                            str(session.id),
+                            SessionParticipantSerializer(participant).data
+                        )
+                    else:
+                        # Participant en attente → notifier l'hôte via session_update
+                        notify_session_update(
+                            str(session.id),
+                            {
+                                'event': 'participant_pending',
+                                'actor': serializer.validated_data.get('guest_name', 'Inconnu'),
+                                'data': {
+                                    'participant': SessionParticipantSerializer(participant).data,
+                                    'pending_count': SessionParticipant.objects.filter(
+                                        session=session,
+                                        status='pending'
+                                    ).count()
+                                }
+                            }
+                        )
+                except Exception as e:
+                    logger.warning(f"Notification participant joined/pending échouée: {e}")
+
+                return Response({
+                    'message': 'Rejoint avec succès' if status_choice == 'active' else 'En attente d\'approbation',
+                    'participant': SessionParticipantSerializer(participant).data,
+                    'session': CollaborativeSessionSerializer(session, context={'request': request}).data,
+                    'requires_approval': session.require_approval
+                }, status=status.HTTP_201_CREATED)
+
+            @extend_schema(
+                summary="Quitter une session"
             )
+            @action(detail=True, methods=['post'])
+            def leave(self, request, pk=None):
+                """
+                Permet à un participant de quitter la session
+                """
+                session = self.get_object()
 
-        # Broadcast WebSocket à tous les participants
-        _broadcast_cart_update(session)
+                try:
+                    # Trouver le participant
+                    if request.user.is_authenticated:
+                        participant = SessionParticipant.objects.get(
+                            session=session,
+                            user=request.user
+                        )
+                    else:
+                        # Pour les invités, on peut utiliser un ID de participant
+                        participant_id = request.data.get('participant_id')
+                        if not participant_id:
+                            return Response({
+                                'error': 'participant_id requis'
+                            }, status=status.HTTP_400_BAD_REQUEST)
 
-        return Response(
-            SessionCartItemSerializer(item).data,
-            status=status.HTTP_201_CREATED
-        )
+                        participant = SessionParticipant.objects.get(
+                            session=session,
+                            id=participant_id
+                        )
 
+                    # Vérifier que ce n'est pas l'hôte
+                    if participant.is_host:
+                        return Response({
+                            'error': "L'hôte ne peut pas quitter la session. Annulez-la ou transférez le rôle d'hôte."
+                        }, status=status.HTTP_403_FORBIDDEN)
 
-    @action(detail=True, methods=['patch'], url_path=r'cart_update/(?P<item_id>[^/.]+)')
-    def cart_update_item(self, request, pk=None, item_id=None):
-        """
-        PATCH /api/sessions/{id}/cart_update/{item_id}/
-        Met à jour la quantité ou les instructions d'un article.
-        """
-        session = self.get_object()
-        participant = self._get_current_participant(request, session)
+                    # Marquer comme parti
+                    participant.status = 'left'
+                    participant.left_at = timezone.now()
+                    participant.save()
 
-        try:
-            item = session.cart_items.get(id=item_id, participant=participant)
-        except SessionCartItem.DoesNotExist:
-            return Response(
-                {'error': 'Article introuvable'},
-                status=status.HTTP_404_NOT_FOUND
+                    # 🔔 Notifier
+                    try:
+                        notify_participant_left(str(session.id), str(participant.id))
+                    except Exception as e:
+                        logger.warning(f"Notification participant left échouée: {e}")
+
+                    return Response({
+                        'message': 'Vous avez quitté la session',
+                        'participant': SessionParticipantSerializer(participant).data
+                    })
+
+                except SessionParticipant.DoesNotExist:
+                    return Response({
+                        'error': 'Participant non trouvé dans cette session'
+                    }, status=status.HTTP_404_NOT_FOUND)
+
+            @extend_schema(
+                summary="Obtenir une session par son code"
             )
+            @action(detail=False, methods=['get'])
+            def get_by_code(self, request):
+                """
+                Récupère une session par son code de partage
+                """
+                share_code = request.query_params.get('share_code')
+                if not share_code:
+                    return Response({
+                        'error': 'share_code requis'
+                    }, status=status.HTTP_400_BAD_REQUEST)
 
-        quantity = request.data.get('quantity')
-        if quantity is not None:
-            if int(quantity) <= 0:
+                try:
+                    session = CollaborativeTableSession.objects.get(
+                        share_code=share_code
+                    )
+                    return Response(
+                        CollaborativeSessionSerializer(
+                            session,
+                            context={'request': request}
+                        ).data
+                    )
+                except CollaborativeTableSession.DoesNotExist:
+                    return Response({
+                        'error': 'Session non trouvée'
+                    }, status=status.HTTP_404_NOT_FOUND)
+
+            @extend_schema(
+                summary="Actions sur une session (lock, unlock, complete, cancel)"
+            )
+            @action(detail=True, methods=['post'])
+            def session_action(self, request, pk=None):
+                """
+                Effectue une action sur la session
+                AVEC archivage automatique après completion
+                """
+                session = self.get_object()
+                serializer = SessionActionSerializer(data=request.data)
+
+                if not serializer.is_valid():
+                    return Response(
+                        serializer.errors,
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+                action_type = serializer.validated_data['action']
+                actor = self._actor_name(request)
+
+                try:
+                    if action_type == 'lock':
+                        session.lock_session()
+                        message = 'Session verrouillée'
+                        
+                        # 🔔 Notifier
+                        try:
+                            notify_session_locked(str(session.id))
+                        except Exception as e:
+                            logger.warning(f"Notification lock échouée: {e}")
+
+                    elif action_type == 'unlock':
+                        session.unlock_session()
+                        message = 'Session déverrouillée'
+                        
+                        # 🔔 Notifier
+                        try:
+                            notify_session_unlocked(str(session.id))
+                        except Exception as e:
+                            logger.warning(f"Notification unlock échouée: {e}")
+
+                    elif action_type == 'complete':
+                        # Vérifier que toutes les commandes sont payées
+                        unpaid_orders = session.orders.exclude(
+                            payment_status='paid'
+                        ).count()
+
+                        if unpaid_orders > 0:
+                            return Response({
+                                'error': f'{unpaid_orders} commande(s) non payée(s)',
+                                'unpaid_count': unpaid_orders
+                            }, status=status.HTTP_400_BAD_REQUEST)
+
+                        session.mark_completed()
+                        
+                        # 🔔 Notifier la completion
+                        try:
+                            notify_session_completed(str(session.id))
+                        except Exception as e:
+                            logger.warning(f"Notification completion échouée: {e}")
+                        
+                        # 🆕 ARCHIVAGE AUTOMATIQUE PROGRAMMÉ
+                        # Programmer l'archivage dans 5 minutes
+                        try:
+                            from celery import current_app
+                            current_app.send_task(
+                                'api.tasks.archive_session_delayed',
+                                args=[str(session.id)],
+                                countdown=300  # 5 minutes
+                            )
+                            logger.info(f"✅ Archivage programmé pour session {session.id} dans 5 minutes")
+                        except Exception as e:
+                            logger.error(f"❌ Erreur programmation archivage: {e}")
+                        
+                        message = 'Session terminée (archivage automatique dans 5 minutes)'
+
+                    elif action_type == 'cancel':
+                        session.status = 'cancelled'
+                        session.save()
+                        
+                        # 🆕 Archiver immédiatement les sessions annulées
+                        try:
+                            session.archive(reason="Session annulée par l'utilisateur")
+                            
+                            # 🔔 Notifier l'archivage
+                            notify_session_archived(
+                                str(session.id),
+                                "Session annulée"
+                            )
+                        except Exception as e:
+                            logger.error(f"Erreur lors de l'archivage de session annulée: {e}")
+                        
+                        message = 'Session annulée et archivée'
+
+                    else:
+                        return Response({
+                            'error': f'Action inconnue: {action_type}'
+                        }, status=status.HTTP_400_BAD_REQUEST)
+
+                    # 🔔 Émettre une mise à jour générique
+                    self._notify_session_update(session, event=action_type, actor=actor)
+
+                    return Response({
+                        'message': message,
+                        'session': CollaborativeSessionSerializer(
+                            session,
+                            context={'request': request}
+                        ).data
+                    })
+
+                except Exception as e:
+                    logger.exception("Erreur session_action")
+                    return Response({
+                        'error': "Erreur lors de l'action",
+                        'details': str(e)
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            @extend_schema(
+                summary="Obtenir le résumé complet d'une session"
+            )
+            @action(detail=True, methods=['get'])
+            def summary(self, request, pk=None):
+                """
+                Retourne un résumé complet de la session avec toutes les commandes
+                """
+                session = self.get_object()
+
+                # Récupérer toutes les commandes de la session
+                orders = session.orders.select_related('participant').prefetch_related('items')
+
+                # Calculer la répartition des paiements
+                payment_breakdown = {}
+                for participant in session.participants.filter(status='active'):
+                    participant_orders = orders.filter(participant=participant)
+                    total = participant_orders.aggregate(
+                        total=Sum('total_amount')
+                    )['total'] or 0
+
+                    payment_breakdown[str(participant.id)] = {
+                        'name': participant.display_name,
+                        'total': float(total),
+                        'orders_count': participant_orders.count(),
+                        'paid': participant_orders.filter(
+                            payment_status='paid'
+                        ).count()
+                    }
+
+                # Vérifier si on peut finaliser
+                can_finalize = (
+                    session.status in ['active', 'locked'] and
+                    orders.exclude(payment_status='paid').count() == 0
+                )
+
+                # Statistiques
+                stats = {
+                    'total_participants': session.participant_count,
+                    'total_orders': orders.count(),
+                    'total_amount': float(session.total_amount),
+                    'paid_orders': orders.filter(payment_status='paid').count(),
+                    'pending_orders': orders.filter(payment_status='unpaid').count(),
+                }
+
+                return Response({
+                    'session': CollaborativeSessionSerializer(
+                        session, 
+                        context={'request': request}
+                    ).data,
+                    'orders': SessionOrderSerializer(
+                        orders, 
+                        many=True, 
+                        context={'request': request}
+                    ).data,
+                    'payment_breakdown': payment_breakdown,
+                    'can_finalize': can_finalize,
+                    'stats': stats
+                })
+
+            @extend_schema(
+                summary="Archiver manuellement une session"
+            )
+            @action(detail=True, methods=['post'])
+            def archive_session(self, request, pk=None):
+                """
+                🆕 Archive manuellement une session (libère la table)
+                Nécessite permissions (admin ou hôte)
+                """
+                session = self.get_object()
+                reason = request.data.get('reason', 'Archivage manuel')
+                
+                # Vérifier les permissions (admin ou hôte)
+                if not self._can_manage_session(request, session):
+                    return Response({
+                        'error': 'Non autorisé'
+                    }, status=status.HTTP_403_FORBIDDEN)
+                
+                # Vérifier que la session peut être archivée
+                if not session.can_be_archived:
+                    return Response({
+                        'error': f'La session ne peut pas être archivée (statut: {session.status})',
+                        'hint': 'Seules les sessions completed ou cancelled peuvent être archivées'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+                if session.is_archived:
+                    return Response({
+                        'error': 'Session déjà archivée'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Archiver
+                try:
+                    session.archive(reason=reason)
+                    
+                    # 🔔 Notifier
+                    notify_session_archived(str(session.id), reason)
+                    
+                    logger.info(f"✅ Session {session.id} archivée manuellement par {self._actor_name(request)}")
+                except Exception as e:
+                    logger.error(f"Erreur lors de l'archivage: {e}")
+                    return Response({
+                        'error': 'Erreur lors de l\'archivage',
+                        'details': str(e)
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
+                return Response({
+                    'message': 'Session archivée avec succès',
+                    'session': CollaborativeSessionSerializer(
+                        session,
+                        context={'request': request}
+                    ).data
+                })
+
+            # ==============================
+            # Utilitaires de notification
+            # ==============================
+            def _actor_name(self, request):
+                """Récupère le nom de l'acteur depuis la requête"""
+                if request.user.is_authenticated:
+                    return getattr(request.user, 'username', None) or getattr(request.user, 'email', None) or f"User {request.user.id}"
+                return 'Invité'
+
+            def _notify_session_update(self, session, event='update', actor=None):
+                """Émet une notification générique de mise à jour de session"""
+                try:
+                    payload = {
+                        'event': event,
+                        'actor': actor,
+                        'session': CollaborativeSessionSerializer(session, context={'request': self.request}).data
+                    }
+                    notify_session_update(str(session.id), payload)
+                    logger.info(f"✅ Session update notified: {event} by {actor}")
+                except Exception as e:
+                    logger.warning(f"⚠️ Notif session_update échouée: {e}")
+
+            def _get_cannot_join_reason(self, session):
+                """Retourne la raison pour laquelle on ne peut pas rejoindre"""
+                if session.status == 'completed':
+                    return 'Session terminée'
+                elif session.status == 'cancelled':
+                    return 'Session annulée'
+                elif session.status == 'locked' and not session.allow_join_after_lock:
+                    return 'Session verrouillée'
+                elif session.is_full:
+                    return 'Session complète'
+                return 'Session non disponible'
+
+            # ==============================
+            # HELPER METHODS
+            # ==============================
+            def _can_manage_session(self, request, session):
+                """Vérifie si l'utilisateur peut gérer la session"""
+                # Super admin
+                if request.user.is_staff:
+                    return True
+                
+                # Propriétaire du restaurant
+                if hasattr(request.user, 'restaurateur_profile'):
+                    if session.restaurant in request.user.restaurateur_profile.restaurants.all():
+                        return True
+                
+                # Hôte de la session
+                if request.user.is_authenticated and session.host == request.user:
+                    return True
+                
+                return False
+
+            @action(detail=True, methods=['get'])
+            def cart(self, request, pk=None):
+                """
+                GET /api/sessions/{id}/cart/
+                Retourne le panier partagé complet de la session.
+                """
+                session = self.get_object()
+                items = session.cart_items.select_related(
+                    'participant', 'menu_item'
+                )
+                serializer = SessionCartItemSerializer(items, many=True)
+                items_data = list(serializer.data)
+                total = float(sum(float(item.get('total_price', 0)) for item in items_data))
+                return Response({
+                    'items': items_data,
+                    'total': total,
+                    'items_count': sum(int(item.get('quantity', 0)) for item in items_data),
+                })
+
+
+            @action(detail=True, methods=['post'])
+            def cart_add(self, request, pk=None):
+                """
+                POST /api/sessions/{id}/cart_add/
+                Ajoute un article au panier partagé.
+                Body: { menu_item, quantity, special_instructions, customizations }
+                """
+                session = self.get_object()
+
+                # Récupérer le participant courant
+                participant = self._get_current_participant(request, session)
+                if not participant:
+                    return Response(
+                        {'error': 'Participant introuvable dans cette session'},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+
+                serializer = SessionCartItemSerializer(data=request.data)
+                serializer.is_valid(raise_exception=True)
+
+                # Fusionner si l'article existe déjà pour ce participant
+                menu_item = serializer.validated_data['menu_item']
+                instructions = serializer.validated_data.get('special_instructions', '')
+
+                existing = session.cart_items.filter(
+                    participant=participant,
+                    menu_item=menu_item,
+                    special_instructions=instructions,
+                ).first()
+
+                if existing:
+                    existing.quantity += serializer.validated_data.get('quantity', 1)
+                    existing.customizations = {
+                        **existing.customizations,
+                        **serializer.validated_data.get('customizations', {})
+                    }
+                    existing.save()
+                    item = existing
+                else:
+                    item = SessionCartItem.objects.create(
+                        session=session,
+                        participant=participant,
+                        **serializer.validated_data
+                    )
+
+                # Broadcast WebSocket à tous les participants
+                _broadcast_cart_update(session)
+
+                return Response(
+                    SessionCartItemSerializer(item).data,
+                    status=status.HTTP_201_CREATED
+                )
+
+
+            @action(detail=True, methods=['patch'], url_path=r'cart_update/(?P<item_id>[^/.]+)')
+            def cart_update_item(self, request, pk=None, item_id=None):
+                """
+                PATCH /api/sessions/{id}/cart_update/{item_id}/
+                Met à jour la quantité ou les instructions d'un article.
+                """
+                session = self.get_object()
+                participant = self._get_current_participant(request, session)
+
+                try:
+                    item = session.cart_items.get(id=item_id, participant=participant)
+                except SessionCartItem.DoesNotExist:
+                    return Response(
+                        {'error': 'Article introuvable'},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+
+                quantity = request.data.get('quantity')
+                if quantity is not None:
+                    if int(quantity) <= 0:
+                        item.delete()
+                        _broadcast_cart_update(session)
+                        return Response(status=status.HTTP_204_NO_CONTENT)
+                    item.quantity = int(quantity)
+
+                if 'special_instructions' in request.data:
+                    item.special_instructions = request.data['special_instructions']
+                if 'customizations' in request.data:
+                    item.customizations = request.data['customizations']
+
+                item.save()
+                _broadcast_cart_update(session)
+                return Response(SessionCartItemSerializer(item).data)
+
+
+            @action(detail=True, methods=['delete'], url_path=r'cart_remove/(?P<item_id>[^/.]+)')
+            def cart_remove_item(self, request, pk=None, item_id=None):
+                """
+                DELETE /api/sessions/{id}/cart_remove/{item_id}/
+                Supprime un article du panier partagé.
+                """
+                session = self.get_object()
+                participant = self._get_current_participant(request, session)
+
+                try:
+                    item = session.cart_items.get(id=item_id, participant=participant)
+                except SessionCartItem.DoesNotExist:
+                    return Response(
+                        {'error': 'Article introuvable'},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+
                 item.delete()
                 _broadcast_cart_update(session)
                 return Response(status=status.HTTP_204_NO_CONTENT)
-            item.quantity = int(quantity)
-
-        if 'special_instructions' in request.data:
-            item.special_instructions = request.data['special_instructions']
-        if 'customizations' in request.data:
-            item.customizations = request.data['customizations']
-
-        item.save()
-        _broadcast_cart_update(session)
-        return Response(SessionCartItemSerializer(item).data)
 
 
-    @action(detail=True, methods=['delete'], url_path=r'cart_remove/(?P<item_id>[^/.]+)')
-    def cart_remove_item(self, request, pk=None, item_id=None):
-        """
-        DELETE /api/sessions/{id}/cart_remove/{item_id}/
-        Supprime un article du panier partagé.
-        """
-        session = self.get_object()
-        participant = self._get_current_participant(request, session)
-
-        try:
-            item = session.cart_items.get(id=item_id, participant=participant)
-        except SessionCartItem.DoesNotExist:
-            return Response(
-                {'error': 'Article introuvable'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        item.delete()
-        _broadcast_cart_update(session)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+            @action(detail=True, methods=['delete'])
+            def cart_clear(self, request, pk=None):
+                """
+                DELETE /api/sessions/{id}/cart_clear/
+                Vide les articles du participant courant dans le panier partagé.
+                """
+                session = self.get_object()
+                participant = self._get_current_participant(request, session)
+                session.cart_items.filter(participant=participant).delete()
+                _broadcast_cart_update(session)
+                return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-    @action(detail=True, methods=['delete'])
-    def cart_clear(self, request, pk=None):
-        """
-        DELETE /api/sessions/{id}/cart_clear/
-        Vide les articles du participant courant dans le panier partagé.
-        """
-        session = self.get_object()
-        participant = self._get_current_participant(request, session)
-        session.cart_items.filter(participant=participant).delete()
-        _broadcast_cart_update(session)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+            # ─── Helper privé ──────────────────────────────────────────────────────────
 
-
-    # ─── Helper privé ──────────────────────────────────────────────────────────
-
-    def _get_current_participant(self_view, request, session):
-        """Récupère le participant de la session pour l'utilisateur courant."""
-        from api.models import SessionParticipant
-        if request.user and request.user.is_authenticated:
-            return session.participants.filter(
-                user=request.user,
-                status='active'
-            ).first()
-        return None
+            def _get_current_participant(self_view, request, session):
+                """Récupère le participant de la session pour l'utilisateur courant."""
+                from api.models import SessionParticipant
+                if request.user and request.user.is_authenticated:
+                    return session.participants.filter(
+                        user=request.user,
+                        status='active'
+                    ).first()
+                return None
 
 
 # ─── Fonction utilitaire au niveau module ─────────────────────────────────────
