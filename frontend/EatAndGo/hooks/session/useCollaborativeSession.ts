@@ -5,13 +5,21 @@ import {
   SessionParticipant,
 } from '@/services/collaborativeSessionService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSessionWebSocket } from './useSessionWebSocket';
 
 // Clé globale utilisée par SessionContext — à connaître pour le fallback
 const GLOBAL_PARTICIPANT_ID_KEY = '@eatandgo_participant_id';
 
 interface UseCollaborativeSessionOptions {
   sessionId?: string;
+  /**
+   * @deprecated Le rafraîchissement est maintenant piloté par les événements
+   * WebSocket. Ce paramètre n'a plus d'effet.
+   */
   autoRefresh?: boolean;
+  /**
+   * @deprecated Idem — le polling par timer a été remplacé par les événements WebSocket.
+   */
   refreshInterval?: number;
   /**
    * ID du participant courant passé directement depuis SessionContext.
@@ -33,8 +41,6 @@ interface SessionState {
 export const useCollaborativeSession = (options: UseCollaborativeSessionOptions = {}) => {
   const {
     sessionId,
-    autoRefresh = true,
-    refreshInterval = 10000,
     externalParticipantId,
   } = options;
 
@@ -54,8 +60,10 @@ export const useCollaborativeSession = (options: UseCollaborativeSessionOptions 
     canManage: false,
   });
 
-  const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(true);
+
+  // WebSocket — une seule instance partagée par sessionId (singleton registry)
+  const { on } = useSessionWebSocket(sessionId ?? null);
 
   // Charger la session
   const loadSession = useCallback(async () => {
@@ -352,29 +360,41 @@ export const useCollaborativeSession = (options: UseCollaborativeSessionOptions 
     }
   }, [sessionId, loadSession]);
 
-  // Effet pour le rafraîchissement automatique
+  // Rafraîchissement piloté par les événements WebSocket
+  // On recharge la session depuis l'API à chaque événement significatif afin
+  // de garantir la cohérence des données (participants, statut, montants…).
   useEffect(() => {
-    if (!sessionId || !autoRefresh) return;
+    if (!sessionId) return;
 
-    intervalRef.current = setInterval(() => {
-      console.log('[AUTOREFREH] 🔄 Polling session:', sessionId);
+    const unsubJoined    = on('participant_joined',   () => loadSession());
+    const unsubLeft      = on('participant_left',     () => loadSession());
+    const unsubApproved  = on('participant_approved', () => loadSession());
+    const unsubLocked    = on('session_locked',       () => loadSession());
+    const unsubUnlocked  = on('session_unlocked',     () => loadSession());
+    const unsubCompleted = on('session_completed',    () => loadSession());
+
+    // session_update couvre les cas restants (participant_pending,
+    // participant_rejected, make_host, mises à jour de montant…)
+    const unsubUpdate = on('session_update', () => {
+      console.log('[WS] session_update → reload session');
       loadSession();
-    }, refreshInterval);
+    });
 
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
+      unsubJoined();
+      unsubLeft();
+      unsubApproved();
+      unsubLocked();
+      unsubUnlocked();
+      unsubCompleted();
+      unsubUpdate();
     };
-  }, [sessionId, autoRefresh, refreshInterval, loadSession]);
+  }, [sessionId, on, loadSession]);
 
   // Nettoyage à la destruction
   useEffect(() => {
     return () => {
       mountedRef.current = false;
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
     };
   }, []);
 
