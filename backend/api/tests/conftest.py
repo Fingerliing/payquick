@@ -1,63 +1,76 @@
 import pytest
-from rest_framework.test import APIClient
-from .factories import (
+from django.utils import timezone
+from datetime import timedelta
+from api.tests.factories import (
     UserFactory,
     RestaurateurProfileFactory,
     RestaurantFactory,
-    MenuFactory,
-    MenuItemFactory,
-    OrderFactory,
-    OrderItemFactory,
     TableFactory,
 )
 
-@pytest.fixture(autouse=True)
-def disable_throttling(settings):
-    settings.REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = []
-    settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {}
+
+def make_collaborative_session(restaurant, table, host_user):
+    """Helper pour créer une session collaborative active."""
+    from api.models import CollaborativeTableSession, SessionParticipant
+
+    session = CollaborativeTableSession.objects.create(
+        restaurant=restaurant,
+        table=table,
+        status='active',
+        is_archived=False,
+    )
+    SessionParticipant.objects.create(
+        session=session,
+        user=host_user,
+        role='host',
+        status='approved',
+    )
+    return session
+
 
 @pytest.fixture
-def api_client():
-    return APIClient()
+def host_user():
+    return UserFactory()
+
 
 @pytest.fixture
-def authenticated_client():
-    user = UserFactory()
-    client = APIClient()
-    client.force_authenticate(user=user)
-    return client
+def restaurateur_profile(host_user):
+    return RestaurateurProfileFactory(user=host_user)
+
 
 @pytest.fixture
-def restaurateur_user_factory():
-    def make_user(**kwargs):
-        profile = RestaurateurProfileFactory(**kwargs)
-        return profile.user
-    return make_user
+def restaurant(restaurateur_profile):
+    return RestaurantFactory(owner=restaurateur_profile)
+
 
 @pytest.fixture
-def restaurateur_profile_factory():
-    return RestaurateurProfileFactory
+def table(restaurant):
+    return TableFactory(restaurant=restaurant)
+
 
 @pytest.fixture
-def restaurant_factory():
-    return RestaurantFactory
+def collaborative_session(restaurant, table, host_user):
+    from api.models import CollaborativeTableSession
+    """Session collaborative active, mise à jour il y a 20 minutes (inactive)."""
+    session = make_collaborative_session(restaurant, table, host_user)
+    # Simuler inactivité de 20 minutes
+    CollaborativeTableSession = session.__class__
+    CollaborativeTableSession.objects.filter(pk=session.pk).update(
+        updated_at=timezone.now() - timedelta(minutes=20)
+    )
+    session.refresh_from_db()
+    return session
+
 
 @pytest.fixture
-def menu_factory():
-    return MenuFactory
+def another_collaborative_session(restaurant, table, host_user):
+    """Deuxième session sur une autre table, aussi inactive."""
+    from api.models import CollaborativeTableSession
 
-@pytest.fixture
-def menu_item_factory():
-    return MenuItemFactory
-
-@pytest.fixture
-def table_factory():
-    return TableFactory
-
-@pytest.fixture
-def order_factory():
-    return OrderFactory
-
-@pytest.fixture
-def order_item_factory():
-    return OrderItemFactory
+    table2 = TableFactory(restaurant=restaurant)
+    session = make_collaborative_session(restaurant, table2, host_user)
+    CollaborativeTableSession.objects.filter(pk=session.pk).update(
+        updated_at=timezone.now() - timedelta(minutes=20)
+    )
+    session.refresh_from_db()
+    return session

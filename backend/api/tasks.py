@@ -1,7 +1,7 @@
 from celery import shared_task
 from django.utils import timezone
 from datetime import timedelta
-from api.utils.websocket_notifications import notify_session_archived
+from api.utils.websocket_notifications import notify_session_archived, notify_session_completed
 import logging
 
 logger = logging.getLogger(__name__)
@@ -128,6 +128,52 @@ def auto_archive_eligible_sessions():
 
     except Exception as e:
         logger.exception("Erreur lors de l'archivage automatique")
+        return f"Erreur: {str(e)}"
+
+@shared_task(name='api.tasks.auto_complete_inactive_sessions')
+def auto_complete_inactive_sessions():
+    """
+    Complète automatiquement les sessions actives sans activité depuis 15 minutes.
+    Critère d'inactivité : champ updated_at de la session (mis à jour par Django auto_now).
+    S'exécute toutes les 5 minutes via Celery Beat.
+    """
+    from api.models import CollaborativeTableSession
+
+    logger.info("🔄 Vérification des sessions inactives...")
+
+    try:
+        inactivity_threshold = timezone.now() - timedelta(minutes=15)
+
+        inactive_sessions = CollaborativeTableSession.objects.filter(
+            status__in=['active', 'locked'],
+            is_archived=False,
+            updated_at__lt=inactivity_threshold
+        )
+
+        count = 0
+        for session in inactive_sessions:
+            try:
+                session.mark_completed()
+
+                try:
+                    notify_session_completed(str(session.id))
+                except Exception as e:
+                    logger.warning(f"Notification WebSocket échouée pour {session.id}: {e}")
+
+                # Programmer l'archivage dans 5 minutes
+                auto_archive_eligible_sessions.apply_async(countdown=300)
+
+                count += 1
+                logger.info(f"✅ Session {session.id} auto-complétée (inactivité >15min)")
+
+            except Exception as e:
+                logger.error(f"Erreur auto-completion session {session.id}: {e}")
+
+        logger.info(f"✅ {count} session(s) auto-complétée(s) pour inactivité")
+        return f"{count} session(s) auto-complétée(s)"
+
+    except Exception as e:
+        logger.exception("Erreur lors de l'auto-completion des sessions inactives")
         return f"Erreur: {str(e)}"
 
 @shared_task(name='api.tasks.cleanup_old_archived_sessions')

@@ -48,6 +48,10 @@ def setup_periodic_tasks(sender, **kwargs):
             'kwargs': {'hours': 1},
             'options': {'expires': 3600}
         },
+        'auto-complete-inactive-sessions': {
+            'task': 'api.tasks.auto_complete_inactive_sessions',
+            'schedule': crontab(minute='*/5'),  # Toutes les 5 minutes
+        },
         **COMPTABILITE_BEAT_SCHEDULE,
     }
 
