@@ -120,24 +120,31 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
       const trimmed = codeData.trim();
   
       // Détecter un share code de session (6 caractères alphanumériques)
-      // Format généré par generate_share_code() : 3 lettres + 3 chiffres ex: ABC123
       if (/^[A-Z0-9]{6}$/i.test(trimmed)) {
         try {
           const session = await collaborativeSessionService.getSessionByCode(
             trimmed.toUpperCase()
           );
           if (session) {
-            // C'est bien un share code → ouvrir SessionJoinModal directement
+            const restaurantId = typeof session.restaurant === 'number'
+              ? session.restaurant
+              : parseInt(session.restaurant as any);
+  
+            await QRSessionUtils.saveSession({
+              restaurantId: restaurantId.toString(),
+              restaurantName: session.restaurant_name,
+              tableNumber: session.table_number,
+              originalCode: trimmed.toUpperCase(),
+              timestamp: Date.now(),
+            });
+  
             setShowCodeInput(false);
             setAccessCode('');
             setScannedData({
-              restaurantId: typeof session.restaurant === 'number'
-                ? session.restaurant
-                : parseInt(session.restaurant as any),
+              restaurantId,
               tableNumber: session.table_number,
               code: trimmed.toUpperCase(),
             });
-            // scannedData déclenche showSessionModal via le useEffect existant
             return;
           }
         } catch {

@@ -465,7 +465,7 @@ EmptyCart.displayName = 'EmptyCart';
 // ============================================================================
 
 export default function CartScreen() {
-  const { cart, removeFromCart, updateQuantity, clearCart, setTableNumber } = useCart();
+  const { cart, removeFromCart, updateQuantity, clearCart, setTableNumber, initializeFromQRSession } = useCart();
   const { isAuthenticated } = useAuth();
   const screenType = useScreenType();
   const styles = createResponsiveStyles(screenType);
@@ -484,6 +484,7 @@ export default function CartScreen() {
   useEffect(() => {
     const loadTableFromQR = async () => {
       try {
+        await initializeFromQRSession();
         const qrData = await QRSessionUtils.getSession();
         if (qrData?.tableNumber && !currentTableNumber) {
           setCurrentTableNumber(qrData.tableNumber);
@@ -522,9 +523,10 @@ export default function CartScreen() {
    */
   const buildCheckoutUrl = useCallback((sessionId?: string): string => {
     const params: string[] = [];
-    
-    if (cart.restaurantId) {
-      params.push(`restaurantId=${cart.restaurantId}`);
+  
+    const effectiveRestaurantId = cart.restaurantId ?? (isSessionMode ? ctxSession?.restaurant : undefined);
+    if (effectiveRestaurantId) {
+      params.push(`restaurantId=${effectiveRestaurantId}`);
     }
     if (currentTableNumber || cart.tableNumber) {
       params.push(`tableNumber=${currentTableNumber || cart.tableNumber}`);
@@ -532,13 +534,12 @@ export default function CartScreen() {
     if (sessionId) {
       params.push(`sessionId=${sessionId}`);
     }
-
+  
     const queryString = params.length > 0 ? `?${params.join('&')}` : '';
     const basePath = isAuthenticated ? '/order/checkout' : '/order/guest-checkout';
-    
+  
     return `${basePath}${queryString}`;
-  }, [cart.restaurantId, cart.tableNumber, currentTableNumber, isAuthenticated]);
-
+  }, [cart.restaurantId, cart.tableNumber, currentTableNumber, isAuthenticated, isSessionMode, ctxSession]);
   /**
    * Navigue vers la page de checkout
    */
@@ -612,15 +613,18 @@ export default function CartScreen() {
     const hasItems = isSessionMode
       ? sessionCart.items_count > 0
       : cart.items.length > 0;
-
+  
     if (!hasItems) {
       showError('Votre panier est vide. Ajoutez des articles pour continuer.');
       return;
     }
-    if (!cart.restaurantId) {
+  
+    const effectiveRestaurantId = cart.restaurantId ?? (isSessionMode ? ctxSession?.restaurant : undefined);
+    if (!effectiveRestaurantId) {
       showError('Restaurant non trouvé. Veuillez scanner à nouveau le QR code.');
       return;
     }
+  
     try {
       setIsCreatingOrder(true);
       navigateToCheckout(isSessionMode ? ctxSessionId : undefined);
@@ -629,7 +633,7 @@ export default function CartScreen() {
     } finally {
       setIsCreatingOrder(false);
     }
-  }, [isSessionMode, sessionCart.items_count, cart.items.length, cart.restaurantId, ctxSessionId, navigateToCheckout, showError]);
+  }, [isSessionMode, sessionCart.items_count, cart.items.length, cart.restaurantId, ctxSession, ctxSessionId, navigateToCheckout, showError]);
 
   // ============================================================================
   // MEMOIZED VALUES

@@ -34,6 +34,7 @@ import {
 } from '@/utils/designSystem';
 import type { CollaborativeSession } from '@/contexts/SessionContext';
 import { useSessionWebSocket } from '@/hooks/session/useSessionWebSocket';
+import { QRSessionUtils } from '@/utils/qrSessionUtils';
 
 // =============================================================================
 // COMPOSANT : POLLING D'APPROBATION
@@ -350,6 +351,14 @@ export default function ClientHome() {
         setPendingModalVisible(true);
         return;
       }
+
+      await QRSessionUtils.saveSession({
+        restaurantId: found.restaurant.toString(),
+        restaurantName: found.restaurant_name,
+        tableNumber: found.table_number,
+        originalCode: trimmed,
+        timestamp: Date.now(),
+      });
 
       router.push({
         pathname: `/menu/client/${found.restaurant}` as any,
