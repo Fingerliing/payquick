@@ -49,9 +49,6 @@ export default function CheckoutScreen() {
   const [customerName, setCustomerName] = useState(user?.first_name || '');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [effectiveTableNumber, setEffectiveTableNumber] = useState(
-    tableNumber || cart.tableNumber || ''
-  );
 
   // 🔔 Toast / Alert custom
   const [toast, setToast] = useState<{
@@ -73,6 +70,10 @@ export default function CheckoutScreen() {
   const { session, participantId: ctxParticipantId } = useSession();
   const isSessionMode = !!session && !!sessionId;
 
+  const [effectiveTableNumber, setEffectiveTableNumber] = useState(
+    tableNumber || cart.tableNumber || session?.table_number || ''
+  );
+
   // Panier partagé en mode session
   const sessionCart = useSessionCart({
     sessionId: session?.id,
@@ -88,13 +89,13 @@ export default function CheckoutScreen() {
   useEffect(() => {
     const loadQRSession = async () => {
       const qrData = await QRSessionUtils.getSession();
-      if (qrData?.tableNumber && !effectiveTableNumber) {
-        setEffectiveTableNumber(qrData.tableNumber);
-        setTableNumber(qrData.tableNumber);
+      const resolved = qrData?.tableNumber || session?.table_number;
+      if (resolved && !effectiveTableNumber) {
+        setEffectiveTableNumber(resolved);
+        setTableNumber(resolved);
       }
     };
     loadQRSession();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Validation du panier
@@ -105,7 +106,7 @@ export default function CheckoutScreen() {
   };
 
   const getEffectiveTableNumber = () => {
-    return effectiveTableNumber || tableNumber || cart.tableNumber || '';
+    return effectiveTableNumber || tableNumber || cart.tableNumber || session?.table_number || '';
   };
 
   // Validation

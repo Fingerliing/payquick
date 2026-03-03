@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   View, 
   Text, 
@@ -15,16 +15,22 @@ import { prepareGuestOrder, confirmGuestCash, getDraftStatus } from "@/services/
 import { initPaymentSheet, presentPaymentSheet } from "@stripe/stripe-react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useCart } from "@/contexts/CartContext";
+import { useSession } from "@/contexts/SessionContext";
+import { QRSessionUtils } from "@/utils/qrSessionUtils";
 import { Header } from "@/components/ui/Header";
 import { Card } from "@/components/ui/Card";
 import { Alert as InlineAlert } from "@/components/ui/Alert";
 
 export default function GuestCheckoutScreen() {
   const router = useRouter();
-  const { restaurantId, tableNumber } = useLocalSearchParams<{
-    restaurantId: string; 
+  const { restaurantId, tableNumber: tableNumberParam, sessionId } = useLocalSearchParams<{
+    restaurantId: string;
     tableNumber?: string;
+    sessionId?: string;
   }>();
+
+  const { cart, clearCart } = useCart();
+  const { session } = useSession();
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -33,7 +39,22 @@ export default function GuestCheckoutScreen() {
   const [method, setMethod] = useState<"online" | "cash">("online");
   const [loading, setLoading] = useState(false);
 
-  const { cart, clearCart } = useCart();
+  // ✅ FIX : résolution du tableNumber depuis plusieurs sources
+  const [resolvedTableNumber, setResolvedTableNumber] = useState(
+    tableNumberParam || cart.tableNumber || session?.table_number || ''
+  );
+
+  useEffect(() => {
+    if (resolvedTableNumber) return; // déjà résolu, pas besoin d'aller chercher
+    const resolve = async () => {
+      const qrData = await QRSessionUtils.getSession();
+      const resolved = qrData?.tableNumber || session?.table_number;
+      if (resolved) {
+        setResolvedTableNumber(resolved);
+      }
+    };
+    resolve();
+  }, []);
 
   const [toast, setToast] = useState<{
     visible: boolean;
@@ -141,6 +162,12 @@ export default function GuestCheckoutScreen() {
       return;
     }
 
+    // ✅ FIX : vérifier que le tableNumber est bien résolu avant de soumettre
+    if (!resolvedTableNumber) {
+      showToast("error", "Numéro de table introuvable. Veuillez scanner à nouveau le QR code.", "Table manquante");
+      return;
+    }
+
     try {
       for (const item of cart.items) {
         const menuItemId = Number(item.menuItemId || item.id);
@@ -158,7 +185,7 @@ export default function GuestCheckoutScreen() {
     try {
       const payload = {
         restaurant_id: Number(restaurantId),
-        table_number: tableNumber,
+        table_number: resolvedTableNumber, // ✅ FIX : utiliser resolvedTableNumber
         items,
         customer_name: name.trim(),
         phone: phone.replace(/[\s.-]/g, ''),
@@ -251,9 +278,14 @@ export default function GuestCheckoutScreen() {
             <Text style={{ fontSize: 14, color: '#666', marginBottom: 8 }}>
               {cart.itemCount} {cart.itemCount > 1 ? 'articles' : 'article'} • {cart.total.toFixed(2)} €
             </Text>
-            {tableNumber && (
+            {/* ✅ FIX : afficher resolvedTableNumber */}
+            {resolvedTableNumber ? (
               <Text style={{ fontSize: 14, color: '#666' }}>
-                Table: {tableNumber}
+                Table : {resolvedTableNumber}
+              </Text>
+            ) : (
+              <Text style={{ fontSize: 14, color: '#E53935' }}>
+                ⚠️ Table non détectée — veuillez scanner à nouveau le QR code
               </Text>
             )}
           </Card>
