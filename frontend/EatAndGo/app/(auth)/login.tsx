@@ -73,61 +73,77 @@ export default function LoginScreen() {
     return Object.keys(newErrors).length === 0;
   }, [formData.email, formData.password]);
 
-  // GESTION DES ERREURS
   const handleLoginError = (error: any) => {
     console.error('Login error:', error);
-  
+
     const status = error?.response?.status ?? error?.status;
     const code = error?.response?.data?.code ?? error?.code;
     const serverMessage = String(
-      error?.response?.data?.message ?? error?.message ?? ''
+      error?.response?.data?.detail ??
+      error?.response?.data?.message ??
+      error?.message ??
+      ''
     ).toLowerCase();
-  
+
     const show = (variant: 'success' | 'error' | 'warning' | 'info', title: string, msg: string) =>
       setCustomAlert({ variant, title, message: msg });
-  
-    // 👤 Aucun utilisateur avec cet email
+
     if (
       status === 404 ||
       code === 'USER_NOT_FOUND' ||
-      /user.*not.*found|no.*user|aucun.*utilisateur|unknown.*user/.test(serverMessage)
+      /user.*not.*found|no.*user|aucun.*utilisateur|unknown.*user|ressource.*non.*trouv|no.*account.*found/.test(serverMessage)
     ) {
-      setErrors(prev => ({ ...prev, email: 'Aucun utilisateur avec cet email' }));
-      show('error', 'Email inconnu', 'Aucun utilisateur avec cet email');
+      setErrors(prev => ({ ...prev, email: 'Aucun compte avec cet email' }));
+      show('error', 'Compte introuvable', 'Aucun compte associé à cet email.');
       return;
     }
-  
-    // 🔒 Mauvais mot de passe
+
     if (
       status === 401 || status === 400 ||
       code === 'INVALID_PASSWORD' || code === 'INVALID_CREDENTIALS' ||
-      /wrong.*password|invalid.*password|bad.*credentials|mot.*de.*passe.*(incorrect|invalide|erron)/.test(serverMessage)
+      /no.*active.*account|identifiant.*invalide|invalid.*credential|wrong.*password|invalid.*password|bad.*credentials|mot.*de.*passe.*(incorrect|invalide|erron)|donn.*es.*invalide|erreur.*lors.*connexion/.test(serverMessage)
     ) {
-      setErrors(prev => ({ ...prev, password: 'Mot de passe incorrect' }));
-      show('error', 'Mot de passe incorrect', 'Veuillez vérifier votre mot de passe.');
+      setErrors(prev => ({ ...prev, email: ' ', password: ' ' }));
+      show('error', 'Identifiants invalides', 'Email ou mot de passe incorrect. Veuillez réessayer.');
       return;
     }
-  
-    // ⏱️ Trop de tentatives
-    if (status === 429 || code === 'RATE_LIMITED') {
-      show('warning', 'Trop de tentatives', 'Réessayez dans quelques instants.');
+
+    if (
+      status === 403 ||
+      code === 'ACCOUNT_DISABLED' ||
+      /compte.*d.sactiv|account.*disabled|acc.s.*refus|permissions.*insuffisantes|profil.*restaurateur.*doit/.test(serverMessage)
+    ) {
+      show('warning', 'Accès refusé', 'Votre compte n\'est pas autorisé à se connecter. Contactez le support.');
       return;
     }
-  
-    // 🌐 Problème réseau
-    if (serverMessage.includes('network') || code === 'ERR_NETWORK') {
-      show('warning', 'Erreur de connexion', 'Vérifiez votre connexion internet.');
+
+    if (
+      status === 429 ||
+      code === 'RATE_LIMITED' ||
+      /trop.*tentatives|too.*many.*requests|rate.*limit/.test(serverMessage)
+    ) {
+      show('warning', 'Trop de tentatives', 'Trop de tentatives de connexion. Réessayez dans quelques instants.');
       return;
     }
-  
-    // 🛠️ Erreur serveur
-    if (typeof status === 'number' && status >= 500) {
-      show('error', 'Service indisponible', 'Réessayez plus tard.');
+
+    if (
+      code === 'ERR_NETWORK' ||
+      code === 'NETWORK_ERROR' ||
+      /network.*error|connexion.*impossible|failed.*fetch|r.seau.*indisponible/.test(serverMessage)
+    ) {
+      show('warning', 'Erreur de connexion', 'Vérifiez votre connexion internet et réessayez.');
       return;
     }
-  
-    // 🧩 Cas non mappé
-    show('error', 'Erreur', error?.response?.data?.message || error?.message || 'Une erreur est survenue');
+
+    if (
+      (typeof status === 'number' && status >= 500) ||
+      /erreur.*serveur|service.*indisponible|server.*error|internal.*error/.test(serverMessage)
+    ) {
+      show('error', 'Service indisponible', 'Le service est temporairement indisponible. Réessayez plus tard.');
+      return;
+    }
+
+    show('error', 'Erreur de connexion', error?.response?.data?.detail || error?.response?.data?.message || error?.message || 'Une erreur est survenue. Veuillez réessayer.');
   };
 
   // SOUMISSION AVEC FEEDBACK
