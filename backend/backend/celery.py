@@ -28,7 +28,7 @@ app.conf.update(
 @app.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
     """Import lazy après configuration Django complète"""
-    from api.tasks import COMPTABILITE_BEAT_SCHEDULE
+    # from api.tasks import COMPTABILITE_BEAT_SCHEDULE
 
     sender.conf.beat_schedule = {
         'auto-archive-sessions': {
@@ -52,7 +52,7 @@ def setup_periodic_tasks(sender, **kwargs):
             'task': 'api.tasks.auto_complete_inactive_sessions',
             'schedule': crontab(minute='*/5'),  # Toutes les 5 minutes
         },
-        **COMPTABILITE_BEAT_SCHEDULE,
+        # **COMPTABILITE_BEAT_SCHEDULE,
     }
 
 @app.task(bind=True, ignore_result=True)

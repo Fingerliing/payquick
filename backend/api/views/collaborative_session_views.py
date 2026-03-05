@@ -119,7 +119,7 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
                 is_archived=False  # Important: exclure les archivées
             )
 
-            STALE_SESSION_MINUTES = 30
+            STALE_SESSION_MINUTES = 5
             
             if existing_active_sessions.exists():
                 existing = existing_active_sessions.first()
@@ -347,63 +347,91 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
                     'requires_approval': session.require_approval
                 }, status=status.HTTP_201_CREATED)
 
-            @extend_schema(
-                summary="Quitter une session"
-            )
+            @extend_schema(summary="Quitter une session")
             @action(detail=True, methods=['post'])
             def leave(self, request, pk=None):
                 """
-                Permet à un participant de quitter la session
+                Permet à un participant de quitter la session.
+                - Si l'hôte est le seul participant restant : la session est auto-annulée.
+                - Si après le départ plus aucun actif : la session est auto-annulée.
                 """
-                session = self.get_object()
+                try:
+                    session = CollaborativeTableSession.objects.get(pk=pk)
+                except CollaborativeTableSession.DoesNotExist:
+                    return Response({'error': 'Session introuvable'}, status=status.HTTP_404_NOT_FOUND)
 
                 try:
-                    # Trouver le participant
                     if request.user.is_authenticated:
                         participant = SessionParticipant.objects.get(
                             session=session,
                             user=request.user
                         )
                     else:
-                        # Pour les invités, on peut utiliser un ID de participant
                         participant_id = request.data.get('participant_id')
                         if not participant_id:
-                            return Response({
-                                'error': 'participant_id requis'
-                            }, status=status.HTTP_400_BAD_REQUEST)
-
+                            return Response(
+                                {'error': 'participant_id requis'},
+                                status=status.HTTP_400_BAD_REQUEST
+                            )
                         participant = SessionParticipant.objects.get(
                             session=session,
                             id=participant_id
                         )
 
-                    # Vérifier que ce n'est pas l'hôte
+                    # Si l'hôte veut partir, on vérifie s'il est seul
                     if participant.is_host:
-                        return Response({
-                            'error': "L'hôte ne peut pas quitter la session. Annulez-la ou transférez le rôle d'hôte."
-                        }, status=status.HTTP_403_FORBIDDEN)
+                        remaining_members = session.participants.filter(
+                            status='active',
+                            role='member'
+                        ).count()
+                        if remaining_members > 0:
+                            return Response({
+                                'error': "L'hôte ne peut pas quitter une session avec des participants actifs. "
+                                        "Annulez-la, transférez le rôle d'hôte, ou attendez que tout le monde parte."
+                            }, status=status.HTTP_403_FORBIDDEN)
+                        # Dernier dans la session → on laisse partir et on annule
 
                     # Marquer comme parti
                     participant.status = 'left'
                     participant.left_at = timezone.now()
                     participant.save()
 
-                    # 🔔 Notifier
+                    # 🔔 Notifier le départ
                     try:
                         notify_participant_left(str(session.id), str(participant.id))
                     except Exception as e:
                         logger.warning(f"Notification participant left échouée: {e}")
 
+                    # ── Auto-annulation si plus personne d'actif ──────────────────────
+                    remaining_active = session.participants.filter(status='active').count()
+                    session_auto_cancelled = False
+
+                    if remaining_active == 0 and session.status in ['active', 'locked']:
+                        CollaborativeTableSession.objects.filter(id=session.id).update(
+                            status='cancelled'
+                        )
+                        session.refresh_from_db()
+                        session_auto_cancelled = True
+                        logger.info(
+                            f"Session {session.id} auto-annulée : plus aucun participant actif"
+                        )
+                        try:
+                            notify_session_completed(str(session.id))
+                        except Exception as e:
+                            logger.warning(f"Notification auto-cancel échouée: {e}")
+
                     return Response({
                         'message': 'Vous avez quitté la session',
-                        'participant': SessionParticipantSerializer(participant).data
+                        'participant': SessionParticipantSerializer(participant).data,
+                        'session_auto_cancelled': session_auto_cancelled,
                     })
 
                 except SessionParticipant.DoesNotExist:
-                    return Response({
-                        'error': 'Participant non trouvé dans cette session'
-                    }, status=status.HTTP_404_NOT_FOUND)
-
+                    return Response(
+                        {'error': 'Participant non trouvé dans cette session'},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+                    
             @extend_schema(
                 summary="Obtenir une session par son code"
             )

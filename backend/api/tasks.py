@@ -226,7 +226,7 @@ def force_archive_abandoned_sessions(hours=12):
         abandoned_sessions = CollaborativeTableSession.objects.filter(
             status__in=['active', 'locked'],
             is_archived=False,
-            created_at__lt=cutoff_time
+            updated_at__lt=cutoff_time
         )
 
         count = 0
