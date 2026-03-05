@@ -533,20 +533,11 @@ class InitiateRegistrationSerializer(serializers.Serializer):
     
     def validate(self, data):
         # Validation selon le rôle
-        if data['role'] == 'client':
-            if not data.get('telephone'):
-                raise serializers.ValidationError({
-                    'telephone': 'Le téléphone est obligatoire pour les clients.'
-                })
-        elif data['role'] == 'restaurateur':
+        # Le téléphone est optionnel depuis le passage à la vérification par email.
+        if data['role'] == 'restaurateur':
             if not data.get('siret'):
                 raise serializers.ValidationError({
                     'siret': 'Le SIRET est obligatoire pour les restaurateurs.'
-                })
-            # Pour les restaurateurs, on peut utiliser un numéro admin différent
-            if not data.get('telephone') and not data.get('admin_phone'):
-                raise serializers.ValidationError({
-                    'telephone': 'Un numéro de téléphone est requis pour la vérification.'
                 })
         
         return data

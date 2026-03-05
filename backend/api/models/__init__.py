@@ -61,6 +61,7 @@ from .payment_models import (
 
 # Authentication
 from .authentication_models import (
+    EmailVerification,
     PhoneVerification,
     PendingRegistration,
     cleanup_expired_registrations
@@ -135,6 +136,7 @@ __all__ = [
     'SplitPaymentPortion',
     
     # Authentication
+    'EmailVerification',
     'PhoneVerification',
     'PendingRegistration',
     'cleanup_expired_registrations',

@@ -13,9 +13,9 @@ from django.db import transaction, IntegrityError
 from drf_spectacular.utils import extend_schema
 import logging
 import random
-import string 
+import string
 
-from api.models import ClientProfile, RestaurateurProfile, Restaurant, Order, Menu, PendingRegistration  # ADD PendingRegistration
+from api.models import ClientProfile, RestaurateurProfile, Restaurant, Order, Menu, PendingRegistration
 from api.serializers import (
     RegisterSerializer,
     UserResponseSerializer,
@@ -24,9 +24,10 @@ from api.serializers import (
     ResendCodeSerializer
 )
 from api.throttles import RegisterThrottle
-from api.services.sms_service import sms_service
+from api.services.email_verification_service import email_verification_service
 
 logger = logging.getLogger(__name__)
+
 
 @extend_schema(
     tags=["Auth"],
@@ -59,86 +60,76 @@ class RegisterView(APIView):
     Accessible sans authentification.
     """
     throttle_classes = [RegisterThrottle]
-    
+
     def post(self, request):
         logger.info(f"Tentative d'inscription avec les données: {request.data}")
-        
+
         serializer = RegisterSerializer(data=request.data)
-        
-        # Vérifier la validité des données
+
         if not serializer.is_valid():
             logger.error(f"Erreurs de validation: {serializer.errors}")
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
+
         try:
-            # Créer l'utilisateur
             user = serializer.save()
             logger.info(f"Utilisateur créé avec succès: {user.username}")
-            
-            # Générer les tokens JWT
+
             refresh = RefreshToken.for_user(user)
             user_data = UserResponseSerializer(user).data
-            
+
             response_data = {
                 "access": str(refresh.access_token),
                 "refresh": str(refresh),
                 "user": user_data
             }
-            
+
             logger.info(f"Inscription réussie pour l'utilisateur: {user.username}")
             return Response(response_data, status=status.HTTP_201_CREATED)
-            
+
         except IntegrityError as e:
             logger.error(f"Erreur d'intégrité lors de l'inscription: {str(e)}")
             return Response(
-                {'email': ['Cet email est déjà utilisé.']}, 
+                {'email': ['Cet email est déjà utilisé.']},
                 status=status.HTTP_400_BAD_REQUEST
             )
         except Exception as e:
             logger.error(f"Erreur inattendue lors de l'inscription: {str(e)}")
             return Response(
-                {'error': 'Une erreur inattendue s\'est produite lors de l\'inscription.', 'detail': str(e)},
+                {'error': "Une erreur inattendue s'est produite lors de l'inscription.", 'detail': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+
 class RegisterViewDetailed(APIView):
-    """
-    Version avec gestion d'erreurs plus détaillée
-    """
+    """Version avec gestion d'erreurs plus détaillée"""
     throttle_classes = [RegisterThrottle]
-    
+
     def post(self, request):
         try:
             logger.info(f"Début de l'inscription - données reçues: {request.data}")
-            
-            # Validation des données
+
             serializer = RegisterSerializer(data=request.data)
-            
+
             if not serializer.is_valid():
                 logger.error(f"Erreurs de validation du serializer: {serializer.errors}")
                 return Response({
                     'error': 'Données invalides',
                     'details': serializer.errors
                 }, status=status.HTTP_400_BAD_REQUEST)
-            
-            # Vérification des données avant création
+
             validated_data = serializer.validated_data
             logger.info(f"Données validées: {validated_data}")
-            
-            # Vérifier si l'utilisateur existe déjà
-            from django.contrib.auth.models import User
+
             if User.objects.filter(username=validated_data['username']).exists():
                 logger.warning(f"Tentative d'inscription avec un email déjà utilisé: {validated_data['username']}")
                 return Response({
                     'error': 'Cet email est déjà utilisé.'
                 }, status=status.HTTP_400_BAD_REQUEST)
-            
-            # Créer l'utilisateur
+
             logger.info("Création de l'utilisateur...")
             user = serializer.save()
             logger.info(f"Utilisateur créé avec succès: {user.id} - {user.username}")
-            
-            # Vérifier que le profil a été créé
+
             role = validated_data.get('role')
             if role == 'client':
                 try:
@@ -154,41 +145,39 @@ class RegisterViewDetailed(APIView):
                 except RestaurateurProfile.DoesNotExist:
                     logger.error("Profil restaurateur non créé")
                     raise Exception("Échec de création du profil restaurateur")
-            
-            # Générer les tokens
+
             logger.info("Génération des tokens JWT...")
             refresh = RefreshToken.for_user(user)
-            
-            # Préparer les données utilisateur
+
             user_data = UserResponseSerializer(user).data
             logger.info(f"Données utilisateur sérialisées: {user_data}")
-            
+
             response_data = {
                 "access": str(refresh.access_token),
                 "refresh": str(refresh),
                 "user": user_data
             }
-            
+
             logger.info(f"Inscription terminée avec succès pour: {user.username}")
             return Response(response_data, status=status.HTTP_201_CREATED)
-            
+
         except IntegrityError as e:
             logger.error(f"Erreur d'intégrité: {str(e)}")
             return Response({
                 'error': 'Cet email est déjà utilisé.',
                 'detail': str(e)
             }, status=status.HTTP_400_BAD_REQUEST)
-            
+
         except Exception as e:
             logger.error(f"Erreur inattendue lors de l'inscription: {str(e)}")
-            logger.error(f"Type d'erreur: {type(e).__name__}")
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
-            
+
             return Response({
-                'error': 'Une erreur inattendue s\'est produite lors de l\'inscription.',
+                'error': "Une erreur inattendue s'est produite lors de l'inscription.",
                 'detail': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 @extend_schema(
     tags=["Auth"],
@@ -234,7 +223,6 @@ class RegisterViewDetailed(APIView):
 class MeView(APIView):
     """
     Retourne toutes les informations de l'utilisateur connecté avec son profil complet.
-    Adapté pour ClientProfile et RestaurateurProfile.
     """
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -242,12 +230,11 @@ class MeView(APIView):
     def get(self, request):
         try:
             user = request.user
-            
-            # Données de base de l'utilisateur
+
             user_data = {
                 'id': user.id,
                 'username': user.username,
-                'email': user.email or user.username,  # username est l'email
+                'email': user.email or user.username,
                 'first_name': user.first_name,
                 'is_active': user.is_active,
                 'is_staff': user.is_staff,
@@ -255,12 +242,10 @@ class MeView(APIView):
                 'date_joined': user.date_joined.isoformat(),
                 'last_login': user.last_login.isoformat() if user.last_login else None,
             }
-            
-            # Déterminer le rôle et récupérer le profil
+
             role = "unknown"
             profile_data = {}
-            
-            # Vérifier le profil client
+
             try:
                 client_profile = ClientProfile.objects.get(user=user)
                 role = "client"
@@ -272,8 +257,7 @@ class MeView(APIView):
                 }
             except ClientProfile.DoesNotExist:
                 pass
-            
-            # Vérifier le profil restaurateur
+
             try:
                 restaurateur_profile = RestaurateurProfile.objects.get(user=user)
                 role = "restaurateur"
@@ -290,28 +274,23 @@ class MeView(APIView):
                 }
             except RestaurateurProfile.DoesNotExist:
                 pass
-            
-            # Données spécifiques aux restaurateurs
+
             restaurants_data = []
             restaurateur_stats = {}
-            
+
             if role == "restaurateur":
                 try:
                     restaurateur_profile = RestaurateurProfile.objects.get(user=user)
                     restaurants = Restaurant.objects.filter(owner=restaurateur_profile)
-                    
-                    restaurants_data = []
+
                     for restaurant in restaurants:
-                        # Calculer les statistiques pour chaque restaurant
                         total_orders = Order.objects.filter(restaurant=restaurant).count()
                         pending_orders = Order.objects.filter(
-                            restaurant=restaurant, 
+                            restaurant=restaurant,
                             status='pending'
                         ).count()
-                        
-                        # Nombre de menus
                         menus_count = Menu.objects.filter(restaurant=restaurant).count()
-                        
+
                         restaurant_data = {
                             'id': restaurant.id,
                             'name': restaurant.name,
@@ -324,35 +303,25 @@ class MeView(APIView):
                             'created_at': restaurant.created_at if hasattr(restaurant, 'created_at') else None,
                         }
                         restaurants_data.append(restaurant_data)
-                    
-                    # Statistiques globales du restaurateur
-                    total_restaurants = len(restaurants_data)
-                    total_all_orders = sum([r['total_orders'] for r in restaurants_data])
-                    total_pending_orders = sum([r['pending_orders'] for r in restaurants_data])
-                    
+
                     restaurateur_stats = {
-                        'total_restaurants': total_restaurants,
-                        'total_orders': total_all_orders,
-                        'pending_orders': total_pending_orders,
+                        'total_restaurants': len(restaurants_data),
+                        'total_orders': sum(r['total_orders'] for r in restaurants_data),
+                        'pending_orders': sum(r['pending_orders'] for r in restaurants_data),
                         'active_restaurants': len([r for r in restaurants if hasattr(r, 'is_active') and r.is_active])
                     }
-                    
+
                 except RestaurateurProfile.DoesNotExist:
                     pass
-            
-            # Données spécifiques aux clients
+
             client_stats = {}
-            recent_orders = []
-            
+
             if role == "client":
-                # Pour les clients, on peut ajouter des statistiques si nécessaire
-                # Par exemple, commandes passées, restaurants favoris, etc.
                 client_stats = {
-                    'favorite_restaurants': [],  # À implémenter si vous avez ce système
-                    'total_orders': 0,  # À implémenter si les clients ont des commandes
+                    'favorite_restaurants': [],
+                    'total_orders': 0,
                 }
-            
-            # Permissions
+
             permissions_data = {
                 'is_staff': user.is_staff,
                 'is_superuser': user.is_superuser,
@@ -361,34 +330,32 @@ class MeView(APIView):
                 'groups': [group.name for group in user.groups.all()],
                 'user_permissions': [perm.codename for perm in user.user_permissions.all()],
             }
-            
-            # Rôles calculés
+
             roles_data = {
                 'is_client': role == "client",
                 'is_restaurateur': role == "restaurateur",
                 'is_staff': user.is_staff,
                 'is_admin': user.is_superuser,
                 'has_validated_profile': (
-                    role == "restaurateur" and 
+                    role == "restaurateur" and
                     profile_data.get('is_validated', False)
                 ) or role == "client"
             }
-            
-            # Assembler la réponse complète
+
             response_data = {
                 **user_data,
                 'role': role,
                 'profile': profile_data,
                 'restaurants': restaurants_data,
                 'stats': restaurateur_stats if role == "restaurateur" else client_stats,
-                'recent_orders': recent_orders,
+                'recent_orders': [],
                 'permissions': permissions_data,
                 'roles': roles_data,
                 'is_authenticated': True,
             }
-            
+
             return Response(response_data, status=status.HTTP_200_OK)
-            
+
         except Exception as e:
             return Response(
                 {
@@ -397,6 +364,7 @@ class MeView(APIView):
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
 
 @extend_schema(
     request={
@@ -427,18 +395,20 @@ class MeView(APIView):
 class LoginView(APIView):
     """
     Authentifie un utilisateur avec son username et mot de passe.
-    Retourne les tokens JWT s’il est valide.
-    Accessible sans authentification.
+    Retourne les tokens JWT s'il est valide.
     """
     authentication_classes = []
     permission_classes = []
+
     def post(self, request):
         username = request.data.get('username')
         password = request.data.get('password')
 
         if not username or not password:
-            return Response({"detail": "Nom d'utilisateur et mot de passe requis."},
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Nom d'utilisateur et mot de passe requis."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         user = authenticate(request, username=username, password=password)
 
@@ -449,13 +419,16 @@ class LoginView(APIView):
                 "refresh": str(refresh)
             })
         else:
-            return Response({"detail": "Identifiants invalides."},
-                            status=status.HTTP_401_UNAUTHORIZED)
+            return Response(
+                {"detail": "Identifiants invalides."},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
 
 @extend_schema(
     tags=["Auth"],
-    summary="Initier l'inscription client (Étape 1)",
-    description="Initie le processus d'inscription pour un client et envoie un code de vérification SMS.",
+    summary="Initier l'inscription (Étape 1)",
+    description="Initie le processus d'inscription et envoie un code de vérification par email.",
     request={
         'application/json': {
             'type': 'object',
@@ -464,7 +437,7 @@ class LoginView(APIView):
                     'type': 'string',
                     'format': 'email',
                     'example': 'user@example.com',
-                    'description': 'Email de l\'utilisateur (utilisé comme username)'
+                    'description': "Email de l'utilisateur (utilisé comme username)"
                 },
                 'password': {
                     'type': 'string',
@@ -479,123 +452,49 @@ class LoginView(APIView):
                 },
                 'role': {
                     'type': 'string',
-                    'enum': ['client'],
+                    'enum': ['client', 'restaurateur'],
                     'example': 'client',
-                    'description': 'Type de compte (fixé à client)'
                 },
                 'telephone': {
                     'type': 'string',
                     'example': '+33612345678',
-                    'description': 'Numéro de téléphone pour la vérification SMS'
+                    'description': 'Numéro de téléphone (optionnel)'
                 }
             },
-            'required': ['username', 'password', 'nom', 'role', 'telephone']
+            'required': ['username', 'password', 'nom', 'role']
         }
     },
     responses={
         201: {
             'type': 'object',
             'properties': {
-                'message': {
-                    'type': 'string',
-                    'example': 'Code de vérification envoyé avec succès.'
-                },
-                'registration_id': {
-                    'type': 'string',
-                    'format': 'uuid',
-                    'example': 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
-                    'description': 'ID de l\'inscription à utiliser pour la vérification'
-                },
-                'phone_number': {
-                    'type': 'string',
-                    'example': '5678',
-                    'description': 'Derniers 4 chiffres du numéro pour confirmation'
-                },
-                'expires_in': {
-                    'type': 'integer',
-                    'example': 600,
-                    'description': 'Durée de validité du code en secondes'
-                }
+                'message': {'type': 'string', 'example': 'Code de vérification envoyé avec succès.'},
+                'registration_id': {'type': 'string', 'format': 'uuid'},
+                'email': {'type': 'string', 'example': 'u***@example.com'},
+                'expires_in': {'type': 'integer', 'example': 600}
             }
         },
-        400: {
-            'description': 'Données invalides',
-            'content': {
-                'application/json': {
-                    'schema': {
-                        'type': 'object',
-                        'properties': {
-                            'error': {
-                                'type': 'string',
-                                'examples': [
-                                    'Cet email est déjà utilisé.',
-                                    'Numéro de téléphone requis pour la vérification.'
-                                ]
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        429: {
-            'description': 'Trop de tentatives',
-            'content': {
-                'application/json': {
-                    'schema': {
-                        'type': 'object',
-                        'properties': {
-                            'error': {
-                                'type': 'string',
-                                'example': 'Veuillez attendre avant de renvoyer un code.'
-                            },
-                            'retry_after': {
-                                'type': 'integer',
-                                'example': 60,
-                                'description': 'Temps d\'attente en secondes'
-                            },
-                            'registration_id': {
-                                'type': 'string',
-                                'format': 'uuid'
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        500: {
-            'description': 'Erreur serveur',
-            'content': {
-                'application/json': {
-                    'schema': {
-                        'type': 'object',
-                        'properties': {
-                            'error': {
-                                'type': 'string',
-                                'example': 'Impossible d\'envoyer le SMS. Veuillez réessayer.'
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        400: {'description': 'Données invalides'},
+        429: {'description': 'Trop de tentatives'},
+        500: {'description': 'Erreur serveur'}
     }
 )
 class InitiateRegistrationView(APIView):
     """
-    Étape 1 : Initie l'inscription et envoie le code SMS
-    Accessible sans authentification
+    Étape 1 : Initie l'inscription et envoie le code de vérification par email.
+    Accessible sans authentification.
     """
     authentication_classes = []
     permission_classes = []
-    
+
     def post(self, request):
         serializer = InitiateRegistrationSerializer(data=request.data)
-        
+
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
+
         data = serializer.validated_data
-        
+
         try:
             # Vérifier si un utilisateur existe déjà
             if User.objects.filter(username=data['username']).exists():
@@ -603,13 +502,13 @@ class InitiateRegistrationView(APIView):
                     {'error': 'Cet email est déjà utilisé.'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
+
             # Vérifier si une inscription est déjà en cours pour cet email
             existing = PendingRegistration.objects.filter(
                 email=data['username'],
                 is_verified=False
             ).first()
-            
+
             if existing and not existing.is_registration_expired():
                 if not existing.can_resend():
                     return Response({
@@ -617,19 +516,17 @@ class InitiateRegistrationView(APIView):
                         'retry_after': settings.SMS_RESEND_COOLDOWN_SECONDS,
                         'registration_id': str(existing.id)
                     }, status=status.HTTP_429_TOO_MANY_REQUESTS)
-                
-                # Réutiliser l'inscription existante mais générer un nouveau code
+
+                # Réutiliser l'inscription existante avec un nouveau code
                 pending = existing
                 pending.generate_code()
                 pending.last_resend_at = timezone.now()
-                pending.attempts = 0  # Reset attempts for new code
+                pending.attempts = 0
                 pending.save()
             else:
-                # Supprimer l'ancienne inscription si elle existe
                 if existing:
                     existing.delete()
-                
-                # Créer une nouvelle inscription en attente
+
                 pending = PendingRegistration.objects.create(
                     email=data['username'],
                     password_hash=make_password(data['password']),
@@ -642,50 +539,40 @@ class InitiateRegistrationView(APIView):
                 )
                 pending.generate_code()
                 pending.save()
-            
-            # Formater le numéro de téléphone
-            phone_number = pending.telephone if pending.role == 'client' else data.get('admin_phone', pending.telephone)
-            
-            if not phone_number:
-                return Response({
-                    'error': 'Numéro de téléphone requis pour la vérification.'
-                }, status=status.HTTP_400_BAD_REQUEST)
-            
-            try:
-                formatted_phone = sms_service.format_phone_number(phone_number)
-            except ValueError as e:
-                return Response({
-                    'error': str(e)
-                }, status=status.HTTP_400_BAD_REQUEST)
-            
-            # Envoyer le SMS
-            success = sms_service.send_verification_code(formatted_phone, pending.verification_code)
-            
+
+            # Envoyer le code par email
+            success = email_verification_service.send_verification_code(
+                pending.email,
+                pending.verification_code
+            )
+
             if success:
-                logger.info(f"Code de vérification envoyé à {formatted_phone} pour {pending.email}")
-                
+                logger.info(f"Code de vérification envoyé à {pending.email}")
+                masked_email = email_verification_service.mask_email(pending.email)
+
                 return Response({
                     'message': 'Code de vérification envoyé avec succès.',
                     'registration_id': str(pending.id),
-                    'phone_number': formatted_phone[-4:],  # Derniers 4 chiffres pour confirmation
+                    'email': masked_email,
                     'expires_in': settings.SMS_CODE_EXPIRY_MINUTES * 60
                 }, status=status.HTTP_201_CREATED)
             else:
                 pending.delete()
                 return Response({
-                    'error': 'Impossible d\'envoyer le SMS. Veuillez réessayer.'
+                    'error': "Impossible d'envoyer l'email de vérification. Veuillez réessayer."
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-                
+
         except Exception as e:
             logger.error(f"Erreur lors de l'initiation de l'inscription: {str(e)}")
             return Response({
-                'error': 'Une erreur est survenue lors de l\'inscription.'
+                'error': "Une erreur est survenue lors de l'inscription."
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 @extend_schema(
     tags=["Auth"],
-    summary="Vérifier le code SMS (Étape 2)",
-    description="Vérifie le code de vérification SMS et crée le compte utilisateur.",
+    summary="Vérifier le code email (Étape 2)",
+    description="Vérifie le code de vérification reçu par email et crée le compte utilisateur.",
     request={
         'application/json': {
             'type': 'object',
@@ -693,140 +580,44 @@ class InitiateRegistrationView(APIView):
                 'registration_id': {
                     'type': 'string',
                     'format': 'uuid',
-                    'example': 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
-                    'description': 'ID de l\'inscription reçu lors de l\'étape 1'
+                    'example': 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
                 },
                 'code': {
                     'type': 'string',
                     'pattern': '^[0-9]{6}$',
                     'example': '123456',
-                    'description': 'Code de vérification à 6 chiffres reçu par SMS'
+                    'description': 'Code de vérification à 6 chiffres reçu par email'
                 }
             },
             'required': ['registration_id', 'code']
         }
     },
     responses={
-        201: {
-            'type': 'object',
-            'properties': {
-                'message': {
-                    'type': 'string',
-                    'example': 'Compte créé avec succès.'
-                },
-                'user': {
-                    'type': 'object',
-                    'properties': {
-                        'id': {
-                            'type': 'integer',
-                            'example': 123
-                        },
-                        'username': {
-                            'type': 'string',
-                            'format': 'email',
-                            'example': 'user@example.com'
-                        },
-                        'nom': {
-                            'type': 'string',
-                            'example': 'Dupont'
-                        },
-                        'role': {
-                            'type': 'string',
-                            'enum': ['client', 'restaurateur'],
-                            'example': 'client'
-                        }
-                    }
-                },
-                'access': {
-                    'type': 'string',
-                    'description': 'Token JWT d\'accès'
-                },
-                'refresh': {
-                    'type': 'string',
-                    'description': 'Token JWT de rafraîchissement'
-                }
-            }
-        },
-        400: {
-            'description': 'Code incorrect ou données invalides',
-            'content': {
-                'application/json': {
-                    'schema': {
-                        'type': 'object',
-                        'properties': {
-                            'error': {
-                                'type': 'string',
-                                'examples': [
-                                    'Code incorrect.',
-                                    'Le code a expiré. Veuillez demander un nouveau code.'
-                                ]
-                            },
-                            'attempts_remaining': {
-                                'type': 'integer',
-                                'example': 2,
-                                'description': 'Nombre de tentatives restantes'
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        404: {
-            'description': 'Inscription non trouvée',
-            'content': {
-                'application/json': {
-                    'schema': {
-                        'type': 'object',
-                        'properties': {
-                            'error': {
-                                'type': 'string',
-                                'example': 'Inscription non trouvée ou déjà validée.'
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        429: {
-            'description': 'Trop de tentatives incorrectes',
-            'content': {
-                'application/json': {
-                    'schema': {
-                        'type': 'object',
-                        'properties': {
-                            'error': {
-                                'type': 'string',
-                                'example': 'Trop de tentatives incorrectes. Veuillez demander un nouveau code.'
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        500: {
-            'description': 'Erreur serveur'
-        }
+        201: {'description': 'Compte créé avec succès'},
+        400: {'description': 'Code incorrect ou expiré'},
+        404: {'description': 'Inscription non trouvée'},
+        429: {'description': 'Trop de tentatives'},
+        500: {'description': 'Erreur serveur'}
     }
 )
 class VerifyRegistrationView(APIView):
     """
-    Étape 2 : Vérifie le code SMS et crée le compte utilisateur
-    Accessible sans authentification
+    Étape 2 : Vérifie le code email et crée le compte utilisateur.
+    Accessible sans authentification.
     """
     authentication_classes = []
     permission_classes = []
-    
+
     def post(self, request):
         serializer = VerifyRegistrationSerializer(data=request.data)
-        
+
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
+
         registration_id = serializer.validated_data['registration_id']
         code = serializer.validated_data['code']
-        
+
         try:
-            # Récupérer l'inscription en attente
             try:
                 pending = PendingRegistration.objects.get(
                     id=registration_id,
@@ -836,61 +627,51 @@ class VerifyRegistrationView(APIView):
                 return Response({
                     'error': 'Inscription non trouvée ou déjà validée.'
                 }, status=status.HTTP_404_NOT_FOUND)
-            
-            # Vérifier l'expiration
+
             if pending.is_expired():
                 return Response({
                     'error': 'Le code a expiré. Veuillez demander un nouveau code.'
                 }, status=status.HTTP_400_BAD_REQUEST)
-            
-            # Vérifier le nombre de tentatives
+
             if pending.attempts >= settings.SMS_MAX_ATTEMPTS:
                 return Response({
                     'error': 'Trop de tentatives incorrectes. Veuillez demander un nouveau code.'
                 }, status=status.HTTP_429_TOO_MANY_REQUESTS)
-            
-            # Vérifier le code
+
             if pending.verification_code != code:
                 pending.increment_attempts()
                 return Response({
                     'error': 'Code incorrect.',
                     'attempts_remaining': settings.SMS_MAX_ATTEMPTS - pending.attempts
                 }, status=status.HTTP_400_BAD_REQUEST)
-            
-            # Code correct - créer le compte utilisateur
+
+            # Code correct — créer le compte
             with transaction.atomic():
-                # Marquer comme vérifié
                 pending.mark_verified()
-                
-                # Créer l'utilisateur
+
                 user = User.objects.create(
                     username=pending.email,
                     email=pending.email,
-                    password=pending.password_hash,  # Déjà hashé
+                    password=pending.password_hash,  # déjà hashé
                     first_name=pending.nom
                 )
-                
-                # Créer le profil selon le rôle
+
                 if pending.role == 'client':
                     ClientProfile.objects.create(
                         user=user,
-                        telephone=pending.telephone,
-                        phone_verified=True  # Marqué comme vérifié
+                        phone=pending.telephone or ''
                     )
                 elif pending.role == 'restaurateur':
                     RestaurateurProfile.objects.create(
                         user=user,
                         siret=pending.siret
                     )
-                
-                # Générer les tokens JWT
+
                 refresh = RefreshToken.for_user(user)
-                
-                # Supprimer l'inscription temporaire
                 pending.delete()
-                
+
                 logger.info(f"Compte créé avec succès pour {user.username}")
-                
+
                 return Response({
                     'message': 'Compte créé avec succès.',
                     'user': {
@@ -902,17 +683,18 @@ class VerifyRegistrationView(APIView):
                     'access': str(refresh.access_token),
                     'refresh': str(refresh)
                 }, status=status.HTTP_201_CREATED)
-                
+
         except Exception as e:
             logger.error(f"Erreur lors de la vérification du code: {str(e)}")
             return Response({
                 'error': 'Une erreur est survenue lors de la vérification.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
 @extend_schema(
     tags=["Auth"],
     summary="Renvoyer le code de vérification",
-    description="Renvoie un nouveau code de vérification SMS si le précédent a expiré ou a été perdu.",
+    description="Renvoie un nouveau code de vérification par email.",
     request={
         'application/json': {
             'type': 'object',
@@ -920,117 +702,36 @@ class VerifyRegistrationView(APIView):
                 'registration_id': {
                     'type': 'string',
                     'format': 'uuid',
-                    'example': 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
-                    'description': 'ID de l\'inscription reçu lors de l\'étape 1'
+                    'example': 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
                 }
             },
             'required': ['registration_id']
         }
     },
     responses={
-        200: {
-            'type': 'object',
-            'properties': {
-                'message': {
-                    'type': 'string',
-                    'example': 'Nouveau code envoyé avec succès.'
-                },
-                'expires_in': {
-                    'type': 'integer',
-                    'example': 600,
-                    'description': 'Durée de validité du nouveau code en secondes'
-                }
-            }
-        },
-        400: {
-            'description': 'Données invalides',
-            'content': {
-                'application/json': {
-                    'schema': {
-                        'type': 'object',
-                        'properties': {
-                            'error': {
-                                'type': 'string',
-                                'example': 'Numéro de téléphone invalide.'
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        404: {
-            'description': 'Inscription non trouvée',
-            'content': {
-                'application/json': {
-                    'schema': {
-                        'type': 'object',
-                        'properties': {
-                            'error': {
-                                'type': 'string',
-                                'example': 'Inscription non trouvée ou déjà validée.'
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        429: {
-            'description': 'Cooldown actif',
-            'content': {
-                'application/json': {
-                    'schema': {
-                        'type': 'object',
-                        'properties': {
-                            'error': {
-                                'type': 'string',
-                                'example': 'Veuillez attendre avant de renvoyer un code.'
-                            },
-                            'retry_after': {
-                                'type': 'integer',
-                                'example': 60,
-                                'description': 'Temps d\'attente en secondes avant de pouvoir renvoyer'
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        500: {
-            'description': 'Erreur lors de l\'envoi du SMS',
-            'content': {
-                'application/json': {
-                    'schema': {
-                        'type': 'object',
-                        'properties': {
-                            'error': {
-                                'type': 'string',
-                                'example': 'Impossible d\'envoyer le SMS. Veuillez réessayer.'
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        200: {'description': 'Nouveau code envoyé avec succès'},
+        404: {'description': 'Inscription non trouvée'},
+        429: {'description': 'Cooldown actif'},
+        500: {'description': "Erreur lors de l'envoi de l'email"}
     }
 )
 class ResendVerificationCodeView(APIView):
     """
-    Renvoie un code de vérification SMS
-    Accessible sans authentification
+    Renvoie un code de vérification par email.
+    Accessible sans authentification.
     """
     authentication_classes = []
     permission_classes = []
-    
+
     def post(self, request):
         serializer = ResendCodeSerializer(data=request.data)
-        
+
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
+
         registration_id = serializer.validated_data['registration_id']
-        
+
         try:
-            # Récupérer l'inscription en attente
             try:
                 pending = PendingRegistration.objects.get(
                     id=registration_id,
@@ -1040,32 +741,23 @@ class ResendVerificationCodeView(APIView):
                 return Response({
                     'error': 'Inscription non trouvée ou déjà validée.'
                 }, status=status.HTTP_404_NOT_FOUND)
-            
-            # Vérifier le cooldown
+
             if not pending.can_resend():
                 return Response({
                     'error': 'Veuillez attendre avant de renvoyer un code.',
                     'retry_after': settings.SMS_RESEND_COOLDOWN_SECONDS
                 }, status=status.HTTP_429_TOO_MANY_REQUESTS)
-            
-            # Générer un nouveau code
+
             pending.generate_code()
             pending.last_resend_at = timezone.now()
-            pending.attempts = 0  # Reset attempts
+            pending.attempts = 0
             pending.save()
-            
-            # Formater le numéro
-            phone_number = pending.telephone
-            try:
-                formatted_phone = sms_service.format_phone_number(phone_number)
-            except ValueError as e:
-                return Response({
-                    'error': str(e)
-                }, status=status.HTTP_400_BAD_REQUEST)
-            
-            # Envoyer le SMS
-            success = sms_service.send_verification_code(formatted_phone, pending.verification_code)
-            
+
+            success = email_verification_service.send_verification_code(
+                pending.email,
+                pending.verification_code
+            )
+
             if success:
                 return Response({
                     'message': 'Nouveau code envoyé avec succès.',
@@ -1073,9 +765,9 @@ class ResendVerificationCodeView(APIView):
                 }, status=status.HTTP_200_OK)
             else:
                 return Response({
-                    'error': 'Impossible d\'envoyer le SMS. Veuillez réessayer.'
+                    'error': "Impossible d'envoyer l'email. Veuillez réessayer."
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-                
+
         except Exception as e:
             logger.error(f"Erreur lors du renvoi du code: {str(e)}")
             return Response({

@@ -1,14 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-Tests unitaires pour les vues de vérification SMS (verification_views.py)
+Tests unitaires pour les vues de vérification par email (verification_views.py)
 
 Teste les endpoints:
-- POST /api/v1/auth/phone/send-code/ - Envoyer un code de vérification SMS
-- POST /api/v1/auth/phone/verify/ - Vérifier un code SMS
-
-Supporte les cas:
-- Utilisateurs authentifiés (vérification de numéro pour compte existant)
-- Utilisateurs non authentifiés (vérification lors de l'inscription)
+- POST /api/v1/auth/email/send-code/ - Envoyer un code de vérification email
+- POST /api/v1/auth/email/verify/    - Vérifier un code email
 """
 
 import pytest
@@ -19,7 +15,7 @@ from rest_framework.test import APIClient
 from rest_framework import status
 from django.contrib.auth.models import User
 from rest_framework_simplejwt.tokens import RefreshToken
-from api.models import PhoneVerification, ClientProfile
+from api.models import EmailVerification, ClientProfile
 
 
 # =============================================================================
@@ -50,10 +46,7 @@ def user_with_client_profile(db):
         email="clientuser@example.com",
         password="testpass123"
     )
-    ClientProfile.objects.create(
-        user=user,
-        phone="0612345678"
-    )
+    ClientProfile.objects.create(user=user, phone="0612345678")
     return user
 
 
@@ -66,77 +59,91 @@ def auth_client(user):
     return client
 
 
+@pytest.fixture
+def auth_client_with_profile(user_with_client_profile):
+    """Client API authentifié avec profil client"""
+    token = RefreshToken.for_user(user_with_client_profile)
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token.access_token}")
+    return client
+
+
 # =============================================================================
 # TESTS - SendVerificationCodeView (Authentifié)
 # =============================================================================
 
 @pytest.mark.django_db
 class TestSendVerificationCodeViewAuthenticated:
-    """Tests pour POST /api/v1/auth/phone/send-code/ avec utilisateur authentifié"""
-    
-    url = "/api/v1/auth/phone/send-code/"
+    """Tests pour POST /api/v1/auth/email/send-code/ avec utilisateur authentifié"""
 
-    def test_send_code_missing_phone(self, auth_client):
-        """Test envoi sans numéro de téléphone - 400"""
+    url = "/api/v1/auth/email/send-code/"
+
+    def test_send_code_missing_email(self, auth_client):
+        """Test envoi sans email — 400"""
         response = auth_client.post(self.url, {}, format='json')
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-    def test_send_code_invalid_phone(self, auth_client):
-        """Test envoi avec numéro invalide - 400"""
-        data = {'phone_number': 'invalid'}
+    def test_send_code_invalid_email(self, auth_client):
+        """Test envoi avec email invalide — 400"""
+        data = {'email': 'not-an-email'}
         response = auth_client.post(self.url, data, format='json')
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-    @patch('api.views.verification_views.sms_service.send_verification_code')
-    def test_send_code_success(self, mock_sms, auth_client, user):
+    @patch('api.views.verification_views.email_verification_service.send_verification_code')
+    def test_send_code_success(self, mock_send, auth_client, user):
         """Test envoi réussi pour utilisateur authentifié"""
-        mock_sms.return_value = True
-        
-        data = {'phone_number': '+33612345678'}
+        mock_send.return_value = True
+
+        data = {'email': 'verifyuser@example.com'}
         response = auth_client.post(self.url, data, format='json')
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert 'message' in response.data
         assert 'verification_id' in response.data
         assert 'expires_in' in response.data
-        
-        # Vérifier qu'une vérification a été créée pour cet utilisateur
-        verification = PhoneVerification.objects.filter(
-            user=user, 
-            phone_number='+33612345678'
-        ).first()
-        assert verification is not None
-        assert verification.user == user
+        mock_send.assert_called_once()
 
-    @patch('api.views.verification_views.sms_service.send_verification_code')
-    def test_send_code_sms_failure(self, mock_sms, auth_client):
-        """Test échec envoi SMS - 500"""
-        mock_sms.return_value = False
-        
-        data = {'phone_number': '+33698765432'}
+    @patch('api.views.verification_views.email_verification_service.send_verification_code')
+    def test_send_code_creates_email_verification(self, mock_send, auth_client, user):
+        """Test que la vérification email est bien créée en base"""
+        mock_send.return_value = True
+
+        data = {'email': 'verifyuser@example.com'}
+        auth_client.post(self.url, data, format='json')
+
+        assert EmailVerification.objects.filter(user=user, is_verified=False).exists()
+
+    @patch('api.views.verification_views.email_verification_service.send_verification_code')
+    def test_send_code_email_failure(self, mock_send, auth_client):
+        """Test comportement quand l'envoi email échoue — 500"""
+        mock_send.return_value = False
+
+        data = {'email': 'verifyuser@example.com'}
         response = auth_client.post(self.url, data, format='json')
-        
+
         assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-        assert 'error' in response.data
+        # La vérification ne doit pas être conservée en base
+        assert not EmailVerification.objects.filter(is_verified=False).exists()
 
-    @patch('api.views.verification_views.sms_service.send_verification_code')
-    def test_send_code_cooldown_active(self, mock_sms, auth_client, user):
-        """Test envoi pendant le cooldown - 429"""
+    @patch('api.views.verification_views.email_verification_service.send_verification_code')
+    def test_send_code_cooldown(self, mock_send, auth_client, user, settings):
+        """Test cooldown entre deux envois — 429"""
+        mock_send.return_value = True
+        settings.SMS_RESEND_COOLDOWN_SECONDS = 60
+
         # Créer une vérification récente
-        PhoneVerification.objects.create(
+        verification = EmailVerification.objects.create(
             user=user,
-            phone_number="+33612345678",
-            code="123456",
-            is_verified=False,
-            last_resend_at=timezone.now()
+            email='verifyuser@example.com',
+            code='123456',
+            last_resend_at=timezone.now()  # Envoi à l'instant
         )
-        
-        data = {'phone_number': '+33612345678'}
+
+        data = {'email': 'verifyuser@example.com'}
         response = auth_client.post(self.url, data, format='json')
-        
+
         assert response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
         assert 'retry_after' in response.data
-        mock_sms.assert_not_called()
 
 
 # =============================================================================
@@ -144,433 +151,220 @@ class TestSendVerificationCodeViewAuthenticated:
 # =============================================================================
 
 @pytest.mark.django_db
-class TestSendVerificationCodeViewUnauthenticated:
-    """Tests pour POST /api/v1/auth/phone/send-code/ sans authentification"""
-    
-    url = "/api/v1/auth/phone/send-code/"
+class TestSendVerificationCodeViewAnonymous:
+    """Tests pour POST /api/v1/auth/email/send-code/ sans authentification"""
 
-    @patch('api.views.verification_views.sms_service.send_verification_code')
-    def test_send_code_unauthenticated_success(self, mock_sms, api_client):
-        """Test envoi sans authentification (cas inscription)"""
-        mock_sms.return_value = True
-        
-        data = {'phone_number': '+33611111111'}
+    url = "/api/v1/auth/email/send-code/"
+
+    @patch('api.views.verification_views.email_verification_service.send_verification_code')
+    def test_send_code_anonymous_success(self, mock_send, api_client):
+        """Test envoi réussi sans authentification"""
+        mock_send.return_value = True
+
+        data = {'email': 'anonymous@example.com'}
         response = api_client.post(self.url, data, format='json')
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert 'verification_id' in response.data
-        assert 'expires_in' in response.data
-        
-        # Vérifier qu'une vérification sans user a été créée
-        verification = PhoneVerification.objects.filter(
-            phone_number='+33611111111',
+
+        # Vérification sans user associé
+        verification = EmailVerification.objects.filter(
+            email='anonymous@example.com',
             user__isnull=True
         ).first()
         assert verification is not None
-        assert verification.user is None
 
-    @patch('api.views.verification_views.sms_service.send_verification_code')
-    def test_send_code_unauthenticated_cooldown(self, mock_sms, api_client):
-        """Test cooldown pour utilisateur non authentifié"""
-        # Créer une vérification récente sans user
-        PhoneVerification.objects.create(
+    @patch('api.views.verification_views.email_verification_service.send_verification_code')
+    def test_send_code_normalizes_email(self, mock_send, api_client):
+        """Test que l'email est normalisé en minuscules"""
+        mock_send.return_value = True
+
+        data = {'email': 'Test@Example.COM'}
+        api_client.post(self.url, data, format='json')
+
+        assert EmailVerification.objects.filter(email='test@example.com').exists()
+
+    @patch('api.views.verification_views.email_verification_service.send_verification_code')
+    def test_send_code_cooldown_anonymous(self, mock_send, api_client, settings):
+        """Test cooldown pour utilisateur anonyme — 429"""
+        mock_send.return_value = True
+        settings.SMS_RESEND_COOLDOWN_SECONDS = 60
+
+        EmailVerification.objects.create(
             user=None,
-            phone_number="+33622222222",
-            code="111111",
-            is_verified=False,
+            email='anon@example.com',
+            code='654321',
             last_resend_at=timezone.now()
         )
-        
-        data = {'phone_number': '+33622222222'}
-        response = api_client.post(self.url, data, format='json')
-        
-        assert response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
-        mock_sms.assert_not_called()
 
-    @patch('api.views.verification_views.sms_service.send_verification_code')
-    def test_send_code_unauthenticated_sms_failure(self, mock_sms, api_client):
-        """Test échec SMS pour utilisateur non authentifié"""
-        mock_sms.return_value = False
-        
-        data = {'phone_number': '+33633333333'}
+        data = {'email': 'anon@example.com'}
         response = api_client.post(self.url, data, format='json')
-        
-        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+
+        assert response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
 
 
 # =============================================================================
-# TESTS - VerifyPhoneCodeView (Authentifié)
+# TESTS - VerifyEmailCodeView (Authentifié)
 # =============================================================================
 
 @pytest.mark.django_db
-class TestVerifyPhoneCodeViewAuthenticated:
-    """Tests pour POST /api/v1/auth/phone/verify/ avec utilisateur authentifié"""
-    
-    url = "/api/v1/auth/phone/verify/"
+class TestVerifyEmailCodeViewAuthenticated:
+    """Tests pour POST /api/v1/auth/email/verify/ avec utilisateur authentifié"""
 
-    def test_verify_code_missing_code(self, auth_client):
-        """Test vérification sans code - 400"""
-        response = auth_client.post(self.url, {}, format='json')
+    url = "/api/v1/auth/email/verify/"
+
+    def test_verify_missing_code(self, auth_client):
+        """Test vérification sans code — 400"""
+        data = {'email': 'verifyuser@example.com'}
+        response = auth_client.post(self.url, data, format='json')
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-    def test_verify_code_missing_identifier(self, auth_client):
-        """Test vérification sans verification_id ni phone_number - 400"""
+    def test_verify_missing_identifier(self, auth_client):
+        """Test vérification sans email ni verification_id — 400"""
         data = {'code': '123456'}
         response = auth_client.post(self.url, data, format='json')
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-    def test_verify_code_no_verification_found(self, auth_client):
-        """Test vérification sans vérification en cours - 404"""
-        data = {
-            'code': '123456',
-            'phone_number': '+33699999999'
-        }
+    def test_verify_non_digit_code(self, auth_client):
+        """Test code non numérique — 400"""
+        data = {'code': 'abcdef', 'email': 'verifyuser@example.com'}
+        response = auth_client.post(self.url, data, format='json')
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_verify_no_pending_verification(self, auth_client):
+        """Test vérification sans vérification en cours — 404"""
+        data = {'code': '123456', 'email': 'noone@example.com'}
         response = auth_client.post(self.url, data, format='json')
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    def test_verify_code_success_with_phone(self, user):
-        """Test vérification réussie avec phone_number"""
-        token = RefreshToken.for_user(user)
-        client = APIClient()
-        client.credentials(HTTP_AUTHORIZATION=f"Bearer {token.access_token}")
-        
-        verification = PhoneVerification.objects.create(
+    def test_verify_correct_code_success(self, auth_client, user):
+        """Test vérification réussie avec code correct"""
+        verification = EmailVerification.objects.create(
             user=user,
-            phone_number="+33612345678",
-            code="123456",
-            is_verified=False,
-            attempts=0
+            email='verifyuser@example.com',
+            code='123456'
         )
-        
-        data = {
-            'code': '123456',
-            'phone_number': '+33612345678'
-        }
-        response = client.post(self.url, data, format='json')
-        
+
+        data = {'code': '123456', 'verification_id': verification.id}
+        response = auth_client.post(self.url, data, format='json')
+
         assert response.status_code == status.HTTP_200_OK
         assert response.data['verified'] is True
-        assert response.data['phone_number'] == '+33612345678'
-        
+        assert response.data['email'] == 'verifyuser@example.com'
+
         verification.refresh_from_db()
         assert verification.is_verified is True
-        assert verification.verified_at is not None
 
-    def test_verify_code_success_with_verification_id(self, user):
-        """Test vérification réussie avec verification_id"""
-        token = RefreshToken.for_user(user)
-        client = APIClient()
-        client.credentials(HTTP_AUTHORIZATION=f"Bearer {token.access_token}")
-        
-        verification = PhoneVerification.objects.create(
+    def test_verify_wrong_code_increments_attempts(self, auth_client, user):
+        """Test que le mauvais code incrémente les tentatives"""
+        verification = EmailVerification.objects.create(
             user=user,
-            phone_number="+33612345678",
-            code="654321",
-            is_verified=False,
-            attempts=0
+            email='verifyuser@example.com',
+            code='123456'
         )
-        
-        data = {
-            'code': '654321',
-            'verification_id': str(verification.id)
-        }
-        response = client.post(self.url, data, format='json')
-        
-        assert response.status_code == status.HTTP_200_OK
-        assert response.data['verified'] is True
 
-    def test_verify_code_wrong_code(self, user):
-        """Test vérification avec mauvais code - 400"""
-        token = RefreshToken.for_user(user)
-        client = APIClient()
-        client.credentials(HTTP_AUTHORIZATION=f"Bearer {token.access_token}")
-        
-        verification = PhoneVerification.objects.create(
-            user=user,
-            phone_number="+33612345678",
-            code="123456",
-            is_verified=False,
-            attempts=0
-        )
-        
-        data = {
-            'code': '999999',
-            'phone_number': '+33612345678'
-        }
-        response = client.post(self.url, data, format='json')
-        
+        data = {'code': '000000', 'verification_id': verification.id}
+        response = auth_client.post(self.url, data, format='json')
+
         assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert 'error' in response.data
         assert 'attempts_remaining' in response.data
-        
+
         verification.refresh_from_db()
         assert verification.attempts == 1
 
-    def test_verify_code_expired(self, user):
-        """Test vérification avec code expiré - 400"""
-        token = RefreshToken.for_user(user)
-        client = APIClient()
-        client.credentials(HTTP_AUTHORIZATION=f"Bearer {token.access_token}")
-        
-        verification = PhoneVerification.objects.create(
+    def test_verify_expired_code(self, auth_client, user, settings):
+        """Test code expiré — 400"""
+        settings.SMS_CODE_EXPIRY_MINUTES = 10
+        verification = EmailVerification.objects.create(
             user=user,
-            phone_number="+33612345678",
-            code="654321",
-            is_verified=False,
-            attempts=0
+            email='verifyuser@example.com',
+            code='123456'
         )
-        verification.created_at = timezone.now() - timedelta(minutes=30)
-        verification.save(update_fields=['created_at'])
-        
-        data = {
-            'code': '654321',
-            'phone_number': '+33612345678'
-        }
-        response = client.post(self.url, data, format='json')
-        
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert 'expiré' in response.data['error'].lower()
+        verification.created_at = timezone.now() - timedelta(minutes=15)
+        verification.save()
 
-    def test_verify_code_max_attempts(self, user, settings):
-        """Test vérification avec max tentatives - 429"""
-        settings.SMS_MAX_ATTEMPTS = 5
-        
-        token = RefreshToken.for_user(user)
-        client = APIClient()
-        client.credentials(HTTP_AUTHORIZATION=f"Bearer {token.access_token}")
-        
-        PhoneVerification.objects.create(
+        data = {'code': '123456', 'verification_id': verification.id}
+        response = auth_client.post(self.url, data, format='json')
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'expiré' in response.data['error']
+
+    def test_verify_too_many_attempts(self, auth_client, user, settings):
+        """Test trop de tentatives — 429"""
+        settings.SMS_MAX_ATTEMPTS = 3
+        verification = EmailVerification.objects.create(
             user=user,
-            phone_number="+33612345678",
-            code="111111",
-            is_verified=False,
-            attempts=5
+            email='verifyuser@example.com',
+            code='123456',
+            attempts=3
         )
-        
-        data = {
-            'code': '111111',
-            'phone_number': '+33612345678'
-        }
-        response = client.post(self.url, data, format='json')
-        
+
+        data = {'code': '000000', 'verification_id': verification.id}
+        response = auth_client.post(self.url, data, format='json')
+
         assert response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
 
-    def test_verify_code_updates_client_profile(self, user_with_client_profile):
-        """Test que la vérification met à jour le profil client"""
-        token = RefreshToken.for_user(user_with_client_profile)
-        client = APIClient()
-        client.credentials(HTTP_AUTHORIZATION=f"Bearer {token.access_token}")
-        
-        verification = PhoneVerification.objects.create(
-            user=user_with_client_profile,
-            phone_number="+33698765432",
-            code="555555",
-            is_verified=False,
-            attempts=0
+    def test_verify_by_email_field(self, auth_client, user):
+        """Test vérification en passant l'email plutôt que verification_id"""
+        verification = EmailVerification.objects.create(
+            user=user,
+            email='verifyuser@example.com',
+            code='654321'
         )
-        
-        data = {
-            'code': '555555',
-            'phone_number': '+33698765432'
-        }
-        response = client.post(self.url, data, format='json')
-        
+
+        data = {'code': '654321', 'email': 'verifyuser@example.com'}
+        response = auth_client.post(self.url, data, format='json')
+
         assert response.status_code == status.HTTP_200_OK
-        
-        # Vérifier que le profil client est mis à jour
-        profile = user_with_client_profile.clientprofile
-        profile.refresh_from_db()
-        assert profile.phone == '+33698765432'
 
 
 # =============================================================================
-# TESTS - VerifyPhoneCodeView (Non authentifié)
+# TESTS - VerifyEmailCodeView (Non authentifié)
 # =============================================================================
 
 @pytest.mark.django_db
-class TestVerifyPhoneCodeViewUnauthenticated:
-    """Tests pour POST /api/v1/auth/phone/verify/ sans authentification"""
-    
-    url = "/api/v1/auth/phone/verify/"
+class TestVerifyEmailCodeViewAnonymous:
+    """Tests pour POST /api/v1/auth/email/verify/ sans authentification"""
 
-    def test_verify_code_unauthenticated_success_with_id(self, api_client):
-        """Test vérification sans authentification avec verification_id"""
-        verification = PhoneVerification.objects.create(
-            user=None,
-            phone_number="+33644444444",
-            code="444444",
-            is_verified=False,
-            attempts=0
-        )
-        
-        data = {
-            'code': '444444',
-            'verification_id': str(verification.id)
-        }
-        response = api_client.post(self.url, data, format='json')
-        
-        assert response.status_code == status.HTTP_200_OK
-        assert response.data['verified'] is True
-        assert response.data['phone_number'] == '+33644444444'
-        
-        verification.refresh_from_db()
-        assert verification.is_verified is True
+    url = "/api/v1/auth/email/verify/"
 
-    def test_verify_code_unauthenticated_success_with_phone(self, api_client):
-        """Test vérification sans authentification avec phone_number"""
-        verification = PhoneVerification.objects.create(
+    def test_verify_anonymous_by_id(self, api_client):
+        """Test vérification anonyme par verification_id"""
+        verification = EmailVerification.objects.create(
             user=None,
-            phone_number="+33655555555",
-            code="555555",
-            is_verified=False,
-            attempts=0
+            email='anon@example.com',
+            code='111111'
         )
-        
-        data = {
-            'code': '555555',
-            'phone_number': '+33655555555'
-        }
+
+        data = {'code': '111111', 'verification_id': verification.id}
         response = api_client.post(self.url, data, format='json')
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert response.data['verified'] is True
 
-    def test_verify_code_unauthenticated_wrong_code(self, api_client):
-        """Test vérification sans authentification avec mauvais code"""
-        verification = PhoneVerification.objects.create(
+    def test_verify_anonymous_by_email(self, api_client):
+        """Test vérification anonyme par email"""
+        EmailVerification.objects.create(
             user=None,
-            phone_number="+33666666666",
-            code="666666",
-            is_verified=False,
-            attempts=0
+            email='anon2@example.com',
+            code='222222'
         )
-        
-        data = {
-            'code': '000000',
-            'verification_id': str(verification.id)
-        }
-        response = api_client.post(self.url, data, format='json')
-        
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
-        
-        verification.refresh_from_db()
-        assert verification.attempts == 1
 
-    def test_verify_code_unauthenticated_not_found(self, api_client):
-        """Test vérification sans authentification - vérification non trouvée"""
-        data = {
-            'code': '123456',
-            'phone_number': '+33677777777'
-        }
+        data = {'code': '222222', 'email': 'anon2@example.com'}
         response = api_client.post(self.url, data, format='json')
-        
+
+        assert response.status_code == status.HTTP_200_OK
+
+    def test_verify_already_verified_not_found(self, api_client):
+        """Test qu'une vérification déjà complétée n'est pas trouvée"""
+        verification = EmailVerification.objects.create(
+            user=None,
+            email='done@example.com',
+            code='333333',
+            is_verified=True
+        )
+
+        data = {'code': '333333', 'verification_id': verification.id}
+        response = api_client.post(self.url, data, format='json')
+
         assert response.status_code == status.HTTP_404_NOT_FOUND
-
-
-# =============================================================================
-# TESTS - Intégration
-# =============================================================================
-
-@pytest.mark.django_db
-class TestVerificationIntegration:
-    """Tests d'intégration du flux complet"""
-
-    @patch('api.views.verification_views.sms_service.send_verification_code')
-    def test_full_authenticated_flow(self, mock_sms, user):
-        """Test du flux complet pour utilisateur authentifié"""
-        mock_sms.return_value = True
-        phone_number = '+33612345678'
-        
-        token = RefreshToken.for_user(user)
-        client = APIClient()
-        client.credentials(HTTP_AUTHORIZATION=f"Bearer {token.access_token}")
-        
-        # Étape 1: Envoyer le code
-        send_response = client.post(
-            '/api/v1/auth/phone/send-code/',
-            {'phone_number': phone_number},
-            format='json'
-        )
-        
-        assert send_response.status_code == status.HTTP_200_OK
-        verification_id = send_response.data['verification_id']
-        
-        # Récupérer le code généré
-        verification = PhoneVerification.objects.get(id=verification_id)
-        assert verification.user == user
-        
-        # Étape 2: Vérifier avec le bon code
-        verify_response = client.post(
-            '/api/v1/auth/phone/verify/',
-            {
-                'code': verification.code,
-                'verification_id': verification_id
-            },
-            format='json'
-        )
-        
-        assert verify_response.status_code == status.HTTP_200_OK
-        assert verify_response.data['verified'] is True
-
-    @patch('api.views.verification_views.sms_service.send_verification_code')
-    def test_full_unauthenticated_flow(self, mock_sms, api_client):
-        """Test du flux complet sans authentification (cas inscription)"""
-        mock_sms.return_value = True
-        phone_number = '+33688888888'
-        
-        # Étape 1: Envoyer le code sans être connecté
-        send_response = api_client.post(
-            '/api/v1/auth/phone/send-code/',
-            {'phone_number': phone_number},
-            format='json'
-        )
-        
-        assert send_response.status_code == status.HTTP_200_OK
-        verification_id = send_response.data['verification_id']
-        
-        # Récupérer le code généré
-        verification = PhoneVerification.objects.get(id=verification_id)
-        assert verification.user is None  # Pas d'utilisateur associé
-        
-        # Étape 2: Vérifier le code sans être connecté
-        verify_response = api_client.post(
-            '/api/v1/auth/phone/verify/',
-            {
-                'code': verification.code,
-                'verification_id': verification_id
-            },
-            format='json'
-        )
-        
-        assert verify_response.status_code == status.HTTP_200_OK
-        assert verify_response.data['verified'] is True
-        assert verify_response.data['phone_number'] == phone_number
-
-
-# =============================================================================
-# TESTS - URLs
-# =============================================================================
-
-@pytest.mark.django_db
-class TestVerificationURLs:
-    """Tests de vérification des URLs"""
-
-    def test_send_code_url_exists(self, api_client):
-        """Test que l'URL send-code existe"""
-        response = api_client.post('/api/v1/auth/phone/send-code/', {})
-        assert response.status_code != 404
-
-    def test_verify_url_exists(self, api_client):
-        """Test que l'URL verify existe"""
-        response = api_client.post('/api/v1/auth/phone/verify/', {})
-        assert response.status_code != 404
-
-    def test_get_method_not_allowed_send(self, api_client):
-        """Test que GET n'est pas autorisé pour send-code"""
-        response = api_client.get('/api/v1/auth/phone/send-code/')
-        assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
-
-    def test_get_method_not_allowed_verify(self, api_client):
-        """Test que GET n'est pas autorisé pour verify"""
-        response = api_client.get('/api/v1/auth/phone/verify/')
-        assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED

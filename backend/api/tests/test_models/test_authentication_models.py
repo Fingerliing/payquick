@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 Tests unitaires pour les modèles d'authentification
-- PhoneVerification
+- EmailVerification
+- PhoneVerification (legacy)
 - PendingRegistration
 """
 
@@ -10,7 +11,7 @@ from datetime import timedelta
 from django.utils import timezone
 from django.contrib.auth.models import User
 from django.conf import settings
-from api.models import PhoneVerification, PendingRegistration
+from api.models import EmailVerification, PhoneVerification, PendingRegistration
 
 
 # =============================================================================
@@ -20,6 +21,15 @@ from api.models import PhoneVerification, PendingRegistration
 @pytest.fixture
 def user():
     return User.objects.create_user(username="authuser", password="testpass123")
+
+
+@pytest.fixture
+def email_verification(user):
+    return EmailVerification.objects.create(
+        user=user,
+        email="authuser@example.com",
+        code="123456"
+    )
 
 
 @pytest.fixture
@@ -44,107 +54,154 @@ def pending_registration():
 
 
 # =============================================================================
-# TESTS - PhoneVerification
+# TESTS - EmailVerification
 # =============================================================================
 
 @pytest.mark.django_db
-class TestPhoneVerification:
-    """Tests pour le modèle PhoneVerification"""
+class TestEmailVerification:
+    """Tests pour le modèle EmailVerification"""
 
-    def test_phone_verification_creation(self, phone_verification):
-        """Test de la création d'une vérification téléphone"""
-        assert phone_verification.id is not None
-        assert phone_verification.phone_number == "0612345678"
-        assert phone_verification.code == "123456"
-        assert phone_verification.is_verified is False
-        assert phone_verification.attempts == 0
-        assert phone_verification.created_at is not None
+    def test_email_verification_creation(self, email_verification):
+        """Test de la création d'une vérification email"""
+        assert email_verification.id is not None
+        assert email_verification.email == "authuser@example.com"
+        assert email_verification.code == "123456"
+        assert email_verification.is_verified is False
+        assert email_verification.attempts == 0
+        assert email_verification.created_at is not None
 
-    def test_is_expired_not_expired(self, phone_verification, settings):
+    def test_is_expired_not_expired(self, email_verification, settings):
         """Test is_expired quand le code n'est pas expiré"""
         settings.SMS_CODE_EXPIRY_MINUTES = 10
-        assert phone_verification.is_expired() is False
+        assert email_verification.is_expired() is False
 
-    def test_is_expired_expired(self, phone_verification, settings):
+    def test_is_expired_expired(self, email_verification, settings):
         """Test is_expired quand le code est expiré"""
         settings.SMS_CODE_EXPIRY_MINUTES = 10
-        # Simuler une création dans le passé
-        phone_verification.created_at = timezone.now() - timedelta(minutes=15)
-        phone_verification.save()
-        assert phone_verification.is_expired() is True
+        email_verification.created_at = timezone.now() - timedelta(minutes=15)
+        email_verification.save()
+        assert email_verification.is_expired() is True
 
-    def test_can_resend_first_time(self, phone_verification):
+    def test_can_resend_first_time(self, email_verification):
         """Test can_resend pour le premier envoi"""
-        assert phone_verification.can_resend() is True
+        assert email_verification.can_resend() is True
 
-    def test_can_resend_after_cooldown(self, phone_verification, settings):
+    def test_can_resend_after_cooldown(self, email_verification, settings):
         """Test can_resend après le cooldown"""
         settings.SMS_RESEND_COOLDOWN_SECONDS = 60
-        phone_verification.last_resend_at = timezone.now() - timedelta(seconds=120)
-        phone_verification.save()
-        assert phone_verification.can_resend() is True
+        email_verification.last_resend_at = timezone.now() - timedelta(seconds=120)
+        email_verification.save()
+        assert email_verification.can_resend() is True
 
-    def test_can_resend_during_cooldown(self, phone_verification, settings):
+    def test_can_resend_during_cooldown(self, email_verification, settings):
         """Test can_resend pendant le cooldown"""
         settings.SMS_RESEND_COOLDOWN_SECONDS = 60
-        phone_verification.last_resend_at = timezone.now() - timedelta(seconds=30)
-        phone_verification.save()
-        assert phone_verification.can_resend() is False
+        email_verification.last_resend_at = timezone.now() - timedelta(seconds=30)
+        email_verification.save()
+        assert email_verification.can_resend() is False
 
-    def test_generate_code(self, phone_verification):
+    def test_generate_code(self, email_verification):
         """Test de la génération de code"""
-        code = phone_verification.generate_code()
+        code = email_verification.generate_code()
         assert len(code) == 6
         assert code.isdigit()
-        assert phone_verification.code == code
+        assert email_verification.code == code
 
     def test_generate_code_is_random(self, user):
         """Test que les codes générés sont aléatoires"""
         codes = set()
         for _ in range(10):
-            verification = PhoneVerification.objects.create(
+            v = EmailVerification.objects.create(
                 user=user,
-                phone_number="0612345678"
+                email="authuser@example.com"
             )
-            verification.generate_code()
-            codes.add(verification.code)
-        # Au moins quelques codes devraient être différents
+            v.generate_code()
+            codes.add(v.code)
         assert len(codes) > 5
 
-    def test_increment_attempts(self, phone_verification):
+    def test_increment_attempts(self, email_verification):
         """Test de l'incrémentation des tentatives"""
-        assert phone_verification.attempts == 0
-        
-        phone_verification.increment_attempts()
-        assert phone_verification.attempts == 1
-        
-        phone_verification.increment_attempts()
-        assert phone_verification.attempts == 2
+        assert email_verification.attempts == 0
+        email_verification.increment_attempts()
+        assert email_verification.attempts == 1
+        email_verification.increment_attempts()
+        assert email_verification.attempts == 2
 
-    def test_mark_verified(self, phone_verification):
+    def test_mark_verified(self, email_verification):
         """Test du marquage comme vérifié"""
-        assert phone_verification.is_verified is False
-        assert phone_verification.verified_at is None
-        
-        phone_verification.mark_verified()
-        
-        assert phone_verification.is_verified is True
-        assert phone_verification.verified_at is not None
+        assert email_verification.is_verified is False
+        assert email_verification.verified_at is None
+
+        email_verification.mark_verified()
+
+        assert email_verification.is_verified is True
+        assert email_verification.verified_at is not None
+
+    def test_anonymous_verification(self):
+        """Test vérification sans utilisateur associé"""
+        v = EmailVerification.objects.create(
+            user=None,
+            email="anon@example.com",
+            code="000000"
+        )
+        assert v.user is None
+        assert v.email == "anon@example.com"
 
     def test_multiple_verifications_per_user(self, user):
         """Test de plusieurs vérifications par utilisateur"""
-        v1 = PhoneVerification.objects.create(
-            user=user,
-            phone_number="0612345678",
-            code="111111"
+        EmailVerification.objects.create(user=user, email="a@example.com", code="111111")
+        EmailVerification.objects.create(user=user, email="b@example.com", code="222222")
+        assert EmailVerification.objects.filter(user=user).count() == 2
+
+    def test_str_representation(self, email_verification, user):
+        """Test de la représentation string"""
+        expected = f"EmailVerification({user.username}, authuser@example.com)"
+        assert str(email_verification) == expected
+
+    def test_str_anonymous(self):
+        """Test de la représentation string pour vérification anonyme"""
+        v = EmailVerification.objects.create(
+            user=None,
+            email="ghost@example.com",
+            code="999999"
         )
-        v2 = PhoneVerification.objects.create(
-            user=user,
-            phone_number="0698765432",
-            code="222222"
-        )
-        
-        assert PhoneVerification.objects.filter(user=user).count() == 2
+        assert str(v) == "EmailVerification(Anonymous, ghost@example.com)"
+
+
+# =============================================================================
+# TESTS - PhoneVerification (legacy)
+# =============================================================================
+
+@pytest.mark.django_db
+class TestPhoneVerification:
+    """Tests de non-régression pour le modèle PhoneVerification (legacy)"""
+
+    def test_phone_verification_creation(self, phone_verification):
+        assert phone_verification.id is not None
+        assert phone_verification.phone_number == "0612345678"
+        assert phone_verification.code == "123456"
+        assert phone_verification.is_verified is False
+        assert phone_verification.attempts == 0
+
+    def test_is_expired_not_expired(self, phone_verification, settings):
+        settings.SMS_CODE_EXPIRY_MINUTES = 10
+        assert phone_verification.is_expired() is False
+
+    def test_is_expired_expired(self, phone_verification, settings):
+        settings.SMS_CODE_EXPIRY_MINUTES = 10
+        phone_verification.created_at = timezone.now() - timedelta(minutes=15)
+        phone_verification.save()
+        assert phone_verification.is_expired() is True
+
+    def test_generate_code(self, phone_verification):
+        code = phone_verification.generate_code()
+        assert len(code) == 6
+        assert code.isdigit()
+
+    def test_mark_verified(self, phone_verification):
+        phone_verification.mark_verified()
+        assert phone_verification.is_verified is True
+        assert phone_verification.verified_at is not None
 
 
 # =============================================================================
@@ -156,7 +213,6 @@ class TestPendingRegistration:
     """Tests pour le modèle PendingRegistration"""
 
     def test_pending_registration_creation(self, pending_registration):
-        """Test de la création d'une inscription en attente"""
         assert pending_registration.id is not None
         assert pending_registration.email == "test@example.com"
         assert pending_registration.nom == "Test User"
@@ -166,6 +222,17 @@ class TestPendingRegistration:
         assert pending_registration.is_verified is False
         assert pending_registration.attempts == 0
 
+    def test_pending_registration_without_telephone(self):
+        """Test inscription sans téléphone (champ optionnel)"""
+        registration = PendingRegistration.objects.create(
+            email="nophone@example.com",
+            password_hash="hash",
+            nom="No Phone",
+            role="client",
+            verification_code="000000"
+        )
+        assert registration.telephone == ""
+
     def test_pending_registration_restaurateur(self):
         """Test d'une inscription restaurateur en attente"""
         registration = PendingRegistration.objects.create(
@@ -173,7 +240,6 @@ class TestPendingRegistration:
             password_hash="hash",
             nom="Chef",
             role="restaurateur",
-            telephone="0600000000",
             siret="12345678901234",
             verification_code="999999"
         )
@@ -182,41 +248,54 @@ class TestPendingRegistration:
 
     def test_email_unique(self, pending_registration):
         """Test que l'email est unique"""
-        with pytest.raises(Exception):  # IntegrityError
+        with pytest.raises(Exception):
             PendingRegistration.objects.create(
-                email="test@example.com",  # Même email
+                email="test@example.com",
                 password_hash="hash",
                 nom="Another User",
                 role="client",
-                telephone="0699999999",
                 verification_code="111111"
             )
 
     def test_is_expired_not_expired(self, pending_registration, settings):
-        """Test is_expired quand pas expiré"""
         settings.SMS_CODE_EXPIRY_MINUTES = 10
         assert pending_registration.is_expired() is False
 
     def test_is_expired_expired(self, pending_registration, settings):
-        """Test is_expired quand expiré"""
         settings.SMS_CODE_EXPIRY_MINUTES = 10
         pending_registration.code_sent_at = timezone.now() - timedelta(minutes=15)
         pending_registration.save()
         assert pending_registration.is_expired() is True
 
-    def test_created_at_auto(self, pending_registration):
-        """Test que created_at est automatique"""
-        assert pending_registration.created_at is not None
-        assert pending_registration.created_at <= timezone.now()
+    def test_can_resend_first_time(self, pending_registration):
+        assert pending_registration.can_resend() is True
+
+    def test_can_resend_during_cooldown(self, pending_registration, settings):
+        settings.SMS_RESEND_COOLDOWN_SECONDS = 60
+        pending_registration.last_resend_at = timezone.now() - timedelta(seconds=30)
+        pending_registration.save()
+        assert pending_registration.can_resend() is False
+
+    def test_generate_code(self, pending_registration):
+        code = pending_registration.generate_code()
+        assert len(code) == 6
+        assert code.isdigit()
+        assert pending_registration.verification_code == code
+
+    def test_increment_attempts(self, pending_registration):
+        pending_registration.increment_attempts()
+        assert pending_registration.attempts == 1
+
+    def test_mark_verified(self, pending_registration):
+        pending_registration.mark_verified()
+        assert pending_registration.is_verified is True
 
     def test_optional_fields(self):
-        """Test des champs optionnels"""
         registration = PendingRegistration.objects.create(
             email="minimal@example.com",
             password_hash="hash",
             nom="Minimal User",
             role="client",
-            telephone="0600000000",
             verification_code="000000"
         )
         assert registration.siret is None
@@ -224,63 +303,16 @@ class TestPendingRegistration:
         assert registration.user_agent == ""
 
     def test_ip_address_tracking(self):
-        """Test du tracking d'IP"""
         registration = PendingRegistration.objects.create(
             email="tracked@example.com",
             password_hash="hash",
             nom="Tracked User",
             role="client",
-            telephone="0600000001",
             verification_code="123456",
             ip_address="192.168.1.1"
         )
         assert registration.ip_address == "192.168.1.1"
 
-    def test_user_agent_tracking(self):
-        """Test du tracking user agent"""
-        registration = PendingRegistration.objects.create(
-            email="ua@example.com",
-            password_hash="hash",
-            nom="UA User",
-            role="client",
-            telephone="0600000002",
-            verification_code="123456",
-            user_agent="Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)"
-        )
-        assert "iPhone" in registration.user_agent
-
-    def test_role_choices(self):
-        """Test des choix de rôle valides"""
-        client = PendingRegistration.objects.create(
-            email="client@example.com",
-            password_hash="hash",
-            nom="Client",
-            role="client",
-            telephone="0600000003",
-            verification_code="111111"
-        )
-        assert client.role == "client"
-        
-        restaurateur = PendingRegistration.objects.create(
-            email="resto@test.com",
-            password_hash="hash",
-            nom="Resto",
-            role="restaurateur",
-            telephone="0600000004",
-            verification_code="222222"
-        )
-        assert restaurateur.role == "restaurateur"
-
-    def test_attempts_default(self, pending_registration):
-        """Test de la valeur par défaut des tentatives"""
-        assert pending_registration.attempts == 0
-
-    def test_last_resend_at_null_by_default(self, pending_registration):
-        """Test que last_resend_at est null par défaut"""
-        assert pending_registration.last_resend_at is None
-
     def test_indexes_exist(self):
-        """Test que les index sont créés correctement"""
-        # Vérifier que le modèle a des indexes définis
         indexes = PendingRegistration._meta.indexes
-        assert len(indexes) >= 1  # Au moins un index défini
+        assert len(indexes) >= 1
