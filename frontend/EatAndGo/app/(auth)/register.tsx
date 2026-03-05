@@ -19,7 +19,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Alert as CustomAlert } from '@/components/ui/Alert';
-import { legalService } from '@/services/legalService';
 import { API_BASE_URL } from '@/constants/config';
 import {
   COLORS,
@@ -35,7 +34,7 @@ const APP_LOGO = require('@/assets/images/logo.png');
 const { width: screenWidth } = Dimensions.get('window');
 const API_URL = `${API_BASE_URL}/api/v1`;
 
-// Gradient bleu charte : nuit → principal (cohérent avec verify-phone)
+// Gradient bleu charte : nuit → principal (cohérent avec verify-email)
 const GRADIENT: [string, string, string] = [
   COLORS.variants.primary[900], // '#0D1629'
   COLORS.variants.primary[700], // '#15204E'
@@ -180,22 +179,14 @@ export default function RegisterScreen() {
         return;
       }
 
-      // Consentement légal (best-effort)
-      try {
-        await legalService.recordConsent({
-          terms_version: '1.0.0',
-          privacy_version: '1.0.0',
-          consent_date: new Date().toISOString(),
-        });
-      } catch (e) {
-        console.warn('Consentement légal ignoré :', e);
-      }
+      // Le consentement légal est enregistré à l'étape 2 (verify-email),
+      // une fois le compte créé et le token JWT disponible.
 
       router.push({
-        pathname: '/(auth)/verify-phone',
+        pathname: '/(auth)/verify-email',
         params: {
           registration_id: data.registration_id,
-          phone_last4:     data.phone_number ?? '',
+          email_masked:    data.email ?? '',
           expires_in:      String(data.expires_in ?? 600),
         },
       });
@@ -591,15 +582,15 @@ export default function RegisterScreen() {
               </TouchableOpacity>
               {termsError && <Text style={styles.termsError}>{termsError}</Text>}
 
-              {/* Bandeau SMS */}
+              {/* Bandeau info email */}
               <View style={styles.smsInfoBanner}>
                 <Ionicons
-                  name="shield-checkmark-outline"
+                  name="mail-outline"
                   size={18}
                   color={COLORS.secondary}
                 />
                 <Text style={styles.smsInfoText}>
-                  Un SMS de vérification sera envoyé à votre numéro de téléphone.
+                  Un code de vérification sera envoyé à votre adresse email.
                 </Text>
               </View>
 

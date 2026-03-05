@@ -18,6 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { Alert as CustomAlert } from '@/components/ui/Alert';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { legalService } from '@/services/legalService';
 import { API_BASE_URL } from '@/constants/config';
 import {
   COLORS,
@@ -40,13 +41,13 @@ const GRADIENT: [string, string, string] = [
   COLORS.primary,               // '#1E2A78'
 ];
 
-export default function VerifyPhoneScreen() {
+export default function VerifyEmailScreen() {
   const params = useLocalSearchParams<{
     registration_id: string;
-    phone_last4: string;
+    email_masked: string;
     expires_in: string;
   }>();
-  const { registration_id, phone_last4, expires_in } = params;
+  const { registration_id, email_masked, expires_in } = params;
 
   const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(''));
   const [loading, setLoading] = useState(false);
@@ -141,6 +142,16 @@ export default function VerifyPhoneScreen() {
           ['access_token', data.access],
           ['refresh_token', data.refresh],
         ]);
+        // Enregistrer le consentement légal maintenant que le token est disponible
+        try {
+          await legalService.recordConsent({
+            terms_version: '1.0.0',
+            privacy_version: '1.0.0',
+            consent_date: new Date().toISOString(),
+          });
+        } catch (e) {
+          console.warn('Consentement légal ignoré :', e);
+        }
         await refreshUser();
       }
       setCustomAlert({ variant: 'success', title: 'Compte créé !', message: 'Bienvenue sur EatQuickeR 🎉' });
@@ -175,14 +186,14 @@ export default function VerifyPhoneScreen() {
       setCustomAlert({
         variant: 'success',
         title: 'Code renvoyé',
-        message: `Nouveau code envoyé au ••• ${phone_last4}.`,
+        message: `Nouveau code envoyé à ${email_masked}.`,
       });
     } catch {
       setCustomAlert({ variant: 'error', title: 'Erreur', message: 'Une erreur est survenue.' });
     } finally {
       setResendLoading(false);
     }
-  }, [canResend, registration_id, phone_last4]);
+  }, [canResend, registration_id, email_masked]);
 
   // ── Styles ──────────────────────────────────────────────────────────────────
   const styles = StyleSheet.create({
@@ -355,12 +366,12 @@ export default function VerifyPhoneScreen() {
           {/* Header */}
           <View style={styles.headerSection}>
             <View style={styles.iconCircle}>
-              <Ionicons name="shield-checkmark-outline" size={34} color={COLORS.secondary} />
+              <Ionicons name="mail-outline" size={34} color={COLORS.secondary} />
             </View>
-            <Text style={styles.title}>Vérification SMS</Text>
+            <Text style={styles.title}>Vérification email</Text>
             <Text style={styles.subtitle}>
-              Code envoyé au numéro{'\n'}se terminant par{' '}
-              <Text style={styles.phoneHighlight}>•••• {phone_last4 || '????'}</Text>
+              Code envoyé à{'\n'}
+              <Text style={styles.phoneHighlight}>{email_masked || '···@···'}</Text>
             </Text>
           </View>
 
@@ -416,7 +427,7 @@ export default function VerifyPhoneScreen() {
 
             {/* Confirmer */}
             <Button
-              title="Confirmer le numéro"
+              title="Confirmer l'email"
               onPress={handleVerify}
               disabled={!isComplete || loading}
               loading={loading}
@@ -440,7 +451,7 @@ export default function VerifyPhoneScreen() {
 
             {/* Modifier le numéro */}
             <TouchableOpacity style={styles.backLink} onPress={() => router.back()}>
-              <Text style={styles.backLinkText}>← Modifier mon numéro</Text>
+              <Text style={styles.backLinkText}>← Modifier mon email</Text>
             </TouchableOpacity>
 
           </View>

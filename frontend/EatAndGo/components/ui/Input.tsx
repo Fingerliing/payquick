@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Pressable,
   ScrollView,
-  findNodeHandle,
   ViewStyle,
   TextStyle,
   TextInputProps,
@@ -74,12 +73,9 @@ export const Input = forwardRef<TextInput, InputProps>(({
 
     if (!scrollRef?.current || !containerRef.current) return;
 
-    const scrollNode = findNodeHandle(scrollRef.current);
-    if (!scrollNode) return;
-
     containerRef.current.measureLayout(
-      scrollNode,
-      (_x, y, _w, height) => {
+      scrollRef.current as any,
+      (_x, y, _w, _height) => {
         scrollRef.current?.scrollTo({
           y: Math.max(0, y - scrollOffset),
           animated: true,
