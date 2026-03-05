@@ -5,6 +5,8 @@ import {
   TextInput,
   TouchableOpacity,
   Pressable,
+  ScrollView,
+  findNodeHandle,
   ViewStyle,
   TextStyle,
   TextInputProps,
@@ -29,6 +31,10 @@ interface InputProps extends TextInputProps {
   required?: boolean;
   fullWidth?: boolean;
   variant?: 'default' | 'floating';
+  /** Ref du ScrollView parent — permet le scroll automatique au focus */
+  scrollRef?: React.RefObject<ScrollView | null>;
+  /** Décalage au-dessus du champ une fois scrollé (défaut 16px) */
+  scrollOffset?: number;
 }
 
 export const Input = forwardRef<TextInput, InputProps>(({
@@ -41,21 +47,51 @@ export const Input = forwardRef<TextInput, InputProps>(({
   required = false,
   fullWidth = true,
   variant = 'default',
+  scrollRef,
+  scrollOffset = 16,
   style,
+  onFocus,
+  onBlur,
   ...props
 }, ref) => {
   const [isFocused, setIsFocused] = useState(false);
   const screenType = useScreenType();
   const internalRef = useRef<TextInput>(null);
+  const containerRef = useRef<View>(null);
 
-  // Résoudre la ref : utiliser la ref externe si fournie, sinon la ref interne
   const resolvedRef = (ref as React.RefObject<TextInput>) || internalRef;
 
   const hasError = !!error;
 
-  // Quand on appuie n'importe où dans le conteneur, on focus le TextInput
   const handleContainerPress = () => {
     resolvedRef.current?.focus();
+  };
+
+  /** Au focus : mesure la position du champ dans le ScrollView et scroll dessus */
+  const handleFocus = (e: any) => {
+    setIsFocused(true);
+    onFocus?.(e);
+
+    if (!scrollRef?.current || !containerRef.current) return;
+
+    const scrollNode = findNodeHandle(scrollRef.current);
+    if (!scrollNode) return;
+
+    containerRef.current.measureLayout(
+      scrollNode,
+      (_x, y, _w, height) => {
+        scrollRef.current?.scrollTo({
+          y: Math.max(0, y - scrollOffset),
+          animated: true,
+        });
+      },
+      () => { /* mesure échouée, on ignore */ },
+    );
+  };
+
+  const handleBlur = (e: any) => {
+    setIsFocused(false);
+    onBlur?.(e);
   };
 
   // STYLES RESPONSIVES
@@ -110,7 +146,7 @@ export const Input = forwardRef<TextInput, InputProps>(({
   };
 
   return (
-    <View style={containerStyle}>
+    <View style={containerStyle} ref={containerRef}>
       {/* Label */}
       {label && variant === 'default' && (
         <Text style={labelStyle}>
@@ -129,8 +165,8 @@ export const Input = forwardRef<TextInput, InputProps>(({
           ref={resolvedRef}
           style={textInputStyle}
           placeholderTextColor={COLORS.text.light}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
           {...props}
         />
 
