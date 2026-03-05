@@ -199,13 +199,13 @@ class ApiClient {
     // Utiliser setTimeout pour éviter les problèmes de navigation pendant le rendu
     setTimeout(() => {
       try {
-        router.replace('/(auth)/login');
+        router.replace({ pathname: '/(auth)/login', params: { reason: 'session_expired' } });
         console.log('✅ Redirection vers login effectuée');
       } catch (navError) {
         console.error('❌ Erreur de navigation:', navError);
         // Fallback: essayer une navigation alternative
         try {
-          router.push('/(auth)/login');
+          router.push({ pathname: '/(auth)/login', params: { reason: 'session_expired' } });
         } catch (fallbackError) {
           console.error('❌ Erreur navigation fallback:', fallbackError);
         }

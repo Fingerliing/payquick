@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   Image,
   Dimensions,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -175,6 +175,20 @@ export default function LoginScreen() {
       message: 'La connexion Apple sera disponible prochainement',
     });
   }, []);
+
+
+  const params = useLocalSearchParams<{ reason?: string }>();
+
+  // Afficher l'alerte "session expirée" si redirigé depuis handleSessionExpired
+  useEffect(() => {
+    if (params.reason === 'session_expired') {
+      setCustomAlert({
+        variant: 'warning',
+        title: 'Session expirée',
+        message: 'Votre session a expiré. Veuillez vous reconnecter.',
+      });
+    }
+  }, [params.reason]);
 
   // STYLES RESPONSIVES
   const styles = {
