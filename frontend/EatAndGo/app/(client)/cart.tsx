@@ -8,7 +8,6 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -671,20 +670,20 @@ export default function CartScreen() {
   // Panier vide
   if (cartItems.length === 0) {
     return (
-      <SafeAreaView style={localStyles.container}>
+      <View style={localStyles.container}>
         <Header
           title="Panier"
           leftIcon="arrow-back"
           onLeftPress={() => router.back()}
         />
         <EmptyCart screenType={screenType} />
-      </SafeAreaView>
+      </View>
     );
   }
 
   // Panier avec articles
   return (
-    <SafeAreaView style={localStyles.container}>
+    <View style={localStyles.container}>
       <Header
         title={`Panier (${itemCount})`}
         leftIcon="arrow-back"
@@ -784,7 +783,7 @@ export default function CartScreen() {
           </View>
         </View>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 

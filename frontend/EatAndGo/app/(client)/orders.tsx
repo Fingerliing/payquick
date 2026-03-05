@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   useWindowDimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
@@ -820,7 +819,7 @@ export default function ClientOrdersScreen() {
   // Gestion des erreurs d'accès
   if (!isClient) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <Header title="Mes commandes" />
         <View style={styles.errorContainer}>
           <Ionicons 
@@ -830,13 +829,17 @@ export default function ClientOrdersScreen() {
           />
           <Text style={styles.errorText}>Accès réservé aux clients</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Header title="Mes commandes" />
+    <View style={styles.container}>
+      <Header
+        title="Mes commandes"
+        leftIcon="arrow-back"
+        onLeftPress={() => router.back()}
+      />
 
       {/* Bannière d'erreur */}
       {error && (
@@ -877,6 +880,6 @@ export default function ClientOrdersScreen() {
           <Text style={styles.loadingText}>Chargement de vos commandes...</Text>
         </View>
       )}
-    </SafeAreaView>
+    </View>
   );
 }

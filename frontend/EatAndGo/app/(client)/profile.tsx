@@ -14,7 +14,6 @@ import { useClientOrders } from '@/hooks/client/useClientOrders';
 import { Header } from '@/components/ui/Header';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { LegalFooter } from '@/components/legal/LegalFooter';
 import { DownloadMyDataButton } from '@/components/legal/DownloadMyDataButton';
 import { AlertWithAction } from '@/components/ui/Alert';
@@ -112,8 +111,8 @@ export default function ClientProfileScreen() {
 
   if (!isClient || !user) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-        <Header title="Profil" />
+      <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
+        <Header title="Profil" leftIcon="arrow-back" onLeftPress={() => router.back()}/>
         <View
           style={{
             flex: 1,
@@ -147,13 +146,17 @@ export default function ClientProfileScreen() {
             style={{ maxWidth: 320 }}
           />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-      <Header title="Profil" />
+    <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
+      <Header
+       title="Profil"
+       leftIcon="arrow-back"
+       onLeftPress={() => router.back()}
+      />
 
       <ScrollView showsVerticalScrollIndicator={false}>
         <View
@@ -553,6 +556,6 @@ export default function ClientProfileScreen() {
       </Modal>
 
       <LegalFooter />
-    </SafeAreaView>
+    </View>
   );
 }
