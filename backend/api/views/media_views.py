@@ -5,17 +5,23 @@ import mimetypes
 
 def serve_media(request, path):
     """Vue personnalisée pour servir les fichiers média avec le bon Content-Type"""
-    
-    # Construire le chemin complet du fichier
-    file_path = os.path.join(settings.MEDIA_ROOT, path)
-    
+
+    # Résoudre MEDIA_ROOT en chemin absolu réel (sans symlinks)
+    media_root = os.path.realpath(settings.MEDIA_ROOT)
+    # Construire le chemin cible et le normaliser (résout les "..", "//" etc.)
+    file_path = os.path.realpath(os.path.join(media_root, path))
+
+    # Bloquer tout chemin qui sort de MEDIA_ROOT (path traversal)
+    if not file_path.startswith(media_root + os.sep) and file_path != media_root:
+        raise Http404("Fichier non trouvé")
+
     # Vérifier que le fichier existe
     if not os.path.exists(file_path):
         raise Http404("Fichier non trouvé")
-    
+
     # Deviner le type MIME
     content_type, _ = mimetypes.guess_type(file_path)
-    
+
     # Forcer le type pour WebP si pas reconnu
     if file_path.lower().endswith('.webp'):
         content_type = 'image/webp'
@@ -27,25 +33,22 @@ def serve_media(request, path):
         content_type = 'image/jpeg'
     elif file_path.lower().endswith('.png'):
         content_type = 'image/png'
-    
+
     # Par défaut, utiliser octet-stream
     if not content_type:
         content_type = 'application/octet-stream'
-    
-    print(f"Serving file: {file_path}")
-    print(f"Content-Type: {content_type}")
-    
+
     # Lire et retourner le fichier
     try:
         with open(file_path, 'rb') as f:
             response = HttpResponse(f.read(), content_type=content_type)
-            
+
             # Ajouter des headers pour le cache
             response['Cache-Control'] = 'public, max-age=3600'
-            
+
             # Header pour affichage inline (pas de téléchargement)
             response['Content-Disposition'] = 'inline'
-            
+
             return response
     except IOError:
         raise Http404("Erreur de lecture du fichier")
