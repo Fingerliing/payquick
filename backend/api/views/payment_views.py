@@ -107,12 +107,29 @@ class CreateCheckoutSessionView(APIView):
     """
     Crée une session Stripe Checkout pour une commande non payée.
     Retourne l'URL sécurisée vers Stripe Checkout.
+
+    Accès :
+    - Utilisateur authentifié propriétaire de la commande (order.user == request.user).
+    - Les commandes invité (order.user is None) ne sont pas accessibles via cet
+      endpoint : elles utilisent le flow DraftOrder → webhook Stripe directement.
     """
+    permission_classes = [IsAuthenticated]
     throttle_classes = [StripeCheckoutThrottle]
+
     def post(self, request, order_id):
         try:
             order = Order.objects.select_related('restaurant__owner').get(id=order_id)
-            
+
+            # ── Contrôle de propriété ────────────────────────────────────────
+            # Réutilise le helper défini dans ce module (même logique que
+            # UpdatePaymentStatusView / CreatePaymentIntentView).
+            # Les commandes invité retournent False → 403, jamais de fuite.
+            if not _is_order_owner(request.user, order):
+                return Response(
+                    {"error": "Not authorized."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
             # Check if order is already paid (Order uses payment_status field, not is_paid)
             if order.payment_status == 'paid':
                 return Response({"error": "Order already paid."}, status=status.HTTP_400_BAD_REQUEST)
@@ -569,20 +586,6 @@ class StripeIdentitySessionView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-def _is_order_owner(request_user, order) -> bool:
-    """
-    Vérifie qu'un utilisateur authentifié est bien propriétaire de la commande.
-
-    - Commande authentifiée (order.user défini)  : doit correspondre à request_user.
-    - Commande invité (order.user is None)        : aucun claim de propriété possible
-      via JWT → refus systématique sur les endpoints client.
-      Ces commandes ne sont modifiées que par le webhook Stripe.
-    """
-    if order.user is None:
-        return False
-    return order.user == request_user
-
-
 @extend_schema(
     tags=["Paiement Mobile"],
     summary="Créer un PaymentIntent pour mobile",
@@ -601,16 +604,16 @@ class CreatePaymentIntentView(APIView):
                 )
             
             order = Order.objects.get(id=order_id)
-            
+
             # Vérifier l'autorisation.
             # _is_order_owner retourne False pour les commandes invité (order.user is None)
             # — elles passent uniquement par le flow Checkout + webhook Stripe.
             if not _is_order_owner(request.user, order):
                 return Response(
-                    {'error': 'Not authorized'}, 
+                    {'error': 'Not authorized'},
                     status=status.HTTP_403_FORBIDDEN
                 )
-            
+
             if order.payment_status == 'paid':
                 return Response(
                     {'error': 'Order already paid'}, 

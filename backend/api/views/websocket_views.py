@@ -76,6 +76,10 @@ def authenticate_user_from_token(token):
         return None
 
 @api_view(['GET'])
+@permission_classes([])  # Auth manuelle dans la fonction : supporte le token JWT
+                         # passé en query param (?token=...) pour EventSource
+                         # (qui ne peut pas envoyer de header Authorization).
+                         # La vérification du token est faite via authenticate_user_from_token().
 def order_status_stream(request):
     """
     Endpoint SSE pour les mises à jour de commandes

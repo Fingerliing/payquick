@@ -1,10 +1,10 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import AllowAny
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.core.mail import EmailMessage
-from django.template.loader import render_to_string
 from django.conf import settings
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 import json
@@ -15,24 +15,74 @@ from api.serializers.order_serializers import OrderDetailSerializer
 
 logger = logging.getLogger(__name__)
 
+
+def _check_receipt_access(request, order) -> bool:
+    """
+    Contrôle d'accès unifié pour les endpoints de ticket.
+
+    Deux chemins légitimes :
+    1. Utilisateur authentifié propriétaire de la commande (order.user == request.user).
+    2. Accès invité : la commande n'a pas d'utilisateur (order.user is None) ET
+       le paramètre `email` fourni correspond à guest_email ou guest_phone de la commande.
+       Ce gate empêche l'énumération d'order_id sans connaître le contact associé.
+
+    Retourne True si l'accès est autorisé, False sinon.
+    """
+    # ── Chemin 1 : utilisateur authentifié ───────────────────────────────────
+    if request.user and request.user.is_authenticated:
+        if order.user is not None:
+            return order.user == request.user
+        # Commande invité avec JWT : on tombe dans le chemin 2 ci-dessous
+
+    # ── Chemin 2 : invité (order.user is None) ───────────────────────────────
+    if order.user is not None:
+        # Commande authentifiée accessible uniquement via JWT valide (chemin 1)
+        return False
+
+    # Récupérer l'email depuis le body (POST) ou les query params (GET)
+    provided_email = (
+        request.data.get('email')
+        or request.query_params.get('email')
+        or ''
+    ).strip().lower()
+
+    if not provided_email:
+        return False
+
+    guest_email = (getattr(order, 'guest_email', '') or '').strip().lower()
+    guest_phone = (getattr(order, 'guest_phone', '') or '').strip().lower()
+
+    return provided_email in (guest_email, guest_phone)
+
 @extend_schema(
     tags=["Receipts"],
     summary="Envoyer un ticket par email",
     description="Envoie le ticket de caisse par email au client"
 )
 class SendReceiptEmailView(APIView):
+    permission_classes = [AllowAny]
+
     def post(self, request):
         order_id = request.data.get('order_id')
         email = request.data.get('email')
-        
+
         if not order_id or not email:
             return Response({
                 'success': False,
                 'message': 'order_id et email sont requis'
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
         order = get_object_or_404(Order, id=order_id)
-        
+
+        # Vérifier l'accès avant de renvoyer quoi que ce soit.
+        # Pour les commandes invité, l'email fourni sert à la fois de
+        # destinataire ET de preuve d'identité.
+        if not _check_receipt_access(request, order):
+            return Response(
+                {'success': False, 'message': 'Non autorisé'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         try:
             # Générer le contenu du ticket
             receipt_data = self._generate_receipt_data(order)
@@ -131,9 +181,17 @@ class SendReceiptEmailView(APIView):
     description="Récupère les données formatées du ticket pour une commande"
 )
 class GetReceiptDataView(APIView):
+    permission_classes = [AllowAny]
+
     def get(self, request, order_id):
         order = get_object_or_404(Order, id=order_id)
-        
+
+        if not _check_receipt_access(request, order):
+            return Response(
+                {'error': 'Non autorisé'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         try:
             # Construire les données du ticket directement depuis l'objet Order
             receipt_data = {
@@ -236,9 +294,17 @@ class GetReceiptDataView(APIView):
     description="Génère et retourne un PDF du ticket de caisse"
 )
 class GenerateReceiptPDFView(APIView):
+    permission_classes = [AllowAny]
+
     def get(self, request, order_id):
         order = get_object_or_404(Order, id=order_id)
-        
+
+        if not _check_receipt_access(request, order):
+            return Response(
+                {'error': 'Non autorisé'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         # Import reportlab only when needed
         try:
             from reportlab.pdfgen import canvas

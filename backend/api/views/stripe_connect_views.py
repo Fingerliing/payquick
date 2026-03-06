@@ -176,6 +176,9 @@ def create_onboarding_link(request):
 
 @csrf_exempt
 @api_view(['POST'])
+@permission_classes([])  # Public : Stripe ne peut pas envoyer de JWT.
+                         # La sécurité repose sur stripe.Webhook.construct_event()
+                         # qui vérifie la signature HMAC du payload.
 def stripe_webhook(request):
     """Gérer les webhooks Stripe"""
     payload = request.body
