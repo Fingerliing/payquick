@@ -569,6 +569,20 @@ class StripeIdentitySessionView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+def _is_order_owner(request_user, order) -> bool:
+    """
+    Vérifie qu'un utilisateur authentifié est bien propriétaire de la commande.
+
+    - Commande authentifiée (order.user défini)  : doit correspondre à request_user.
+    - Commande invité (order.user is None)        : aucun claim de propriété possible
+      via JWT → refus systématique sur les endpoints client.
+      Ces commandes ne sont modifiées que par le webhook Stripe.
+    """
+    if order.user is None:
+        return False
+    return order.user == request_user
+
+
 @extend_schema(
     tags=["Paiement Mobile"],
     summary="Créer un PaymentIntent pour mobile",
@@ -588,8 +602,10 @@ class CreatePaymentIntentView(APIView):
             
             order = Order.objects.get(id=order_id)
             
-            # Vérifier l'autorisation
-            if order.user and order.user != request.user:
+            # Vérifier l'autorisation.
+            # _is_order_owner retourne False pour les commandes invité (order.user is None)
+            # — elles passent uniquement par le flow Checkout + webhook Stripe.
+            if not _is_order_owner(request.user, order):
                 return Response(
                     {'error': 'Not authorized'}, 
                     status=status.HTTP_403_FORBIDDEN
@@ -632,59 +648,110 @@ class CreatePaymentIntentView(APIView):
     tags=["Paiement Mobile"],
     summary="Mettre à jour le statut de paiement",
 )
-
-@extend_schema(
-    tags=["Paiement Mobile"],
-    summary="Mettre à jour le statut de paiement",
-)
 class UpdatePaymentStatusView(APIView):
     permission_classes = [IsAuthenticated]
-    
+
+    # Statuts que le client mobile peut poser lui-même (sans preuve Stripe).
+    # 'paid' et 'failed' sont réservés au webhook — le client ne peut pas
+    # s'auto-déclarer payé sans vérification côté serveur.
+    CLIENT_ALLOWED_STATUSES = frozenset({'cash_pending'})
+
+    # Statuts nécessitant une vérification active auprès de Stripe avant écriture.
+    STRIPE_VERIFIED_STATUSES = frozenset({'paid', 'failed'})
+
     def post(self, request, order_id):
         try:
-            print(f"📥 Received payment update: {request.data}")
+            logger.info(f"Payment update request for order {order_id}: {request.data}")
             order = Order.objects.get(id=order_id)
-            
-            # Vérifier l'autorisation
-            if order.user and order.user != request.user:
+
+            # ── Contrôle d'accès ─────────────────────────────────────────────
+            # _is_order_owner refuse explicitement les commandes invité
+            # (order.user is None) : elles ne peuvent être mises à jour que
+            # par le webhook Stripe, pas par un claim client.
+            if not _is_order_owner(request.user, order):
                 return Response(
-                    {'error': 'Not authorized'}, 
+                    {'error': 'Not authorized'},
                     status=status.HTTP_403_FORBIDDEN
                 )
-            
+
             payment_status = request.data.get('payment_status')
-            payment_method = request.data.get('payment_method')  # Nouveau champ
-            print(f"🔄 Updating order {order_id}: status={payment_status}, method={payment_method}")
-            
-            if payment_status not in ['paid', 'cash_pending', 'failed']:
+            payment_method = request.data.get('payment_method')
+            logger.info(f"Updating order {order_id}: status={payment_status}, method={payment_method}")
+
+            all_statuses = self.CLIENT_ALLOWED_STATUSES | self.STRIPE_VERIFIED_STATUSES
+            if payment_status not in all_statuses:
                 return Response(
-                    {'error': 'Invalid payment status'}, 
+                    {'error': 'Invalid payment status'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
-            # Mettre à jour le statut
+
+            # ── Statuts Stripe-only : paid / failed ──────────────────────────
+            # Le client mobile ne doit jamais auto-déclarer un paiement Stripe.
+            # On exige le payment_intent_id et on le vérifie en temps réel
+            # avant toute écriture en base.
+            if payment_status in self.STRIPE_VERIFIED_STATUSES:
+                payment_intent_id = request.data.get('payment_intent_id')
+                if not payment_intent_id:
+                    return Response(
+                        {'error': 'payment_intent_id is required to set this status'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                try:
+                    intent = stripe.PaymentIntent.retrieve(payment_intent_id)
+                except stripe.error.StripeError as e:
+                    logger.warning(f"Stripe retrieve error for {payment_intent_id}: {e}")
+                    return Response(
+                        {'error': 'Could not verify payment with Stripe'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+                # Vérifier que le PaymentIntent est bien rattaché à cette commande
+                if intent.metadata.get('order_id') != str(order.id):
+                    logger.warning(
+                        f"PaymentIntent {payment_intent_id} order_id mismatch "
+                        f"(expected {order.id}, got {intent.metadata.get('order_id')})"
+                    )
+                    return Response(
+                        {'error': 'Payment intent does not match this order'},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+
+                # Mapper le statut interne vers le statut Stripe attendu
+                expected_stripe_status = 'succeeded' if payment_status == 'paid' else 'canceled'
+                if intent.status != expected_stripe_status:
+                    return Response(
+                        {
+                            'error': (
+                                f'Payment intent status is "{intent.status}", '
+                                f'cannot set order to "{payment_status}"'
+                            )
+                        },
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+            # ── Écriture ─────────────────────────────────────────────────────
             order.payment_status = payment_status
-            
-            # Mettre à jour la méthode de paiement si fournie
+
             if payment_method:
                 if payment_method not in ['cash', 'card', 'online']:
                     return Response(
-                        {'error': 'Invalid payment method'}, 
+                        {'error': 'Invalid payment method'},
                         status=status.HTTP_400_BAD_REQUEST
                     )
                 order.payment_method = payment_method
-            
+
             order.save()
-            
+
             return Response({'success': True})
-            
+
         except Order.DoesNotExist:
             return Response(
-                {'error': 'Order not found'}, 
+                {'error': 'Order not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
+            logger.exception(f"Unexpected error in UpdatePaymentStatusView for order {order_id}: {e}")
             return Response(
-                {'error': str(e)}, 
+                {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
