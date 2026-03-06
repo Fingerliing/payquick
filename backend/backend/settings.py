@@ -116,11 +116,11 @@ ASGI_APPLICATION = 'backend.asgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'eatquicker',
-        'USER': 'eatuser',
-        'PASSWORD': 'eatpass',
-        'HOST': 'db',
-        'PORT': '5432',
+        'NAME': config('DB_NAME'),
+        'USER': config('DB_USER'),
+        'PASSWORD': config('DB_PASSWORD'),
+        'HOST': config('DB_HOST', default='db'),
+        'PORT': config('DB_PORT', default='5432'),
     }
 }
 
