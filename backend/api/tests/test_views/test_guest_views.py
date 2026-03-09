@@ -9,6 +9,7 @@ Tests unitaires pour les vues invités
 import pytest
 from unittest.mock import patch, MagicMock
 from decimal import Decimal
+from django.utils import timezone
 from rest_framework.test import APIClient
 from rest_framework import status
 from django.contrib.auth.models import User, Group
@@ -430,6 +431,108 @@ class TestGuestConfirmCash:
         response = api_client.post('/api/v1/guest/confirm-cash/', data, format='json')
         
         assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    # -------------------------------------------------------------------------
+    # Rejeu (double clic, retry réseau)
+    # -------------------------------------------------------------------------
+
+    def test_replay_returns_409_conflict(self, api_client, draft_order_cash):
+        """
+        Régression anti-rejeu : un second appel avec le même draft_order_id
+        doit retourner 409 Conflict — pas créer une deuxième commande.
+
+        Avant le correctif, aucune garde n'existait : deux appels séquentiels
+        produisaient deux Order distinctes pour la même commande.
+        """
+        data = {'draft_order_id': str(draft_order_cash.id)}
+
+        first = api_client.post('/api/v1/guest/confirm-cash/', data, format='json')
+        assert first.status_code == status.HTTP_200_OK
+
+        second = api_client.post('/api/v1/guest/confirm-cash/', data, format='json')
+        assert second.status_code == status.HTTP_409_CONFLICT
+
+    def test_replay_creates_only_one_order(self, api_client, draft_order_cash):
+        """
+        Même sous rejeu, une seule commande doit exister en base.
+        """
+        data = {'draft_order_id': str(draft_order_cash.id)}
+        initial_count = Order.objects.count()
+
+        api_client.post('/api/v1/guest/confirm-cash/', data, format='json')
+        api_client.post('/api/v1/guest/confirm-cash/', data, format='json')
+
+        assert Order.objects.count() == initial_count + 1
+
+    def test_replay_response_contains_order_id(self, api_client, draft_order_cash):
+        """
+        La réponse 409 doit exposer l'order_id de la commande déjà créée
+        pour que le frontend puisse afficher la confirmation sans erreur.
+        """
+        data = {'draft_order_id': str(draft_order_cash.id)}
+
+        api_client.post('/api/v1/guest/confirm-cash/', data, format='json')
+        second = api_client.post('/api/v1/guest/confirm-cash/', data, format='json')
+
+        assert second.status_code == status.HTTP_409_CONFLICT
+        assert 'order_id' in second.data
+
+    def test_already_confirmed_draft_returns_409(self, api_client, draft_order_cash):
+        """
+        Un draft dont le statut est déjà 'confirmed_cash' (posé en DB
+        directement, sans premier appel) doit retourner 409 immédiatement.
+        Simule le cas où le client enverrait un ancien draft_order_id.
+        """
+        draft_order_cash.status = 'confirmed_cash'
+        draft_order_cash.save(update_fields=['status'])
+
+        data = {'draft_order_id': str(draft_order_cash.id)}
+        response = api_client.post('/api/v1/guest/confirm-cash/', data, format='json')
+
+        assert response.status_code == status.HTTP_409_CONFLICT
+
+    # -------------------------------------------------------------------------
+    # Expiration
+    # -------------------------------------------------------------------------
+
+    def test_expired_draft_returns_410_gone(self, api_client, draft_order_cash):
+        """
+        Un draft expiré doit retourner 410 Gone — pas créer de commande,
+        pas retourner un 500.
+        """
+        draft_order_cash.expires_at = timezone.now() - timezone.timedelta(minutes=1)
+        draft_order_cash.save(update_fields=['expires_at'])
+
+        data = {'draft_order_id': str(draft_order_cash.id)}
+        response = api_client.post('/api/v1/guest/confirm-cash/', data, format='json')
+
+        assert response.status_code == status.HTTP_410_GONE
+
+    def test_expired_draft_creates_no_order(self, api_client, draft_order_cash):
+        """
+        Aucune Order ne doit être créée pour un draft expiré.
+        """
+        draft_order_cash.expires_at = timezone.now() - timezone.timedelta(minutes=1)
+        draft_order_cash.save(update_fields=['expires_at'])
+
+        initial_count = Order.objects.count()
+        data = {'draft_order_id': str(draft_order_cash.id)}
+        api_client.post('/api/v1/guest/confirm-cash/', data, format='json')
+
+        assert Order.objects.count() == initial_count
+
+    def test_expired_draft_status_updated_to_expired(self, api_client, draft_order_cash):
+        """
+        Après une tentative sur draft expiré, son statut doit passer à 'expired'.
+        """
+        draft_order_cash.expires_at = timezone.now() - timezone.timedelta(minutes=1)
+        draft_order_cash.save(update_fields=['expires_at'])
+
+        data = {'draft_order_id': str(draft_order_cash.id)}
+        api_client.post('/api/v1/guest/confirm-cash/', data, format='json')
+
+        draft_order_cash.refresh_from_db()
+        assert draft_order_cash.status == 'expired'
 
 
 # =============================================================================

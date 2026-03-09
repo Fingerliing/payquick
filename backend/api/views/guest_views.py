@@ -1,3 +1,4 @@
+import logging
 from decimal import Decimal
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -12,9 +13,12 @@ from api.serializers import GuestPrepareSerializer, GuestPrepareResponse, DraftS
 from api.services import create_order_from_draft
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
+logger = logging.getLogger(__name__)
+
 
 class GuestThrottle(throttling.UserRateThrottle):
     rate = "10/min"
+
 
 def compute_amount_cents(restaurant, items):
     amount_cents = 0
@@ -26,6 +30,7 @@ def compute_amount_cents(restaurant, items):
         # MenuItem.price en euros → centimes
         amount_cents += int(Decimal(mi.price) * 100) * int(it["quantity"])
     return amount_cents
+
 
 class GuestPrepare(APIView):
     permission_classes = [permissions.AllowAny]
@@ -81,6 +86,7 @@ class GuestPrepare(APIView):
         })
         return Response(resp.data, status=status.HTTP_201_CREATED)
 
+
 class GuestConfirmCash(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -88,18 +94,46 @@ class GuestConfirmCash(APIView):
         q = DraftStatusQuery(data=request.data)
         q.is_valid(raise_exception=True)
         draft = get_object_or_404(DraftOrder, id=q.validated_data["draft_order_id"])
-        if draft.payment_method != "cash":
-            return Response({"detail": "Draft not cash"}, status=400)
 
-        order = create_order_from_draft(draft, paid=False)
-        draft.status = "confirmed_cash"
-        draft.save(update_fields=["status"])
+        if draft.payment_method != "cash":
+            return Response({"detail": "Draft not cash"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # create_order_from_draft gère le verrou SELECT FOR UPDATE, la garde
+            # de statut et la mise à jour vers 'confirmed_cash' — le tout dans
+            # une seule transaction atomique.  Ne pas mettre à jour draft.status
+            # ici : la vue ne voit qu'une snapshot non verrouillée.
+            order = create_order_from_draft(draft, paid=False)
+        except ValueError as e:
+            error_msg = str(e)
+            if "already consumed" in error_msg:
+                # Rejeu détecté : renvoyer 409 Conflict avec l'id de commande
+                # existante pour que le client puisse afficher la confirmation.
+                from api.models import Order
+                existing = Order.objects.filter(
+                    restaurant=draft.restaurant,
+                    guest_phone=draft.phone,
+                    created_at__gte=draft.created_at,
+                ).order_by("-id").first()
+                return Response(
+                    {
+                        "detail": "Order already created for this draft.",
+                        "order_id": existing.id if existing else None,
+                    },
+                    status=status.HTTP_409_CONFLICT,
+                )
+            if "expired" in error_msg:
+                return Response({"detail": "Draft has expired."}, status=status.HTTP_410_GONE)
+            logger.exception("Unexpected error in GuestConfirmCash: %s", e)
+            return Response({"detail": "Could not confirm order."}, status=status.HTTP_400_BAD_REQUEST)
+
         # TODO: notifier via WS (room du restaurant)
         return Response({
             "order_id": order.id,
             "status": order.status,
-            "payment_status": order.payment_status
-        }, status=200)
+            "payment_status": order.payment_status,
+        }, status=status.HTTP_200_OK)
+
 
 class GuestDraftStatus(APIView):
     permission_classes = [permissions.AllowAny]
@@ -108,7 +142,6 @@ class GuestDraftStatus(APIView):
         q = DraftStatusQuery(data=request.query_params)
         q.is_valid(raise_exception=True)
         draft = get_object_or_404(DraftOrder, id=q.validated_data["draft_order_id"])
-        # Tu peux stocker l'order_id sur la draft si tu préfères
         from api.models import Order
         o = Order.objects.filter(
             restaurant=draft.restaurant,
