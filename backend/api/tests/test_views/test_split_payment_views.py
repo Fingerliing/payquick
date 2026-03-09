@@ -176,6 +176,43 @@ def order_with_items(order, menu_item):
 
 
 @pytest.fixture
+def other_user(db):
+    """Un utilisateur authentifié qui ne possède PAS la commande."""
+    return User.objects.create_user(username="splitviewother", password="testpass123")
+
+
+@pytest.fixture
+def other_client(other_user):
+    """Client authentifié en tant qu'utilisateur non-propriétaire."""
+    token = RefreshToken.for_user(other_user)
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token.access_token}")
+    return client
+
+
+@pytest.fixture
+def guest_order(restaurant):
+    """
+    Commande invité : order.user is None.
+
+    Avant le correctif, `if order.user and order.user != request.user:`
+    court-circuitait à False → tout utilisateur authentifié pouvait y accéder.
+    Après correctif via _is_order_owner, order.user is None → 403 systématique.
+    """
+    return Order.objects.create(
+        restaurant=restaurant,
+        table_number="T99",
+        order_number="ORD-GUEST-SPLIT-001",
+        user=None,  # commande invité
+        total_amount=Decimal('80.00'),
+        subtotal=Decimal('80.00'),
+        tax_amount=Decimal('0.00'),
+        payment_status='pending',
+        source='guest',
+    )
+
+
+@pytest.fixture
 def split_session(order, user):
     return SplitPaymentSession.objects.create(
         order=order,
@@ -302,6 +339,50 @@ class TestCreateSplitPaymentSession:
         
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
+    def test_create_split_wrong_user_returns_403(self, other_client, order):
+        """
+        Un utilisateur authentifié qui n'est pas propriétaire de la commande
+        doit recevoir un 403, pas un 200.
+        (Régression : _is_order_owner doit comparer order.user_id == user.id)
+        """
+        data = {
+            'split_type': 'equal',
+            'tip_amount': '0.00',
+            'portions': [
+                {'name': 'Person 1', 'amount': '50.00'},
+                {'name': 'Person 2', 'amount': '50.00'},
+            ]
+        }
+        response = other_client.post(
+            f'/api/v1/split-payments/create/{order.id}/',
+            data,
+            format='json'
+        )
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert 'error' in response.data
+
+    def test_create_split_guest_order_returns_403(self, auth_client, guest_order):
+        """
+        Régression critique : avant le correctif, order.user is None faisait
+        court-circuiter la garde (`if order.user and ...` → False) et tout
+        utilisateur authentifié accédait silencieusement à la commande invité.
+        _is_order_owner doit retourner False quand order.user is None.
+        """
+        data = {
+            'split_type': 'equal',
+            'tip_amount': '0.00',
+            'portions': [
+                {'name': 'Person 1', 'amount': '40.00'},
+                {'name': 'Person 2', 'amount': '40.00'},
+            ]
+        }
+        response = auth_client.post(
+            f'/api/v1/split-payments/create/{guest_order.id}/',
+            data,
+            format='json'
+        )
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
 
 # =============================================================================
 # TESTS - Récupération de session
@@ -334,6 +415,12 @@ class TestGetSplitPaymentSession:
         response = api_client.get(f'/api/v1/split-payments/session/{order_id}/')
         
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_get_session_wrong_user_returns_403(self, other_client, split_session_with_portions):
+        """Un autre utilisateur authentifié ne doit pas voir la session."""
+        order_id = split_session_with_portions.order.id
+        response = other_client.get(f'/api/v1/split-payments/session/{order_id}/')
+        assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
 # =============================================================================
@@ -403,6 +490,26 @@ class TestPayPortion:
         )
         
         assert response.status_code in [status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND]
+
+    def test_pay_portion_wrong_user_returns_403(self, other_client, split_session_with_portions):
+        """Un autre utilisateur ne peut pas payer une portion d'une commande qui ne lui appartient pas."""
+        portion = split_session_with_portions.portions.first()
+        order_id = split_session_with_portions.order.id
+        response = other_client.post(
+            f'/api/v1/split-payments/pay-portion/{order_id}/',
+            {'portion_id': str(portion.id)},
+            format='json'
+        )
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_pay_portion_guest_order_returns_403(self, auth_client, guest_order):
+        """Une commande invité (order.user=None) ne doit jamais être accessible via cet endpoint."""
+        response = auth_client.post(
+            f'/api/v1/split-payments/pay-portion/{guest_order.id}/',
+            {'portion_id': '00000000-0000-0000-0000-000000000000'},
+            format='json'
+        )
+        assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
 # =============================================================================
@@ -527,3 +634,166 @@ class TestCancelSplitPaymentSession:
         
         # Ne devrait pas permettre l'annulation si des portions sont payées
         assert response.status_code in [status.HTTP_400_BAD_REQUEST, status.HTTP_200_OK, status.HTTP_405_METHOD_NOT_ALLOWED]
+
+# =============================================================================
+# TESTS - Confirmation de paiement de portion
+# =============================================================================
+
+@pytest.mark.django_db
+class TestConfirmPortionPayment:
+    """Tests pour la confirmation de paiement d'une portion."""
+
+    def test_confirm_wrong_user_returns_403(self, other_client, split_session_with_portions):
+        """Un autre utilisateur ne peut pas confirmer une portion."""
+        portion = split_session_with_portions.portions.first()
+        order_id = split_session_with_portions.order.id
+        response = other_client.post(
+            f'/api/v1/split-payments/confirm-portion/{order_id}/',
+            {'portion_id': str(portion.id), 'payment_intent_id': 'pi_fake'},
+            format='json'
+        )
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_confirm_guest_order_returns_403(self, auth_client, guest_order):
+        """Commande invité → 403 systématique."""
+        response = auth_client.post(
+            f'/api/v1/split-payments/confirm-portion/{guest_order.id}/',
+            {'portion_id': '00000000-0000-0000-0000-000000000000', 'payment_intent_id': 'pi_fake'},
+            format='json'
+        )
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_confirm_invalid_order_returns_404(self, auth_client):
+        """Commande inexistante → 404."""
+        response = auth_client.post(
+            '/api/v1/split-payments/confirm-portion/999999/',
+            {'portion_id': '00000000-0000-0000-0000-000000000000', 'payment_intent_id': 'pi_fake'},
+            format='json'
+        )
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_confirm_unauthenticated_returns_401(self, api_client, split_session_with_portions):
+        """Sans authentification → 401."""
+        portion = split_session_with_portions.portions.first()
+        order_id = split_session_with_portions.order.id
+        response = api_client.post(
+            f'/api/v1/split-payments/confirm-portion/{order_id}/',
+            {'portion_id': str(portion.id), 'payment_intent_id': 'pi_fake'},
+            format='json'
+        )
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+# =============================================================================
+# TESTS - Finalisation du paiement divisé
+# =============================================================================
+
+@pytest.mark.django_db
+class TestCompleteSplitPayment:
+    """Tests pour la finalisation d'une session de paiement divisé."""
+
+    def test_complete_not_fully_paid_returns_400(self, auth_client, split_session_with_portions):
+        """Impossible de finaliser si des portions ne sont pas encore payées."""
+        order_id = split_session_with_portions.order.id
+        response = auth_client.post(f'/api/v1/split-payments/complete/{order_id}/')
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_complete_wrong_user_returns_403(self, other_client, split_session_with_portions):
+        """Un autre utilisateur ne peut pas finaliser la session."""
+        order_id = split_session_with_portions.order.id
+        response = other_client.post(f'/api/v1/split-payments/complete/{order_id}/')
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_complete_guest_order_returns_403(self, auth_client, guest_order):
+        """Commande invité → 403."""
+        response = auth_client.post(f'/api/v1/split-payments/complete/{guest_order.id}/')
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_complete_invalid_order_returns_404(self, auth_client):
+        """Commande inexistante → 404."""
+        response = auth_client.post('/api/v1/split-payments/complete/999999/')
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_complete_unauthenticated_returns_401(self, api_client, split_session_with_portions):
+        """Sans authentification → 401."""
+        order_id = split_session_with_portions.order.id
+        response = api_client.post(f'/api/v1/split-payments/complete/{order_id}/')
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+# =============================================================================
+# TESTS - Historique des paiements divisés
+# =============================================================================
+
+@pytest.mark.django_db
+class TestSplitPaymentHistory:
+    """Tests pour l'historique des paiements d'une session."""
+
+    def test_get_history(self, auth_client, split_session_with_portions):
+        """Récupération normale de l'historique."""
+        order_id = split_session_with_portions.order.id
+        response = auth_client.get(f'/api/v1/split-payments/history/{order_id}/')
+        assert response.status_code == status.HTTP_200_OK
+        assert 'portions' in response.data
+
+    def test_get_history_no_session_returns_404(self, auth_client, order):
+        """Commande sans session de paiement divisé → 404."""
+        response = auth_client.get(f'/api/v1/split-payments/history/{order.id}/')
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_get_history_wrong_user_returns_403(self, other_client, split_session_with_portions):
+        """Un autre utilisateur ne peut pas lire l'historique."""
+        order_id = split_session_with_portions.order.id
+        response = other_client.get(f'/api/v1/split-payments/history/{order_id}/')
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_get_history_guest_order_returns_403(self, auth_client, guest_order):
+        """Commande invité → 403."""
+        response = auth_client.get(f'/api/v1/split-payments/history/{guest_order.id}/')
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_get_history_unauthenticated_returns_401(self, api_client, split_session_with_portions):
+        """Sans authentification → 401."""
+        order_id = split_session_with_portions.order.id
+        response = api_client.get(f'/api/v1/split-payments/history/{order_id}/')
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+# =============================================================================
+# TESTS - Messages d'erreur generiques (pas de fuite str(e))
+# =============================================================================
+
+@pytest.mark.django_db
+class TestGenericErrorMessages:
+    """
+    Vérifie que les endpoints paiement divisé ne fuient pas d'informations
+    internes dans les réponses 500.
+
+    Avant le correctif, `except Exception as e: return Response({'error': str(e)})`
+    exposait les messages d'erreur Django/Stripe (noms de champs, traces, etc.).
+    """
+
+    @patch('api.views.split_payment_views.SplitPaymentSession.objects.create')
+    def test_create_session_500_returns_generic_message(self, mock_create, auth_client, order):
+        """Une erreur interne ne doit pas exposer str(e) au client."""
+        mock_create.side_effect = Exception("internal db error: column xyz does not exist")
+
+        data = {
+            'split_type': 'equal',
+            'tip_amount': '0.00',
+            'portions': [
+                {'name': 'P1', 'amount': '50.00'},
+                {'name': 'P2', 'amount': '50.00'},
+            ]
+        }
+        response = auth_client.post(
+            f'/api/v1/split-payments/create/{order.id}/',
+            data,
+            format='json'
+        )
+
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert 'error' in response.data
+        # Le message d'erreur interne ne doit PAS apparaître dans la réponse
+        assert 'internal db error' not in str(response.data)
+        assert 'column xyz' not in str(response.data)

@@ -89,6 +89,26 @@ def _create_order_from_draft(draft: DraftOrder, paid: bool) -> Order:
     return order
 
 
+# ---------- Helper : contrôle de propriété d'une commande ----------
+def _is_order_owner(user, order: Order) -> bool:
+    """
+    Retourne True uniquement si l'utilisateur authentifié est le propriétaire
+    de la commande.
+
+    Règles :
+    - Retourne False pour les commandes invité (order.user is None) : elles ne
+      sont manipulables que par le webhook Stripe, jamais par un claim client.
+    - Retourne False si l'utilisateur n'est pas authentifié.
+    - Compare les IDs entiers pour éviter un SELECT supplémentaire si order.user
+      n'est pas déjà en cache.
+    """
+    if not user or not user.is_authenticated:
+        return False
+    if order.user is None:
+        return False
+    return order.user_id == user.id
+
+
 # ---------- 1. Création de la session Stripe Checkout ----------
 @extend_schema(
     tags=["Paiement"],
@@ -176,7 +196,8 @@ class CreateCheckoutSessionView(APIView):
         except Order.DoesNotExist:
             return Response({"error": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.exception("Unexpected error in CreateCheckoutSessionView for order %s: %s", order_id, e)
+            return Response({"error": "An unexpected error occurred. Please try again."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # ---------- 2. Webhook Stripe sécurisé ----------
 @extend_schema(exclude=True)
@@ -584,7 +605,8 @@ class StripeIdentitySessionView(APIView):
             return Response({"verification_url": session.url}, status=status.HTTP_201_CREATED)
 
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.exception("Unexpected error in StripeIdentitySessionView: %s", e)
+            return Response({"error": "An unexpected error occurred. Please try again."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @extend_schema(
     tags=["Paiement Mobile"],
@@ -642,8 +664,9 @@ class CreatePaymentIntentView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
+            logger.exception("Unexpected error in CreatePaymentIntentView for order %s: %s", order_id, e)
             return Response(
-                {'error': str(e)}, 
+                {'error': 'An unexpected error occurred. Please try again.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -755,6 +778,6 @@ class UpdatePaymentStatusView(APIView):
         except Exception as e:
             logger.exception(f"Unexpected error in UpdatePaymentStatusView for order {order_id}: {e}")
             return Response(
-                {'error': str(e)},
+                {'error': 'An unexpected error occurred. Please try again.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

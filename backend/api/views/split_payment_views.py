@@ -1,3 +1,4 @@
+import logging
 import stripe
 from django.conf import settings
 from django.utils import timezone
@@ -6,6 +7,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+logger = logging.getLogger(__name__)
 from drf_spectacular.utils import (
     extend_schema, 
     OpenApiParameter, 
@@ -17,6 +20,7 @@ from decimal import Decimal
 import uuid
 
 from api.models import Order, SplitPaymentSession, SplitPaymentPortion
+from api.views.payment_views import _is_order_owner
 from api.serializers.split_payment_serializers import (
     SplitPaymentSessionSerializer,
     CreateSplitPaymentSessionSerializer,
@@ -122,7 +126,7 @@ class CreateSplitPaymentSessionView(APIView):
             order = Order.objects.get(id=order_id)
             
             # Vérifier l'autorisation
-            if order.user and order.user != request.user:
+            if not _is_order_owner(request.user, order):
                 return Response(
                     {'error': 'Non autorisé'}, 
                     status=status.HTTP_403_FORBIDDEN
@@ -182,8 +186,9 @@ class CreateSplitPaymentSessionView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
+            logger.exception("Unexpected error in split payment view: %s", e)
             return Response(
-                {'error': str(e)}, 
+                {'error': 'An unexpected error occurred. Please try again.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -203,7 +208,7 @@ class GetSplitPaymentSessionView(APIView):
             order = Order.objects.get(id=order_id)
             
             # Vérifier l'autorisation
-            if order.user and order.user != request.user:
+            if not _is_order_owner(request.user, order):
                 return Response(
                     {'error': 'Non autorisé'}, 
                     status=status.HTTP_403_FORBIDDEN
@@ -299,7 +304,7 @@ class PayPortionView(APIView):
             order = Order.objects.get(id=order_id)
             
             # Vérifier l'autorisation
-            if order.user and order.user != request.user:
+            if not _is_order_owner(request.user, order):
                 return Response(
                     {'error': 'Non autorisé'}, 
                     status=status.HTTP_403_FORBIDDEN
@@ -367,8 +372,9 @@ class PayPortionView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
+            logger.exception("Unexpected error in split payment view: %s", e)
             return Response(
-                {'error': str(e)}, 
+                {'error': 'An unexpected error occurred. Please try again.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -388,7 +394,7 @@ class ConfirmPortionPaymentView(APIView):
             order = Order.objects.get(id=order_id)
             
             # Vérifier l'autorisation
-            if order.user and order.user != request.user:
+            if not _is_order_owner(request.user, order):
                 return Response(
                     {'error': 'Non autorisé'}, 
                     status=status.HTTP_403_FORBIDDEN
@@ -442,8 +448,9 @@ class ConfirmPortionPaymentView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
+            logger.exception("Unexpected error in split payment view: %s", e)
             return Response(
-                {'error': str(e)}, 
+                {'error': 'An unexpected error occurred. Please try again.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -462,7 +469,7 @@ class PayRemainingPortionsView(APIView):
             order = Order.objects.get(id=order_id)
             
             # Vérifier l'autorisation
-            if order.user and order.user != request.user:
+            if not _is_order_owner(request.user, order):
                 return Response(
                     {'error': 'Non autorisé'}, 
                     status=status.HTTP_403_FORBIDDEN
@@ -524,8 +531,9 @@ class PayRemainingPortionsView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
+            logger.exception("Unexpected error in split payment view: %s", e)
             return Response(
-                {'error': str(e)}, 
+                {'error': 'An unexpected error occurred. Please try again.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -544,7 +552,7 @@ class ConfirmRemainingPaymentsView(APIView):
             order = Order.objects.get(id=order_id)
             
             # Vérifier l'autorisation
-            if order.user and order.user != request.user:
+            if not _is_order_owner(request.user, order):
                 return Response(
                     {'error': 'Non autorisé'}, 
                     status=status.HTTP_403_FORBIDDEN
@@ -581,8 +589,9 @@ class ConfirmRemainingPaymentsView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
+            logger.exception("Unexpected error in split payment view: %s", e)
             return Response(
-                {'error': str(e)}, 
+                {'error': 'An unexpected error occurred. Please try again.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -660,7 +669,7 @@ class SplitPaymentStatusView(APIView):
             order = Order.objects.get(id=order_id)
             
             # Vérifier l'autorisation
-            if order.user and order.user != request.user:
+            if not _is_order_owner(request.user, order):
                 return Response(
                     {'error': 'Non autorisé'}, 
                     status=status.HTTP_403_FORBIDDEN
@@ -710,7 +719,7 @@ class CompleteSplitPaymentView(APIView):
             order = Order.objects.get(id=order_id)
             
             # Vérifier l'autorisation
-            if order.user and order.user != request.user:
+            if not _is_order_owner(request.user, order):
                 return Response(
                     {'error': 'Non autorisé'}, 
                     status=status.HTTP_403_FORBIDDEN
@@ -751,7 +760,7 @@ class CancelSplitPaymentSessionView(APIView):
             order = Order.objects.get(id=order_id)
             
             # Vérifier l'autorisation
-            if order.user and order.user != request.user:
+            if not _is_order_owner(request.user, order):
                 return Response(
                     {'error': 'Non autorisé'}, 
                     status=status.HTTP_403_FORBIDDEN
@@ -800,7 +809,7 @@ class SplitPaymentHistoryView(APIView):
             order = Order.objects.get(id=order_id)
             
             # Vérifier l'autorisation
-            if order.user and order.user != request.user:
+            if not _is_order_owner(request.user, order):
                 return Response(
                     {'error': 'Non autorisé'}, 
                     status=status.HTTP_403_FORBIDDEN
