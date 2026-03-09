@@ -1,5 +1,5 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import secureStorage from '@/utils/secureStorage';
 import { router } from 'expo-router';
 import { ApiError, ApiResponse } from '../types/common';
 
@@ -13,7 +13,7 @@ const STORAGE_KEYS = {
 /**
  * ApiClient
  * - Gère la baseURL (EXPO_PUBLIC_API_URL ou localhost)
- * - Ajoute automatiquement le Bearer token si présent dans AsyncStorage
+ * - Ajoute automatiquement le Bearer token si présent dans le stockage sécurisé
  * - Normalise les chemins pour éviter les doubles slashs
  * - Gère automatiquement le refresh token et la redirection vers login en cas d'expiration
  * - Expose des helpers génériques: get/post/put/patch/delete/options
@@ -28,7 +28,8 @@ class ApiClient {
   }> = [];
 
   constructor() {
-    this.baseURL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
+    this.baseURL = process.env.EXPO_PUBLIC_API_URL ||
+      (__DEV__ ? 'http://localhost:8000' : (() => { throw new Error('[EatQuickeR] EXPO_PUBLIC_API_URL non défini en production'); })());
 
     this.client = axios.create({
       baseURL: this.baseURL,
@@ -47,9 +48,9 @@ class ApiClient {
 
       if (!isPublicEndpoint) {
         const token =
-          (await AsyncStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN)) ||
-          (await AsyncStorage.getItem('auth_token')) ||
-          (await AsyncStorage.getItem('token')) ||
+          (await secureStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN)) ||
+          (await secureStorage.getItem('auth_token')) ||
+          (await secureStorage.getItem('token')) ||
           undefined;
 
         if (token) {
@@ -129,7 +130,7 @@ class ApiClient {
    */
   private async attemptTokenRefresh(): Promise<string | null> {
     try {
-      const refreshToken = await AsyncStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+      const refreshToken = await secureStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
       
       if (!refreshToken) {
         console.log('🔑 Pas de refresh token disponible');
@@ -151,7 +152,7 @@ class ApiClient {
       const newAccessToken = response.data?.access;
       
       if (newAccessToken) {
-        await AsyncStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, newAccessToken);
+        await secureStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, newAccessToken);
         console.log('✅ Token rafraîchi avec succès');
         return newAccessToken;
       }
@@ -185,11 +186,9 @@ class ApiClient {
     
     try {
       // Nettoyer toutes les données d'authentification
-      await AsyncStorage.multiRemove([
-        STORAGE_KEYS.ACCESS_TOKEN,
-        STORAGE_KEYS.REFRESH_TOKEN,
-        STORAGE_KEYS.USER_DATA,
-      ]);
+      await secureStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+      await secureStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
+      await secureStorage.removeItem(STORAGE_KEYS.USER_DATA);
       console.log('🗑️ Données d\'authentification supprimées');
     } catch (cleanupError) {
       console.error('⚠️ Erreur lors du nettoyage des données:', cleanupError);
@@ -401,7 +400,7 @@ class ApiClient {
    * Ne garantit pas la validité côté serveur
    */
   async hasValidToken(): Promise<boolean> {
-    const token = await AsyncStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+    const token = await secureStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
     return !!token;
   }
 }

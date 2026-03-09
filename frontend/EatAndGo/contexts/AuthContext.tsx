@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import secureStorage from '@/utils/secureStorage';
 import { API_BASE_URL } from '../constants/config';
 import { router } from 'expo-router';
 import {
@@ -40,7 +40,7 @@ const API_ENDPOINTS = {
   },
 };
 
-// Clés pour AsyncStorage
+// Clés de stockage sécurisé (expo-secure-store via secureStorage)
 const STORAGE_KEYS = {
   ACCESS_TOKEN: 'access_token',
   REFRESH_TOKEN: 'refresh_token',
@@ -121,7 +121,7 @@ class ApiClient {
     let token: string | null = null;
   
     if (!isPublicEndpoint) {
-      const token = await AsyncStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+      const token = await secureStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
       if (token) {
         config.headers = {
           ...config.headers,
@@ -332,11 +332,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const clearAuthData = async () => {
     try {
       console.log('🗑️ Suppression des données auth');
-      await AsyncStorage.multiRemove([
-        STORAGE_KEYS.ACCESS_TOKEN,
-        STORAGE_KEYS.REFRESH_TOKEN,
-        STORAGE_KEYS.USER_DATA,
-      ]);
+      await secureStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+      await secureStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
+      await secureStorage.removeItem(STORAGE_KEYS.USER_DATA);
       setUser(null);
       setLastError(null);
       console.log('✅ Données auth supprimées');
@@ -347,13 +345,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshTokens = async () => {
     try {
-      const refreshToken = await AsyncStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+      const refreshToken = await secureStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
       if (!refreshToken) {
         throw new Error('Aucun token de rafraîchissement disponible');
       }
 
       const response = await apiClient.refreshToken(refreshToken);
-      await AsyncStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, response.access);
+      await secureStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, response.access);
       console.log('🔄 Token rafraîchi avec succès');
       clearError();
     } catch (error) {
@@ -369,7 +367,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('🔄 Rafraîchissement des données utilisateur...');
       const currentUser = await apiClient.getCurrentUser();
       if (currentUser) {
-        await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(currentUser));
+        await secureStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(currentUser));
         setUser(currentUser);
         console.log('✅ Données utilisateur rafraîchies');
         clearError();
@@ -384,8 +382,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const checkAuth = async () => {
     try {
       console.log('🔍 Vérification de l\'authentification...');
-      const userData = await AsyncStorage.getItem(STORAGE_KEYS.USER_DATA);
-      const accessToken = await AsyncStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+      const userData = await secureStorage.getItem(STORAGE_KEYS.USER_DATA);
+      const accessToken = await secureStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
   
       if (userData && accessToken) {
         console.log('🔑 Données utilisateur trouvées dans le cache');
@@ -408,7 +406,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           await refreshUser();
           // Re-naviguer après refresh si le rôle a changé
-          const currentUser = await AsyncStorage.getItem(STORAGE_KEYS.USER_DATA);
+          const currentUser = await secureStorage.getItem(STORAGE_KEYS.USER_DATA);
           if (currentUser) {
             const refreshedUser = JSON.parse(currentUser);
             if (refreshedUser.role !== parsedUser.role) {
@@ -445,14 +443,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const response = await apiClient.register(data);
 
-      await AsyncStorage.multiSet([
-        [STORAGE_KEYS.ACCESS_TOKEN, response.access],
-        [STORAGE_KEYS.REFRESH_TOKEN, response.refresh],
-      ]);
+      await secureStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, response.access);
+      await secureStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, response.refresh);
       console.log('💾 Tokens enregistrés');
 
       const currentUser = await apiClient.getCurrentUser();
-      await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(currentUser));
+      await secureStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(currentUser));
       setUser(currentUser);
       
       console.log('✅ Inscription réussie avec données utilisateur complètes');
@@ -478,15 +474,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const response = await apiClient.login(data);
 
-      await AsyncStorage.multiSet([
-        [STORAGE_KEYS.ACCESS_TOKEN, response.access],
-        [STORAGE_KEYS.REFRESH_TOKEN, response.refresh],
-      ]);
+      await secureStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, response.access);
+      await secureStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, response.refresh);
       console.log('💾 Tokens enregistrés');
 
       const currentUser = await apiClient.getCurrentUser();
       if (currentUser) {
-        await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(currentUser));
+        await secureStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(currentUser));
         setUser(currentUser);
         console.log('👤 Utilisateur récupéré depuis /auth/me/', {
           role: currentUser.role,
@@ -513,11 +507,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('🚪 Déconnexion...');
       
       // Nettoyer directement les données locales
-      await AsyncStorage.multiRemove([
-        STORAGE_KEYS.ACCESS_TOKEN,
-        STORAGE_KEYS.REFRESH_TOKEN,
-        STORAGE_KEYS.USER_DATA,
-      ]);
+      await secureStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+      await secureStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
+      await secureStorage.removeItem(STORAGE_KEYS.USER_DATA);
       
       setUser(null);
       setLastError(null);

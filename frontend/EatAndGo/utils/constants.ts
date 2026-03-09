@@ -2,7 +2,8 @@ export const APP_CONFIG = {
   name: 'EatQuickeR',
   version: '1.0.0',
   api: {
-    baseUrl: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000',
+    baseUrl: process.env.EXPO_PUBLIC_API_URL ||
+      (__DEV__ ? 'http://localhost:8000' : (() => { throw new Error('[EatQuickeR] EXPO_PUBLIC_API_URL non défini en production'); })()),
     timeout: 10000,
   },
   stripe: {
@@ -80,7 +81,8 @@ export const EXPO_CONFIG = {
       '@stripe/stripe-react-native',
     ],
     extra: {
-      apiUrl: process.env.API_URL || 'http://localhost:8000',
+      apiUrl: process.env.API_URL ||
+        (__DEV__ ? 'http://localhost:8000' : (() => { throw new Error('[EatQuickeR] API_URL non défini en production'); })()),
       stripePublishableKeyDev: process.env.STRIPE_PUBLISHABLE_KEY_DEV,
       stripePublishableKeyProd: process.env.STRIPE_PUBLISHABLE_KEY_PROD,
     },
