@@ -232,10 +232,9 @@ def record_legal_consent(request):
         }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
         
     except Exception as e:
-        logger.error(f"Erreur lors de l'enregistrement du consentement: {str(e)}")
+        logger.exception(f"Erreur lors de l'enregistrement du consentement: {str(e)}")
         return Response({
-            'error': 'Erreur lors de l\'enregistrement du consentement',
-            'detail': str(e)
+            'error': "Erreur lors de l'enregistrement du consentement."
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -380,10 +379,9 @@ def export_user_data(request):
         return Response(user_data, status=status.HTTP_200_OK)
         
     except Exception as e:
-        logger.error(f"Erreur lors de l'export des données: {str(e)}")
+        logger.exception(f"Erreur lors de l'export des données: {str(e)}")
         return Response({
-            'error': 'Erreur lors de l\'export des données',
-            'detail': str(e)
+            'error': "Erreur lors de l'export des données."
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -443,10 +441,9 @@ contact@eatquicker.com
         }, status=status.HTTP_202_ACCEPTED)
         
     except Exception as e:
-        logger.error(f"Erreur lors de la demande d'export: {str(e)}")
+        logger.exception(f"Erreur lors de la demande d'export: {str(e)}")
         return Response({
-            'error': 'Erreur lors de la demande d\'export',
-            'detail': str(e)
+            'error': "Erreur lors de la demande d'export."
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -537,10 +534,9 @@ def request_account_deletion(request):
         }, status=status.HTTP_201_CREATED)
         
     except Exception as e:
-        logger.error(f"Erreur lors de la demande de suppression: {str(e)}")
+        logger.exception(f"Erreur lors de la demande de suppression: {str(e)}")
         return Response({
-            'error': 'Erreur lors de la demande de suppression',
-            'detail': str(e)
+            'error': 'Erreur lors de la demande de suppression.'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -610,10 +606,9 @@ L'équipe EatQuickeR
             'error': 'Aucune demande de suppression en cours trouvée.'
         }, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
-        logger.error(f"Erreur lors de l'annulation: {str(e)}")
+        logger.exception(f"Erreur lors de l'annulation: {str(e)}")
         return Response({
-            'error': 'Erreur lors de l\'annulation',
-            'detail': str(e)
+            'error': "Erreur lors de l'annulation."
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -697,8 +692,7 @@ def get_gdpr_stats(request):
         return Response(stats, status=status.HTTP_200_OK)
         
     except Exception as e:
-        logger.error(f"Erreur lors de la récupération des stats RGPD: {str(e)}")
+        logger.exception(f"Erreur lors de la récupération des stats RGPD: {str(e)}")
         return Response({
-            'error': 'Erreur lors de la récupération des statistiques',
-            'detail': str(e)
+            'error': 'Erreur lors de la récupération des statistiques.'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

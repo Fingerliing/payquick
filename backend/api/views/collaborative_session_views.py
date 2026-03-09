@@ -227,8 +227,7 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
         except Exception as e:
             logger.exception("Erreur lors de la création de la session")
             return Response({
-                'error': 'Erreur lors de la création de la session',
-                'details': str(e)
+                'error': 'Erreur lors de la création de la session.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @extend_schema(
@@ -575,8 +574,7 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
                 except Exception as e:
                     logger.exception("Erreur session_action")
                     return Response({
-                        'error': "Erreur lors de l'action",
-                        'details': str(e)
+                        'error': "Erreur lors de l'action."
                     }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
             @extend_schema(
@@ -680,8 +678,7 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
                 except Exception as e:
                     logger.error(f"Erreur lors de l'archivage: {e}")
                     return Response({
-                        'error': 'Erreur lors de l\'archivage',
-                        'details': str(e)
+                        'error': "Erreur lors de l'archivage."
                     }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
                 
                 return Response({
@@ -1063,8 +1060,7 @@ class SessionParticipantViewSet(viewsets.ReadOnlyModelViewSet):
         except Exception as e:
             logger.exception("Erreur participant_action")
             return Response({
-                'error': "Erreur lors de l'action",
-                'details': str(e)
+                'error': "Erreur lors de l'action."
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     # ==============================

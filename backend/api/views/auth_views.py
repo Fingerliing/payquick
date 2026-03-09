@@ -98,7 +98,7 @@ class RegisterView(APIView):
         except Exception as e:
             logger.error(f"Erreur inattendue lors de l'inscription: {str(e)}")
             return Response(
-                {'error': "Une erreur inattendue s'est produite lors de l'inscription.", 'detail': str(e)},
+                {'error': "Une erreur inattendue s'est produite lors de l'inscription."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -170,18 +170,13 @@ class RegisterViewDetailed(APIView):
         except IntegrityError as e:
             logger.error(f"Erreur d'intégrité: {str(e)}")
             return Response({
-                'error': 'Cet email est déjà utilisé.',
-                'detail': str(e)
+                'error': 'Cet email est déjà utilisé.'
             }, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
-            logger.error(f"Erreur inattendue lors de l'inscription: {str(e)}")
-            import traceback
-            logger.error(f"Traceback: {traceback.format_exc()}")
-
+            logger.exception(f"Erreur inattendue lors de l'inscription: {str(e)}")
             return Response({
-                'error': "Une erreur inattendue s'est produite lors de l'inscription.",
-                'detail': str(e)
+                'error': "Une erreur inattendue s'est produite lors de l'inscription."
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -365,8 +360,7 @@ class MeView(APIView):
         except Exception as e:
             return Response(
                 {
-                    'error': 'Erreur lors de la récupération des données utilisateur',
-                    'detail': str(e)
+                    'error': 'Erreur lors de la récupération des données utilisateur'
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

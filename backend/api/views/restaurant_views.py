@@ -615,10 +615,9 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             return Response(statistics, status=status.HTTP_200_OK)
             
         except Exception as e:
-            import traceback
-            traceback.print_exc()
+            logger.exception("Erreur lors de la récupération des statistiques")
             return Response(
-                {'error': f'Erreur lors de la récupération des statistiques: {str(e)}'},
+                {'error': 'Erreur lors de la récupération des statistiques.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
@@ -831,8 +830,9 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             return Response(dashboard_data, status=status.HTTP_200_OK)
             
         except Exception as e:
+            logger.exception("Erreur lors de la récupération du dashboard")
             return Response(
-                {'error': f'Erreur lors de la récupération du dashboard: {str(e)}'},
+                {'error': 'Erreur lors de la récupération du dashboard.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -1034,8 +1034,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                     restaurant.delete()
                     
                 return Response({
-                    'error': 'Erreur lors de la création',
-                    'details': str(e)
+                    'error': 'Erreur lors de la création.'
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         else:
@@ -1152,9 +1151,9 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                 return Response(response_serializer.data)
                 
             except Exception as e:
+                logger.exception("Erreur lors de la mise à jour du restaurant")
                 return Response({
-                    'error': 'Erreur lors de la mise à jour',
-                    'details': str(e)
+                    'error': 'Erreur lors de la mise à jour.'
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -1204,9 +1203,9 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             return Response(status=status.HTTP_204_NO_CONTENT)
             
         except Exception as e:
+            logger.exception("Erreur lors de la suppression du restaurant")
             return Response({
-                'error': 'Erreur lors de la suppression',
-                'details': str(e)
+                'error': 'Erreur lors de la suppression.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     # ============================================================================
@@ -1442,9 +1441,9 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             })
             
         except Exception as e:
+            logger.exception("Erreur lors de la mise à jour des horaires")
             return Response({
-                'error': 'Erreur lors de la mise à jour des horaires',
-                'details': str(e)
+                'error': 'Erreur lors de la mise à jour des horaires.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @extend_schema(
@@ -1637,9 +1636,9 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                 }, status=status.HTTP_400_BAD_REQUEST)
                 
         except Exception as e:
+            logger.exception("Erreur lors de l'upload image")
             return Response({
-                'error': 'Erreur lors de l\'upload',
-                'details': str(e)
+                'error': "Erreur lors de l'upload de l'image."
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @extend_schema(
@@ -1673,8 +1672,9 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             })
             
         except Exception as e:
+            logger.exception("Erreur lors de la suppression de l'image")
             return Response({
-                'error': str(e)
+                'error': "Erreur lors de la suppression de l'image."
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @extend_schema(
@@ -1718,7 +1718,8 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                 })
                 
         except Exception as e:
-            return Response({'error': str(e)}, status=500)
+            logger.exception("Erreur récupération infos image")
+            return Response({'error': "Erreur lors de la récupération des informations de l'image."}, status=500)
 
     # ============================================================================
     # GESTION STRIPE ET PAIEMENTS
@@ -2082,9 +2083,9 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             return Response(export_data)
             
         except Exception as e:
+            logger.exception("Erreur lors de l'export")
             return Response({
-                'error': 'Erreur lors de l\'export',
-                'details': str(e)
+                'error': "Erreur lors de l'export."
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @extend_schema(
@@ -2261,12 +2262,12 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                     }
                     
         except Exception as e:
+            logger.exception("Erreur calcul statut ouverture restaurant")
             return {
                 'isOpen': False,
                 'status': 'Erreur de configuration des horaires',
                 'shortStatus': 'Erreur',
-                'type': 'error',
-                'error': str(e)
+                'type': 'error'
             }
     
     def _find_next_opening(self, restaurant, current_time):

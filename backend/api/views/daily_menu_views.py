@@ -654,7 +654,8 @@ class DailyMenuTemplateViewSet(viewsets.ModelViewSet):
             serializer = DailyMenuDetailSerializer(daily_menu)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         except ValidationError as e:
+            logger.warning(f"ValidationError applying template: {e}")
             return Response(
-                {'error': str(e)}, 
+                {'error': 'Données invalides ou conflit de dates pour ce menu.'},
                 status=status.HTTP_400_BAD_REQUEST
             )

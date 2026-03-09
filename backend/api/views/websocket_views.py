@@ -240,8 +240,8 @@ def websocket_status(request):
             'channels_backend': str(type(channel_layer)) if channel_layer else None
         })
     except Exception as e:
+        logger.exception("Erreur récupération statut WebSocket")
         return Response({
-            'error': str(e),
             'websocket_enabled': False,
             'sse_connections': sse_manager.get_connection_count()
         }, status=500)
@@ -273,4 +273,5 @@ def test_notification(request):
             'message': f'Test notification sent for order {order_id}'
         })
     except Exception as e:
-        return Response({'error': str(e)}, status=500)
+        logger.exception("Erreur test_notification")
+        return Response({'error': 'Erreur lors de l\'envoi de la notification de test.'}, status=500)

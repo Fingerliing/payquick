@@ -114,7 +114,7 @@ class SendReceiptEmailView(APIView):
             logger.error(f"Error sending receipt email: {e}")
             return Response({
                 'success': False,
-                'message': f'Erreur lors de l\'envoi: {str(e)}'
+                'message': "Erreur lors de l'envoi du ticket. Veuillez réessayer."
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     def _generate_receipt_data(self, order):
@@ -268,7 +268,7 @@ class GetReceiptDataView(APIView):
         except Exception as e:
             logger.error(f"Error getting receipt data for order {order_id}: {e}")
             return Response({
-                'error': str(e)
+                'error': 'Erreur lors de la récupération du reçu.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     def _safe_get_customizations(self, item):
@@ -380,5 +380,5 @@ class GenerateReceiptPDFView(APIView):
         except Exception as e:
             logger.error(f"Error generating PDF for order {order_id}: {e}")
             return Response({
-                'error': str(e)
+                'error': 'Erreur lors de la génération du PDF.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -165,8 +165,7 @@ class TableOrdersViewSet(viewsets.ViewSet):
             }, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({
-                'error': 'Erreur lors de la récupération des commandes',
-                'details': str(e)
+                'error': 'Erreur lors de la récupération des commandes.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     @extend_schema(
@@ -226,8 +225,7 @@ class TableOrdersViewSet(viewsets.ViewSet):
             
         except Exception as e:
             return Response({
-                'error': 'Erreur lors de la création de la commande',
-                'details': str(e)
+                'error': 'Erreur lors de la création de la commande.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     @extend_schema(
@@ -309,8 +307,7 @@ class TableOrdersViewSet(viewsets.ViewSet):
             }, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({
-                'error': 'Erreur lors de la récupération de la session',
-                'details': str(e)
+                'error': 'Erreur lors de la récupération de la session.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     @extend_schema(
@@ -399,9 +396,9 @@ class TableOrdersViewSet(viewsets.ViewSet):
                 'details': ['No Restaurant matches the given query.']
             }, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
+            logger.exception("Erreur lors de la fin de session table")
             return Response({
-                'error': 'Erreur lors de la fin de session',
-                'details': str(e)
+                'error': 'Erreur lors de la fin de session.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     @extend_schema(
@@ -475,6 +472,5 @@ class TableOrdersViewSet(viewsets.ViewSet):
             }, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({
-                'error': 'Erreur lors de la récupération des statistiques',
-                'details': str(e)
+                'error': 'Erreur lors de la récupération des statistiques.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

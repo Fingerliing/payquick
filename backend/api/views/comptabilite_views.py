@@ -230,7 +230,7 @@ class ComptabiliteViewSet(viewsets.ViewSet):
             export.save()
             
             return Response(
-                {'error': f"Erreur lors de la génération du FEC: {str(e)}"},
+                {'error': 'Erreur lors de la génération du fichier FEC.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
@@ -419,7 +419,7 @@ class ComptabiliteViewSet(viewsets.ViewSet):
             
         except stripe.error.StripeError as e:
             return Response(
-                {'error': f"Erreur Stripe: {str(e)}"},
+                {'error': 'Erreur lors de la récupération des données Stripe.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     

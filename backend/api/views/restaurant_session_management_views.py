@@ -135,8 +135,7 @@ class RestaurantSessionManagementViewSet(viewsets.ViewSet):
         except Exception as e:
             logger.exception("Erreur lors de la libération de la table")
             return Response({
-                'error': 'Erreur lors de la libération',
-                'details': str(e)
+                'error': 'Erreur lors de la libération de la table.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     @action(detail=False, methods=['post'])
@@ -194,7 +193,7 @@ class RestaurantSessionManagementViewSet(viewsets.ViewSet):
                 results.append({
                     'id': str(session.id),
                     'status': 'error',
-                    'error': str(e)
+                    'error': 'Erreur lors de l\'archivage.'
                 })
         
         return Response({

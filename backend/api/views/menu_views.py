@@ -1,3 +1,5 @@
+import logging
+import logging
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -8,6 +10,8 @@ from api.serializers import MenuSerializer, MenuItemSerializer
 from api.permissions import IsRestaurateur, IsOwnerOrReadOnly
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
+
+logger = logging.getLogger(__name__)
 
 @extend_schema(tags=["Menu • Menus"])
 class MenuViewSet(viewsets.ModelViewSet):
@@ -157,9 +161,9 @@ class MenuItemViewSet(viewsets.ModelViewSet):
                     )
                 except Exception as e:
                     print(f"❌ Erreur lors de la sauvegarde: {e}")
+                    logger.exception("Erreur lors de la sauvegarde du menu item")
                     return Response({
-                        'error': 'Erreur lors de la création du plat',
-                        'details': str(e)
+                        'error': 'Erreur lors de la création du plat.'
                     }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             else:
                 print(f"❌ Erreurs de validation: {serializer.errors}")
@@ -167,9 +171,9 @@ class MenuItemViewSet(viewsets.ModelViewSet):
                 
         except Exception as e:
             print(f"❌ Erreur générale: {e}")
+            logger.exception("Erreur inattendue lors de la création du menu item")
             return Response({
-                'error': 'Erreur inattendue',
-                'details': str(e)
+                'error': 'Erreur inattendue lors de la création du plat.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
     @extend_schema(

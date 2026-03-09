@@ -184,8 +184,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             except Exception as e:
                 logger.exception("Erreur lors de la création de la commande")
                 return Response({
-                    'error': 'Erreur lors de la création de la commande',
-                    'details': str(e)
+                    'error': 'Erreur lors de la création de la commande.'
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return Response({
@@ -232,8 +231,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             except Exception as e:
                 logger.exception("Erreur lors de la mise à jour du statut")
                 return Response({
-                    'error': 'Erreur lors de la mise à jour du statut',
-                    'details': str(e)
+                    'error': 'Erreur lors de la mise à jour du statut.'
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -270,8 +268,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         except Exception as e:
             logger.exception("Erreur lors de l'annulation")
             return Response({
-                'error': 'Erreur lors de l\'annulation',
-                'details': str(e)
+                'error': "Erreur lors de l'annulation."
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     # ============================================================================
@@ -315,8 +312,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             except Exception as e:
                 logger.exception("Erreur lors du marquage du paiement")
                 return Response({
-                    'error': 'Erreur lors du marquage du paiement',
-                    'details': str(e)
+                    'error': 'Erreur lors du marquage du paiement.'
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -503,9 +499,9 @@ class OrderViewSet(viewsets.ModelViewSet):
             })
 
         except Exception as e:
+            logger.warning(f"Code de table invalide: {e}")
             return Response({
-                'error': 'Code de table invalide',
-                'details': str(e)
+                'error': 'Code de table invalide.'
             }, status=status.HTTP_404_NOT_FOUND)
 
     @extend_schema(
@@ -551,8 +547,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         except Exception as e:
             logger.exception("Erreur lors de l'estimation du temps")
             return Response({
-                'error': 'Erreur lors de l\'estimation',
-                'details': str(e)
+                'error': "Erreur lors de l'estimation du temps de préparation."
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @extend_schema(
@@ -608,8 +603,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         except Exception as e:
             logger.exception("Erreur lors de la génération du ticket")
             return Response({
-                'error': 'Erreur lors de la génération du ticket',
-                'details': str(e)
+                'error': 'Erreur lors de la génération du ticket.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     # ============================================================================

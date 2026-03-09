@@ -153,8 +153,7 @@ class TableViewSet(viewsets.ModelViewSet):
             
         except Exception as e:
             return Response({
-                'error': 'Erreur lors de la création des tables',
-                'details': str(e)
+                'error': 'Erreur lors de la création des tables.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @extend_schema(
@@ -206,8 +205,7 @@ class TableViewSet(viewsets.ModelViewSet):
             
         except Exception as e:
             return Response({
-                'error': 'Erreur lors de la génération du QR code',
-                'details': str(e)
+                'error': 'Erreur lors de la génération du QR code.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @extend_schema(
@@ -231,8 +229,7 @@ class TableViewSet(viewsets.ModelViewSet):
             
         except Exception as e:
             return Response({
-                'error': 'Erreur lors du changement de statut',
-                'details': str(e)
+                'error': 'Erreur lors du changement de statut.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -285,8 +282,7 @@ class RestaurantTableManagementViewSet(viewsets.ViewSet):
             
         except Exception as e:
             return Response({
-                'error': 'Erreur lors de la récupération des tables',
-                'details': str(e)
+                'error': 'Erreur lors de la récupération des tables.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @extend_schema(
@@ -392,9 +388,9 @@ class RestaurantTableManagementViewSet(viewsets.ViewSet):
             return response
             
         except Exception as e:
+            logger.exception("Erreur lors de la génération du PDF QR codes")
             return Response({
-                'error': 'Erreur lors de la génération du PDF',
-                'details': str(e)
+                'error': 'Erreur lors de la génération du PDF.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -521,5 +517,5 @@ class TableQRRouterView(APIView):
             return Response({
                 "error": "Erreur serveur",
                 "message": "Une erreur est survenue lors de la récupération du menu.",
-                "details": str(e) if request.user.is_staff else None
+                # details intentionally omitted
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
