@@ -154,8 +154,21 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.IsAuthenticated",
     ],
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
-    "DEFAULT_THROTTLE_CLASSES": [],
-    "DEFAULT_THROTTLE_RATES": {},
+    # Throttles globaux — protègent toutes les vues sans throttle_classes explicite.
+    # Stockés dans Redis (cf. CACHES) pour cohérence multi-worker.
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "60/min",        # visiteurs anonymes (navigation publique)
+        "user": "300/min",       # utilisateurs authentifiés
+        "register": "10/hour",   # inscription (AnonRateThrottle scopé)
+        "login": "5/min",        # login — anti brute-force burst
+        "login_hour": "20/hour", # login — anti brute-force lent
+        "qrcode": "5/min",
+        "stripe_checkout": "3/min",
+    },
 }
 
 import sys
@@ -245,6 +258,13 @@ LOGGING = {
             'propagate': False,
         },
     },
+}
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": "redis://redis:6379/1",
+    }
 }
 
 CHANNEL_LAYERS = get_redis_config()

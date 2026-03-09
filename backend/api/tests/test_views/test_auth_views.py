@@ -12,7 +12,7 @@ Couvre:
 """
 
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from django.contrib.auth.models import User
 from api.models import ClientProfile, RestaurateurProfile, PendingRegistration
 from django.contrib.auth.hashers import make_password
@@ -42,14 +42,15 @@ def user(db):
 
 @pytest.fixture
 def pending_reg(db):
-    """Inscription en attente avec code valide"""
+    """Inscription en attente avec code valide et code_sent_at récent"""
     p = PendingRegistration.objects.create(
         email="pending@example.com",
         password_hash=make_password("StrongPassword123"),
         nom="Pending User",
         role="client",
         telephone="0612345678",
-        verification_code="123456"
+        verification_code="123456",
+        code_sent_at=timezone.now(),  # requis par is_expired()
     )
     return p
 
@@ -60,6 +61,21 @@ def auth_client(user):
     client = APIClient()
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {str(token.access_token)}")
     return client
+
+@pytest.fixture(autouse=True)
+def disable_throttling():
+    """
+    Désactive tous les throttles au niveau vue pour les tests.
+    Le bloc `if 'test' in sys.argv` de settings.py désactive les throttles
+    DEFAULT, mais pas les throttle_classes définis directement sur les vues
+    (LoginView, RegisterView, etc.). Ce fixture patche allow_request sur la
+    classe de base SimpleRateThrottle pour couvrir tous les sous-classes.
+    """
+    with patch(
+        'rest_framework.throttling.SimpleRateThrottle.allow_request',
+        return_value=True,
+    ):
+        yield
 
 
 # =============================================================================

@@ -23,7 +23,7 @@ from api.serializers import (
     VerifyRegistrationSerializer,
     ResendCodeSerializer
 )
-from api.throttles import RegisterThrottle
+from api.throttles import RegisterThrottle, LoginThrottle, LoginHourThrottle
 from api.services.email_verification_service import email_verification_service
 
 logger = logging.getLogger(__name__)
@@ -59,6 +59,8 @@ class RegisterView(APIView):
     Crée un nouvel utilisateur (client ou restaurateur) et retourne les tokens JWT.
     Accessible sans authentification.
     """
+    authentication_classes = []
+    permission_classes = []
     throttle_classes = [RegisterThrottle]
 
     def post(self, request):
@@ -103,6 +105,8 @@ class RegisterView(APIView):
 
 class RegisterViewDetailed(APIView):
     """Version avec gestion d'erreurs plus détaillée"""
+    authentication_classes = []
+    permission_classes = []
     throttle_classes = [RegisterThrottle]
 
     def post(self, request):
@@ -401,6 +405,7 @@ class LoginView(APIView):
     """
     authentication_classes = []
     permission_classes = []
+    throttle_classes = [LoginThrottle, LoginHourThrottle]
 
     def post(self, request):
         username = request.data.get('username')
