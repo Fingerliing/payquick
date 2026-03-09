@@ -71,12 +71,12 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     loadInitialData();
   }, []);
 
-  // Charger les commandes de table quand on a un restaurant et une table
+  // Charger les commandes de table quand on a un restaurant, une table ET une session QR valide
   useEffect(() => {
-    if (cart.restaurantId && cart.tableNumber && isInitialized) {
+    if (cart.restaurantId && cart.tableNumber && isInitialized && qrSessionData) {
       refreshTableOrders();
     }
-  }, [cart.restaurantId, cart.tableNumber, isInitialized]);
+  }, [cart.restaurantId, cart.tableNumber, isInitialized, qrSessionData]);
 
   const loadInitialData = async () => {
     try {

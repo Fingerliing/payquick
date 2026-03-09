@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.shortcuts import get_object_or_404
+from django.http import Http404
 from django.db.models import Q, Sum, Avg, Count
 from django.utils import timezone
 from api.models import Order, Restaurant, TableSession
@@ -157,6 +158,11 @@ class TableOrdersViewSet(viewsets.ViewSet):
             
             return Response(response_data)
             
+        except Http404:
+            return Response({
+                'error': 'Restaurant introuvable',
+                'details': ['No Restaurant matches the given query.']
+            }, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({
                 'error': 'Erreur lors de la récupération des commandes',
@@ -296,6 +302,11 @@ class TableOrdersViewSet(viewsets.ViewSet):
                 'session': serializer.data
             })
             
+        except Http404:
+            return Response({
+                'error': 'Restaurant introuvable',
+                'details': ['No Restaurant matches the given query.']
+            }, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({
                 'error': 'Erreur lors de la récupération de la session',
@@ -382,6 +393,11 @@ class TableOrdersViewSet(viewsets.ViewSet):
                 'duration_minutes': int(active_session.duration.total_seconds() / 60)
             })
             
+        except Http404:
+            return Response({
+                'error': 'Restaurant introuvable',
+                'details': ['No Restaurant matches the given query.']
+            }, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({
                 'error': 'Erreur lors de la fin de session',
@@ -452,6 +468,11 @@ class TableOrdersViewSet(viewsets.ViewSet):
                 'date': today.isoformat()
             })
             
+        except Http404:
+            return Response({
+                'error': 'Restaurant introuvable',
+                'details': ['No Restaurant matches the given query.']
+            }, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({
                 'error': 'Erreur lors de la récupération des statistiques',
