@@ -23,8 +23,11 @@ def _check_receipt_access(request, order) -> bool:
     Deux chemins légitimes :
     1. Utilisateur authentifié propriétaire de la commande (order.user == request.user).
     2. Accès invité : la commande n'a pas d'utilisateur (order.user is None) ET
-       le paramètre `email` fourni correspond à guest_email ou guest_phone de la commande.
-       Ce gate empêche l'énumération d'order_id sans connaître le contact associé.
+       le paramètre `token` fourni correspond au guest_access_token de la commande.
+       Le token est un secret opaque (256 bits) généré à la création de la commande
+       et transmis une seule fois au client (email/SMS). Il neutralise l'énumération
+       d'order_id séquentiels car un attaquant ne peut pas deviner le token même en
+       connaissant l'order_id.
 
     Retourne True si l'accès est autorisé, False sinon.
     """
@@ -32,27 +35,29 @@ def _check_receipt_access(request, order) -> bool:
     if request.user and request.user.is_authenticated:
         if order.user is not None:
             return order.user == request.user
-        # Commande invité avec JWT : on tombe dans le chemin 2 ci-dessous
+        # Commande invité avec JWT valide : on tombe dans le chemin 2 ci-dessous
 
     # ── Chemin 2 : invité (order.user is None) ───────────────────────────────
     if order.user is not None:
         # Commande authentifiée accessible uniquement via JWT valide (chemin 1)
         return False
 
-    # Récupérer l'email depuis le body (POST) ou les query params (GET)
-    provided_email = (
-        request.data.get('email')
-        or request.query_params.get('email')
+    # Récupérer le token depuis le body (POST) ou les query params (GET/POST)
+    provided_token = (
+        request.data.get('token')
+        or request.query_params.get('token')
         or ''
-    ).strip().lower()
+    ).strip()
 
-    if not provided_email:
+    if not provided_token:
         return False
 
-    guest_email = (getattr(order, 'guest_email', '') or '').strip().lower()
-    guest_phone = (getattr(order, 'guest_phone', '') or '').strip().lower()
+    stored_token = getattr(order, 'guest_access_token', None) or ''
 
-    return provided_email in (guest_email, guest_phone)
+    # Comparaison en temps constant pour éviter les timing attacks
+    import hmac
+    return hmac.compare_digest(provided_token, stored_token)
+
 
 @extend_schema(
     tags=["Receipts"],
@@ -75,8 +80,7 @@ class SendReceiptEmailView(APIView):
         order = get_object_or_404(Order, id=order_id)
 
         # Vérifier l'accès avant de renvoyer quoi que ce soit.
-        # Pour les commandes invité, l'email fourni sert à la fois de
-        # destinataire ET de preuve d'identité.
+        # Pour les commandes invité, le token opaque sert de preuve d'identité.
         if not _check_receipt_access(request, order):
             return Response(
                 {'success': False, 'message': 'Non autorisé'},
@@ -288,6 +292,7 @@ class GetReceiptDataView(APIView):
             return '{}'
         except Exception:
             return '{}'
+
 @extend_schema(
     tags=["Receipts"],
     summary="Générer un PDF du ticket",

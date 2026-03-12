@@ -7,6 +7,12 @@ Couverture:
 - GetReceiptDataView (GET /api/v1/orders/{order_id}/receipt/)
 - GenerateReceiptPDFView (GET /api/v1/orders/{order_id}/receipt/pdf/)
 
+Sécurité (guest access token opaque) :
+- Les commandes invité (order.user is None) exigent un ?token= (ou token dans le body)
+  correspondant à order.guest_access_token (secrets.token_urlsafe(32)).
+- Les commandes authentifiées sont accessibles uniquement via JWT valide du propriétaire.
+- Tout accès sans token valide → 403.
+
 IMPORTANT - Model field notes:
 - Table: Use 'number' field (not 'identifiant' which is a read-only property)
 - Order: Uses 'payment_status' field (not 'is_paid' boolean)
@@ -14,8 +20,10 @@ IMPORTANT - Model field notes:
 - Order: Does NOT have 'restaurateur' field
 - Order.items is the related_name for OrderItem
 - MenuItem: 'category' should be a MenuCategory object
+- Order: 'guest_access_token' CharField (max_length=64) généré à la création invité
 """
 
+import secrets
 import pytest
 from decimal import Decimal
 from rest_framework.test import APIClient
@@ -47,6 +55,20 @@ def auth_client(db):
     user = User.objects.create_user(
         username="testuser@example.com",
         email="testuser@example.com",
+        password="testpass123"
+    )
+    token = RefreshToken.for_user(user)
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token.access_token}")
+    return client, user
+
+
+@pytest.fixture
+def other_auth_client(db):
+    """Second authenticated client — ne possède aucune commande dans les tests"""
+    user = User.objects.create_user(
+        username="other@example.com",
+        email="other@example.com",
         password="testpass123"
     )
     token = RefreshToken.for_user(user)
@@ -154,15 +176,22 @@ def second_menu_item(menu, menu_category):
 
 
 @pytest.fixture
-def order(restaurant, table):
+def guest_token():
+    """Token opaque invité valide (256 bits d'entropie)"""
+    return secrets.token_urlsafe(32)
+
+
+@pytest.fixture
+def order(restaurant, table, guest_token):
     """
-    Test order.
-    
+    Commande invité avec guest_access_token.
+
     NOTE: Order model uses:
     - restaurant (ForeignKey)
     - table_number (CharField, NOT a FK to Table)
     - order_number (required, unique)
     - subtotal, total_amount (required DecimalFields)
+    - guest_access_token (CharField max_length=64)
     """
     return Order.objects.create(
         restaurant=restaurant,
@@ -170,6 +199,9 @@ def order(restaurant, table):
         order_number="ORD-RECEIPT-001",
         customer_name="Jean Dupont",
         phone="0612345678",
+        guest_email="jean@example.com",
+        guest_phone="0612345678",
+        guest_access_token=guest_token,
         status='served',
         payment_status='paid',
         payment_method='card',
@@ -180,8 +212,30 @@ def order(restaurant, table):
 
 
 @pytest.fixture
+def auth_order(restaurant, table, auth_client):
+    """
+    Commande appartenant à un utilisateur authentifié.
+    Accessible uniquement via JWT du propriétaire, pas via token invité.
+    """
+    _, user = auth_client
+    return Order.objects.create(
+        restaurant=restaurant,
+        table_number=table.number,
+        order_number="ORD-AUTH-001",
+        customer_name="Jane Doe",
+        user=user,
+        status='served',
+        payment_status='paid',
+        payment_method='card',
+        subtotal=Decimal('20.00'),
+        tax_amount=Decimal('2.00'),
+        total_amount=Decimal('22.00')
+    )
+
+
+@pytest.fixture
 def order_with_items(order, menu_item, second_menu_item):
-    """Order with multiple items"""
+    """Commande invité avec plusieurs articles"""
     OrderItem.objects.create(
         order=order,
         menu_item=menu_item,
@@ -201,97 +255,257 @@ def order_with_items(order, menu_item, second_menu_item):
 
 
 # =============================================================================
+# TESTS - Contrôle d'accès (token opaque invité)
+# =============================================================================
+
+@pytest.mark.django_db
+class TestReceiptAccessControl:
+    """
+    Vérifie que le nouveau système de token opaque neutralise l'énumération.
+
+    Matrice d'accès :
+    ┌──────────────────────────────────┬────────────────┐
+    │ Situation                        │ Résultat       │
+    ├──────────────────────────────────┼────────────────┤
+    │ Guest : bon token                │ 200            │
+    │ Guest : sans token               │ 403            │
+    │ Guest : mauvais token            │ 403            │
+    │ Guest : token d'une autre cmde   │ 403            │
+    │ Auth  : propriétaire + JWT       │ 200            │
+    │ Auth  : JWT étranger             │ 403            │
+    │ Auth  : pas de JWT               │ 403            │
+    └──────────────────────────────────┴────────────────┘
+    """
+
+    # ── GetReceiptDataView ────────────────────────────────────────────────────
+
+    def test_guest_receipt_data_with_valid_token(self, api_client, order):
+        """Token correct → 200"""
+        url = f"/api/v1/orders/{order.id}/receipt/?token={order.guest_access_token}"
+        response = api_client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+
+    def test_guest_receipt_data_without_token(self, api_client, order):
+        """Absence de token → 403"""
+        url = f"/api/v1/orders/{order.id}/receipt/"
+        response = api_client.get(url)
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_guest_receipt_data_with_wrong_token(self, api_client, order):
+        """Token invalide → 403"""
+        url = f"/api/v1/orders/{order.id}/receipt/?token=totalement-faux"
+        response = api_client.get(url)
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_guest_receipt_data_with_empty_token(self, api_client, order):
+        """Token vide → 403"""
+        url = f"/api/v1/orders/{order.id}/receipt/?token="
+        response = api_client.get(url)
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_guest_receipt_data_token_from_other_order(
+        self, api_client, restaurant, table
+    ):
+        """Token valide mais appartenant à une autre commande → 403"""
+        token_a = secrets.token_urlsafe(32)
+        token_b = secrets.token_urlsafe(32)
+        order_a = Order.objects.create(
+            restaurant=restaurant,
+            table_number=table.number,
+            order_number="ORD-TOKEN-A",
+            guest_access_token=token_a,
+            subtotal=Decimal('10.00'),
+            total_amount=Decimal('10.00')
+        )
+        Order.objects.create(
+            restaurant=restaurant,
+            table_number=table.number,
+            order_number="ORD-TOKEN-B",
+            guest_access_token=token_b,
+            subtotal=Decimal('10.00'),
+            total_amount=Decimal('10.00')
+        )
+        # Token de B utilisé pour accéder à A
+        url = f"/api/v1/orders/{order_a.id}/receipt/?token={token_b}"
+        response = api_client.get(url)
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_auth_user_accesses_own_order(self, auth_client, auth_order):
+        """Propriétaire JWT → 200, sans token invité"""
+        client, _ = auth_client
+        url = f"/api/v1/orders/{auth_order.id}/receipt/"
+        response = client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+
+    def test_auth_user_cannot_access_other_user_order(
+        self, other_auth_client, auth_order
+    ):
+        """JWT étranger → 403"""
+        client, _ = other_auth_client
+        url = f"/api/v1/orders/{auth_order.id}/receipt/"
+        response = client.get(url)
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_unauthenticated_cannot_access_auth_order(
+        self, api_client, auth_order
+    ):
+        """Commande authentifiée sans JWT → 403 même avec un token invité forgé"""
+        forged_token = secrets.token_urlsafe(32)
+        url = f"/api/v1/orders/{auth_order.id}/receipt/?token={forged_token}"
+        response = api_client.get(url)
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    # ── GenerateReceiptPDFView ────────────────────────────────────────────────
+
+    def test_guest_pdf_without_token(self, api_client, order):
+        """PDF sans token → 403"""
+        url = f"/api/v1/orders/{order.id}/receipt/pdf/"
+        response = api_client.get(url)
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_guest_pdf_with_wrong_token(self, api_client, order):
+        """PDF mauvais token → 403"""
+        url = f"/api/v1/orders/{order.id}/receipt/pdf/?token=wrong"
+        response = api_client.get(url)
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_guest_pdf_with_valid_token(self, api_client, order_with_items):
+        """PDF bon token → 200"""
+        url = (
+            f"/api/v1/orders/{order_with_items.id}/receipt/pdf/"
+            f"?token={order_with_items.guest_access_token}"
+        )
+        response = api_client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+
+    # ── SendReceiptEmailView ──────────────────────────────────────────────────
+
+    def test_send_email_without_token(self, api_client, order):
+        """Email sans token → 403"""
+        url = "/api/v1/receipts/send-email/"
+        data = {"order_id": order.id, "email": "client@example.com"}
+        response = api_client.post(url, data, format='json')
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_send_email_with_wrong_token(self, api_client, order):
+        """Email mauvais token → 403"""
+        url = "/api/v1/receipts/send-email/"
+        data = {
+            "order_id": order.id,
+            "email": "client@example.com",
+            "token": "mauvais-token"
+        }
+        response = api_client.post(url, data, format='json')
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_send_email_with_valid_token(self, api_client, order_with_items):
+        """Email bon token → 200"""
+        url = "/api/v1/receipts/send-email/"
+        data = {
+            "order_id": order_with_items.id,
+            "email": "client@example.com",
+            "token": order_with_items.guest_access_token
+        }
+        response = api_client.post(url, data, format='json')
+        assert response.status_code == status.HTTP_200_OK
+
+
+# =============================================================================
 # TESTS - SendReceiptEmailView
 # =============================================================================
 
 @pytest.mark.django_db
 class TestSendReceiptEmailView:
     """Tests pour SendReceiptEmailView"""
-    
+
     def test_send_receipt_email_success(self, api_client, order_with_items):
         """Test successful receipt email sending"""
         url = "/api/v1/receipts/send-email/"
         data = {
             "order_id": order_with_items.id,
-            "email": "client@example.com"
+            "email": "client@example.com",
+            "token": order_with_items.guest_access_token,
         }
-        
+
         response = api_client.post(url, data, format='json')
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert response.data['success'] is True
         assert 'message' in response.data
-        
+
         # Verify email was sent
         assert len(mail.outbox) == 1
         assert mail.outbox[0].to == ['client@example.com']
         assert 'Ticket de caisse' in mail.outbox[0].subject
         assert order_with_items.order_number in mail.outbox[0].subject
-    
+
     def test_send_receipt_email_missing_order_id(self, api_client):
         """Test error when order_id is missing"""
         url = "/api/v1/receipts/send-email/"
         data = {
             "email": "client@example.com"
         }
-        
+
         response = api_client.post(url, data, format='json')
-        
+
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert response.data['success'] is False
-    
+
     def test_send_receipt_email_missing_email(self, api_client, order):
         """Test error when email is missing"""
         url = "/api/v1/receipts/send-email/"
         data = {
             "order_id": order.id
         }
-        
+
         response = api_client.post(url, data, format='json')
-        
+
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert response.data['success'] is False
-    
+
     def test_send_receipt_email_order_not_found(self, api_client):
         """Test error when order doesn't exist"""
         url = "/api/v1/receipts/send-email/"
         data = {
             "order_id": 99999,
-            "email": "client@example.com"
+            "email": "client@example.com",
+            "token": secrets.token_urlsafe(32),
         }
-        
+
         response = api_client.post(url, data, format='json')
-        
+
         assert response.status_code == status.HTTP_404_NOT_FOUND
-    
+
     @patch('api.views.receipt_views.EmailMessage.send')
     def test_send_receipt_email_failure(self, mock_send, api_client, order):
         """Test handling of email sending failure"""
         mock_send.side_effect = Exception("SMTP connection failed")
-        
+
         url = "/api/v1/receipts/send-email/"
         data = {
             "order_id": order.id,
-            "email": "client@example.com"
+            "email": "client@example.com",
+            "token": order.guest_access_token,
         }
-        
+
         response = api_client.post(url, data, format='json')
-        
+
         assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
         assert response.data['success'] is False
-    
+
     def test_send_receipt_email_content(self, api_client, order_with_items):
         """Test receipt email contains correct content"""
         url = "/api/v1/receipts/send-email/"
         data = {
             "order_id": order_with_items.id,
-            "email": "client@example.com"
+            "email": "client@example.com",
+            "token": order_with_items.guest_access_token,
         }
-        
+
         response = api_client.post(url, data, format='json')
-        
+
         assert response.status_code == status.HTTP_200_OK
-        
+
         # Check email body contains expected content
         email_body = mail.outbox[0].body
         assert "TICKET DE CAISSE" in email_body
@@ -299,6 +513,20 @@ class TestSendReceiptEmailView:
         assert "Steak Frites" in email_body
         assert "Salade César" in email_body
         assert "TOTAL:" in email_body
+
+    def test_send_receipt_auth_user_owns_order(self, auth_client, auth_order):
+        """Utilisateur authentifié peut envoyer son reçu sans token invité"""
+        client, _ = auth_client
+        url = "/api/v1/receipts/send-email/"
+        data = {
+            "order_id": auth_order.id,
+            "email": "jane@example.com",
+        }
+
+        response = client.post(url, data, format='json')
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['success'] is True
 
 
 # =============================================================================
@@ -308,97 +536,126 @@ class TestSendReceiptEmailView:
 @pytest.mark.django_db
 class TestGetReceiptDataView:
     """Tests pour GetReceiptDataView"""
-    
+
     def test_get_receipt_data_success(self, api_client, order_with_items):
         """Test successful receipt data retrieval"""
-        url = f"/api/v1/orders/{order_with_items.id}/receipt/"
-        
+        url = (
+            f"/api/v1/orders/{order_with_items.id}/receipt/"
+            f"?token={order_with_items.guest_access_token}"
+        )
+
         response = api_client.get(url)
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert response.data['order_id'] == order_with_items.id
         assert response.data['order_number'] == order_with_items.order_number
         assert response.data['restaurant_name'] == order_with_items.restaurant.name
-    
+
     def test_get_receipt_data_includes_items(self, api_client, order_with_items):
         """Test receipt data includes order items"""
-        url = f"/api/v1/orders/{order_with_items.id}/receipt/"
-        
+        url = (
+            f"/api/v1/orders/{order_with_items.id}/receipt/"
+            f"?token={order_with_items.guest_access_token}"
+        )
+
         response = api_client.get(url)
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert 'items' in response.data
         assert len(response.data['items']) == 2
-        
-        # Check first item details
+
         item_names = [item['name'] for item in response.data['items']]
         assert "Steak Frites" in item_names
         assert "Salade César" in item_names
-    
+
     def test_get_receipt_data_includes_totals(self, api_client, order_with_items):
         """Test receipt data includes correct totals"""
-        url = f"/api/v1/orders/{order_with_items.id}/receipt/"
-        
+        url = (
+            f"/api/v1/orders/{order_with_items.id}/receipt/"
+            f"?token={order_with_items.guest_access_token}"
+        )
+
         response = api_client.get(url)
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert response.data['total_amount'] == float(order_with_items.total_amount)
         assert response.data['subtotal'] == float(order_with_items.total_amount)
-    
+
     def test_get_receipt_data_includes_payment_info(self, api_client, order_with_items):
         """Test receipt data includes payment information"""
-        url = f"/api/v1/orders/{order_with_items.id}/receipt/"
-        
+        url = (
+            f"/api/v1/orders/{order_with_items.id}/receipt/"
+            f"?token={order_with_items.guest_access_token}"
+        )
+
         response = api_client.get(url)
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert response.data['payment_method'] == order_with_items.payment_method
         assert response.data['payment_status'] == order_with_items.payment_status
-    
+
     def test_get_receipt_data_includes_restaurant_info(self, api_client, order_with_items):
         """Test receipt data includes restaurant details"""
-        url = f"/api/v1/orders/{order_with_items.id}/receipt/"
-        
+        url = (
+            f"/api/v1/orders/{order_with_items.id}/receipt/"
+            f"?token={order_with_items.guest_access_token}"
+        )
+
         response = api_client.get(url)
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert response.data['restaurant_name'] == order_with_items.restaurant.name
         assert response.data['restaurant_address'] == order_with_items.restaurant.address
         assert response.data['restaurant_city'] == order_with_items.restaurant.city
-    
+
     def test_get_receipt_data_includes_customer_info(self, api_client, order_with_items):
         """Test receipt data includes customer details"""
-        url = f"/api/v1/orders/{order_with_items.id}/receipt/"
-        
+        url = (
+            f"/api/v1/orders/{order_with_items.id}/receipt/"
+            f"?token={order_with_items.guest_access_token}"
+        )
+
         response = api_client.get(url)
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert response.data['customer_name'] == order_with_items.customer_name
         assert response.data['table_number'] == order_with_items.table_number
-    
+
     def test_get_receipt_data_order_not_found(self, api_client):
         """Test error when order doesn't exist"""
-        url = "/api/v1/orders/99999/receipt/"
-        
+        url = f"/api/v1/orders/99999/receipt/?token={secrets.token_urlsafe(32)}"
+
         response = api_client.get(url)
-        
+
         assert response.status_code == status.HTTP_404_NOT_FOUND
-    
+
     def test_get_receipt_data_item_customizations(self, api_client, order_with_items):
         """Test receipt data includes item customizations"""
-        url = f"/api/v1/orders/{order_with_items.id}/receipt/"
-        
+        url = (
+            f"/api/v1/orders/{order_with_items.id}/receipt/"
+            f"?token={order_with_items.guest_access_token}"
+        )
+
         response = api_client.get(url)
-        
+
         assert response.status_code == status.HTTP_200_OK
-        
-        # Find the Steak Frites item which has customizations
+
         steak_item = next(
             (item for item in response.data['items'] if item['name'] == 'Steak Frites'),
             None
         )
         assert steak_item is not None
         assert 'customizations' in steak_item
+
+    def test_get_receipt_data_auth_user(self, auth_client, auth_order):
+        """Utilisateur authentifié accède à sa commande sans token"""
+        client, _ = auth_client
+        url = f"/api/v1/orders/{auth_order.id}/receipt/"
+
+        response = client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['order_id'] == auth_order.id
 
 
 # =============================================================================
@@ -408,56 +665,78 @@ class TestGetReceiptDataView:
 @pytest.mark.django_db
 class TestGenerateReceiptPDFView:
     """Tests pour GenerateReceiptPDFView"""
-    
+
     def test_generate_pdf_success(self, api_client, order_with_items):
         """Test successful PDF generation"""
-        url = f"/api/v1/orders/{order_with_items.id}/receipt/pdf/"
-        
+        url = (
+            f"/api/v1/orders/{order_with_items.id}/receipt/pdf/"
+            f"?token={order_with_items.guest_access_token}"
+        )
+
         response = api_client.get(url)
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert response['Content-Type'] == 'application/pdf'
         assert 'attachment' in response['Content-Disposition']
         assert f'ticket_{order_with_items.id}.pdf' in response['Content-Disposition']
-    
+
     def test_generate_pdf_content_not_empty(self, api_client, order_with_items):
         """Test PDF content is not empty"""
-        url = f"/api/v1/orders/{order_with_items.id}/receipt/pdf/"
-        
+        url = (
+            f"/api/v1/orders/{order_with_items.id}/receipt/pdf/"
+            f"?token={order_with_items.guest_access_token}"
+        )
+
         response = api_client.get(url)
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert len(response.content) > 0
         # PDF files start with %PDF
         assert response.content[:4] == b'%PDF'
-    
+
     def test_generate_pdf_order_not_found(self, api_client):
         """Test error when order doesn't exist"""
-        url = "/api/v1/orders/99999/receipt/pdf/"
-        
+        url = f"/api/v1/orders/99999/receipt/pdf/?token={secrets.token_urlsafe(32)}"
+
         response = api_client.get(url)
-        
+
         assert response.status_code == status.HTTP_404_NOT_FOUND
-    
+
     @patch('reportlab.pdfgen.canvas.Canvas')
     def test_generate_pdf_error_handling(self, mock_canvas, api_client, order_with_items):
         """Test error handling during PDF generation"""
         mock_canvas.side_effect = Exception("PDF generation error")
-        
-        url = f"/api/v1/orders/{order_with_items.id}/receipt/pdf/"
-        
+
+        url = (
+            f"/api/v1/orders/{order_with_items.id}/receipt/pdf/"
+            f"?token={order_with_items.guest_access_token}"
+        )
+
         response = api_client.get(url)
-        
+
         assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
         assert 'error' in response.data
-    
+
     def test_generate_pdf_order_without_items(self, api_client, order):
         """Test PDF generation for order without items"""
-        url = f"/api/v1/orders/{order.id}/receipt/pdf/"
-        
+        url = (
+            f"/api/v1/orders/{order.id}/receipt/pdf/"
+            f"?token={order.guest_access_token}"
+        )
+
         response = api_client.get(url)
-        
+
         # Should still succeed, just with no items
+        assert response.status_code == status.HTTP_200_OK
+        assert response['Content-Type'] == 'application/pdf'
+
+    def test_generate_pdf_auth_user(self, auth_client, auth_order):
+        """Utilisateur authentifié génère son PDF sans token"""
+        client, _ = auth_client
+        url = f"/api/v1/orders/{auth_order.id}/receipt/pdf/"
+
+        response = client.get(url)
+
         assert response.status_code == status.HTTP_200_OK
         assert response['Content-Type'] == 'application/pdf'
 
@@ -469,64 +748,85 @@ class TestGenerateReceiptPDFView:
 @pytest.mark.django_db
 class TestReceiptEdgeCases:
     """Tests pour les cas limites"""
-    
+
     def test_receipt_data_order_without_restaurant(self, api_client, db):
         """Test receipt data when restaurant is somehow missing"""
         # This shouldn't normally happen due to FK constraints,
         # but test the defensive coding
         pass  # Skip - FK constraint prevents this
-    
+
     def test_receipt_data_order_with_empty_items(self, api_client, order):
         """Test receipt data for order without items"""
-        url = f"/api/v1/orders/{order.id}/receipt/"
-        
+        url = f"/api/v1/orders/{order.id}/receipt/?token={order.guest_access_token}"
+
         response = api_client.get(url)
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert response.data['items'] == []
-    
+
     def test_receipt_data_formats_dates_correctly(self, api_client, order_with_items):
         """Test that dates are formatted in ISO format"""
-        url = f"/api/v1/orders/{order_with_items.id}/receipt/"
-        
+        url = (
+            f"/api/v1/orders/{order_with_items.id}/receipt/"
+            f"?token={order_with_items.guest_access_token}"
+        )
+
         response = api_client.get(url)
-        
+
         assert response.status_code == status.HTTP_200_OK
         # created_at should be ISO format string
         assert 'T' in response.data['created_at']  # ISO format contains T
-    
-    def test_receipt_data_handles_null_payment_method(self, api_client, restaurant, table):
+
+    def test_receipt_data_handles_null_payment_method(
+        self, api_client, restaurant, table
+    ):
         """Test receipt data handles null payment method"""
+        token = secrets.token_urlsafe(32)
         order = Order.objects.create(
             restaurant=restaurant,
             table_number=table.number,
             order_number="ORD-NULL-PAY-001",
+            guest_access_token=token,
             status='pending',
             payment_status='pending',
             payment_method='',  # Empty payment method
             subtotal=Decimal('10.00'),
             total_amount=Decimal('10.00')
         )
-        
-        url = f"/api/v1/orders/{order.id}/receipt/"
-        
+
+        url = f"/api/v1/orders/{order.id}/receipt/?token={token}"
+
         response = api_client.get(url)
-        
+
         assert response.status_code == status.HTTP_200_OK
         # Should have a default or empty value, not crash
         assert 'payment_method' in response.data
-    
+
     def test_send_email_invalid_email_format(self, api_client, order):
         """Test sending to invalid email address"""
         url = "/api/v1/receipts/send-email/"
         data = {
             "order_id": order.id,
-            "email": "not-an-email"
+            "email": "not-an-email",
+            "token": order.guest_access_token,
         }
-        
-        # The view doesn't validate email format, 
+
+        # The view doesn't validate email format,
         # so it may succeed or fail at SMTP level
         response = api_client.post(url, data, format='json')
-        
+
         # Either success (email accepted) or server error (rejected)
         assert response.status_code in [200, 500]
+
+    def test_token_comparison_is_constant_time(self, api_client, order):
+        """
+        Vérifie que hmac.compare_digest est utilisé (pas de timing attack).
+        On ne peut pas mesurer le temps ici, mais on vérifie que deux tokens
+        de longueurs très différentes retournent tous les deux 403 sans crash.
+        """
+        for bad_token in ["a", "a" * 100, "", "a" * 43 + "!"]:
+            url = f"/api/v1/orders/{order.id}/receipt/?token={bad_token}"
+            response = api_client.get(url)
+            assert response.status_code == status.HTTP_403_FORBIDDEN, (
+                f"Token '{bad_token[:20]}...' aurait dû retourner 403"
+            )

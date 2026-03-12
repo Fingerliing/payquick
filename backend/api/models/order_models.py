@@ -12,6 +12,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from celery import shared_task
 import uuid
 import random
+import secrets
 import string
 
 
@@ -116,7 +117,14 @@ class Order(models.Model):
     guest_contact_name = models.CharField(max_length=120, blank=True, null=True)
     guest_phone = models.CharField(max_length=32, blank=True, null=True)
     guest_email = models.EmailField(blank=True, null=True)
-    
+    guest_access_token = models.CharField(
+        max_length=64,
+        blank=True,
+        default='',
+        help_text="Token opaque pour accès invité aux endpoints reçu (secrets.token_urlsafe(32)). "
+                  "Généré automatiquement à la création d'une commande guest (source='guest' ou user=None)."
+    )
+
     # Paiement divisé
     is_split_payment = models.BooleanField(default=False)
 
@@ -195,7 +203,12 @@ class Order(models.Model):
     def save(self, *args, **kwargs):
         if not self.order_number:
             self.order_number = self.generate_order_number()
-        
+
+        # Générer un token opaque pour les commandes invité (user=None)
+        # si aucun token n'est encore défini.
+        if self.user is None and not self.guest_access_token:
+            self.guest_access_token = secrets.token_urlsafe(32)
+
         # Gestion automatique de la séquence pour la table
         if not self.pk and self.table_number:
             self.set_order_sequence()
@@ -485,4 +498,3 @@ class OrderItem(models.Model):
         
     def __str__(self):
         return f"{self.menu_item.name} x{self.quantity} - {self.total_price}€"
-
