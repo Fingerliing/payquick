@@ -281,8 +281,10 @@ class TestReceiptAccessControl:
 
     def test_guest_receipt_data_with_valid_token(self, api_client, order):
         """Token correct → 200"""
-        url = f"/api/v1/orders/{order.id}/receipt/?token={order.guest_access_token}"
-        response = api_client.get(url)
+        response = api_client.get(
+            f"/api/v1/orders/{order.id}/receipt/",
+            HTTP_X_RECEIPT_TOKEN=order.guest_access_token,  # DRF convertit en header
+        )
         assert response.status_code == status.HTTP_200_OK
 
     def test_guest_receipt_data_without_token(self, api_client, order):
@@ -757,9 +759,10 @@ class TestReceiptEdgeCases:
 
     def test_receipt_data_order_with_empty_items(self, api_client, order):
         """Test receipt data for order without items"""
-        url = f"/api/v1/orders/{order.id}/receipt/?token={order.guest_access_token}"
-
-        response = api_client.get(url)
+        response = api_client.get(
+            f"/api/v1/orders/{order.id}/receipt/",
+            HTTP_X_RECEIPT_TOKEN=order.guest_access_token,  # DRF convertit en header
+        )
 
         assert response.status_code == status.HTTP_200_OK
         assert response.data['items'] == []

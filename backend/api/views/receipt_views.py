@@ -42,12 +42,28 @@ def _check_receipt_access(request, order) -> bool:
         # Commande authentifiée accessible uniquement via JWT valide (chemin 1)
         return False
 
-    # Récupérer le token depuis le body (POST) ou les query params (GET/POST)
+    # Récupérer le token selon l'ordre de priorité (du plus sûr au moins sûr) :
+    #   1. Header X-Receipt-Token  — recommandé pour les GET (absent des logs proxy/historique)
+    #   2. Corps de la requête     — recommandé pour les POST
+    #   3. Query param ?token=     — fallback déprécié, accepté temporairement pour
+    #                                compatibilité ascendante ; émettre un warning pour
+    #                                aider à la migration côté frontend.
     provided_token = (
-        request.data.get('token')
-        or request.query_params.get('token')
+        request.headers.get('X-Receipt-Token', '')
+        or request.data.get('token', '')
         or ''
     ).strip()
+
+    if not provided_token:
+        # Fallback query param : fonctionnel mais déprécié.
+        qp_token = request.query_params.get('token', '').strip()
+        if qp_token:
+            logger.warning(
+                "receipt_access: token transmis en query param pour order_id=%s — "
+                "migrer vers le header X-Receipt-Token pour éviter la fuite en logs.",
+                getattr(order, 'id', '?'),
+            )
+            provided_token = qp_token
 
     if not provided_token:
         return False
