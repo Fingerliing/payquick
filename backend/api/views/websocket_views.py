@@ -59,67 +59,110 @@ class SSEConnectionManager:
 # Instance globale
 sse_manager = SSEConnectionManager()
 
-def authenticate_user_from_token(token):
-    """Authentifier un utilisateur depuis un token JWT"""
+# ── Ticket SSE à usage unique ─────────────────────────────────────────────────
+# EventSource (browser) ne peut pas envoyer de header Authorization.
+# Passer le JWT en query param exposerait le token dans les logs nginx,
+# l'historique navigateur et les outils de debug réseau.
+#
+# Solution : ticket court-vivant (UUID, 30 s, usage unique).
+#   1. Le client POST /orders/sse-ticket/ avec son JWT en header → reçoit un ticket UUID.
+#   2. Le client ouvre EventSource sur /orders/status-stream/?ticket=<uuid>.
+#   3. order_status_stream échange le ticket contre l'identité, l'invalide immédiatement.
+#      Le JWT ne touche jamais une URL.
+
+SSE_TICKET_TTL = 30  # secondes — suffisant pour ouvrir l'EventSource
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_sse_ticket(request):
+    """
+    Génère un ticket SSE à usage unique (valable {TTL} s).
+
+    Le client doit fournir la liste des order_ids qu'il souhaite écouter.
+    Le ticket est stocké dans le cache Redis avec le user_id et la liste validée.
+
+    Requête : { "order_ids": [1, 2, 3] }
+    Réponse : { "ticket": "<uuid>" }
+    """
+    import uuid
+    from django.core.cache import cache
+
+    order_ids_raw = request.data.get("order_ids", [])
+    if not isinstance(order_ids_raw, list) or not order_ids_raw:
+        return Response({"error": "order_ids doit être une liste non vide"}, status=400)
+
     try:
-        UntypedToken(token)  # Valider avec rest_framework_simplejwt
-        decoded = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
-        user_id = decoded.get("user_id")
-        
-        if not user_id:
-            return None
-            
+        order_ids = [int(i) for i in order_ids_raw]
+    except (ValueError, TypeError):
+        return Response({"error": "order_ids invalides"}, status=400)
+
+    # Vérifier l'accès dès la création du ticket — pas au moment du stream.
+    accessible = get_user_accessible_orders(request.user, order_ids)
+    if not accessible:
+        return Response({"error": "Aucune commande accessible"}, status=403)
+
+    ticket = str(uuid.uuid4())
+    cache.set(
+        f"sse_ticket:{ticket}",
+        {"user_id": request.user.id, "order_ids": accessible},
+        timeout=SSE_TICKET_TTL,
+    )
+    logger.info("SSE ticket créé pour user_id=%s orders=%s", request.user.id, accessible)
+    return Response({"ticket": ticket})
+
+
+def _redeem_sse_ticket(ticket: str):
+    """
+    Échange un ticket SSE contre (user, order_ids) et l'invalide immédiatement
+    (usage unique — delete-on-read).
+
+    Retourne (None, None) si le ticket est absent, expiré ou déjà consommé.
+    """
+    from django.core.cache import cache
+
+    key = f"sse_ticket:{ticket}"
+    data = cache.get(key)
+    if not data:
+        return None, None
+
+    cache.delete(key)  # Usage unique — invalider avant tout traitement
+
+    user_id = data.get("user_id")
+    order_ids = data.get("order_ids", [])
+
+    try:
         user = User.objects.get(id=user_id)
-        return user
-        
-    except (InvalidToken, jwt.InvalidTokenError, User.DoesNotExist):
-        return None
+    except User.DoesNotExist:
+        return None, None
+
+    return user, order_ids
+
 
 @api_view(['GET'])
-@permission_classes([])  # Auth manuelle dans la fonction : supporte le token JWT
-                         # passé en query param (?token=...) pour EventSource
-                         # (qui ne peut pas envoyer de header Authorization).
-                         # La vérification du token est faite via authenticate_user_from_token().
+@permission_classes([])  # Auth via ticket SSE (voir _redeem_sse_ticket)
 def order_status_stream(request):
     """
-    Endpoint SSE pour les mises à jour de commandes
-    Supporte l'authentification via token URL ou header
+    Endpoint SSE pour les mises à jour de commandes.
+
+    Authentification via ticket à usage unique obtenu depuis POST /orders/sse-ticket/.
+    Le ticket est passé en query param (?ticket=<uuid>) — durée de vie 30 s,
+    invalide après la première connexion.
     """
     try:
-        # 1. Authentification - support token URL et header
-        user = None
-        
-        # Essayer le token depuis l'URL (pour EventSource)
-        token = request.GET.get('token')
-        if token:
-            user = authenticate_user_from_token(token)
-        
-        # Fallback vers l'authentification standard (header Authorization)
-        if not user and request.user.is_authenticated:
-            user = request.user
-        
+        # 1. Authentification par ticket SSE (usage unique)
+        ticket = request.GET.get("ticket", "").strip()
+        if not ticket:
+            return JsonResponse({"error": "Paramètre ticket requis"}, status=401)
+
+        user, accessible_orders = _redeem_sse_ticket(ticket)
         if not user:
-            return JsonResponse({'error': 'Authentication required'}, status=401)
-        
-        # 2. Extraire les IDs des commandes
-        order_ids_param = request.GET.get('orders', '')
-        if not order_ids_param:
-            return JsonResponse({'error': 'Parameter "orders" is required'}, status=400)
-        
-        try:
-            order_ids = [int(id.strip()) for id in order_ids_param.split(',') if id.strip()]
-        except ValueError:
-            return JsonResponse({'error': 'Invalid order IDs format'}, status=400)
-        
-        if not order_ids:
-            return JsonResponse({'error': 'No valid order IDs provided'}, status=400)
-        
-        # 3. Vérifier l'accès aux commandes
-        accessible_orders = get_user_accessible_orders(user, order_ids)
+            return JsonResponse({"error": "Ticket invalide ou expiré"}, status=401)
+
         if not accessible_orders:
-            return JsonResponse({'error': 'No accessible orders'}, status=403)
+            return JsonResponse({"error": "Aucune commande accessible"}, status=403)
         
-        # 4. Créer le stream SSE
+        # 2. Créer le stream SSE
+        # (order_ids et autorisation déjà vérifiés lors de la création du ticket)
         response = StreamingHttpResponse(
             event_stream_generator(user.id, accessible_orders),
             content_type='text/event-stream'
@@ -189,36 +232,68 @@ def format_sse_message(data):
     return f"data: {json.dumps(data)}\n\n"
 
 def get_user_accessible_orders(user, order_ids):
-    """Vérifier l'accès utilisateur aux commandes - ADAPTEZ selon votre modèle"""
+    """
+    Vérifie l'accès utilisateur aux commandes demandées.
+
+    Deux chemins légitimes (OR) :
+    - Client authentifié : order.user == user
+    - Restaurateur      : order.restaurant.owner == user.restaurateur_profile
+
+    Toute commande qui ne satisfait ni l'un ni l'autre est silencieusement
+    exclue du résultat — l'appelant recevra un 403 si la liste est vide.
+    """
+    from django.db.models import Q
+    from api.models import Order
+
     try:
-        # Importez votre modèle Order
-        from api.models import Order  # Ajustez selon votre structure
-        
-        # Logique d'autorisation selon votre business logic
-        # Exemple : filtrer selon le type d'utilisateur
-        accessible = Order.objects.filter(
-            id__in=order_ids,
-            # Ajustez selon vos règles :
-            # customer=user,  # Si c'est un client
-            # restaurant__owner=user,  # Si c'est un restaurateur
-        ).values_list('id', flat=True)
-        
+        ownership_filter = Q(user=user)
+
+        # Ajouter le chemin restaurateur uniquement si le profil existe,
+        # pour ne pas lever d'exception sur un utilisateur sans profil.
+        try:
+            profile = user.restaurateur_profile
+            ownership_filter |= Q(restaurant__owner=profile)
+        except Exception:
+            pass  # Utilisateur sans profil restaurateur — seul le chemin client s'applique
+
+        accessible = (
+            Order.objects
+            .filter(Q(id__in=order_ids) & ownership_filter)
+            .values_list('id', flat=True)
+        )
         return list(accessible)
-    except Exception as e:
-        logger.error(f"Error checking order access: {e}")
+
+    except Exception:
+        logger.exception("Erreur lors de la vérification d'accès aux commandes SSE")
         return []
 
 def get_orders_initial_status(order_ids):
-    """Récupérer le statut initial des commandes"""
+    """
+    Récupère le statut initial des commandes pour l'envoi SSE de connexion.
+
+    `waiting_time` n'est pas un champ du modèle Order — c'est la méthode
+    `get_table_waiting_time()`. On récupère donc les objets complets pour
+    pouvoir appeler la méthode, puis on sérialise manuellement.
+    """
+    from api.models import Order
+
     try:
-        from api.models import Order  # Ajustez selon votre structure
-        
-        orders = Order.objects.filter(id__in=order_ids).values(
-            'id', 'status', 'waiting_time', 'updated_at'
-        )
-        return list(orders)
-    except Exception as e:
-        logger.error(f"Error getting initial status: {e}")
+        orders = Order.objects.filter(id__in=order_ids).select_related("restaurant")
+        result = []
+        for order in orders:
+            try:
+                waiting_time = order.get_table_waiting_time()
+            except Exception:
+                waiting_time = None
+            result.append({
+                "id": order.id,
+                "status": order.status,
+                "waiting_time": waiting_time,
+                "updated_at": order.updated_at.isoformat() if order.updated_at else None,
+            })
+        return result
+    except Exception:
+        logger.exception("Erreur get_orders_initial_status pour order_ids=%s", order_ids)
         return []
 
 # Fonction pour intégrer SSE avec les signaux

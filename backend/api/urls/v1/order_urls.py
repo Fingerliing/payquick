@@ -2,9 +2,10 @@ from rest_framework.routers import DefaultRouter
 from django.urls import path
 from api.views.order_views import OrderViewSet
 from api.views.websocket_views import (
-    order_status_stream, 
-    websocket_status, 
-    test_notification
+    order_status_stream,
+    create_sse_ticket,
+    websocket_status,
+    test_notification,
 )
 from api.views.receipt_views import GetReceiptDataView, GenerateReceiptPDFView
 from api.views.order_tracking_views import OrderTrackingViewSet
@@ -13,6 +14,7 @@ router = DefaultRouter()
 router.register(r'', OrderViewSet, basename='orders')
 
 urlpatterns = [
+  path('sse-ticket/', create_sse_ticket, name='sse_ticket'),
   path('status-stream/', order_status_stream, name='order_status_stream'),
   path('realtime/status/', websocket_status, name='websocket_status'),
   path('realtime/test/', test_notification, name='test_notification'),
