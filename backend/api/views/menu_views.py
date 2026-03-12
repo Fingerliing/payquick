@@ -1,5 +1,4 @@
 import logging
-import logging
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -140,37 +139,33 @@ class MenuItemViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         """Création d'un menu item avec gestion d'images et validation complète"""
         try:
-            # Log des données reçues pour debug
-            print(f"📥 Données reçues: {request.data}")
-            print(f"📁 Fichiers reçus: {request.FILES}")
-            
-            # Vérifier si on a une image
             if 'image' in request.FILES:
                 image_file = request.FILES['image']
-                print(f"🖼️ Image reçue: {image_file.name} ({image_file.size} bytes, {image_file.content_type})")
-            
+                logger.info(
+                    "MenuItem create: image reçue name=%s size=%d content_type=%s",
+                    image_file.name, image_file.size, image_file.content_type,
+                )
+
             serializer = self.get_serializer(data=request.data)
             if serializer.is_valid():
                 try:
                     self.perform_create(serializer)
                     headers = self.get_success_headers(serializer.data)
                     return Response(
-                        serializer.data, 
-                        status=status.HTTP_201_CREATED, 
+                        serializer.data,
+                        status=status.HTTP_201_CREATED,
                         headers=headers
                     )
-                except Exception as e:
-                    print(f"❌ Erreur lors de la sauvegarde: {e}")
+                except Exception:
                     logger.exception("Erreur lors de la sauvegarde du menu item")
                     return Response({
                         'error': 'Erreur lors de la création du plat.'
                     }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             else:
-                print(f"❌ Erreurs de validation: {serializer.errors}")
+                logger.warning("MenuItem create: validation échouée errors=%s", serializer.errors)
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-                
-        except Exception as e:
-            print(f"❌ Erreur générale: {e}")
+
+        except Exception:
             logger.exception("Erreur inattendue lors de la création du menu item")
             return Response({
                 'error': 'Erreur inattendue lors de la création du plat.'
