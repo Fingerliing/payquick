@@ -2,8 +2,21 @@
 """
 Tests unitaires pour les vues de suivi de commande
 - OrderTrackingViewSet (progression gamifiée)
+
+Contrôle d'accès (fix sécurité) :
+  GET /orders/{id}/progress/ n'est plus public.
+  Accès autorisé :
+    - JWT propriétaire de la commande (user authentifié)
+    - Restaurateur propriétaire du restaurant (JWT)
+    - Commande invité : header X-Receipt-Token == order.guest_access_token
+  Accès refusé (403) :
+    - Requête sans token
+    - JWT d'un utilisateur étranger
+    - Token invité incorrect
+    - Énumération d'IDs sans possession
 """
 
+import secrets
 import pytest
 from unittest.mock import patch, MagicMock
 from decimal import Decimal
@@ -44,15 +57,24 @@ def user(db):
 
 
 @pytest.fixture
+def other_user(db):
+    return User.objects.create_user(
+        username="tracking_other@example.com",
+        email="tracking_other@example.com",
+        password="testpass123"
+    )
+
+
+@pytest.fixture
 def restaurateur_user(db):
     group, _ = Group.objects.get_or_create(name="restaurateur")
-    user = User.objects.create_user(
+    u = User.objects.create_user(
         username="tracking_resto@example.com",
         email="tracking_resto@example.com",
         password="testpass123"
     )
-    user.groups.add(group)
-    return user
+    u.groups.add(group)
+    return u
 
 
 @pytest.fixture
@@ -74,6 +96,22 @@ def auth_client(user):
 
 
 @pytest.fixture
+def other_auth_client(other_user):
+    token = RefreshToken.for_user(other_user)
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token.access_token}")
+    return client
+
+
+@pytest.fixture
+def restaurateur_auth_client(restaurateur_user):
+    token = RefreshToken.for_user(restaurateur_user)
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token.access_token}")
+    return client
+
+
+@pytest.fixture
 def restaurant(restaurateur_profile):
     return Restaurant.objects.create(
         name="Tracking Test Restaurant",
@@ -86,13 +124,9 @@ def restaurant(restaurateur_profile):
 
 @pytest.fixture
 def table(restaurant):
-    """
-    Table fixture - uses 'number' field (not 'identifiant' which is read-only property).
-    The 'identifiant' property is auto-generated from restaurant prefix + number.
-    """
     return Table.objects.create(
         restaurant=restaurant,
-        number="TRACK001",  # Use number field, not identifiant
+        number="TRACK001",
         capacity=4,
         is_active=True
     )
@@ -122,7 +156,7 @@ def menu_item(menu, menu_category):
     return MenuItem.objects.create(
         menu=menu,
         name="Steak Frites",
-        price=Decimal('22.00'),
+        price=Decimal("22.00"),
         category=menu_category,
         is_available=True,
         preparation_time=15
@@ -134,122 +168,259 @@ def second_menu_item(menu, menu_category):
     return MenuItem.objects.create(
         menu=menu,
         name="Salade César",
-        price=Decimal('12.00'),
+        price=Decimal("12.00"),
         category=menu_category,
         is_available=True,
         preparation_time=8
     )
 
 
+# ── Commandes authentifiées ────────────────────────────────────────────────────
+
 @pytest.fixture
 def pending_order(restaurant, table, user):
-    """
-    Commande en attente.
-    
-    NOTE: Order model uses:
-    - restaurant (ForeignKey to Restaurant)
-    - table_number (CharField, NOT a ForeignKey to Table)
-    - order_number (CharField, unique, required)
-    
-    Order does NOT have: restaurateur field, table ForeignKey
-    """
     return Order.objects.create(
         restaurant=restaurant,
-        table_number=table.number,  # CharField, not FK
+        table_number=table.number,
         order_number="ORD-TRACK-001",
         user=user,
-        status='pending',
-        total_amount=Decimal('34.00'),
-        subtotal=Decimal('30.91'),
-        tax_amount=Decimal('3.09')
+        status="pending",
+        total_amount=Decimal("34.00"),
+        subtotal=Decimal("30.91"),
+        tax_amount=Decimal("3.09")
     )
 
 
 @pytest.fixture
 def confirmed_order(restaurant, table, user):
-    """Commande confirmée"""
     return Order.objects.create(
         restaurant=restaurant,
         table_number=table.number,
         order_number="ORD-TRACK-002",
         user=user,
-        status='confirmed',
-        total_amount=Decimal('34.00'),
-        subtotal=Decimal('30.91'),
-        tax_amount=Decimal('3.09')
+        status="confirmed",
+        total_amount=Decimal("34.00"),
+        subtotal=Decimal("30.91"),
+        tax_amount=Decimal("3.09")
     )
 
 
 @pytest.fixture
 def preparing_order(restaurant, table, user):
-    """Commande en préparation"""
     order = Order.objects.create(
         restaurant=restaurant,
         table_number=table.number,
         order_number="ORD-TRACK-003",
         user=user,
-        status='preparing',
-        total_amount=Decimal('34.00'),
-        subtotal=Decimal('30.91'),
-        tax_amount=Decimal('3.09')
+        status="preparing",
+        total_amount=Decimal("34.00"),
+        subtotal=Decimal("30.91"),
+        tax_amount=Decimal("3.09")
     )
-    # Mettre à jour created_at pour simuler du temps écoulé
-    order.created_at = timezone.now() - timedelta(minutes=10)
-    order.save(update_fields=['created_at'])
+    Order.objects.filter(pk=order.pk).update(
+        created_at=timezone.now() - timedelta(minutes=10)
+    )
+    order.refresh_from_db()
     return order
 
 
 @pytest.fixture
 def ready_order(restaurant, table, user):
-    """Commande prête"""
     return Order.objects.create(
         restaurant=restaurant,
         table_number=table.number,
         order_number="ORD-TRACK-004",
         user=user,
-        status='ready',
-        total_amount=Decimal('34.00'),
-        subtotal=Decimal('30.91'),
-        tax_amount=Decimal('3.09'),
+        status="ready",
+        total_amount=Decimal("34.00"),
+        subtotal=Decimal("30.91"),
+        tax_amount=Decimal("3.09"),
         ready_at=timezone.now()
     )
 
 
 @pytest.fixture
 def served_order(restaurant, table, user):
-    """Commande servie"""
     return Order.objects.create(
         restaurant=restaurant,
         table_number=table.number,
         order_number="ORD-TRACK-005",
         user=user,
-        status='served',
-        total_amount=Decimal('34.00'),
-        subtotal=Decimal('30.91'),
-        tax_amount=Decimal('3.09'),
+        status="served",
+        total_amount=Decimal("34.00"),
+        subtotal=Decimal("30.91"),
+        tax_amount=Decimal("3.09"),
         ready_at=timezone.now() - timedelta(minutes=5),
         served_at=timezone.now()
     )
 
 
+# ── Commande invité ────────────────────────────────────────────────────────────
+
+@pytest.fixture
+def guest_token():
+    return secrets.token_urlsafe(32)
+
+
+@pytest.fixture
+def guest_order(restaurant, table, guest_token):
+    """Commande sans utilisateur authentifié, avec guest_access_token."""
+    return Order.objects.create(
+        restaurant=restaurant,
+        table_number=table.number,
+        order_number="ORD-TRACK-GUEST",
+        user=None,
+        guest_email="guest@example.com",
+        guest_phone="0600000000",
+        guest_access_token=guest_token,
+        status="pending",
+        total_amount=Decimal("20.00"),
+        subtotal=Decimal("18.18"),
+        tax_amount=Decimal("1.82")
+    )
+
+
+# ── Commande avec items ────────────────────────────────────────────────────────
+
 @pytest.fixture
 def order_with_items(pending_order, menu_item, second_menu_item):
-    """Commande avec plusieurs items"""
     OrderItem.objects.create(
         order=pending_order,
         menu_item=menu_item,
         quantity=1,
         unit_price=menu_item.price,
-            total_price=menu_item.price
+        total_price=menu_item.price
     )
     OrderItem.objects.create(
         order=pending_order,
         menu_item=second_menu_item,
         quantity=1,
         unit_price=second_menu_item.price,
-            total_price=second_menu_item.price
+        total_price=second_menu_item.price
     )
     return pending_order
+
+
+@pytest.fixture
+def guest_order_with_items(guest_order, menu_item):
+    OrderItem.objects.create(
+        order=guest_order,
+        menu_item=menu_item,
+        quantity=1,
+        unit_price=menu_item.price,
+        total_price=menu_item.price
+    )
+    return guest_order
+
+
+# =============================================================================
+# TESTS - Contrôle d'accès (fix sécurité)
+# =============================================================================
+
+@pytest.mark.django_db
+class TestOrderProgressAccessControl:
+    """
+    Vérifie que l'endpoint /progress/ exige une preuve de possession.
+    Avant le fix : AllowAny sans vérification → toute requête retournait 200.
+    Après le fix  : seuls le propriétaire JWT et le porteur du guest token
+                    obtiennent 200 ; tous les autres reçoivent 403.
+    """
+
+    URL = "/api/v1/orders/{id}/progress/"
+
+    # ── Requêtes sans aucune preuve d'identité ────────────────────────────────
+
+    def test_anonymous_request_rejected(self, api_client, order_with_items):
+        """Requête sans JWT ni token invité → 403."""
+        response = api_client.get(self.URL.format(id=order_with_items.id))
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_enumeration_without_token_rejected(self, api_client, order_with_items):
+        """
+        Attaque par énumération d'IDs : IDs séquentiels sans token → 403.
+        L'endpoint ne doit pas fuir d'informations avant la vérification de possession.
+        """
+        for offset in range(-1, 2):
+            target_id = order_with_items.id + offset
+            response = api_client.get(self.URL.format(id=target_id))
+            assert response.status_code in (
+                status.HTTP_403_FORBIDDEN,
+                status.HTTP_404_NOT_FOUND,
+            ), f"ID {target_id} devrait retourner 403 ou 404, reçu {response.status_code}"
+
+    # ── JWT étranger ──────────────────────────────────────────────────────────
+
+    def test_foreign_jwt_rejected(self, other_auth_client, order_with_items):
+        """JWT d'un utilisateur qui ne possède pas la commande → 403."""
+        response = other_auth_client.get(self.URL.format(id=order_with_items.id))
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    # ── JWT propriétaire ──────────────────────────────────────────────────────
+
+    def test_owner_jwt_allowed(self, auth_client, order_with_items):
+        """JWT du propriétaire de la commande → 200."""
+        response = auth_client.get(self.URL.format(id=order_with_items.id))
+        assert response.status_code == status.HTTP_200_OK
+
+    def test_restaurateur_jwt_allowed(
+        self, restaurateur_auth_client, order_with_items
+    ):
+        """JWT du restaurateur propriétaire du restaurant → 200."""
+        response = restaurateur_auth_client.get(
+            self.URL.format(id=order_with_items.id)
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+    # ── Commande invité / guest token ─────────────────────────────────────────
+
+    def test_guest_valid_token_header_allowed(
+        self, api_client, guest_order_with_items, guest_token
+    ):
+        """Header X-Receipt-Token valide → 200 (chemin préféré)."""
+        response = api_client.get(
+            self.URL.format(id=guest_order_with_items.id),
+            HTTP_X_RECEIPT_TOKEN=guest_token,
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+    def test_guest_wrong_token_rejected(self, api_client, guest_order_with_items):
+        """Header X-Receipt-Token incorrect → 403."""
+        response = api_client.get(
+            self.URL.format(id=guest_order_with_items.id),
+            HTTP_X_RECEIPT_TOKEN="mauvais-token",
+        )
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_guest_empty_token_rejected(self, api_client, guest_order_with_items):
+        """Header X-Receipt-Token vide → 403."""
+        response = api_client.get(
+            self.URL.format(id=guest_order_with_items.id),
+            HTTP_X_RECEIPT_TOKEN="",
+        )
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_guest_no_token_rejected(self, api_client, guest_order_with_items):
+        """Commande invité sans token → 403."""
+        response = api_client.get(self.URL.format(id=guest_order_with_items.id))
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_cross_order_token_rejected(
+        self, api_client, guest_order_with_items, order_with_items, guest_token
+    ):
+        """
+        Token valide pour la commande invité, présenté sur une commande différente
+        → 403. Empêche le vol de progression inter-commandes.
+        """
+        response = api_client.get(
+            self.URL.format(id=order_with_items.id),
+            HTTP_X_RECEIPT_TOKEN=guest_token,
+        )
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_nonexistent_order_returns_404(self, auth_client):
+        """Commande inexistante → 404 (avant tout contrôle d'accès)."""
+        response = auth_client.get(self.URL.format(id=99999))
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 # =============================================================================
@@ -258,10 +429,9 @@ def order_with_items(pending_order, menu_item, second_menu_item):
 
 @pytest.mark.django_db
 class TestOrderProgress:
-    """Tests pour la progression de commande"""
+    """Tests pour la progression de commande (accès via JWT propriétaire)."""
 
-    def test_get_progress_pending_order(self, api_client, pending_order, menu_item):
-        """Test de la progression d'une commande en attente"""
+    def test_get_progress_pending_order(self, auth_client, pending_order, menu_item):
         OrderItem.objects.create(
             order=pending_order,
             menu_item=menu_item,
@@ -269,15 +439,11 @@ class TestOrderProgress:
             unit_price=menu_item.price,
             total_price=menu_item.price
         )
-        
-        response = api_client.get(f'/api/v1/orders/{pending_order.id}/progress/')
-        
+        response = auth_client.get(f"/api/v1/orders/{pending_order.id}/progress/")
         assert response.status_code == status.HTTP_200_OK
-        assert 'order_status' in response.data
-        assert response.data['order_status'] == 'pending'
+        assert response.data["order_status"] == "pending"
 
-    def test_get_progress_preparing_order(self, api_client, preparing_order, menu_item):
-        """Test de la progression d'une commande en préparation"""
+    def test_get_progress_preparing_order(self, auth_client, preparing_order, menu_item):
         OrderItem.objects.create(
             order=preparing_order,
             menu_item=menu_item,
@@ -285,14 +451,11 @@ class TestOrderProgress:
             unit_price=menu_item.price,
             total_price=menu_item.price
         )
-        
-        response = api_client.get(f'/api/v1/orders/{preparing_order.id}/progress/')
-        
+        response = auth_client.get(f"/api/v1/orders/{preparing_order.id}/progress/")
         assert response.status_code == status.HTTP_200_OK
-        assert response.data['order_status'] == 'preparing'
+        assert response.data["order_status"] == "preparing"
 
-    def test_get_progress_ready_order(self, api_client, ready_order, menu_item):
-        """Test de la progression d'une commande prête"""
+    def test_get_progress_ready_order(self, auth_client, ready_order, menu_item):
         OrderItem.objects.create(
             order=ready_order,
             menu_item=menu_item,
@@ -300,14 +463,11 @@ class TestOrderProgress:
             unit_price=menu_item.price,
             total_price=menu_item.price
         )
-        
-        response = api_client.get(f'/api/v1/orders/{ready_order.id}/progress/')
-        
+        response = auth_client.get(f"/api/v1/orders/{ready_order.id}/progress/")
         assert response.status_code == status.HTTP_200_OK
-        assert response.data['order_status'] == 'ready'
+        assert response.data["order_status"] == "ready"
 
-    def test_get_progress_served_order(self, api_client, served_order, menu_item):
-        """Test de la progression d'une commande servie"""
+    def test_get_progress_served_order(self, auth_client, served_order, menu_item):
         OrderItem.objects.create(
             order=served_order,
             menu_item=menu_item,
@@ -315,24 +475,24 @@ class TestOrderProgress:
             unit_price=menu_item.price,
             total_price=menu_item.price
         )
-        
-        response = api_client.get(f'/api/v1/orders/{served_order.id}/progress/')
-        
+        response = auth_client.get(f"/api/v1/orders/{served_order.id}/progress/")
         assert response.status_code == status.HTTP_200_OK
-        assert response.data['order_status'] == 'served'
+        assert response.data["order_status"] == "served"
 
-    def test_get_progress_order_without_items(self, api_client, pending_order):
-        """Test de la progression d'une commande sans items"""
-        response = api_client.get(f'/api/v1/orders/{pending_order.id}/progress/')
-        
-        # L'endpoint peut retourner 200 (avec données vides) ou 400 (items requis)
-        assert response.status_code in [status.HTTP_200_OK, status.HTTP_400_BAD_REQUEST]
+    def test_get_progress_order_without_items(self, auth_client, pending_order):
+        """Commande sans items : 400 (items requis par la vue)."""
+        response = auth_client.get(f"/api/v1/orders/{pending_order.id}/progress/")
+        assert response.status_code in (
+            status.HTTP_200_OK,
+            status.HTTP_400_BAD_REQUEST,
+        )
 
-    def test_get_progress_nonexistent_order(self, api_client):
-        """Test avec une commande inexistante"""
-        response = api_client.get('/api/v1/orders/99999/progress/')
-        
-        assert response.status_code == status.HTTP_404_NOT_FOUND
+    def test_global_progress_range(self, auth_client, order_with_items):
+        """La progression globale doit être entre 0 et 100."""
+        response = auth_client.get(f"/api/v1/orders/{order_with_items.id}/progress/")
+        assert response.status_code == status.HTTP_200_OK
+        progress = response.data["global_progress"]
+        assert 0 <= progress <= 100
 
 
 # =============================================================================
@@ -341,38 +501,28 @@ class TestOrderProgress:
 
 @pytest.mark.django_db
 class TestOrderGamification:
-    """Tests pour les éléments de gamification"""
+    """Tests pour les éléments de gamification."""
 
-    def test_gamification_data_present(self, api_client, order_with_items):
-        """Test que les données de gamification sont présentes"""
-        response = api_client.get(f'/api/v1/orders/{order_with_items.id}/progress/')
-        
+    def test_gamification_data_present(self, auth_client, order_with_items):
+        response = auth_client.get(f"/api/v1/orders/{order_with_items.id}/progress/")
         assert response.status_code == status.HTTP_200_OK
-        assert 'gamification' in response.data
-        
-        gamification = response.data['gamification']
-        assert 'level' in gamification or 'points' in gamification
+        assert "gamification" in response.data
+        gamification = response.data["gamification"]
+        assert "level" in gamification or "points" in gamification
 
-    def test_gamification_badges(self, api_client, order_with_items):
-        """Test des badges de gamification"""
-        response = api_client.get(f'/api/v1/orders/{order_with_items.id}/progress/')
-        
+    def test_gamification_badges(self, auth_client, order_with_items):
+        response = auth_client.get(f"/api/v1/orders/{order_with_items.id}/progress/")
         assert response.status_code == status.HTTP_200_OK
-        
-        gamification = response.data.get('gamification', {})
-        if 'badges' in gamification:
-            # Les badges doivent être une liste
-            assert isinstance(gamification['badges'], list)
+        gamification = response.data.get("gamification", {})
+        if "badges" in gamification:
+            assert isinstance(gamification["badges"], list)
 
-    def test_gamification_message(self, api_client, order_with_items):
-        """Test des messages de gamification"""
-        response = api_client.get(f'/api/v1/orders/{order_with_items.id}/progress/')
-        
+    def test_gamification_message(self, auth_client, order_with_items):
+        response = auth_client.get(f"/api/v1/orders/{order_with_items.id}/progress/")
         assert response.status_code == status.HTTP_200_OK
-        
-        gamification = response.data.get('gamification', {})
-        if 'message' in gamification:
-            assert isinstance(gamification['message'], str)
+        gamification = response.data.get("gamification", {})
+        if "message" in gamification:
+            assert isinstance(gamification["message"], str)
 
 
 # =============================================================================
@@ -381,33 +531,25 @@ class TestOrderGamification:
 
 @pytest.mark.django_db
 class TestOrderCategories:
-    """Tests pour la progression par catégorie"""
+    """Tests pour la progression par catégorie."""
 
-    def test_categories_progress(self, api_client, order_with_items):
-        """Test de la progression par catégorie"""
-        response = api_client.get(f'/api/v1/orders/{order_with_items.id}/progress/')
-        
+    def test_categories_progress(self, auth_client, order_with_items):
+        response = auth_client.get(f"/api/v1/orders/{order_with_items.id}/progress/")
         assert response.status_code == status.HTTP_200_OK
-        assert 'categories' in response.data
-        
-        categories = response.data['categories']
+        assert "categories" in response.data
+        categories = response.data["categories"]
         assert isinstance(categories, list)
-        
-        if len(categories) > 0:
+        if categories:
             category = categories[0]
-            assert 'category' in category or 'name' in category
-            assert 'progress_percentage' in category
+            assert "category" in category or "name" in category
+            assert "progress_percentage" in category
 
-    def test_categories_estimated_time(self, api_client, order_with_items):
-        """Test du temps estimé par catégorie"""
-        response = api_client.get(f'/api/v1/orders/{order_with_items.id}/progress/')
-        
+    def test_categories_estimated_time(self, auth_client, order_with_items):
+        response = auth_client.get(f"/api/v1/orders/{order_with_items.id}/progress/")
         assert response.status_code == status.HTTP_200_OK
-        
-        categories = response.data.get('categories', [])
-        for category in categories:
-            if 'estimated_time_minutes' in category:
-                assert category['estimated_time_minutes'] >= 0
+        for category in response.data.get("categories", []):
+            if "estimated_time_minutes" in category:
+                assert category["estimated_time_minutes"] >= 0
 
 
 # =============================================================================
@@ -416,20 +558,15 @@ class TestOrderCategories:
 
 @pytest.mark.django_db
 class TestRealTimeInsights:
-    """Tests pour les insights en temps réel"""
+    """Tests pour les insights en temps réel."""
 
-    def test_insights_present(self, api_client, order_with_items):
-        """Test que les insights sont présents"""
-        response = api_client.get(f'/api/v1/orders/{order_with_items.id}/progress/')
-        
+    def test_insights_present(self, auth_client, order_with_items):
+        response = auth_client.get(f"/api/v1/orders/{order_with_items.id}/progress/")
         assert response.status_code == status.HTTP_200_OK
-        
-        if 'real_time_insights' in response.data:
-            insights = response.data['real_time_insights']
-            assert isinstance(insights, list)
+        if "real_time_insights" in response.data:
+            assert isinstance(response.data["real_time_insights"], list)
 
-    def test_completion_prediction(self, api_client, preparing_order, menu_item):
-        """Test de la prédiction de complétion"""
+    def test_completion_prediction(self, auth_client, preparing_order, menu_item):
         OrderItem.objects.create(
             order=preparing_order,
             menu_item=menu_item,
@@ -437,14 +574,10 @@ class TestRealTimeInsights:
             unit_price=menu_item.price,
             total_price=menu_item.price
         )
-        
-        response = api_client.get(f'/api/v1/orders/{preparing_order.id}/progress/')
-        
+        response = auth_client.get(f"/api/v1/orders/{preparing_order.id}/progress/")
         assert response.status_code == status.HTTP_200_OK
-        
-        if 'completion_prediction' in response.data:
-            prediction = response.data['completion_prediction']
-            assert isinstance(prediction, dict)
+        if "completion_prediction" in response.data:
+            assert isinstance(response.data["completion_prediction"], dict)
 
 
 # =============================================================================
@@ -453,25 +586,19 @@ class TestRealTimeInsights:
 
 @pytest.mark.django_db
 class TestPreparationStages:
-    """Tests pour les étapes de préparation"""
+    """Tests pour les étapes de préparation."""
 
-    def test_preparation_stages_structure(self, api_client, order_with_items):
-        """Test de la structure des étapes"""
-        response = api_client.get(f'/api/v1/orders/{order_with_items.id}/progress/')
-        
+    def test_preparation_stages_structure(self, auth_client, order_with_items):
+        response = auth_client.get(f"/api/v1/orders/{order_with_items.id}/progress/")
         assert response.status_code == status.HTTP_200_OK
-        
-        categories = response.data.get('categories', [])
-        for category in categories:
-            if 'preparation_stages' in category:
-                stages = category['preparation_stages']
+        for category in response.data.get("categories", []):
+            if "preparation_stages" in category:
+                stages = category["preparation_stages"]
                 assert isinstance(stages, list)
-                
                 for stage in stages:
-                    assert 'id' in stage or 'label' in stage
+                    assert "id" in stage or "label" in stage
 
-    def test_stages_progression(self, api_client, preparing_order, menu_item):
-        """Test que les étapes reflètent la progression"""
+    def test_stages_progression(self, auth_client, preparing_order, menu_item):
         OrderItem.objects.create(
             order=preparing_order,
             menu_item=menu_item,
@@ -479,17 +606,11 @@ class TestPreparationStages:
             unit_price=menu_item.price,
             total_price=menu_item.price
         )
-        
-        response = api_client.get(f'/api/v1/orders/{preparing_order.id}/progress/')
-        
+        response = auth_client.get(f"/api/v1/orders/{preparing_order.id}/progress/")
         assert response.status_code == status.HTTP_200_OK
-        
-        # Vérifier que certaines étapes sont marquées comme complétées
-        categories = response.data.get('categories', [])
-        for category in categories:
-            stages = category.get('preparation_stages', [])
-            completed_count = sum(1 for s in stages if s.get('completed', False))
-            # Au moins une étape devrait être complétée pour une commande en préparation
+        for category in response.data.get("categories", []):
+            stages = category.get("preparation_stages", [])
+            completed_count = sum(1 for s in stages if s.get("completed", False))
             assert completed_count >= 0
 
 
@@ -499,19 +620,15 @@ class TestPreparationStages:
 
 @pytest.mark.django_db
 class TestOrderTiming:
-    """Tests pour les calculs de temps"""
+    """Tests pour les calculs de temps."""
 
-    def test_estimated_total_time(self, api_client, order_with_items):
-        """Test du temps total estimé"""
-        response = api_client.get(f'/api/v1/orders/{order_with_items.id}/progress/')
-        
+    def test_estimated_total_time(self, auth_client, order_with_items):
+        response = auth_client.get(f"/api/v1/orders/{order_with_items.id}/progress/")
         assert response.status_code == status.HTTP_200_OK
-        
-        if 'estimated_total_time' in response.data:
-            assert response.data['estimated_total_time'] >= 0
+        if "estimated_total_time" in response.data:
+            assert response.data["estimated_total_time"] >= 0
 
-    def test_time_remaining(self, api_client, preparing_order, menu_item):
-        """Test du temps restant"""
+    def test_time_remaining(self, auth_client, preparing_order, menu_item):
         OrderItem.objects.create(
             order=preparing_order,
             menu_item=menu_item,
@@ -519,76 +636,52 @@ class TestOrderTiming:
             unit_price=menu_item.price,
             total_price=menu_item.price
         )
-        
-        response = api_client.get(f'/api/v1/orders/{preparing_order.id}/progress/')
-        
+        response = auth_client.get(f"/api/v1/orders/{preparing_order.id}/progress/")
         assert response.status_code == status.HTTP_200_OK
-        
-        categories = response.data.get('categories', [])
-        for category in categories:
-            if 'time_remaining_minutes' in category:
-                assert category['time_remaining_minutes'] >= 0
+        for category in response.data.get("categories", []):
+            if "time_remaining_minutes" in category:
+                assert category["time_remaining_minutes"] >= 0
 
 
 # =============================================================================
-# TESTS - Accès public
-# =============================================================================
-
-@pytest.mark.django_db
-class TestOrderProgressAccess:
-    """Tests pour l'accès à la progression"""
-
-    def test_public_access_allowed(self, api_client, order_with_items):
-        """Test que l'accès public est autorisé"""
-        response = api_client.get(f'/api/v1/orders/{order_with_items.id}/progress/')
-        
-        # L'endpoint est public (AllowAny)
-        assert response.status_code == status.HTTP_200_OK
-
-    def test_authenticated_access(self, auth_client, order_with_items):
-        """Test que l'accès authentifié fonctionne"""
-        response = auth_client.get(f'/api/v1/orders/{order_with_items.id}/progress/')
-        
-        assert response.status_code == status.HTTP_200_OK
-
-
-# =============================================================================
-# TESTS - Réponse structure
+# TESTS - Structure de la réponse
 # =============================================================================
 
 @pytest.mark.django_db
 class TestProgressResponseStructure:
-    """Tests pour la structure de la réponse"""
+    """Tests pour la structure de la réponse."""
 
-    def test_response_contains_order_info(self, api_client, order_with_items):
-        """Test que la réponse contient les infos de commande"""
-        response = api_client.get(f'/api/v1/orders/{order_with_items.id}/progress/')
-        
+    def test_response_contains_order_info(self, auth_client, order_with_items):
+        response = auth_client.get(f"/api/v1/orders/{order_with_items.id}/progress/")
         assert response.status_code == status.HTTP_200_OK
-        assert 'order_id' in response.data
-        assert 'order_status' in response.data
+        assert "order_id" in response.data
+        assert "order_status" in response.data
 
-    def test_response_contains_table_info(self, api_client, order_with_items):
-        """Test que la réponse contient les infos de table"""
-        response = api_client.get(f'/api/v1/orders/{order_with_items.id}/progress/')
-        
+    def test_response_contains_table_info(self, auth_client, order_with_items):
+        response = auth_client.get(f"/api/v1/orders/{order_with_items.id}/progress/")
         assert response.status_code == status.HTTP_200_OK
-        
-        if 'table_number' in response.data:
-            assert response.data['table_number'] is not None
+        if "table_number" in response.data:
+            assert response.data["table_number"] is not None
 
-    def test_response_json_serializable(self, api_client, order_with_items):
-        """Test que la réponse est sérialisable en JSON"""
-        response = api_client.get(f'/api/v1/orders/{order_with_items.id}/progress/')
-        
-        assert response.status_code == status.HTTP_200_OK
-        
+    def test_response_json_serializable(self, auth_client, order_with_items):
         import json
-        # response.content contient le JSON sérialisé envoyé au client
-        # response.data contient des objets Python (datetime, Decimal) non sérialisables directement
+        response = auth_client.get(f"/api/v1/orders/{order_with_items.id}/progress/")
+        assert response.status_code == status.HTTP_200_OK
         try:
-            # Vérifier que le contenu de la réponse est du JSON valide
             parsed = json.loads(response.content)
             assert isinstance(parsed, dict)
         except (TypeError, ValueError, json.JSONDecodeError) as e:
-            pytest.fail(f"Response is not valid JSON: {e}")
+            pytest.fail(f"La réponse n'est pas du JSON valide : {e}")
+
+    def test_guest_progress_response_structure(
+        self, api_client, guest_order_with_items, guest_token
+    ):
+        """Un invité avec token valide reçoit la même structure de réponse."""
+        response = api_client.get(
+            f"/api/v1/orders/{guest_order_with_items.id}/progress/",
+            HTTP_X_RECEIPT_TOKEN=guest_token,
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert "order_id" in response.data
+        assert "order_status" in response.data
+        assert "global_progress" in response.data

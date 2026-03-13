@@ -1,33 +1,117 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, BasePermission
 from django.db.models import Avg, F, Q, Count
 from django.utils import timezone
 from datetime import timedelta
 from ..models import Order, OrderItem, MenuItem
 from collections import defaultdict
+import hmac
 import math
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def _check_progress_access(request, order) -> bool:
+    """
+    Contrôle d'accès pour GET /orders/{id}/progress/.
+
+    Trois chemins légitimes :
+    1. Utilisateur authentifié propriétaire de la commande (order.user == request.user).
+    2. Restaurateur propriétaire du restaurant (order.restaurant.owner == user.restaurateur_profile).
+    3. Commande invité (order.user is None) + header X-Receipt-Token valide.
+
+    Retourne True si l'accès est autorisé, False sinon.
+    """
+    if request.user and request.user.is_authenticated:
+        # Chemin 1 : client propriétaire
+        if order.user is not None and order.user == request.user:
+            return True
+
+        # Chemin 2 : restaurateur propriétaire du restaurant
+        try:
+            profile = request.user.restaurateur_profile
+            if order.restaurant.owner == profile:
+                return True
+        except Exception:
+            pass
+
+        # Aucun des chemins authentifiés ne correspond → refus
+        # (évite de tomber dans le chemin invité avec un JWT valide mais étranger)
+        if order.user is not None:
+            return False
+
+    # Chemin 3 : commande invité (order.user is None) + token opaque
+    if order.user is not None:
+        return False
+
+    provided_token = (
+        request.headers.get('X-Receipt-Token', '')
+        or request.data.get('token', '')
+        or ''
+    ).strip()
+
+    if not provided_token:
+        qp_token = request.query_params.get('token', '').strip()
+        if qp_token:
+            logger.warning(
+                "progress_access: token en query param pour order_id=%s — "
+                "migrer vers le header X-Receipt-Token.",
+                getattr(order, 'id', '?'),
+            )
+            provided_token = qp_token
+
+    if not provided_token:
+        return False
+
+    stored_token = getattr(order, 'guest_access_token', None) or ''
+    return hmac.compare_digest(provided_token, stored_token)
 
 
 class OrderTrackingViewSet(viewsets.ViewSet):
     """
     API améliorée pour le suivi gamifié avec progression réelle
     """
-    
+
+    def get_permissions(self):
+        """
+        `progress` est accessible sans JWT (clients invités passent un token opaque).
+        L'autorisation réelle est vérifiée dans le corps de la vue via
+        `_check_progress_access`, ce qui garantit un 403 (et non un 401)
+        pour toute requête sans preuve de possession valide.
+        """
+        if getattr(self, 'action', None) == 'progress':
+            return [AllowAny()]
+        return super().get_permissions()
+
     @action(detail=True, methods=['get'], permission_classes=[AllowAny])
     def progress(self, request, pk=None):
         """
-        Retourne la progression gamifiée basée sur l'état réel de la commande
-        
+        Retourne la progression gamifiée basée sur l'état réel de la commande.
+
         GET /api/orders/{id}/progress/
+
+        Contrôle d'accès :
+        - JWT propriétaire de la commande → 200
+        - JWT restaurateur du restaurant  → 200
+        - Header X-Receipt-Token valide   → 200 (commandes invitées)
+        - Tout autre cas                  → 403
         """
         try:
             order = Order.objects.get(pk=pk)
         except Order.DoesNotExist:
             return Response(
-                {'error': 'Commande introuvable'}, 
+                {'error': 'Commande introuvable'},
                 status=status.HTTP_404_NOT_FOUND
+            )
+
+        # ── Contrôle d'accès ─────────────────────────────────────────────────
+        if not _check_progress_access(request, order):
+            return Response(
+                {'error': 'Non autorisé'},
+                status=status.HTTP_403_FORBIDDEN
             )
         
         # Récupérer les items avec leurs catégories
