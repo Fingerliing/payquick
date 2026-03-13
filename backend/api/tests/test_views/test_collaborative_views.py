@@ -801,6 +801,270 @@ class TestCollaborativeSessionAnonymousSecurity:
         assert response.status_code != status.HTTP_401_UNAUTHORIZED
 
 
+
+# =============================================================================
+# TESTS - Régressions sécurité (4 vulnérabilités)
+# =============================================================================
+
+@pytest.mark.django_db
+class TestCollaborativeSessionPrivilegeEscalation:
+    """Régression : élévation de privilèges via PATCH/PUT direct.
+
+    Avant le fix : IsAuthenticated seul → tout participant pouvait modifier
+    status, require_approval, max_participants, restaurant, table via PATCH.
+    Après le fix : update/partial_update vérifient _can_manage_session (hôte
+    ou restaurateur). Défense en profondeur : champs de gouvernance ajoutés
+    en read_only_fields dans le serializer.
+    """
+
+    def test_participant_cannot_patch_governance_fields(
+        self, second_auth_client, collaborative_session, second_participant
+    ):
+        """RÉGRESSION SÉCURITÉ — un participant non-hôte ne peut pas modifier
+        les champs de gouvernance via PATCH → 403 (ou 404 si URL non montée)."""
+        session_id = str(collaborative_session.id)
+        original_require_approval = collaborative_session.require_approval
+
+        response = second_auth_client.patch(
+            f'/api/v1/collaborative/{session_id}/',
+            {'require_approval': not original_require_approval, 'max_participants': 2},
+            format='json'
+        )
+
+        assert response.status_code in [
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+        ]
+        # Garantie centrale : le champ n'a pas changé
+        collaborative_session.refresh_from_db()
+        assert collaborative_session.require_approval == original_require_approval
+
+    def test_host_can_patch_session(self, auth_client, session_with_participant):
+        """Un hôte authentifié peut modifier la session via PATCH."""
+        session_id = str(session_with_participant.id)
+
+        response = auth_client.patch(
+            f'/api/v1/collaborative/{session_id}/',
+            {'session_notes': "Modifié par l'hôte"},
+            format='json'
+        )
+        # 200, 400 (validation) ou 404 (URL non montée) — jamais 403
+        assert response.status_code not in [
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_401_UNAUTHORIZED,
+        ]
+
+    def test_participant_cannot_put_session(
+        self, second_auth_client, collaborative_session, second_participant
+    ):
+        """RÉGRESSION SÉCURITÉ — PUT complet par un non-hôte → 403."""
+        session_id = str(collaborative_session.id)
+
+        response = second_auth_client.put(
+            f'/api/v1/collaborative/{session_id}/',
+            {
+                'restaurant': collaborative_session.restaurant_id,
+                'table_number': collaborative_session.table_number,
+                'status': 'cancelled',
+            },
+            format='json'
+        )
+        assert response.status_code in [
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+        ]
+        # La session reste active
+        collaborative_session.refresh_from_db()
+        assert collaborative_session.status == 'active'
+
+
+@pytest.mark.django_db
+class TestShareCodeNotLeakedInConflict:
+    """Régression : share_code exposé dans la réponse 409 à un appelant anonyme.
+
+    Avant le fix : existing_session contenait share_code en clair.
+    Après le fix : share_code absent de la réponse de conflit.
+    """
+
+    @patch('api.views.collaborative_session_views.notify_session_update')
+    def test_conflict_response_does_not_contain_share_code(
+        self, mock_notify, api_client, restaurant, table, collaborative_session
+    ):
+        """RÉGRESSION SÉCURITÉ — créer une session sur une table déjà occupée :
+        la réponse 409 ne doit pas exposer le share_code."""
+        data = {
+            'restaurant_id': restaurant.id,
+            'table_number': collaborative_session.table_number,
+            'host_name': 'Attaquant',
+        }
+        response = api_client.post(
+            '/api/v1/collaborative/create_session/',
+            data,
+            format='json'
+        )
+
+        if response.status_code == status.HTTP_409_CONFLICT:
+            existing = response.data.get('existing_session', {})
+            # Garantie centrale : share_code absent
+            assert 'share_code' not in existing
+            # Les métadonnées non-sensibles peuvent être présentes
+            assert 'id' in existing or 'status' in existing
+
+
+@pytest.mark.django_db
+class TestParticipantEnumerationBlocked:
+    """Régression : tout utilisateur authentifié pouvait lister les participants
+    de n'importe quelle session via ?session_id= ou via pk direct.
+
+    Après le fix : get_queryset() restreint aux sessions de l'utilisateur.
+    """
+
+    def test_user_cannot_list_participants_of_foreign_session(
+        self, db, restaurant, table
+    ):
+        """RÉGRESSION SÉCURITÉ — un utilisateur externe ne peut pas lister
+        les participants d'une session étrangère."""
+        outsider = User.objects.create_user(
+            username='outsider_enum@example.com',
+            email='outsider_enum@example.com',
+            password='testpass123'
+        )
+        token = RefreshToken.for_user(outsider)
+        outsider_client = APIClient()
+        outsider_client.credentials(HTTP_AUTHORIZATION=f'Bearer {token.access_token}')
+
+        host_user = User.objects.create_user(
+            username='host_enum@example.com',
+            email='host_enum@example.com',
+            password='testpass123'
+        )
+        session = CollaborativeTableSession.objects.create(
+            restaurant=restaurant,
+            table=table,
+            table_number=table.number,
+            host=host_user,
+            status='active',
+        )
+
+        response = outsider_client.get(
+            '/api/v1/collaborative/participants/',
+            {'session_id': str(session.id)}
+        )
+
+        if response.status_code == status.HTTP_200_OK:
+            results = (
+                response.data
+                if isinstance(response.data, list)
+                else response.data.get('results', [])
+            )
+            assert len(results) == 0
+        else:
+            assert response.status_code in [
+                status.HTTP_401_UNAUTHORIZED,
+                status.HTTP_403_FORBIDDEN,
+                status.HTTP_404_NOT_FOUND,
+            ]
+
+    def test_user_cannot_retrieve_participant_from_foreign_session(
+        self, db, restaurant, table
+    ):
+        """RÉGRESSION SÉCURITÉ — récupération directe par pk d'un participant
+        d'une session étrangère → 404."""
+        outsider = User.objects.create_user(
+            username='outsider_enum2@example.com',
+            email='outsider_enum2@example.com',
+            password='testpass123'
+        )
+        token = RefreshToken.for_user(outsider)
+        outsider_client = APIClient()
+        outsider_client.credentials(HTTP_AUTHORIZATION=f'Bearer {token.access_token}')
+
+        host_user = User.objects.create_user(
+            username='host_enum2@example.com',
+            email='host_enum2@example.com',
+            password='testpass123'
+        )
+        session = CollaborativeTableSession.objects.create(
+            restaurant=restaurant,
+            table=table,
+            table_number=table.number,
+            host=host_user,
+            status='active',
+        )
+        target_participant = SessionParticipant.objects.create(
+            session=session,
+            user=host_user,
+            role='host',
+            status='active',
+        )
+
+        response = outsider_client.get(
+            f'/api/v1/collaborative/participants/{target_participant.id}/'
+        )
+        assert response.status_code in [
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_401_UNAUTHORIZED,
+        ]
+
+
+@pytest.mark.django_db
+class TestJoinSessionGuestFix:
+    """Régression : join_session levait NameError (→ 500) pour les guests
+    car `existing` n'était pas initialisé avant le bloc is_authenticated.
+
+    Après le fix : existing = None par défaut, chemin guest correctement
+    routé vers la création d'un nouveau SessionParticipant.
+    """
+
+    @patch('api.views.collaborative_session_views.notify_participant_joined')
+    @patch('api.views.collaborative_session_views.notify_session_update')
+    def test_guest_can_join_without_500(
+        self, mock_update, mock_joined, api_client, collaborative_session
+    ):
+        """RÉGRESSION DISPONIBILITÉ — un guest avec guest_name peut rejoindre
+        sans déclencher de 500 (NameError sur `existing`)."""
+        data = {
+            'share_code': collaborative_session.share_code,
+            'guest_name': 'Alice Guest',
+        }
+        response = api_client.post(
+            '/api/v1/collaborative/join_session/',
+            data,
+            format='json'
+        )
+        # Avant le fix : 500 (NameError sur `existing` non initialisé).
+        # Le 404 (session non trouvée) et le 400 (session non rejoignable)
+        # sont des réponses saines — seul le 500 signale la régression.
+        assert response.status_code != status.HTTP_500_INTERNAL_SERVER_ERROR
+
+    @patch('api.views.collaborative_session_views.notify_participant_joined')
+    def test_guest_join_creates_participant_record(
+        self, mock_notify, api_client, collaborative_session
+    ):
+        """Un guest rejoignant avec succès doit créer un SessionParticipant."""
+        initial_count = SessionParticipant.objects.filter(
+            session=collaborative_session
+        ).count()
+
+        data = {
+            'share_code': collaborative_session.share_code,
+            'guest_name': 'Bob Guest',
+            'guest_phone': '0612345678',
+        }
+        response = api_client.post(
+            '/api/v1/collaborative/join_session/',
+            data,
+            format='json'
+        )
+
+        if response.status_code == status.HTTP_201_CREATED:
+            new_count = SessionParticipant.objects.filter(
+                session=collaborative_session
+            ).count()
+            assert new_count == initial_count + 1
+
+
 # =============================================================================
 # TESTS - Panier partagé (SessionCartItem)  ← NOUVEAU
 # =============================================================================

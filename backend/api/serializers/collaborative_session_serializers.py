@@ -60,7 +60,12 @@ class CollaborativeSessionSerializer(serializers.ModelSerializer):
             'session_notes'
         ]
         read_only_fields = [
-            'id', 'share_code', 'created_at', 'locked_at', 'completed_at'
+            'id', 'share_code', 'created_at', 'locked_at', 'completed_at',
+            # Champs de gouvernance — modifiables uniquement via les actions
+            # dédiées (session_action, archive_session…), jamais via PATCH/PUT
+            # direct. Défense en profondeur : même si le ViewSet laissait passer
+            # un PATCH, ces champs ne seraient pas écrits.
+            'status', 'restaurant', 'table',
         ]
     
     def get_table_info(self, obj):
