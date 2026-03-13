@@ -593,11 +593,16 @@ class TestCollaborativeSessionPermissions:
         ]
 
     def test_list_sessions_unauthenticated(self, api_client):
-        """Test que l'accès non authentifié retourne une liste (AllowAny)"""
+        """Test que l'accès non authentifié est refusé (IsAuthenticated sur list).
+        
+        DRF retourne 401 si l'URL est montée ; 404 si le router n'expose
+        pas ce préfixe dans la configuration de test. Les deux sont sécurisés
+        (aucune donnée ne fuite).
+        """
         response = api_client.get('/api/v1/collaborative/')
         assert response.status_code in [
-            status.HTTP_200_OK,
-            status.HTTP_404_NOT_FOUND
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_404_NOT_FOUND,
         ]
 
     def test_retrieve_session_by_id(self, auth_client, collaborative_session):
@@ -607,6 +612,193 @@ class TestCollaborativeSessionPermissions:
             status.HTTP_200_OK,
             status.HTTP_404_NOT_FOUND
         ]
+
+
+# =============================================================================
+# TESTS - Sécurité BOLA : CRUD anonyme sur sessions collaboratives
+# =============================================================================
+
+@pytest.mark.django_db
+class TestCollaborativeSessionAnonymousSecurity:
+    """
+    Régression de sécurité : CRUD anonyme sur sessions collaboratives.
+
+    ModelViewSet + AllowAny exposait list, retrieve, update, partial_update,
+    destroy à des anonymes. Le fix remplace AllowAny par get_permissions()
+    dynamique : seuls create_session / join_session / get_by_code restent
+    publics ; tout le reste exige IsAuthenticated.
+    """
+
+    def test_anonymous_cannot_list_sessions(self, api_client, collaborative_session):
+        """
+        RÉGRESSION SÉCURITÉ — GET /collaborative/ sans auth → 401 ou 404.
+        Avant le fix : retournait toutes les sessions non archivées (200).
+        401 si l'URL est montée par le router ; 404 si l'URL n'est pas
+        exposée dans la config de test. Dans les deux cas, aucune donnée ne fuite.
+        """
+        response = api_client.get('/api/v1/collaborative/')
+        assert response.status_code in [
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_404_NOT_FOUND,
+        ]
+        # Garantie centrale : jamais un 200 avec des données
+        assert response.status_code != status.HTTP_200_OK
+
+    def test_anonymous_cannot_retrieve_session_by_id(self, api_client, collaborative_session):
+        """
+        RÉGRESSION SÉCURITÉ — GET /collaborative/{id}/ sans auth → 401 ou 404.
+        401 via IsAuthenticated ; 404 si get_queryset() retourne none() avant
+        la vérification de permission (comportement DRF sur actions de détail).
+        Dans les deux cas, les données de la session ne sont pas exposées.
+        """
+        session_id = str(collaborative_session.id)
+        response = api_client.get(f'/api/v1/collaborative/{session_id}/')
+        assert response.status_code in [
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+        ]
+        # Garantie centrale : aucun champ de session dans la réponse
+        # response.data n'existe que sur les réponses DRF ; un 404 du
+        # router Django retourne un HttpResponseNotFound sans .data.
+        data = getattr(response, 'data', {})
+        assert 'share_code' not in data
+        assert 'participants' not in data
+
+    def test_anonymous_cannot_update_session(self, api_client, collaborative_session):
+        """
+        RÉGRESSION SÉCURITÉ — PUT/PATCH /collaborative/{id}/ sans auth.
+        Le host_name ne doit pas avoir changé.
+        """
+        original_host_name = collaborative_session.host_name
+        session_id = str(collaborative_session.id)
+        response = api_client.patch(
+            f'/api/v1/collaborative/{session_id}/',
+            {'host_name': 'Hacker'},
+            format='json'
+        )
+        assert response.status_code in [
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+        ]
+        # Garantie centrale : les données n'ont pas été modifiées
+        collaborative_session.refresh_from_db()
+        assert collaborative_session.host_name == original_host_name
+
+    def test_anonymous_cannot_delete_session(self, api_client, collaborative_session):
+        """
+        RÉGRESSION SÉCURITÉ — DELETE /collaborative/{id}/ sans auth.
+        """
+        session_id = str(collaborative_session.id)
+        response = api_client.delete(f'/api/v1/collaborative/{session_id}/')
+        assert response.status_code in [
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+        ]
+        # Garantie centrale : la session existe toujours en base
+        assert CollaborativeTableSession.objects.filter(id=collaborative_session.id).exists()
+
+    def test_anonymous_cannot_trigger_session_action(self, api_client, collaborative_session):
+        """
+        RÉGRESSION SÉCURITÉ — POST /collaborative/{id}/session_action/ sans auth.
+        """
+        session_id = str(collaborative_session.id)
+        response = api_client.post(
+            f'/api/v1/collaborative/{session_id}/session_action/',
+            {'action': 'cancel'},
+            format='json'
+        )
+        assert response.status_code in [
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+        ]
+        # Garantie centrale : le statut n'a pas changé
+        collaborative_session.refresh_from_db()
+        assert collaborative_session.status == 'active'
+
+    def test_anonymous_cannot_access_cart(self, api_client, collaborative_session):
+        """
+        RÉGRESSION SÉCURITÉ — GET /collaborative/{id}/cart/ sans auth.
+        """
+        session_id = str(collaborative_session.id)
+        response = api_client.get(f'/api/v1/collaborative/{session_id}/cart/')
+        assert response.status_code in [
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+        ]
+        # Garantie centrale : aucun contenu de panier dans la réponse
+        assert 'items' not in (response.data if hasattr(response, 'data') else {})
+
+    def test_anonymous_cannot_add_to_cart(self, api_client, collaborative_session, menu_item):
+        """
+        RÉGRESSION SÉCURITÉ — POST /collaborative/{id}/cart_add/ sans auth.
+        """
+        session_id = str(collaborative_session.id)
+        from api.models import SessionCartItem
+        initial_count = SessionCartItem.objects.filter(session=collaborative_session).count()
+        response = api_client.post(
+            f'/api/v1/collaborative/{session_id}/cart_add/',
+            {'menu_item': menu_item.id, 'quantity': 1},
+            format='json'
+        )
+        assert response.status_code in [
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+        ]
+        # Garantie centrale : aucun article ajouté au panier
+        assert SessionCartItem.objects.filter(
+            session=collaborative_session
+        ).count() == initial_count
+
+    # --- Actions légitimement publiques (AllowAny conservé) ---
+
+    def test_anonymous_can_create_session(self, api_client, restaurant, table):
+        """
+        Un anonyme doit toujours pouvoir créer une session (guest au QR code).
+        """
+        data = {
+            'restaurant_id': restaurant.id,
+            'table_number': table.number,
+            'host_name': 'Guest Host',
+        }
+        response = api_client.post(
+            '/api/v1/collaborative/create_session/',
+            data,
+            format='json'
+        )
+        # 201 ou 400 (validation) ou 409 (conflict) — jamais 401
+        assert response.status_code != status.HTTP_401_UNAUTHORIZED
+
+    def test_anonymous_can_get_session_by_code(self, api_client, collaborative_session):
+        """
+        Un anonyme doit toujours pouvoir récupérer une session par son share_code.
+        """
+        response = api_client.get(
+            '/api/v1/collaborative/get_by_code/',
+            {'share_code': collaborative_session.share_code}
+        )
+        # 200 ou 404 — jamais 401
+        assert response.status_code != status.HTTP_401_UNAUTHORIZED
+
+    def test_anonymous_can_join_session(self, api_client, collaborative_session):
+        """
+        Un anonyme doit toujours pouvoir rejoindre une session (guest name).
+        """
+        response = api_client.post(
+            '/api/v1/collaborative/join_session/',
+            {
+                'share_code': collaborative_session.share_code,
+                'guest_name': 'Anonyme Guest',
+            },
+            format='json'
+        )
+        # 200/201 (rejoint) ou 400 (règles de session) — jamais 401
+        assert response.status_code != status.HTTP_401_UNAUTHORIZED
 
 
 # =============================================================================
@@ -658,13 +850,11 @@ class TestSessionCartAPI:
             assert float(response.data['total']) == 25.0  # 12.50 × 2
 
     def test_get_cart_unauthenticated(self, api_client, collaborative_session):
-        """Test GET /cart/ sans authentification"""
+        """Test GET /cart/ sans authentification — doit être refusé"""
         session_id = str(collaborative_session.id)
         response = api_client.get(self.url(session_id, 'cart'))
 
-        # AllowAny ou 403/401 selon la politique
         assert response.status_code in [
-            status.HTTP_200_OK,
             status.HTTP_401_UNAUTHORIZED,
             status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND

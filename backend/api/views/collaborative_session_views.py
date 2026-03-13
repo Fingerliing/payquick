@@ -46,28 +46,57 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
     AVEC archivage automatique
     """
     serializer_class = CollaborativeSessionSerializer
-    permission_classes = [AllowAny]  # Les invités peuvent aussi utiliser
+
+    def get_permissions(self):
+        """
+        Permissions dynamiques selon l'action.
+
+        create_session / join_session / get_by_code : AllowAny
+            → un guest sans compte doit pouvoir créer ou rejoindre une session
+              via le QR code de la table.
+
+        Toutes les autres actions (list, retrieve, update, partial_update,
+        destroy, session_action, leave, summary, archive_session, cart, …) :
+        IsAuthenticated.
+            → évite que le ModelViewSet par défaut expose un CRUD anonyme
+              sur l'intégralité des sessions.
+        """
+        public_actions = {'create_session', 'join_session', 'get_by_code'}
+        if self.action in public_actions:
+            return [AllowAny()]
+        return [IsAuthenticated()]
 
     def get_queryset(self):
-        """Filtrer selon le contexte"""
-        # 🆕 Utiliser le manager par défaut qui exclut automatiquement les sessions archivées
-        queryset = CollaborativeTableSession.objects.select_related(
+        """
+        Filtrer selon le contexte.
+
+        La restriction d'accès aux anonymes est assurée par get_permissions()
+        (IsAuthenticated). get_queryset() ne court-circuite PAS sur
+        is_authenticated car DRF évalue get_object() → get_queryset() AVANT
+        d'évaluer les permissions sur les actions de détail, ce qui produirait
+        un 404 au lieu du 401 attendu.
+
+        Pour les anonymes qui passent par les actions publiques
+        (create_session, join_session, get_by_code), get_queryset n'est pas
+        appelé : ces méthodes font leurs propres lookups directs.
+        """
+        if not self.request.user.is_authenticated:
+            # Queryset vide mais non-None : get_object() lèvera 404 si jamais
+            # appelé sans permission, ce qui est acceptable — mais la permission
+            # IsAuthenticated bloque avant pour les actions protégées.
+            return CollaborativeTableSession.objects.none()
+
+        return CollaborativeTableSession.objects.select_related(
             'restaurant', 'table'
         ).prefetch_related(
             Prefetch('participants', queryset=SessionParticipant.objects.filter(
                 status__in=['active', 'pending']
             ).order_by('joined_at'))
-        )
-
-        # Si authentifié, montrer aussi ses sessions
-        if self.request.user.is_authenticated:
-            queryset = queryset.filter(
-                Q(participants__user=self.request.user,
-                participants__status__in=['active', 'pending']) |
-                Q(host=self.request.user)
-            ).distinct()
-
-        return queryset.order_by('-created_at')
+        ).filter(
+            Q(participants__user=self.request.user,
+              participants__status__in=['active', 'pending']) |
+            Q(host=self.request.user)
+        ).distinct().order_by('-created_at')
 
     @extend_schema(
         summary="Créer une nouvelle session collaborative",
@@ -945,7 +974,7 @@ class SessionParticipantViewSet(viewsets.ReadOnlyModelViewSet):
     ViewSet pour gérer les participants d'une session
     """
     serializer_class = SessionParticipantSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         # Pour les actions de détail (participant_action, etc.)
