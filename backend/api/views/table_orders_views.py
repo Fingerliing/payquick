@@ -78,14 +78,34 @@ class TableOrdersViewSet(viewsets.ViewSet):
                     table_number=table_number,
                     is_active=True
                 ).first()
-                
+
                 if active_session:
-                    # En session collaborative, tous peuvent voir toutes les commandes de la session
-                    all_orders = all_orders.filter(
-                        Q(table_session_id=active_session.id) |
-                        Q(user=user if user.is_authenticated else None) |
-                        Q(phone=request.session.get('guest_phone'))
-                    )
+                    # Vérifier si l'appelant est un participant de la session
+                    # (a au moins une commande dans cette session).
+                    # Un anonyme connaissant restaurant_id + table_number
+                    # ne doit PAS obtenir les commandes des autres.
+                    is_participant = False
+                    if user.is_authenticated:
+                        is_participant = active_session.orders.filter(user=user).exists()
+                    else:
+                        guest_phone = request.session.get('guest_phone')
+                        if guest_phone:
+                            is_participant = active_session.orders.filter(
+                                phone=guest_phone
+                            ).exists()
+
+                    if is_participant:
+                        # Participant confirmé : vue collaborative complète de la session
+                        all_orders = all_orders.filter(
+                            table_session_id=active_session.id
+                        )
+                    elif user.is_authenticated:
+                        # Authentifié mais pas encore dans cette session
+                        all_orders = all_orders.filter(user=user)
+                    else:
+                        # Anonyme non identifié comme participant : rien
+                        all_orders = all_orders.none()
+
                 elif user.is_authenticated:
                     # Pas de session collaborative, filtrer par utilisateur
                     all_orders = all_orders.filter(user=user)

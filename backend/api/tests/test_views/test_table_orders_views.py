@@ -300,10 +300,13 @@ class TestTableOrders:
         assert response.status_code == status.HTTP_200_OK
         assert 'active_orders' in response.data
 
-    def test_get_table_orders_with_session(
-        self, auth_client, restaurant, table, table_session, order
+    def test_get_table_orders_with_session_as_participant(
+        self, auth_client, restaurant, table, table_session, order, client_user
     ):
-        """Test avec session collaborative active"""
+        """
+        Test avec session collaborative : utilisateur authentifié ayant une commande
+        dans la session → is_participant=True → vue collaborative.
+        """
         Order.objects.filter(id=order.id).update(table_session_id=table_session.id)
 
         response = auth_client.get(self.url, {
@@ -312,8 +315,24 @@ class TestTableOrders:
         })
 
         assert response.status_code == status.HTTP_200_OK
-        if response.data.get('current_session'):
-            assert response.data['current_session']['id'] is not None
+        assert 'active_orders' in response.data
+
+    def test_get_table_orders_with_session_as_non_participant_auth(
+        self, restaurateur_client, restaurant, table, table_session, order
+    ):
+        """
+        Le restaurateur (is_restaurateur=True) voit toutes les commandes
+        indépendamment de la participation à la session.
+        """
+        Order.objects.filter(id=order.id).update(table_session_id=table_session.id)
+
+        response = restaurateur_client.get(self.url, {
+            'restaurant_id': restaurant.id,
+            'table_number': table.number
+        })
+
+        assert response.status_code == status.HTTP_200_OK
+        assert 'active_orders' in response.data
 
     def test_get_table_orders_response_structure(
         self, restaurateur_client, restaurant, table, order
@@ -642,6 +661,163 @@ class TestTableOrdersSecurity:
         })
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
+
+
+# =============================================================================
+# TESTS - Sécurité BOLA : fuite de commandes via session active
+# =============================================================================
+
+@pytest.mark.django_db
+class TestTableOrdersSessionIsolation:
+    """
+    Régression de sécurité : fuite de commandes de table en anonyme via
+    session active (BOLA).
+
+    Avant le fix, un anonyme connaissant restaurant_id + table_number obtenait
+    toutes les commandes de la session via Q(table_session_id=...).
+    Après le fix, seul un participant confirmé (commande dans la session avec
+    son user ou son guest_phone) accède à la vue collaborative.
+    """
+
+    url = "/api/v1/table-orders/table_orders/"
+
+    def test_anonymous_without_phone_gets_empty_orders_despite_active_session(
+        self, api_client, restaurant, table, table_session, order
+    ):
+        """
+        RÉGRESSION SÉCURITÉ — cas central de la vulnérabilité.
+
+        Un anonyme sans guest_phone en session Django ne doit voir AUCUNE
+        commande, même si une session collaborative est active et contient
+        des commandes.
+        """
+        Order.objects.filter(id=order.id).update(table_session_id=table_session.id)
+
+        response = api_client.get(self.url, {
+            'restaurant_id': restaurant.id,
+            'table_number': table.number
+        })
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['active_orders'] == []
+        assert response.data['completed_orders'] == []
+
+    def test_anonymous_with_matching_guest_phone_sees_own_session_orders(
+        self, api_client, restaurant, table, table_session
+    ):
+        """
+        Un guest ayant passé commande avec son téléphone (guest_phone stocké
+        en session Django) est considéré participant et voit les commandes
+        de la session associées à ce téléphone.
+        """
+        guest_phone = "0699887766"
+        guest_order = Order.objects.create(
+            restaurant=restaurant,
+            table_number=table.number,
+            order_number="ORD-GUEST-PHONE-001",
+            phone=guest_phone,
+            status='pending',
+            payment_status='pending',
+            total_amount=Decimal('20.00'),
+            subtotal=Decimal('18.18'),
+            tax_amount=Decimal('1.82')
+        )
+        Order.objects.filter(id=guest_order.id).update(table_session_id=table_session.id)
+
+        # Simuler le guest_phone en session Django (tel que stocké par add_table_order)
+        session = api_client.session
+        session['guest_phone'] = guest_phone
+        session.save()
+        api_client.cookies['sessionid'] = session.session_key
+
+        response = api_client.get(self.url, {
+            'restaurant_id': restaurant.id,
+            'table_number': table.number
+        })
+
+        assert response.status_code == status.HTTP_200_OK
+        total_orders = (
+            len(response.data['active_orders']) +
+            len(response.data['completed_orders'])
+        )
+        assert total_orders >= 1
+
+    def test_anonymous_with_wrong_guest_phone_gets_empty_orders(
+        self, api_client, restaurant, table, table_session, order
+    ):
+        """
+        Un anonyme dont le guest_phone ne correspond à aucune commande
+        de la session ne doit voir aucune commande.
+        """
+        Order.objects.filter(id=order.id).update(table_session_id=table_session.id)
+
+        session = api_client.session
+        session['guest_phone'] = "0600000000"  # téléphone inconnu de la session
+        session.save()
+        api_client.cookies['sessionid'] = session.session_key
+
+        response = api_client.get(self.url, {
+            'restaurant_id': restaurant.id,
+            'table_number': table.number
+        })
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['active_orders'] == []
+        assert response.data['completed_orders'] == []
+
+    def test_authenticated_non_participant_does_not_see_session_orders(
+        self, db, restaurant, table, table_session, order
+    ):
+        """
+        Un utilisateur authentifié sans commande dans la session ne voit
+        pas les commandes des autres (pas de vue collaborative).
+        """
+        other_user = User.objects.create_user(
+            username="other_client@example.com",
+            email="other_client@example.com",
+            password="testpass123"
+        )
+        ClientProfile.objects.create(user=other_user, phone="0611223344")
+
+        # La commande du fixture appartient à client_user, pas à other_user
+        Order.objects.filter(id=order.id).update(table_session_id=table_session.id)
+
+        token = RefreshToken.for_user(other_user)
+        other_api_client = APIClient()
+        other_api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token.access_token}")
+
+        response = other_api_client.get(self.url, {
+            'restaurant_id': restaurant.id,
+            'table_number': table.number
+        })
+
+        assert response.status_code == status.HTTP_200_OK
+        # other_user n'est pas participant : voit uniquement ses propres commandes (vide)
+        assert response.data['active_orders'] == []
+        assert response.data['completed_orders'] == []
+
+    def test_authenticated_participant_sees_full_session_view(
+        self, auth_client, restaurant, table, table_session, order
+    ):
+        """
+        Un utilisateur authentifié ayant une commande dans la session
+        obtient la vue collaborative complète (toutes les commandes de la session).
+        """
+        # order appartient à client_user = auth_client, on le rattache à la session
+        Order.objects.filter(id=order.id).update(
+            table_session_id=table_session.id,
+            status='pending'
+        )
+
+        response = auth_client.get(self.url, {
+            'restaurant_id': restaurant.id,
+            'table_number': table.number
+        })
+
+        assert response.status_code == status.HTTP_200_OK
+        # Le participant voit au moins sa commande dans active_orders
+        active_ids = [str(o['id']) for o in response.data['active_orders']]
+        assert str(order.id) in active_ids
 
 
 # =============================================================================
