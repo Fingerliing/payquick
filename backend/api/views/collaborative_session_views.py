@@ -119,6 +119,15 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
             )
         return super().partial_update(request, *args, **kwargs)
 
+    def destroy(self, request, *args, **kwargs):
+        session = self.get_object()
+        if not self._can_manage_session(request, session):
+            return Response(
+                {'error': 'Seul l\'hôte ou le restaurateur peut supprimer la session.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().destroy(request, *args, **kwargs)
+
     @extend_schema(
         summary="Créer une nouvelle session collaborative",
         request=SessionCreateSerializer,

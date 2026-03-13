@@ -878,6 +878,65 @@ class TestCollaborativeSessionPrivilegeEscalation:
         assert collaborative_session.status == 'active'
 
 
+
+@pytest.mark.django_db
+class TestCollaborativeSessionDeleteRestricted:
+    """Regression: DELETE session non restreint au manager/hote.
+
+    ModelViewSet expose destroy() avec IsAuthenticated seul. Un participant
+    pouvait supprimer la session sans etre hote.
+    Apres le fix : destroy() verifie _can_manage_session -> 403 si non-hote.
+    """
+
+    def test_participant_cannot_delete_session(
+        self, second_auth_client, collaborative_session, second_participant
+    ):
+        """REGRESSION SECURITE -- un participant non-hote ne peut pas supprimer
+        la session via DELETE -> 403 (ou 404 si URL non montee)."""
+        session_id = str(collaborative_session.id)
+
+        response = second_auth_client.delete(
+            f'/api/v1/collaborative/{session_id}/'
+        )
+
+        assert response.status_code in [
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+        ]
+        # Garantie centrale : la session existe toujours
+        collaborative_session.refresh_from_db()
+        assert collaborative_session.status == 'active'
+
+    def test_host_can_delete_session(self, auth_client, session_with_participant):
+        """Un hote peut supprimer sa session -- jamais 403."""
+        session_id = str(session_with_participant.id)
+
+        response = auth_client.delete(
+            f'/api/v1/collaborative/{session_id}/'
+        )
+        assert response.status_code not in [
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_401_UNAUTHORIZED,
+        ]
+
+    def test_anonymous_cannot_delete_session(
+        self, api_client, collaborative_session
+    ):
+        """REGRESSION SECURITE -- un anonyme ne peut pas supprimer une session."""
+        session_id = str(collaborative_session.id)
+
+        response = api_client.delete(
+            f'/api/v1/collaborative/{session_id}/'
+        )
+        assert response.status_code in [
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+        ]
+        collaborative_session.refresh_from_db()
+        assert collaborative_session.status == 'active'
+
+
 @pytest.mark.django_db
 class TestShareCodeNotLeakedInConflict:
     """Régression : share_code exposé dans la réponse 409 à un appelant anonyme.
