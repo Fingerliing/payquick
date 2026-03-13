@@ -65,9 +65,9 @@ class OrderCreateSerializer(serializers.ModelSerializer):
     
     # Champ optionnel pour l'utilisateur (sera rempli automatiquement si authentifié)
     user = serializers.PrimaryKeyRelatedField(
+        read_only=True,
         required=False,
         allow_null=True,
-        queryset=User.objects.all()
     )
     
     class Meta:
