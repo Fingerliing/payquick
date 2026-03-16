@@ -37,6 +37,8 @@ from api.consumers import (
     notify_session_archived
 )
 
+from django.core.cache import cache
+
 import logging
 logger = logging.getLogger(__name__)
 
@@ -138,6 +140,18 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
         """
         Crée une nouvelle session collaborative avec détection de conflits
         """
+        # ── Rate limiting DoS ─────────────────────────────────────────────────
+        # Deux niveaux indépendants :
+        #   1. Par IP     : max 5 créations / 10 min  (scripts automatisés)
+        #   2. Par table  : max 3 créations / heure   (ciblage d'une table, même
+        #                                               avec rotation d'IP)
+        # Les compteurs sont incrémentés uniquement après une création réussie
+        # pour ne pas pénaliser les erreurs de validation légitimes.
+        raw_table_key = request.data.get('table_id') or request.data.get('table_number', '')
+        rate_limit_error = self._check_create_session_rate_limits(request, raw_table_key)
+        if rate_limit_error is not None:
+            return rate_limit_error
+
         serializer = SessionCreateSerializer(data=request.data)
 
         if not serializer.is_valid():
@@ -279,6 +293,9 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
                 session,
                 context={'request': request}
             )
+
+            # Incrémenter les compteurs de rate limiting après une création réussie
+            self._increment_create_session_counters(request, raw_table_key)
 
             return Response(
                 response_serializer.data,
@@ -919,6 +936,88 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
         if session.host == request.user:
             return True
         return False
+
+    # ── Rate limiting pour create_session ─────────────────────────────────────
+
+    # Limites configurables
+    _IP_RATE_LIMIT = 5       # créations max par IP
+    _IP_RATE_WINDOW = 600    # fenêtre IP : 10 minutes
+    _TABLE_RATE_LIMIT = 3    # créations max par table
+    _TABLE_RATE_WINDOW = 3600  # fenêtre table : 60 minutes
+
+    def _get_client_ip(self, request):
+        """
+        Récupère l'IP cliente réelle.
+        En production derrière un reverse-proxy de confiance (nginx, ALB…),
+        X-Forwarded-For est fiable. En dehors d'un proxy de confiance, ce
+        header peut être forgé — à sécuriser côté infra si nécessaire.
+        """
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            return x_forwarded_for.split(',')[0].strip()
+        return request.META.get('REMOTE_ADDR', '0.0.0.0')
+
+    def _check_create_session_rate_limits(self, request, table_key_raw):
+        """
+        Vérifie les deux niveaux de rate limiting.
+        Retourne une Response 429 si une limite est atteinte, None sinon.
+        """
+        client_ip = self._get_client_ip(request)
+        ip_cache_key = f'session_create_ip:{client_ip}'
+        table_cache_key = f'session_create_table:{table_key_raw}'
+
+        ip_count = cache.get(ip_cache_key, 0)
+        if ip_count >= self._IP_RATE_LIMIT:
+            logger.warning(
+                f"create_session rate limit IP dépassé : {client_ip} "
+                f"({ip_count} tentatives)"
+            )
+            return Response(
+                {'error': 'Trop de tentatives. Réessayez dans quelques minutes.'},
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
+
+        table_count = cache.get(table_cache_key, 0)
+        if table_count >= self._TABLE_RATE_LIMIT:
+            logger.warning(
+                f"create_session rate limit table dépassé : table_key={table_key_raw} "
+                f"({table_count} créations dans la dernière heure)"
+            )
+            return Response(
+                {
+                    'error': (
+                        'Cette table a fait l\'objet de trop de créations de session '
+                        'récentes. Contactez le personnel du restaurant si le problème '
+                        'persiste.'
+                    )
+                },
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
+
+        return None
+
+    def _increment_create_session_counters(self, request, table_key_raw):
+        """
+        Incrémente les compteurs de rate limiting après une création réussie.
+        Utilise cache.add() pour initialiser avec TTL si la clé n'existe pas,
+        puis cache.incr() sinon (pattern Django standard).
+        """
+        client_ip = self._get_client_ip(request)
+        ip_cache_key = f'session_create_ip:{client_ip}'
+        table_cache_key = f'session_create_table:{table_key_raw}'
+
+        for key, window in [
+            (ip_cache_key, self._IP_RATE_WINDOW),
+            (table_cache_key, self._TABLE_RATE_WINDOW),
+        ]:
+            try:
+                # add() retourne True si la clé n'existait pas (la crée avec TTL)
+                # retourne False si elle existait déjà (on incrémente)
+                if not cache.add(key, 1, window):
+                    cache.incr(key)
+            except Exception as e:
+                # Ne pas bloquer la création si le cache est indisponible
+                logger.warning(f"Erreur rate limit cache ({key}): {e}")
 
     def _get_current_participant(self, request, session):
         """Récupère le participant actif de la session pour l'utilisateur courant."""

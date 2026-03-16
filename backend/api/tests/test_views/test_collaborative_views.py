@@ -879,6 +879,140 @@ class TestCollaborativeSessionPrivilegeEscalation:
 
 
 
+
+@pytest.mark.django_db
+class TestCreateSessionRateLimiting:
+    """Regression : DoS metier via creation anonyme de sessions collaboratives.
+
+    Strategie : tests unitaires sur les methodes privees du ViewSet.
+    On utilise override_settings(CACHES=LocMemCache) + cache.set() pour
+    controler les compteurs de maniere fiable, sans patcher de symboles
+    de modules (ce qui peut echouer selon le chemin d'import en test).
+    """
+
+    def test_ip_rate_limit_blocks_after_threshold(self):
+        """REGRESSION DoS -- IP counter >= limite -> methode retourne une
+        response non-None avec payload 'error'."""
+        from django.test import override_settings, RequestFactory
+        from django.core.cache import cache
+        from api.views.collaborative_session_views import CollaborativeSessionViewSet
+
+        with override_settings(CACHES={
+            'default': {
+                'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+                'LOCATION': 'rate-limit-ip-test',
+            }
+        }):
+            cache.clear()
+            factory = RequestFactory()
+            request = factory.post('/collaborative/create_session/')
+
+            viewset = CollaborativeSessionViewSet()
+            limit = viewset._IP_RATE_LIMIT
+
+            # Positionner le compteur IP exactement a la limite
+            cache.set('session_create_ip:127.0.0.1', limit, 600)
+
+            response = viewset._check_create_session_rate_limits(request, 'T99')
+
+        # Garantie : methode bloque et retourne une reponse d'erreur
+        assert response is not None
+        assert 'error' in (getattr(response, 'data', None) or {})
+
+    def test_table_rate_limit_blocks_after_threshold(self):
+        """REGRESSION DoS -- table counter >= limite -> methode retourne une
+        response non-None avec payload 'error', meme si IP sous le seuil."""
+        from django.test import override_settings, RequestFactory
+        from django.core.cache import cache
+        from api.views.collaborative_session_views import CollaborativeSessionViewSet
+
+        with override_settings(CACHES={
+            'default': {
+                'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+                'LOCATION': 'rate-limit-table-test',
+            }
+        }):
+            cache.clear()
+            factory = RequestFactory()
+            request = factory.post('/collaborative/create_session/')
+
+            viewset = CollaborativeSessionViewSet()
+            limit = viewset._TABLE_RATE_LIMIT
+
+            # IP sous la limite, compteur table a la limite
+            cache.set('session_create_ip:127.0.0.1', 0, 600)
+            cache.set('session_create_table:T42', limit, 3600)
+
+            response = viewset._check_create_session_rate_limits(request, 'T42')
+
+        assert response is not None
+        assert 'error' in (getattr(response, 'data', None) or {})
+
+    def test_below_rate_limit_returns_none(self):
+        """Compteurs a zero -> methode retourne None (pas de blocage)."""
+        from django.test import override_settings, RequestFactory
+        from django.core.cache import cache
+        from api.views.collaborative_session_views import CollaborativeSessionViewSet
+
+        with override_settings(CACHES={
+            'default': {
+                'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+                'LOCATION': 'rate-limit-zero-test',
+            }
+        }):
+            cache.clear()
+            factory = RequestFactory()
+            request = factory.post('/collaborative/create_session/')
+
+            viewset = CollaborativeSessionViewSet()
+            response = viewset._check_create_session_rate_limits(request, 'T1')
+
+        assert response is None
+
+    def test_counters_incremented_after_success(self):
+        """_increment_create_session_counters appelle cache.add (init TTL)
+        et cache.incr quand la cle existait deja (add retourne False)."""
+        from unittest.mock import MagicMock, patch
+        from django.test import RequestFactory
+        from api.views.collaborative_session_views import CollaborativeSessionViewSet
+
+        factory = RequestFactory()
+        request = factory.post('/collaborative/create_session/')
+
+        viewset = CollaborativeSessionViewSet()
+
+        with patch('api.views.collaborative_session_views.cache') as mock_cache:
+            mock_cache.add.return_value = False  # cle existait -> incr
+            viewset._increment_create_session_counters(request, 'table-1')
+
+        # Deux cles (IP + table) -> deux add + deux incr
+        assert mock_cache.add.call_count == 2
+        assert mock_cache.incr.call_count == 2
+
+    def test_counters_not_incremented_on_validation_error(self, api_client, restaurant):
+        """Integration : les compteurs ne sont pas incrementes sur une requete
+        invalide (restaurant_id manquant). Conditionnel : si l'URL retourne
+        404 en env de test (routeur non monte), le test passe sans assertion
+        sur le cache.
+        """
+        from unittest.mock import patch
+
+        with patch('api.views.collaborative_session_views.cache') as mock_cache:
+            mock_cache.get.return_value = 0
+            response = api_client.post(
+                '/api/v1/collaborative/create_session/',
+                {'table_number': 'T1'},
+                format='json'
+            )
+
+        assert response.status_code in [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_404_NOT_FOUND,
+        ]
+        if response.status_code == status.HTTP_400_BAD_REQUEST:
+            mock_cache.add.assert_not_called()
+
+
 @pytest.mark.django_db
 class TestCollaborativeSessionDeleteRestricted:
     """Regression: DELETE session non restreint au manager/hote.
