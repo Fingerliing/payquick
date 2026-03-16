@@ -75,13 +75,27 @@ def second_auth_client(second_user):
 
 @pytest.fixture
 def push_token(user):
-    """Token push existant"""
+    """Token push existant appartenant à user"""
     return PushNotificationToken.objects.create(
         user=user,
         expo_token="ExponentPushToken[existing_token_123]",
         device_id="device_123",
         device_name="iPhone Test",
         device_platform="ios",
+        is_active=True
+    )
+
+
+@pytest.fixture
+def guest_push_token():
+    """Token push existant appartenant à un invité"""
+    return PushNotificationToken.objects.create(
+        user=None,
+        expo_token="ExponentPushToken[guest_token_abc]",
+        device_id="guest_device_456",
+        device_name="Android Invité",
+        device_platform="android",
+        guest_phone="+33699887766",
         is_active=True
     )
 
@@ -183,7 +197,6 @@ class TestRegisterPushToken:
         assert response.data['expo_token'] == 'ExponentPushToken[new_token_abc]'
         assert response.data['device_platform'] == 'ios'
         
-        # Vérifier en base
         token = PushNotificationToken.objects.get(expo_token='ExponentPushToken[new_token_abc]')
         assert token.user == user
         assert token.is_active is True
@@ -227,8 +240,8 @@ class TestRegisterPushToken:
         
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-    def test_update_existing_token(self, auth_client, push_token, user):
-        """Test de mise à jour d'un token existant"""
+    def test_update_existing_token_same_user(self, auth_client, push_token, user):
+        """Test de mise à jour d'un token existant par son propriétaire"""
         data = {
             'expo_token': push_token.expo_token,
             'device_name': 'Nouveau nom appareil',
@@ -254,6 +267,88 @@ class TestRegisterPushToken:
         
         assert response.status_code == status.HTTP_201_CREATED
 
+    # -------------------------------------------------------------------------
+    # Sécurité: IDOR sur la mise à jour de token existant
+    # -------------------------------------------------------------------------
+
+    def test_cannot_claim_another_users_token(self, second_auth_client, push_token):
+        """
+        IDOR regression: un utilisateur authentifié ne peut pas écraser
+        le token push d'un autre utilisateur en soumettant son expo_token.
+        """
+        data = {
+            'expo_token': push_token.expo_token,
+            'device_name': 'Attaquant',
+            'device_platform': 'android'
+        }
+        
+        response = second_auth_client.post(
+            '/api/v1/notifications/tokens/register/', data, format='json'
+        )
+        
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+        push_token.refresh_from_db()
+        assert push_token.device_name == 'iPhone Test'
+
+    def test_unauthenticated_cannot_claim_auth_users_token(self, api_client, push_token):
+        """
+        IDOR regression: un invité ne peut pas écraser le token d'un
+        utilisateur authentifié en devinant l'expo_token.
+        """
+        data = {
+            'expo_token': push_token.expo_token,
+            'guest_phone': '+33600000000',
+            'device_platform': 'android'
+        }
+        
+        response = api_client.post(
+            '/api/v1/notifications/tokens/register/', data, format='json'
+        )
+        
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+        push_token.refresh_from_db()
+        assert push_token.user is not None
+
+    def test_guest_cannot_update_token_with_wrong_phone(self, api_client, guest_push_token):
+        """
+        IDOR regression: un invité ne peut pas mettre à jour le token d'un
+        autre invité en devinant l'expo_token avec un numéro différent.
+        """
+        data = {
+            'expo_token': guest_push_token.expo_token,
+            'guest_phone': '+33611111111',
+            'device_platform': 'android'
+        }
+        
+        response = api_client.post(
+            '/api/v1/notifications/tokens/register/', data, format='json'
+        )
+        
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+        guest_push_token.refresh_from_db()
+        assert guest_push_token.guest_phone == '+33699887766'
+
+    def test_guest_can_update_own_token_with_matching_phone(self, api_client, guest_push_token):
+        """Un invité peut mettre à jour son propre token si le téléphone correspond."""
+        data = {
+            'expo_token': guest_push_token.expo_token,
+            'guest_phone': '+33699887766',
+            'device_name': 'Nouvel appareil invité',
+            'device_platform': 'ios'
+        }
+        
+        response = api_client.post(
+            '/api/v1/notifications/tokens/register/', data, format='json'
+        )
+        
+        assert response.status_code == status.HTTP_200_OK
+
+        guest_push_token.refresh_from_db()
+        assert guest_push_token.device_name == 'Nouvel appareil invité'
+
 
 # =============================================================================
 # TESTS - UnregisterPushTokenView
@@ -263,36 +358,130 @@ class TestRegisterPushToken:
 class TestUnregisterPushToken:
     """Tests pour la suppression des tokens push"""
 
-    def test_unregister_existing_token(self, api_client, push_token):
-        """Test de désactivation d'un token existant"""
-        data = {
-            'expo_token': push_token.expo_token
-        }
+    def test_auth_user_can_unregister_own_token(self, auth_client, push_token):
+        """Un utilisateur authentifié peut désactiver son propre token."""
+        data = {'expo_token': push_token.expo_token}
         
-        response = api_client.post('/api/v1/notifications/tokens/unregister/', data, format='json')
+        response = auth_client.post(
+            '/api/v1/notifications/tokens/unregister/', data, format='json'
+        )
         
         assert response.status_code == status.HTTP_200_OK
         
         push_token.refresh_from_db()
         assert push_token.is_active is False
 
-    def test_unregister_nonexistent_token(self, api_client):
-        """Test de désactivation d'un token inexistant"""
+    def test_guest_can_unregister_own_token_with_device_id(self, api_client, guest_push_token):
+        """Un invité peut désactiver son token en fournissant le device_id correct."""
         data = {
-            'expo_token': 'ExponentPushToken[does_not_exist]'
+            'expo_token': guest_push_token.expo_token,
+            'device_id': guest_push_token.device_id,
         }
         
-        response = api_client.post('/api/v1/notifications/tokens/unregister/', data, format='json')
+        response = api_client.post(
+            '/api/v1/notifications/tokens/unregister/', data, format='json'
+        )
+        
+        assert response.status_code == status.HTTP_200_OK
+        
+        guest_push_token.refresh_from_db()
+        assert guest_push_token.is_active is False
+
+    def test_unregister_nonexistent_token(self, auth_client):
+        """Test de désactivation d'un token inexistant"""
+        data = {'expo_token': 'ExponentPushToken[does_not_exist]'}
+        
+        response = auth_client.post(
+            '/api/v1/notifications/tokens/unregister/', data, format='json'
+        )
         
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     def test_unregister_missing_token(self, api_client):
         """Test sans expo_token"""
-        data = {}
-        
-        response = api_client.post('/api/v1/notifications/tokens/unregister/', data, format='json')
+        response = api_client.post(
+            '/api/v1/notifications/tokens/unregister/', {}, format='json'
+        )
         
         assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    # -------------------------------------------------------------------------
+    # Sécurité: IDOR sur la désactivation de token
+    # -------------------------------------------------------------------------
+
+    def test_auth_user_cannot_unregister_another_users_token(
+        self, second_auth_client, push_token
+    ):
+        """
+        IDOR regression: un utilisateur authentifié ne peut pas désactiver
+        le token push d'un autre utilisateur.
+        """
+        data = {'expo_token': push_token.expo_token}
+        
+        response = second_auth_client.post(
+            '/api/v1/notifications/tokens/unregister/', data, format='json'
+        )
+        
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        
+        push_token.refresh_from_db()
+        assert push_token.is_active is True
+
+    def test_guest_cannot_unregister_auth_users_token(self, api_client, push_token):
+        """
+        IDOR regression: un invité (sans auth) ne peut pas désactiver le
+        token d'un utilisateur authentifié, même en fournissant un device_id.
+        """
+        data = {
+            'expo_token': push_token.expo_token,
+            'device_id': push_token.device_id,
+        }
+        
+        response = api_client.post(
+            '/api/v1/notifications/tokens/unregister/', data, format='json'
+        )
+        
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        
+        push_token.refresh_from_db()
+        assert push_token.is_active is True
+
+    def test_guest_cannot_unregister_token_with_wrong_device_id(
+        self, api_client, guest_push_token
+    ):
+        """
+        IDOR regression: un invité ne peut pas désactiver le token d'un autre
+        invité avec un device_id incorrect.
+        """
+        data = {
+            'expo_token': guest_push_token.expo_token,
+            'device_id': 'wrong_device_id',
+        }
+        
+        response = api_client.post(
+            '/api/v1/notifications/tokens/unregister/', data, format='json'
+        )
+        
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        
+        guest_push_token.refresh_from_db()
+        assert guest_push_token.is_active is True
+
+    def test_guest_unregister_without_device_id_rejected(self, api_client, guest_push_token):
+        """
+        Un invité sans device_id reçoit 400, pas 200.
+        (Pas de désactivation silencieuse via token seul.)
+        """
+        data = {'expo_token': guest_push_token.expo_token}
+        
+        response = api_client.post(
+            '/api/v1/notifications/tokens/unregister/', data, format='json'
+        )
+        
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        
+        guest_push_token.refresh_from_db()
+        assert guest_push_token.is_active is True
 
 
 # =============================================================================
@@ -349,7 +538,6 @@ class TestNotificationPreferences:
         
         notification_preferences.refresh_from_db()
         assert notification_preferences.vibration_enabled is False
-        # Les autres valeurs restent inchangées
         assert notification_preferences.order_updates is True
 
     def test_update_quiet_hours(self, auth_client, notification_preferences):
@@ -412,7 +600,6 @@ class TestNotificationList:
         response = auth_client.get('/api/v1/notifications/', {'unread_only': 'true'})
         
         assert response.status_code == status.HTTP_200_OK
-        # 10 notifications sont non lues (indices 5-14)
         assert response.data['count'] == 10
 
     def test_list_by_type(self, auth_client, multiple_notifications):
@@ -420,7 +607,6 @@ class TestNotificationList:
         response = auth_client.get('/api/v1/notifications/', {'type': 'order_update'})
         
         assert response.status_code == status.HTTP_200_OK
-        # Les notifications pairs sont de type order_update
         for notif in response.data['results']:
             assert notif['notification_type'] == 'order_update'
 
@@ -429,7 +615,6 @@ class TestNotificationList:
         response = auth_client.get('/api/v1/notifications/')
         
         assert response.status_code == status.HTTP_200_OK
-        # Seule la notification non expirée doit apparaître
         notification_ids = [n['id'] for n in response.data['results']]
         assert str(notification.id) in notification_ids
         assert str(expired_notification.id) not in notification_ids
@@ -442,7 +627,6 @@ class TestNotificationList:
 
     def test_list_notifications_isolation(self, auth_client, second_auth_client, notification, second_user):
         """Test que chaque utilisateur ne voit que ses notifications"""
-        # Créer une notification pour le deuxième utilisateur
         other_notif = Notification.objects.create(
             user=second_user,
             notification_type='system',
@@ -450,14 +634,12 @@ class TestNotificationList:
             body="Test"
         )
         
-        # Premier utilisateur
         response1 = auth_client.get('/api/v1/notifications/')
         assert response1.status_code == status.HTTP_200_OK
         ids1 = [n['id'] for n in response1.data['results']]
         assert str(notification.id) in ids1
         assert str(other_notif.id) not in ids1
         
-        # Deuxième utilisateur
         response2 = second_auth_client.get('/api/v1/notifications/')
         assert response2.status_code == status.HTTP_200_OK
         ids2 = [n['id'] for n in response2.data['results']]
@@ -523,7 +705,6 @@ class TestNotificationDetail:
         response = auth_client.delete(f'/api/v1/notifications/{other_notif.id}/')
         
         assert response.status_code == status.HTTP_404_NOT_FOUND
-        # La notification existe toujours
         assert Notification.objects.filter(id=other_notif.id).exists()
 
 
@@ -586,7 +767,7 @@ class TestMarkAllRead:
             user=multiple_notifications[0].user,
             is_read=False
         ).count()
-        assert unread_before == 10  # 10 notifications non lues
+        assert unread_before == 10
         
         response = auth_client.post('/api/v1/notifications/read-all/')
         
@@ -620,7 +801,6 @@ class TestMarkAllRead:
         
         assert response.status_code == status.HTTP_200_OK
         
-        # La notification de l'autre utilisateur reste non lue
         other_notif.refresh_from_db()
         assert other_notif.is_read is False
 
@@ -652,7 +832,6 @@ class TestUnreadCount:
         response = auth_client.get('/api/v1/notifications/unread-count/')
         
         assert response.status_code == status.HTTP_200_OK
-        # Seule la notification non expirée et non lue compte
         assert response.data['unread_count'] == 1
 
     def test_unread_count_unauthenticated(self, api_client):
@@ -679,11 +858,8 @@ class TestTestNotificationView:
             'body': 'Ceci est un test'
         }
         
-        # Note: Ce test peut échouer si le service de notification n'est pas mockée
-        # ou si l'utilisateur n'a pas de token push
         response = auth_client.post('/api/v1/notifications/test/', data, format='json')
         
-        # Peut être 200 (succès) ou autre selon la config du service
         assert response.status_code in [status.HTTP_200_OK, status.HTTP_403_FORBIDDEN]
 
     def test_test_notification_production_forbidden(self, auth_client, settings):
@@ -718,7 +894,6 @@ class TestNotificationIntegration:
 
     def test_full_notification_workflow(self, auth_client, user):
         """Test du workflow complet: créer, lire, marquer lu, supprimer"""
-        # Créer une notification directement en base
         notif = Notification.objects.create(
             user=user,
             notification_type='order_ready',
@@ -727,43 +902,36 @@ class TestNotificationIntegration:
             is_read=False
         )
         
-        # Vérifier le compteur
         response = auth_client.get('/api/v1/notifications/unread-count/')
         assert response.data['unread_count'] == 1
         
-        # Lire le détail
         response = auth_client.get(f'/api/v1/notifications/{notif.id}/')
         assert response.status_code == status.HTTP_200_OK
         
-        # Marquer comme lue
         response = auth_client.post(f'/api/v1/notifications/{notif.id}/read/')
         assert response.status_code == status.HTTP_200_OK
         
-        # Vérifier le compteur après lecture
         response = auth_client.get('/api/v1/notifications/unread-count/')
         assert response.data['unread_count'] == 0
         
-        # Supprimer
         response = auth_client.delete(f'/api/v1/notifications/{notif.id}/')
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
-    def test_token_workflow(self, auth_client, user):
-        """Test du workflow de token: enregistrer, mettre à jour, désactiver"""
-        # Enregistrer
+    def test_token_workflow_authenticated(self, auth_client, user):
+        """Test du workflow de token (utilisateur authentifié): enregistrer, mettre à jour, désactiver"""
         data = {
             'expo_token': 'ExponentPushToken[workflow_test]',
+            'device_id': 'workflow_device',
             'device_platform': 'ios'
         }
         response = auth_client.post('/api/v1/notifications/tokens/register/', data, format='json')
         assert response.status_code == status.HTTP_201_CREATED
         
-        # Mettre à jour
         data['device_name'] = 'Updated Device'
         response = auth_client.post('/api/v1/notifications/tokens/register/', data, format='json')
         assert response.status_code == status.HTTP_200_OK
         assert response.data['device_name'] == 'Updated Device'
         
-        # Désactiver
         response = auth_client.post(
             '/api/v1/notifications/tokens/unregister/',
             {'expo_token': 'ExponentPushToken[workflow_test]'},
@@ -771,8 +939,35 @@ class TestNotificationIntegration:
         )
         assert response.status_code == status.HTTP_200_OK
         
-        # Vérifier désactivation
         token = PushNotificationToken.objects.get(expo_token='ExponentPushToken[workflow_test]')
+        assert token.is_active is False
+
+    def test_token_workflow_guest(self, api_client):
+        """Test du workflow de token (invité): enregistrer, mettre à jour, désactiver"""
+        data = {
+            'expo_token': 'ExponentPushToken[guest_workflow]',
+            'guest_phone': '+33677889900',
+            'device_id': 'guest_workflow_device',
+            'device_platform': 'android'
+        }
+        response = api_client.post('/api/v1/notifications/tokens/register/', data, format='json')
+        assert response.status_code == status.HTTP_201_CREATED
+
+        data['device_name'] = 'Updated Guest Device'
+        response = api_client.post('/api/v1/notifications/tokens/register/', data, format='json')
+        assert response.status_code == status.HTTP_200_OK
+
+        response = api_client.post(
+            '/api/v1/notifications/tokens/unregister/',
+            {
+                'expo_token': 'ExponentPushToken[guest_workflow]',
+                'device_id': 'guest_workflow_device',
+            },
+            format='json'
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        token = PushNotificationToken.objects.get(expo_token='ExponentPushToken[guest_workflow]')
         assert token.is_active is False
 
     def test_max_page_size_limit(self, auth_client, multiple_notifications):
@@ -780,5 +975,4 @@ class TestNotificationIntegration:
         response = auth_client.get('/api/v1/notifications/', {'page_size': 500})
         
         assert response.status_code == status.HTTP_200_OK
-        # La taille devrait être plafonnée à 100
         assert response.data['page_size'] <= 100

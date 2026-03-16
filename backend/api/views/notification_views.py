@@ -52,7 +52,7 @@ class RegisterPushTokenView(APIView):
         **Pour les utilisateurs authentifiés:** Le token sera associé à leur compte.
         **Pour les invités:** Fournir un numéro de téléphone pour associer le token.
         
-        Le même token peut être mis à jour s'il existe déjà.
+        Le même token peut être mis à jour s'il existe déjà et appartient au demandeur.
         """,
         request=RegisterTokenSerializer,
         responses={
@@ -64,7 +64,8 @@ class RegisterPushTokenView(APIView):
                 response=PushTokenSerializer,
                 description="Token mis à jour"
             ),
-            400: OpenApiResponse(description="Données invalides")
+            400: OpenApiResponse(description="Données invalides"),
+            403: OpenApiResponse(description="Token appartenant à un autre utilisateur")
         },
         examples=[
             OpenApiExample(
@@ -96,23 +97,35 @@ class RegisterPushTokenView(APIView):
         device_platform = serializer.validated_data.get('device_platform', 'android')
         guest_phone = serializer.validated_data.get('guest_phone')
         
-        # Déterminer l'utilisateur
         user = request.user if request.user.is_authenticated else None
         
-        # Vérifier qu'on a soit un user soit un guest_phone
         if not user and not guest_phone:
             return Response(
                 {"error": "Authentification ou numéro de téléphone requis"},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Chercher un token existant
         existing_token = PushNotificationToken.objects.filter(
             expo_token=expo_token
         ).first()
         
         if existing_token:
-            # Mettre à jour le token existant
+            # Ownership check before allowing any update.
+            if user:
+                # Authenticated: must own the token or token must be unclaimed.
+                if existing_token.user is not None and existing_token.user != user:
+                    return Response(
+                        {"error": "Ce token appartient déjà à un autre utilisateur"},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+            else:
+                # Guest: token must be unclaimed and phone must match exactly.
+                if existing_token.user is not None or existing_token.guest_phone != guest_phone:
+                    return Response(
+                        {"error": "Non autorisé à mettre à jour ce token"},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+
             existing_token.user = user
             existing_token.device_id = device_id or existing_token.device_id
             existing_token.device_name = device_name or existing_token.device_name
@@ -127,7 +140,6 @@ class RegisterPushTokenView(APIView):
                 status=status.HTTP_200_OK
             )
         
-        # Créer un nouveau token
         token = PushNotificationToken.objects.create(
             user=user,
             expo_token=expo_token,
@@ -151,18 +163,25 @@ class UnregisterPushTokenView(APIView):
     
     @extend_schema(
         summary="Supprimer un token push",
-        description="Désactive un token push. Utilisé lors de la déconnexion.",
+        description="""
+        Désactive un token push. Utilisé lors de la déconnexion.
+        
+        **Utilisateurs authentifiés:** le token doit appartenir à l'utilisateur connecté.
+        **Invités:** fournir également `device_id` comme preuve de possession.
+        """,
         request={
             "application/json": {
                 "type": "object",
                 "properties": {
-                    "expo_token": {"type": "string"}
+                    "expo_token": {"type": "string"},
+                    "device_id": {"type": "string", "description": "Requis pour les invités"}
                 },
                 "required": ["expo_token"]
             }
         },
         responses={
             200: OpenApiResponse(description="Token supprimé"),
+            400: OpenApiResponse(description="Paramètres manquants"),
             404: OpenApiResponse(description="Token non trouvé")
         }
     )
@@ -175,10 +194,24 @@ class UnregisterPushTokenView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Désactiver le token (soft delete)
-        updated = PushNotificationToken.objects.filter(
-            expo_token=expo_token
-        ).update(is_active=False)
+        if request.user.is_authenticated:
+            updated = PushNotificationToken.objects.filter(
+                expo_token=expo_token,
+                user=request.user
+            ).update(is_active=False)
+        else:
+            # Guests must supply device_id as secondary proof of possession.
+            device_id = request.data.get('device_id')
+            if not device_id:
+                return Response(
+                    {"error": "device_id requis pour les invités"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            updated = PushNotificationToken.objects.filter(
+                expo_token=expo_token,
+                user__isnull=True,
+                device_id=device_id
+            ).update(is_active=False)
         
         if updated:
             logger.info(f"Token push désactivé: {expo_token[:30]}...")
@@ -221,9 +254,8 @@ class NotificationPreferencesView(APIView):
         prefs, created = NotificationPreferences.objects.get_or_create(
             user=request.user
         )
-        
         serializer = NotificationPreferencesSerializer(
-            prefs, 
+            prefs,
             data=request.data, 
             partial=True
         )
@@ -276,7 +308,6 @@ class NotificationListView(APIView):
         unread_only = request.query_params.get('unread_only', 'false').lower() == 'true'
         notification_type = request.query_params.get('type')
         
-        # Filtrer les notifications
         queryset = Notification.objects.filter(user=request.user)
         
         if unread_only:
@@ -285,12 +316,10 @@ class NotificationListView(APIView):
         if notification_type:
             queryset = queryset.filter(notification_type=notification_type)
         
-        # Exclure les notifications expirées
         queryset = queryset.filter(
             Q(expires_at__isnull=True) | Q(expires_at__gt=timezone.now())
         )
         
-        # Pagination
         total = queryset.count()
         start = (page - 1) * page_size
         end = start + page_size
