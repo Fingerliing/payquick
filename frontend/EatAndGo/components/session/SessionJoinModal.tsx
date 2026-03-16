@@ -34,6 +34,8 @@ interface SessionJoinModalProps {
   restaurantId: number;
   tableNumber: string;
   tableId?: number;
+  /** Session active pré-chargée par l'appelant — évite un fetch redondant à l'ouverture. */
+  activeSession?: CollaborativeSession | null;
   onSessionCreated?: (session: CollaborativeSession) => void;
   onSessionJoined?: (session: CollaborativeSession) => void;
   onOrderAlone?: () => void;
@@ -49,6 +51,7 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
   restaurantId,
   tableNumber,
   tableId,
+  activeSession,
   onSessionCreated,
   onSessionJoined,
   onOrderAlone,
@@ -57,7 +60,9 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
   const { createSession: ctxCreateSession } = useSession();
 
   const [loading, setLoading] = useState(false);
-  const [existingSession, setExistingSession] = useState<CollaborativeSession | null>(null);
+  const [existingSession, setExistingSession] = useState<CollaborativeSession | null>(
+    activeSession ?? null
+  );
   const [mode, setMode] = useState<'choose' | 'create' | 'join' | 'pending'>('choose');
   const [pendingParticipantId, setPendingParticipantId] = useState<string | null>(null);
   const [pendingSessionId, setPendingSessionId] = useState<string | null>(null);
@@ -96,7 +101,12 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
 
   useEffect(() => {
     if (visible) {
-      checkExistingSession();
+      // Si l'appelant a déjà fourni la session active, pas besoin de refaire le fetch
+      if (activeSession !== undefined) {
+        setExistingSession(activeSession ?? null);
+      } else {
+        checkExistingSession();
+      }
     }
   }, [visible]);
 

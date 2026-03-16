@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   Modal,
   TextInput,
-  Alert,
   Platform,
   Vibration,
   ViewStyle,
@@ -23,9 +22,10 @@ import {
   TYPOGRAPHY,
   BORDER_RADIUS,
 } from '@/utils/designSystem';
-import { useActiveTableSession } from '@/hooks/session/useCollaborativeSession';
+import { Alert as UIAlert } from '@/components/ui/Alert';
 import { SessionJoinModal } from '@/components/session/SessionJoinModal';
 import { collaborativeSessionService } from '@/services/collaborativeSessionService';
+import { restaurantService } from '@/services/restaurantService';
 
 interface QRAccessButtonsProps {
   onSuccess?: (restaurantId: number, tableNumber: string, code: string) => void;
@@ -63,18 +63,12 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
   } | null>(null);
 
   // Hook pour vérifier s'il existe une session active
-  const { activeSession, loading: checkingSession } = useActiveTableSession(
-    scannedData?.restaurantId,
-    scannedData?.tableNumber
-  );
+  const [activeSession, setActiveSession] = useState<any>(null);
 
-  // Quand on a scanné un code et vérifié les sessions
-  useEffect(() => {
-    if (scannedData && !checkingSession) {
-      // Afficher le modal de session (créer ou rejoindre)
-      setShowSessionModal(true);
-    }
-  }, [scannedData, checkingSession]);
+  // Erreur affichée dans la vue principale (après fermeture du modal)
+  const [codeError, setCodeError] = useState<string | null>(null);
+  // Erreur affichée à l'intérieur du modal de saisie
+  const [modalInputError, setModalInputError] = useState<string | null>(null);
 
   const iconSize = getResponsiveValue({ mobile: 24, tablet: 28, desktop: 32 }, screenType);
   const fontSize = {
@@ -84,7 +78,6 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
   };
 
   const handleScanSuccess = (qrData: string) => {
-    console.log('QR Code scanné:', qrData);
     
     // Vibration pour feedback utilisateur
     if (Platform.OS === 'ios') {
@@ -101,18 +94,16 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
     setShowScanner(false);
   };
 
-  const handleManualCodeSubmit = () => {
+  const handleManualCodeSubmit = async () => {
     if (!accessCode.trim()) {
-      Alert.alert('Erreur', 'Veuillez entrer un code d\'accès valide');
+      setModalInputError('Veuillez entrer un code valide.');
       return;
     }
-
-    processCode(accessCode.trim());
-    setShowCodeInput(false);
-    setAccessCode('');
+    setModalInputError(null);
+    await processCode(accessCode.trim());
   };
 
-  const processCode = async (codeData: string) => {
+  const processCode = async (codeData: string): Promise<void> => {
     if (isProcessing) return;
     setIsProcessing(true);
   
@@ -140,11 +131,13 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
   
             setShowCodeInput(false);
             setAccessCode('');
+            setActiveSession(null);
             setScannedData({
               restaurantId,
               tableNumber: session.table_number,
               code: trimmed.toUpperCase(),
             });
+            setShowSessionModal(true);
             return;
           }
         } catch {
@@ -156,29 +149,50 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
       const sessionData = await QRSessionUtils.createSessionFromCode(trimmed);
   
       if (sessionData) {
-        setScannedData({
-          restaurantId: parseInt(sessionData.restaurantId),
-          tableNumber: sessionData.tableNumber || '',
-          code: sessionData.originalCode,
-        });
+        const restaurantId = parseInt(sessionData.restaurantId);
+        const tableNumber = sessionData.tableNumber || '';
+
+        // 1. Vérifier que le restaurant existe.
+        //    L'apiClient émet une ApiError plain object { code, message, details }
+        //    sans propriété `response`, donc on lit err.code directement.
+        try {
+          await restaurantService.getPublicRestaurant(restaurantId.toString());
+        } catch (err: any) {
+          const code = err?.code ?? err?.response?.status ?? err?.status;
+          throw new Error(
+            code === 404
+              ? "Ce code ne correspond à aucun restaurant enregistré. Vérifiez le QR code."
+              : "Impossible de vérifier ce restaurant. Vérifiez votre connexion et réessayez."
+          );
+        }
+
+        // 2. Récupérer une éventuelle session active sur cette table
+        const foundSession = await collaborativeSessionService.checkActiveSession(
+          restaurantId,
+          tableNumber
+        );
+
+        setActiveSession(foundSession ?? null);
+        setScannedData({ restaurantId, tableNumber, code: sessionData.originalCode });
+        setShowCodeInput(false);
+        setAccessCode('');
+        setShowSessionModal(true);
       } else {
-        throw new Error('Format de code non reconnu');
+        throw new Error('Ce code ne correspond à aucun restaurant ni table. Vérifiez le code ou scannez le QR code.');
       }
   
-    } catch (error) {
-      console.error('Erreur traitement code:', error);
-      Alert.alert(
-        'Code invalide',
-        'Le code saisi ne correspond à aucune session ni table.\n\nVérifiez le code ou scannez le QR code.',
-        [{ text: 'OK' }]
-      );
+    } catch (error: any) {
+      const msg = error?.message ?? 'Ce code ne correspond à aucun restaurant ni table. Vérifiez le code ou scannez le QR code.';
+      setShowCodeInput(false);
+      setAccessCode('');
+      setModalInputError(null);
+      setCodeError(msg);
     } finally {
       setIsProcessing(false);
     }
   };
 
   const handleSessionCreated = (session: any) => {
-    console.log('✅ Session créée:', session);
     setShowSessionModal(false);
     
     if (onSuccess && scannedData) {
@@ -198,7 +212,6 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
   };
 
   const handleSessionJoined = (session: any) => {
-    console.log('✅ Session rejointe:', session);
     setShowSessionModal(false);
     
     if (onSuccess && scannedData) {
@@ -218,7 +231,6 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
   };
 
   const handleOrderAlone = () => {
-    console.log('🛒 Commande seul (sans session de groupe)');
     setShowSessionModal(false);
     
     if (onSuccess && scannedData) {
@@ -303,6 +315,17 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
         </TouchableOpacity>
       </View>
 
+      {codeError && (
+        <UIAlert
+          variant="error"
+          title="Code invalide"
+          message={codeError}
+          autoDismiss
+          autoDismissDuration={6000}
+          onDismiss={() => setCodeError(null)}
+        />
+      )}
+
       {/* Modal de saisie manuelle */}
       <Modal
         visible={showCodeInput}
@@ -318,14 +341,26 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
             </Text>
 
             <TextInput
-              style={styles.input}
+              style={[styles.input, modalInputError ? styles.inputError : null]}
               value={accessCode}
-              onChangeText={setAccessCode}
+              onChangeText={(t) => {
+                setAccessCode(t);
+                if (modalInputError) setModalInputError(null);
+              }}
               placeholder="Ex: ABC123"
               autoCapitalize="characters"
               maxLength={6}
               autoFocus
             />
+
+            {modalInputError && (
+              <UIAlert
+                variant="error"
+                message={modalInputError}
+                autoDismiss={false}
+                showIcon
+              />
+            )}
 
             <View style={styles.modalButtons}>
               <TouchableOpacity
@@ -356,9 +391,11 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
           onClose={() => {
             setShowSessionModal(false);
             setScannedData(null);
+            setActiveSession(null);
           }}
           restaurantId={scannedData.restaurantId}
           tableNumber={scannedData.tableNumber}
+          activeSession={activeSession}
           onSessionCreated={handleSessionCreated}
           onSessionJoined={handleSessionJoined}
           onOrderAlone={handleOrderAlone}
@@ -468,6 +505,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     letterSpacing: 4,
     marginBottom: SPACING.lg.mobile,
+  },
+  inputError: {
+    borderColor: '#EF4444',
+    borderWidth: 2,
   },
   modalButtons: {
     flexDirection: 'row',
