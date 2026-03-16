@@ -554,3 +554,80 @@ def test_user_without_profile_should_raise():
     
     with pytest.raises(RestaurateurProfile.DoesNotExist):
         RestaurateurProfile.objects.get(user=user)
+
+
+# =============================================================================
+# TESTS - Sécurité: anti-spam / DoS sur la création de commande
+# =============================================================================
+
+@pytest.mark.django_db
+def test_anonymous_order_without_table_code_rejected(api_client, restaurant, menu_item):
+    """
+    DoS regression: une requête anonyme sans table_code doit être rejetée (403).
+    Sans ce contrôle, n'importe qui pouvait inonder le back-office de fausses commandes.
+    """
+    response = api_client.post("/api/v1/orders/", {
+        "restaurant": restaurant.id,
+        "order_type": "dine_in",
+        "table_number": "X1",
+        "customer_name": "Spammer",
+        "items": [{"menu_item": menu_item.id, "quantity": 1}]
+    }, format="json")
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+    assert Order.objects.filter(customer_name="Spammer").count() == 0
+
+
+@pytest.mark.django_db
+def test_anonymous_order_with_invalid_table_code_rejected(api_client, restaurant, menu_item):
+    """
+    DoS regression: un table_code qui ne correspond à aucune table active est refusé.
+    """
+    response = api_client.post("/api/v1/orders/", {
+        "restaurant": restaurant.id,
+        "order_type": "dine_in",
+        "table_number": "X1",
+        "table_code": "INVALID_QR_CODE",
+        "customer_name": "Spammer",
+        "items": [{"menu_item": menu_item.id, "quantity": 1}]
+    }, format="json")
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+    assert Order.objects.filter(customer_name="Spammer").count() == 0
+
+
+@pytest.mark.django_db
+def test_anonymous_order_with_valid_table_code_proceeds(api_client, restaurant, table, menu_item):
+    """
+    Un client anonyme possédant un table_code valide (QR scanné) peut créer une commande.
+    Le table_code est la preuve de présence physique à la table.
+    """
+    response = api_client.post("/api/v1/orders/", {
+        "restaurant": restaurant.id,
+        "order_type": "dine_in",
+        "table_number": table.number,
+        "table_code": table.qr_code,
+        "customer_name": "Client Anonyme",
+        "items": [{"menu_item": menu_item.id, "quantity": 1}]
+    }, format="json")
+
+    # 201 si les données sont complètes, 400 si un champ requis manque —
+    # mais pas 403 (le table_code valide est accepté).
+    assert response.status_code in [status.HTTP_201_CREATED, status.HTTP_400_BAD_REQUEST]
+
+
+@pytest.mark.django_db
+def test_authenticated_user_does_not_need_table_code(auth_customer_client, restaurant, menu_item):
+    """
+    Un utilisateur authentifié n'a pas besoin de fournir un table_code :
+    son JWT constitue une preuve d'identité suffisante.
+    """
+    response = auth_customer_client.post("/api/v1/orders/", {
+        "restaurant": restaurant.id,
+        "order_type": "dine_in",
+        "table_number": "X1",
+        "customer_name": "Client Auth",
+        "items": [{"menu_item": menu_item.id, "quantity": 1}]
+    }, format="json")
+
+    assert response.status_code in [status.HTTP_201_CREATED, status.HTTP_400_BAD_REQUEST]

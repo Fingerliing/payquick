@@ -160,6 +160,16 @@ class OrderViewSet(viewsets.ModelViewSet):
     )
     def create(self, request, *args, **kwargs):
         """Créer une nouvelle commande (avec notifications WebSocket)"""
+        if not request.user.is_authenticated:
+            table_code = request.data.get('table_code')
+            if not table_code or not Table.objects.filter(
+                qr_code=table_code, is_active=True
+            ).exists():
+                return Response(
+                    {"error": "Code de table valide requis pour les commandes anonymes"},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
         serializer = self.get_serializer(data=request.data)
 
         if serializer.is_valid():

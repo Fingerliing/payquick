@@ -387,22 +387,6 @@ class TestAddTableOrder:
             status.HTTP_400_BAD_REQUEST
         ]
 
-    def test_add_order_anonymous_with_phone(self, api_client, restaurant, table):
-        """Test création commande par client anonyme avec téléphone"""
-        data = {
-            'restaurant': restaurant.id,
-            'table_number': table.number,
-            'phone': '0612345678',
-            'customer_name': 'Client Anonyme'
-        }
-
-        response = api_client.post(self.url, data, format='json')
-
-        assert response.status_code in [
-            status.HTTP_201_CREATED,
-            status.HTTP_400_BAD_REQUEST
-        ]
-
     def test_add_order_invalid_data(self, auth_client):
         """Test création avec données invalides"""
         data = {}
@@ -410,6 +394,90 @@ class TestAddTableOrder:
         response = auth_client.post(self.url, data, format='json')
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    # -------------------------------------------------------------------------
+    # Sécurité: anti-spam / DoS sur la création de commande anonyme
+    # -------------------------------------------------------------------------
+
+    def test_anonymous_without_table_code_rejected(self, api_client, restaurant, table):
+        """
+        DoS regression: un anonyme sans table_code ne peut pas créer de commande.
+        Sans ce contrôle, n'importe qui pouvait inonder le back-office de fausses commandes.
+        """
+        data = {
+            'restaurant': restaurant.id,
+            'table_number': table.number,
+            'phone': '0612345678',
+            'customer_name': 'Spammer'
+        }
+
+        response = api_client.post(self.url, data, format='json')
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert Order.objects.filter(customer_name='Spammer').count() == 0
+
+    def test_anonymous_with_invalid_table_code_rejected(self, api_client, restaurant, table):
+        """
+        DoS regression: un table_code inconnu de la DB est refusé.
+        """
+        data = {
+            'restaurant': restaurant.id,
+            'table_number': table.number,
+            'table_code': 'FAKE_QR_CODE_9999',
+            'phone': '0612345678',
+            'customer_name': 'Spammer'
+        }
+
+        response = api_client.post(self.url, data, format='json')
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert Order.objects.filter(customer_name='Spammer').count() == 0
+
+    def test_anonymous_with_valid_table_code_proceeds(
+        self, api_client, restaurant, table, menu_item
+    ):
+        """
+        Un anonyme avec un table_code valide (QR scanné physiquement) peut créer
+        une commande. Le code QR est la preuve de présence à la table.
+        """
+        data = {
+            'restaurant': restaurant.id,
+            'table_number': table.number,
+            'table_code': table.qr_code,
+            'phone': '0612345678',
+            'customer_name': 'Client Anonyme',
+            'order_type': 'dine_in',
+            'items': [{'menu_item': menu_item.id, 'quantity': 1}]
+        }
+
+        response = api_client.post(self.url, data, format='json')
+
+        # 201 ou 400 selon la complétude des données — mais jamais 403.
+        assert response.status_code in [
+            status.HTTP_201_CREATED,
+            status.HTTP_400_BAD_REQUEST
+        ]
+
+    def test_authenticated_user_does_not_need_table_code(
+        self, auth_client, restaurant, table, menu_item
+    ):
+        """
+        Un utilisateur authentifié peut créer une commande sans table_code :
+        son JWT est une preuve d'identité suffisante.
+        """
+        data = {
+            'restaurant': restaurant.id,
+            'table_number': table.number,
+            'order_type': 'dine_in',
+            'items': [{'menu_item': menu_item.id, 'quantity': 1}]
+        }
+
+        response = auth_client.post(self.url, data, format='json')
+
+        assert response.status_code in [
+            status.HTTP_201_CREATED,
+            status.HTTP_400_BAD_REQUEST
+        ]
 
 
 # =============================================================================

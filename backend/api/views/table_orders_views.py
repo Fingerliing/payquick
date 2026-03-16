@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404
 from django.http import Http404
 from django.db.models import Q, Sum, Avg, Count
 from django.utils import timezone
-from api.models import Order, Restaurant, TableSession
+from api.models import Order, Restaurant, Table, TableSession
 from api.permissions import IsRestaurateur, IsValidatedRestaurateur
 from api.serializers import OrderWithTableInfoSerializer, TableSessionSerializer, OrderCreateSerializer, OrderListSerializer
 from drf_spectacular.utils import extend_schema, OpenApiParameter
@@ -196,8 +196,19 @@ class TableOrdersViewSet(viewsets.ViewSet):
     def add_table_order(self, request):
         """Ajoute une nouvelle commande à une table"""
         try:
-            # Ajouter l'utilisateur aux données si authentifié
             data = request.data.copy()
+
+            if not request.user.is_authenticated:
+                table_code = data.get('table_code')
+                if not table_code or not Table.objects.filter(
+                    qr_code=table_code, is_active=True
+                ).exists():
+                    return Response(
+                        {"error": "Code de table valide requis pour les commandes anonymes"},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+
+            # Ajouter l'utilisateur aux données si authentifié
             if request.user.is_authenticated:
                 data['user'] = request.user.id
             
