@@ -177,7 +177,6 @@ const validateStatistics = (data: any): RestaurantStatistics => {
   const missingSections = requiredSections.filter((section) => !data[section]);
   
   if (missingSections.length > 0) {
-    console.warn(`⚠️ Sections manquantes dans les statistiques: ${missingSections.join(', ')}`);
   }
 
   return data as RestaurantStatistics;
@@ -446,61 +445,75 @@ export class RestaurantService {
    * Crée un nouveau restaurant (privé - restaurateurs seulement)
    */
   async createRestaurant(data: any): Promise<Restaurant> {
-    console.log('🚀 RestaurantService: Creating restaurant...');
-    console.log('📥 Données reçues:', JSON.stringify(data, null, 2));
 
-    // Validation basique côté client
-    const requiredFields = ['name', 'address', 'city', 'zip_code', 'phone', 'email', 'cuisine'];
+    // Validation basique côté client — noms camelCase alignés avec RestaurantCreateSerializer
+    const requiredFields = ['name', 'address', 'city', 'zipCode', 'phone', 'email', 'cuisine'];
     const missingFields = requiredFields.filter((field) => !data[field] || String(data[field]).trim() === '');
-    
+
     if (missingFields.length > 0) {
-      console.error('❌ Champs requis manquants:', missingFields);
+      console.error('Création restaurant : champs requis manquants');
       throw new Error(`Champs requis manquants: ${missingFields.join(', ')}`);
     }
 
-    // Préparer les données finales
+    // Extraire l'image locale avant d'envoyer en JSON
+    // (un URI file:// n'est pas un fichier — il sera uploadé séparément via multipart)
+    const localImageUri: string | null = data.image || null;
+
+    // Préparer les données JSON — sans image, lat/lng arrondis à 6 décimales max
+    const { image: _image, ...dataWithoutImage } = data;
     const finalData = {
-      ...data,
-      price_range: parseInt(data.price_range) || 2,
-      latitude: parseFloat(data.latitude) || 0,
-      longitude: parseFloat(data.longitude) || 0,
-      rating: parseFloat(data.rating) || 0,
-      review_count: parseInt(data.review_count) || 0,
-      is_active: Boolean(data.is_active),
+      ...dataWithoutImage,
+      priceRange: data.priceRange || 2,
+      latitude: data.latitude ? parseFloat(data.latitude.toFixed(6)) : 0,
+      longitude: data.longitude ? parseFloat(data.longitude.toFixed(6)) : 0,
       accepts_meal_vouchers: Boolean(data.accepts_meal_vouchers),
       description: data.description || '',
       website: data.website || '',
       country: data.country || 'France',
       meal_voucher_info: data.meal_voucher_info || '',
-      image: data.image || null,
-      opening_hours: Array.isArray(data.opening_hours)
-        ? data.opening_hours.map((hour: any) => ({
-            day_of_week: parseInt(hour.day_of_week) || parseInt(hour.dayOfWeek) || 0,
-            open_time: hour.open_time || hour.openTime || '09:00',
-            close_time: hour.close_time || hour.closeTime || '18:00',
-            is_closed: Boolean(hour.is_closed ?? hour.isClosed ?? false),
-          }))
-        : [],
     };
 
-    console.log('📤 Données envoyées à l\'API:', JSON.stringify(finalData, null, 2));
 
     try {
       const response = await apiClient.post('api/v1/restaurants/', finalData);
-      console.log('✅ Restaurant créé avec succès');
-      return normalizeRestaurantData(response);
-    } catch (error: any) {
-      console.error('❌ Échec de la création');
-      console.error('🔍 Détails:', {
-        status: error?.response?.status,
-        data: error?.response?.data,
-      });
+      const restaurant = normalizeRestaurantData(response);
 
-      if (error?.response?.data?.validation_errors) {
-        error.validation_errors = error.response.data.validation_errors;
+      // Upload de l'image en multipart si une URI locale a été fournie
+      if (localImageUri && restaurant.id) {
+        try {
+          await this.uploadRestaurantImage(restaurant.id, localImageUri);
+          // Recharger pour récupérer image_url construit par le backend
+          const refreshed = await apiClient.get(`api/v1/restaurants/${restaurant.id}/`);
+          return normalizeRestaurantData(refreshed);
+        } catch (imgError: any) {
+          // L'image est optionnelle — on ne bloque pas la création
+          console.error('Upload image non bloquant :', imgError?.message);
+        }
+      }
+
+      return restaurant;
+    } catch (error: any) {
+      const responseData = error?.response?.data ?? error?.details;
+      if (responseData?.validation_errors) {
+        error.validation_errors = responseData.validation_errors;
       }
       throw error;
     }
+  }
+
+  async uploadRestaurantImage(restaurantId: string, imageUri: string): Promise<void> {
+    const formData = new FormData();
+    const filename = imageUri.split('/').pop() ?? 'restaurant.jpg';
+    const ext = filename.split('.').pop()?.toLowerCase() ?? 'jpg';
+    const mimeType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+
+    formData.append('image', {
+      uri: imageUri,
+      name: filename,
+      type: mimeType,
+    } as any);
+
+    await apiClient.post(`api/v1/restaurants/${restaurantId}/upload_image/`, formData);
   }
 
   /**
@@ -508,10 +521,8 @@ export class RestaurantService {
    */
   async updateRestaurant(id: string, data: Partial<Restaurant>): Promise<Restaurant> {
     const payload = prepareDataForBackend(data);
-    console.log('🔄 Mise à jour du restaurant', id);
 
     const response = await apiClient.patch(`api/v1/restaurants/${id}/`, payload);
-    console.log('✅ Restaurant mis à jour');
 
     return normalizeRestaurantData(response);
   }
@@ -521,7 +532,6 @@ export class RestaurantService {
    */
   async deleteRestaurant(id: string): Promise<void> {
     await apiClient.delete(`api/v1/restaurants/${id}/`);
-    console.log('✅ Restaurant supprimé');
   }
 
   /**
@@ -559,7 +569,6 @@ export class RestaurantService {
     periodDays: number = 30
   ): Promise<RestaurantStatistics> {
     try {
-      console.log(`📊 Chargement des statistiques (${periodDays} jours)`);
 
       const response = await apiClient.get(`api/v1/restaurants/${restaurantId}/statistics/`, {
         params: { period_days: periodDays },
@@ -568,16 +577,10 @@ export class RestaurantService {
       // Validation et normalisation des données
       const stats = validateStatistics(response);
       
-      console.log('✅ Statistiques chargées:', {
-        periode: `${stats.period.days} jours`,
-        commandes: stats.overview.orders.total,
-        ca: formatCurrency(stats.revenue.current_period),
-        recommandations: stats.recommendations.length,
-      });
 
       return stats;
     } catch (error: any) {
-      console.error('❌ Erreur de chargement des statistiques');
+      console.error('Erreur chargement statistiques');
       throw error;
     }
   }
@@ -587,19 +590,13 @@ export class RestaurantService {
    */
   async getRestaurantDashboard(restaurantId: string): Promise<RestaurantDashboard> {
     try {
-      console.log('📈 Chargement du dashboard');
 
       const response = await apiClient.get(`api/v1/restaurants/${restaurantId}/dashboard/`);
       
-      console.log('✅ Dashboard chargé:', {
-        commandesRecentes: response.recent_orders?.length || 0,
-        itemsPopulaires: response.popular_items?.length || 0,
-        caAujourdhui: formatCurrency(response.revenue?.today || 0),
-      });
 
       return response as RestaurantDashboard;
     } catch (error: any) {
-      console.error('❌ Erreur de chargement du dashboard');
+      console.error('Erreur chargement dashboard');
       throw error;
     }
   }

@@ -150,8 +150,15 @@ const validateRestaurantForm = (formData: CreateRestaurantData): FormValidationE
     errors.email = 'Email invalide';
   }
 
-  if (formData.phone && !/^[0-9+\s().-]{10,15}$/.test(formData.phone)) {
-    errors.phone = 'Numéro invalide';
+  if (formData.zipCode && !/^\d{5}$/.test(formData.zipCode.trim())) {
+    errors.zipCode = 'Le code postal doit contenir exactement 5 chiffres';
+  }
+
+  if (formData.phone) {
+    const cleanedPhone = formData.phone.replace(/[\s.\-]/g, '');
+    if (!/^(\+33|0)[1-9]\d{8}$/.test(cleanedPhone)) {
+      errors.phone = 'Format invalide. Utilisez 0612345678 ou +33612345678';
+    }
   }
 
   if (!Array.isArray(formData.openingHours) || formData.openingHours.length !== 7) {
@@ -385,9 +392,16 @@ export default function AddRestaurantScreen() {
     } catch (error: any) {
       let errorMessage = 'Impossible de créer le restaurant';
 
-      if (error.response?.data?.validation_errors) {
+      // apiClient peut re-throw sous deux formes :
+      //   - axios standard : error.response.data
+      //   - custom         : error.details (quand l'intercepteur transforme l'erreur)
+      const responseData = error?.response?.data ?? error?.details;
+      const validationErrors =
+        responseData?.validation_errors ?? error?.validation_errors;
+
+      if (validationErrors) {
         const backendErrors: FormValidationErrors = {};
-        Object.entries(error.response.data.validation_errors).forEach(([field, messages]) => {
+        Object.entries(validationErrors).forEach(([field, messages]) => {
           if (Array.isArray(messages) && messages.length > 0) {
             const mappedField =
               field === 'zip_code'
@@ -402,12 +416,14 @@ export default function AddRestaurantScreen() {
         });
         setErrors(backendErrors);
         errorMessage = 'Erreurs de validation détectées - vérifiez les champs en rouge';
-      } else if (error.response?.data?.error) {
-        errorMessage = error.response.data.error;
-      } else if (error.response?.data?.detail) {
-        errorMessage = error.response.data.detail;
-      } else if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
+      } else if (responseData?.error) {
+        errorMessage = Array.isArray(responseData.error)
+          ? responseData.error[0]
+          : responseData.error;
+      } else if (responseData?.detail) {
+        errorMessage = responseData.detail;
+      } else if (responseData?.message) {
+        errorMessage = responseData.message;
       } else if (error.message) {
         errorMessage = error.message;
       }
@@ -798,7 +814,7 @@ export default function AddRestaurantScreen() {
           <Card>
             <Input
               label="Téléphone *"
-              placeholder="+33 6 12 34 56 78"
+              placeholder="0612345678 ou +33612345678"
               value={formData.phone}
               onChangeText={(t) => updateField('phone', t)}
               error={errors.phone}

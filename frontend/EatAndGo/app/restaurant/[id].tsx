@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useRestaurant } from '@/contexts/RestaurantContext';
+import { restaurantService } from '@/services/restaurantService';
 import { Header } from '@/components/ui/Header';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -209,7 +210,6 @@ const RestaurantDetailPage = () => {
       setIsEditing(false);
       showToast('success', 'Restaurant mis à jour avec succès', 'Succès');
     } catch (e) {
-      console.error('❌ Erreur:', e);
       showToast('error', 'Impossible de mettre à jour le restaurant', 'Erreur');
     }
   }, [id, editForm, updateRestaurant]);
@@ -262,7 +262,6 @@ const RestaurantDetailPage = () => {
       setShowHoursEditModal(false);
       showToast('success', 'Horaires enregistrés', 'Succès');
     } catch (e) {
-      console.error('❌ Erreur:', e);
       showToast('error', 'Impossible de sauvegarder les horaires', 'Erreur');
     }
   }, [tempHours, editForm, id, updateRestaurant, updateField]);
@@ -331,7 +330,6 @@ const RestaurantDetailPage = () => {
         showToast('error', 'Impossible de fermer le restaurant', 'Erreur');
       }
     } catch (e) {
-      console.error('Erreur lors de la fermeture:', e);
       showToast('error', 'Impossible de fermer le restaurant', 'Erreur');
     } finally {
       setIsClosing(false);
@@ -356,7 +354,6 @@ const RestaurantDetailPage = () => {
         showToast('error', 'Impossible de rouvrir le restaurant', 'Erreur');
       }
     } catch (e) {
-      console.error('Erreur lors de la réouverture:', e);
       showToast('error', 'Impossible de rouvrir le restaurant', 'Erreur');
     }
   }, [id, loadRestaurant]);
@@ -368,6 +365,12 @@ const RestaurantDetailPage = () => {
     }
 
     try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== ImagePicker.PermissionStatus.GRANTED) {
+        showToast('error', "Permission d'accès aux photos requise", 'Erreur');
+        return;
+      }
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -376,37 +379,16 @@ const RestaurantDetailPage = () => {
       });
 
       if (!result.canceled && result.assets[0]) {
-        const asset = result.assets[0];
-        const formData = new FormData();
-        formData.append('image', {
-          uri: asset.uri,
-          type: 'image/jpeg',
-          name: 'restaurant-image.jpg',
-        } as any);
-        
         try {
-          const response = await fetch(`/api/restaurants/${id}/upload_image/`, {
-            method: 'POST',
-            body: formData,
-            headers: {
-              'Content-Type': 'multipart/form-data',
-            }
-          });
-          
-          if (response.ok) {
-            await loadRestaurant(id);
-            showToast('success', 'Image mise à jour', 'Succès');
-          } else {
-            showToast('error', "Impossible de mettre à jour l'image", 'Erreur');
-          }
-        } catch (e) {
-          console.error('Erreur upload image:', e);
+          await restaurantService.uploadRestaurantImage(id, result.assets[0].uri);
+          await loadRestaurant(id);
+          showToast('success', 'Image mise à jour', 'Succès');
+        } catch {
           showToast('error', "Impossible de mettre à jour l'image", 'Erreur');
         }
       }
-    } catch (e) {
-      console.error('Erreur sélection image:', e);
-      showToast('error', 'Erreur lors de la sélection de l’image', 'Erreur');
+    } catch {
+      showToast('error', "Erreur lors de la sélection de l'image", 'Erreur');
     }
   }, [id, loadRestaurant]);
 
@@ -417,7 +399,6 @@ const RestaurantDetailPage = () => {
     try {
       await loadRestaurant(id);
     } catch (e) {
-      console.error('Erreur lors du refresh:', e);
     } finally {
       setRefreshing(false);
     }

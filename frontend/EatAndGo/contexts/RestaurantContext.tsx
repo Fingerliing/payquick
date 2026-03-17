@@ -213,19 +213,11 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
   const { userRole, isAuthenticated } = useAuth();
 
   useEffect(() => {
-    console.log('RestaurantContext state change:', {
-      restaurants: state.restaurants.length,
-      isLoading: state.isLoading,
-      error: state.error,
-      isPublicMode: state.isPublicMode,
-      isArray: Array.isArray(state.restaurants)
-    });
   }, [state.restaurants, state.isLoading, state.error, state.isPublicMode]);
 
   useEffect(() => {
     if (isAuthenticated && userRole) {
       const shouldBePublicMode = userRole === 'client';
-      console.log('Ajustement du mode selon le rôle:', { userRole, shouldBePublicMode });
       
       if (state.isPublicMode !== shouldBePublicMode) {
         dispatch({ type: 'SET_PUBLIC_MODE', payload: shouldBePublicMode });
@@ -239,7 +231,6 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
 
   const loadPublicRestaurants = async (filters?: SearchFilters, page = 1) => {
     try {
-      console.log('RestaurantContext: Loading public restaurants...', { filters, page });
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
       
@@ -249,11 +240,9 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
         filters: filters || state.filters,
       });
       
-      console.log('Public restaurants response:', response);
       
       const { restaurants, pagination } = extractRestaurantData(response);
       
-      console.log('Public restaurants processed:', restaurants.length);
       
       dispatch({ type: 'SET_RESTAURANTS', payload: restaurants });
       dispatch({ type: 'SET_PAGINATION', payload: pagination || state.pagination });
@@ -263,7 +252,7 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
       }
       
     } catch (error: any) {
-      console.error('RestaurantContext: Public load error:', error);
+      console.error('RestaurantContext: Public load error:', error?.message ?? error);
       dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors du chargement des restaurants' });
       dispatch({ type: 'SET_RESTAURANTS', payload: [] });
     } finally {
@@ -273,16 +262,14 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
 
   const loadPublicRestaurant = async (id: string) => {
     try {
-      console.log('RestaurantContext: Loading public restaurant:', id);
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
       
       const restaurant = await restaurantService.getPublicRestaurant(id);
-      console.log('Public restaurant loaded:', restaurant);
       
       dispatch({ type: 'SET_CURRENT_RESTAURANT', payload: normalizeRestaurantData(restaurant) });
     } catch (error: any) {
-      console.error('RestaurantContext: Public load single error:', error);
+      console.error('RestaurantContext: Public load single error:', error?.message ?? error);
       dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors du chargement du restaurant' });
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
@@ -291,12 +278,10 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
 
   const searchPublicRestaurants = async (query: string, filters?: SearchFilters) => {
     try {
-      console.log('RestaurantContext: Searching public restaurants:', query, filters);
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
       
       const restaurants = await restaurantService.searchPublicRestaurants(query, filters);
-      console.log('Public search results:', restaurants.length);
       
       // searchPublicRestaurants retourne directement un Restaurant[]
       const restaurantData = isRestaurantArray(restaurants) 
@@ -305,7 +290,7 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
         
       dispatch({ type: 'SET_RESTAURANTS', payload: restaurantData });
     } catch (error: any) {
-      console.error('RestaurantContext: Public search error:', error);
+      console.error('RestaurantContext: Public search error:', error?.message ?? error);
       dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors de la recherche' });
       dispatch({ type: 'SET_RESTAURANTS', payload: [] });
     } finally {
@@ -320,12 +305,10 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
   const loadRestaurants = async (filters?: SearchFilters, page = 1) => {
     // Vérifier que l'utilisateur est bien restaurateur
     if (userRole !== 'restaurateur') {
-      console.log('Tentative de chargement privé par un non-restaurateur, redirection vers public');
       return loadPublicRestaurants(filters, page);
     }
   
     try {
-      console.log('RestaurantContext: Loading private restaurants...', { filters, page });
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
       
@@ -334,11 +317,9 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
         page_size: state.pagination.limit,
       });
       
-      console.log('Private restaurants response:', response);
       
       const { restaurants, pagination } = extractRestaurantData(response);
       
-      console.log('Private restaurants processed:', restaurants.length);
       
       dispatch({ type: 'SET_RESTAURANTS', payload: restaurants });
       dispatch({ type: 'SET_PAGINATION', payload: pagination || state.pagination });
@@ -351,7 +332,6 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
       
       // Gestion spécifique des erreurs 403 pour restaurateurs non validés
       if (error.code === 403) {
-        console.log('Erreur 403 détectée - restaurateur non validé');
         
         // Au lieu de mettre une erreur, on met un état spécial
         dispatch({ type: 'SET_RESTAURANTS', payload: [] });
@@ -370,7 +350,7 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
         return; // Sortir sans afficher d'erreur
       }
       
-      console.error('RestaurantContext: Private load error:', error);
+      console.error('RestaurantContext: Private load error:', error?.message ?? error);
       
       // Pour les autres erreurs, comportement normal
       dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors du chargement des restaurants' });
@@ -382,16 +362,14 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
   
   const loadRestaurant = async (id: string) => {
     try {
-      console.log('RestaurantContext: Loading private restaurant:', id);
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
       
       const restaurant = await restaurantService.getRestaurant(id);
-      console.log('Private restaurant loaded:', restaurant);
       
       dispatch({ type: 'SET_CURRENT_RESTAURANT', payload: normalizeRestaurantData(restaurant) });
     } catch (error: any) {
-      console.error('RestaurantContext: Private load single error:', error);
+      console.error('RestaurantContext: Private load single error:', error?.message ?? error);
       
       // NOUVEAU: Gestion spécifique des erreurs 403
       if (error.code === 403) {
@@ -406,68 +384,40 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
 
   const createRestaurant = async (data: Omit<Restaurant, 'id' | 'createdAt' | 'updatedAt' | 'can_receive_orders' | 'ownerId'>) => {
     try {
-      console.log('RestaurantContext: Creating restaurant...');
-      console.log('Données reçues dans le contexte:', JSON.stringify(data, null, 2));
       dispatch({ type: 'SET_ERROR', payload: null });
       
-      // Préparer les données pour le backend avec logs détaillés
+      // Préparer les données pour le backend
+      // Le serializer RestaurantCreateSerializer attend les champs en camelCase
       const backendData: any = {
-        // Informations de base
         name: data.name,
         description: data.description || '',
         cuisine: data.cuisine,
-        price_range: data.priceRange, // Conversion camelCase -> snake_case
-        
-        // Localisation - conversion location -> latitude/longitude
+        priceRange: data.priceRange,       // serializer: priceRange -> price_range
         address: data.address,
         city: data.city,
-        zip_code: data.zipCode, // Conversion camelCase -> snake_case
+        zipCode: data.zipCode,             // serializer: zipCode -> zip_code
         country: data.country || 'France',
         latitude: data.location?.latitude || 0,
         longitude: data.location?.longitude || 0,
-        
-        // Contact
         phone: data.phone,
         email: data.email,
         website: data.website || '',
-        
-        // Configuration
-        rating: data.rating || 0,
-        review_count: data.reviewCount || 0, // Conversion camelCase -> snake_case
-        is_active: data.isActive !== undefined ? data.isActive : true, // Conversion camelCase -> snake_case
-        
-        // Horaires d'ouverture - gestion spéciale
-        opening_hours: data.openingHours ? data.openingHours.map(hour => ({
-          day_of_week: hour.dayOfWeek, // Conversion camelCase -> snake_case
-          periods: hour.periods, // Conversion camelCase -> snake_case
-          is_closed: hour.isClosed // Conversion camelCase -> snake_case
-        })) : [],
-        
-        // Titres-restaurant
+        openingHours: data.openingHours || [], // view: pop('openingHours')
         accepts_meal_vouchers: data.accepts_meal_vouchers || false,
         meal_voucher_info: data.meal_voucher_info || '',
-        
-        // Média
         image: data.image || null,
       };
       
-      console.log('Données préparées pour le backend:', JSON.stringify(backendData, null, 2));
-      console.log('OpeningHours transformées:', JSON.stringify(backendData.opening_hours, null, 2));
-      
       const restaurant = await restaurantService.createRestaurant(backendData);
-      console.log('RestaurantContext: Restaurant created:', restaurant);
       
       const normalizedRestaurant = normalizeRestaurantData(restaurant);
       dispatch({ type: 'ADD_RESTAURANT', payload: normalizedRestaurant });
       return normalizedRestaurant;
     } catch (error: any) {
-      console.error('RestaurantContext: Create error:', error);
+      console.error('RestaurantContext: Create error:', error?.message ?? error);
       
       // Log des détails de l'erreur pour diagnostiquer
       if (error.response) {
-        console.error('Response status:', error.response.status);
-        console.error('Response data:', JSON.stringify(error.response.data, null, 2));
-        console.error('Response headers:', error.response.headers);
       }
       
       let errorMessage = 'Erreur lors de la création du restaurant';
@@ -478,7 +428,6 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
         
         if (errorData.validation_errors || errorData.errors) {
           errorMessage = 'Erreurs de validation des données';
-          console.error('Erreurs de validation détaillées:', errorData.validation_errors || errorData.errors);
         } else if (errorData.detail) {
           errorMessage = errorData.detail;
         } else if (errorData.message) {
@@ -497,16 +446,14 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
 
   const updateRestaurant = async (id: string, data: Partial<Restaurant>) => {
     try {
-      console.log('RestaurantContext: Updating restaurant:', id, data);
       dispatch({ type: 'SET_ERROR', payload: null });
       
       // Le service gère maintenant toute la préparation des données
       const restaurant = await restaurantService.updateRestaurant(id, data);
-      console.log('RestaurantContext: Restaurant updated:', restaurant);
       
       dispatch({ type: 'UPDATE_RESTAURANT', payload: normalizeRestaurantData(restaurant) });
     } catch (error: any) {
-      console.error('RestaurantContext: Update error:', error);
+      console.error('RestaurantContext: Update error:', error?.message ?? error);
       dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors de la mise à jour du restaurant' });
       throw error;
     }
@@ -514,15 +461,13 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
 
   const deleteRestaurant = async (id: string) => {
     try {
-      console.log('RestaurantContext: Deleting restaurant:', id);
       dispatch({ type: 'SET_ERROR', payload: null });
       
       await restaurantService.deleteRestaurant(id);
-      console.log('RestaurantContext: Restaurant deleted:', id);
       
       dispatch({ type: 'REMOVE_RESTAURANT', payload: id });
     } catch (error: any) {
-      console.error('RestaurantContext: Delete error:', error);
+      console.error('RestaurantContext: Delete error:', error?.message ?? error);
       dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors de la suppression du restaurant' });
       throw error;
     }
@@ -535,12 +480,10 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
     }
 
     try {
-      console.log('RestaurantContext: Searching private restaurants:', query, filters);
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
       
       const restaurants = await restaurantService.searchRestaurants(query, filters);
-      console.log('Private search results:', restaurants.length);
       
       // searchRestaurants retourne directement un Restaurant[]
       const restaurantData = isRestaurantArray(restaurants) 
@@ -549,7 +492,7 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
         
       dispatch({ type: 'SET_RESTAURANTS', payload: restaurantData });
     } catch (error: any) {
-      console.error('RestaurantContext: Private search error:', error);
+      console.error('RestaurantContext: Private search error:', error?.message ?? error);
       dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors de la recherche' });
       dispatch({ type: 'SET_RESTAURANTS', payload: [] });
     } finally {
@@ -574,7 +517,6 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
   };
 
   const refreshRestaurants = async () => {
-    console.log('RestaurantContext: Refreshing restaurants...');
     // Utiliser le bon mode selon le rôle utilisateur
     if (state.isPublicMode || userRole === 'client') {
       await loadPublicRestaurants(state.filters, state.pagination.page);
@@ -594,11 +536,9 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
 
   const loadRestaurantTables = async (restaurantId: string): Promise<Table[]> => {
     try {
-      console.log('RestaurantContext: Loading restaurant tables...', restaurantId);
       dispatch({ type: 'SET_ERROR', payload: null });
       
       const tables = await tableService.getRestaurantTables(restaurantId) as any;
-      console.log('RestaurantContext: Tables loaded:', tables.length);
       
       return Array.isArray(tables) ? tables : [];
     } catch (error: any) {
@@ -607,7 +547,6 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
       // Si erreur 404, cela signifie qu'il n'y a pas de tables pour ce restaurant
       // C'est un comportement normal, pas une vraie erreur
       if (error.response?.status === 404 || error.message?.includes('404')) {
-        console.log('Aucune table trouvée pour ce restaurant (404 - comportement normal)');
         return []; // Retourner un tableau vide au lieu de lancer une erreur
       }
       
@@ -638,11 +577,9 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
     startNumber: number = 1
   ): Promise<Table[]> => {
     try {
-      console.log('RestaurantContext: Creating tables...', { restaurantId, tableCount, startNumber });
       dispatch({ type: 'SET_ERROR', payload: null });
       
       const tables = await tableService.createTables(restaurantId, tableCount, startNumber) as any;
-      console.log('RestaurantContext: Tables created:', tables.length);
       
       return tables;
     } catch (error: any) {
@@ -668,11 +605,9 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
 
   const deleteTable = async (tableId: string): Promise<void> => {
     try {
-      console.log('RestaurantContext: Deleting table...', tableId);
       dispatch({ type: 'SET_ERROR', payload: null });
       
       await tableService.deleteTable(tableId);
-      console.log('RestaurantContext: Table deleted:', tableId);
       
     } catch (error: any) {
       console.error('RestaurantContext: Delete table error:', error);
@@ -683,11 +618,9 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
 
   const toggleTableStatus = async (tableId: string): Promise<void> => {
     try {
-      console.log('RestaurantContext: Toggling table status...', tableId);
       dispatch({ type: 'SET_ERROR', payload: null });
       
       await tableService.toggleTableStatus(tableId);
-      console.log('RestaurantContext: Table status toggled:', tableId);
       
     } catch (error: any) {
       console.error('RestaurantContext: Toggle table status error:', error);
@@ -697,20 +630,16 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    console.log('RestaurantProvider mounted, loading initial data...', { userRole, isAuthenticated });
     
     // Attendre que l'authentification soit chargée
     if (isAuthenticated && userRole) {
       if (userRole === 'client') {
-        console.log('Utilisateur client détecté - chargement en mode public');
         loadPublicRestaurants();
       } else if (userRole === 'restaurateur') {
-        console.log('Utilisateur restaurateur détecté - chargement en mode privé');
         loadRestaurants();
       }
     } else if (!isAuthenticated) {
       // Utilisateur non connecté, charger en mode public
-      console.log('Utilisateur non connecté - chargement en mode public');
       loadPublicRestaurants();
     }
   }, [userRole, isAuthenticated]);

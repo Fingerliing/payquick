@@ -258,11 +258,16 @@ class ApiClient {
         (typeof data === 'string' && data) ||
         (data?.detail ?? data?.message ?? 'Request failed');
       const rawCode = (typeof data === 'object')
-        ? (data?.code ?? data?.error ?? data?.type ?? status)
+        ? (data?.code ?? data?.type ?? status)
         : status;
       const code = this.coerceErrorCode(rawCode, status);
-      const details = this.extractDetails(data);
-      return { message, code, details };
+      // extractDetails ne gère que les valeurs string/array — les objets imbriqués
+      // comme validation_errors sont ignorés. On les préserve manuellement.
+      const details: Record<string, any> = {
+        ...(this.extractDetails(data) ?? {}),
+        ...(data?.validation_errors ? { validation_errors: data.validation_errors } : {}),
+      };
+      return { message, code, details: Object.keys(details).length ? details : undefined };
     }
     const message =
       error?.message ||
