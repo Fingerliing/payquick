@@ -327,7 +327,7 @@ const RestaurantSelector = React.memo(({
         animationType="slide"
         onRequestClose={() => setShowModal(false)}
       >
-        <View style={styles.modalOverlay}>
+        <SafeAreaView style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Choisir un restaurant</Text>
@@ -372,7 +372,7 @@ const RestaurantSelector = React.memo(({
               )}
             />
           </View>
-        </View>
+        </SafeAreaView>
       </Modal>
     </>
   );
