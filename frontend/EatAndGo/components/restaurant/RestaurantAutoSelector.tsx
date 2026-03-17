@@ -1,472 +1,630 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  ActivityIndicator,
   ScrollView,
   Image,
+  Animated,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useRestaurant } from '@/contexts/RestaurantContext';
-import { Restaurant, CUISINE_OPTIONS, CuisineType } from '@/types/restaurant';
+import { CUISINE_OPTIONS, CuisineType } from '@/types/restaurant';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Header } from '@/components/ui/Header';
 
 const COLORS = {
   primary: '#1E2A78',
+  primaryLight: '#2D3E9E',
   secondary: '#D4AF37',
-  background: '#F9FAFB',
+  background: '#F7F8FC',
   surface: '#FFFFFF',
   goldenSurface: '#FFFCF0',
   text: {
-    primary: '#111827',
-    secondary: '#6B7280',
-    light: '#9CA3AF',
+    primary: '#0D1117',
+    secondary: '#5A6478',
+    light: '#A0ABBE',
     inverse: '#FFFFFF',
-    golden: '#B8941F',
+    golden: '#A8841A',
   },
   border: {
-    light: '#F3F4F6',
-    default: '#E5E7EB',
+    light: '#ECEEF4',
+    default: '#D8DCE8',
     golden: '#E6D08A',
   },
-  variants: {
-    secondary: {
-      50: '#FFFEF7',
-      100: '#FFFBEB',
-      500: '#D4AF37',
-      700: '#A16207',
-    },
+  gold: {
+    50: '#FFFEF7',
+    100: '#FFF8DC',
+    200: '#F5E6A3',
+    500: '#D4AF37',
+    600: '#BC9A2E',
+    700: '#8B6E14',
   },
 };
 
-/**
- * Helper pour obtenir le label traduit d'un type de cuisine
- */
 function getCuisineLabel(cuisine: CuisineType): string {
   const option = CUISINE_OPTIONS.find(opt => opt.value === cuisine);
   return option?.label || cuisine;
 }
 
 interface RestaurantAutoSelectorProps {
-  /**
-   * Composant enfant à afficher une fois qu'un restaurant est sélectionné
-   */
   children: React.ReactNode;
-  /**
-   * Message personnalisé à afficher si aucun restaurant n'existe
-   */
   noRestaurantMessage?: string;
-  /**
-   * Texte du bouton pour créer un restaurant
-   */
   createButtonText?: string;
-  /**
-   * Callback appelé après la sélection automatique d'un restaurant
-   */
   onRestaurantSelected?: (restaurantId: string) => void;
 }
 
-/**
- * Composant qui gère automatiquement la sélection du restaurant :
- * - Si un restaurant est déjà sélectionné, affiche les enfants
- * - S'il n'y a qu'un seul restaurant, le sélectionne automatiquement
- * - S'il y a plusieurs restaurants, affiche un sélecteur
- * - S'il n'y a aucun restaurant, affiche un message avec un bouton de création
- */
+// ─── Loading screen ────────────────────────────────────────────────────────────
+function LoadingScreen({ message }: { message: string }) {
+  const pulseAnim = useRef(new Animated.Value(0.6)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 0.6, duration: 900, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+
+  return (
+    <View style={styles.loadingContainer}>
+      <Animated.View style={[styles.loadingOrb, { opacity: pulseAnim }]}>
+        <LinearGradient
+          colors={[COLORS.primary, COLORS.primaryLight]}
+          style={styles.loadingOrbInner}
+        >
+          <Ionicons name="restaurant" size={28} color={COLORS.secondary} />
+        </LinearGradient>
+      </Animated.View>
+      <Text style={styles.loadingText}>{message}</Text>
+    </View>
+  );
+}
+
+// ─── Restaurant card ───────────────────────────────────────────────────────────
+function RestaurantCard({
+  restaurant,
+  onPress,
+  disabled,
+  index,
+}: {
+  restaurant: any;
+  onPress: () => void;
+  disabled: boolean;
+  index: number;
+}) {
+  const slideAnim = useRef(new Animated.Value(40)).current;
+  const fadeAnim  = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 380,
+        delay: index * 80,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 380,
+        delay: index * 80,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  const handlePressIn = () =>
+    Animated.spring(scaleAnim, { toValue: 0.975, useNativeDriver: true, speed: 50 }).start();
+
+  const handlePressOut = () =>
+    Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, speed: 50 }).start();
+
+  const hasImage = !!(restaurant.image || restaurant.image_url);
+
+  return (
+    <Animated.View
+      style={[
+        styles.cardWrapper,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }, { scale: scaleAnim }],
+        },
+      ]}
+    >
+      <TouchableOpacity
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        disabled={disabled}
+        activeOpacity={1}
+        style={styles.card}
+      >
+        <View style={styles.cardImageContainer}>
+          {hasImage ? (
+            <Image
+              source={{ uri: restaurant.image_url || (restaurant.image as string) }}
+              style={styles.cardImage}
+              resizeMode="cover"
+            />
+          ) : (
+            <LinearGradient
+              colors={[COLORS.gold[100], COLORS.gold[200]]}
+              style={styles.cardImagePlaceholder}
+            >
+              <Ionicons name="restaurant" size={28} color={COLORS.secondary} />
+            </LinearGradient>
+          )}
+          <View style={styles.cardImageOverlay} />
+        </View>
+
+        <View style={styles.cardBody}>
+          <Text style={styles.cardName} numberOfLines={1}>
+            {restaurant.name}
+          </Text>
+
+          {restaurant.address && (
+            <View style={styles.cardMeta}>
+              <Ionicons name="location" size={12} color={COLORS.secondary} />
+              <Text style={styles.cardMetaText} numberOfLines={1}>
+                {restaurant.full_address || `${restaurant.address}, ${restaurant.city}`}
+              </Text>
+            </View>
+          )}
+
+          {restaurant.cuisine && (
+            <View style={styles.cuisineBadge}>
+              <Text style={styles.cuisineBadgeText}>
+                {getCuisineLabel(restaurant.cuisine)}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.cardArrow}>
+          <LinearGradient
+            colors={[COLORS.primary, COLORS.primaryLight]}
+            style={styles.cardArrowInner}
+          >
+            <Ionicons name="arrow-forward" size={16} color={COLORS.text.inverse} />
+          </LinearGradient>
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
+// ─── Main component ────────────────────────────────────────────────────────────
 export function RestaurantAutoSelector({
   children,
   noRestaurantMessage = "Vous n'avez pas encore de restaurant",
-  createButtonText = "Créer mon premier restaurant",
+  createButtonText = 'Créer mon premier restaurant',
   onRestaurantSelected,
 }: RestaurantAutoSelectorProps) {
-  const {
-    currentRestaurant,
-    restaurants,
-    isLoading,
-    loadRestaurants,
-    loadRestaurant,
-  } = useRestaurant();
+  const { currentRestaurant, restaurants, isLoading, loadRestaurants, loadRestaurant } =
+    useRestaurant();
 
   const [isAutoSelecting, setIsAutoSelecting] = useState(false);
-  const [showSelector, setShowSelector] = useState(false);
+  const [showSelector, setShowSelector]       = useState(false);
 
-  // Charger les restaurants au montage
+  const emptyFadeAnim  = useRef(new Animated.Value(0)).current;
+  const emptyScaleAnim = useRef(new Animated.Value(0.92)).current;
+
   useEffect(() => {
     if (!isLoading && restaurants.length === 0) {
       loadRestaurants();
     }
   }, []);
 
-  // Logique de sélection automatique
   useEffect(() => {
-    // Si un restaurant est déjà sélectionné, ne rien faire
-    if (currentRestaurant) {
-      return;
+    if (!isLoading && restaurants.length === 0) {
+      Animated.parallel([
+        Animated.timing(emptyFadeAnim, {
+          toValue: 1,
+          duration: 500,
+          delay: 100,
+          useNativeDriver: true,
+        }),
+        Animated.spring(emptyScaleAnim, {
+          toValue: 1,
+          delay: 100,
+          useNativeDriver: true,
+        }),
+      ]).start();
     }
+  }, [isLoading, restaurants.length]);
 
-    // Si les restaurants sont en cours de chargement, attendre
-    if (isLoading) {
-      return;
-    }
+  useEffect(() => {
+    if (currentRestaurant || isLoading || restaurants.length === 0 || isAutoSelecting) return;
 
-    // Si aucun restaurant, ne rien faire (l'UI affichera le message approprié)
-    if (restaurants.length === 0) {
-      return;
-    }
-
-    // Si un seul restaurant, le sélectionner automatiquement
-    if (restaurants.length === 1 && !isAutoSelecting) {
+    if (restaurants.length === 1) {
       setIsAutoSelecting(true);
       const restaurant = restaurants[0];
-      console.log('🎯 Sélection automatique du restaurant unique:', restaurant.name);
-      
       loadRestaurant(restaurant.id)
         .then(() => {
           setIsAutoSelecting(false);
-          if (onRestaurantSelected) {
-            onRestaurantSelected(restaurant.id);
-          }
+          onRestaurantSelected?.(restaurant.id);
         })
-        .catch((error) => {
-          console.error('Erreur lors de la sélection automatique:', error);
+        .catch(() => {
           setIsAutoSelecting(false);
           setShowSelector(true);
         });
       return;
     }
 
-    // Si plusieurs restaurants, afficher le sélecteur
     if (restaurants.length > 1) {
       setShowSelector(true);
     }
   }, [currentRestaurant, restaurants, isLoading, isAutoSelecting, onRestaurantSelected]);
 
-  // Fonction pour sélectionner un restaurant manuellement
   const handleSelectRestaurant = async (restaurantId: string) => {
     try {
       setIsAutoSelecting(true);
       await loadRestaurant(restaurantId);
       setShowSelector(false);
-      if (onRestaurantSelected) {
-        onRestaurantSelected(restaurantId);
-      }
-    } catch (error) {
-      console.error('Erreur lors de la sélection du restaurant:', error);
+      onRestaurantSelected?.(restaurantId);
+    } catch {
     } finally {
       setIsAutoSelecting(false);
     }
   };
 
-  // Afficher un loader pendant le chargement initial ou la sélection automatique
+  // ── Loading ────────────────────────────────────────────────────────────────
   if (isLoading || (isAutoSelecting && !showSelector)) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-        <Text style={styles.loadingText}>
-          {isAutoSelecting ? 'Sélection du restaurant...' : 'Chargement...'}
-        </Text>
-      </View>
+      <LoadingScreen
+        message={isAutoSelecting ? 'Sélection en cours…' : 'Chargement…'}
+      />
     );
   }
 
-  // Cas 1 : Aucun restaurant n'existe
+  // ── Cas 1 : aucun restaurant ───────────────────────────────────────────────
   if (restaurants.length === 0) {
     return (
-      <View style={styles.centerContainer}>
-        <View style={styles.emptyStateCard}>
-          <LinearGradient
-            colors={[COLORS.variants.secondary[100], COLORS.variants.secondary[50]]}
-            style={styles.emptyIconContainer}
-          >
-            <Ionicons name="restaurant-outline" size={64} color={COLORS.secondary} />
-          </LinearGradient>
-          
+      <View style={styles.emptyContainer}>
+        <LinearGradient
+          colors={['#EEF0FB', COLORS.background]}
+          style={StyleSheet.absoluteFill}
+        />
+
+        <Animated.View
+          style={[
+            styles.emptyCard,
+            { opacity: emptyFadeAnim, transform: [{ scale: emptyScaleAnim }] },
+          ]}
+        >
+          <View style={styles.emptyIconWrapper}>
+            <LinearGradient
+              colors={[COLORS.primary, COLORS.primaryLight]}
+              style={styles.emptyIconBg}
+            >
+              <Ionicons name="storefront-outline" size={40} color={COLORS.secondary} />
+            </LinearGradient>
+            <View style={styles.emptyIconGlow} />
+          </View>
+
           <Text style={styles.emptyTitle}>{noRestaurantMessage}</Text>
-          <Text style={styles.emptyDescription}>
-            Créez votre premier restaurant pour commencer à utiliser cette fonctionnalité.
+          <Text style={styles.emptySubtitle}>
+            Créez votre premier restaurant pour commencer à gérer vos menus et commandes.
           </Text>
 
           <TouchableOpacity
-            style={styles.primaryButton}
+            style={styles.ctaButton}
             onPress={() => router.push('/restaurant/create')}
+            activeOpacity={0.88}
           >
             <LinearGradient
-              colors={[COLORS.secondary, COLORS.variants.secondary[700]]}
+              colors={[COLORS.secondary, COLORS.gold[600]]}
               start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.buttonGradient}
+              end={{ x: 1, y: 1 }}
+              style={styles.ctaGradient}
             >
-              <Ionicons name="add-circle-outline" size={20} color={COLORS.text.inverse} />
-              <Text style={styles.primaryButtonText}>{createButtonText}</Text>
+              <Ionicons name="add" size={22} color={COLORS.primary} />
+              <Text style={styles.ctaText}>{createButtonText}</Text>
             </LinearGradient>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.secondaryButton}
-            onPress={() => router.back()}
-          >
-            <Text style={styles.secondaryButtonText}>Retour</Text>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backLink}>
+            <Ionicons name="arrow-back-outline" size={16} color={COLORS.text.secondary} />
+            <Text style={styles.backLinkText}>Retour</Text>
           </TouchableOpacity>
-        </View>
+        </Animated.View>
       </View>
     );
   }
 
-  // Cas 2 : Plusieurs restaurants, afficher le sélecteur
+  // ── Cas 2 : plusieurs restaurants ─────────────────────────────────────────
   if (showSelector) {
     return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backButton}
-          >
-            <Ionicons name="arrow-back" size={24} color={COLORS.text.primary} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Sélectionner un restaurant</Text>
-          <View style={styles.headerSpacer} />
-        </View>
+      <View style={styles.selectorContainer}>
+        <Header
+          title="Choisir un restaurant"
+          showBackButton
+          includeSafeArea
+        />
 
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-          <Text style={styles.selectorDescription}>
-            Veuillez sélectionner le restaurant pour lequel vous souhaitez gérer cette fonctionnalité.
+        <ScrollView
+          style={styles.selectorScroll}
+          contentContainerStyle={styles.selectorScrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={styles.selectorHint}>
+            Sélectionnez le restaurant que vous souhaitez gérer.
           </Text>
 
-          {restaurants.map((restaurant) => (
-            <TouchableOpacity
+          {restaurants.map((restaurant, index) => (
+            <RestaurantCard
               key={restaurant.id}
-              style={styles.restaurantCard}
+              restaurant={restaurant}
               onPress={() => handleSelectRestaurant(restaurant.id)}
               disabled={isAutoSelecting}
-            >
-              <View style={styles.restaurantCardContent}>
-                {(restaurant.image || restaurant.image_url) ? (
-                  <Image
-                    source={{ uri: restaurant.image_url || restaurant.image as string }}
-                    style={styles.restaurantLogo}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <View style={[styles.restaurantLogo, styles.restaurantLogoPlaceholder]}>
-                    <Ionicons name="restaurant" size={32} color={COLORS.secondary} />
-                  </View>
-                )}
-
-                <View style={styles.restaurantInfo}>
-                  <Text style={styles.restaurantName}>{restaurant.name}</Text>
-                  {restaurant.address && (
-                    <View style={styles.restaurantMeta}>
-                      <Ionicons name="location-outline" size={14} color={COLORS.text.secondary} />
-                      <Text style={styles.restaurantAddress} numberOfLines={1}>
-                        {restaurant.full_address || `${restaurant.address}, ${restaurant.city}`}
-                      </Text>
-                    </View>
-                  )}
-                  {restaurant.cuisine && (
-                    <View style={styles.restaurantMeta}>
-                      <Ionicons name="fast-food-outline" size={14} color={COLORS.text.secondary} />
-                      <Text style={styles.restaurantCuisine}>
-                        {getCuisineLabel(restaurant.cuisine)}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-
-                <Ionicons name="chevron-forward" size={24} color={COLORS.text.light} />
-              </View>
-            </TouchableOpacity>
+              index={index}
+            />
           ))}
         </ScrollView>
       </View>
     );
   }
 
-  // Cas 3 : Un restaurant est sélectionné, afficher les enfants
+  // ── Cas 3 : restaurant sélectionné ────────────────────────────────────────
   return <>{children}</>;
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: {
+  // Loading
+  loadingContainer: {
     flex: 1,
     backgroundColor: COLORS.background,
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    justifyContent: 'center',
+    gap: 20,
+  },
+  loadingOrb: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  loadingOrbInner: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    fontSize: 15,
+    color: COLORS.text.secondary,
+    fontWeight: '500',
+    letterSpacing: 0.3,
+  },
+
+  // Empty state
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 24,
   },
-  
-  // Header
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  emptyCard: {
     backgroundColor: COLORS.surface,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border.light,
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.text.primary,
-  },
-  headerSpacer: {
-    width: 40,
-  },
-  
-  // Loading
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: COLORS.text.secondary,
-  },
-  
-  // Empty State
-  emptyStateCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 16,
-    padding: 32,
+    borderRadius: 24,
+    padding: 36,
     alignItems: 'center',
-    maxWidth: 400,
+    maxWidth: 380,
     width: '100%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.08,
+    shadowRadius: 32,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: COLORS.border.light,
   },
-  emptyIconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+  emptyIconWrapper: {
+    position: 'relative',
+    marginBottom: 28,
+  },
+  emptyIconBg: {
+    width: 96,
+    height: 96,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 24,
+  },
+  emptyIconGlow: {
+    position: 'absolute',
+    bottom: -8,
+    left: '50%',
+    marginLeft: -32,
+    width: 64,
+    height: 20,
+    borderRadius: 50,
+    backgroundColor: COLORS.primary,
+    opacity: 0.12,
   },
   emptyTitle: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '800',
     color: COLORS.text.primary,
     textAlign: 'center',
     marginBottom: 12,
+    letterSpacing: -0.4,
   },
-  emptyDescription: {
-    fontSize: 16,
+  emptySubtitle: {
+    fontSize: 15,
     color: COLORS.text.secondary,
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: 23,
     marginBottom: 32,
   },
-  
-  // Buttons
-  primaryButton: {
+  ctaButton: {
     width: '100%',
-    marginBottom: 12,
-    borderRadius: 12,
+    borderRadius: 14,
     overflow: 'hidden',
+    marginBottom: 16,
     shadowColor: COLORS.secondary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    elevation: 6,
   },
-  buttonGradient: {
+  ctaGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    gap: 8,
+    paddingVertical: 17,
+    paddingHorizontal: 28,
+    gap: 10,
   },
-  primaryButtonText: {
+  ctaText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text.inverse,
+    fontWeight: '700',
+    color: COLORS.primary,
+    letterSpacing: 0.2,
   },
-  secondaryButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
+  backLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
   },
-  secondaryButtonText: {
-    fontSize: 16,
+  backLinkText: {
+    fontSize: 14,
     fontWeight: '600',
     color: COLORS.text.secondary,
   },
-  
-  // Restaurant Selector
-  scrollView: {
+
+  // Selector
+  selectorContainer: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  selectorGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 160,
+  },
+  selectorScroll: {
     flex: 1,
   },
-  scrollContent: {
-    padding: 16,
+  selectorScrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 40,
   },
-  selectorDescription: {
-    fontSize: 16,
+  selectorHint: {
+    fontSize: 14,
     color: COLORS.text.secondary,
-    marginBottom: 24,
-    lineHeight: 24,
+    marginBottom: 20,
+    lineHeight: 21,
   },
-  
-  // Restaurant Card
-  restaurantCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
+
+  // Restaurant card
+  cardWrapper: {
     marginBottom: 12,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
   },
-  restaurantCardContent: {
+  card: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 18,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    overflow: 'hidden',
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: COLORS.border.light,
   },
-  restaurantLogo: {
-    width: 64,
-    height: 64,
-    borderRadius: 12,
-    marginRight: 16,
+  cardImageContainer: {
+    width: 80,
+    height: 80,
+    position: 'relative',
   },
-  restaurantLogoPlaceholder: {
-    backgroundColor: COLORS.goldenSurface,
+  cardImage: {
+    width: 80,
+    height: 80,
+  },
+  cardImagePlaceholder: {
+    width: 80,
+    height: 80,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  restaurantInfo: {
-    flex: 1,
+  cardImageOverlay: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 16,
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: 999,
+    borderBottomLeftRadius: 999,
   },
-  restaurantName: {
-    fontSize: 18,
+  cardBody: {
+    flex: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+  },
+  cardName: {
+    fontSize: 17,
     fontWeight: '700',
     color: COLORS.text.primary,
-    marginBottom: 4,
+    marginBottom: 5,
+    letterSpacing: -0.2,
   },
-  restaurantMeta: {
+  cardMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
-    gap: 4,
+    gap: 5,
+    marginBottom: 7,
   },
-  restaurantAddress: {
-    fontSize: 14,
+  cardMetaText: {
+    fontSize: 12,
     color: COLORS.text.secondary,
     flex: 1,
   },
-  restaurantCuisine: {
-    fontSize: 14,
-    color: COLORS.text.secondary,
+  cuisineBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: COLORS.gold[100],
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: COLORS.gold[200],
+  },
+  cuisineBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: COLORS.text.golden,
+    letterSpacing: 0.2,
+  },
+  cardArrow: {
+    paddingRight: 16,
+  },
+  cardArrowInner: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Footer
+  selectorFooter: {
+    marginTop: 8,
+    alignItems: 'center',
   },
 });
