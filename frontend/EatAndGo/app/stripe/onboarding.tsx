@@ -44,7 +44,7 @@ export default function StripeOnboardingScreen() {
   }, []);
 
   const handleContinue = () => {
-    router.replace('/(tabs)');
+    router.replace('/(restaurant)');
   };
 
   const handleRetry = async () => {

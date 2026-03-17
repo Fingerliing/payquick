@@ -46,7 +46,7 @@ def create_stripe_account(request):
             country='FR',
             email=user.email or user.username,
             business_profile={
-                'name': restaurateur_profile.display_name,
+                'name': restaurateur_profile.user.get_full_name() or restaurateur_profile.user.first_name or restaurateur_profile.user.username,
                 'product_description': 'Restaurant et livraison de repas via Eat&Go',
             },
             metadata={

@@ -152,7 +152,14 @@ export default function VerifyEmailScreen() {
         await refreshUser();
       }
       setCustomAlert({ variant: 'success', title: 'Compte créé !', message: 'Bienvenue sur EatQuickeR 🎉' });
-      setTimeout(() => router.replace('/'), 1000);
+      const role = data.user?.role;
+      setTimeout(() => {
+        if (role === 'restaurateur') {
+          router.replace('/(restaurant)');
+        } else {
+          router.replace('/(client)');
+        }
+      }, 1000);
     } catch {
       setCustomAlert({ variant: 'error', title: 'Erreur réseau', message: 'Une erreur est survenue. Veuillez réessayer.' });
     } finally {
