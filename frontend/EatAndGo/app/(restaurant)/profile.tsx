@@ -333,7 +333,7 @@ export default function ProfileScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <Header title="Profil" />
 
       {/* Bannières d’alertes (success / error / info / warning) */}
@@ -498,6 +498,6 @@ export default function ProfileScreen() {
           />
         </View>
       )}
-    </SafeAreaView>
+    </View>
   );
 }

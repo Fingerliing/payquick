@@ -1162,13 +1162,13 @@ export default function RestaurantOrdersScreen() {
   // Gestion des erreurs d'accès
   if (!isRestaurateur) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <Header title="Commandes" />
         <View style={styles.errorContainer}>
           <Ionicons name="lock-closed-outline" size={iconSize} color={COLORS.secondary} />
           <Text style={styles.errorText}>Accès réservé aux restaurateurs</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -1275,7 +1275,7 @@ export default function RestaurantOrdersScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <Header title="Gestion des commandes" />
 
       {/* Bannières d’alertes (success / error / info / warning) */}
@@ -1370,6 +1370,6 @@ export default function RestaurantOrdersScreen() {
           />
         </View>
       )}
-    </SafeAreaView>
+    </View>
   );
 }

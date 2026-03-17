@@ -1363,15 +1363,15 @@ export default function QRCodesScreen() {
 
   if (isLoading && restaurants.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <Header title="QR Codes Tables" />
         <Loading fullScreen text="Chargement..." />
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <Header
         title="QR Codes Tables"
         rightIcon="settings-outline"
@@ -1741,6 +1741,6 @@ export default function QRCodesScreen() {
           />
         </View>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
