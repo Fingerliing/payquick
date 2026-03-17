@@ -1,15 +1,17 @@
+from decimal import Decimal, ROUND_HALF_UP
 from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.shortcuts import get_object_or_404
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Sum, Avg, F, Case, When, FloatField
+from django.db.models.functions import ExtractHour, ExtractWeekDay
 from django.utils import timezone
 from datetime import datetime, timedelta
 from api.models import (
-    Restaurant, Table, Menu, Order, RestaurateurProfile, MenuItem, 
-    OpeningHours, OpeningPeriod, RestaurantHoursTemplate
+    Restaurant, Table, Menu, Order, RestaurateurProfile, MenuItem,
+    OpeningHours, OpeningPeriod, RestaurantHoursTemplate, OrderItem
 )
 from api.serializers.restaurant_serializers import (
     RestaurantSerializer, 
@@ -186,9 +188,6 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             )
         
         try:
-            from django.db.models import Sum, Avg, F, Case, When, FloatField, DurationField
-            from api.models import OrderItem
-            
             # Période d'analyse (30 derniers jours par défaut)
             period_days = int(request.query_params.get('period_days', 30))
             start_date = timezone.now() - timedelta(days=period_days)
@@ -362,8 +361,6 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             # ====================================================================
             
             # Distribution des commandes par heure
-            from django.db.models.functions import ExtractHour
-            
             hourly_distribution = Order.objects.filter(
                 restaurant=restaurant,
                 created_at__gte=start_date
@@ -434,8 +431,6 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             # ====================================================================
             # 7. INDICATEURS PAR JOUR DE LA SEMAINE
             # ====================================================================
-            
-            from django.db.models.functions import ExtractWeekDay
             
             daily_stats = Order.objects.filter(
                 restaurant=restaurant,
@@ -765,9 +760,6 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                 return stats_response
             
             # Commandes récentes (dernières 24h)
-            from django.db.models import Sum
-            from api.models import OrderItem
-            
             recent_orders = Order.objects.filter(
                 restaurant=restaurant,
                 created_at__gte=timezone.now() - timedelta(days=1)
