@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, TextInput, ScrollView, Alert, Modal, TouchableWithoutFeedback } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ScrollView, Modal, TouchableWithoutFeedback } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { AlertWithAction } from '@/components/ui/Alert';
 
 interface Period {
   startTime: string;
@@ -101,7 +102,7 @@ const TimePicker: React.FC<{
             borderWidth: 1.5,
             borderColor: value ? '#D4AF37' : '#D1D5DB',
             borderRadius: 8,
-            paddingHorizontal: 12,
+            paddingHorizontal: 8,
             paddingVertical: 10,
           }}
         >
@@ -109,7 +110,7 @@ const TimePicker: React.FC<{
             name="time-outline" 
             size={18} 
             color={value ? '#D4AF37' : '#9CA3AF'} 
-            style={{ marginRight: 8 }} 
+            style={{ marginRight: 6 }} 
           />
           <Text style={{
             flex: 1,
@@ -117,7 +118,7 @@ const TimePicker: React.FC<{
             fontWeight: '600',
             color: value ? '#111827' : '#9CA3AF',
             textAlign: 'center',
-          }}>
+          }} numberOfLines={1}>
             {value || placeholder}
           </Text>
           <Ionicons name="chevron-down" size={16} color="#9CA3AF" />
@@ -428,6 +429,12 @@ export const MultiPeriodHoursEditor: React.FC<MultiPeriodHoursEditorProps> = ({
     'Jeudi', 'Vendredi', 'Samedi'
   ];
 
+  const [confirm, setConfirm] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
+
   const SERVICE_PRESETS = [
     { 
       name: 'Service continu', 
@@ -509,56 +516,62 @@ export const MultiPeriodHoursEditor: React.FC<MultiPeriodHoursEditorProps> = ({
   };
 
   const applyPreset = (preset: typeof SERVICE_PRESETS[0]) => {
-    Alert.alert(
-      'Appliquer le modèle',
-      `Voulez-vous appliquer "${preset.name}" à tous les jours ouverts ?`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Appliquer',
-          onPress: () => {
-            const newHours = openingHours.map(day => {
-              if (!day.isClosed) {
-                return { ...day, periods: [...preset.periods] };
-              }
-              return day;
-            });
-            onChange(newHours);
-          }
-        }
-      ]
-    );
+    setConfirm({
+      title: 'Appliquer le modèle',
+      message: `Appliquer "${preset.name}" à tous les jours de la semaine ?`,
+      onConfirm: () => {
+        const newHours = openingHours.map(day => ({
+          ...day,
+          isClosed: false,
+          periods: preset.periods.map(p => ({ ...p })),
+        }));
+        onChange(newHours);
+        setConfirm(null);
+      },
+    });
   };
 
   const copyToWeekdays = (sourceDayIndex: number) => {
     const sourceDay = openingHours[sourceDayIndex];
-    Alert.alert(
-      'Copier les horaires',
-      'Appliquer ces horaires à tous les jours de la semaine (lundi-vendredi) ?',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Appliquer',
-          onPress: () => {
-            const newHours = openingHours.map((day, idx) => {
-              if (idx >= 1 && idx <= 5) {
-                return {
-                  ...day,
-                  isClosed: sourceDay.isClosed,
-                  periods: [...sourceDay.periods]
-                };
-              }
-              return day;
-            });
-            onChange(newHours);
+    setConfirm({
+      title: 'Copier les horaires',
+      message: `Appliquer les horaires de ${DAYS_FR[sourceDayIndex]} à tous les jours de semaine (lundi–vendredi) ?`,
+      onConfirm: () => {
+        const newHours = openingHours.map((day, idx) => {
+          if (idx >= 1 && idx <= 5) {
+            return {
+              ...day,
+              isClosed: sourceDay.isClosed,
+              periods: sourceDay.periods.map(p => ({ ...p })),
+            };
           }
-        }
-      ]
-    );
+          return day;
+        });
+        onChange(newHours);
+        setConfirm(null);
+      },
+    });
   };
 
   return (
     <View style={{ flex: 1 }}>
+      {confirm && (
+        <AlertWithAction
+          variant="info"
+          title={confirm.title}
+          message={confirm.message}
+          autoDismiss={false}
+          primaryButton={{
+            text: 'Appliquer',
+            variant: 'primary',
+            onPress: confirm.onConfirm,
+          }}
+          secondaryButton={{
+            text: 'Annuler',
+            onPress: () => setConfirm(null),
+          }}
+        />
+      )}
       <LinearGradient
         colors={['#FFFCF0', '#FAF7E8']}
         style={{ padding: 16, borderRadius: 12, marginBottom: 20 }}

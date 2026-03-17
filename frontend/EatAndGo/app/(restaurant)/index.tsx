@@ -897,7 +897,7 @@ export default function DashboardScreen() {
                   {isRestaurateur && user?.roles?.has_validated_profile && (
                     <Button
                       title="Créer un restaurant"
-                      onPress={() => router.push('/restaurant/create')}
+                      onPress={() => router.push('/restaurant/add')}
                       variant="primary"
                       size="sm"
                     />
@@ -1020,7 +1020,7 @@ export default function DashboardScreen() {
                 {/* Créer un restaurant */}
                 <TouchableOpacity
                   style={[styles.actionCard, safeRestaurants.length === 0 && styles.actionCardPremium]}
-                  onPress={() => router.push('/restaurant/create')}
+                  onPress={() => router.push('/restaurant/add')}
                 >
                   <View style={styles.actionIcon}>
                     <Ionicons name="add-circle" size={20} color={COLORS.primary} />
@@ -1096,7 +1096,7 @@ export default function DashboardScreen() {
                 <View style={styles.helpActions}>
                   <Button
                     title="Créer mon premier restaurant"
-                    onPress={() => router.push('/restaurant/create')}
+                    onPress={() => router.push('/restaurant/add')}
                     variant="primary"
                     leftIcon={<Ionicons name="add-circle-outline" size={20} color={COLORS.text.inverse} />}
                     fullWidth={isMobile}
