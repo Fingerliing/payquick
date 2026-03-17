@@ -8,7 +8,6 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Header } from '@/components/ui/Header';
@@ -304,7 +303,7 @@ function StatisticsScreenContent({ restaurant }: { restaurant: Restaurant }) {
 
   if (!stats) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <Header title="Statistiques" showBackButton />
         <View style={styles.emptyState}>
           <Ionicons
@@ -318,12 +317,12 @@ function StatisticsScreenContent({ restaurant }: { restaurant: Restaurant }) {
             Les statistiques apparaîtront ici une fois que vous aurez des commandes.
           </Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <Header title="Statistiques avancées" showBackButton />
 
       {/* Bannières d'alertes */}
@@ -490,7 +489,7 @@ function StatisticsScreenContent({ restaurant }: { restaurant: Restaurant }) {
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
