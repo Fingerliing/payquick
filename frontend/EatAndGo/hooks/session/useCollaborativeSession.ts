@@ -103,19 +103,9 @@ export const useCollaborativeSession = (options: UseCollaborativeSessionOptions 
         }
       }
 
-      console.log('[USE_COLLAB_SESSION] sessionId:', sessionId);
-      console.log('[USE_COLLAB_SESSION] resolvedParticipantId:', resolvedParticipantId,
-        externalParticipantIdRef.current ? '(depuis SessionContext)' : '(depuis AsyncStorage)');
-      console.log('[USE_COLLAB_SESSION] session.participants:', JSON.stringify(
-        session.participants?.map(p => ({ id: p.id, status: p.status, is_host: p.is_host }))
-      ));
-
       const currentParticipant = session.participants.find(
         p => p.id === resolvedParticipantId && p.status === 'active'
       ) || null;
-
-      console.log('[USE_COLLAB_SESSION] currentParticipant:', JSON.stringify(currentParticipant));
-      console.log('[USE_COLLAB_SESSION] isHost calculé:', currentParticipant?.is_host || false);
 
       const isHost = currentParticipant?.is_host || false;
       const canManage = isHost;
@@ -240,7 +230,10 @@ export const useCollaborativeSession = (options: UseCollaborativeSessionOptions 
         state.currentParticipant.id
       );
 
-      await AsyncStorage.removeItem(`session_participant_${sessionId}`);
+      await AsyncStorage.multiRemove([
+        `session_participant_${sessionId}`,
+        GLOBAL_PARTICIPANT_ID_KEY,
+      ]);
 
       if (!mountedRef.current) return;
 
@@ -376,7 +369,6 @@ export const useCollaborativeSession = (options: UseCollaborativeSessionOptions 
     // session_update couvre les cas restants (participant_pending,
     // participant_rejected, make_host, mises à jour de montant…)
     const unsubUpdate = on('session_update', () => {
-      console.log('[WS] session_update → reload session');
       loadSession();
     });
 

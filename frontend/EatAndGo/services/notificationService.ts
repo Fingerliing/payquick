@@ -58,7 +58,6 @@ export interface NotificationListResponse {
 // CONFIGURATION
 // =============================================================================
 
-// Configuration du comportement des notifications
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -69,7 +68,6 @@ Notifications.setNotificationHandler({
   }),
 });
 
-// Clés de stockage
 const STORAGE_KEYS = {
   EXPO_TOKEN: 'expo_push_token',
   NOTIFICATION_PERMISSIONS: 'notification_permissions',
@@ -91,28 +89,21 @@ class NotificationService {
   // INITIALISATION
   // ===========================================================================
 
-  /**
-   * Initialiser le service de notifications
-   * À appeler au démarrage de l'application
-   */
   async initialize(): Promise<string | null> {
     try {
       console.log('📱 Initialisation du service de notifications...');
 
-      // Vérifier si c'est un appareil physique
       if (!Device.isDevice) {
         console.warn('⚠️ Les notifications push ne fonctionnent que sur les appareils physiques');
         return null;
       }
 
-      // Demander les permissions
       const hasPermission = await this.requestPermissions();
       if (!hasPermission) {
         console.warn('⚠️ Permissions de notification refusées');
         return null;
       }
 
-      // Obtenir le token Expo Push
       const token = await this.getExpoPushToken();
       if (!token) {
         console.error('❌ Impossible d\'obtenir le token push');
@@ -122,12 +113,10 @@ class NotificationService {
       this.expoPushToken = token;
       console.log('✅ Token push obtenu:', token.substring(0, 30) + '...');
 
-      // Configurer les canaux Android
       if (Platform.OS === 'android') {
         await this.setupAndroidChannels();
       }
 
-      // Configurer les listeners
       this.setupNotificationListeners();
 
       return token;
@@ -137,9 +126,6 @@ class NotificationService {
     }
   }
 
-  /**
-   * Nettoyer les listeners (à appeler lors du démontage)
-   */
   cleanup(): void {
     if (this.notificationListener) {
       this.notificationListener.remove();
@@ -155,9 +141,6 @@ class NotificationService {
   // PERMISSIONS
   // ===========================================================================
 
-  /**
-   * Demander les permissions de notification
-   */
   async requestPermissions(): Promise<boolean> {
     try {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -181,9 +164,6 @@ class NotificationService {
     }
   }
 
-  /**
-   * Vérifier si les permissions sont accordées
-   */
   async hasPermissions(): Promise<boolean> {
     const { status } = await Notifications.getPermissionsAsync();
     return status === 'granted';
@@ -193,23 +173,17 @@ class NotificationService {
   // TOKEN MANAGEMENT
   // ===========================================================================
 
-  /**
-   * Obtenir le token Expo Push
-   */
   async getExpoPushToken(): Promise<string | null> {
     try {
-      // Vérifier le cache
       const cachedToken = await AsyncStorage.getItem(STORAGE_KEYS.EXPO_TOKEN);
       if (cachedToken) {
         return cachedToken;
       }
 
-      // Obtenir un nouveau token
       const { data: token } = await Notifications.getExpoPushTokenAsync({
-        projectId: process.env.EXPO_PUBLIC_PROJECT_ID, // Depuis app.json ou env
+        projectId: process.env.EXPO_PUBLIC_PROJECT_ID,
       });
 
-      // Sauvegarder
       await AsyncStorage.setItem(STORAGE_KEYS.EXPO_TOKEN, token);
 
       return token;
@@ -220,8 +194,15 @@ class NotificationService {
   }
 
   /**
-   * Enregistrer le token sur le serveur
+   * Effacer le token push en cache local.
+   * À appeler après unregisterTokenFromServer() lors de la déconnexion,
+   * pour éviter que le même token soit réassocié au prochain login.
    */
+  async clearCachedToken(): Promise<void> {
+    await AsyncStorage.removeItem(STORAGE_KEYS.EXPO_TOKEN);
+    this.expoPushToken = null;
+  }
+
   async registerTokenOnServer(guestPhone?: string): Promise<boolean> {
     try {
       const token = this.expoPushToken || await this.getExpoPushToken();
@@ -230,10 +211,9 @@ class NotificationService {
         return false;
       }
 
-      // Obtenir l'ID de l'appareil
       const deviceId = await this.getDeviceId();
 
-      const response = await apiClient.post('/api/v1/notifications/tokens/register/', {
+      await apiClient.post('/api/v1/notifications/tokens/register/', {
         expo_token: token,
         device_id: deviceId,
         device_name: Device.deviceName || 'Unknown',
@@ -243,20 +223,24 @@ class NotificationService {
 
       console.log('✅ Token enregistré sur le serveur');
       return true;
-    } catch (error) {
+    } catch (error: any) {
+      // Token déjà associé à un autre compte sur ce device — non bloquant.
+      // Fix backend requis : utiliser update_or_create sur expo_token
+      // pour réassocier automatiquement le token à l'utilisateur courant.
+      if (error?.code === 403) {
+        console.warn('⚠️ Token push déjà associé à un autre compte — enregistrement ignoré');
+        return false;
+      }
       console.error('❌ Erreur enregistrement token:', error);
       return false;
     }
   }
 
-  /**
-   * Supprimer le token du serveur (déconnexion)
-   */
   async unregisterTokenFromServer(): Promise<boolean> {
     try {
       const token = this.expoPushToken || await AsyncStorage.getItem(STORAGE_KEYS.EXPO_TOKEN);
       if (!token) {
-        return true; // Pas de token à supprimer
+        return true;
       }
 
       await apiClient.post('/api/v1/notifications/tokens/unregister/', {
@@ -271,9 +255,6 @@ class NotificationService {
     }
   }
 
-  /**
-   * Obtenir ou générer un ID d'appareil unique
-   */
   private async getDeviceId(): Promise<string> {
     let deviceId = await AsyncStorage.getItem(STORAGE_KEYS.DEVICE_ID);
     if (!deviceId) {
@@ -287,11 +268,7 @@ class NotificationService {
   // LISTENERS
   // ===========================================================================
 
-  /**
-   * Configurer les listeners de notifications
-   */
   private setupNotificationListeners(): void {
-    // Notification reçue en foreground
     this.notificationListener = Notifications.addNotificationReceivedListener(
       (notification) => {
         console.log('📬 Notification reçue:', notification.request.content.title);
@@ -301,7 +278,6 @@ class NotificationService {
       }
     );
 
-    // Réponse à une notification (tap)
     this.responseListener = Notifications.addNotificationResponseReceivedListener(
       (response) => {
         console.log('👆 Notification tapée:', response.notification.request.content.title);
@@ -312,16 +288,10 @@ class NotificationService {
     );
   }
 
-  /**
-   * Définir le callback pour les notifications reçues
-   */
   setOnNotificationReceived(callback: (notification: Notifications.Notification) => void): void {
     this.onNotificationReceived = callback;
   }
 
-  /**
-   * Définir le callback pour les réponses aux notifications
-   */
   setOnNotificationResponse(callback: (response: Notifications.NotificationResponse) => void): void {
     this.onNotificationResponse = callback;
   }
@@ -330,45 +300,38 @@ class NotificationService {
   // CANAUX ANDROID
   // ===========================================================================
 
-  /**
-   * Configurer les canaux de notification Android
-   */
   private async setupAndroidChannels(): Promise<void> {
-    // Canal par défaut
     await Notifications.setNotificationChannelAsync('default', {
       name: 'Notifications générales',
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#D4AF37', // Or EatQuickeR
+      lightColor: '#D4AF37',
       sound: 'default',
     });
 
-    // Canal pour les commandes prêtes (haute priorité)
     await Notifications.setNotificationChannelAsync('orders', {
       name: 'Commandes',
       description: 'Notifications de suivi des commandes',
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 500, 250, 500],
-      lightColor: '#22C55E', // Vert succès
+      lightColor: '#22C55E',
       sound: 'default',
     });
 
-    // Canal pour les paiements
     await Notifications.setNotificationChannelAsync('payments', {
       name: 'Paiements',
       description: 'Notifications de paiement',
       importance: Notifications.AndroidImportance.HIGH,
-      lightColor: '#3B82F6', // Bleu
+      lightColor: '#3B82F6',
       sound: 'default',
     });
 
-    // Canal pour les restaurateurs (nouvelles commandes)
     await Notifications.setNotificationChannelAsync('restaurant', {
       name: 'Restaurant',
       description: 'Notifications pour les restaurateurs',
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 1000, 500, 1000],
-      lightColor: '#EF4444', // Rouge urgent
+      lightColor: '#EF4444',
       sound: 'default',
     });
 
@@ -379,9 +342,6 @@ class NotificationService {
   // API SERVEUR - PRÉFÉRENCES
   // ===========================================================================
 
-  /**
-   * Récupérer les préférences de notification
-   */
   async getPreferences(): Promise<NotificationPreferences | null> {
     try {
       const response = await apiClient.get('/api/v1/notifications/preferences/');
@@ -392,9 +352,6 @@ class NotificationService {
     }
   }
 
-  /**
-   * Mettre à jour les préférences de notification
-   */
   async updatePreferences(preferences: Partial<NotificationPreferences>): Promise<NotificationPreferences | null> {
     try {
       const response = await apiClient.patch('/api/v1/notifications/preferences/', preferences);
@@ -409,9 +366,6 @@ class NotificationService {
   // API SERVEUR - HISTORIQUE
   // ===========================================================================
 
-  /**
-   * Récupérer la liste des notifications
-   */
   async getNotifications(params?: {
     page?: number;
     page_size?: number;
@@ -427,9 +381,6 @@ class NotificationService {
     }
   }
 
-  /**
-   * Récupérer le nombre de notifications non lues
-   */
   async getUnreadCount(): Promise<number> {
     try {
       const response = await apiClient.get('/api/v1/notifications/unread-count/');
@@ -440,9 +391,6 @@ class NotificationService {
     }
   }
 
-  /**
-   * Marquer une notification comme lue
-   */
   async markAsRead(notificationId: string): Promise<boolean> {
     try {
       await apiClient.post(`/api/v1/notifications/${notificationId}/read/`);
@@ -453,9 +401,6 @@ class NotificationService {
     }
   }
 
-  /**
-   * Marquer toutes les notifications comme lues
-   */
   async markAllAsRead(): Promise<number> {
     try {
       const response = await apiClient.post('/api/v1/notifications/read-all/');
@@ -466,9 +411,6 @@ class NotificationService {
     }
   }
 
-  /**
-   * Supprimer une notification
-   */
   async deleteNotification(notificationId: string): Promise<boolean> {
     try {
       await apiClient.delete(`/api/v1/notifications/${notificationId}/`);
@@ -483,9 +425,6 @@ class NotificationService {
   // NOTIFICATIONS LOCALES
   // ===========================================================================
 
-  /**
-   * Afficher une notification locale (pour les mises à jour WebSocket)
-   */
   async showLocalNotification(
     title: string,
     body: string,
@@ -499,22 +438,16 @@ class NotificationService {
         data: data as any,
         sound: 'default',
       },
-      trigger: null, // Immédiat
+      trigger: null,
     });
 
     return identifier;
   }
 
-  /**
-   * Mettre à jour le badge de l'application
-   */
   async setBadgeCount(count: number): Promise<void> {
     await Notifications.setBadgeCountAsync(count);
   }
 
-  /**
-   * Effacer toutes les notifications affichées
-   */
   async clearAllNotifications(): Promise<void> {
     await Notifications.dismissAllNotificationsAsync();
   }
@@ -523,23 +456,14 @@ class NotificationService {
   // UTILITAIRES
   // ===========================================================================
 
-  /**
-   * Obtenir le token actuel
-   */
   getToken(): string | null {
     return this.expoPushToken;
   }
 
-  /**
-   * Vérifier si le service est initialisé
-   */
   isInitialized(): boolean {
     return this.expoPushToken !== null;
   }
 }
 
-// Instance singleton
 export const notificationService = new NotificationService();
-
-// Export par défaut
 export default notificationService;

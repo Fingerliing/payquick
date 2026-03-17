@@ -9,7 +9,6 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 from datetime import timedelta
 from decimal import Decimal, ROUND_HALF_UP
-from celery import shared_task
 import uuid
 import random
 import string
@@ -163,8 +162,10 @@ class CollaborativeTableSession(models.Model):
             letters = ''.join(random.choices(string.ascii_uppercase, k=3))
             digits = ''.join(random.choices(string.digits, k=3))
             code = letters + digits
-            
-            if not CollaborativeTableSession.objects.filter(share_code=code).exists():
+
+            # Vérifier l'unicité sur TOUTES les sessions, y compris archivées,
+            # pour éviter de réutiliser un code qui pourrait encore être référencé.
+            if not CollaborativeTableSession.all_objects.filter(share_code=code).exists():
                 return code
     
     @property

@@ -243,6 +243,20 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [saveSession]);
 
   // =============================================================================
+  // NETTOYER LA SESSION
+  // =============================================================================
+
+  const clearSession = useCallback(async () => {
+    try {
+      await AsyncStorage.multiRemove([SESSION_STORAGE_KEY, PARTICIPANT_ID_STORAGE_KEY]);
+      setSession(null);
+      setParticipantId(null);
+    } catch (error) {
+      console.error('[SessionContext] Erreur nettoyage:', error);
+    }
+  }, []);
+
+  // =============================================================================
   // QUITTER LA SESSION
   // =============================================================================
 
@@ -259,21 +273,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } finally {
       setIsLoading(false);
     }
-  }, [session, participantId]);
-
-  // =============================================================================
-  // NETTOYER LA SESSION
-  // =============================================================================
-
-  const clearSession = useCallback(async () => {
-    try {
-      await AsyncStorage.multiRemove([SESSION_STORAGE_KEY, PARTICIPANT_ID_STORAGE_KEY]);
-      setSession(null);
-      setParticipantId(null);
-    } catch (error) {
-      console.error('[SessionContext] Erreur nettoyage:', error);
-    }
-  }, []);
+  }, [session, participantId, clearSession]);
 
 
   // =============================================================================

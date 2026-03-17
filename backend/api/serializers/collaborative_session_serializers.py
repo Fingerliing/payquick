@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from api.models import (
-    CollaborativeTableSession, SessionParticipant, SessionCartItem, Order, Restaurant, Table
+    CollaborativeTableSession, SessionParticipant, SessionCartItem, Order, Restaurant, Table, MenuItem
 )
 from django.contrib.auth.models import User
 
@@ -228,9 +228,7 @@ class SessionCartItemSerializer(serializers.ModelSerializer):
     )
     # Write-only : ID de l'article de menu
     menu_item = serializers.PrimaryKeyRelatedField(
-        queryset=__import__(
-            'api.models', fromlist=['MenuItem']
-        ).MenuItem.objects.all()
+        queryset=MenuItem.objects.all()
     )
 
     class Meta:
@@ -251,8 +249,10 @@ class SessionCartSerializer(serializers.Serializer):
     total = serializers.SerializerMethodField()
     items_count = serializers.SerializerMethodField()
 
-    def get_total(self, items):
-        return sum(item.total_price for item in items)
+    def get_total(self, obj):
+        items = obj.get('items', []) if isinstance(obj, dict) else getattr(obj, 'items', [])
+        return sum(getattr(item, 'total_price', 0) for item in items)
 
-    def get_items_count(self, items):
-        return sum(item.quantity for item in items)
+    def get_items_count(self, obj):
+        items = obj.get('items', []) if isinstance(obj, dict) else getattr(obj, 'items', [])
+        return sum(getattr(item, 'quantity', 0) for item in items)

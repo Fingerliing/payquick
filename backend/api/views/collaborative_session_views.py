@@ -441,6 +441,7 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
                     else "En attente d'approbation"
                 ),
                 'participant': SessionParticipantSerializer(participant).data,
+                'participant_id': str(participant.id),
                 'session': CollaborativeSessionSerializer(
                     session, context={'request': request}
                 ).data,
@@ -570,6 +571,13 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
         AVEC archivage automatique après completion
         """
         session = self.get_object()
+
+        if not self._can_manage_session(request, session):
+            return Response(
+                {'error': "Seul l'hôte ou le restaurateur peut effectuer cette action."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         serializer = SessionActionSerializer(data=request.data)
 
         if not serializer.is_valid():
@@ -1166,6 +1174,12 @@ class SessionParticipantViewSet(viewsets.ReadOnlyModelViewSet):
                 participant.save()
                 message = 'Participation rejetée'
                 self._notify_session_update(session, event='participant_rejected', actor=actor)
+                return Response({
+                    'message': message,
+                    'participant': SessionParticipantSerializer(
+                        participant, context={'request': request}
+                    ).data
+                })
 
             elif action_type == 'remove':
                 participant.status = 'removed'
@@ -1190,6 +1204,12 @@ class SessionParticipantViewSet(viewsets.ReadOnlyModelViewSet):
                 self._notify_session_update(
                     session, event='make_host', actor=participant.display_name
                 )
+                return Response({
+                    'message': message,
+                    'participant': SessionParticipantSerializer(
+                        participant, context={'request': request}
+                    ).data
+                })
 
             self._notify_session_update(session, event=action_type, actor=actor)
 

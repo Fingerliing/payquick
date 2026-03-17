@@ -518,8 +518,12 @@ class InitiateRegistrationView(APIView):
                         'registration_id': str(existing.id)
                     }, status=status.HTTP_429_TOO_MANY_REQUESTS)
 
-                # Réutiliser l'inscription existante avec un nouveau code
+                # Réutiliser l'inscription existante avec les données mises à jour
                 pending = existing
+                pending.password_hash = make_password(data['password'])
+                pending.nom = data['nom']
+                pending.telephone = data.get('telephone', '')
+                pending.siret = data.get('siret', '')
                 pending.generate_code()
                 pending.last_resend_at = timezone.now()
                 pending.attempts = 0
@@ -685,8 +689,8 @@ class VerifyRegistrationView(APIView):
                     'refresh': str(refresh)
                 }, status=status.HTTP_201_CREATED)
 
-        except Exception as e:
-            logger.error(f"Erreur lors de la vérification du code: {str(e)}")
+        except Exception:
+            logger.exception("Erreur lors de la vérification du code")
             return Response({
                 'error': 'Une erreur est survenue lors de la vérification.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -88,13 +88,15 @@ export const useSessionWebSocket = (
     mountedRef.current = true;
     if (!sessionId) return;
 
-    let entry: WsEntry;
+    // Référence mutable pour stocker le cleanup des listeners d'état (connected/disconnected/error).
+    // Définie dans la closure sync pour que le cleanup de l'effet puisse l'appeler même si
+    // le composant se démonte avant que le .then() ne résout.
+    const listenerCleanupRef = { fn: () => {} };
 
-    // Récupérer le token au montage pour l'URL WS
     AsyncStorage.getItem('access_token').then(token => {
       if (!mountedRef.current) return;
 
-      entry = getOrCreateEntry(sessionId, token);
+      const entry = getOrCreateEntry(sessionId, token);
       entry.refCount += 1;
       entryRef.current = entry;
 
@@ -121,18 +123,18 @@ export const useSessionWebSocket = (
       entry.disconnectedListeners.add(onDisconnected);
       entry.ws.on('error', onError);
 
-      // Cleanup de ce consommateur
-      return () => {
+      // Enregistrer le cleanup dans la ref accessible par l'effet parent
+      listenerCleanupRef.fn = () => {
         entry.connectedListeners.delete(onConnected);
         entry.disconnectedListeners.delete(onDisconnected);
         entry.ws.off('error', onError);
-        releaseEntry(sessionId);
-        entryRef.current = null;
       };
     });
 
     return () => {
       mountedRef.current = false;
+      // Nettoyer les listeners d'état (qu'ils aient été enregistrés ou non)
+      listenerCleanupRef.fn();
       if (entryRef.current) {
         releaseEntry(sessionId);
         entryRef.current = null;

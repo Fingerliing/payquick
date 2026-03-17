@@ -57,7 +57,7 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
   onOrderAlone,
 }) => {
   // ── SessionContext : persiste participantId en mémoire React après création ─
-  const { createSession: ctxCreateSession } = useSession();
+  const { createSession: ctxCreateSession, joinSession: ctxJoinSession, activatePendingSession } = useSession();
 
   const [loading, setLoading] = useState(false);
   const [existingSession, setExistingSession] = useState<CollaborativeSession | null>(
@@ -227,7 +227,7 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
 
     setLoading(true);
     try {
-      const result = await collaborativeSessionService.joinSession({
+      const result = await ctxJoinSession({
         share_code: shareCode.toUpperCase(),
         guest_name: guestName,
       });
@@ -281,6 +281,10 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
       try {
         // Récupérer la session à jour pour passer l'objet complet au callback
         const session = await collaborativeSessionService.getSession(pendingSessionId);
+        // ✅ Hydrater le SessionContext avec la session et le participantId
+        if (pendingParticipantId) {
+          await activatePendingSession(session, pendingParticipantId);
+        }
         showAlert({
           variant: 'success',
           title: '✅ Accepté !',
@@ -292,7 +296,8 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
         });
       } catch {
         // Fallback minimal si le fetch échoue — on utilise la session en cache
-        if (pendingSession) {
+        if (pendingSession && pendingParticipantId) {
+          await activatePendingSession(pendingSession, pendingParticipantId);
           onSessionJoined?.(pendingSession);
           onClose();
         }
@@ -342,6 +347,9 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
           if (approvalHandledRef.current) return;
           approvalHandledRef.current = true;
           clearInterval(interval);
+          if (pendingParticipantId) {
+            await activatePendingSession(session, pendingParticipantId);
+          }
           showAlert({
             variant: 'success',
             title: '✅ Accepté !',
@@ -610,6 +618,7 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
         onPress={() => {
           setMode('choose');
           setPendingParticipantId(null);
+          setPendingSessionId(null);
           setPendingSession(null);
         }}
       >

@@ -17,7 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { Alert as CustomAlert } from '@/components/ui/Alert';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import secureStorage from '@/utils/secureStorage';
 import { legalService } from '@/services/legalService';
 import { API_BASE_URL } from '@/constants/config';
 import {
@@ -138,11 +138,8 @@ export default function VerifyEmailScreen() {
       }
 
       if (data.access && data.refresh) {
-        await AsyncStorage.multiSet([
-          ['access_token', data.access],
-          ['refresh_token', data.refresh],
-        ]);
-        // Enregistrer le consentement légal maintenant que le token est disponible
+        await secureStorage.setItem('access_token', data.access);
+        await secureStorage.setItem('refresh_token', data.refresh);
         try {
           await legalService.recordConsent({
             terms_version: '1.0.0',

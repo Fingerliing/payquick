@@ -160,14 +160,15 @@ def auto_complete_inactive_sessions():
                 except Exception as e:
                     logger.warning(f"Notification WebSocket échouée pour {session.id}: {e}")
 
-                # Programmer l'archivage dans 5 minutes
-                auto_archive_eligible_sessions.apply_async(countdown=300)
-
                 count += 1
                 logger.info(f"✅ Session {session.id} auto-complétée (inactivité >15min)")
 
             except Exception as e:
                 logger.error(f"Erreur auto-completion session {session.id}: {e}")
+
+        if count > 0:
+            # Programmer l'archivage une seule fois pour toutes les sessions complétées
+            auto_archive_eligible_sessions.apply_async(countdown=300)
 
         logger.info(f"✅ {count} session(s) auto-complétée(s) pour inactivité")
         return f"{count} session(s) auto-complétée(s)"
@@ -273,11 +274,7 @@ def force_archive_abandoned_sessions(hours=12):
 __all__ = [
     'archive_session_delayed',
     'auto_archive_eligible_sessions',
+    'auto_complete_inactive_sessions',
     'cleanup_old_archived_sessions',
     'force_archive_abandoned_sessions',
-    'generate_monthly_recap',
-    'sync_stripe_daily',
-    'cleanup_old_exports',
-    'generate_ecritures_comptables',
-    'generate_fec_async',
 ]
