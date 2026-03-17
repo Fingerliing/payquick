@@ -23,6 +23,9 @@ from drf_spectacular.types import OpenApiTypes
 import os
 import traceback
 import mimetypes
+import logging
+
+logger = logging.getLogger(__name__)
 
 @extend_schema(tags=["Restaurant • Restaurants"])
 class RestaurantViewSet(viewsets.ModelViewSet):

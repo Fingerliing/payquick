@@ -147,15 +147,14 @@ const restaurantReducer = (state: RestaurantState, action: RestaurantAction): Re
 const normalizeRestaurantData = (data: any): Restaurant => {
   return {
     ...data,
-    id: String(data.id), // S'assurer que l'id est toujours une string
+    id: String(data.id),
     openingHours: data.openingHours || data.opening_hours || [],
-    // Gérer location si pas présent
     location: data.location || {
       latitude: data.latitude || 0,
       longitude: data.longitude || 0,
     },
-    // S'assurer que can_receive_orders est toujours défini
     can_receive_orders: data.can_receive_orders ?? false,
+    image_url: data.image_url || data.image || null,
   };
 };
 

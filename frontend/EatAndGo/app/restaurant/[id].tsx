@@ -10,6 +10,7 @@ import {
   Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useRestaurant } from '@/contexts/RestaurantContext';
@@ -106,6 +107,20 @@ const useTemporaryClose = () => {
   };
 };
 
+const CUISINE_LABELS: Record<string, string> = {
+  french: 'Française',
+  italian: 'Italienne',
+  asian: 'Asiatique',
+  mexican: 'Mexicaine',
+  indian: 'Indienne',
+  american: 'Américaine',
+  mediterranean: 'Méditerranéenne',
+  japanese: 'Japonaise',
+  chinese: 'Chinoise',
+  thai: 'Thaïlandaise',
+  other: 'Autre',
+};
+
 const RestaurantDetailPage = () => {
   const params = useLocalSearchParams();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -116,6 +131,7 @@ const RestaurantDetailPage = () => {
     error, 
     loadRestaurant, 
     updateRestaurant,
+    deleteRestaurant,
     clearCurrentRestaurant 
   } = useRestaurant();
 
@@ -189,6 +205,8 @@ const RestaurantDetailPage = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [showHoursEditModal, setShowHoursEditModal] = useState(false);
   const [tempHours, setTempHours] = useState<OpeningHours[]>([]);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Charger le restaurant au montage
   useEffect(() => {
@@ -383,11 +401,13 @@ const RestaurantDetailPage = () => {
           await restaurantService.uploadRestaurantImage(id, result.assets[0].uri);
           await loadRestaurant(id);
           showToast('success', 'Image mise à jour', 'Succès');
-        } catch {
+        } catch (e) {
+          console.error('[upload] erreur:', JSON.stringify(e));
           showToast('error', "Impossible de mettre à jour l'image", 'Erreur');
         }
       }
-    } catch {
+    } catch (e) {
+      console.error('[imagePicker] erreur:', JSON.stringify(e));
       showToast('error', "Erreur lors de la sélection de l'image", 'Erreur');
     }
   }, [id, loadRestaurant]);
@@ -403,6 +423,22 @@ const RestaurantDetailPage = () => {
       setRefreshing(false);
     }
   }, [id, loadRestaurant]);
+
+  const handleDeleteRestaurant = useCallback(async () => {
+    if (!id || typeof id !== 'string') return;
+
+    setIsDeleting(true);
+    try {
+      await deleteRestaurant(id);
+      setShowDeleteModal(false);
+      router.replace('/restaurant/restaurants');
+    } catch {
+      setShowDeleteModal(false);
+      showToast('error', 'Impossible de supprimer le restaurant', 'Erreur');
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [id, deleteRestaurant]);
 
   // État de statut mémorisé
   const statusBadge = useMemo(() => {
@@ -751,7 +787,7 @@ const RestaurantDetailPage = () => {
   // États de chargement et d'erreur
   if (isLoading) {
     return (
-      <SafeAreaView style={dynamicStyles.container}>
+      <View style={dynamicStyles.container}>
         <Header title="Restaurant" showBackButton onLeftPress={() => router.back()} />
         <View style={{ paddingHorizontal: 16, marginTop: 8, zIndex: 10 }}>
           {toast.visible && (
@@ -765,13 +801,13 @@ const RestaurantDetailPage = () => {
           )}
         </View>
         <Loading fullScreen text="Chargement du restaurant..." />
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (error || !currentRestaurant) {
     return (
-      <SafeAreaView style={dynamicStyles.container}>
+      <View style={dynamicStyles.container}>
         <Header title="Restaurant" showBackButton onLeftPress={() => router.back()} />
         <View style={{ paddingHorizontal: 16, marginTop: 8, zIndex: 10 }}>
           {toast.visible && (
@@ -799,14 +835,15 @@ const RestaurantDetailPage = () => {
             fullWidth
           />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
   
   return (
-    <SafeAreaView style={dynamicStyles.container}>
+    <View style={dynamicStyles.container}>
       <Header 
-        title={currentRestaurant.name} 
+        title={currentRestaurant.name}
+        subtitle={`${currentRestaurant.cuisine ? (CUISINE_LABELS[currentRestaurant.cuisine] ?? currentRestaurant.cuisine) : ''} · ${currentRestaurant.city}`}
         showBackButton
         onLeftPress={() => router.back()}
       />
@@ -882,7 +919,7 @@ const RestaurantDetailPage = () => {
                     onPress={() => setShowCloseModal(true)}
                     variant="destructive"
                     fullWidth
-                    leftIcon={<Ionicons name="close-circle" size={22} color={COLORS.text.inverse} />}
+                    leftIcon={<Ionicons name="close-circle" size={22} color={COLORS.error} />}
                   />
                 )}
               </View>
@@ -1149,7 +1186,7 @@ const RestaurantDetailPage = () => {
                         <View style={dynamicStyles.infoContent}>
                           <Text style={dynamicStyles.infoLabel}>Type de cuisine</Text>
                           <Text style={[dynamicStyles.infoValue, { textTransform: 'capitalize' }]}>
-                            {currentRestaurant.cuisine}
+                            {CUISINE_LABELS[currentRestaurant.cuisine] ?? currentRestaurant.cuisine}
                           </Text>
                         </View>
                       </View>
@@ -1379,7 +1416,84 @@ const RestaurantDetailPage = () => {
         </SafeAreaView>
       </Modal>
 
-    </SafeAreaView>
+      {/* Modal de suppression */}
+      <Modal
+        visible={showDeleteModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => !isDeleting && setShowDeleteModal(false)}
+      >
+        <View style={dynamicStyles.modalOverlay}>
+          <View style={dynamicStyles.modalContainer}>
+            <View style={{
+              width: 56,
+              height: 56,
+              borderRadius: 28,
+              backgroundColor: '#FEE2E2',
+              justifyContent: 'center',
+              alignItems: 'center',
+              alignSelf: 'center',
+              marginBottom: 16,
+            }}>
+              <Ionicons name="trash" size={28} color={COLORS.error} />
+            </View>
+
+            <Text style={[dynamicStyles.modalTitle, { textAlign: 'center', marginBottom: 8 }]}>
+              Supprimer le restaurant ?
+            </Text>
+
+            <Text style={{
+              fontSize: fontSize.body,
+              color: COLORS.text.secondary,
+              textAlign: 'center',
+              lineHeight: fontSize.body * 1.6,
+              marginBottom: 8,
+            }}>
+              Vous êtes sur le point de supprimer{' '}
+              <Text style={{ fontWeight: TYPOGRAPHY.fontWeight.bold, color: COLORS.text.primary }}>
+                {currentRestaurant?.name}
+              </Text>
+              . Cette action est irréversible.
+            </Text>
+
+            <Text style={{
+              fontSize: fontSize.small,
+              color: COLORS.error,
+              textAlign: 'center',
+              marginBottom: layoutConfig.cardSpacing * 1.5,
+              fontWeight: TYPOGRAPHY.fontWeight.semibold,
+            }}>
+              Tables, menus et commandes seront supprimés définitivement.
+            </Text>
+
+            <View style={dynamicStyles.modalActions}>
+              <View style={{ flex: 1 }}>
+                <Button
+                  title="Annuler"
+                  onPress={() => setShowDeleteModal(false)}
+                  variant="outline"
+                  disabled={isDeleting}
+                  fullWidth
+                />
+              </View>
+
+              <View style={{ flex: 1 }}>
+                <Button
+                  title={isDeleting ? 'Suppression...' : 'Supprimer'}
+                  onPress={handleDeleteRestaurant}
+                  variant="destructive"
+                  loading={isDeleting}
+                  disabled={isDeleting}
+                  leftIcon={!isDeleting ? <Ionicons name="trash" size={18} color={COLORS.primary} /> : undefined}
+                  fullWidth
+                />
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+    </View>
   );
 
   function renderSideContent() {
@@ -1695,6 +1809,45 @@ const RestaurantDetailPage = () => {
               <Ionicons name="chevron-forward" size={20} color={COLORS.text.secondary} />
             </TouchableOpacity>
           </View>
+        </Card>
+
+        {/* Zone de danger */}
+        <Card style={{
+          backgroundColor: '#FFF5F5',
+          borderRadius: BORDER_RADIUS.xl,
+          padding: getResponsiveValue(SPACING.card, screenType) + 4,
+          marginBottom: layoutConfig.cardSpacing,
+          borderWidth: 1.5,
+          borderColor: '#FED7D7',
+          ...SHADOWS.card,
+        }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+            <Ionicons name="warning" size={20} color={COLORS.error} style={{ marginRight: 8 }} />
+            <Text style={{
+              fontSize: fontSize.subtitle,
+              fontWeight: TYPOGRAPHY.fontWeight.bold,
+              color: COLORS.error,
+            }}>
+              Zone de danger
+            </Text>
+          </View>
+
+          <Text style={{
+            fontSize: fontSize.small,
+            color: COLORS.text.secondary,
+            lineHeight: fontSize.small * 1.6,
+            marginBottom: 16,
+          }}>
+            La suppression est définitive. Toutes les données associées (tables, menus, commandes, horaires) seront perdues et ne pourront pas être récupérées.
+          </Text>
+
+          <Button
+            title="Supprimer ce restaurant"
+            onPress={() => setShowDeleteModal(true)}
+            variant="destructive"
+            fullWidth
+            leftIcon={<Ionicons name="trash" size={20} color={COLORS.primary} />}
+          />
         </Card>
       </>
     );

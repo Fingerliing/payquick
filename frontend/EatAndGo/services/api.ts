@@ -42,6 +42,12 @@ class ApiClient {
     // Intercepteur requêtes: injecte le token s'il existe
     this.client.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
       
+      // Pour FormData, supprimer le Content-Type afin qu'Axios le génère
+      // automatiquement avec le boundary correct (multipart/form-data; boundary=...)
+      if (config.data instanceof FormData) {
+        delete (config.headers as Record<string, string>)['Content-Type'];
+      }
+
       // Ne pas injecter le token sur les endpoints publics
       const PUBLIC_ENDPOINTS = ['/auth/login', '/auth/register', '/auth/refresh'];
       const isPublicEndpoint = PUBLIC_ENDPOINTS.some(ep => config.url?.includes(ep));

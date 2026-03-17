@@ -1,6 +1,7 @@
 import { Restaurant } from '@/types/restaurant';
 import { SearchFilters, PaginatedResponse } from '@/types/common';
 import { apiClient } from './api';
+import secureStorage from '@/utils/secureStorage';
 import {
   RestaurantStatistics,
   RestaurantDashboard,
@@ -38,6 +39,7 @@ const normalizeRestaurantData = (data: any): Restaurant => {
       longitude: data.longitude || 0,
     },
     can_receive_orders: data.can_receive_orders ?? false,
+    image_url: data.image_url || data.image || null,
   };
 };
 
@@ -502,18 +504,33 @@ export class RestaurantService {
   }
 
   async uploadRestaurantImage(restaurantId: string, imageUri: string): Promise<void> {
-    const formData = new FormData();
     const filename = imageUri.split('/').pop() ?? 'restaurant.jpg';
     const ext = filename.split('.').pop()?.toLowerCase() ?? 'jpg';
     const mimeType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
 
-    formData.append('image', {
-      uri: imageUri,
-      name: filename,
-      type: mimeType,
-    } as any);
+    const formData = new FormData();
+    formData.append('image', { uri: imageUri, name: filename, type: mimeType } as any);
 
-    await apiClient.post(`api/v1/restaurants/${restaurantId}/upload_image/`, formData);
+    const token =
+      (await secureStorage.getItem('access_token')) ||
+      (await secureStorage.getItem('auth_token')) ||
+      (await secureStorage.getItem('token'));
+
+    const baseUrl = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000').replace(/\/$/, '');
+
+    const response = await fetch(
+      `${baseUrl}/api/v1/restaurants/${restaurantId}/upload_image/`,
+      {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      }
+    );
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => response.status.toString());
+      throw new Error(`Upload échoué (${response.status}): ${text}`);
+    }
   }
 
   /**
