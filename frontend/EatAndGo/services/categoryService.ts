@@ -73,9 +73,7 @@ export class CategoryService {
    * Récupérer les sous-catégories d'une catégorie spécifique
    */
   async getSubCategoriesByCategory(categoryId: string): Promise<SubCategoryByCategoryResponse> {
-    return apiClient.get('/api/v1/menu/subcategories/by_category/', {
-      params: { category_id: categoryId },
-    });
+    return apiClient.get(`/api/v1/menu/subcategories/by_category/?category_id=${categoryId}`);
   }
 
   /**

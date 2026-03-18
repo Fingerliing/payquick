@@ -43,7 +43,18 @@ import {
   TYPOGRAPHY,
 } from '@/utils/designSystem';
 
-// Allergènes (UE)
+const getErrorMessage = (e: unknown): string =>
+  e instanceof Error ? e.message : 'Une erreur est survenue';
+
+const getAuthToken = async (): Promise<string | null> => {
+  for (const key of ['access_token', 'auth_token', 'token']) {
+    const value = await AsyncStorage.getItem(key);
+    if (value) return value;
+  }
+  return null;
+};
+
+// EU allergens
 const ALLERGENS = [
   { id: 'gluten', name: 'Gluten', icon: '🌾', description: 'Blé, seigle, orge, avoine' },
   { id: 'crustaceans', name: 'Crustacés', icon: '🦐', description: 'Crevettes, crabes, homards' },
@@ -63,6 +74,8 @@ const ALLERGENS = [
 
 type Allergen = typeof ALLERGENS[number]['id'];
 
+type CategoryWithIcon = MenuCategory & { icon?: string };
+
 const DEFAULT_CATEGORY_COLORS = [
   '#EF4444', '#F97316', '#F59E0B', '#EAB308', '#84CC16',
   '#22C55E', '#10B981', '#14B8A6', '#06B6D4', '#0EA5E9',
@@ -78,7 +91,6 @@ export default function EditMenuItemScreen() {
   const insets = useSafeAreaInsets();
   const [photo, setPhoto] = useState<{ uri: string; name: string; type: string } | null>(null);
 
-  // ✅ Toast state (aligné avec les autres écrans)
   const [toast, setToast] = useState<{
     visible: boolean;
     variant: 'success' | 'error' | 'warning' | 'info';
@@ -94,10 +106,8 @@ export default function EditMenuItemScreen() {
   );
   const hideToast = useCallback(() => setToast(p => ({ ...p, visible: false })), []);
 
-  // Responsive styles instance
   const styles = useMemo(() => createStyles(screenType), [screenType]);
 
-  // Layout config
   const layout = useMemo(() => ({
     containerPadding: getResponsiveValue(SPACING.container, screenType),
     contentSpacing: getResponsiveValue(SPACING.lg, screenType),
@@ -107,15 +117,13 @@ export default function EditMenuItemScreen() {
     isTabletLandscape: screenType === 'tablet' && width > 1000,
   }), [screenType, width]);
 
-  // État du menu item
   const [menuItem, setMenuItem] = useState<MenuItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Form state
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<MenuCategory | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<CategoryWithIcon | null>(null);
   const [selectedSubCategory, setSelectedSubCategory] = useState<MenuSubCategory | null>(null);
   const [selectedAllergens, setSelectedAllergens] = useState<Allergen[]>([]);
   const [isVegetarian, setIsVegetarian] = useState(false);
@@ -123,40 +131,33 @@ export default function EditMenuItemScreen() {
   const [isGlutenFree, setIsGlutenFree] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
 
-  // Data state
-  const [categories, setCategories] = useState<MenuCategory[]>([]);
+  const [categories, setCategories] = useState<CategoryWithIcon[]>([]);
   const [subCategories, setSubCategories] = useState<MenuSubCategory[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
 
-  // Modals state
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showSubCategoryModal, setShowSubCategoryModal] = useState(false);
   const [showCreateCategoryModal, setShowCreateCategoryModal] = useState(false);
   const [showCreateSubCategoryModal, setShowCreateSubCategoryModal] = useState(false);
 
-  // Create category state
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryDescription, setNewCategoryDescription] = useState('');
   const [newCategoryIcon, setNewCategoryIcon] = useState('');
   const [newCategoryColor, setNewCategoryColor] = useState(DEFAULT_CATEGORY_COLORS[0]);
 
-  // Create subcategory state
   const [newSubCategoryName, setNewSubCategoryName] = useState('');
   const [newSubCategoryDescription, setNewSubCategoryDescription] = useState('');
 
-  // Charger l'élément de menu
   useEffect(() => {
     loadMenuItem();
   }, [id]);
 
-  // Charger les catégories quand on a le restaurant ID
   useEffect(() => {
     if (menuItem?.menu) {
       loadCategoriesForMenu();
     }
   }, [menuItem?.menu]);
 
-  // Charger les sous-catégories quand une catégorie est sélectionnée
   useEffect(() => {
     if (selectedCategory?.id) {
       loadSubCategories(selectedCategory.id);
@@ -174,12 +175,10 @@ export default function EditMenuItemScreen() {
       const item = await menuService.menuItems.getMenuItem(parseInt(id));
       setMenuItem(item);
 
-      // Pré-remplir le formulaire
       setName(item.name || '');
       setDescription(item.description || '');
       setPrice(item.price || '');
 
-      // Filtrer les allergènes pour ne garder que les valeurs valides
       const validAllergens = (item.allergens || []).filter((allergen): allergen is Allergen =>
         ALLERGENS.some(a => a.id === allergen)
       );
@@ -189,17 +188,15 @@ export default function EditMenuItemScreen() {
       setIsVegan(item.is_vegan || false);
       setIsGlutenFree(item.is_gluten_free || false);
 
-      // Si l'item a une image, la charger
       if (item.image_url) {
         setPhoto({
           uri: item.image_url,
-          name: 'image-actuelle',
-          type: 'image/jpeg'
+          name: 'photo-actuelle',
+          type: 'image/jpeg',
         });
       }
-
     } catch (error) {
-      console.error('Erreur lors du chargement du menu item:', error);
+      console.error('loadMenuItem error:', error);
       showToast('error', 'Impossible de charger le plat', 'Erreur');
       router.back();
     } finally {
@@ -212,18 +209,16 @@ export default function EditMenuItemScreen() {
 
     try {
       setLoadingCategories(true);
-      // On récupère l'ID du restaurant via le menu
       const menu = await menuService.getMenu(menuItem.menu);
       const res = await categoryService.getCategoriesByRestaurant(String(menu.restaurant));
-      const categoriesList = res.categories || [];
+      const categoriesList: CategoryWithIcon[] = res.categories || [];
       setCategories(categoriesList);
 
-      // Pré-sélectionner la catégorie actuelle
       const currentCategory = categoriesList.find(cat => cat.id === menuItem.category);
       if (currentCategory) {
         setSelectedCategory(currentCategory);
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('loadCategoriesForMenu error:', e);
       showToast('error', 'Impossible de charger les catégories', 'Erreur');
     } finally {
@@ -237,21 +232,19 @@ export default function EditMenuItemScreen() {
       const subCategoriesList = res.subcategories || [];
       setSubCategories(subCategoriesList);
 
-      // Pré-sélectionner la sous-catégorie actuelle si elle existe
       if (menuItem?.subcategory) {
         const currentSubCategory = subCategoriesList.find(sub => sub.id === menuItem.subcategory);
         if (currentSubCategory) {
           setSelectedSubCategory(currentSubCategory);
         }
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('loadSubCategories error:', e);
       setSubCategories([]);
       showToast('error', 'Impossible de charger les sous-catégories', 'Erreur');
     }
   };
 
-  // Handlers
   const handleAllergenToggle = (id: Allergen) => {
     setSelectedAllergens(prev => prev.includes(id)
       ? prev.filter(x => x !== id)
@@ -302,9 +295,9 @@ export default function EditMenuItemScreen() {
       setNewCategoryIcon('');
       setNewCategoryColor(DEFAULT_CATEGORY_COLORS[0]);
       showToast('success', 'Catégorie créée avec succès', 'Succès');
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('createCategory error:', e);
-      showToast('error', e?.message || 'Impossible de créer la catégorie', 'Erreur');
+      showToast('error', getErrorMessage(e) || 'Impossible de créer la catégorie', 'Erreur');
     }
   };
 
@@ -331,9 +324,9 @@ export default function EditMenuItemScreen() {
       setNewSubCategoryName('');
       setNewSubCategoryDescription('');
       showToast('success', 'Sous-catégorie créée avec succès', 'Succès');
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('createSubCategory error:', e);
-      showToast('error', e?.message || 'Impossible de créer la sous-catégorie', 'Erreur');
+      showToast('error', getErrorMessage(e) || 'Impossible de créer la sous-catégorie', 'Erreur');
     }
   };
 
@@ -357,7 +350,6 @@ export default function EditMenuItemScreen() {
 
     setIsUpdating(true);
     try {
-      // Données à jour
       const updateData: UpdateMenuItemRequest = {
         name: name.trim(),
         description: description.trim(),
@@ -370,7 +362,6 @@ export default function EditMenuItemScreen() {
         is_gluten_free: isGlutenFree,
       };
 
-      // Si une nouvelle photo a été choisie
       if (photo && photo.uri !== menuItem.image_url) {
         const form = new FormData();
 
@@ -388,24 +379,19 @@ export default function EditMenuItemScreen() {
           uri: photo.uri,
           type: photo.type,
           name: photo.name,
-        } as any);
+        } as any); // React Native FormData doesn't match the web File type
 
-        const token = await AsyncStorage.getItem('access_token') ||
-          await AsyncStorage.getItem('auth_token') ||
-          await AsyncStorage.getItem('token');
-
+        const token = await getAuthToken();
         if (!token) {
           showToast('error', "Token d'authentification manquant", 'Erreur');
           return;
         }
 
         const baseURL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
-        const url = `${baseURL}/api/v1/menu-items/${id}/`;
-
-        const response = await fetch(url, {
+        const response = await fetch(`${baseURL}/api/v1/menu-items/${id}/`, {
           method: 'PATCH',
           body: form,
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
         });
 
         if (!response.ok) {
@@ -416,23 +402,20 @@ export default function EditMenuItemScreen() {
         const result = await response.json();
         setMenuItem(result);
       } else {
-        // Pas de nouvelle image
         const updatedItem = await menuService.menuItems.updateMenuItem(parseInt(id), updateData);
         setMenuItem(updatedItem);
       }
 
       showToast('success', 'Plat mis à jour avec succès', 'Succès');
       router.back();
-
-    } catch (error: any) {
-      console.error('Erreur mise à jour plat:', error);
-      showToast('error', error.message || "Impossible de mettre à jour le plat", 'Erreur');
+    } catch (error: unknown) {
+      console.error('handleUpdate error:', error);
+      showToast('error', getErrorMessage(error) || 'Impossible de mettre à jour le plat', 'Erreur');
     } finally {
       setIsUpdating(false);
     }
   };
 
-  // Helper galerie
   const pickFromLibrary = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
@@ -474,7 +457,6 @@ export default function EditMenuItemScreen() {
     }
   };
 
-  // Helper caméra
   const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
@@ -512,70 +494,63 @@ export default function EditMenuItemScreen() {
     }
   };
 
-  // ---------- RENDER HELPERS (ajoutés) ----------
-  function renderCategorySelector() {
-    return (
-      <View style={styles.section}>
-        <Text style={styles.label}>Catégorie *</Text>
-        <TouchableOpacity
-          onPress={() => setShowCategoryModal(true)}
-          style={[styles.selector, selectedCategory && styles.selectorSelected]}
-        >
-          {selectedCategory ? (
-            <>
-              {!!(selectedCategory as any).icon && (
-                <Text style={{ fontSize: 20, marginRight: 12 }}>
-                  {(selectedCategory as any).icon}
-                </Text>
-              )}
-              <View style={{ flex: 1 }}>
-                <Text style={styles.selectedText}>{selectedCategory.name}</Text>
-                {!!selectedCategory.description && (
-                  <Text style={styles.description}>{selectedCategory.description}</Text>
-                )}
-              </View>
-            </>
-          ) : (
-            <Text style={styles.placeholder}>Sélectionner une catégorie</Text>
-          )}
-          <Ionicons name="chevron-down" size={20} color={COLORS.text.secondary} />
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  function renderSubCategorySelector() {
-    return (
-      <View style={styles.section}>
-        <Text style={styles.label}>Sous-catégorie (optionnel)</Text>
-        <TouchableOpacity
-          onPress={() => selectedCategory && setShowSubCategoryModal(true)}
-          disabled={!selectedCategory}
-          style={[
-            styles.selector,
-            !selectedCategory && styles.selectorDisabled,
-            selectedSubCategory && styles.selectorSelected,
-          ]}
-        >
-          {selectedSubCategory ? (
-            <View style={{ flex: 1 }}>
-              <Text style={styles.selectedText}>{selectedSubCategory.name}</Text>
-              {!!selectedSubCategory.description && (
-                <Text style={styles.description}>{selectedSubCategory.description}</Text>
+  const renderCategorySelector = () => (
+    <View style={styles.section}>
+      <Text style={styles.label}>Catégorie *</Text>
+      <TouchableOpacity
+        onPress={() => setShowCategoryModal(true)}
+        style={[styles.selector, selectedCategory && styles.selectorSelected]}
+      >
+        {selectedCategory ? (
+          <>
+            {!!selectedCategory.icon && (
+              <Text style={styles.selectorIcon}>{selectedCategory.icon}</Text>
+            )}
+            <View style={styles.selectorContent}>
+              <Text style={styles.selectedText}>{selectedCategory.name}</Text>
+              {!!selectedCategory.description && (
+                <Text style={styles.description}>{selectedCategory.description}</Text>
               )}
             </View>
-          ) : (
-            <Text style={styles.placeholder}>
-              {selectedCategory ? 'Sélectionner une sous-catégorie' : "Sélectionnez d'abord une catégorie"}
-            </Text>
-          )}
-          <Ionicons name="chevron-down" size={20} color={COLORS.text.secondary} />
-        </TouchableOpacity>
-      </View>
-    );
-  }
+          </>
+        ) : (
+          <Text style={styles.placeholder}>Sélectionner une catégorie</Text>
+        )}
+        <Ionicons name="chevron-down" size={20} color={COLORS.text.secondary} />
+      </TouchableOpacity>
+    </View>
+  );
 
-  function renderAllergen(a: typeof ALLERGENS[number]) {
+  const renderSubCategorySelector = () => (
+    <View style={styles.section}>
+      <Text style={styles.label}>Sous-catégorie (optionnel)</Text>
+      <TouchableOpacity
+        onPress={() => selectedCategory && setShowSubCategoryModal(true)}
+        disabled={!selectedCategory}
+        style={[
+          styles.selector,
+          !selectedCategory && styles.selectorDisabled,
+          selectedSubCategory && styles.selectorSelected,
+        ]}
+      >
+        {selectedSubCategory ? (
+          <View style={styles.selectorContent}>
+            <Text style={styles.selectedText}>{selectedSubCategory.name}</Text>
+            {!!selectedSubCategory.description && (
+              <Text style={styles.description}>{selectedSubCategory.description}</Text>
+            )}
+          </View>
+        ) : (
+          <Text style={styles.placeholder}>
+            {selectedCategory ? 'Sélectionner une sous-catégorie' : "Sélectionnez d'abord une catégorie"}
+          </Text>
+        )}
+        <Ionicons name="chevron-down" size={20} color={COLORS.text.secondary} />
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderAllergen = (a: typeof ALLERGENS[number]) => {
     const selected = selectedAllergens.includes(a.id);
     return (
       <View key={a.id} style={styles.allergenCol}>
@@ -583,23 +558,12 @@ export default function EditMenuItemScreen() {
           onPress={() => handleAllergenToggle(a.id)}
           style={[styles.allergenButton, selected && styles.allergenButtonSelected]}
         >
-          <Text style={{ fontSize: 16, marginRight: 8 }}>{a.icon}</Text>
-          <View style={{ flex: 1 }}>
-            <Text
-              style={{
-                fontSize: 14,
-                fontWeight: '500',
-                color: selected ? COLORS.error : COLORS.text.primary,
-              }}
-            >
+          <Text style={styles.allergenIcon}>{a.icon}</Text>
+          <View style={styles.selectorContent}>
+            <Text style={[styles.allergenName, selected && styles.allergenNameSelected]}>
               {a.name}
             </Text>
-            <Text
-              style={{
-                fontSize: 11,
-                color: selected ? '#B91C1C' : COLORS.text.secondary,
-              }}
-            >
+            <Text style={[styles.allergenDescription, selected && styles.allergenDescriptionSelected]}>
               {a.description}
             </Text>
           </View>
@@ -607,49 +571,31 @@ export default function EditMenuItemScreen() {
         </TouchableOpacity>
       </View>
     );
-  }
+  };
 
-  function renderDietary(
+  const renderDietary = (
     title: string,
     value: boolean,
     onToggle: (v: boolean) => void,
     icon: string,
     color: string,
     descriptionText: string,
-  ) {
-    return (
-      <TouchableOpacity
-        onPress={() => onToggle(!value)}
-        style={[
-          styles.dietaryOption,
-          value && { backgroundColor: color + '20', borderColor: color, borderWidth: 1 },
-        ]}
-      >
-        <Text style={{ fontSize: 20, marginRight: 12 }}>{icon}</Text>
-        <View style={{ flex: 1 }}>
-          <Text
-            style={{
-              fontSize: 16,
-              fontWeight: '500',
-              color: value ? color : COLORS.text.primary,
-            }}
-          >
-            {title}
-          </Text>
-          <Text
-            style={{
-              fontSize: 12,
-              color: value ? color : COLORS.text.secondary,
-            }}
-          >
-            {descriptionText}
-          </Text>
-        </View>
-        {value && <Ionicons name="checkmark-circle" size={24} color={color} />}
-      </TouchableOpacity>
-    );
-  }
-  // ---------- FIN RENDER HELPERS ----------
+  ) => (
+    <TouchableOpacity
+      onPress={() => onToggle(!value)}
+      style={[
+        styles.dietaryOption,
+        value && { backgroundColor: color + '20', borderColor: color, borderWidth: 1 },
+      ]}
+    >
+      <Text style={styles.dietaryIcon}>{icon}</Text>
+      <View style={styles.selectorContent}>
+        <Text style={[styles.dietaryTitle, value && { color }]}>{title}</Text>
+        <Text style={[styles.dietaryDescription, value && { color }]}>{descriptionText}</Text>
+      </View>
+      {value && <Ionicons name="checkmark-circle" size={24} color={color} />}
+    </TouchableOpacity>
+  );
 
   if (isLoading) {
     return <Loading fullScreen text="Chargement du plat..." />;
@@ -665,7 +611,7 @@ export default function EditMenuItemScreen() {
           includeSafeArea={false}
         />
         {/* Zone d’alerte en haut */}
-        <View style={{ paddingHorizontal: getResponsiveValue(SPACING.container, screenType), marginTop: getResponsiveValue(SPACING.md, screenType), zIndex: 10 }}>
+        <View style={styles.toastZone}>
           {toast.visible && (
             <InlineAlert
               variant={toast.variant}
@@ -676,9 +622,9 @@ export default function EditMenuItemScreen() {
             />
           )}
         </View>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: layout.containerPadding }}>
+        <View style={[styles.emptyState, { padding: layout.containerPadding }]}>
           <Ionicons name="restaurant-outline" size={64} color={COLORS.text.light} style={{ marginBottom: layout.contentSpacing }} />
-          <Text style={{ fontSize: 18, color: COLORS.text.secondary, textAlign: 'center', marginBottom: layout.contentSpacing }}>
+          <Text style={[styles.emptyStateText, { marginBottom: layout.contentSpacing }]}>
             Plat non trouvé
           </Text>
           <Button
@@ -708,7 +654,7 @@ export default function EditMenuItemScreen() {
       />
 
       {/* 🔔 Zone d’alertes en haut */}
-      <View style={{ paddingHorizontal: getResponsiveValue(SPACING.container, screenType), marginTop: getResponsiveValue(SPACING.md, screenType), zIndex: 10 }}>
+      <View style={styles.toastZone}>
         {toast.visible && (
           <InlineAlert
             variant={toast.variant}
@@ -737,7 +683,7 @@ export default function EditMenuItemScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Informations</Text>
             <Card style={styles.card}>
-              <View style={{ gap: getResponsiveValue(SPACING.sm, screenType) }}>
+              <View style={styles.fieldGroup}>
                 <View>
                   <Text style={styles.label}>Nom *</Text>
                   <Input
@@ -779,14 +725,14 @@ export default function EditMenuItemScreen() {
             <Text style={styles.sectionTitle}>Photo du plat</Text>
             <Card style={styles.card}>
               {photo ? (
-                <View style={{ gap: getResponsiveValue(SPACING.sm, screenType) }}>
+                <View style={styles.fieldGroup}>
                   <Image
                     source={{ uri: photo.uri }}
                     style={styles.photoImage}
                     resizeMode="cover"
                   />
                   <Text style={styles.photoInfo}>
-                    {photo.name} • {photo.type}
+                    Photo sélectionnée
                   </Text>
                   <View style={styles.photoActions}>
                     <Button
@@ -813,7 +759,7 @@ export default function EditMenuItemScreen() {
                   </View>
                 </View>
               ) : (
-                <View style={{ gap: getResponsiveValue(SPACING.sm, screenType) }}>
+                <View style={styles.fieldGroup}>
                   <View style={styles.photoPlaceholder}>
                     <Text style={styles.photoPlaceholderIcon}>📷</Text>
                     <Text style={styles.photoPlaceholderText}>Aucune photo sélectionnée</Text>
@@ -853,14 +799,14 @@ export default function EditMenuItemScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Régimes & allergènes</Text>
             <Card style={styles.card}>
-              <View style={{ gap: getResponsiveValue(SPACING.sm, screenType) }}>
+              <View style={styles.fieldGroup}>
                 {renderDietary('Végétarien', isVegetarian, setIsVegetarian, '🥗', COLORS.success, 'Sans viande ni poisson')}
                 {renderDietary('Vegan', isVegan, handleVeganToggle, '🌱', COLORS.primary, 'Aucun produit animal')}
                 {renderDietary('Sans gluten', isGlutenFree, handleGlutenFreeToggle, '🚫🌾', COLORS.warning, 'Sans ingrédients contenant du gluten')}
               </View>
             </Card>
 
-            <View style={{ height: getResponsiveValue(SPACING.sm, screenType) }} />
+            <View style={styles.sectionSpacer} />
 
             <Card style={styles.card}>
               <Text style={[styles.label, { marginBottom: 8 }]}>Allergènes (sélection multiple)</Text>
@@ -909,7 +855,7 @@ export default function EditMenuItemScreen() {
               fullWidth
               leftIcon={
                 isUpdating ? (
-                  <ActivityIndicator size="small" color={COLORS.text.inverse} style={{ marginRight: -4 }} />
+                  <ActivityIndicator size="small" color={COLORS.text.inverse} style={styles.activityIndicator} />
                 ) : (
                   <Ionicons name="checkmark-circle-outline" size={20} color={COLORS.text.inverse} />
                 )
@@ -928,163 +874,171 @@ export default function EditMenuItemScreen() {
         </ScrollView>
       </View>
 
-      {/* MODALES - Sélection catégorie */}
-      <Modal visible={showCategoryModal} transparent animationType="slide" onRequestClose={() => setShowCategoryModal(false)}>
+      <Modal visible={showCategoryModal} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setShowCategoryModal(false)}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContainer, layout.modalMaxWidth ? { alignSelf: 'center', width: layout.modalMaxWidth } : null ]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Catégorie</Text>
-              <TouchableOpacity onPress={() => setShowCategoryModal(false)}>
-                <Ionicons name="close" size={22} color={COLORS.text.secondary} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.modalContent}>
-              {loadingCategories && (
-                <Text style={styles.placeholder}>Chargement...</Text>
-              )}
-              {!loadingCategories && categories.length === 0 && (
-                <Text style={styles.placeholder}>Aucune catégorie</Text>
-              )}
-              <View style={{ gap: 8 }}>
-                {categories.map(cat => (
-                  <TouchableOpacity
-                    key={cat.id}
-                    onPress={() => { setSelectedCategory(cat); setShowCategoryModal(false); }}
-                    style={[styles.selector, selectedCategory?.id === cat.id && styles.selectorSelected]}
-                  >
-                    {!!(cat as any).icon && <Text style={{ fontSize: 18, marginRight: 8 }}>{(cat as any).icon}</Text>}
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.selectedText}>{cat.name}</Text>
-                      {!!cat.description && <Text style={styles.description}>{cat.description}</Text>}
-                    </View>
-                    {selectedCategory?.id === cat.id && (
-                      <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
-                    )}
-                  </TouchableOpacity>
-                ))}
+          <KeyboardAvoidingView
+            behavior="padding"
+            style={[styles.modalKAV, layout.modalMaxWidth ? { width: layout.modalMaxWidth, alignSelf: 'center' as const } : null]}
+          >
+            <View style={styles.modalContainer}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Catégorie</Text>
+                <TouchableOpacity onPress={() => setShowCategoryModal(false)}>
+                  <Ionicons name="close" size={22} color={COLORS.text.secondary} />
+                </TouchableOpacity>
               </View>
-            </ScrollView>
-
-            <View style={{ padding: layout.containerPadding }}>
-              <Button title="Créer une catégorie" onPress={() => setShowCreateCategoryModal(true)} variant="secondary" fullWidth />
+              <ScrollView style={styles.modalContent} contentContainerStyle={styles.modalContentContainer} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                {loadingCategories && <Text style={styles.placeholder}>Chargement...</Text>}
+                {!loadingCategories && categories.length === 0 && <Text style={styles.placeholder}>Aucune catégorie</Text>}
+                <View style={styles.modalList}>
+                  {categories.map(cat => (
+                    <TouchableOpacity
+                      key={cat.id}
+                      onPress={() => { setSelectedCategory(cat); setShowCategoryModal(false); }}
+                      style={[styles.selector, selectedCategory?.id === cat.id && styles.selectorSelected]}
+                    >
+                      {!!cat.icon && <Text style={styles.selectorIcon}>{cat.icon}</Text>}
+                      <View style={styles.selectorContent}>
+                        <Text style={styles.selectedText}>{cat.name}</Text>
+                        {!!cat.description && <Text style={styles.description}>{cat.description}</Text>}
+                      </View>
+                      {selectedCategory?.id === cat.id && (
+                        <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <View style={styles.modalSubmitButton}>
+                  <Button title="Créer une catégorie" onPress={() => setShowCreateCategoryModal(true)} variant="secondary" fullWidth />
+                </View>
+              </ScrollView>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
 
       {/* MODALE - Création catégorie */}
-      <Modal visible={showCreateCategoryModal} transparent animationType="slide" onRequestClose={() => setShowCreateCategoryModal(false)}>
+      <Modal visible={showCreateCategoryModal} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setShowCreateCategoryModal(false)}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContainer, layout.modalMaxWidth ? { alignSelf: 'center', width: layout.modalMaxWidth } : null ]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Nouvelle catégorie</Text>
-              <TouchableOpacity onPress={() => setShowCreateCategoryModal(false)}>
-                <Ionicons name="close" size={22} color={COLORS.text.secondary} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.modalContent}>
-              <View style={{ gap: 12 }}>
-                <View>
-                  <Text style={styles.label}>Nom *</Text>
-                  <Input value={newCategoryName} onChangeText={setNewCategoryName} placeholder="Ex. Plats" />
-                </View>
-                <View>
-                  <Text style={styles.label}>Description</Text>
-                  <Input value={newCategoryDescription} onChangeText={setNewCategoryDescription} placeholder="Ex. Tous les plats principaux" />
-                </View>
-                <View>
-                  <Text style={styles.label}>Icône (emoji ou texte court)</Text>
-                  <Input value={newCategoryIcon} onChangeText={setNewCategoryIcon} placeholder="Ex. 🍽️" />
-                </View>
-                <View>
-                  <Text style={styles.label}>Couleur</Text>
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                    {DEFAULT_CATEGORY_COLORS.map(c => (
-                      <TouchableOpacity
-                        key={c}
-                        onPress={() => setNewCategoryColor(c)}
-                        style={{
-                          width: 28, height: 28, borderRadius: 14, backgroundColor: c,
-                          borderWidth: newCategoryColor === c ? 2 : 1,
-                          borderColor: newCategoryColor === c ? COLORS.primary : COLORS.border.light,
-                        }}
-                      />
-                    ))}
+          <KeyboardAvoidingView
+            behavior="padding"
+            style={[styles.modalKAV, layout.modalMaxWidth ? { width: layout.modalMaxWidth, alignSelf: 'center' as const } : null]}
+          >
+            <View style={styles.modalContainer}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Nouvelle catégorie</Text>
+                <TouchableOpacity onPress={() => setShowCreateCategoryModal(false)}>
+                  <Ionicons name="close" size={22} color={COLORS.text.secondary} />
+                </TouchableOpacity>
+              </View>
+              <ScrollView style={styles.modalContent} contentContainerStyle={styles.modalContentContainer} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                <View style={styles.modalForm}>
+                  <View>
+                    <Text style={styles.label}>Nom *</Text>
+                    <Input value={newCategoryName} onChangeText={setNewCategoryName} placeholder="Ex. Plats" />
+                  </View>
+                  <View>
+                    <Text style={styles.label}>Description</Text>
+                    <Input value={newCategoryDescription} onChangeText={setNewCategoryDescription} placeholder="Ex. Tous les plats principaux" />
+                  </View>
+                  <View>
+                    <Text style={styles.label}>Icône (emoji ou texte court)</Text>
+                    <Input value={newCategoryIcon} onChangeText={setNewCategoryIcon} placeholder="Ex. 🍽️" />
+                  </View>
+                  <View>
+                    <Text style={styles.label}>Couleur</Text>
+                    <View style={styles.colorPickerRow}>
+                      {DEFAULT_CATEGORY_COLORS.map(c => (
+                        <TouchableOpacity
+                          key={c}
+                          onPress={() => setNewCategoryColor(c)}
+                          style={[styles.colorSwatch, { backgroundColor: c, borderWidth: newCategoryColor === c ? 2 : 1, borderColor: newCategoryColor === c ? COLORS.primary : COLORS.border.light }]}
+                        />
+                      ))}
+                    </View>
                   </View>
                 </View>
-              </View>
-            </ScrollView>
-            <View style={{ padding: layout.containerPadding }}>
-              <Button title="Créer" onPress={handleCreateCategory} fullWidth />
+                <View style={styles.modalSubmitButton}>
+                  <Button title="Créer" onPress={handleCreateCategory} fullWidth />
+                </View>
+              </ScrollView>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
 
       {/* MODALES - Sélection & création sous-catégorie */}
-      <Modal visible={showSubCategoryModal} transparent animationType="slide" onRequestClose={() => setShowSubCategoryModal(false)}>
+      <Modal visible={showSubCategoryModal} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setShowSubCategoryModal(false)}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContainer, layout.modalMaxWidth ? { alignSelf: 'center', width: layout.modalMaxWidth } : null ]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Sous-catégorie</Text>
-              <TouchableOpacity onPress={() => setShowSubCategoryModal(false)}>
-                <Ionicons name="close" size={22} color={COLORS.text.secondary} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.modalContent}>
-              <View style={{ gap: 8 }}>
-                {subCategories.map(sc => (
-                  <TouchableOpacity
-                    key={sc.id}
-                    onPress={() => { setSelectedSubCategory(sc); setShowSubCategoryModal(false); }}
-                    style={[styles.selector, selectedSubCategory?.id === sc.id && styles.selectorSelected]}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.selectedText}>{sc.name}</Text>
-                      {!!sc.description && <Text style={styles.description}>{sc.description}</Text>}
-                    </View>
-                    {selectedSubCategory?.id === sc.id && (
-                      <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
-                    )}
-                  </TouchableOpacity>
-                ))}
-                {subCategories.length === 0 && (
-                  <Text style={styles.placeholder}>Aucune sous-catégorie</Text>
-                )}
+          <KeyboardAvoidingView
+            behavior="padding"
+            style={[styles.modalKAV, layout.modalMaxWidth ? { width: layout.modalMaxWidth, alignSelf: 'center' as const } : null]}
+          >
+            <View style={styles.modalContainer}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Sous-catégorie</Text>
+                <TouchableOpacity onPress={() => setShowSubCategoryModal(false)}>
+                  <Ionicons name="close" size={22} color={COLORS.text.secondary} />
+                </TouchableOpacity>
               </View>
-            </ScrollView>
-            <View style={{ padding: layout.containerPadding }}>
-              <Button title="Créer une sous-catégorie" onPress={() => setShowCreateSubCategoryModal(true)} variant="secondary" fullWidth />
+              <ScrollView style={styles.modalContent} contentContainerStyle={styles.modalContentContainer} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                <View style={styles.modalList}>
+                  {subCategories.map(sc => (
+                    <TouchableOpacity
+                      key={sc.id}
+                      onPress={() => { setSelectedSubCategory(sc); setShowSubCategoryModal(false); }}
+                      style={[styles.selector, selectedSubCategory?.id === sc.id && styles.selectorSelected]}
+                    >
+                      <View style={styles.selectorContent}>
+                        <Text style={styles.selectedText}>{sc.name}</Text>
+                        {!!sc.description && <Text style={styles.description}>{sc.description}</Text>}
+                      </View>
+                      {selectedSubCategory?.id === sc.id && (
+                        <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                  {subCategories.length === 0 && <Text style={styles.placeholder}>Aucune sous-catégorie</Text>}
+                </View>
+                <View style={styles.modalSubmitButton}>
+                  <Button title="Créer une sous-catégorie" onPress={() => setShowCreateSubCategoryModal(true)} variant="secondary" fullWidth />
+                </View>
+              </ScrollView>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
 
-      <Modal visible={showCreateSubCategoryModal} transparent animationType="slide" onRequestClose={() => setShowCreateSubCategoryModal(false)}>
+      <Modal visible={showCreateSubCategoryModal} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setShowCreateSubCategoryModal(false)}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContainer, layout.modalMaxWidth ? { alignSelf: 'center', width: layout.modalMaxWidth } : null ]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Nouvelle sous-catégorie</Text>
-              <TouchableOpacity onPress={() => setShowCreateSubCategoryModal(false)}>
-                <Ionicons name="close" size={22} color={COLORS.text.secondary} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.modalContent}>
-              <View style={{ gap: 12 }}>
-                <View>
-                  <Text style={styles.label}>Nom *</Text>
-                  <Input value={newSubCategoryName} onChangeText={setNewSubCategoryName} placeholder="Ex. Burgers" />
-                </View>
-                <View>
-                  <Text style={styles.label}>Description</Text>
-                  <Input value={newSubCategoryDescription} onChangeText={setNewSubCategoryDescription} placeholder="Ex. Burgers spéciaux" />
-                </View>
+          <KeyboardAvoidingView
+            behavior="padding"
+            style={[styles.modalKAV, layout.modalMaxWidth ? { width: layout.modalMaxWidth, alignSelf: 'center' as const } : null]}
+          >
+            <View style={styles.modalContainer}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Nouvelle sous-catégorie</Text>
+                <TouchableOpacity onPress={() => setShowCreateSubCategoryModal(false)}>
+                  <Ionicons name="close" size={22} color={COLORS.text.secondary} />
+                </TouchableOpacity>
               </View>
-            </ScrollView>
-            <View style={{ padding: layout.containerPadding }}>
-              <Button title="Créer" onPress={handleCreateSubCategory} fullWidth />
+              <ScrollView style={styles.modalContent} contentContainerStyle={styles.modalContentContainer} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                <View style={styles.modalForm}>
+                  <View>
+                    <Text style={styles.label}>Nom *</Text>
+                    <Input value={newSubCategoryName} onChangeText={setNewSubCategoryName} placeholder="Ex. Burgers" />
+                  </View>
+                  <View>
+                    <Text style={styles.label}>Description</Text>
+                    <Input value={newSubCategoryDescription} onChangeText={setNewSubCategoryDescription} placeholder="Ex. Burgers spéciaux" />
+                  </View>
+                </View>
+                <View style={styles.modalSubmitButton}>
+                  <Button title="Créer" onPress={handleCreateSubCategory} fullWidth />
+                </View>
+              </ScrollView>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
     </KeyboardAvoidingView>
@@ -1297,24 +1251,26 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop') => {
       fontStyle: 'italic' as const,
     },
 
-    // Boutons d'action
     actionButtons: {
       gap: gv(SPACING.sm),
       marginTop: gv(SPACING.lg),
       paddingHorizontal: gv(SPACING.container),
     },
 
-    // Modals
     modalOverlay: {
       flex: 1 as const,
       backgroundColor: COLORS.overlay,
       justifyContent: 'flex-end' as const,
     },
+    modalKAV: {
+      width: '100%' as const,
+      maxHeight: '90%' as const,
+    },
     modalContainer: {
       backgroundColor: COLORS.surface,
       borderTopLeftRadius: BORDER_RADIUS['3xl'],
       borderTopRightRadius: BORDER_RADIUS['3xl'],
-      maxHeight: '90%' as const,
+      overflow: 'hidden' as const,
     },
     modalHeader: {
       flexDirection: 'row' as const,
@@ -1330,7 +1286,100 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop') => {
       color: COLORS.text.primary,
     },
     modalContent: {
+      flexShrink: 1 as const,
+    },
+    modalContentContainer: {
       padding: gv(SPACING.container),
+      paddingBottom: gv(SPACING['3xl']),
+    },
+    modalList: {
+      gap: gv(SPACING.sm),
+    },
+    modalForm: {
+      gap: gv(SPACING.md),
+    },
+    modalSubmitButton: {
+      marginTop: gv(SPACING.lg),
+    },
+
+    toastZone: {
+      paddingHorizontal: gv(SPACING.container),
+      zIndex: 10,
+    },
+
+    emptyState: {
+      flex: 1 as const,
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+    },
+    emptyStateText: {
+      fontSize: gv(TYPOGRAPHY.fontSize.lg),
+      color: COLORS.text.secondary,
+      textAlign: 'center' as const,
+    },
+
+    selectorContent: {
+      flex: 1 as const,
+    },
+    selectorIcon: {
+      fontSize: 20,
+      marginRight: gv(SPACING.sm),
+    },
+
+    fieldGroup: {
+      gap: gv(SPACING.sm),
+    },
+
+    colorPickerRow: {
+      flexDirection: 'row' as const,
+      flexWrap: 'wrap' as const,
+      gap: gv(SPACING.sm),
+    },
+    colorSwatch: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+    },
+
+    allergenIcon: {
+      fontSize: 16,
+      marginRight: gv(SPACING.sm),
+    },
+    allergenName: {
+      fontSize: gv(TYPOGRAPHY.fontSize.sm),
+      fontWeight: '500' as const,
+      color: COLORS.text.primary,
+    },
+    allergenNameSelected: {
+      color: COLORS.error,
+    },
+    allergenDescription: {
+      fontSize: gv(TYPOGRAPHY.fontSize.xs),
+      color: COLORS.text.secondary,
+    },
+    allergenDescriptionSelected: {
+      color: '#B91C1C',
+    },
+
+    sectionSpacer: {
+      height: gv(SPACING.sm),
+    },
+    activityIndicator: {
+      marginRight: -4,
+    },
+
+    dietaryIcon: {
+      fontSize: 20,
+      marginRight: gv(SPACING.md),
+    },
+    dietaryTitle: {
+      fontSize: gv(TYPOGRAPHY.fontSize.base),
+      fontWeight: '500' as const,
+      color: COLORS.text.primary,
+    },
+    dietaryDescription: {
+      fontSize: gv(TYPOGRAPHY.fontSize.xs),
+      color: COLORS.text.secondary,
     },
   };
 };
