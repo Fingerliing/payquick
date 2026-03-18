@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
+  Image,
   FlatList,
   RefreshControl,
   StyleSheet,
@@ -13,7 +14,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Header } from '@/components/ui/Header';
 import { MenuCard } from '@/components/menu/MenuCard';
-import { Loading } from '@/components/ui/Loading';
 import { Button } from '@/components/ui/Button';
 import { useRestaurant } from '@/contexts/RestaurantContext';
 import { menuService } from '@/services/menuService';
@@ -482,7 +482,94 @@ export default function MenusScreen() {
       color: COLORS.text.secondary,
       marginTop: 2,
     },
+    helpCard: {
+      backgroundColor: COLORS.surface,
+      borderRadius: BORDER_RADIUS.xl,
+      padding: getResponsiveValue(SPACING.xl, screenType),
+      marginHorizontal: getResponsiveValue(SPACING.container, screenType),
+      marginTop: getResponsiveValue(SPACING.md, screenType),
+      borderWidth: 1,
+      borderColor: COLORS.border.golden,
+      alignItems: 'center',
+      ...SHADOWS.premiumCard,
+    },
+    helpIcon: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: COLORS.variants.secondary[100],
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: getResponsiveValue(SPACING.md, screenType),
+      ...SHADOWS.goldenGlow,
+    },
+    helpTitle: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.bold,
+      color: COLORS.text.primary,
+      textAlign: 'center',
+      marginBottom: getResponsiveValue(SPACING.sm, screenType),
+    },
+    helpText: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
+      color: COLORS.text.secondary,
+      textAlign: 'center',
+      lineHeight: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType) * 1.6,
+      marginBottom: getResponsiveValue(SPACING.xl, screenType),
+    },
+    helpActions: {
+      flexDirection: responsive.isMobile ? 'column' : 'row',
+      gap: getResponsiveValue(SPACING.md, screenType),
+      width: '100%',
+    },
   });
+
+  const renderHelpCard = () => {
+    if (totalMenusCount > 0 || isLoading) return null;
+
+    return (
+      <View style={dynamicStyles.helpCard}>
+        <View style={dynamicStyles.helpIcon}>
+          <Image
+            source={require('@/assets/images/logo.png')}
+            style={{ width: 28, height: 28 }}
+            resizeMode="contain"
+          />
+        </View>
+        <Text style={dynamicStyles.helpTitle}>
+          Commencer avec EatQuickeR
+        </Text>
+        <Text style={dynamicStyles.helpText}>
+          Créez votre premier menu pour mettre en valeur vos plats et commencer à recevoir des commandes en ligne.
+        </Text>
+        <View style={dynamicStyles.helpActions}>
+          <Button
+            title="Créer mon premier menu"
+            onPress={() => {
+              if (restaurants.length > 0) {
+                router.push(`/menu/add?restaurantId=${restaurants[0].id}`);
+              } else {
+                setToast({
+                  variant: 'warning',
+                  title: 'Restaurant requis',
+                  message: "Vous devez d'abord créer un restaurant avant de pouvoir ajouter des menus.",
+                });
+              }
+            }}
+            variant="primary"
+            leftIcon={<Ionicons name="add-circle-outline" size={20} color={COLORS.text.inverse} />}
+            fullWidth={responsive.isMobile}
+          />
+          <Button
+            title="Guide d'utilisation"
+            onPress={() => router.push('/help' as any)}
+            variant="outline"
+            fullWidth={responsive.isMobile}
+          />
+        </View>
+      </View>
+    );
+  };
 
   const renderMenu = ({ item, index }: { item: Menu; index: number }) => {
     return (
@@ -765,6 +852,9 @@ export default function MenusScreen() {
 
       {/* Section d'information sur le fonctionnement */}
       {renderInfoSection()}
+
+      {/* Carte d'aide pour les nouveaux utilisateurs */}
+      {renderHelpCard()}
 
       <View style={dynamicStyles.listContainer}>
         <FlatList
