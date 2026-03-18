@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -9,11 +9,12 @@ import {
   Animated,
   TouchableOpacity,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Header } from '@/components/ui/Header';
 import { MenuCard } from '@/components/menu/MenuCard';
+import { Loading } from '@/components/ui/Loading';
 import { Button } from '@/components/ui/Button';
 import { useRestaurant } from '@/contexts/RestaurantContext';
 import { menuService } from '@/services/menuService';
@@ -30,7 +31,7 @@ import {
   useScreenType,
   getResponsiveValue
 } from '@/utils/designSystem';
-import { Alert, AlertWithAction } from '@/components/ui/Alert'; // 👈 utilise tes composants
+import { Alert, AlertWithAction } from '@/components/ui/Alert';
 
 /**
  * MenusScreen - Écran de gestion des menus avec design premium
@@ -67,8 +68,13 @@ export default function MenusScreen() {
   const screenType = useScreenType();
   const styles = createResponsiveStyles(screenType);
 
+  useFocusEffect(
+    useCallback(() => {
+      loadMenus();
+    }, [])
+  );
+
   useEffect(() => {
-    loadMenus();
     // Animation d'entrée
     Animated.parallel([
       Animated.timing(fadeAnim, {

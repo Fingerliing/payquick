@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, ScrollView, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Header } from '@/components/ui/Header';
 import { Button } from '@/components/ui/Button';
 import { menuService } from '@/services/menuService';
 import { Alert, AlertWithAction, useAlert } from '@/components/ui/Alert';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   COLORS,
   SPACING,
@@ -20,6 +20,7 @@ import {
 
 export default function AddMenuScreen() {
   const { restaurantId } = useLocalSearchParams<{ restaurantId: string }>();
+  const insets = useSafeAreaInsets();
   const [name, setName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
@@ -48,9 +49,7 @@ export default function AddMenuScreen() {
         restaurant: parseInt(restaurantId),
       });
 
-      // Alerte de succès + actions
       setNextAction(() => () => router.replace(`/menu/${newMenu.id}` as any));
-      showSuccess('Menu créé avec succès !', 'Succès');
     } catch (error) {
       console.error('Erreur lors de la création du menu:', error);
       showError('Impossible de créer le menu', 'Erreur');
@@ -60,14 +59,12 @@ export default function AddMenuScreen() {
   };
 
   return (
-    <SafeAreaView style={localStyles.safeArea}>
+    <View style={[localStyles.safeArea, { paddingBottom: insets.bottom }]}>
       <View style={localStyles.container}>
         <Header
           title="Nouveau menu"
           leftIcon="arrow-back"
           onLeftPress={() => router.back()}
-          rightIcon="checkmark-outline"
-          onRightPress={handleCreate}
         />
 
         <ScrollView
@@ -192,38 +189,45 @@ export default function AddMenuScreen() {
 
         {/* Alert personnalisée */}
         {alertState?.visible && (
-          <Alert
-            variant={alertState?.variant ?? 'info'}
-            title={alertState?.title}
-            message={alertState?.message ?? ''}
-            onDismiss={hideAlert}
-          />
+          <View pointerEvents="box-none" style={localStyles.alertOverlay}>
+            <Alert
+              variant={alertState?.variant ?? 'info'}
+              title={alertState?.title}
+              message={alertState?.message ?? ''}
+              onDismiss={hideAlert}
+              autoDismiss
+              autoDismissDuration={5000}
+            />
+          </View>
         )}
 
         {/* AlertWithAction après succès */}
         {nextAction && (
-          <AlertWithAction
-            variant="success"
-            title="Menu créé"
-            message="Souhaitez-vous ajouter des plats maintenant ou revenir à la liste ?"
-            primaryButton={{
-              text: 'Ajouter des plats',
-              onPress: () => {
-                nextAction();
-                setNextAction(null);
-              },
-            }}
-            secondaryButton={{
-              text: 'Retour à la liste',
-              onPress: () => {
-                router.back();
-                setNextAction(null);
-              },
-            }}
-          />
+          <View pointerEvents="box-none" style={localStyles.alertOverlay}>
+            <AlertWithAction
+              variant="success"
+              title="Menu créé"
+              message="Souhaitez-vous ajouter des plats maintenant ou revenir à la liste ?"
+              autoDismiss={false}
+              primaryButton={{
+                text: 'Ajouter des plats',
+                onPress: () => {
+                  nextAction();
+                  setNextAction(null);
+                },
+              }}
+              secondaryButton={{
+                text: 'Retour à la liste',
+                onPress: () => {
+                  router.back();
+                  setNextAction(null);
+                },
+              }}
+            />
+          </View>
         )}
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -296,5 +300,11 @@ const localStyles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.variants.secondary[600],
     fontWeight: 'bold',
+  },
+  alertOverlay: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 24,
   },
 });
