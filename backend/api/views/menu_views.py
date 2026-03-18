@@ -4,6 +4,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from django.db import transaction
 from api.models import Menu, MenuItem
 from api.serializers import MenuSerializer, MenuItemSerializer
 from api.permissions import IsRestaurateur, IsOwnerOrReadOnly
@@ -23,6 +24,12 @@ class MenuViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return Menu.objects.filter(restaurant__owner=self.request.user.restaurateur_profile)
+
+    def perform_create(self, serializer):
+        with transaction.atomic():
+            menu = serializer.save()
+            if menu.is_available:
+                Menu.objects.filter(restaurant=menu.restaurant).exclude(id=menu.id).update(is_available=False)
     
     @extend_schema(
         summary="Activer/désactiver ce menu",
@@ -33,21 +40,20 @@ class MenuViewSet(viewsets.ModelViewSet):
     )
     @action(detail=True, methods=["post"])
     def toggle_is_available(self, request, pk=None):
-        menu = self.get_object()
-        restaurant = menu.restaurant
-        
-        if menu.is_available:
-            # Si le menu est actif, le désactiver
-            menu.is_available = False
-            menu.save()
-        else:
-            # Si le menu est inactif, l'activer et désactiver les autres
-            Menu.objects.filter(restaurant=restaurant).update(is_available=False)
-            menu.is_available = True
-            menu.save()
-        
+        with transaction.atomic():
+            menu = self.get_queryset().select_for_update().get(pk=pk)
+            restaurant = menu.restaurant
+
+            if menu.is_available:
+                menu.is_available = False
+                menu.save(update_fields=["is_available"])
+            else:
+                Menu.objects.filter(restaurant=restaurant).update(is_available=False)
+                menu.is_available = True
+                menu.save(update_fields=["is_available"])
+
         return Response({
-            "id": menu.id, 
+            "id": menu.id,
             "is_available": menu.is_available,
             "message": "Menu activé avec succès" if menu.is_available else "Menu désactivé avec succès"
         })
@@ -61,19 +67,14 @@ class MenuViewSet(viewsets.ModelViewSet):
     )
     @action(detail=True, methods=["post"])
     def activate(self, request, pk=None):
-        """Action spécifique pour activer un menu (sans toggle)"""
-        menu = self.get_object()
-        restaurant = menu.restaurant
-        
-        # Désactiver tous les autres menus
-        Menu.objects.filter(restaurant=restaurant).exclude(id=menu.id).update(is_available=False)
-        
-        # Activer ce menu
-        menu.is_available = True
-        menu.save()
-        
+        with transaction.atomic():
+            menu = self.get_queryset().select_for_update().get(pk=pk)
+            Menu.objects.filter(restaurant=menu.restaurant).exclude(id=menu.id).update(is_available=False)
+            menu.is_available = True
+            menu.save(update_fields=["is_available"])
+
         return Response({
-            "id": menu.id, 
+            "id": menu.id,
             "is_available": menu.is_available,
             "message": "Menu activé avec succès"
         })

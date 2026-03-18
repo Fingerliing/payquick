@@ -18,7 +18,7 @@ import string
 class Menu(models.Model):
     name = models.CharField(max_length=100)
     restaurant = models.ForeignKey('Restaurant', on_delete=models.CASCADE, related_name='menu')
-    is_available = models.BooleanField(default=True)
+    is_available = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
