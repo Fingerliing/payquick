@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Dimensions,
+  Image,
 } from 'react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRestaurant } from '@/contexts/RestaurantContext';
@@ -777,6 +778,42 @@ export default function DashboardScreen() {
             </View>
           )}
 
+            {/* Section d'aide pour les nouveaux utilisateurs */}
+            {isRestaurateur && safeRestaurants.length === 0 && user?.roles?.has_validated_profile && (
+            <View style={styles.sectionContainer}>
+              <View style={styles.helpCard}>
+                <View style={styles.helpIcon}>
+                  <Image
+                    source={require('@/assets/images/logo.png')}
+                    style={{ width: 28, height: 28 }}
+                    resizeMode="contain"
+                  />
+                </View>
+                <Text style={styles.helpTitle}>
+                  Commencer avec EatQuickeR
+                </Text>
+                <Text style={styles.helpText}>
+                  Créez votre premier restaurant pour commencer à recevoir des commandes en ligne et développer votre activité.
+                </Text>
+                <View style={styles.helpActions}>
+                  <Button
+                    title="Créer mon premier restaurant"
+                    onPress={() => router.push('/restaurant/add')}
+                    variant="primary"
+                    leftIcon={<Ionicons name="add-circle-outline" size={20} color={COLORS.text.inverse} />}
+                    fullWidth={isMobile}
+                  />
+                  <Button
+                    title="Guide d'utilisation"
+                    onPress={() => router.push('/help' as any)}
+                    variant="outline"
+                    fullWidth={isMobile}
+                  />
+                </View>
+              </View>
+            </View>
+          )}
+
           {/* Statistiques */}
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
@@ -1076,38 +1113,6 @@ export default function DashboardScreen() {
                   <Text style={styles.actionTitle}>Statistiques</Text>
                   <Text style={styles.actionDescription}>Performances</Text>
                 </TouchableOpacity>
-              </View>
-            </View>
-          )}
-
-          {/* Section d'aide pour les nouveaux utilisateurs */}
-          {isRestaurateur && safeRestaurants.length === 0 && user?.roles?.has_validated_profile && (
-            <View style={styles.sectionContainer}>
-              <View style={styles.helpCard}>
-                <View style={styles.helpIcon}>
-                  <Ionicons title="lightbulb" size={28} color={COLORS.text.inverse} />
-                </View>
-                <Text style={styles.helpTitle}>
-                  Commencer avec EatQuickeR
-                </Text>
-                <Text style={styles.helpText}>
-                  Créez votre premier restaurant pour commencer à recevoir des commandes en ligne et développer votre activité.
-                </Text>
-                <View style={styles.helpActions}>
-                  <Button
-                    title="Créer mon premier restaurant"
-                    onPress={() => router.push('/restaurant/add')}
-                    variant="primary"
-                    leftIcon={<Ionicons name="add-circle-outline" size={20} color={COLORS.text.inverse} />}
-                    fullWidth={isMobile}
-                  />
-                  <Button
-                    title="Guide d'utilisation"
-                    onPress={() => router.push('/help' as any)}
-                    variant="outline"
-                    fullWidth={isMobile}
-                  />
-                </View>
               </View>
             </View>
           )}
