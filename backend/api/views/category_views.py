@@ -193,7 +193,7 @@ class MenuCategoryViewSet(viewsets.ModelViewSet):
         summary="Activer/désactiver plusieurs catégories",
         description="Active ou désactive plusieurs catégories en une seule requête"
     )
-    @action(detail=False, methods=['post'])
+    @action(detail=False, methods=['post'], url_path='bulk_toggle_active')
     def bulk_toggle_active(self, request):
         """Active/désactive plusieurs catégories"""
         restaurant_id = request.data.get('restaurant_id')
@@ -445,7 +445,7 @@ class MenuSubCategoryViewSet(viewsets.ModelViewSet):
         summary="Sous-catégories par catégorie",
         description="Retourne toutes les sous-catégories d'une catégorie spécifique"
     )
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], url_path='by_category')
     def by_category(self, request):
         """Retourne les sous-catégories d'une catégorie spécifique"""
         category_id = request.query_params.get('category_id')

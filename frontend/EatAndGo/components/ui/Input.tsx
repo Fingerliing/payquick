@@ -19,6 +19,7 @@ import {
   useScreenType,
   getResponsiveValue,
 } from '@/utils/designSystem';
+import { useKeyboardScrollRef } from '@/components/ui/KeyboardScrollView';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -30,7 +31,7 @@ interface InputProps extends TextInputProps {
   required?: boolean;
   fullWidth?: boolean;
   variant?: 'default' | 'floating';
-  /** Ref du ScrollView parent — permet le scroll automatique au focus */
+  /** Ref du ScrollView parent — prioritaire sur le contexte automatique */
   scrollRef?: React.RefObject<ScrollView | null>;
   /** Décalage au-dessus du champ une fois scrollé (défaut 16px) */
   scrollOffset?: number;
@@ -46,8 +47,8 @@ export const Input = forwardRef<TextInput, InputProps>(({
   required = false,
   fullWidth = true,
   variant = 'default',
-  scrollRef,
-  scrollOffset = 16,
+  scrollRef: scrollRefProp,
+  scrollOffset = 40,
   style,
   onFocus,
   onBlur,
@@ -60,13 +61,16 @@ export const Input = forwardRef<TextInput, InputProps>(({
 
   const resolvedRef = (ref as React.RefObject<TextInput>) || internalRef;
 
+  // Utilise la prop explicite en priorité, sinon le contexte fourni par KeyboardScrollView
+  const contextScrollRef = useKeyboardScrollRef();
+  const scrollRef = scrollRefProp ?? contextScrollRef;
+
   const hasError = !!error;
 
   const handleContainerPress = () => {
     resolvedRef.current?.focus();
   };
 
-  /** Au focus : mesure la position du champ dans le ScrollView et scroll dessus */
   const handleFocus = (e: any) => {
     setIsFocused(true);
     onFocus?.(e);
@@ -81,7 +85,7 @@ export const Input = forwardRef<TextInput, InputProps>(({
           animated: true,
         });
       },
-      () => { /* mesure échouée, on ignore */ },
+      () => {},
     );
   };
 
@@ -90,7 +94,6 @@ export const Input = forwardRef<TextInput, InputProps>(({
     onBlur?.(e);
   };
 
-  // STYLES RESPONSIVES
   const containerStyle: ViewStyle = {
     width: fullWidth ? '100%' : undefined,
     marginBottom: getResponsiveValue(SPACING.md, screenType),
@@ -143,7 +146,6 @@ export const Input = forwardRef<TextInput, InputProps>(({
 
   return (
     <View style={containerStyle} ref={containerRef}>
-      {/* Label */}
       {label && variant === 'default' && (
         <Text style={labelStyle}>
           {label}
@@ -151,7 +153,6 @@ export const Input = forwardRef<TextInput, InputProps>(({
         </Text>
       )}
 
-      {/* Input Container — Pressable sur toute la surface */}
       <Pressable onPress={handleContainerPress} style={inputContainerStyle}>
         {leftIcon && (
           <Ionicons name={leftIcon} size={20} color={iconColor} />
@@ -176,7 +177,6 @@ export const Input = forwardRef<TextInput, InputProps>(({
         )}
       </Pressable>
 
-      {/* Error / Helper Text */}
       {(error || helperText) && (
         <Text style={messageStyle}>
           {error || helperText}

@@ -10,6 +10,7 @@ import {
   useWindowDimensions,
   Animated,
 } from 'react-native';
+import { KeyboardScrollView } from '@/components/ui/KeyboardScrollView';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,7 +23,7 @@ import { Header } from '@/components/ui/Header';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Alert as InlineAlert } from '@/components/ui/Alert';
+import { Alert as InlineAlert, AlertWithAction } from '@/components/ui/Alert';
 
 // Services & Types
 import { menuService } from '@/services/menuService';
@@ -135,6 +136,14 @@ export default function AddMenuItemScreen() {
   const [showSubCategoryModal, setShowSubCategoryModal] = useState(false);
   const [showCreateCategoryModal, setShowCreateCategoryModal] = useState(false);
   const [showCreateSubCategoryModal, setShowCreateSubCategoryModal] = useState(false);
+
+  // Confirm dialog state
+  const [confirm, setConfirm] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => Promise<void>;
+    danger?: boolean;
+  } | null>(null);
 
   // Create category state
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -257,6 +266,38 @@ export default function AddMenuItemScreen() {
     } catch (e: any) {
       showToast('error', 'Erreur lors de la création de la sous-catégorie');
     }
+  };
+
+  const handleDeleteCategory = (category: MenuCategory) => {
+    setConfirm({
+      title: 'Supprimer la catégorie',
+      message: `Supprimer "${category.name}" ? Tous les articles associés perdront leur catégorie.`,
+      danger: true,
+      onConfirm: async () => {
+        await categoryService.deleteCategory(category.id);
+        setCategories(prev => prev.filter(c => c.id !== category.id));
+        if (selectedCategory?.id === category.id) {
+          setSelectedCategory(null);
+          setSelectedSubCategory(null);
+          setSubCategories([]);
+        }
+      },
+    });
+  };
+
+  const handleDeleteSubCategory = (sub: MenuSubCategory) => {
+    setConfirm({
+      title: 'Supprimer la sous-catégorie',
+      message: `Supprimer "${sub.name}" ?`,
+      danger: true,
+      onConfirm: async () => {
+        await categoryService.deleteSubCategory(sub.id);
+        setSubCategories(prev => prev.filter(s => s.id !== sub.id));
+        if (selectedSubCategory?.id === sub.id) {
+          setSelectedSubCategory(null);
+        }
+      },
+    });
   };
 
   const handlePickImage = async () => {
@@ -419,10 +460,25 @@ export default function AddMenuItemScreen() {
         ]}
       />
 
-      <ScrollView 
+      {/* Toast — collé sous le header */}
+      {toast.visible && (
+        <View style={{ paddingHorizontal: 16, paddingTop: 8, zIndex: 100 }}>
+          <InlineAlert
+            variant={toast.variant}
+            title={toast.title}
+            message={toast.message}
+            onDismiss={hideToast}
+            autoDismiss
+            autoDismissDuration={5000}
+          />
+        </View>
+      )}
+
+      <KeyboardScrollView
         style={styles.content}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+        contentContainerStyle={{ paddingTop: 16, paddingBottom: insets.bottom + 24 }}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Photo Section - Premium Design */}
         <View style={styles.section}>
@@ -753,30 +809,7 @@ export default function AddMenuItemScreen() {
             style={styles.bottomButton}
           />
         </View>
-      </ScrollView>
-
-      {/* Toast */}
-      {toast.visible && (
-        <View
-          pointerEvents="box-none"
-          style={{
-            position: 'absolute' as const,
-            left: 16,
-            right: 16,
-            bottom: 24,
-            zIndex: 1000,
-          }}
-        >
-          <InlineAlert
-            variant={toast.variant}
-            title={toast.title}
-            message={toast.message}
-            onDismiss={hideToast}
-            autoDismiss
-            autoDismissDuration={5000}
-          />
-        </View>
-      )}
+      </KeyboardScrollView>
 
       {/* Category Modal */}
       <Modal
@@ -834,6 +867,13 @@ export default function AddMenuItemScreen() {
                   {selectedCategory?.id === cat.id && (
                     <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />
                   )}
+                  <TouchableOpacity
+                    onPress={() => handleDeleteCategory(cat)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    style={{ marginLeft: 4, padding: 4 }}
+                  >
+                    <Ionicons name="trash-outline" size={18} color={COLORS.error} />
+                  </TouchableOpacity>
                 </TouchableOpacity>
               ))}
               <TouchableOpacity
@@ -907,6 +947,13 @@ export default function AddMenuItemScreen() {
                   {selectedSubCategory?.id === sub.id && (
                     <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />
                   )}
+                  <TouchableOpacity
+                    onPress={() => handleDeleteSubCategory(sub)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    style={{ marginLeft: 4, padding: 4 }}
+                  >
+                    <Ionicons name="trash-outline" size={18} color={COLORS.error} />
+                  </TouchableOpacity>
                 </TouchableOpacity>
               ))}
               <TouchableOpacity
@@ -995,7 +1042,7 @@ export default function AddMenuItemScreen() {
         onRequestClose={() => setShowCreateCategoryModal(false)}
       >
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior="padding"
           style={styles.modalOverlay}
         >
           <TouchableOpacity
@@ -1005,7 +1052,7 @@ export default function AddMenuItemScreen() {
           />
           <View style={[
             styles.modalContainer,
-            { paddingBottom: insets.bottom || 16 },
+            { paddingBottom: 0 },
             layout.modalMaxWidth ? { maxWidth: layout.modalMaxWidth, alignSelf: 'center' as const, width: '100%' as const } : undefined
           ]}>
             <View style={styles.modalHeader}>
@@ -1014,8 +1061,9 @@ export default function AddMenuItemScreen() {
                 <Ionicons name="close" size={24} color={COLORS.text.primary} />
               </TouchableOpacity>
             </View>
-            <ScrollView 
+            <ScrollView
               style={styles.modalContent}
+              contentContainerStyle={{ paddingBottom: 8 }}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
@@ -1067,13 +1115,15 @@ export default function AddMenuItemScreen() {
                   ))}
                 </View>
               </View>
+            </ScrollView>
+            <View style={styles.modalFooter}>
               <Button
                 title="Créer la catégorie"
                 onPress={handleCreateCategory}
                 variant="primary"
-                style={styles.modalCreateButton2}
+                fullWidth
               />
-            </ScrollView>
+            </View>
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -1086,7 +1136,7 @@ export default function AddMenuItemScreen() {
         onRequestClose={() => setShowCreateSubCategoryModal(false)}
       >
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior="padding"
           style={styles.modalOverlay}
         >
           <TouchableOpacity
@@ -1096,7 +1146,7 @@ export default function AddMenuItemScreen() {
           />
           <View style={[
             styles.modalContainer,
-            { paddingBottom: insets.bottom || 16 },
+            { paddingBottom: 0 },
             layout.modalMaxWidth ? { maxWidth: layout.modalMaxWidth, alignSelf: 'center' as const, width: '100%' as const } : undefined
           ]}>
             <View style={styles.modalHeader}>
@@ -1105,8 +1155,9 @@ export default function AddMenuItemScreen() {
                 <Ionicons name="close" size={24} color={COLORS.text.primary} />
               </TouchableOpacity>
             </View>
-            <ScrollView 
+            <ScrollView
               style={styles.modalContent}
+              contentContainerStyle={{ paddingBottom: 8 }}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
@@ -1129,15 +1180,60 @@ export default function AddMenuItemScreen() {
                   style={styles.modalInput}
                 />
               </View>
+            </ScrollView>
+            <View style={styles.modalFooter}>
               <Button
                 title="Créer la sous-catégorie"
                 onPress={handleCreateSubCategory}
                 variant="primary"
-                style={styles.modalCreateButton2}
+                fullWidth
               />
-            </ScrollView>
+            </View>
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+      {/* Confirm Dialog */}
+      <Modal
+        visible={!!confirm}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setConfirm(null)}
+      >
+        <View style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: 24,
+        }}>
+          <View style={{ width: '100%', maxWidth: 400 }}>
+            {confirm && (
+              <AlertWithAction
+                variant={confirm.danger ? 'warning' : 'info'}
+                title={confirm.title}
+                message={confirm.message}
+                autoDismiss={false}
+                primaryButton={{
+                  text: 'Supprimer',
+                  variant: 'danger',
+                  onPress: async () => {
+                    const action = confirm.onConfirm;
+                    setConfirm(null);
+                    try {
+                      await action();
+                    } catch {
+                      showToast('error', 'Impossible de supprimer cet élément', 'Erreur');
+                    }
+                  },
+                }}
+                secondaryButton={{
+                  text: 'Annuler',
+                  onPress: () => setConfirm(null),
+                }}
+              />
+            )}
+          </View>
+        </View>
       </Modal>
     </View>
   );
@@ -1665,6 +1761,13 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', insets: { top
     },
     modalCreateButton2: {
       marginTop: gv(SPACING.md),
+    },
+    modalFooter: {
+      padding: gv(SPACING.lg),
+      paddingBottom: insets.bottom || gv(SPACING.lg),
+      borderTopWidth: 1,
+      borderTopColor: COLORS.border.light,
+      backgroundColor: COLORS.surface,
     },
 
     // Bottom Button
