@@ -15,7 +15,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // UI
 import { Header } from '@/components/ui/Header';
@@ -42,16 +41,13 @@ import {
   COMPONENT_CONSTANTS,
   TYPOGRAPHY,
 } from '@/utils/designSystem';
+import secureStorage from '@/utils/secureStorage';
 
 const getErrorMessage = (e: unknown): string =>
   e instanceof Error ? e.message : 'Une erreur est survenue';
 
 const getAuthToken = async (): Promise<string | null> => {
-  for (const key of ['access_token', 'auth_token', 'token']) {
-    const value = await AsyncStorage.getItem(key);
-    if (value) return value;
-  }
-  return null;
+  return await secureStorage.getItem('access_token');
 };
 
 // EU allergens

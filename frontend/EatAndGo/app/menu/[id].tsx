@@ -336,7 +336,6 @@ export default function MenuDetailScreen() {
     container: {
       flex: 1,
       backgroundColor: COLORS.background,
-      paddingBottom: insets.bottom,
     },
     headerCard: {
       backgroundColor: COLORS.goldenSurface,
@@ -349,7 +348,7 @@ export default function MenuDetailScreen() {
       ...SHADOWS.premiumCard,
     },
     menuTitle: {
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize['3xl'], screenType),
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize['2xl'], screenType),
       fontWeight: TYPOGRAPHY.fontWeight.bold as any,
       color: COLORS.primary,
       marginBottom: getResponsiveValue(SPACING.xs, screenType),
@@ -450,8 +449,8 @@ export default function MenuDetailScreen() {
       ...SHADOWS.sm,
     },
     sectionHeaderTitle: {
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xl, screenType),
-      fontWeight: TYPOGRAPHY.fontWeight.extrabold as any,
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.bold as any,
       color: COLORS.primary,
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
@@ -466,7 +465,7 @@ export default function MenuDetailScreen() {
       marginBottom: getResponsiveValue(SPACING.md, screenType),
       backgroundColor: COLORS.surface,
       borderRadius: BORDER_RADIUS.xl,
-      ...SHADOWS.lg,
+      ...SHADOWS.card,
       overflow: 'hidden' as const,
     },
     itemHeader: {
@@ -476,21 +475,21 @@ export default function MenuDetailScreen() {
       marginBottom: getResponsiveValue(SPACING.sm, screenType),
     },
     itemName: {
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xl, screenType),
-      fontWeight: TYPOGRAPHY.fontWeight.bold as any,
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.semibold as any,
       color: COLORS.text.primary,
       flex: 1,
       marginRight: getResponsiveValue(SPACING.sm, screenType),
     },
     itemPrice: {
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xl, screenType),
-      fontWeight: TYPOGRAPHY.fontWeight.extrabold as any,
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.bold as any,
       color: COLORS.variants.secondary[600],
     },
     itemDescription: {
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
       color: COLORS.text.secondary,
-      lineHeight: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType) * 1.4,
+      lineHeight: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType) * 1.5,
       marginBottom: getResponsiveValue(SPACING.sm, screenType),
     },
     itemMeta: {
@@ -610,8 +609,8 @@ export default function MenuDetailScreen() {
       flex: 1,
     },
     statValue: {
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize['2xl'], screenType),
-      fontWeight: TYPOGRAPHY.fontWeight.extrabold as any,
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xl, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.bold as any,
       color: COLORS.text.primary,
     },
     statLabel: {
@@ -885,7 +884,7 @@ export default function MenuDetailScreen() {
           {item.image_url && (
             <View style={{
               width: '100%',
-              height: 180,
+              height: 160,
               borderRadius: BORDER_RADIUS.lg,
               overflow: 'hidden',
               marginBottom: getResponsiveValue(SPACING.md, screenType),
@@ -1050,7 +1049,7 @@ export default function MenuDetailScreen() {
                     fontSize: 14,
                     fontWeight: '600'
                   }}>
-                    {item.is_available ? 'Masquer' : 'Afficher'}
+                    {item.is_available ? 'Retirer du menu' : 'Ajouter au menu'}
                   </Text>
                 </>
               )}
@@ -1291,7 +1290,7 @@ export default function MenuDetailScreen() {
         renderSectionHeader={renderSectionHeader}
         keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={[
-          { paddingBottom: Math.max(getResponsiveValue(SPACING.lg, screenType), insets.bottom) }
+          { paddingBottom: Math.max(getResponsiveValue(SPACING.xl, screenType), insets.bottom + 20) }
         ]}
         stickySectionHeadersEnabled={false}
         showsVerticalScrollIndicator={false}

@@ -16,7 +16,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // UI
 import { Header } from '@/components/ui/Header';
@@ -42,6 +41,7 @@ import {
   TYPOGRAPHY,
   SHADOWS,
 } from '@/utils/designSystem';
+import secureStorage from '@/utils/secureStorage';
 
 // Allergènes (UE)
 const ALLERGENS = [
@@ -368,7 +368,8 @@ export default function AddMenuItemScreen() {
       formData.append('is_gluten_free', String(isGlutenFree));
       formData.append('vat_rate', String(vatType.rate));
       formData.append('vat_category', vatType.id);
-
+      formData.append('is_available', 'true');
+      
       // Ajouter les champs optionnels
       if (description.trim()) {
         formData.append('description', description.trim());
@@ -392,9 +393,7 @@ export default function AddMenuItemScreen() {
       console.log('Creating menu item with FormData');
       
       // Envoyer directement avec FormData
-      const token = await AsyncStorage.getItem('access_token') || 
-                    await AsyncStorage.getItem('auth_token') ||
-                    await AsyncStorage.getItem('token');
+      const token = await secureStorage.getItem('access_token');
       
       if (!token) {
         throw new Error('Token d\'authentification manquant. Veuillez vous reconnecter.');
