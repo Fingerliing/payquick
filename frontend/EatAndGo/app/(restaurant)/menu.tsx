@@ -259,9 +259,6 @@ function MenusScreenContent({ restaurant }: { restaurant: NonNullable<ReturnType
 
   const getNumColumns = () => 1;
 
-  // Détermine si on utilise un layout deux colonnes pour l'état vide
-  const useEmptyTwoColumnLayout = responsive.isTablet || responsive.isDesktop;
-
   // Statistiques
   const activeMenusCount = menus.filter(m => m.is_available).length;
   const totalMenusCount = menus.length;
@@ -408,125 +405,6 @@ function MenusScreenContent({ restaurant }: { restaurant: NonNullable<ReturnType
       padding: getResponsiveValue(SPACING.container, screenType),
       paddingBottom: getResponsiveValue(SPACING['4xl'], screenType),
       paddingTop: responsive.isTablet ? getResponsiveValue(SPACING.lg, screenType) : getResponsiveValue(SPACING.md, screenType),
-    },
-    emptyContainer: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingHorizontal: getResponsiveValue(SPACING.lg, screenType),
-      paddingVertical: getResponsiveValue(SPACING.xl, screenType),
-      minHeight: responsive.height * 0.6,
-    },
-    emptyCard: {
-      backgroundColor: COLORS.surface,
-      borderRadius: BORDER_RADIUS['2xl'],
-      padding: getResponsiveValue(SPACING['2xl'], screenType),
-      alignItems: useEmptyTwoColumnLayout ? 'stretch' : 'center',
-      justifyContent: 'center',
-      width: '100%',
-      maxWidth: useEmptyTwoColumnLayout ? 900 : 450,
-      borderWidth: 1,
-      borderColor: COLORS.border.golden,
-      ...SHADOWS.premiumCard,
-    },
-    emptyContentWrapper: {
-      flexDirection: useEmptyTwoColumnLayout ? 'row' : 'column',
-      gap: getResponsiveValue(SPACING['2xl'], screenType),
-      alignItems: useEmptyTwoColumnLayout ? 'flex-start' : 'center',
-      width: '100%',
-    },
-    emptyLeftColumn: {
-      flex: useEmptyTwoColumnLayout ? 1 : undefined,
-      alignItems: useEmptyTwoColumnLayout ? 'flex-start' : 'center',
-      width: useEmptyTwoColumnLayout ? undefined : '100%',
-    },
-    emptyRightColumn: {
-      flex: useEmptyTwoColumnLayout ? 1 : undefined,
-      justifyContent: 'center',
-      width: useEmptyTwoColumnLayout ? undefined : '100%',
-    },
-    emptyIconContainer: {
-      width: responsive.isTablet ? 140 : 120,
-      height: responsive.isTablet ? 140 : 120,
-      borderRadius: responsive.isTablet ? 70 : 60,
-      backgroundColor: COLORS.variants.secondary[50],
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: getResponsiveValue(SPACING.lg, screenType),
-      borderWidth: 2,
-      borderColor: COLORS.border.golden,
-      ...SHADOWS.goldenGlow,
-      alignSelf: useEmptyTwoColumnLayout ? 'flex-start' : 'center',
-    },
-    emptyTitle: {
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize['2xl'], screenType),
-      fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: COLORS.primary,
-      textAlign: useEmptyTwoColumnLayout ? 'left' : 'center',
-      marginBottom: getResponsiveValue(SPACING.sm, screenType),
-      letterSpacing: -0.5,
-    },
-    emptySubtitle: {
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.md, screenType),
-      color: COLORS.text.golden,
-      textAlign: useEmptyTwoColumnLayout ? 'left' : 'center',
-      fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      marginBottom: getResponsiveValue(SPACING.md, screenType),
-    },
-    emptyDescription: {
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
-      color: COLORS.text.secondary,
-      textAlign: useEmptyTwoColumnLayout ? 'left' : 'center',
-      lineHeight: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType) * 1.6,
-      marginBottom: getResponsiveValue(SPACING.xl, screenType),
-      paddingHorizontal: useEmptyTwoColumnLayout ? 0 : getResponsiveValue(SPACING.md, screenType),
-    },
-    emptyFeaturesList: {
-      width: '100%',
-      marginBottom: useEmptyTwoColumnLayout ? 0 : getResponsiveValue(SPACING.xl, screenType),
-      gap: getResponsiveValue(SPACING.md, screenType),
-    },
-    featureItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: getResponsiveValue(SPACING.sm, screenType),
-      paddingVertical: getResponsiveValue(SPACING.xs, screenType),
-      backgroundColor: useEmptyTwoColumnLayout ? COLORS.variants.secondary[50] : 'transparent',
-      paddingHorizontal: useEmptyTwoColumnLayout ? getResponsiveValue(SPACING.md, screenType) : 0,
-      borderRadius: useEmptyTwoColumnLayout ? BORDER_RADIUS.md : 0,
-    },
-    featureIcon: {
-      width: responsive.isTablet ? 28 : 24,
-      height: responsive.isTablet ? 28 : 24,
-      borderRadius: responsive.isTablet ? 14 : 12,
-      backgroundColor: COLORS.variants.secondary[100],
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    featureText: {
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
-      color: COLORS.text.secondary,
-      flex: 1,
-      fontWeight: useEmptyTwoColumnLayout ? TYPOGRAPHY.fontWeight.medium : TYPOGRAPHY.fontWeight.normal,
-    },
-    createButtonGradient: {
-      minWidth: responsive.isMobile ? '100%' : useEmptyTwoColumnLayout ? '100%' : 240,
-      paddingVertical: getResponsiveValue(SPACING.md, screenType),
-      paddingHorizontal: getResponsiveValue(SPACING.xl, screenType),
-      borderRadius: BORDER_RADIUS.xl,
-      ...SHADOWS.goldenGlow,
-    },
-    createButtonContent: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-    },
-    createButtonText: {
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.md, screenType),
-      fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: COLORS.text.inverse,
-      letterSpacing: 0.3,
     },
     gridItem: {
       flex: 1,
@@ -837,7 +715,7 @@ function MenusScreenContent({ restaurant }: { restaurant: NonNullable<ReturnType
           />
           <Button
             title="Guide d'utilisation"
-            onPress={() => router.push('/help' as any)}
+            onPress={() => router.push('/help/help' as any)}
             variant="outline"
             fullWidth={responsive.isMobile}
           />
@@ -860,146 +738,6 @@ function MenusScreenContent({ restaurant }: { restaurant: NonNullable<ReturnType
           />
         </View>
       </View>
-    );
-  };
-
-  const renderEmpty = () => {
-    if (isLoading) return null;
-    
-    return (
-      <Animated.View 
-        style={[
-          dynamicStyles.emptyContainer,
-          {
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
-          }
-        ]}
-      >
-        <View style={dynamicStyles.emptyCard}>
-          <View style={dynamicStyles.emptyContentWrapper}>
-            {/* Colonne gauche - Contenu principal */}
-            <View style={dynamicStyles.emptyLeftColumn}>
-              {/* Icône avec effet doré */}
-              <View style={dynamicStyles.emptyIconContainer}>
-                <Ionicons 
-                  name="restaurant" 
-                  size={responsive.isTablet ? 64 : 56} 
-                  color={COLORS.variants.secondary[500]}
-                />
-              </View>
-              
-              {/* Titres */}
-              <Text style={dynamicStyles.emptyTitle}>
-                Aucun menu créé
-              </Text>
-              <Text style={dynamicStyles.emptySubtitle}>
-                ✨ Commencez votre aventure culinaire
-              </Text>
-              <Text style={dynamicStyles.emptyDescription}>
-                Créez votre premier menu et commencez à proposer vos délicieuses créations à vos clients
-              </Text>
-              
-              {/* Bouton - affiché en bas sur mobile, en haut à gauche sur tablette */}
-              {!useEmptyTwoColumnLayout && (
-                <TouchableOpacity
-                  onPress={() => router.push(`/menu/add?restaurantId=${restaurant.id}`)}
-                  activeOpacity={0.8}
-                  style={{ width: '100%' }}
-                >
-                  <LinearGradient
-                    colors={COLORS.gradients.premiumGold}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={dynamicStyles.createButtonGradient}
-                  >
-                    <View style={dynamicStyles.createButtonContent}>
-                      <Ionicons name="add-circle" size={24} color={COLORS.text.inverse} />
-                      <Text style={dynamicStyles.createButtonText}>
-                        Créer mon premier menu
-                      </Text>
-                    </View>
-                  </LinearGradient>
-                </TouchableOpacity>
-              )}
-            </View>
-            
-            {/* Colonne droite - Fonctionnalités et bouton (tablette/desktop uniquement) */}
-            {useEmptyTwoColumnLayout && (
-              <View style={dynamicStyles.emptyRightColumn}>
-                {/* Liste des fonctionnalités */}
-                <View style={dynamicStyles.emptyFeaturesList}>
-                  {[
-                    { icon: 'checkmark-circle', text: 'Gestion complète de vos plats' },
-                    { icon: 'pricetag', text: 'Tarification flexible' },
-                    { icon: 'toggle', text: 'Activation/désactivation rapide' },
-                    { icon: 'analytics', text: 'Suivi des performances' },
-                  ].map((feature, index) => (
-                    <View key={index} style={dynamicStyles.featureItem}>
-                      <View style={dynamicStyles.featureIcon}>
-                        <Ionicons 
-                          name={feature.icon as any} 
-                          size={responsive.isTablet ? 16 : 14} 
-                          color={COLORS.variants.secondary[600]} 
-                        />
-                      </View>
-                      <Text style={dynamicStyles.featureText}>
-                        {feature.text}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-                
-                {/* Bouton pour tablette/desktop */}
-                <TouchableOpacity
-                  onPress={() => router.push(`/menu/add?restaurantId=${restaurant.id}`)}
-                  activeOpacity={0.8}
-                  style={{ width: '100%', marginTop: getResponsiveValue(SPACING.xl, screenType) }}
-                >
-                    <LinearGradient
-                      colors={COLORS.gradients.premiumGold}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={dynamicStyles.createButtonGradient}
-                    >
-                      <View style={dynamicStyles.createButtonContent}>
-                        <Ionicons name="add-circle" size={24} color={COLORS.text.inverse} />
-                        <Text style={dynamicStyles.createButtonText}>
-                          Créer mon premier menu
-                        </Text>
-                      </View>
-                    </LinearGradient>
-                  </TouchableOpacity>
-              </View>
-            )}
-            
-            {/* Liste des fonctionnalités sur mobile */}
-            {!useEmptyTwoColumnLayout && (
-              <View style={dynamicStyles.emptyFeaturesList}>
-                {[
-                  { icon: 'checkmark-circle', text: 'Gestion complète de vos plats' },
-                  { icon: 'pricetag', text: 'Tarification flexible' },
-                  { icon: 'toggle', text: 'Activation/désactivation rapide' },
-                  { icon: 'analytics', text: 'Suivi des performances' },
-                ].map((feature, index) => (
-                  <View key={index} style={dynamicStyles.featureItem}>
-                    <View style={dynamicStyles.featureIcon}>
-                      <Ionicons 
-                        name={feature.icon as any} 
-                        size={14} 
-                        color={COLORS.variants.secondary[600]} 
-                      />
-                    </View>
-                    <Text style={dynamicStyles.featureText}>
-                      {feature.text}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            )}
-          </View>
-        </View>
-      </Animated.View>
     );
   };
 
@@ -1344,7 +1082,6 @@ function MenusScreenContent({ restaurant }: { restaurant: NonNullable<ReturnType
               tintColor={COLORS.variants.secondary[500]}
             />
           }
-          ListEmptyComponent={renderEmpty}
           showsVerticalScrollIndicator={false}
           numColumns={1}
           key={screenType}

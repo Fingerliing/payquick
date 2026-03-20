@@ -74,6 +74,7 @@ export default function RootLayout() {
                             <Stack.Screen name="order/success" options={{ headerShown: false }} />
                             <Stack.Screen name="notifications" options={{ headerShown: false }} />
                             <Stack.Screen name="notifications/preferences" options={{ headerShown: false }} />
+                            <Stack.Screen name="help/help" options={{ headerShown: false }} />
                             <Stack.Screen name="+not-found" />
                           </Stack>
                           <FirstLaunchLegalModal />
