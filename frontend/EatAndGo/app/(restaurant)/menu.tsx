@@ -8,6 +8,9 @@ import {
   StyleSheet,
   Animated,
   TouchableOpacity,
+  Modal,
+  Pressable,
+  ScrollView,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +20,7 @@ import { MenuCard } from '@/components/menu/MenuCard';
 import { Loading } from '@/components/ui/Loading';
 import { Button } from '@/components/ui/Button';
 import { useRestaurant } from '@/contexts/RestaurantContext';
+import { RestaurantAutoSelector } from '@/components/restaurant/RestaurantAutoSelector';
 import { menuService } from '@/services/menuService';
 import { Menu } from '@/types/menu';
 import { useResponsive } from '@/utils/responsive';
@@ -36,8 +40,17 @@ import { Alert, AlertWithAction } from '@/components/ui/Alert';
 /**
  * MenusScreen - Écran de gestion des menus avec design premium
  */
-export default function MenusScreen() {
-  const { restaurants } = useRestaurant();
+function MenusScreenContent({ restaurant }: { restaurant: NonNullable<ReturnType<typeof useRestaurant>['currentRestaurant']> }) {
+  // restaurant fourni par le wrapper RestaurantAutoSelector
+  const { restaurants, loadRestaurant } = useRestaurant();
+  const [showSwitcher, setShowSwitcher] = useState(false);
+
+  // Duplication depuis un autre restaurant
+  const [duplicateStep, setDuplicateStep] = useState<'closed' | 'pick-restaurant' | 'pick-menus'>('closed');
+  const [duplicateSourceId, setDuplicateSourceId] = useState<string | null>(null);
+  const [duplicateAvailableMenus, setDuplicateAvailableMenus] = useState<Menu[]>([]);
+  const [duplicateSelectedIds, setDuplicateSelectedIds] = useState<Set<number>>(new Set());
+  const [isDuplicating, setIsDuplicating] = useState(false);
   const [menus, setMenus] = useState<Menu[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -93,7 +106,7 @@ export default function MenusScreen() {
   const loadMenus = async (showLoading = true) => {
     if (showLoading) setIsLoading(true);
     try {
-      const myMenus = await menuService.getMyMenus();
+      const myMenus = await menuService.getMenusByRestaurant(Number(restaurant.id));
       setMenus(myMenus);
     } catch (error) {
       console.error('Erreur lors du chargement des menus:', error);
@@ -111,6 +124,65 @@ export default function MenusScreen() {
     setRefreshing(true);
     await loadMenus(false);
     setRefreshing(false);
+  };
+
+  const handleSwitchRestaurant = async (restaurantId: string) => {
+    setShowSwitcher(false);
+    await loadRestaurant(restaurantId);
+  };
+
+  const handleOpenDuplicate = () => {
+    setDuplicateSelectedIds(new Set());
+    setDuplicateSourceId(null);
+    setDuplicateAvailableMenus([]);
+    setDuplicateStep('pick-restaurant');
+  };
+
+  const handleSelectDuplicateSource = async (sourceId: string) => {
+    setDuplicateSourceId(sourceId);
+    try {
+      const sourceMenus = await menuService.getMenusByRestaurant(Number(sourceId));
+      setDuplicateAvailableMenus(sourceMenus);
+      setDuplicateStep('pick-menus');
+    } catch {
+      setToast({ variant: 'error', title: 'Erreur', message: 'Impossible de charger les menus source' });
+      setDuplicateStep('closed');
+    }
+  };
+
+  const handleToggleDuplicateMenu = (menuId: number) => {
+    setDuplicateSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(menuId) ? next.delete(menuId) : next.add(menuId);
+      return next;
+    });
+  };
+
+  const handleConfirmDuplicate = async () => {
+    if (duplicateSelectedIds.size === 0) return;
+    setIsDuplicating(true);
+    try {
+      const results = await Promise.allSettled(
+        Array.from(duplicateSelectedIds).map(id =>
+          menuService.duplicateMenu(id, restaurant.id)
+        )
+      );
+      const succeeded = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+      setDuplicateStep('closed');
+      await loadMenus(false);
+      setToast({
+        variant: failed === 0 ? 'success' : 'warning',
+        title: 'Duplication terminée',
+        message: failed === 0
+          ? `${succeeded} menu${succeeded > 1 ? 's' : ''} dupliqué${succeeded > 1 ? 's' : ''} avec succès`
+          : `${succeeded} réussi${succeeded > 1 ? 's' : ''}, ${failed} échoué${failed > 1 ? 's' : ''}`,
+      });
+    } catch {
+      setToast({ variant: 'error', title: 'Erreur', message: 'Erreur lors de la duplication' });
+    } finally {
+      setIsDuplicating(false);
+    }
   };
 
   const handleToggleMenu = async (menu: Menu) => {
@@ -528,6 +600,213 @@ export default function MenusScreen() {
       gap: getResponsiveValue(SPACING.md, screenType),
       width: '100%',
     },
+
+    // Restaurant switcher modal
+    switcherOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: getResponsiveValue(SPACING.xl, screenType),
+    },
+    switcherContainer: {
+      backgroundColor: COLORS.surface,
+      borderRadius: BORDER_RADIUS.xl,
+      width: '100%',
+      maxWidth: 400,
+      maxHeight: '70%',
+      ...SHADOWS.xl,
+      overflow: 'hidden',
+    },
+    switcherTitle: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.bold,
+      color: COLORS.primary,
+      paddingHorizontal: getResponsiveValue(SPACING.lg, screenType),
+      paddingTop: getResponsiveValue(SPACING.lg, screenType),
+      paddingBottom: getResponsiveValue(SPACING.md, screenType),
+      borderBottomWidth: 1,
+      borderBottomColor: COLORS.border.light,
+    },
+    switcherItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: getResponsiveValue(SPACING.lg, screenType),
+      paddingVertical: getResponsiveValue(SPACING.md, screenType),
+      gap: getResponsiveValue(SPACING.md, screenType),
+      borderBottomWidth: 1,
+      borderBottomColor: COLORS.border.light,
+    },
+    switcherItemActive: {
+      backgroundColor: COLORS.primary,
+    },
+    switcherItemIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: BORDER_RADIUS.full,
+      backgroundColor: COLORS.variants.secondary[100],
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    switcherItemText: {
+      flex: 1,
+    },
+    switcherItemName: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      color: COLORS.text.primary,
+    },
+    switcherItemNameActive: {
+      color: COLORS.surface,
+    },
+    switcherItemAddress: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+      color: COLORS.text.secondary,
+      marginTop: 2,
+    },
+    switcherClose: {
+      padding: getResponsiveValue(SPACING.md, screenType),
+      alignItems: 'center',
+      borderTopWidth: 1,
+      borderTopColor: COLORS.border.light,
+    },
+    switcherCloseText: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.medium,
+      color: COLORS.text.secondary,
+    },
+
+    // Barre "Récupérer des menus"
+    duplicateBar: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'flex-end' as const,
+      paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
+      paddingVertical: getResponsiveValue(SPACING.sm, screenType),
+      backgroundColor: COLORS.goldenSurface,
+      borderBottomWidth: 1,
+      borderBottomColor: COLORS.border.golden,
+    },
+    duplicateBarButton: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 6,
+      paddingVertical: getResponsiveValue(SPACING.xs, screenType),
+      paddingHorizontal: getResponsiveValue(SPACING.md, screenType),
+      backgroundColor: COLORS.surface,
+      borderRadius: BORDER_RADIUS.full,
+      borderWidth: 1,
+      borderColor: COLORS.border.golden,
+      ...SHADOWS.sm,
+    },
+    duplicateBarButtonText: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      color: COLORS.primary,
+    },
+
+    // Modal duplication
+    dupOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+      padding: getResponsiveValue(SPACING.xl, screenType),
+    },
+    dupContainer: {
+      backgroundColor: COLORS.surface,
+      borderRadius: BORDER_RADIUS.xl,
+      width: '100%',
+      maxWidth: 420,
+      maxHeight: '75%',
+      ...SHADOWS.xl,
+      overflow: 'hidden' as const,
+    },
+    dupHeader: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      paddingHorizontal: getResponsiveValue(SPACING.lg, screenType),
+      paddingVertical: getResponsiveValue(SPACING.md, screenType),
+      borderBottomWidth: 1,
+      borderBottomColor: COLORS.border.light,
+      gap: getResponsiveValue(SPACING.sm, screenType),
+    },
+    dupTitle: {
+      flex: 1,
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.bold,
+      color: COLORS.primary,
+    },
+    dupItem: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      paddingHorizontal: getResponsiveValue(SPACING.lg, screenType),
+      paddingVertical: getResponsiveValue(SPACING.md, screenType),
+      gap: getResponsiveValue(SPACING.md, screenType),
+      borderBottomWidth: 1,
+      borderBottomColor: COLORS.border.light,
+    },
+    dupItemSelected: {
+      backgroundColor: COLORS.variants.secondary[50],
+    },
+    dupItemIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: BORDER_RADIUS.full,
+      backgroundColor: COLORS.variants.secondary[100],
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    dupItemIconSelected: {
+      backgroundColor: COLORS.variants.secondary[500],
+    },
+    dupItemText: { flex: 1 },
+    dupItemName: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      color: COLORS.text.primary,
+    },
+    dupItemSub: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+      color: COLORS.text.secondary,
+      marginTop: 2,
+    },
+    dupEmptyText: {
+      textAlign: 'center' as const,
+      color: COLORS.text.secondary,
+      padding: getResponsiveValue(SPACING.xl, screenType),
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+    },
+    dupFooter: {
+      padding: getResponsiveValue(SPACING.md, screenType),
+      borderTopWidth: 1,
+      borderTopColor: COLORS.border.light,
+      gap: getResponsiveValue(SPACING.sm, screenType),
+    },
+    dupConfirmButton: {
+      borderRadius: BORDER_RADIUS.lg,
+      overflow: 'hidden' as const,
+    },
+    dupConfirmGradient: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      paddingVertical: getResponsiveValue(SPACING.md, screenType),
+      gap: 8,
+    },
+    dupConfirmText: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.bold,
+      color: COLORS.text.inverse,
+    },
+    dupCancelButton: {
+      alignItems: 'center' as const,
+      paddingVertical: getResponsiveValue(SPACING.sm, screenType),
+    },
+    dupCancelText: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+      color: COLORS.text.secondary,
+    },
   });
 
   const renderHelpCard = () => {
@@ -551,17 +830,7 @@ export default function MenusScreen() {
         <View style={dynamicStyles.helpActions}>
           <Button
             title="Créer mon premier menu"
-            onPress={() => {
-              if (restaurants.length > 0) {
-                router.push(`/menu/add?restaurantId=${restaurants[0].id}`);
-              } else {
-                setToast({
-                  variant: 'warning',
-                  title: 'Restaurant requis',
-                  message: "Vous devez d'abord créer un restaurant avant de pouvoir ajouter des menus.",
-                });
-              }
-            }}
+            onPress={() => router.push(`/menu/add?restaurantId=${restaurant.id}`)}
             variant="primary"
             leftIcon={<Ionicons name="add-circle-outline" size={20} color={COLORS.text.inverse} />}
             fullWidth={responsive.isMobile}
@@ -632,9 +901,9 @@ export default function MenusScreen() {
               </Text>
               
               {/* Bouton - affiché en bas sur mobile, en haut à gauche sur tablette */}
-              {!useEmptyTwoColumnLayout && restaurants.length > 0 && (
+              {!useEmptyTwoColumnLayout && (
                 <TouchableOpacity
-                  onPress={() => router.push(`/menu/add?restaurantId=${restaurants[0].id}`)}
+                  onPress={() => router.push(`/menu/add?restaurantId=${restaurant.id}`)}
                   activeOpacity={0.8}
                   style={{ width: '100%' }}
                 >
@@ -682,12 +951,11 @@ export default function MenusScreen() {
                 </View>
                 
                 {/* Bouton pour tablette/desktop */}
-                {restaurants.length > 0 && (
-                  <TouchableOpacity
-                    onPress={() => router.push(`/menu/add?restaurantId=${restaurants[0].id}`)}
-                    activeOpacity={0.8}
-                    style={{ width: '100%', marginTop: getResponsiveValue(SPACING.xl, screenType) }}
-                  >
+                <TouchableOpacity
+                  onPress={() => router.push(`/menu/add?restaurantId=${restaurant.id}`)}
+                  activeOpacity={0.8}
+                  style={{ width: '100%', marginTop: getResponsiveValue(SPACING.xl, screenType) }}
+                >
                     <LinearGradient
                       colors={COLORS.gradients.premiumGold}
                       start={{ x: 0, y: 0 }}
@@ -702,7 +970,6 @@ export default function MenusScreen() {
                       </View>
                     </LinearGradient>
                   </TouchableOpacity>
-                )}
               </View>
             )}
             
@@ -839,22 +1106,223 @@ export default function MenusScreen() {
     <View style={dynamicStyles.container}>
       <Header 
         title="Mes Menus"
+        subtitle={restaurant.name}
         rightIcon="add-circle"
-        onRightPress={() => {
-          if (restaurants.length > 0) {
-            router.push(`/menu/add?restaurantId=${restaurants[0].id}`);
-          } else {
-            setToast({
-              variant: 'warning',
-              title: 'Restaurant requis',
-              message: "Vous devez d'abord créer un restaurant avant de pouvoir ajouter des menus.",
-            });
-          }
-        }}
+        onRightPress={() => router.push(`/menu/add?restaurantId=${restaurant.id}`)}
+        leftIcon={restaurants.length > 1 ? 'swap-horizontal' : undefined}
+        onLeftPress={restaurants.length > 1 ? () => setShowSwitcher(true) : undefined}
       />
+
+      {/* Modal sélection de restaurant */}
+      {restaurants.length > 1 && (
+        <Modal
+          visible={showSwitcher}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowSwitcher(false)}
+        >
+          <Pressable
+            style={dynamicStyles.switcherOverlay}
+            onPress={() => setShowSwitcher(false)}
+          >
+            <Pressable
+              style={dynamicStyles.switcherContainer}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <Text style={dynamicStyles.switcherTitle}>Changer de restaurant</Text>
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {restaurants.map((r) => {
+                  const isCurrent = r.id === restaurant.id;
+                  return (
+                    <TouchableOpacity
+                      key={r.id}
+                      style={[
+                        dynamicStyles.switcherItem,
+                        isCurrent && dynamicStyles.switcherItemActive,
+                      ]}
+                      onPress={() => handleSwitchRestaurant(r.id)}
+                      disabled={isCurrent}
+                    >
+                      <View style={dynamicStyles.switcherItemIcon}>
+                        <Ionicons
+                          name="restaurant"
+                          size={20}
+                          color={isCurrent ? COLORS.surface : COLORS.variants.secondary[600]}
+                        />
+                      </View>
+                      <View style={dynamicStyles.switcherItemText}>
+                        <Text
+                          style={[
+                            dynamicStyles.switcherItemName,
+                            isCurrent && dynamicStyles.switcherItemNameActive,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {r.name}
+                        </Text>
+                        {r.address && (
+                          <Text style={dynamicStyles.switcherItemAddress} numberOfLines={1}>
+                            {r.address}
+                          </Text>
+                        )}
+                      </View>
+                      {isCurrent && (
+                        <Ionicons name="checkmark-circle" size={20} color={COLORS.surface} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+              <TouchableOpacity
+                style={dynamicStyles.switcherClose}
+                onPress={() => setShowSwitcher(false)}
+              >
+                <Text style={dynamicStyles.switcherCloseText}>Fermer</Text>
+              </TouchableOpacity>
+            </Pressable>
+          </Pressable>
+        </Modal>
+      )}
 
       {/* Barre de statistiques améliorée */}
       {renderStatsBar()}
+
+      {/* Barre "Récupérer des menus depuis un autre restaurant" */}
+      {restaurants.length > 1 && (
+        <View style={dynamicStyles.duplicateBar}>
+          <TouchableOpacity
+            style={dynamicStyles.duplicateBarButton}
+            onPress={handleOpenDuplicate}
+          >
+            <Ionicons name="copy-outline" size={16} color={COLORS.primary} />
+            <Text style={dynamicStyles.duplicateBarButtonText}>Récupérer des menus</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Modal duplication 2 étapes */}
+      <Modal
+        visible={duplicateStep !== 'closed'}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDuplicateStep('closed')}
+      >
+        <Pressable style={dynamicStyles.dupOverlay} onPress={() => setDuplicateStep('closed')}>
+          <Pressable style={dynamicStyles.dupContainer} onPress={(e) => e.stopPropagation()}>
+
+            {/* Étape 1 : choisir le restaurant source */}
+            {duplicateStep === 'pick-restaurant' && (
+              <>
+                <View style={dynamicStyles.dupHeader}>
+                  <Text style={dynamicStyles.dupTitle}>Choisir un restaurant source</Text>
+                </View>
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  {restaurants
+                    .filter(r => r.id !== restaurant.id)
+                    .map(r => (
+                      <TouchableOpacity
+                        key={r.id}
+                        style={dynamicStyles.dupItem}
+                        onPress={() => handleSelectDuplicateSource(r.id)}
+                      >
+                        <View style={dynamicStyles.dupItemIcon}>
+                          <Ionicons name="restaurant" size={20} color={COLORS.variants.secondary[600]} />
+                        </View>
+                        <View style={dynamicStyles.dupItemText}>
+                          <Text style={dynamicStyles.dupItemName} numberOfLines={1}>{r.name}</Text>
+                          {r.address && (
+                            <Text style={dynamicStyles.dupItemSub} numberOfLines={1}>{r.address}</Text>
+                          )}
+                        </View>
+                        <Ionicons name="chevron-forward" size={18} color={COLORS.text.secondary} />
+                      </TouchableOpacity>
+                    ))}
+                </ScrollView>
+                <View style={dynamicStyles.dupFooter}>
+                  <TouchableOpacity style={dynamicStyles.dupCancelButton} onPress={() => setDuplicateStep('closed')}>
+                    <Text style={dynamicStyles.dupCancelText}>Annuler</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+
+            {/* Étape 2 : choisir les menus à dupliquer */}
+            {duplicateStep === 'pick-menus' && (
+              <>
+                <View style={dynamicStyles.dupHeader}>
+                  <TouchableOpacity
+                    style={{ padding: 4 }}
+                    onPress={() => setDuplicateStep('pick-restaurant')}
+                  >
+                    <Ionicons name="chevron-back" size={22} color={COLORS.primary} />
+                  </TouchableOpacity>
+                  <Text style={dynamicStyles.dupTitle}>Sélectionner les menus</Text>
+                </View>
+
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  {duplicateAvailableMenus.length === 0 ? (
+                    <Text style={dynamicStyles.dupEmptyText}>Aucun menu dans ce restaurant</Text>
+                  ) : (
+                    duplicateAvailableMenus.map(m => {
+                      const selected = duplicateSelectedIds.has(m.id);
+                      return (
+                        <TouchableOpacity
+                          key={m.id}
+                          style={[dynamicStyles.dupItem, selected && dynamicStyles.dupItemSelected]}
+                          onPress={() => handleToggleDuplicateMenu(m.id)}
+                        >
+                          <View style={[dynamicStyles.dupItemIcon, selected && dynamicStyles.dupItemIconSelected]}>
+                            <Ionicons
+                              name={selected ? 'checkmark' : 'restaurant-outline'}
+                              size={20}
+                              color={selected ? COLORS.surface : COLORS.variants.secondary[600]}
+                            />
+                          </View>
+                          <View style={dynamicStyles.dupItemText}>
+                            <Text style={dynamicStyles.dupItemName} numberOfLines={1}>{m.name}</Text>
+                            <Text style={dynamicStyles.dupItemSub}>
+                              {m.items?.length ?? 0} plat{(m.items?.length ?? 0) > 1 ? 's' : ''} · {m.is_available ? 'Actif' : 'Inactif'}
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })
+                  )}
+                </ScrollView>
+
+                <View style={dynamicStyles.dupFooter}>
+                  <TouchableOpacity
+                    style={[dynamicStyles.dupConfirmButton, duplicateSelectedIds.size === 0 && { opacity: 0.4 }]}
+                    onPress={handleConfirmDuplicate}
+                    disabled={duplicateSelectedIds.size === 0 || isDuplicating}
+                  >
+                    <LinearGradient
+                      colors={[COLORS.primary, COLORS.variants.primary?.[700] ?? COLORS.primary]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={dynamicStyles.dupConfirmGradient}
+                    >
+                      {isDuplicating
+                        ? <Text style={dynamicStyles.dupConfirmText}>Duplication…</Text>
+                        : <>
+                            <Ionicons name="copy" size={18} color={COLORS.text.inverse} />
+                            <Text style={dynamicStyles.dupConfirmText}>
+                              Dupliquer {duplicateSelectedIds.size > 0 ? `(${duplicateSelectedIds.size})` : ''}
+                            </Text>
+                          </>
+                      }
+                    </LinearGradient>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={dynamicStyles.dupCancelButton} onPress={() => setDuplicateStep('closed')}>
+                    <Text style={dynamicStyles.dupCancelText}>Annuler</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Section d'information sur le fonctionnement */}
       {renderInfoSection()}
@@ -945,5 +1413,22 @@ export default function MenusScreen() {
         </View>
       )}
     </View>
+  );
+}
+
+// Composant wrapper avec gestion automatique de la sélection du restaurant
+export default function MenusScreen() {
+  const { currentRestaurant } = useRestaurant();
+
+  return (
+    <RestaurantAutoSelector
+      noRestaurantMessage="Aucun restaurant pour gérer les menus"
+      createButtonText="Créer mon restaurant"
+      onRestaurantSelected={(restaurantId) => {
+        console.log('Restaurant sélectionné pour les menus:', restaurantId);
+      }}
+    >
+      {currentRestaurant && <MenusScreenContent restaurant={currentRestaurant} />}
+    </RestaurantAutoSelector>
   );
 }

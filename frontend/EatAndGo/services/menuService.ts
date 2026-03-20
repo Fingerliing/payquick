@@ -81,7 +81,7 @@ export class MenuService {
    * Récupérer les items par allergène
    */
   async getItemsByAllergen(allergen: string): Promise<MenuItem[]> {
-    return apiClient.get('/api/v1/menu-items/by_allergen/', { allergen });
+    return apiClient.get('/api/v1/menu-items/by_allergen/', { params: { allergen } });
   }
 
   /**
@@ -92,31 +92,26 @@ export class MenuService {
     vegan?: boolean;
     gluten_free?: boolean;
   }): Promise<MenuItem[]> {
-    return apiClient.get('/api/v1/menu-items/dietary_options/', filters);
+    return apiClient.get('/api/v1/menu-items/dietary_options/', { params: filters });
   }
 
   /**
-   * Récupère les menus disponibles pour un restaurant côté client.
-   * Essaye d'abord l'endpoint public, puis retombe sur le privé si erreur.
+   * Récupère les menus du restaurateur connecté pour un restaurant spécifique.
    */
   async getMenusByRestaurant(restaurantId: number): Promise<Menu[]> {
-    try {
-      // Endpoint public pensé pour les clients
-      const menus = await apiClient.get(`/api/v1/menus/public/${restaurantId}/menus/`) as any;
-      const list = Array.isArray(menus)
-        ? menus
-        : (menus?.results ?? menus?.data ?? []);
-      return list.map((m: any) => this.normalizeMenu(m))
-                 .filter((m: any) => m?.restaurant === restaurantId || m?.restaurant?.id === restaurantId);
-    } catch (e: any) {
-      // Fallback: ancien flux privé (auth requis)
-      try {
-        const allMenus = await this.getMyMenus();
-        return allMenus.filter(menu => menu.restaurant === restaurantId);
-      } catch {
-        return [];
-      }
-    }
+    const menus = await apiClient.get('/api/v1/menus/', { params: { restaurant: restaurantId } });
+    return Array.isArray(menus) ? menus.map(menu => this.normalizeMenu(menu)) : [];
+  }
+
+  /**
+   * Duplique un menu vers un autre restaurant (même restaurateur).
+   * Le menu dupliqué est créé inactif. Les catégories sont créées par nom si absentes.
+   */
+  async duplicateMenu(sourceMenuId: number, targetRestaurantId: string): Promise<Menu> {
+    const menu = await apiClient.post(`/api/v1/menus/${sourceMenuId}/duplicate/`, {
+      target_restaurant_id: targetRestaurantId,
+    });
+    return this.normalizeMenu(menu);
   }
 
   /**

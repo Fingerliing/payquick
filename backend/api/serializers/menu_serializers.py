@@ -146,10 +146,24 @@ class MenuItemSerializer(serializers.ModelSerializer):
 class MenuSerializer(serializers.ModelSerializer):
     items = MenuItemSerializer(many=True, read_only=True)
     restaurant_owner_id = serializers.SerializerMethodField()
+    restaurant_name = serializers.CharField(source='restaurant.name', read_only=True)
+
+    restaurant = serializers.PrimaryKeyRelatedField(
+        queryset=__import__('api.models', fromlist=['Restaurant']).Restaurant.objects.none()
+    )
 
     class Meta:
         model = Menu
-        fields = ['id', 'name', 'restaurant', 'items', 'created_at', 'updated_at', 'restaurant_owner_id', 'is_available']
+        fields = ['id', 'name', 'restaurant', 'restaurant_name', 'items', 'created_at', 'updated_at', 'restaurant_owner_id', 'is_available']
 
     def get_restaurant_owner_id(self, obj):
         return obj.restaurant.owner.id
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+        if request and hasattr(request.user, 'restaurateur_profile'):
+            from api.models import Restaurant
+            self.fields['restaurant'].queryset = Restaurant.objects.filter(
+                owner=request.user.restaurateur_profile
+            )

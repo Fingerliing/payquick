@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.db import transaction
-from api.models import Menu, MenuItem
+from api.models import Menu, MenuItem, MenuCategory, MenuSubCategory, Restaurant
 from api.serializers import MenuSerializer, MenuItemSerializer
 from api.permissions import IsRestaurateur, IsOwnerOrReadOnly
 from drf_spectacular.utils import extend_schema, OpenApiResponse
@@ -23,9 +23,17 @@ class MenuViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsRestaurateur, IsOwnerOrReadOnly]
 
     def get_queryset(self):
-        return Menu.objects.filter(restaurant__owner=self.request.user.restaurateur_profile)
+        qs = Menu.objects.filter(restaurant__owner=self.request.user.restaurateur_profile)
+        restaurant_id = self.request.query_params.get('restaurant')
+        if restaurant_id:
+            qs = qs.filter(restaurant_id=restaurant_id)
+        return qs
 
     def perform_create(self, serializer):
+        restaurant = serializer.validated_data.get('restaurant')
+        if not restaurant or restaurant.owner != self.request.user.restaurateur_profile:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Ce restaurant ne vous appartient pas.")
         with transaction.atomic():
             menu = serializer.save()
             if menu.is_available:
@@ -99,6 +107,77 @@ class MenuViewSet(viewsets.ModelViewSet):
             "message": "Menu désactivé avec succès"
         })
     
+    @extend_schema(
+        summary="Dupliquer un menu vers un autre restaurant",
+        description="Copie le menu et tous ses plats vers un restaurant cible appartenant au même restaurateur. Les catégories sont recréées par nom si absentes.",
+        responses={
+            201: OpenApiResponse(description="Menu dupliqué", response=MenuSerializer),
+            400: OpenApiResponse(description="Paramètre manquant"),
+            404: OpenApiResponse(description="Restaurant cible introuvable"),
+        }
+    )
+    @action(detail=True, methods=["post"])
+    def duplicate(self, request, pk=None):
+        source_menu = self.get_object()
+        target_restaurant_id = request.data.get('target_restaurant_id')
+
+        if not target_restaurant_id:
+            return Response({'error': 'target_restaurant_id est requis'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            target_restaurant = Restaurant.objects.get(
+                id=target_restaurant_id,
+                owner=request.user.restaurateur_profile,
+            )
+        except Restaurant.DoesNotExist:
+            return Response({'error': 'Restaurant cible introuvable ou non autorisé'}, status=status.HTTP_404_NOT_FOUND)
+
+        with transaction.atomic():
+            new_menu = Menu.objects.create(
+                restaurant=target_restaurant,
+                name=source_menu.name,
+                is_available=False,
+            )
+            for item in source_menu.items.select_related('category', 'subcategory').all():
+                new_cat = None
+                if item.category:
+                    new_cat, _ = MenuCategory.objects.get_or_create(
+                        restaurant=target_restaurant,
+                        name=item.category.name,
+                        defaults={
+                            'icon': item.category.icon,
+                            'color': item.category.color,
+                            'description': item.category.description,
+                            'order': item.category.order,
+                        }
+                    )
+                new_sub = None
+                if item.subcategory and new_cat:
+                    new_sub, _ = MenuSubCategory.objects.get_or_create(
+                        category=new_cat,
+                        name=item.subcategory.name,
+                        defaults={
+                            'description': item.subcategory.description,
+                            'order': item.subcategory.order,
+                        }
+                    )
+                MenuItem.objects.create(
+                    menu=new_menu,
+                    name=item.name,
+                    description=item.description,
+                    price=item.price,
+                    category=new_cat,
+                    subcategory=new_sub,
+                    is_available=item.is_available,
+                    is_vegetarian=item.is_vegetarian,
+                    is_vegan=item.is_vegan,
+                    is_gluten_free=item.is_gluten_free,
+                    allergens=item.allergens,
+                )
+
+        serializer = self.get_serializer(new_menu)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
     @extend_schema(
         tags=["Menu • Menus"],
         summary="Lister les menus publics d’un restaurant",
