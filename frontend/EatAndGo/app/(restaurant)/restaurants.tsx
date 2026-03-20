@@ -430,7 +430,7 @@ export default function RestaurantsScreen() {
                 
                 <Pressable 
                   style={styles.emptySecondaryAction}
-                  onPress={() => {/* Guide d'utilisation */}}
+                  onPress={() => router.push('/help/help' as any)}
                 >
                   <Ionicons name="help-circle-outline" size={20} color={COLORS.primary} />
                   <Text style={styles.emptySecondaryText(screenType)}>

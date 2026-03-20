@@ -805,7 +805,7 @@ export default function DashboardScreen() {
                   />
                   <Button
                     title="Guide d'utilisation"
-                    onPress={() => router.push('/help' as any)}
+                    onPress={() => router.push('/help/help' as any)}
                     variant="outline"
                     fullWidth={isMobile}
                   />

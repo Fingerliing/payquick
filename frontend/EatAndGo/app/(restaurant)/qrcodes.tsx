@@ -31,6 +31,7 @@ import {
   SPACING,
   BORDER_RADIUS
 } from '@/utils/designSystem';
+import { router } from 'expo-router';
 
 type ScreenType = 'mobile' | 'tablet' | 'desktop';
 type QRSize = 'small' | 'medium' | 'large';
@@ -1632,10 +1633,17 @@ export default function QRCodesScreen() {
                     Sélectionnez un restaurant et spécifiez le nombre de tables pour commencer
                   </Text>
 
-                  <View style={styles.helpCard}>
-                    <Text style={styles.helpTitle}>
-                      Comment ça marche :
-                    </Text>
+                  <Pressable
+                    style={styles.helpCard}
+                    onPress={() => router.push('/help/help' as any)}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: getResponsiveValue(SPACING.xs, screenType) }}>
+                      <Ionicons name="help-circle-outline" size={16} color={COLORS.primary} style={{ marginRight: 6 }} />
+                      <Text style={styles.helpTitle}>
+                        Comment ça marche ?
+                      </Text>
+                      <Ionicons name="arrow-forward" size={14} color={COLORS.primary} style={{ marginLeft: 'auto' }} />
+                    </View>
                     <Text style={styles.helpText}>
                       • Choisissez votre restaurant{'\n'}
                       • Sélectionnez la taille des QR codes{'\n'}
@@ -1644,7 +1652,7 @@ export default function QRCodesScreen() {
                       • Imprimez ou téléchargez en PDF{'\n'}
                       • Vos clients pourront scanner ou saisir le code manuel
                     </Text>
-                  </View>
+                  </Pressable>
                 </View>
               </Card>
             )}
