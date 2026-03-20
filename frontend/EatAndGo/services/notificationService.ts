@@ -243,8 +243,11 @@ class NotificationService {
         return true;
       }
 
+      const deviceId = await this.getDeviceId();
+
       await apiClient.post('/api/v1/notifications/tokens/unregister/', {
         expo_token: token,
+        device_id: deviceId,
       });
 
       console.log('✅ Token supprimé du serveur');
