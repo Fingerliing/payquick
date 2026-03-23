@@ -175,7 +175,21 @@ class CreateSplitPaymentSessionView(APIView):
             order.payment_status = 'partial_paid'
             order.is_split_payment = True
             order.save()
-            
+
+            # ── Notifier les membres de la session collaborative ──────────────
+            try:
+                collab_session_id = getattr(order, 'collaborative_session_id', None)
+                if collab_session_id:
+                    from api.utils.websocket_notifications import notify_split_payment_initiated
+                    notify_split_payment_initiated(
+                        session_id=str(collab_session_id),
+                        order_id=order.id,
+                        portions_count=len(portions),
+                        total_amount=str(session.total_amount),
+                    )
+            except Exception as e:
+                logger.warning(f"WS notify split_payment_initiated failed: {e}")
+
             # Retourner la session créée
             response_serializer = SplitPaymentSessionSerializer(session)
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)

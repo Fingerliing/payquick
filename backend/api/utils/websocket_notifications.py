@@ -14,9 +14,14 @@ def notify_table_released(*args, **kwargs):
     from api.consumers import notify_table_released as _fn
     return _fn(*args, **kwargs)
 
+def notify_split_payment_initiated(*args, **kwargs):
+    from api.consumers import notify_split_payment_initiated as _fn
+    return _fn(*args, **kwargs)
+
 __all__ = [
     'notify_session_archived',
-    'notify_session_update', 
+    'notify_session_update',
     'notify_session_completed',
     'notify_table_released',
+    'notify_split_payment_initiated',
 ]

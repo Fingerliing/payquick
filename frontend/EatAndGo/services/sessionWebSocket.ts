@@ -15,7 +15,8 @@ export type SessionWebSocketEvent =
   | 'session_unlocked'
   | 'session_completed'
   | 'session_archived'
-  | 'table_released';
+  | 'table_released'
+  | 'split_payment_initiated';
 
 interface WebSocketMessage {
   type: string;
@@ -34,6 +35,9 @@ interface WebSocketMessage {
   will_archive_in?: number;
   table_id?: string;
   table_number?: string;
+  order_id?: string;
+  portions_count?: number;
+  total_amount?: string;
 }
 
 export class SessionWebSocket extends EventEmitter {
@@ -223,6 +227,17 @@ export class SessionWebSocket extends EventEmitter {
             table_number: message.table_number,
             message:      message.message,
             timestamp:    message.timestamp,
+          });
+          break;
+
+        case 'split_payment_initiated':
+          console.log('💳 Split payment initiated for order:', message.order_id);
+          this.emit('split_payment_initiated', {
+            order_id:       message.order_id,
+            session_id:     message.session_id,
+            portions_count: message.portions_count,
+            total_amount:   message.total_amount,
+            timestamp:      message.timestamp,
           });
           break;
 

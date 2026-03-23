@@ -57,27 +57,7 @@ export default function RootLayout() {
                     <CartProvider>
                       <PushNotificationProvider>
                         <SessionNotificationProvider>
-                          <Stack>
-                            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-                            <Stack.Screen name="(restaurant)" options={{ headerShown: false }} />
-                            <Stack.Screen name="(client)" options={{ headerShown: false }} />
-                            <Stack.Screen name="restaurant/[id]" options={{ headerShown: false }} />
-                            <Stack.Screen name="restaurant/add" options={{ headerShown: false }} />
-                            <Stack.Screen name="restaurant/edit/[id]" options={{ headerShown: false }} />
-                            <Stack.Screen name="menu/[id]" options={{ headerShown: false }} />
-                            <Stack.Screen name="menu/edit/[id]" options={{ headerShown: false }} />
-                            <Stack.Screen name="menu/item/add" options={{ headerShown: false }} />
-                            <Stack.Screen name="menu/item/edit/[id]" options={{ headerShown: false }} />
-                            <Stack.Screen name="menu/client/[restaurantId]" options={{ headerShown: false }} />
-                            <Stack.Screen name="menu/client/[restaurantId]/[sessionId]" options={{ headerShown: false }} />
-                            <Stack.Screen name="menu/add" options={{ headerShown: false }} />
-                            <Stack.Screen name="order/[id]" options={{ headerShown: false }} />
-                            <Stack.Screen name="order/checkout" options={{ headerShown: false }} />
-                            <Stack.Screen name="order/success" options={{ headerShown: false }} />
-                            <Stack.Screen name="order/payment" options={{ headerShown: false }} />
-                            <Stack.Screen name="notifications" options={{ headerShown: false }} />
-                            <Stack.Screen name="notifications/preferences" options={{ headerShown: false }} />
-                            <Stack.Screen name="help/help" options={{ headerShown: false }} />
+                          <Stack screenOptions={{ headerShown: false }}>
                             <Stack.Screen name="+not-found" />
                           </Stack>
                           <FirstLaunchLegalModal />

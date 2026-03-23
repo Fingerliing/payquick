@@ -385,6 +385,24 @@ class SessionConsumer(BaseAuthenticatedConsumer):
             }))
         except Exception as e:
             logger.error(f"Error sending table_released: {e}")
+
+    async def split_payment_initiated(self, event):
+        """
+        Handler pour notification de paiement divisé initié par l'hôte.
+        Redirige tous les membres de la session vers leur page de paiement.
+        Appelé par notify_split_payment_initiated().
+        """
+        try:
+            await self.send(text_data=json.dumps({
+                'type': 'split_payment_initiated',
+                'order_id': event.get('order_id'),
+                'session_id': event.get('session_id'),
+                'portions_count': event.get('portions_count'),
+                'total_amount': event.get('total_amount'),
+                'timestamp': event.get('timestamp'),
+            }))
+        except Exception as e:
+            logger.error(f"Error sending split_payment_initiated: {e}")
     
     async def participant_update(self, event):
         """
@@ -815,3 +833,26 @@ def notify_table_released(table_id, table_number, restaurant_id):
         logger.info(f"✅ Notification libération table {table_number}")
     except Exception as e:
         logger.error(f"❌ Erreur notification table: {e}")
+
+
+def notify_split_payment_initiated(session_id, order_id, portions_count, total_amount):
+    """
+    Notifie tous les membres d'une session collaborative que l'hôte
+    a initié un paiement divisé — les membres doivent payer leur part.
+    """
+    channel_layer = get_channel_layer()
+    if not channel_layer:
+        logger.warning("Channel layer not available")
+        return
+
+    async_to_sync(channel_layer.group_send)(
+        f'session_{session_id}',
+        {
+            'type': 'split_payment_initiated',
+            'order_id': str(order_id),
+            'session_id': str(session_id),
+            'portions_count': portions_count,
+            'total_amount': str(total_amount),
+            'timestamp': timezone.now().isoformat(),
+        }
+    )

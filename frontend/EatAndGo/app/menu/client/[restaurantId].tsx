@@ -120,12 +120,26 @@ export default function OptimizedRestaurantPage() {
     const unsub = on('session_update', (data: any) => {
       if (data?.event === 'participant_pending') {
         console.log('[WS] participant_pending reçu → refresh session');
-        // Rafraîchir la session pour déclencher l'alerte ci-dessous
         refresh();
       }
     });
 
-    return () => unsub();
+    // ── Split payment initié par l'hôte : rediriger les membres ──────────
+    // Priorité sur expiredAlert : si ce state est set, la session_completed
+    // qui suit ne déclenche pas le retour à l'accueil (voir rendu JSX).
+    const unsubSplit = on('split_payment_initiated' as any, (data: any) => {
+      if (isHost) return; // l'hôte gère lui-même depuis sa page payment
+      setSplitPaymentAlert({
+        orderId:       data.order_id,
+        portionsCount: data.portions_count ?? 2,
+        totalAmount:   data.total_amount ?? '',
+      });
+    });
+
+    return () => {
+      unsub();
+      unsubSplit();
+    };
   }, [sessionId, on, refresh]);
 
   const { cart, addToCart, clearCart } = useCart();
@@ -169,6 +183,17 @@ export default function OptimizedRestaurantPage() {
 
   // Session banner
   const [codeCopied, setCodeCopied] = useState(false);
+
+  // ─── Split payment initié par l'hôte → alerter les membres ───────────────
+  // Ce state est aussi utilisé pour BLOQUER expiredAlert si le split est actif :
+  // l'hôte finalise la session juste après avoir divisé la note → les deux
+  // événements WS arrivent (split_payment_initiated puis session_completed).
+  // On veut que les membres atterrissent sur la page de paiement, pas à l'accueil.
+  const [splitPaymentAlert, setSplitPaymentAlert] = useState<{
+    orderId: string;
+    portionsCount: number;
+    totalAmount: string;
+  } | null>(null);
 
   // Ref pour tracker les pending précédents
   const prevPendingCountRef = useRef(0);
@@ -709,8 +734,37 @@ export default function OptimizedRestaurantPage() {
         </View>
       )}
 
-      {/* Session expirée / archivée — tous les membres redirigés à l'accueil */}
-      {expiredAlert && (
+      {/* Split payment initié — redirection des membres vers le paiement */}
+      {splitPaymentAlert && (
+        <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
+          <AlertWithAction
+            variant="info"
+            title="💳 Paiement de la note"
+            message={
+              splitPaymentAlert.totalAmount
+                ? `L'hôte a divisé la note (${splitPaymentAlert.totalAmount}€) en ${splitPaymentAlert.portionsCount} parts. Payez votre part maintenant.`
+                : `L'hôte a divisé la note en ${splitPaymentAlert.portionsCount} parts. Payez votre part maintenant.`
+            }
+            autoDismiss={false}
+            primaryButton={{
+              text: 'Payer ma part',
+              variant: 'primary',
+              onPress: () => {
+                const { orderId } = splitPaymentAlert;
+                setSplitPaymentAlert(null);
+                router.push(`/order/payment?orderId=${orderId}&splitView=member` as any);
+              },
+            }}
+            secondaryButton={{
+              text: 'Plus tard',
+              onPress: () => setSplitPaymentAlert(null),
+            }}
+          />
+        </View>
+      )}
+
+      {/* Session expirée / archivée — retour accueil SAUF si split payment actif */}
+      {expiredAlert && !splitPaymentAlert && (
         <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
           <AlertWithAction
             variant="warning"
