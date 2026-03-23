@@ -3,7 +3,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import secureStorage from '@/utils/secureStorage';
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
 
 // ─── Types ────────────────────────────────────────────────────────────────
@@ -85,7 +85,7 @@ export const useSessionCart = ({
   // ── Helpers HTTP ────────────────────────────────────────────────────────
 
   const getAuthHeaders = useCallback(async (): Promise<HeadersInit> => {
-    const token = await AsyncStorage.getItem('access_token');
+    const token = await secureStorage.getItem('access_token');
     const headers: HeadersInit = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
     // Identification guest : le backend résout le participant via ce header
@@ -123,7 +123,7 @@ export const useSessionCart = ({
   const connectWebSocket = useCallback(async () => {
     if (!sessionId || !enabled) return;
 
-    const token = await AsyncStorage.getItem('access_token');
+    const token = await secureStorage.getItem('access_token');
     const wsProtocol = API_URL.startsWith('https') ? 'wss:' : 'ws:';
     const baseHost = API_URL.replace(/^https?:\/\//, '');
     let wsUrl = `${wsProtocol}//${baseHost}/ws/session/${sessionId}/`;

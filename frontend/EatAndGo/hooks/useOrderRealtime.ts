@@ -1,6 +1,6 @@
 // hooks/useOrderRealtime.ts - Version ultra-simple SANS boucle
 import { useEffect, useRef, useState } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import secureStorage from '@/utils/secureStorage';
 import { OrderList } from '@/types/order';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -88,7 +88,7 @@ export function useOrderRealtime(
       onConnectionChange?.('connecting');
       console.log('🔗 Connecting to WebSocket...');
       
-      const token = await AsyncStorage.getItem('access_token');
+      const token = await secureStorage.getItem('access_token');
       if (!token) {
         console.warn('❌ No token found');
         setConnectionState('error');
