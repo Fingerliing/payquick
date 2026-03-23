@@ -175,16 +175,22 @@ export default function ClientHome() {
     ['active', 'locked', 'payment'].includes(session.status);
 
   // ── Rafraîchir et chercher une session côté serveur à chaque focus ──
+  // Deps primitives uniquement (id, bool) — pas les objets session/user :
+  // chaque setSession() crée un nouvel objet → invalide le useCallback →
+  // useFocusEffect re-déclenche → boucle infinie de requêtes.
+  const refreshSessionRef = useRef(refreshSession);
+  refreshSessionRef.current = refreshSession;
+
   useFocusEffect(
     React.useCallback(() => {
-      refreshSession().catch(() => {
+      refreshSessionRef.current().catch(() => {
         // Silencieux si pas de réseau
       });
 
       if (isSessionInitialized && !session && user) {
         checkServerForActiveSession();
       }
-    }, [refreshSession, isSessionInitialized, session, user])
+    }, [isSessionInitialized, session?.id ?? null, user?.id ?? null])
   );
 
   /**

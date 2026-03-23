@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { collaborativeSessionService } from '@/services/collaborativeSessionService';
 
@@ -109,6 +109,12 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [isLoading, setIsLoading] = useState(false);
   const [isSessionInitialized, setIsSessionInitialized] = useState(false);
 
+  // Refs stables pour éviter que refreshSession ne change d'identité
+  // à chaque setSession/setParticipantId (ce qui déclencherait une boucle
+  // via useFocusEffect dans les écrans consommateurs)
+  const sessionRef = useRef<CollaborativeSession | null>(null);
+  const participantIdRef = useRef<string | null>(null);
+
   const isHost = session?.participants?.some(
     p => p.id === participantId && p.is_host
   ) ?? false;
@@ -175,9 +181,11 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (participantIdData) {
         await AsyncStorage.setItem(PARTICIPANT_ID_STORAGE_KEY, participantIdData);
         setParticipantId(participantIdData);
+        participantIdRef.current = participantIdData;
       }
 
       setSession(sessionData);
+      sessionRef.current = sessionData;
     } catch (error) {
       console.error('[SessionContext] Erreur sauvegarde:', error);
     }
@@ -251,6 +259,8 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       await AsyncStorage.multiRemove([SESSION_STORAGE_KEY, PARTICIPANT_ID_STORAGE_KEY]);
       setSession(null);
       setParticipantId(null);
+      sessionRef.current = null;
+      participantIdRef.current = null;
     } catch (error) {
       console.error('[SessionContext] Erreur nettoyage:', error);
     }
@@ -286,11 +296,12 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const refreshSession = useCallback(async () => {
-    if (!session) return;
+    if (!sessionRef.current) return;
 
     setIsLoading(true);
     try {
-      await refreshSessionById(session.id);
+      const updatedSession = await collaborativeSessionService.getSession(sessionRef.current.id);
+      await saveSession(updatedSession, participantIdRef.current || undefined);
     } catch (error: any) {
       const status = error?.response?.status ?? error?.status ?? error?.code;
       if (status === 404) {
@@ -304,7 +315,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } finally {
       setIsLoading(false);
     }
-  }, [session, participantId, saveSession, clearSession]);
+  }, [saveSession, clearSession]);
 
   // =============================================================================
   // OBTENIR UNE SESSION PAR CODE
