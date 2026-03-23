@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 
 // UI Components
@@ -667,16 +667,16 @@ export default function OptimizedRestaurantPage() {
   // =============================================================================
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.page}>
+      <View style={styles.page}>
         <Header title="Menu" leftIcon="arrow-back" onLeftPress={() => router.back()} />
         <Loading />
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (!restaurant) {
     return (
-      <SafeAreaView style={styles.page}>
+      <View style={styles.page}>
         <Header title="Menu" leftIcon="arrow-back" onLeftPress={() => router.back()} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
           <Ionicons name="alert-circle-outline" size={64} color={COLORS.text.light} />
@@ -684,12 +684,12 @@ export default function OptimizedRestaurantPage() {
             Restaurant introuvable
           </Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.page}>
+    <View style={styles.page}>
       <Header
         title={restaurant.name}
         leftIcon="arrow-back"
@@ -1024,6 +1024,6 @@ export default function OptimizedRestaurantPage() {
           </Text>
         </Pressable>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
