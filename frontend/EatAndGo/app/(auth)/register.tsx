@@ -13,6 +13,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { router } from 'expo-router';
+
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -347,6 +348,19 @@ export default function RegisterScreen() {
       top:      38,
       padding:  4,
     },
+    passwordHintRow: {
+      flexDirection: 'row',
+      alignItems:    'flex-start',
+      gap:           4,
+      marginTop:     4,
+      paddingHorizontal: 2,
+    },
+    passwordHintText: {
+      flex:       1,
+      fontSize:   sp(TYPOGRAPHY.fontSize.xs),
+      color:      COLORS.text.light,
+      lineHeight: sp(TYPOGRAPHY.fontSize.xs) * TYPOGRAPHY.lineHeight.relaxed,
+    },
 
     // CGU
     termsRow: {
@@ -517,7 +531,7 @@ export default function RegisterScreen() {
                 <View style={styles.passwordContainer}>
                   <Input
                     label="Mot de passe"
-                    placeholder="Minimum 8 caractères"
+                    placeholder="••••••••"
                     value={formData.password}
                     onChangeText={updateFormData('password')}
                     error={errors.password}
@@ -534,6 +548,14 @@ export default function RegisterScreen() {
                       color={COLORS.text.light}
                     />
                   </TouchableOpacity>
+                  {!errors.password && (
+                    <View style={styles.passwordHintRow}>
+                      <Ionicons name="information-circle-outline" size={13} color={COLORS.text.light} />
+                      <Text style={styles.passwordHintText}>
+                        Au moins 8 caractères, avec une majuscule, un chiffre et un caractère spécial
+                      </Text>
+                    </View>
+                  )}
                 </View>
 
                 {formData.role === 'client' && (
@@ -563,23 +585,35 @@ export default function RegisterScreen() {
               </View>
 
               {/* CGU */}
-              <TouchableOpacity
-                style={styles.termsRow}
-                onPress={() => { setAcceptedTerms(p => !p); setTermsError(undefined); }}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.checkbox, acceptedTerms && styles.checkboxChecked]}>
-                  {acceptedTerms && (
-                    <Ionicons name="checkmark" size={14} color={COLORS.text.inverse} />
-                  )}
-                </View>
+              <View style={styles.termsRow}>
+                <TouchableOpacity
+                  onPress={() => { setAcceptedTerms(p => !p); setTermsError(undefined); }}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <View style={[styles.checkbox, acceptedTerms && styles.checkboxChecked]}>
+                    {acceptedTerms && (
+                      <Ionicons name="checkmark" size={14} color={COLORS.text.inverse} />
+                    )}
+                  </View>
+                </TouchableOpacity>
                 <Text style={styles.termsText}>
                   J'accepte les{' '}
-                  <Text style={styles.termsLink}>conditions générales d'utilisation</Text>
+                  <Text
+                    style={styles.termsLink}
+                    onPress={() => router.push('/(legal)/terms')}
+                  >
+                    conditions générales d'utilisation
+                  </Text>
                   {' '}et la{' '}
-                  <Text style={styles.termsLink}>politique de confidentialité</Text>
+                  <Text
+                    style={styles.termsLink}
+                    onPress={() => router.push('/(legal)/privacy')}
+                  >
+                    politique de confidentialité
+                  </Text>
                 </Text>
-              </TouchableOpacity>
+              </View>
               {termsError && <Text style={styles.termsError}>{termsError}</Text>}
 
               {/* Bandeau info email */}
