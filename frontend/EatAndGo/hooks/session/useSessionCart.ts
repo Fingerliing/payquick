@@ -82,8 +82,11 @@ export const useSessionCart = ({
     const token = await AsyncStorage.getItem('access_token');
     const headers: HeadersInit = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
+    // Identification guest : le backend résout le participant via ce header
+    // quand aucun JWT n'est présent (chemin 2 dans _get_current_participant).
+    if (participantId) (headers as Record<string, string>)['X-Participant-ID'] = participantId;
     return headers;
-  }, []);
+  }, [participantId]);
 
   const sessionBase = `${API_URL}/api/v1/collaborative-sessions/${sessionId}`;
 
@@ -200,7 +203,7 @@ export const useSessionCart = ({
 
   const addItem = useCallback(async (payload: AddCartItemPayload): Promise<SessionCartItem | null> => {
     if (!sessionId) return null;
-  
+
     const optimisticId = `optimistic-${Date.now()}`;
     const optimisticItem: SessionCartItem = {
       id:                   optimisticId,

@@ -64,7 +64,13 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
             → évite que le ModelViewSet par défaut expose un CRUD anonyme
               sur l'intégralité des sessions.
         """
-        public_actions = {'create_session', 'join_session', 'get_by_code'}
+        public_actions = {
+            'create_session', 'join_session', 'get_by_code',
+            # Les guests (sans JWT) doivent pouvoir accéder au panier partagé.
+            # L'identité du participant est vérifiée dans _get_current_participant
+            # via le header X-Participant-ID (chemin guest) ou le JWT (chemin auth).
+            'cart', 'cart_add', 'cart_update_item', 'cart_remove_item', 'cart_clear',
+        }
         if self.action in public_actions:
             return [AllowAny()]
         return [IsAuthenticated()]
@@ -83,6 +89,16 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
         (create_session, join_session, get_by_code), get_queryset n'est pas
         appelé : ces méthodes font leurs propres lookups directs.
         """
+        # Pour les actions panier (AllowAny), un guest non authentifié doit
+        # pouvoir résoudre l'objet session via get_object(). On retourne le
+        # queryset complet ; l'autorisation réelle est déléguée à
+        # _get_current_participant() (vérification par X-Participant-ID).
+        CART_ACTIONS = {'cart', 'cart_add', 'cart_update_item', 'cart_remove_item', 'cart_clear'}
+        if self.action in CART_ACTIONS and not self.request.user.is_authenticated:
+            return CollaborativeTableSession.objects.select_related(
+                'restaurant', 'table'
+            ).all()
+
         if not self.request.user.is_authenticated:
             return CollaborativeTableSession.objects.none()
 
@@ -1028,12 +1044,38 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
                 logger.warning(f"Erreur rate limit cache ({key}): {e}")
 
     def _get_current_participant(self, request, session):
-        """Récupère le participant actif de la session pour l'utilisateur courant."""
+        """
+        Récupère le participant actif de la session pour l'appelant courant.
+
+        Chemin 1 — utilisateur authentifié (JWT valide) :
+            Résolution par user FK sur SessionParticipant.
+
+        Chemin 2 — identification via header X-Participant-ID :
+            Utilisé par les guests (user=None) ET par les participants
+            authentifiés dont le JWT est absent (token expiré, autre appareil).
+            Sécurité : l'UUID 128-bit est non-devinable ; on vérifie que le
+            participant appartient bien à cette session et est actif.
+        """
+        # Chemin 1 : utilisateur authentifié
         if request.user and request.user.is_authenticated:
-            return session.participants.filter(
+            participant = session.participants.filter(
                 user=request.user,
                 status='active'
             ).first()
+            if participant:
+                return participant
+
+        # Chemin 2 : identification via header X-Participant-ID
+        participant_id = (
+            request.headers.get('X-Participant-ID', '').strip()
+            or str(request.data.get('participant_id', '')).strip()
+        )
+        if participant_id:
+            return session.participants.filter(
+                id=participant_id,
+                status='active'
+            ).first()
+
         return None
 
 

@@ -90,6 +90,7 @@ export default function OptimizedRestaurantPage() {
   // ─── Session cart : panier partagé en temps réel ──────────────────────────
   const sessionCart = useSessionCart({
     sessionId: sessionId as string | undefined,
+    participantId: ctxParticipantId,
     enabled: !!sessionId,
   });
 
