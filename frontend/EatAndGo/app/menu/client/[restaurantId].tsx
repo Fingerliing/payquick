@@ -221,7 +221,7 @@ export default function OptimizedRestaurantPage() {
 
       const [restaurantData, menusData] = await Promise.all([
         restaurantService.getPublicRestaurant(restaurantId),
-        menuService.getMenusByRestaurant(parseInt(restaurantId, 10)),
+        menuService.getPublicMenusByRestaurant(parseInt(restaurantId, 10)),
       ]);
 
       console.log('[RestaurantScreen] restaurantData =', restaurantData);

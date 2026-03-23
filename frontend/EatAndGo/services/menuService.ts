@@ -97,9 +97,19 @@ export class MenuService {
 
   /**
    * Récupère les menus du restaurateur connecté pour un restaurant spécifique.
+   * ⚠️  Réservé aux restaurateurs — requiert IsRestaurateur.
    */
   async getMenusByRestaurant(restaurantId: number): Promise<Menu[]> {
     const menus = await apiClient.get('/api/v1/menus/', { params: { restaurant: restaurantId } });
+    return Array.isArray(menus) ? menus.map(menu => this.normalizeMenu(menu)) : [];
+  }
+
+  /**
+   * Récupère les menus publics (is_available=True) d'un restaurant.
+   * Accessible sans authentification — à utiliser côté client / session QR.
+   */
+  async getPublicMenusByRestaurant(restaurantId: number): Promise<Menu[]> {
+    const menus = await apiClient.get(`/api/v1/menus/public/${restaurantId}/menus/`);
     return Array.isArray(menus) ? menus.map(menu => this.normalizeMenu(menu)) : [];
   }
 
