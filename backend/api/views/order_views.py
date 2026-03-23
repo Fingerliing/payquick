@@ -170,6 +170,44 @@ class OrderViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_403_FORBIDDEN
                 )
 
+        # ── Garde hôte pour les commandes en session collaborative ────────────
+        # Ce bloc n'est activé QUE si session_id est fourni dans le payload.
+        # Les commandes solo/invité ne fournissent pas ce champ → aucun impact.
+        session_id = request.data.get('session_id') or request.data.get('collaborative_session')
+        if session_id:
+            from api.models import CollaborativeTableSession, SessionParticipant
+            try:
+                session_obj = CollaborativeTableSession.objects.get(id=session_id)
+            except (CollaborativeTableSession.DoesNotExist, Exception):
+                return Response(
+                    {'error': 'Session collaborative introuvable.'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            participant_id = request.data.get('participant_id')
+            is_host = False
+            if participant_id:
+                is_host = SessionParticipant.objects.filter(
+                    id=participant_id,
+                    session=session_obj,
+                    role='host',
+                    status='active',
+                ).exists()
+            elif request.user.is_authenticated:
+                is_host = SessionParticipant.objects.filter(
+                    session=session_obj,
+                    user=request.user,
+                    role='host',
+                    status='active',
+                ).exists()
+
+            if not is_host:
+                return Response(
+                    {'error': "Seul l'hôte peut passer la commande de la session."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        # ─────────────────────────────────────────────────────────────────────
+
         serializer = self.get_serializer(data=request.data)
 
         if serializer.is_valid():

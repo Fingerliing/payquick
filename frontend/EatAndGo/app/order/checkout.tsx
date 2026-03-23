@@ -67,7 +67,7 @@ export default function CheckoutScreen() {
   const hideToast = () => setToast((p) => ({ ...p, visible: false }));
 
   // SessionContext : source de vérité pour la session active
-  const { session, participantId: ctxParticipantId } = useSession();
+  const { session, participantId: ctxParticipantId, isHost } = useSession();
   const isSessionMode = !!session && !!sessionId;
 
   const [effectiveTableNumber, setEffectiveTableNumber] = useState(
@@ -140,6 +140,14 @@ export default function CheckoutScreen() {
 
   // Soumission de la commande
   const handleSubmitOrder = async () => {
+    // En session collaborative, seul l'hôte peut passer commande.
+    // isSessionMode est false hors session → ce bloc n'est jamais atteint
+    // pour les commandes solo ou invité.
+    if (isSessionMode && !isHost) {
+      showToast('error', "Seul l'hôte peut passer la commande du groupe.", 'Action non autorisée');
+      return;
+    }
+
     const validation = validateCheckout();
     
     if (!validation.valid) {

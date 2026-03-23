@@ -246,6 +246,7 @@ interface CartSummaryProps {
   isCreatingOrder: boolean;
   onCheckout: () => void;
   screenType: 'mobile' | 'tablet' | 'desktop';
+  canCheckout?: boolean;
 }
 
 const CartSummary = React.memo<CartSummaryProps>(({ 
@@ -253,7 +254,8 @@ const CartSummary = React.memo<CartSummaryProps>(({
   itemCount, 
   isCreatingOrder, 
   onCheckout,
-  screenType 
+  screenType,
+  canCheckout = true,
 }) => {
   const styles = createResponsiveStyles(screenType);
   const iconSize = getResponsiveValue({ mobile: 20, tablet: 24, desktop: 28 }, screenType);
@@ -302,22 +304,31 @@ const CartSummary = React.memo<CartSummaryProps>(({
         </View>
       </View>
       
-      <Button
-        title={isCreatingOrder ? "Traitement en cours..." : "Passer la commande"}
-        onPress={onCheckout}
-        disabled={isCreatingOrder || itemCount === 0}
-        fullWidth
-        leftIcon={
-          isCreatingOrder ? (
-            <ActivityIndicator size="small" color={COLORS.text.inverse} />
-          ) : (
-            <Ionicons name="checkmark-circle" size={iconSize} color={COLORS.text.inverse} />
-          )
-        }
-        accessibilityLabel={`Commander pour un total de ${total.toFixed(2)} euros`}
-        accessibilityHint="Appuyez pour procéder au paiement"
-        accessibilityState={{ disabled: isCreatingOrder || itemCount === 0 }}
-      />
+      {canCheckout ? (
+        <Button
+          title={isCreatingOrder ? "Traitement en cours..." : "Passer la commande"}
+          onPress={onCheckout}
+          disabled={isCreatingOrder || itemCount === 0}
+          fullWidth
+          leftIcon={
+            isCreatingOrder ? (
+              <ActivityIndicator size="small" color={COLORS.text.inverse} />
+            ) : (
+              <Ionicons name="checkmark-circle" size={iconSize} color={COLORS.text.inverse} />
+            )
+          }
+          accessibilityLabel={`Commander pour un total de ${total.toFixed(2)} euros`}
+          accessibilityHint="Appuyez pour procéder au paiement"
+          accessibilityState={{ disabled: isCreatingOrder || itemCount === 0 }}
+        />
+      ) : (
+        <View style={{ paddingVertical: 12, alignItems: 'center' }}>
+          <Ionicons name="lock-closed-outline" size={18} color={COLORS.text.secondary} style={{ marginBottom: 4 }} />
+          <Text style={{ color: COLORS.text.secondary, fontSize: 13, textAlign: 'center' }}>
+            Seul l'hôte peut passer la commande du groupe.
+          </Text>
+        </View>
+      )}
     </View>
   );
 });
@@ -501,7 +512,7 @@ export default function CartScreen() {
   // ============================================================================
 
   // SessionContext : source de vérité pour la session active en mémoire
-  const { session: ctxSession, participantId: ctxParticipantId } = useSession();
+  const { session: ctxSession, participantId: ctxParticipantId, isHost } = useSession();
   const ctxSessionId = ctxSession?.id ?? null;
 
   // Mode session collaborative
@@ -739,6 +750,7 @@ export default function CartScreen() {
         isCreatingOrder={isCreatingOrder}
         onCheckout={handleCheckout}
         screenType={screenType}
+        canCheckout={!isSessionMode || isHost}
       />
 
       {/* Confirmation Modals using AlertWithAction */}
