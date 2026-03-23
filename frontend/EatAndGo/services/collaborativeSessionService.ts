@@ -149,7 +149,7 @@ class CollaborativeSessionService {
    */
   async sessionAction(
     sessionId: string,
-    action: 'lock' | 'unlock' | 'complete' | 'cancel',
+    action: 'lock' | 'unlock' | 'complete' | 'cancel' | 'payment',
     reason?: string
   ): Promise<{ message: string; session: CollaborativeSession }> {
     const response = await apiClient.post(

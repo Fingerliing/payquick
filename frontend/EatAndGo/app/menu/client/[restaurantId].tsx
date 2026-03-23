@@ -86,41 +86,56 @@ export default function OptimizedRestaurantPage() {
   // ─── SessionContext : source de vérité pour le participantId en mémoire ─
   // participantId est stocké en mémoire React par SessionContext, même après
   // que AsyncStorage ait été vidé (restart appli, archivage de session...).
-  const { participantId: ctxParticipantId, clearSession } = useSession();
+  const { session: ctxSession, participantId: ctxParticipantId, clearSession } = useSession();
+
+  // Fallback : si sessionId absent des params (navigation sans code), on prend celui du contexte
+  const effectiveSessionId = (sessionId as string | null) ?? ctxSession?.id ?? null;
+
+  // Ref pour accéder à isHost dans les callbacks sans créer de dépendance circulaire
+  const isHostRef = useRef(false);
 
   // ─── Session cart : panier partagé en temps réel ──────────────────────────
   const sessionCart = useSessionCart({
-    sessionId: sessionId as string | undefined,
+    sessionId: effectiveSessionId ?? undefined,
     participantId: ctxParticipantId,
-    enabled: !!sessionId,
+    enabled: !!effectiveSessionId,
+    onPaymentRequested: () => {
+      if (!isHostRef.current) {
+        router.replace('/(client)/orders' as any);
+      }
+    },
   });
 
   // ─── Session collaborative ────────────────────────────────────────────────
   const { session, isHost, approveParticipant, rejectParticipant, refresh } =
     useCollaborativeSession({
-      sessionId: sessionId as string | undefined,
+      sessionId: effectiveSessionId ?? undefined,
       externalParticipantId: ctxParticipantId,
     });
 
+  // Maintenir isHostRef synchronisé
+  isHostRef.current = isHost;
+
   // ─── WebSocket ────────────────────────────────────────────────────────────
-  // Connexion INCONDITIONNELLE dès que sessionId est présent.
+  // Connexion INCONDITIONNELLE dès que effectiveSessionId est présent.
   // On ne gate PAS sur isHost : isHost peut être calculé de façon asynchrone
   // (lecture AsyncStorage) et serait faux au premier rendu, empêchant la
   // connexion même quand l'utilisateur est bien l'hôte.
-  const { on } = useSessionWebSocket((sessionId as string | null) ?? null);
+  const { on } = useSessionWebSocket(effectiveSessionId);
 
   // ─── Expiration de session : alerte + retour accueil ──────────────────────
   const { expiredAlert, dismissExpiredAlert } = useSessionArchiving({
-    sessionId: (sessionId as string | null) ?? null,
+    sessionId: effectiveSessionId,
   });
 
   useEffect(() => {
-    if (!sessionId) return;
+    if (!effectiveSessionId) return;
 
     const unsub = on('session_update', (data: any) => {
       if (data?.event === 'participant_pending') {
-        console.log('[WS] participant_pending reçu → refresh session');
         refresh();
+      } else if (data?.event === 'payment' && !isHost) {
+        router.replace('/(client)/orders' as any);
       }
     });
 
@@ -140,7 +155,16 @@ export default function OptimizedRestaurantPage() {
       unsub();
       unsubSplit();
     };
-  }, [sessionId, on, refresh]);
+  }, [effectiveSessionId, on, refresh, isHost]);
+
+  // ─── Filet de sécurité : rediriger si session passe en 'payment' ──────────
+  // Couvre le cas où le WS event est manqué (connexion tardive, reconnexion).
+  // Déclenché aussi bien par le WS (via loadSession) que par le polling.
+  useEffect(() => {
+    if (session?.status === 'payment' && !isHost) {
+      router.replace('/(client)/orders' as any);
+    }
+  }, [session?.status, isHost]);
 
   const { cart, addToCart, clearCart } = useCart();
 
@@ -349,8 +373,8 @@ export default function OptimizedRestaurantPage() {
   }, [filters]);
 
   const totalCartItems = useMemo(
-    () => sessionId ? sessionCart.items_count : (cart.itemCount || 0),
-    [sessionId, sessionCart.items_count, cart.itemCount]
+    () => effectiveSessionId ? sessionCart.items_count : (cart.itemCount || 0),
+    [effectiveSessionId, sessionCart.items_count, cart.itemCount]
   );
 
   console.log('totalCartItems', totalCartItems);
@@ -367,7 +391,7 @@ export default function OptimizedRestaurantPage() {
           : parseInt(String((item as any).id), 10);
   
       // ── Mode session collaborative : envoie à l'API de session ───────────
-      if (sessionId) {
+      if (effectiveSessionId) {
         try {
           await sessionCart.addItem({
             menu_item: menuItemId,
@@ -404,7 +428,7 @@ export default function OptimizedRestaurantPage() {
       addToCart(cartItem);
       showToast('success', 'Ajouté au panier', `${item.name} a été ajouté`);
     },
-    [sessionId, sessionCart, cart.items.length, cart.restaurantId, restaurantId, restaurant, addToCart, showToast]
+    [effectiveSessionId, sessionCart, cart.items.length, cart.restaurantId, restaurantId, restaurant, addToCart, showToast]
   );
 
   const proceedAddToCart = useCallback(
@@ -1101,7 +1125,7 @@ export default function OptimizedRestaurantPage() {
             </View>
           </View>
           <Text style={styles.cartTotal}>
-            {(sessionId ? sessionCart.total : cart.total).toFixed(2)}€
+            {(effectiveSessionId ? sessionCart.total : cart.total).toFixed(2)}€
           </Text>
         </Pressable>
       )}

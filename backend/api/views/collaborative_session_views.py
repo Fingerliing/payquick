@@ -664,6 +664,13 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
                     logger.error(f"Erreur lors de l'archivage de session annulée: {e}")
                 message = 'Session annulée et archivée'
 
+            elif action_type == 'payment':
+                # Passage en mode paiement — _notify_session_update ci-dessous
+                # émet event='payment' à tous les participants via WS.
+                session.status = 'payment'
+                session.save(update_fields=['status'])
+                message = 'Session en cours de paiement'
+
             else:
                 return Response({
                     'error': f'Action inconnue: {action_type}'

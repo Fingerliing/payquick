@@ -152,7 +152,7 @@ class SessionActionSerializer(serializers.Serializer):
     """Serializer pour les actions sur une session"""
     
     action = serializers.ChoiceField(
-        choices=['lock', 'unlock', 'complete', 'cancel']
+        choices=['lock', 'unlock', 'complete', 'cancel', 'payment']
     )
     reason = serializers.CharField(required=False, allow_blank=True)
 

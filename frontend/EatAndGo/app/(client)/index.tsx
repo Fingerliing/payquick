@@ -174,6 +174,11 @@ export default function ClientHome() {
     session !== null &&
     ['active', 'locked', 'payment'].includes(session.status);
 
+  const hasCompletedSession =
+    isSessionInitialized &&
+    session !== null &&
+    session.status === 'completed';
+
   // ── Rafraîchir et chercher une session côté serveur à chaque focus ──
   // Deps primitives uniquement (id, bool) — pas les objets session/user :
   // chaque setSession() crée un nouvel objet → invalide le useCallback →
@@ -847,6 +852,42 @@ export default function ClientHome() {
       alignSelf: 'center' as const,
       width: screenType === 'tablet' ? '100%' as const : undefined,
     },
+
+    // ── Session terminée ──────────────────────────────────────────────────
+    completedSessionCard: {
+      backgroundColor: '#F1F8E9',
+      borderRadius: BORDER_RADIUS.xl,
+      borderWidth: 1,
+      borderColor: '#A5D6A7',
+      padding: getResponsiveValue(SPACING.lg, screenType),
+      ...SHADOWS.sm,
+    },
+    completedSessionHeader: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 8,
+      marginBottom: 12,
+    },
+    completedParticipantRow: {
+      flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
+      paddingVertical: 4,
+    },
+    completedSessionFooter: {
+      flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
+      alignItems: 'center' as const,
+      marginTop: 12,
+      paddingTop: 10,
+      borderTopWidth: 1,
+      borderTopColor: '#C8E6C9',
+    },
+    completedSessionCloseBtn: {
+      paddingHorizontal: 14,
+      paddingVertical: 6,
+      backgroundColor: COLORS.primary,
+      borderRadius: BORDER_RADIUS.md,
+    },
   };
 
   const textStyles = {
@@ -922,6 +963,41 @@ export default function ClientHome() {
       color: 'rgba(255,255,255,0.45)',
       marginTop: 2,
     },
+    completedSessionTitle: {
+      fontSize: getResponsiveValue({ mobile: 15, tablet: 16, desktop: 17 }, screenType),
+      fontWeight: '700' as const,
+      color: '#2E7D32',
+      flex: 1,
+    },
+    completedSessionTable: {
+      fontSize: getResponsiveValue({ mobile: 12, tablet: 13, desktop: 13 }, screenType),
+      color: COLORS.text.secondary,
+    },
+    completedSessionSubtitle: {
+      fontSize: getResponsiveValue({ mobile: 12, tablet: 13, desktop: 13 }, screenType),
+      fontWeight: '600' as const,
+      color: COLORS.text.secondary,
+      marginBottom: 8,
+    },
+    completedParticipantName: {
+      fontSize: getResponsiveValue({ mobile: 14, tablet: 15, desktop: 15 }, screenType),
+      color: COLORS.text.primary,
+    },
+    completedParticipantAmount: {
+      fontSize: getResponsiveValue({ mobile: 14, tablet: 15, desktop: 15 }, screenType),
+      fontWeight: '600' as const,
+      color: COLORS.primary,
+    },
+    completedSessionTotal: {
+      fontSize: getResponsiveValue({ mobile: 15, tablet: 16, desktop: 16 }, screenType),
+      fontWeight: '700' as const,
+      color: COLORS.primary,
+    },
+    completedSessionCloseBtnText: {
+      color: '#FFFFFF',
+      fontSize: getResponsiveValue({ mobile: 13, tablet: 14, desktop: 14 }, screenType),
+      fontWeight: '600' as const,
+    },
     modalJoinBtn: {
       fontSize: getResponsiveValue({ mobile: 15, tablet: 16, desktop: 17 }, screenType),
       fontWeight: '700' as const,
@@ -963,7 +1039,7 @@ export default function ClientHome() {
       onPress: () => router.push('/(client)/cart' as any),
     },
     // Raccourci rejoindre une session — visible uniquement si pas de session active/en cours
-    ...(!hasActiveSession && !serverSession
+    ...(!hasActiveSession && !hasCompletedSession && !serverSession
       ? [{
           id: 'join-session',
           icon: 'people-outline',
@@ -1175,6 +1251,53 @@ export default function ClientHome() {
                 onPress: () => setExitAlertVisible(false),
               }}
             />
+          </View>
+        )}
+
+        {/* 5️⃣  Session terminée → récap participants */}
+        {hasCompletedSession && session && (
+          <View style={viewStyles.sessionBannerWrapper}>
+            <View style={viewStyles.completedSessionCard}>
+              {/* En-tête */}
+              <View style={viewStyles.completedSessionHeader}>
+                <Ionicons name="checkmark-circle" size={20} color="#2E7D32" />
+                <Text style={textStyles.completedSessionTitle}>Session terminée</Text>
+                <Text style={textStyles.completedSessionTable}>
+                  {session.restaurant_name} · Table {session.table_number}
+                </Text>
+              </View>
+
+              {/* Liste participants */}
+              <Text style={textStyles.completedSessionSubtitle}>
+                Participants ({session.participants?.filter(p => p.status === 'active').length ?? 0})
+              </Text>
+              {session.participants
+                ?.filter(p => p.status === 'active')
+                .map(p => (
+                  <View key={p.id} style={viewStyles.completedParticipantRow}>
+                    <Text style={textStyles.completedParticipantName}>
+                      {p.is_host ? '👑 ' : ''}{p.display_name}
+                    </Text>
+                    <Text style={textStyles.completedParticipantAmount}>
+                      {Number(p.total_spent).toFixed(2)} €
+                    </Text>
+                  </View>
+                ))
+              }
+
+              {/* Pied de carte */}
+              <View style={viewStyles.completedSessionFooter}>
+                <Text style={textStyles.completedSessionTotal}>
+                  Total : {Number(session.total_amount).toFixed(2)} €
+                </Text>
+                <TouchableOpacity
+                  style={viewStyles.completedSessionCloseBtn}
+                  onPress={clearSession}
+                >
+                  <Text style={textStyles.completedSessionCloseBtnText}>Fermer</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
         )}
 

@@ -6,7 +6,7 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -25,6 +25,7 @@ import { Alert as InlineAlert } from '@/components/ui/Alert';
 
 // Services & Utils
 import { clientOrderService } from '@/services/clientOrderService';
+import { collaborativeSessionService } from '@/services/collaborativeSessionService';
 import { QRSessionUtils } from '@/utils/qrSessionUtils';
 import {
   COLORS,
@@ -39,6 +40,7 @@ export default function CheckoutScreen() {
   const { cart, clearCart, setTableNumber } = useCart();
   const { isAuthenticated, user } = useAuth();
   const screenType = useScreenType();
+  const insets = useSafeAreaInsets();
 
   // Typage sûr des paramètres
   const restaurantId = params.restaurantId as string | undefined;
@@ -212,6 +214,12 @@ export default function CheckoutScreen() {
       isSessionMode ? await sessionCart.clearMyItems() : clearCart();
 
       if (isInSession && session) {
+        // Notifier tous les participants du passage en paiement
+        try {
+          await collaborativeSessionService.sessionAction(session.id, 'payment');
+        } catch (e) {
+          console.warn('[Checkout] session payment broadcast failed:', e);
+        }
         showToast(
           'success',
           `Votre commande #${order.order_number} a été ajoutée à la session collaborative.`,
@@ -348,7 +356,7 @@ export default function CheckoutScreen() {
         )}
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: spacing.container }}>
+      <ScrollView contentContainerStyle={{ padding: spacing.container, paddingBottom: 8 }}>
         {isInSession && session && (
           <Card style={{ 
             marginBottom: spacing.card, 
@@ -543,7 +551,17 @@ export default function CheckoutScreen() {
             </Text>
           </View>
         </Card>
+      </ScrollView>
 
+      {/* Footer sticky — safe area bottom uniquement */}
+      <View style={{
+        paddingHorizontal: 16,
+        paddingTop: 12,
+        paddingBottom: Math.max(insets.bottom, 16),
+        backgroundColor: COLORS.background,
+        borderTopWidth: 1,
+        borderTopColor: COLORS.border.light,
+      }}>
         <Button
           title={isSubmitting ? "Envoi en cours..." : isSessionMode ? "Passer commande" : "Valider la commande"}
           onPress={handleSubmitOrder}
@@ -551,7 +569,7 @@ export default function CheckoutScreen() {
           fullWidth
           leftIcon={<Ionicons name="checkmark-circle" size={iconSize} color={COLORS.text.inverse} />}
         />
-      </ScrollView>
+      </View>
     </View>
   );
 }

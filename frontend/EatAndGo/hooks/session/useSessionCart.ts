@@ -44,6 +44,8 @@ interface UseSessionCartOptions {
   sessionId: string | null | undefined;
   participantId?: string | null;
   enabled?: boolean;
+  /** Appelé quand l'hôte passe la session en mode paiement */
+  onPaymentRequested?: () => void;
 }
 
 // ─── Helper ───────────────────────────────────────────────────────────────
@@ -60,6 +62,7 @@ export const useSessionCart = ({
   sessionId,
   participantId,
   enabled = true,
+  onPaymentRequested,
 }: UseSessionCartOptions) => {
 
   const [state, setState] = useState<SessionCartState>({
@@ -75,6 +78,9 @@ export const useSessionCart = ({
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const MAX_RECONNECT = 5;
+  // Ref stable pour éviter de recréer connectWebSocket à chaque render
+  const onPaymentRequestedRef = useRef(onPaymentRequested);
+  useEffect(() => { onPaymentRequestedRef.current = onPaymentRequested; }, [onPaymentRequested]);
 
   // ── Helpers HTTP ────────────────────────────────────────────────────────
 
@@ -160,6 +166,11 @@ export const useSessionCart = ({
             total: data.total,
             items_count: data.items_count,
           }));
+        }
+
+        // Paiement initié par l'hôte → rediriger les membres
+        if (data.type === 'session_update' && data.event === 'payment') {
+          onPaymentRequestedRef.current?.();
         }
       } catch (e) {
         console.error('🛒 SessionCart WS: Parse error', e);

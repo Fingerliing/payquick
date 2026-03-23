@@ -150,9 +150,14 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         } catch (error: any) {
           const status = error?.response?.status ?? error?.status;
           if (status === 404) {
-            // Session définitivement supprimée côté serveur
-            console.info('[SessionContext] Session introuvable (404), nettoyage.');
-            await clearSession();
+            // Session completed archivée → conserver les données pour le récap participants
+            if (parsedSession.status === 'completed') {
+              console.info('[SessionContext] Session completed archivée, données conservées pour récap.');
+            } else {
+              // Session définitivement supprimée côté serveur
+              console.info('[SessionContext] Session introuvable (404), nettoyage.');
+              await clearSession();
+            }
           } else {
             // Erreur réseau ou serveur temporaire : on conserve les données locales
             console.warn('[SessionContext] Refresh échoué (non-404), session locale conservée:', error?.message);
@@ -305,9 +310,13 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } catch (error: any) {
       const status = error?.response?.status ?? error?.status ?? error?.code;
       if (status === 404) {
-        // Session supprimée ou archivée côté serveur → nettoyer silencieusement
-        console.info('[SessionContext] Session introuvable au refresh (404), nettoyage.');
-        await clearSession();
+        // Session completed archivée → conserver les données pour le récap participants
+        if (sessionRef.current?.status === 'completed') {
+          console.info('[SessionContext] Session completed archivée, données conservées pour récap.');
+        } else {
+          console.info('[SessionContext] Session introuvable au refresh (404), nettoyage.');
+          await clearSession();
+        }
       } else {
         console.error('[SessionContext] Erreur refresh:', error);
         throw error;

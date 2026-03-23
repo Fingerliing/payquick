@@ -16,6 +16,7 @@ import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSession } from '@/contexts/SessionContext';
 import { useSessionCart } from '@/hooks/session/useSessionCart';
+import { useSessionWebSocket } from '@/hooks/session/useSessionWebSocket';
 
 // Components
 import { Header } from '@/components/ui/Header';
@@ -522,7 +523,29 @@ export default function CartScreen() {
     sessionId: ctxSessionId,
     participantId: ctxParticipantId,
     enabled: isSessionMode,
+    onPaymentRequested: isHost ? undefined : () => {
+      router.replace('/(client)/orders' as any);
+    },
   });
+
+  // Rediriger les membres vers leurs commandes quand l'hôte passe au paiement
+  const { on } = useSessionWebSocket(ctxSessionId);
+  useEffect(() => {
+    if (!ctxSessionId) return;
+    const unsub = on('session_update', (data: any) => {
+      if (data?.event === 'payment' && !isHost) {
+        router.replace('/(client)/orders' as any);
+      }
+    });
+    return () => unsub();
+  }, [ctxSessionId, on, isHost]);
+
+  // Filet de sécurité : si le statut de la session est déjà 'payment' au montage
+  useEffect(() => {
+    if (ctxSession?.status === 'payment' && !isHost) {
+      router.replace('/(client)/orders' as any);
+    }
+  }, [ctxSession?.status, isHost]);
 
   // ============================================================================
   // UTILITY FUNCTIONS
