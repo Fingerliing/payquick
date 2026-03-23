@@ -1,24 +1,31 @@
 /**
- * Hook pour gérer l'archivage automatique des sessions collaboratives
- * 
- * @module useSessionArchiving
- * @description Gère les événements d'archivage, les alertes et les redirections
+ * Hook pour gérer la fin et l'archivage des sessions collaboratives.
+ *
+ * Retourne `expiredAlert` + `dismissExpiredAlert` au lieu d'afficher
+ * un Alert.alert natif. Le composant appelant est responsable de rendre
+ * l'AlertWithAction et de déclencher la redirection.
+ *
+ * `session_completed` ET `session_archived` déclenchent tous les deux
+ * l'alerte (garde interne pour éviter le double-déclenchement).
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { Alert } from 'react-native';
 import { useSessionWebSocket } from './useSessionWebSocket';
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
+export interface SessionExpiredAlert {
+  title: string;
+  message: string;
+}
+
 export interface UseSessionArchivingOptions {
   sessionId: string | null;
   onSessionArchived?: (data: SessionArchivedData) => void;
   onTableReleased?: (data: TableReleasedData) => void;
   onSessionCompleted?: (data: SessionCompletedData) => void;
-  autoRedirect?: boolean;
 }
 
 export interface SessionCompletedData {
@@ -42,107 +49,63 @@ export interface TableReleasedData {
   timestamp?: string;
 }
 
+export interface UseSessionArchivingReturn {
+  /** Non-null quand la session vient de se terminer ou d'être archivée. */
+  expiredAlert: SessionExpiredAlert | null;
+  /** À appeler après acquittement de l'alerte (avant redirection). */
+  dismissExpiredAlert: () => void;
+}
+
 // ============================================================================
 // HOOK PRINCIPAL: useSessionArchiving
 // ============================================================================
 
-/**
- * Hook principal pour gérer l'archivage des sessions
- * 
- * Fonctionnalités:
- * - Alerte lors de la fin de session
- * - Alerte de rappel 5 minutes avant archivage
- * - Alerte lors de l'archivage avec redirection optionnelle
- * - Protection contre les alertes multiples
- * - Gestion automatique du nettoyage
- */
 export const useSessionArchiving = ({
   sessionId,
   onSessionArchived,
   onTableReleased,
   onSessionCompleted,
-  autoRedirect = false,
-}: UseSessionArchivingOptions): void => {
+}: UseSessionArchivingOptions): UseSessionArchivingReturn => {
   const { on } = useSessionWebSocket(sessionId);
-  const hasShownArchivedAlert = useRef(false);
-  const completionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [expiredAlert, setExpiredAlert] = useState<SessionExpiredAlert | null>(null);
+  // Empêche le double-déclenchement (WS peut émettre completed puis archived)
+  const hasShownAlert = useRef(false);
 
   useEffect(() => {
     if (!sessionId) return;
 
+    // Réinitialiser la garde à chaque changement de session
+    hasShownAlert.current = false;
+
+    // ── session_completed : clôture volontaire par l'hôte ──────────────────
     const unsubCompleted = on('session_completed', (data: SessionCompletedData) => {
-      const archiveTime = data?.will_archive_in || 1800000;
-      const archiveMinutes = Math.floor(archiveTime / 60000);
+      if (hasShownAlert.current) return;
+      hasShownAlert.current = true;
 
-      if (onSessionCompleted) {
-        onSessionCompleted(data);
-      }
+      onSessionCompleted?.(data);
 
-      Alert.alert(
-        '🎉 Session terminée',
-        `Merci et à bientôt ! Cette session sera automatiquement archivée dans ${archiveMinutes} minutes.`,
-        [{ text: 'OK', style: 'default' }]
-      );
-
-      if (archiveTime > 300000) {
-        completionTimer.current = setTimeout(() => {
-          Alert.alert(
-            '⏰ Archivage imminent',
-            'Cette session sera archivée dans 5 minutes. Veuillez sauvegarder toutes les informations importantes.',
-            [{ text: 'Compris' }]
-          );
-        }, archiveTime - 300000);
-      }
+      setExpiredAlert({
+        title: '⏰ Session terminée',
+        message: data?.message ?? 'La session a été clôturée par le restaurant.',
+      });
     });
 
+    // ── session_archived : archivage définitif (Celery ou manuel) ──────────
     const unsubArchived = on('session_archived', (data: SessionArchivedData) => {
-      if (hasShownArchivedAlert.current) return;
-      hasShownArchivedAlert.current = true;
+      if (hasShownAlert.current) return;
+      hasShownAlert.current = true;
 
-      if (completionTimer.current) {
-        clearTimeout(completionTimer.current);
-        completionTimer.current = null;
-      }
+      onSessionArchived?.(data);
 
-      if (onSessionArchived) {
-        onSessionArchived(data);
-      }
-
-      if (autoRedirect && data?.redirect_suggested) {
-        Alert.alert(
-          '🗄️ Session archivée',
-          data?.message || 'Cette session a été archivée et n\'est plus accessible. Vous allez être redirigé vers l\'accueil.',
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                if (onSessionArchived) onSessionArchived(data);
-              },
-            },
-          ],
-          { cancelable: false }
-        );
-      } else {
-        Alert.alert(
-          '🗄️ Session archivée',
-          data?.message || 'Cette session a été archivée et n\'est plus accessible.',
-          [
-            {
-              text: 'Retour à l\'accueil',
-              onPress: () => {
-                if (onSessionArchived) onSessionArchived(data);
-              },
-            },
-          ],
-          { cancelable: false }
-        );
-      }
+      setExpiredAlert({
+        title: '⏰ Session expirée',
+        message: data?.message ?? "Cette session n'est plus accessible.",
+      });
     });
 
+    // ── table_released : callback optionnel, pas d'alerte générique ─────────
     const unsubTableReleased = on('table_released', (data: TableReleasedData) => {
-      if (onTableReleased) {
-        onTableReleased(data);
-      }
+      onTableReleased?.(data);
       console.log(`🆓 Table ${data?.table_number} libérée`);
     });
 
@@ -150,11 +113,15 @@ export const useSessionArchiving = ({
       unsubCompleted();
       unsubArchived();
       unsubTableReleased();
-      if (completionTimer.current) {
-        clearTimeout(completionTimer.current);
-      }
     };
-  }, [sessionId, on, onSessionArchived, onTableReleased, onSessionCompleted, autoRedirect]);
+  }, [sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const dismissExpiredAlert = () => {
+    setExpiredAlert(null);
+    hasShownAlert.current = false;
+  };
+
+  return { expiredAlert, dismissExpiredAlert };
 };
 
 // ============================================================================

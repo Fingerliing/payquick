@@ -22,6 +22,7 @@ import { menuService } from '@/services/menuService';
 import { useCollaborativeSession } from '@/hooks/session/useCollaborativeSession';
 import { useSessionWebSocket } from '@/hooks/session/useSessionWebSocket';
 import { useSessionCart } from '@/hooks/session/useSessionCart';
+import { useSessionArchiving } from '@/hooks/session/useSessionArchiving';
 import { restaurantService } from '@/services/restaurantService';
 import { Header } from '@/components/ui/Header';
 import { Loading } from '@/components/ui/Loading';
@@ -85,7 +86,7 @@ export default function OptimizedRestaurantPage() {
   // ─── SessionContext : source de vérité pour le participantId en mémoire ─
   // participantId est stocké en mémoire React par SessionContext, même après
   // que AsyncStorage ait été vidé (restart appli, archivage de session...).
-  const { participantId: ctxParticipantId } = useSession();
+  const { participantId: ctxParticipantId, clearSession } = useSession();
 
   // ─── Session cart : panier partagé en temps réel ──────────────────────────
   const sessionCart = useSessionCart({
@@ -107,6 +108,11 @@ export default function OptimizedRestaurantPage() {
   // (lecture AsyncStorage) et serait faux au premier rendu, empêchant la
   // connexion même quand l'utilisateur est bien l'hôte.
   const { on } = useSessionWebSocket((sessionId as string | null) ?? null);
+
+  // ─── Expiration de session : alerte + retour accueil ──────────────────────
+  const { expiredAlert, dismissExpiredAlert } = useSessionArchiving({
+    sessionId: (sessionId as string | null) ?? null,
+  });
 
   useEffect(() => {
     if (!sessionId) return;
@@ -700,6 +706,27 @@ export default function OptimizedRestaurantPage() {
       {toast.visible && (
         <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
           <InlineAlert variant={toast.variant} title={toast.title} message={toast.message} />
+        </View>
+      )}
+
+      {/* Session expirée / archivée — tous les membres redirigés à l'accueil */}
+      {expiredAlert && (
+        <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
+          <AlertWithAction
+            variant="warning"
+            title={expiredAlert.title}
+            message={expiredAlert.message}
+            autoDismiss={false}
+            primaryButton={{
+              text: 'Retour à l\'accueil',
+              variant: 'primary',
+              onPress: async () => {
+                dismissExpiredAlert();
+                try { await clearSession(); } catch {}
+                router.replace('/(client)');
+              },
+            }}
+          />
         </View>
       )}
 

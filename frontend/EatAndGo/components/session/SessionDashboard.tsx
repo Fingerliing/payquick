@@ -48,8 +48,6 @@ export const SessionDashboard: React.FC<SessionDashboardProps> = ({
   // ── Alertes déclaratives ────────────────────────────────────────────────
   // Notification : nouveau participant en attente
   const [newPendingName, setNewPendingName] = useState<string | null>(null);
-  // Session archivée (message + redirect au dismiss)
-  const [archivedMessage, setArchivedMessage] = useState<string | null>(null);
   // Confirmations
   const [lockConfirmVisible, setLockConfirmVisible] = useState(false);
   const [completeConfirmVisible, setCompleteConfirmVisible] = useState(false);
@@ -104,13 +102,9 @@ export const SessionDashboard: React.FC<SessionDashboardProps> = ({
   // Notifications automatiques
   useSessionNotifications(sessionId);
 
-  // Gestion de l'archivage
-  useSessionArchiving({
+  // Gestion de l'archivage / expiration
+  const { expiredAlert, dismissExpiredAlert } = useSessionArchiving({
     sessionId,
-    autoRedirect: true,
-    onSessionArchived: (data) => {
-      setArchivedMessage(data.message || 'Cette session a été archivée.');
-    },
     onTableReleased: (data) => {
       console.log(`Table ${data.table_number} libérée`);
     },
@@ -394,18 +388,18 @@ export const SessionDashboard: React.FC<SessionDashboardProps> = ({
             />
           )}
 
-          {/* Session archivée */}
-          {archivedMessage && (
+          {/* Session expirée / archivée */}
+          {expiredAlert && (
             <AlertWithAction
               variant="warning"
-              title="Session archivée"
-              message={archivedMessage}
+              title={expiredAlert.title}
+              message={expiredAlert.message}
               autoDismiss={false}
               primaryButton={{
-                text: 'OK',
+                text: 'Retour à l\'accueil',
                 variant: 'primary',
                 onPress: () => {
-                  setArchivedMessage(null);
+                  dismissExpiredAlert();
                   router.replace('/(tabs)/dashboard');
                 },
               }}

@@ -329,7 +329,7 @@ export default function CheckoutScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
+    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
       <Header 
         title="Finaliser la commande" 
         leftIcon="arrow-back" 
@@ -552,6 +552,6 @@ export default function CheckoutScreen() {
           leftIcon={<Ionicons name="checkmark-circle" size={iconSize} color={COLORS.text.inverse} />}
         />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
