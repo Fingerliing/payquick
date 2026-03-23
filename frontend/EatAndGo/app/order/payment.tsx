@@ -12,7 +12,6 @@ import {
   Platform,
   useWindowDimensions,
 } from 'react-native';
-import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { StripeProvider, useStripe } from '@stripe/stripe-react-native';
@@ -755,20 +754,20 @@ export default function PaymentScreen() {
   // ==== Loading state
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <Header title="Paiement" leftIcon="arrow-back" onLeftPress={() => router.back()} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>Chargement de la commande...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   // ==== Success state
   if (paymentSuccess) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <Header title="Paiement réussi" />
         <View style={styles.successContainer}>
           <View style={styles.successIcon}>
@@ -836,13 +835,13 @@ export default function PaymentScreen() {
           customerEmail={customerEmail}
         />
         </Modal>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
     <StripeProvider publishableKey={STRIPE_PUBLISHABLE_KEY}>
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <Header title="Paiement" leftIcon="arrow-back" onLeftPress={() => router.back()} />
 
         {/* Alert Display */}
@@ -1155,7 +1154,7 @@ export default function PaymentScreen() {
           tipAmount={tipAmount}
           onConfirm={handleSplitPaymentConfirm}
         />
-      </SafeAreaView>
+      </View>
     </StripeProvider>
   );
 }
