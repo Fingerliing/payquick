@@ -128,6 +128,13 @@ class Restaurant(models.Model):
         help_text="Numéro SIRET à 14 chiffres",
         verbose_name="SIRET"
     )
+    raison_sociale = models.CharField(
+        max_length=200,
+        blank=True,
+        default='',
+        help_text="Raison sociale de l'établissement",
+        verbose_name="Raison sociale"
+    )
     is_stripe_active = models.BooleanField(default=False, verbose_name="Paiements Stripe actifs")
     
     # NOUVEAU: Support des fermetures manuelles
@@ -375,4 +382,3 @@ class RestaurantHoursTemplate(models.Model):
     
     def __str__(self):
         return f"{self.name} ({self.get_category_display()})"
-

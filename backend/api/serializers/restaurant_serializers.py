@@ -198,6 +198,9 @@ class RestaurantSerializer(serializers.ModelSerializer):
             # Statut et gestion
             'isActive', 'is_active', 'is_stripe_active', 'can_receive_orders',
             
+            # Informations légales
+            'siret', 'raison_sociale',
+            
             # NOUVEAU: Fermetures manuelles
             'isManuallyOverridden', 'manualOverrideReason', 'manualOverrideUntil',
             'lastStatusChangedBy', 'lastStatusChangedAt',
@@ -215,7 +218,8 @@ class RestaurantSerializer(serializers.ModelSerializer):
             'id', 'owner_id', 'owner_name', 'created_at', 'updated_at', 
             'createdAt', 'updatedAt', 'can_receive_orders', 'rating', 
             'review_count', 'reviewCount', 'full_address', 'image_url',
-            'image_name', 'image_size', 'lastStatusChangedBy', 'lastStatusChangedAt'
+            'image_name', 'image_size', 'lastStatusChangedBy', 'lastStatusChangedAt',
+            'siret',
         ]
     
     def get_id(self, obj):
@@ -398,7 +402,8 @@ class RestaurantCreateSerializer(serializers.ModelSerializer):
             'name', 'description', 'address', 'city', 'zipCode', 
             'country', 'phone', 'email', 'website', 'cuisine', 
             'priceRange', 'latitude', 'longitude', 'image',
-            'accepts_meal_vouchers', 'meal_voucher_info', 'openingHours'
+            'accepts_meal_vouchers', 'meal_voucher_info', 'openingHours',
+            'siret', 'raison_sociale'
         ]
     
     def validate_image(self, value):
@@ -428,14 +433,6 @@ class RestaurantCreateSerializer(serializers.ModelSerializer):
         
         # Extraire les horaires
         opening_hours_data = validated_data.pop('openingHours', [])
-        
-        # Générer un SIRET unique
-        import random
-        while True:
-            siret = ''.join([str(random.randint(0, 9)) for _ in range(14)])
-            if not Restaurant.objects.filter(siret=siret).exists():
-                validated_data['siret'] = siret
-                break
         
         # Valeurs par défaut
         validated_data.setdefault('is_active', True)

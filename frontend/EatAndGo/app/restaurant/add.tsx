@@ -64,6 +64,8 @@ interface CreateRestaurantData {
   accepts_meal_vouchers: boolean;
   meal_voucher_info?: string;
   image?: string;
+  siret: string;
+  raison_sociale?: string;
 }
 
 interface FormValidationErrors {
@@ -145,6 +147,13 @@ const validateRestaurantForm = (formData: CreateRestaurantData): FormValidationE
   if (!formData.phone?.trim()) errors.phone = 'Téléphone requis';
   if (!formData.email?.trim()) errors.email = 'Email requis';
   if (!formData.cuisine?.trim()) errors.cuisine = 'Cuisine requise';
+
+  // SIRET (obligatoire, 14 chiffres)
+  if (!formData.siret?.trim()) {
+    errors.siret = 'SIRET requis';
+  } else if (!/^\d{14}$/.test(formData.siret.trim())) {
+    errors.siret = 'Le SIRET doit contenir exactement 14 chiffres';
+  }
 
   if (formData.email && !/^\S+@\S+\.\S+$/.test(formData.email)) {
     errors.email = 'Email invalide';
@@ -255,6 +264,8 @@ export default function AddRestaurantScreen() {
     openingHours: getDefaultOpeningHoursSafe(),
     accepts_meal_vouchers: false,
     meal_voucher_info: '',
+    siret: '',
+    raison_sociale: '',
   });
 
   // FORM HANDLERS
@@ -1009,6 +1020,27 @@ export default function AddRestaurantScreen() {
                 </>
               )}
             </View>
+          </Card>
+
+          {/* INFORMATIONS LÉGALES */}
+          <SectionHeader icon="business" title="Informations légales" />
+          <Card>
+            <Input
+              label="Numéro SIRET *"
+              placeholder="12345678901234"
+              value={formData.siret}
+              onChangeText={(t) => updateField('siret', t.replace(/\D/g, '').slice(0, 14))}
+              error={errors.siret}
+              onFocus={() => clearError('siret')}
+              keyboardType="number-pad"
+              maxLength={14}
+            />
+            <Input
+              label="Raison sociale"
+              placeholder="Ex: SARL Restaurant Chez Paul"
+              value={formData.raison_sociale}
+              onChangeText={(t) => updateField('raison_sociale', t)}
+            />
           </Card>
 
           {/* SUBMIT */}
