@@ -200,56 +200,56 @@ const OrderItemCard = React.memo(({ item, index }: { item: OrderItem; index: num
 });
 
 // Bouton de suivi gamifié
-const GamifiedTrackingButton = React.memo(({ orderId, orderStatus }: { orderId: number; orderStatus: string }) => {
-  const screenType = useScreenType();
-  const styles = createStyles(screenType);
-  const { scaleValue, scaleIn, scaleOut } = useScaleAnimation();
+// const GamifiedTrackingButton = React.memo(({ orderId, orderStatus }: { orderId: number; orderStatus: string }) => {
+//   const screenType = useScreenType();
+//   const styles = createStyles(screenType);
+//   const { scaleValue, scaleIn, scaleOut } = useScaleAnimation();
 
-  const isActiveOrder = ['pending', 'confirmed', 'preparing', 'ready'].includes(orderStatus);
-  if (!isActiveOrder) return null;
+//   const isActiveOrder = ['pending', 'confirmed', 'preparing', 'ready'].includes(orderStatus);
+//   if (!isActiveOrder) return null;
 
-  const handleTrackingPress = () => {
-    router.push(`/order/tracking/${orderId}`);
-  };
+//   const handleTrackingPress = () => {
+//     router.push(`/order/tracking/${orderId}`);
+//   };
 
-  return (
-    <Animated.View style={{ transform: [{ scale: scaleValue }], marginBottom: 16 }}>
-      <Pressable
-        style={styles.trackingButtonContainer}
-        onPress={handleTrackingPress}
-        onPressIn={scaleIn}
-        onPressOut={scaleOut}
-      >
-        <LinearGradient
-          colors={['#8B5CF6', '#7C3AED', '#6D28D9']}
-          style={styles.trackingButtonGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <View style={styles.trackingIconsContainer}>
-            <Text style={styles.floatingIcon}>🎮</Text>
-            <Text style={styles.floatingIcon}>⭐</Text>
-            <Text style={styles.floatingIcon}>🏆</Text>
-          </View>
+//   return (
+//     <Animated.View style={{ transform: [{ scale: scaleValue }], marginBottom: 16 }}>
+//       <Pressable
+//         style={styles.trackingButtonContainer}
+//         onPress={handleTrackingPress}
+//         onPressIn={scaleIn}
+//         onPressOut={scaleOut}
+//       >
+//         <LinearGradient
+//           colors={['#8B5CF6', '#7C3AED', '#6D28D9']}
+//           style={styles.trackingButtonGradient}
+//           start={{ x: 0, y: 0 }}
+//           end={{ x: 1, y: 1 }}
+//         >
+//           <View style={styles.trackingIconsContainer}>
+//             <Text style={styles.floatingIcon}>🎮</Text>
+//             <Text style={styles.floatingIcon}>⭐</Text>
+//             <Text style={styles.floatingIcon}>🏆</Text>
+//           </View>
 
-          <View style={styles.trackingButtonContent}>
-            <View style={styles.trackingMainInfo}>
-              <View style={styles.trackingTitleRow}>
-                <Text style={styles.trackingButtonTitle}>Suivre ma commande</Text>
-              </View>
-              <Text style={styles.trackingButtonSubtitle}>Progression en temps réel avec badges et points</Text>
-            </View>
+//           <View style={styles.trackingButtonContent}>
+//             <View style={styles.trackingMainInfo}>
+//               <View style={styles.trackingTitleRow}>
+//                 <Text style={styles.trackingButtonTitle}>Suivre ma commande</Text>
+//               </View>
+//               <Text style={styles.trackingButtonSubtitle}>Progression en temps réel avec badges et points</Text>
+//             </View>
 
-            {/* flèche alignée à droite, plus d'absolu avec top:'50%' */}
-            <View style={styles.trackingArrowContainer}>
-              <Ionicons name="arrow-forward" size={24} color="#fff" />
-            </View>
-          </View>
-        </LinearGradient>
-      </Pressable>
-    </Animated.View>
-  );
-});
+//             {/* flèche alignée à droite, plus d'absolu avec top:'50%' */}
+//             <View style={styles.trackingArrowContainer}>
+//               <Ionicons name="arrow-forward" size={24} color="#fff" />
+//             </View>
+//           </View>
+//         </LinearGradient>
+//       </Pressable>
+//     </Animated.View>
+//   );
+// });
 
 // Actions restaurateurs (avec modal paiement)
 const RestaurantActions = React.memo(
@@ -300,7 +300,7 @@ const RestaurantActions = React.memo(
 
     return (
       <>
-        <GamifiedTrackingButton orderId={order.id} orderStatus={order.status} />
+        {/* <GamifiedTrackingButton orderId={order.id} orderStatus={order.status} /> */}
 
         <LinearGradient colors={['#FFFFFF', '#F8FAFC']} style={styles.actionsCard}>
           <View style={styles.actionsHeader}>
@@ -445,7 +445,7 @@ const ClientPaymentButton = React.memo(({ order, onShowReceipt }: { order: Order
 
   return (
     <View style={styles.paymentSection}>
-      <GamifiedTrackingButton orderId={order.id} orderStatus={order.status} />
+      {/* <GamifiedTrackingButton orderId={order.id} orderStatus={order.status} /> */}
 
       {shouldShowPayButton && (
         <Animated.View style={{ transform: [{ scale: scaleValue }] }}>
@@ -648,7 +648,7 @@ export default function OrderDetailScreen() {
   // État chargement
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <Header title="Détails de la commande" showBackButton />
         {/* Zone d'alerte */}
         <View style={{ paddingHorizontal: 16, marginTop: 8, zIndex: 10 }}>
@@ -662,14 +662,14 @@ export default function OrderDetailScreen() {
             <Text style={styles.loadingText}>Chargement des détails...</Text>
           </View>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   // État erreur
   if (error || !order) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <Header title="Détails de la commande" showBackButton />
         {/* Zone d'alerte */}
         <View style={{ paddingHorizontal: 16, marginTop: 8, zIndex: 10 }}>
@@ -689,7 +689,7 @@ export default function OrderDetailScreen() {
             </LinearGradient>
           </Pressable>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -704,7 +704,7 @@ export default function OrderDetailScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <Header title={displayInfo.title} showBackButton />
 
       {/* 🔔 Zone d’alertes en haut */}
@@ -791,7 +791,7 @@ export default function OrderDetailScreen() {
                   <Ionicons name="receipt" size={20} color={COLORS.primary} />
                   <Text style={styles.sectionTitle}>Articles commandés</Text>
                   <View style={styles.itemCount}>
-                    <Text style={styles.itemCountText}>{groupIdenticalItems(order.items).length}</Text>
+                    <Text style={styles.itemCountText}>{groupIdenticalItems(order.items).reduce((sum, item) => sum + item.quantity, 0)}</Text>
                   </View>
                 </View>
                 {groupIdenticalItems(order.items).map((item, index) => (
@@ -841,7 +841,7 @@ export default function OrderDetailScreen() {
 
       {/* Modal Ticket */}
       <ReceiptModal visible={showReceiptModal} onClose={() => setShowReceiptModal(false)} order={order} />
-    </SafeAreaView>
+    </View>
   );
 }
 
