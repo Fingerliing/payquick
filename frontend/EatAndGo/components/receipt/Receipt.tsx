@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Button } from '@/components/ui/Button';
@@ -1094,25 +1095,25 @@ export const Receipt: React.FC<ReceiptProps> = ({
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={{ marginTop: 16, color: COLORS.text.secondary }}>Chargement du ticket...</Text>
-      </View>
+      </SafeAreaView>
     );
   }
 
   if (!receiptData) {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container}>
         <Text>Aucune donnée de ticket disponible</Text>
-      </View>
+      </SafeAreaView>
     );
   }
 
   const { order: orderData, restaurantInfo, paymentInfo, legalInfo } = receiptData;
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>
@@ -1132,7 +1133,7 @@ export const Receipt: React.FC<ReceiptProps> = ({
             variant={alertState.variant}
             title={alertState.title}
             message={alertState.message}
-            onPress={hideAlert}
+            onDismiss={hideAlert}
           />
         </View>
       ) : null}
@@ -1368,7 +1369,7 @@ export const Receipt: React.FC<ReceiptProps> = ({
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 };
 
