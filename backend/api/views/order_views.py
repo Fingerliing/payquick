@@ -504,6 +504,53 @@ class OrderViewSet(viewsets.ModelViewSet):
         })
 
     # ============================================================================
+    # VÉRIFICATION COMMANDES IMPAYÉES (GARDE NAVIGATION CLIENT)
+    # ============================================================================
+
+    @extend_schema(
+        summary="Vérifier commandes impayées",
+        description="Vérifie si le client a des commandes actives non payées. "
+                    "Utilisé par le frontend pour bloquer la navigation.",
+    )
+    @action(detail=False, methods=["get"], url_path="has-unpaid")
+    def has_unpaid(self, request):
+        """
+        Retourne si l'utilisateur a au moins une commande active non payée.
+        Le frontend utilise cette info pour masquer Scanner/Panier/Menu
+        tant que le client n'a pas réglé ses commandes en cours.
+        """
+        if not request.user.is_authenticated:
+            return Response({"has_unpaid": False, "unpaid_count": 0, "unpaid_orders": []})
+
+        unpaid_qs = Order.objects.filter(
+            user=request.user,
+            status__in=["pending", "confirmed", "preparing", "ready", "served"],
+            payment_status__in=["unpaid", "pending", "partial_paid", "failed"],
+        ).order_by("-created_at")
+
+        unpaid_orders = list(
+            unpaid_qs.values(
+                "id", "order_number", "total_amount",
+                "restaurant__name", "payment_status",
+            )[:5]
+        )
+
+        return Response({
+            "has_unpaid": len(unpaid_orders) > 0,
+            "unpaid_count": unpaid_qs.count(),
+            "unpaid_orders": [
+                {
+                    "id": o["id"],
+                    "order_number": o["order_number"],
+                    "total_amount": str(o["total_amount"]),
+                    "restaurant_name": o["restaurant__name"],
+                    "payment_status": o["payment_status"],
+                }
+                for o in unpaid_orders
+            ],
+        })
+
+    # ============================================================================
     # ACTIONS UTILITAIRES SUR PLACE
     # ============================================================================
 

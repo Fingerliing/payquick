@@ -30,6 +30,7 @@ import { DailyMenuDisplay } from '@/components/menu/DailyMenuDisplay';
 import { Alert as InlineAlert, AlertWithAction } from '@/components/ui/Alert';
 import { CategoryAccordionDisplay } from '@/components/menu/MenuDisplay';
 import { MenuItemsGrid, MenuItemsMasonry, MenuItemsTable } from '@/components/menu/MenuItemGrid';
+import { UnpaidOrderGate } from '@/components/guards/UnpaidOrderGate';
 
 // Types
 import { Menu, MenuItem } from '@/types/menu';
@@ -744,6 +745,7 @@ export default function OptimizedRestaurantPage() {
   }
 
   return (
+    <UnpaidOrderGate>
     <View style={styles.page}>
       <Header
         title={restaurant.name}
@@ -1130,5 +1132,6 @@ export default function OptimizedRestaurantPage() {
         </Pressable>
       )}
     </View>
+    </UnpaidOrderGate>
   );
 }
