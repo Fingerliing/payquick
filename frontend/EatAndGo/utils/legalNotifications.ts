@@ -2,7 +2,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 
 const LEGAL_VERSION_KEY = 'legal_version';
-const CURRENT_LEGAL_VERSION = '1.0.0'; // À incrémenter à chaque modification des CGU
+
+// ── Versions actuelles des documents légaux ──────────────────────────────────
+// À incrémenter à chaque modification des CGU ou de la politique
+export const CURRENT_TERMS_VERSION = '1.0.0';
+export const CURRENT_PRIVACY_VERSION = '1.0.0';
+// Clé combinée pour le stockage local (compatibilité ascendante)
+export const CURRENT_LEGAL_VERSION = `${CURRENT_TERMS_VERSION}+${CURRENT_PRIVACY_VERSION}`;
 
 interface LegalUpdate {
   version: string;
@@ -42,6 +48,40 @@ export const markLegalAsRead = async (): Promise<void> => {
     console.error('Erreur lors de la sauvegarde:', error);
   }
 };
+
+// ── Helpers de synchro consentement backend ──────────────────────────────────
+
+const CONSENT_PENDING_KEY = 'legal_consent_pending_sync';
+
+/**
+ * Vérifie si un consentement local n'a pas encore été synchronisé au backend.
+ */
+export const hasPendingConsentSync = async (): Promise<boolean> => {
+  try {
+    return (await AsyncStorage.getItem(CONSENT_PENDING_KEY)) === 'true';
+  } catch {
+    return false;
+  }
+};
+
+export const markConsentPendingSync = async (): Promise<void> => {
+  try {
+    await AsyncStorage.setItem(CONSENT_PENDING_KEY, 'true');
+  } catch (error) {
+    console.error('❌ Erreur pose flag synchro:', error);
+  }
+};
+
+export const markConsentSynced = async (): Promise<void> => {
+  try {
+    await AsyncStorage.removeItem(CONSENT_PENDING_KEY);
+    console.log('✅ Flag de synchro consentement supprimé');
+  } catch (error) {
+    console.error('❌ Erreur suppression flag synchro:', error);
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 export const showLegalUpdateAlert = (onAccept: () => void): void => {
   Alert.alert(

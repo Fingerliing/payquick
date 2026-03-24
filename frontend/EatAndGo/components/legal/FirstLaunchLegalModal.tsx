@@ -12,8 +12,17 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, usePathname } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { markLegalAsRead, checkLegalUpdates } from '@/utils/legalNotifications';
+import {
+  markLegalAsRead,
+  checkLegalUpdates,
+  CURRENT_TERMS_VERSION,
+  CURRENT_PRIVACY_VERSION,
+  markConsentPendingSync,
+  markConsentSynced,
+} from '@/utils/legalNotifications';
 import { useLegalAcceptance } from '@/contexts/LegalAcceptanceContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { legalService } from '@/services/legalService';
 import { COLORS, BORDER_RADIUS, SHADOWS, TYPOGRAPHY } from '@/utils/designSystem';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -23,6 +32,7 @@ export function FirstLaunchLegalModal() {
   const pathname = usePathname();
   const [visible, setVisible] = useState(false);
   const [shouldShow, setShouldShow] = useState(false);
+  const { isAuthenticated } = useAuth();
   const {
     termsAccepted,
     privacyAccepted,
@@ -98,6 +108,23 @@ export function FirstLaunchLegalModal() {
     }
   };
 
+  // ── Envoi du consentement au backend (preuve RGPD) ─────────────────────────
+  const syncConsentToBackend = async (): Promise<boolean> => {
+    try {
+      await legalService.recordConsent({
+        terms_version: CURRENT_TERMS_VERSION,
+        privacy_version: CURRENT_PRIVACY_VERSION,
+        consent_date: new Date().toISOString(),
+      });
+      console.log('✅ Consentement enregistré côté serveur');
+      await markConsentSynced();
+      return true;
+    } catch (error) {
+      console.warn('⚠️ Impossible d\'enregistrer le consentement côté serveur:', error);
+      return false;
+    }
+  };
+
   const handleAccept = async () => {
     if (!termsAccepted || !privacyAccepted) {
       return;
@@ -105,9 +132,25 @@ export function FirstLaunchLegalModal() {
 
     try {
       console.log('💾 Utilisateur accepte les CGU définitivement');
+
+      // 1. Stockage local (toujours)
       await markLegalAsRead();
 
-      // Réinitialiser les acceptations pour un nouveau cycle au prochain lancement
+      // 2. Envoi au backend (preuve RGPD)
+      if (isAuthenticated) {
+        const synced = await syncConsentToBackend();
+        if (!synced) {
+          // Échec réseau : poser un flag pour re-tenter au prochain login/refresh
+          await markConsentPendingSync();
+          console.log('📌 Consentement marqué pour synchro ultérieure');
+        }
+      } else {
+        // Utilisateur non connecté : la synchro se fera automatiquement au login
+        await markConsentPendingSync();
+        console.log('📌 Utilisateur non authentifié — synchro différée au login');
+      }
+
+      // 3. Réinitialiser les acceptations pour un nouveau cycle au prochain lancement
       await resetAcceptances();
 
       console.log('✅ Acceptation enregistrée');

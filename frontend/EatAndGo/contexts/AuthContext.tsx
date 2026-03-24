@@ -3,16 +3,18 @@ import secureStorage from '@/utils/secureStorage';
 import { API_BASE_URL } from '../constants/config';
 import { router } from 'expo-router';
 import {
+  hasPendingConsentSync,
+  markConsentSynced,
+  CURRENT_TERMS_VERSION,
+  CURRENT_PRIVACY_VERSION,
+} from '@/utils/legalNotifications';
+import { legalService } from '@/services/legalService';
+import {
   User,
-  ClientProfile,
   RestaurateurProfile,
   Restaurant,
-  UserPermissions,
-  UserRoles,
   UserStats,
-  RecentOrder,
   RegisterData,
-  ApiResponse
 } from '@/types/user';
 
 export interface AuthResponse {
@@ -301,6 +303,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Effacer les erreurs
   const clearError = () => setLastError(null);
 
+  // ── Synchro consentement légal en attente ────────────────────────────────
+  const syncPendingLegalConsent = async () => {
+    try {
+      const pending = await hasPendingConsentSync();
+      if (!pending) return;
+
+      console.log('📋 Consentement légal en attente — synchro backend...');
+      await legalService.recordConsent({
+        terms_version: CURRENT_TERMS_VERSION,
+        privacy_version: CURRENT_PRIVACY_VERSION,
+        consent_date: new Date().toISOString(),
+      });
+      await markConsentSynced();
+      console.log('✅ Consentement légal synchronisé après connexion');
+    } catch (error) {
+      // Non bloquant : on re-tentera au prochain login
+      console.warn('⚠️ Synchro consentement échouée (sera re-tentée):', error);
+    }
+  };
+
   // Gestion des erreurs globales (inchangée)
   const handleError = (error: any, context: string) => {
     console.error(`❌ Erreur dans ${context}:`, error);
@@ -391,6 +413,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(parsedUser);
         console.log('✅ Authentification restaurée depuis le cache');
   
+        // Synchro consentement légal en attente (fire-and-forget)
+        syncPendingLegalConsent();
+
         // Redirection immédiate après setUser avec vérification du rôle
         setTimeout(() => {
           if (parsedUser.role) {
@@ -453,6 +478,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       console.log('✅ Inscription réussie avec données utilisateur complètes');
       
+      // Synchro consentement légal si accepté avant inscription
+      await syncPendingLegalConsent();
+
       // Navigation après inscription
       setTimeout(() => navigateByRole(), 300);
 
@@ -489,6 +517,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         console.log('✅ Connexion réussie avec données utilisateur complètes');
         
+        // Synchro consentement légal si accepté avant connexion
+        await syncPendingLegalConsent();
+
         // Navigation après connexion
         navigateByRole(currentUser);
       }
