@@ -1,6 +1,6 @@
 export const TERMS_OF_SERVICE = {
   title: "Conditions Générales d'Utilisation",
-  lastUpdate: "20 Novembre 2025",
+  lastUpdate: "24 Novembre 2026",
   sections: [
     {
       title: "PRÉSENTATION DE LA PLATEFORME",
@@ -73,7 +73,7 @@ export const TERMS_OF_SERVICE = {
           content: "Les Clients peuvent :",
           bulletPoints: [
             "Commander sans créer de compte (commande invité via scan QR code)",
-            "Créer un compte pour bénéficier de fonctionnalités supplémentaires (historique, favoris, paiement rapide)"
+            "Créer un compte pour bénéficier de fonctionnalités supplémentaires (historique, paiement rapide)"
           ]
         },
         {
@@ -335,7 +335,7 @@ export const TERMS_OF_SERVICE = {
           content: "En cas de suppression du compte Client :",
           bulletPoints: [
             "Perte de l'accès à l'historique des commandes",
-            "Suppression des préférences et favoris",
+            "Suppression des préférences",
             "Les commandes en cours doivent être honorées avant suppression",
             "Les données de facturation sont conservées 10 ans (obligation légale)"
           ]
@@ -347,8 +347,7 @@ export const TERMS_OF_SERVICE = {
             "Préavis de 30 jours minimum",
             "Aucune commande en cours ou impayée",
             "Règlement de toutes les sommes dues à EatQuickeR",
-            "Les données comptables sont conservées 10 ans (obligation légale)",
-            "Les avis clients restent visibles de manière anonymisée"
+            "Les données comptables sont conservées 10 ans (obligation légale)"
           ]
         },
         {
@@ -425,16 +424,6 @@ export const TERMS_OF_SERVICE = {
           ]
         },
         {
-          title: "Contenus des Clients",
-          content: "Les Clients qui publient des avis ou commentaires :",
-          bulletPoints: [
-            "Accordent à EatQuickeR une licence d'utilisation gratuite et perpétuelle",
-            "S'engagent à ne pas publier de contenu diffamatoire, injurieux ou illégal",
-            "Conservent la propriété morale de leurs avis",
-            "Les avis peuvent être modérés ou supprimés s'ils enfreignent les CGU"
-          ]
-        },
-        {
           title: "Protection des QR codes",
           content: "Les QR codes générés par la Plateforme :",
           bulletPoints: [
@@ -476,7 +465,6 @@ export const TERMS_OF_SERVICE = {
             "Informations fausses ou trompeuses sur un restaurant",
             "Photos ne correspondant pas aux plats servis",
             "Prix affichés incorrects",
-            "Avis frauduleux ou diffamatoires",
             "Contenus illégaux, violents, discriminatoires",
             "Pratiques commerciales déloyales",
             "Violations des règles d'hygiène ou de sécurité alimentaire"
@@ -742,13 +730,11 @@ export const PRIVACY_POLICY = {
           title: "Données de connexion et d'authentification",
           content: "Lors de votre utilisation de la Plateforme :",
           bulletPoints: [
-            "Identifiants de connexion (nom d'utilisateur, mot de passe crypté)",
+            "Identifiants de connexion (nom d'utilisateur, mot de passe hashé)",
             "Tokens d'authentification JWT (JSON Web Token)",
             "Adresse IP (IPv4 et IPv6)",
             "Type de navigateur et système d'exploitation (User Agent)",
             "Date et heure de connexion (horodatage précis)",
-            "Logs d'accès et d'activité (pages visitées, actions effectuées)",
-            "Identifiant unique de l'appareil (Device ID)",
             "Langue et fuseau horaire de l'appareil"
           ]
         },
@@ -804,29 +790,7 @@ export const PRIVACY_POLICY = {
             "Restaurants visités (liste et fréquence)",
             "Tables scannées (numéros de table, codes QR, timestamps)",
             "Fréquence d'utilisation de la Plateforme",
-            "Fonctionnalités utilisées (scan QR, paiement, commande collaborative)",
-            "Temps passé sur l'application et sur chaque écran",
-            "Parcours de navigation (séquence des écrans visités)",
-            "Taux d'utilisation des différentes fonctionnalités"
-          ]
-        },
-        {
-          title: "Données de géolocalisation (OPTIONNEL - sur consentement)",
-          content: "Si vous activez la géolocalisation dans l'application :",
-          bulletPoints: [
-            "Position GPS précise : coordonnées latitude/longitude (précision 10-50 mètres)",
-            "Position approximative : basée sur l'adresse IP ou les antennes cellulaires (précision 100m-1km)",
-            "Altitude (si disponible)",
-            "Horodatage de chaque géolocalisation",
-            "Vitesse et direction (si en déplacement)",
-            "Précision estimée de la position",
-            "Historique des positions lors de vos recherches de restaurants",
-            "BASE LÉGALE : Consentement explicite (Article 6.1.a du RGPD)",
-            "FINALITÉ : Afficher les restaurants à proximité de votre position actuelle",
-            "CONSERVATION : Durée de la session uniquement, sauf historique (maximum 1 an)",
-            "DÉSACTIVATION : Paramètres > Confidentialité > Géolocalisation (ou via paramètres système)",
-            "IMPORTANT : La géolocalisation n'est JAMAIS utilisée en arrière-plan, uniquement quand l'app est ouverte",
-            "Vous pouvez refuser ou désactiver la géolocalisation sans impact sur les autres fonctionnalités"
+            "Fonctionnalités utilisées (scan QR, paiement, commande collaborative)"
           ]
         },
         {
@@ -834,24 +798,14 @@ export const PRIVACY_POLICY = {
           content: "Pour assurer le fonctionnement optimal de la Plateforme :",
           bulletPoints: [
             "Informations sur votre appareil :",
-            "  • Modèle exact (ex: iPhone 13, Samsung Galaxy S22)",
+            "  • Modèle (ex: iPhone 13, Samsung Galaxy S22)",
             "  • Système d'exploitation et version (ex: iOS 16.3, Android 13)",
             "  • Version de l'application EatQuickeR",
-            "  • Résolution d'écran et densité de pixels",
-            "  • Identifiant unique de l'appareil (anonymisé)",
             "Données de connexion réseau :",
             "  • Type de connexion (WiFi, 4G, 5G, 3G)",
-            "  • Fournisseur d'accès Internet (FAI)",
             "  • Adresse IP (IPv4/IPv6)",
-            "  • Qualité de la connexion (latence, bande passante)",
             "Identifiants de session applicative (durée limitée)",
-            "Cookies et technologies similaires (détails dans section dédiée)",
-            "Logs d'erreurs et de performance :",
-            "  • Messages d'erreur techniques (stack traces)",
-            "  • Temps de chargement des pages",
-            "  • Plantages applicatifs (crashlogs)",
-            "  • Utilisation de la mémoire et du CPU",
-            "Version des bibliothèques tierces utilisées"
+            "Logs d'erreurs techniques (messages d'erreur, stack traces)"
           ]
         },
         {
@@ -874,13 +828,7 @@ export const PRIVACY_POLICY = {
           content: "Vous pouvez également nous communiquer :",
           bulletPoints: [
             "Photo de profil (avatar)",
-            "Préférences alimentaires (végétarien, vegan, etc.)",
-            "Allergies et intolérances alimentaires",
-            "Commentaires et avis sur les restaurants",
-            "Notes attribuées aux restaurants (système d'étoiles)",
-            "Messages adressés au support client",
-            "Réponses aux questionnaires de satisfaction",
-            "Restaurants favoris (liste personnelle)"
+            "Messages adressés au support client"
           ]
         }
       ]
@@ -918,7 +866,6 @@ export const PRIVACY_POLICY = {
           bulletPoints: [
             "Amélioration de nos services et développement de nouvelles fonctionnalités",
             "Sécurité de la Plateforme et prévention de la fraude",
-            "Analyses statistiques et mesure d'audience",
             "Gestion des réclamations et contentieux",
             "Optimisation de l'expérience utilisateur"
           ]
@@ -927,10 +874,6 @@ export const PRIVACY_POLICY = {
           title: "Consentement",
           content: "Traitement fondé sur votre consentement (Article 6.1.a du RGPD) :",
           bulletPoints: [
-            "Envoi de communications marketing (newsletters, offres promotionnelles)",
-            "Cookies non essentiels (analytiques, publicitaires)",
-            "Géolocalisation précise (GPS)",
-            "Partage de vos données avec des partenaires tiers (hors prestataires nécessaires)",
             "Utilisation de vos données pour des finalités non prévues initialement"
           ]
         }
@@ -953,8 +896,7 @@ export const PRIVACY_POLICY = {
           content: "Nous partageons vos données avec les prestataires suivants :",
           bulletPoints: [
             "OVH (hébergement des serveurs et bases de données) - France",
-            "Services de messagerie électronique (envoi d'emails transactionnels)",
-            "Services de monitoring et d'analyse de performance"
+            "Services de messagerie électronique (envoi d'emails transactionnels)"
           ]
         },
         {
@@ -1005,7 +947,6 @@ export const PRIVACY_POLICY = {
           content: "Le traitement des paiements implique un transfert vers les serveurs de Stripe situés aux États-Unis. Ce transfert est encadré par :",
           bulletPoints: [
             "Clauses Contractuelles Types (CCT) approuvées par la Commission Européenne",
-            "Certification Privacy Shield (si applicable)",
             "Mesures de sécurité supplémentaires conformes aux exigences du RGPD"
           ]
         },
@@ -1056,7 +997,6 @@ export const PRIVACY_POLICY = {
           bulletPoints: [
             "Logs de connexion : 1 an (sécurité)",
             "Logs d'erreurs : 6 mois",
-            "Cookies : selon leur finalité (voir section Cookies)",
             "Sessions WebSocket : durée de la session uniquement"
           ]
         },
@@ -1075,7 +1015,6 @@ export const PRIVACY_POLICY = {
           content: "Conservation des preuves de consentement :",
           bulletPoints: [
             "Acceptation des CGU : durée du compte + 5 ans",
-            "Consentements marketing : jusqu'au retrait du consentement + 3 ans",
             "Logs d'actions RGPD (export, suppression) : 5 ans"
           ]
         }
@@ -1221,7 +1160,6 @@ export const PRIVACY_POLICY = {
           bulletPoints: [
             "Email : contact@eatquicker.com",
             "Courrier : BETTONI ALEX - DPO, 2965 RTE D URKOI, 64240 HASPARREN",
-            "Via votre espace personnel (paramètres > Confidentialité et données)",
             "Délai de réponse : 1 mois (prolongeable de 2 mois si nécessaire avec justification)"
           ]
         },
@@ -1248,70 +1186,35 @@ export const PRIVACY_POLICY = {
       ]
     },
     {
-      title: "COOKIES ET TECHNOLOGIES SIMILAIRES",
+      title: "STOCKAGE LOCAL ET TECHNOLOGIES SIMILAIRES",
+      content: "EatQuickeR étant une application mobile native, elle n'utilise pas de cookies au sens classique du terme. Cependant, des technologies de stockage local sont utilisées :",
       subsections: [
         {
-          title: "Qu'est-ce qu'un cookie ?",
-          content: "Un cookie est un petit fichier texte déposé sur votre appareil lors de la visite d'un site web ou d'une application. Les cookies permettent de reconnaître votre navigateur et de mémoriser certaines informations."
-        },
-        {
-          title: "Cookies essentiels",
-          content: "Ces cookies sont strictement nécessaires au fonctionnement de la Plateforme (pas de consentement requis) :",
+          title: "Stockage sécurisé (SecureStore)",
+          content: "Pour la sécurité de votre authentification :",
           bulletPoints: [
-            "Cookies d'authentification : maintien de votre session connectée",
-            "Cookies de sécurité : protection contre les attaques CSRF",
-            "Cookies de session : gestion de votre navigation et de votre panier",
-            "Cookies de préférences : mémorisation de vos choix (langue, etc.)",
-            "Durée : session ou maximum 1 an"
+            "Tokens d'authentification JWT (accès et rafraîchissement)",
+            "Stockage chiffré par le système d'exploitation (Keychain iOS / Keystore Android)",
+            "Supprimés automatiquement à la déconnexion"
           ]
         },
         {
-          title: "Cookies analytiques",
-          content: "Ces cookies nous aident à comprendre comment vous utilisez la Plateforme (consentement requis) :",
+          title: "Stockage local (AsyncStorage)",
+          content: "Pour mémoriser vos préférences et améliorer l'expérience :",
           bulletPoints: [
-            "Mesure d'audience et statistiques de visite",
-            "Analyse des parcours utilisateurs",
-            "Amélioration de l'ergonomie et des fonctionnalités",
-            "Durée : maximum 13 mois"
+            "Préférences d'affichage et paramètres de l'application",
+            "Version des documents légaux acceptés (preuve de consentement)",
+            "Cache de données pour améliorer les performances",
+            "Données de session temporaires"
           ]
         },
         {
-          title: "Cookies de performance",
-          content: "Ces cookies permettent d'optimiser les performances (consentement requis) :",
+          title: "Communication temps réel (WebSocket)",
+          content: "Pour les notifications et mises à jour instantanées :",
           bulletPoints: [
-            "Temps de chargement des pages",
-            "Détection et résolution des erreurs techniques",
-            "Optimisation de l'affichage selon votre appareil",
-            "Durée : maximum 13 mois"
-          ]
-        },
-        {
-          title: "Autres technologies de suivi",
-          content: "Nous utilisons également :",
-          bulletPoints: [
-            "Local Storage : stockage local de données (préférences, cache)",
-            "Session Storage : stockage temporaire pour la session en cours",
-            "WebSocket : communication en temps réel pour les notifications",
-            "Ces technologies ne constituent pas des cookies mais peuvent stocker des informations localement"
-          ]
-        },
-        {
-          title: "Gestion de vos préférences",
-          content: "Vous pouvez gérer les cookies :",
-          bulletPoints: [
-            "Via le bandeau cookies lors de votre première visite",
-            "Dans les paramètres de votre compte (rubrique Confidentialité)",
-            "Via les paramètres de votre navigateur (attention : cela peut affecter le fonctionnement)",
-            "Modification possible à tout moment de vos choix"
-          ]
-        },
-        {
-          title: "Opposition aux cookies",
-          content: "Pour refuser les cookies :",
-          bulletPoints: [
-            "Paramétrez votre navigateur pour bloquer les cookies",
-            "Utilisez le mode navigation privée",
-            "Note : le refus des cookies essentiels empêchera l'utilisation de certaines fonctionnalités"
+            "Connexion chiffrée WSS (WebSocket Secure)",
+            "Aucun stockage persistant : les données transitent uniquement pendant la session",
+            "Utilisé pour les mises à jour de statut de commande en temps réel"
           ]
         }
       ]
@@ -1352,9 +1255,7 @@ export const PRIVACY_POLICY = {
           title: "Profilage limité",
           content: "Nous pouvons effectuer un profilage limité pour :",
           bulletPoints: [
-            "Améliorer l'expérience utilisateur (suggestions de restaurants ou plats)",
-            "Détecter les comportements frauduleux",
-            "Personnaliser les communications marketing (si vous avez consenti)",
+            "Détecter les comportements frauduleux (rate limiting, détection d'abus)",
             "Vous disposez du droit de vous opposer à ce profilage"
           ]
         }
@@ -1408,7 +1309,6 @@ export const PRIVACY_POLICY = {
           bulletPoints: [
             "Email dédié : contact@eatquicker.com",
             "Courrier : BETTONI ALEX - DPO, 2965 RTE D URKOI, 64240 HASPARREN",
-            "Formulaire en ligne : disponible dans votre espace personnel",
             "Délai de réponse : 30 jours maximum"
           ]
         },
