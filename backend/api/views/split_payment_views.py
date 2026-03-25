@@ -751,6 +751,12 @@ class CompleteSplitPaymentView(APIView):
             if session.status != 'completed':
                 session.mark_as_completed()
             
+            # Mettre à jour le statut de paiement de la commande
+            order.payment_status = 'paid'
+            order.payment_method = 'online'
+            order.save(update_fields=['payment_status', 'payment_method'])
+            logger.info(f"💰 Split payment finalisé — commande #{order.id} marquée paid")
+            
             return Response({'success': True, 'message': 'Paiement divisé finalisé'})
             
         except Order.DoesNotExist:

@@ -471,11 +471,8 @@ export default function PaymentScreen() {
 
   const handlePaymentSuccess = async (method: PaymentMethodType) => {
     try {
-      if (method === 'online') {
-        await paymentService.updatePaymentStatus(orderId as string, 'paid', 'online');
-      } else {
-        await paymentService.updatePaymentStatus(orderId as string, 'cash_pending', 'cash');
-      }
+      // Paiement online : le webhook Stripe met à jour order.payment_status → rien à faire ici.
+      // Paiement cash   : déjà mis à jour par handleCashPayment() avant cet appel.
       if (wantReceipt && customerEmail && isValidEmail(customerEmail)) {
         try {
           await receiptService.sendReceiptByEmail({ 
@@ -589,9 +586,8 @@ export default function PaymentScreen() {
       const completionStatus = await splitPaymentService.checkCompletion(orderId as string);
       
       if (completionStatus.isCompleted) {
-        // Finaliser la commande
+        // Finaliser la commande (le backend met à jour order.payment_status)
         await splitPaymentService.completePayment(orderId as string);
-        await orderService.updateOrderStatus(Number(orderId), 'paid');
         
         // Envoyer le reçu si demandé
         if (wantReceipt && customerEmail && isValidEmail(customerEmail)) {
@@ -710,9 +706,8 @@ export default function PaymentScreen() {
 
           console.log('All remaining payments confirmed successfully');
 
-          // Finaliser la commande
+          // Finaliser la commande (le backend met à jour order.payment_status)
           await splitPaymentService.completePayment(orderId as string);
-          await orderService.updateOrderStatus(Number(orderId), 'paid');
           
           // Recharger la session pour mettre à jour l'état
           await loadSplitSession();

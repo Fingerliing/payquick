@@ -36,7 +36,7 @@ class NotificationService:
             tokens = PushNotificationToken.objects.filter(
                 user_id=user_id,
                 is_active=True
-            ).values_list('token', flat=True)
+            ).values_list('expo_token', flat=True)
             return list(tokens)
         except Exception as e:
             logger.error(f"Erreur récupération tokens user {user_id}: {e}")
@@ -49,7 +49,7 @@ class NotificationService:
             tokens = PushNotificationToken.objects.filter(
                 guest_phone=phone,
                 is_active=True
-            ).values_list('token', flat=True)
+            ).values_list('expo_token', flat=True)
             return list(tokens)
         except Exception as e:
             logger.error(f"Erreur récupération tokens guest {phone}: {e}")
