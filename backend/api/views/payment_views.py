@@ -10,7 +10,7 @@ from django.db import transaction
 from decimal import Decimal
 import logging
 
-from api.utils.commission_utils import calculate_platform_fee_cents
+from api.utils.commission_utils import calculate_platform_fee_cents, build_stripe_payment_params
 
 from api.models import (
     Order, RestaurateurProfile,
@@ -172,8 +172,9 @@ class CreateCheckoutSessionView(APIView):
             if not restaurateur or not restaurateur.stripe_account_id:
                 return Response({"error": "No Stripe account linked."}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Commission 2% (en centimes) sur le total de commande
-            platform_fee_cents = int(order.total_amount * Decimal("100")) * 2 // 100
+            # Commission centralisée (2%) + transfer vers le compte du restaurateur
+            amount_cents = int(order.total_amount * Decimal("100"))
+            connect_params = build_stripe_payment_params(amount_cents, restaurateur)
 
             # Création de la session Stripe Checkout
             session = stripe.checkout.Session.create(
@@ -183,12 +184,7 @@ class CreateCheckoutSessionView(APIView):
                 success_url=f"{settings.DOMAIN}/success?order={order_id}",
                 cancel_url=f"{settings.DOMAIN}/cancel?order={order_id}",
                 metadata={"order_id": str(order_id)},
-                payment_intent_data={
-                    "application_fee_amount": platform_fee_cents,
-                    "transfer_data": {
-                        "destination": restaurateur.stripe_account_id,
-                    }
-                }
+                payment_intent_data=connect_params if connect_params else {},
             )
 
             return Response({"checkout_url": session.url})
@@ -355,7 +351,13 @@ class StripeWebhookView(APIView):
     def _handle_regular_payment_success(self, payment_intent, metadata):
         """Traiter un paiement normal (non divisé)"""
         order_id = metadata.get("order_id")
-        
+        draft_order_id = metadata.get("draft_order_id")
+
+        # ── Guest online payment : le PI porte draft_order_id, pas order_id ──
+        if not order_id and draft_order_id:
+            self._handle_draft_payment_success(draft_order_id, payment_intent["id"])
+            return
+
         if not order_id:
             logger.error("No order_id in regular payment metadata")
             return
@@ -388,6 +390,32 @@ class StripeWebhookView(APIView):
             logger.error(f"Order {order_id} not found")
         except Exception as e:
             logger.error(f"Error handling regular payment success: {e}")
+
+    def _handle_draft_payment_success(self, draft_order_id, payment_intent_id):
+        """
+        Crée une Order finale à partir d'un DraftOrder après succès du PI.
+        Idempotent : si le draft est déjà consommé, on ignore silencieusement.
+        """
+        try:
+            draft = DraftOrder.objects.get(id=draft_order_id)
+
+            if draft.status == 'confirmed':
+                logger.info(f"DraftOrder {draft_order_id} already confirmed (idempotent)")
+                return
+
+            order = _create_order_from_draft(draft, paid=True)
+            logger.info(
+                f"Order {order.id} created from DraftOrder {draft_order_id} "
+                f"via webhook (PI {payment_intent_id})"
+            )
+
+        except DraftOrder.DoesNotExist:
+            logger.error(f"DraftOrder {draft_order_id} not found for webhook")
+        except ValueError as e:
+            # "already consumed" ou "expired" — attendu en cas de rejeu
+            logger.warning(f"DraftOrder {draft_order_id} cannot be converted: {e}")
+        except Exception as e:
+            logger.error(f"Error creating order from draft {draft_order_id}: {e}")
 
     def _handle_payment_intent_failed(self, event):
         """Traiter un échec de PaymentIntent"""
@@ -642,15 +670,23 @@ class CreatePaymentIntentView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
+            # Calculer les paramètres Connect (commission + transfer)
+            amount_cents = int(order.total_amount * 100)
+            restaurateur = getattr(order.restaurant, 'owner', None)
+            connect_params = build_stripe_payment_params(
+                amount_cents, restaurateur
+            ) if restaurateur else {}
+
             # Créer le PaymentIntent
             intent = stripe.PaymentIntent.create(
-                amount=int(order.total_amount * 100),  # Centimes
+                amount=amount_cents,
                 currency='eur',
                 metadata={
                     'order_id': str(order.id),
                     'user_id': str(request.user.id) if request.user.is_authenticated else None,
                 },
-                automatic_payment_methods={'enabled': True}
+                automatic_payment_methods={'enabled': True},
+                **connect_params,
             )
             
             return Response({

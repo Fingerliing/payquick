@@ -778,6 +778,32 @@ export default function DashboardScreen() {
             </View>
           )}
 
+          {/* Rappel Stripe Connect — restaurants existants mais Stripe inactif */}
+          {isRestaurateur && user?.roles?.has_validated_profile
+            && safeRestaurants.length > 0
+            && safeRestaurants.some((r: any) => !r.isStripeActive) && (
+            <TouchableOpacity
+              style={[styles.alertCard, { borderLeftWidth: 4, borderLeftColor: COLORS.warning }]}
+              onPress={() => router.push('/stripe/onboarding' as any)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.alertIconContainer}>
+                <Ionicons name="card-outline" size={24} color={COLORS.warning} />
+              </View>
+              <View style={styles.alertContent}>
+                <Text style={styles.alertTitle}>
+                  Finalisez votre configuration Stripe
+                </Text>
+                <Text style={styles.alertText}>
+                  {safeRestaurants.filter((r: any) => !r.isStripeActive).length === safeRestaurants.length
+                    ? 'Aucun de vos restaurants ne reçoit de paiements en ligne. Configurez Stripe pour commencer à encaisser.'
+                    : `${safeRestaurants.filter((r: any) => !r.isStripeActive).length} restaurant(s) sans paiement en ligne activé.`}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={COLORS.text.secondary} />
+            </TouchableOpacity>
+          )}
+
             {/* Section d'aide pour les nouveaux utilisateurs */}
             {isRestaurateur && safeRestaurants.length === 0 && user?.roles?.has_validated_profile && (
             <View style={styles.sectionContainer}>

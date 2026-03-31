@@ -9,6 +9,7 @@ from django.conf import settings
 import datetime, stripe
 
 from api.models import DraftOrder, Restaurant, MenuItem
+from api.utils.commission_utils import build_stripe_payment_params
 from api.serializers import GuestPrepareSerializer, GuestPrepareResponse, DraftStatusQuery, DraftStatusResponse
 from api.services import create_order_from_draft
 
@@ -61,18 +62,18 @@ class GuestPrepare(APIView):
 
         client_secret = None
         if draft.payment_method == "online":
-            # Commission 2% (en centimes) sur le total de commande
-            platform_fee_cents = amount * 2 // 100
+            # Commission centralisée + transfer vers le compte du restaurateur
+            connect_params = build_stripe_payment_params(amount, rest.owner)
 
             pi = stripe.PaymentIntent.create(
                 amount=amount,
                 currency="eur",
                 automatic_payment_methods={"enabled": True},
-                application_fee_amount=platform_fee_cents,
                 metadata={
                     "draft_order_id": str(draft.id),
                     "restaurant_id": str(rest.id),
                 },
+                **connect_params,
             )
             draft.payment_intent_id = pi.id
             draft.save(update_fields=["payment_intent_id"])

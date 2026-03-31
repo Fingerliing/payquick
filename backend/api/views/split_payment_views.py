@@ -21,6 +21,7 @@ import uuid
 
 from api.models import Order, SplitPaymentSession, SplitPaymentPortion
 from api.views.payment_views import _is_order_owner
+from api.utils.commission_utils import build_stripe_payment_params
 from api.serializers.split_payment_serializers import (
     SplitPaymentSessionSerializer,
     CreateSplitPaymentSessionSerializer,
@@ -170,6 +171,22 @@ class CreateSplitPaymentSessionView(APIView):
                     amount=portion_data['amount']
                 )
                 portions.append(portion)
+
+            # ── Filet de sécurité : sum(portions) doit couvrir le total ──────
+            portions_sum = sum(p.amount for p in portions)
+            expected_total = order.total_amount + session.tip_amount
+            if portions_sum < expected_total:
+                # Incohérence — annuler la session et remonter l'erreur
+                session.delete()
+                logger.error(
+                    f"Split session aborted: sum(portions)={portions_sum} "
+                    f"< expected={expected_total} for order #{order.id}"
+                )
+                return Response(
+                    {'error': f'Le total des portions ({portions_sum}) est inférieur '
+                              f'au montant attendu ({expected_total})'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             
             # Mettre à jour le statut de la commande
             order.payment_status = 'partial_paid'
@@ -352,8 +369,10 @@ class PayPortionView(APIView):
             # Créer le PaymentIntent
             amount_cents = int(portion.amount * 100)  # Convertir en centimes
 
-            # Récupérer le compte Stripe connecté du restaurateur
-            stripe_account_id = getattr(order.restaurant.owner, 'stripe_account_id', None)
+            # Commission centralisée + transfer vers le compte du restaurateur
+            connect_params = build_stripe_payment_params(
+                amount_cents, order.restaurant.owner
+            )
 
             intent_params = {
                 'amount': amount_cents,
@@ -364,13 +383,8 @@ class PayPortionView(APIView):
                     'split_payment': 'true'
                 },
                 'automatic_payment_methods': {'enabled': True},
+                **connect_params,
             }
-
-            # application_fee_amount n'est autorisé que si transfer_data[destination] est présent
-            if stripe_account_id:
-                platform_fee_cents = amount_cents * 2 // 100
-                intent_params['application_fee_amount'] = platform_fee_cents
-                intent_params['transfer_data'] = {'destination': stripe_account_id}
 
             payment_intent = stripe.PaymentIntent.create(**intent_params)
             
@@ -509,8 +523,10 @@ class PayRemainingPortionsView(APIView):
             remaining_amount = sum(portion.amount for portion in unpaid_portions)
             amount_cents = int(remaining_amount * 100)
 
-            # Récupérer le compte Stripe connecté du restaurateur
-            stripe_account_id = getattr(order.restaurant.owner, 'stripe_account_id', None)
+            # Commission centralisée + transfer vers le compte du restaurateur
+            connect_params = build_stripe_payment_params(
+                amount_cents, order.restaurant.owner
+            )
 
             intent_params = {
                 'amount': amount_cents,
@@ -522,13 +538,8 @@ class PayRemainingPortionsView(APIView):
                     'portion_ids': ','.join(str(p.id) for p in unpaid_portions)
                 },
                 'automatic_payment_methods': {'enabled': True},
+                **connect_params,
             }
-
-            # Appliquer la commission seulement si le restaurant a un compte Stripe connecté
-            if stripe_account_id:
-                platform_fee_cents = amount_cents * 2 // 100
-                intent_params['application_fee_amount'] = platform_fee_cents
-                intent_params['transfer_data'] = {'destination': stripe_account_id}
 
             payment_intent = stripe.PaymentIntent.create(**intent_params)
             
@@ -744,6 +755,17 @@ class CompleteSplitPaymentView(APIView):
             if not session.is_completed:
                 return Response(
                     {'error': 'Tous les paiements ne sont pas encore effectués'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # ── Filet de sécurité : vérifier que le montant payé couvre le total ──
+            if session.total_paid < order.total_amount:
+                logger.error(
+                    f"Split completion refused: total_paid={session.total_paid} "
+                    f"< order total={order.total_amount} for order #{order.id}"
+                )
+                return Response(
+                    {'error': 'Le montant total payé ne couvre pas le montant de la commande'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             

@@ -104,6 +104,42 @@ def calculate_net_revenue(gross_amount: Decimal, payment_method: str = 'online')
 
 
 # ============================================================================
+# HELPER STRIPE — PARAMÈTRES DE PAIEMENT AVEC COMMISSION
+# ============================================================================
+
+def build_stripe_payment_params(amount_cents: int, restaurant_owner) -> dict:
+    """
+    Construit les paramètres Stripe Connect (commission + transfer) de manière
+    centralisée.  À fusionner dans le dict passé à PaymentIntent.create() ou
+    checkout.Session.create().
+
+    Si le restaurateur possède un stripe_account_id connecté, on ajoute :
+      - application_fee_amount  (commission plateforme en centimes)
+      - transfer_data.destination (compte Stripe du restaurateur)
+
+    Sinon, on retourne un dict vide — le paiement arrive sur le compte
+    plateforme sans commission.
+
+    Args:
+        amount_cents: Montant total de la transaction en centimes.
+        restaurant_owner: Instance du modèle RestaurateurProfile (ou objet
+                          possédant un attribut stripe_account_id).
+
+    Returns:
+        dict pouvant être **-unpacked dans les paramètres Stripe.
+    """
+    stripe_account_id = getattr(restaurant_owner, 'stripe_account_id', None)
+
+    if not stripe_account_id:
+        return {}
+
+    return {
+        'application_fee_amount': calculate_platform_fee_cents(amount_cents),
+        'transfer_data': {'destination': stripe_account_id},
+    }
+
+
+# ============================================================================
 # STATISTIQUES DE REVENUS POUR UN RESTAURANT
 # ============================================================================
 
