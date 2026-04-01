@@ -399,6 +399,7 @@ const OrderCard = React.memo(({
   screenType: ScreenType;
 }) => {
   const [localUpdating, setLocalUpdating] = useState(false);
+  const [cancelConfirm, setCancelConfirm] = useState(false);
 
   const displayInfo = useMemo(() => {
     const date = new Date(item.created_at);
@@ -625,6 +626,7 @@ const OrderCard = React.memo(({
     const nextAction = statusFlow[item.status as keyof typeof statusFlow];
 
     return (
+      <>
       <View style={styles.actions}>
       {nextAction ? (
         <Button
@@ -657,6 +659,23 @@ const OrderCard = React.memo(({
         />
       ) : null}
 
+      {!isCompleted ? (
+        <Button
+          title="Annuler"
+          onPress={() => setCancelConfirm(true)}
+          disabled={localUpdating || isUpdating}
+          variant="outline"
+          size="sm"
+          leftIcon={<Ionicons name="close-circle" size={16} color={COLORS.error} />}
+          fullWidth={screenType === 'mobile'}
+          style={{ 
+            borderColor: COLORS.error,
+            backgroundColor: 'transparent' 
+          }}
+          textStyle={{ color: COLORS.error }}
+        />
+      ) : null}
+
       {isCompleted && onArchive ? (
         <Button
           title="Archiver"
@@ -674,6 +693,29 @@ const OrderCard = React.memo(({
         />
       ) : null}
       </View>
+
+      {cancelConfirm && (
+        <View style={{ paddingHorizontal: getResponsiveValue(SPACING.xs, screenType), paddingTop: getResponsiveValue(SPACING.xs, screenType) }}>
+          <AlertWithAction
+            variant="warning"
+            title="Annuler la commande"
+            message={`Voulez-vous vraiment annuler la commande ${item.order_number} ?`}
+            secondaryButton={{
+              text: 'Non, garder',
+              onPress: () => setCancelConfirm(false),
+            }}
+            primaryButton={{
+              text: 'Oui, annuler',
+              onPress: () => {
+                setCancelConfirm(false);
+                handleStatusChange('cancelled');
+              },
+              variant: 'danger',
+            }}
+          />
+        </View>
+      )}
+      </>
     );
   };
 
@@ -756,7 +798,9 @@ const OrderCard = React.memo(({
           </View>
         ) : null}
 
-        {renderActions()}
+        <View onStartShouldSetResponder={() => true}>
+          {renderActions()}
+        </View>
 
         <View style={styles.viewDetails}>
           <Text style={styles.viewDetailsText}>Voir les détails</Text>

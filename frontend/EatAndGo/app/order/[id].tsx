@@ -20,7 +20,7 @@ import { Header } from '@/components/ui/Header';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Receipt } from '@/components/receipt/Receipt';
 import { groupIdenticalItems } from '@/utils/regroupItems';
-import { Alert as InlineAlert } from '@/components/ui/Alert';
+import { Alert as InlineAlert, AlertWithAction } from '@/components/ui/Alert';
 
 const BREAKPOINTS = {
   mobile: 0,
@@ -260,6 +260,7 @@ const RestaurantActions = React.memo(
     onShowReceipt,
     isUpdating,
     showToast,
+    scrollRef,
   }: {
     order: OrderDetail;
     onStatusUpdate: (status: string) => void;
@@ -267,6 +268,7 @@ const RestaurantActions = React.memo(
     onShowReceipt: () => void;
     isUpdating: boolean;
     showToast: (variant: 'success' | 'error' | 'warning' | 'info', message: string, title?: string) => void;
+    scrollRef?: React.RefObject<ScrollView | null>;
   }) => {
     const screenType = useScreenType();
     const styles = createStyles(screenType);
@@ -285,6 +287,8 @@ const RestaurantActions = React.memo(
     const nextStatus = statusFlow[order.status as keyof typeof statusFlow];
 
     const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [cancelConfirm, setCancelConfirm] = useState(false);
+    const canCancel = ['pending', 'confirmed', 'preparing', 'ready'].includes(order.status);
 
     const handleAskPaymentMethod = () => setShowPaymentModal(true);
 
@@ -353,7 +357,45 @@ const RestaurantActions = React.memo(
                 </LinearGradient>
               </Pressable>
             )}
+
+            {canCancel && (
+              <Pressable
+                style={({ pressed }) => [styles.actionButton, pressed && styles.buttonPressed]}
+                onPress={() => {
+                  setCancelConfirm(true);
+                  setTimeout(() => scrollRef?.current?.scrollToEnd({ animated: true }), 150);
+                }}
+                disabled={isUpdating}
+              >
+                <LinearGradient colors={['#EF4444', '#DC2626']} style={styles.buttonGradient}>
+                  <Ionicons name="close-circle" size={18} color="#fff" />
+                  <Text style={styles.actionButtonText}>Annuler</Text>
+                </LinearGradient>
+              </Pressable>
+            )}
           </View>
+
+          {cancelConfirm && (
+            <View style={{ marginTop: 12 }}>
+              <AlertWithAction
+                variant="warning"
+                title="Annuler la commande"
+                message={`Voulez-vous vraiment annuler la commande #${order.order_number} ? Cette action est irréversible.`}
+                secondaryButton={{
+                  text: 'Non, garder',
+                  onPress: () => setCancelConfirm(false),
+                }}
+                primaryButton={{
+                  text: 'Oui, annuler',
+                  onPress: () => {
+                    setCancelConfirm(false);
+                    onStatusUpdate('cancelled');
+                  },
+                  variant: 'danger',
+                }}
+              />
+            </View>
+          )}
         </LinearGradient>
 
         {/* Modal choix paiement */}
@@ -587,6 +629,7 @@ export default function OrderDetailScreen() {
   const hideToast = useCallback(() => setToast((p) => ({ ...p, visible: false })), []);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scrollRef = useRef<ScrollView>(null);
 
   // Charger la commande
   useEffect(() => {
@@ -619,7 +662,18 @@ export default function OrderDetailScreen() {
     try {
       const updatedOrder = await updateOrderStatus(order.id, newStatus);
       setOrder(updatedOrder);
-      showToast('success', `Statut mis à jour: ${newStatus}`, 'Succès');
+      const statusLabels: Record<string, string> = {
+        pending: 'En attente',
+        confirmed: 'Confirmée',
+        preparing: 'En préparation',
+        ready: 'Prête',
+        served: 'Servie',
+        cancelled: 'Annulée',
+      };
+      showToast('success', `Statut mis à jour : ${statusLabels[newStatus] ?? newStatus}`, 'Succès');
+      if (newStatus === 'cancelled') {
+        setTimeout(() => router.back(), 600);
+      }
     } catch (e) {
       showToast('error', 'Impossible de mettre à jour le statut', 'Erreur');
     } finally {
@@ -715,7 +769,7 @@ export default function OrderDetailScreen() {
       </View>
 
       <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
-        <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
+        <ScrollView ref={scrollRef} style={styles.content} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
           <View style={styles.mainLayout}>
             {/* Colonne principale */}
             <View style={styles.mainColumn}>
@@ -822,7 +876,7 @@ export default function OrderDetailScreen() {
             <View style={styles.sideColumn}>
               <OrderTimeline order={order} />
 
-              {isRestaurateur && (
+              {isRestaurateur && order.status !== 'cancelled' && (
                 <RestaurantActions
                   order={order}
                   onStatusUpdate={handleStatusUpdate}
@@ -830,6 +884,7 @@ export default function OrderDetailScreen() {
                   onShowReceipt={handleShowReceipt}
                   isUpdating={isUpdating}
                   showToast={showToast}
+                  scrollRef={scrollRef}
                 />
               )}
 
@@ -1106,9 +1161,9 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop') => {
       }),
     },
     actionsHeader: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8, marginBottom: 16 },
-    actionButtons: { flexDirection: (isTabletOrLarger ? ('column' as const) : ('row' as const)), gap: 12 },
-    actionButton: { borderRadius: 12, overflow: 'hidden' as const, flex: isTabletOrLarger ? undefined : 1 },
-    buttonGradient: { flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'center' as const, paddingHorizontal: 16, paddingVertical: 14, gap: 8, minHeight: 48 },
+    actionButtons: { flexDirection: (isTabletOrLarger ? ('column' as const) : ('row' as const)), flexWrap: 'wrap' as const, gap: 10 },
+    actionButton: { borderRadius: 12, overflow: 'hidden' as const, flexGrow: isTabletOrLarger ? 0 : 1, flexShrink: 0 },
+    buttonGradient: { flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'center' as const, paddingHorizontal: 12, paddingVertical: 12, gap: 6, minHeight: 44 },
     statusButton: {
       ...(COLORS.shadow.default && {
         shadowColor: COLORS.primary,
@@ -1137,7 +1192,7 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop') => {
       }),
     },
     buttonPressed: { transform: [{ scale: 0.95 }] },
-    actionButtonText: { color: '#fff', fontSize: 15, fontWeight: '700' as const },
+    actionButtonText: { color: '#fff', fontSize: 13, fontWeight: '700' as const },
 
     // Paiement client
     paymentSection: { marginBottom: 16, gap: 12 },
