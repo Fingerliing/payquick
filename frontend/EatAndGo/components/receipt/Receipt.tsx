@@ -14,6 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import * as LegacyFS from 'expo-file-system/legacy';
+import { File as ExpoFile, Paths } from 'expo-file-system/next';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Alert, useAlert } from '@/components/ui/Alert';
@@ -735,6 +737,55 @@ export const Receipt: React.FC<ReceiptProps> = ({
     }
   };
 
+  const handleDownload = async () => {
+    try {
+      const html = receiptHTML || (receiptData ? buildReceiptHTML(receiptData) : '');
+
+      if (Platform.OS === 'web') {
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          printWindow.document.write(html);
+          printWindow.document.close();
+          printWindow.print();
+        }
+        return;
+      }
+
+      // Native : générer le PDF
+      const { uri } = await Print.printToFileAsync({ html });
+      const filename = `ticket_${receiptData?.order.order_number || orderId}_${Date.now()}.pdf`;
+
+      if (Platform.OS === 'android') {
+        // Android : SAF → l'utilisateur choisit le dossier, sauvegarde directe
+        const permissions = await LegacyFS.StorageAccessFramework.requestDirectoryPermissionsAsync();
+        if (!permissions.granted) return;
+
+        const destUri = await LegacyFS.StorageAccessFramework.createFileAsync(
+          permissions.directoryUri,
+          filename,
+          'application/pdf'
+        );
+        const pdfBase64 = await LegacyFS.readAsStringAsync(uri, {
+          encoding: LegacyFS.EncodingType.Base64,
+        });
+        await LegacyFS.writeAsStringAsync(destUri, pdfBase64, {
+          encoding: LegacyFS.EncodingType.Base64,
+        });
+        showSuccess('Ticket enregistré avec succès', 'Téléchargement');
+      } else {
+        // iOS : sauvegarde directe dans les documents de l'app
+        const source = new ExpoFile(uri);
+        const dest = new ExpoFile(Paths.document, filename);
+        const pdfBytes = await source.bytes();
+        await dest.write(pdfBytes);
+        showSuccess(`Ticket enregistré : ${filename}`, 'Téléchargement');
+      }
+    } catch (error) {
+      console.error('Error downloading:', error);
+      showError("Impossible de télécharger le ticket", "Erreur");
+    }
+  };
+
   const formatPrice = (price: number) => `${Number(price || 0).toFixed(2)} €`;
   const formatCurrency = (n: number) => formatPrice(n);
 
@@ -1316,10 +1367,19 @@ export const Receipt: React.FC<ReceiptProps> = ({
                 fullWidth 
               />
             </View>
+            <View style={styles.actionButton}>
+              <Button 
+                title="Télécharger" 
+                onPress={handleDownload} 
+                leftIcon={<Ionicons name="download" size={20} color="#3B82F6" />}
+                variant="outline" 
+                fullWidth 
+              />
+            </View>
             {Platform.OS !== 'web' ? (
               <View style={styles.actionButton}>
                 <Button 
-                  title="Partager / Télécharger" 
+                  title="Partager" 
                   onPress={handleShare} 
                   leftIcon={<Ionicons name="share" size={20} color="#3B82F6" />}
                   variant="outline" 
