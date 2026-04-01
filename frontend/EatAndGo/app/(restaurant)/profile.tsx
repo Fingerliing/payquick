@@ -462,7 +462,7 @@ export default function ProfileScreen() {
                 onPress={handleLogout}
                 loading={isLoggingOut}
                 fullWidth
-                leftIcon="log-out-outline"
+                leftIcon={<Ionicons name="log-out-outline" size={20} color={COLORS.surface} />}
                 style={styles.logoutButton}
                 textStyle={styles.logoutButtonText}
               />

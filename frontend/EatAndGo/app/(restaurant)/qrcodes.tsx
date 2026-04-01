@@ -1271,7 +1271,7 @@ export default function QRCodesScreen() {
             variant="outline"
             size="sm"
             style={{ flex: 1 }}
-            leftIcon="eye-outline"
+            leftIcon={<Ionicons name="eye-outline" size={16} color={COLORS.primary} />}
           />
 
           <Button
@@ -1284,7 +1284,7 @@ export default function QRCodesScreen() {
             }}
             textStyle={{ color: COLORS.text.primary }}
             size="sm"
-            leftIcon="share-outline"
+            leftIcon={<Ionicons name="share-outline" size={16} color={COLORS.text.primary} />}
           />
         </View>
 
@@ -1296,7 +1296,7 @@ export default function QRCodesScreen() {
             size="sm"
             style={{ flex: 1 }}
             loading={isPrinting}
-            leftIcon="print-outline"
+            leftIcon={<Ionicons name="print-outline" size={16} color={COLORS.primary} />}
           />
 
           <Button
@@ -1306,7 +1306,7 @@ export default function QRCodesScreen() {
             size="sm"
             style={{ flex: 1 }}
             loading={isDownloading}
-            leftIcon="download-outline"
+            leftIcon={<Ionicons name="download-outline" size={16} color={COLORS.primary} />}
           />
         </View>
       </View>
@@ -1518,7 +1518,7 @@ export default function QRCodesScreen() {
                       flex: screenType === 'mobile' ? undefined : 2
                     }}
                     textStyle={{ color: COLORS.surface }}
-                    leftIcon="qr-code-outline"
+                    leftIcon={<Ionicons name="qr-code-outline" size={16} color={COLORS.surface} />}
                   />
 
                   {selectedRestaurant && existingTablesCount > 0 && (
@@ -1533,7 +1533,7 @@ export default function QRCodesScreen() {
                         flex: screenType === 'mobile' ? undefined : 1
                       }}
                       textStyle={{ color: COLORS.surface }}
-                      leftIcon="refresh-outline"
+                      leftIcon={<Ionicons name="refresh-outline" size={16} color={COLORS.surface} />}
                     />
                   )}
                 </View>
@@ -1545,7 +1545,7 @@ export default function QRCodesScreen() {
                     loading={isGenerating}
                     variant="outline"
                     fullWidth
-                    leftIcon="download-outline"
+                    leftIcon={<Ionicons name="download-outline" size={16} color={COLORS.primary} />}
                     style={{ borderColor: COLORS.primary }}
                     textStyle={{ color: COLORS.primary }}
                   />
@@ -1563,7 +1563,7 @@ export default function QRCodesScreen() {
                       }}
                       textStyle={{ color: COLORS.text.primary }}
                       loading={isPrinting}
-                      leftIcon="print-outline"
+                      leftIcon={<Ionicons name="print-outline" size={16} color={COLORS.text.primary} />}
                     />
                     <Button
                       title={isDownloading ? 'Téléchargement...' : 'Télécharger PDF'}
@@ -1575,7 +1575,7 @@ export default function QRCodesScreen() {
                       }}
                       textStyle={{ color: COLORS.secondary }}
                       loading={isDownloading}
-                      leftIcon="download-outline"
+                      leftIcon={<Ionicons name="download-outline" size={16} color={COLORS.secondary} />}
                     />
                   </View>
                 )}
