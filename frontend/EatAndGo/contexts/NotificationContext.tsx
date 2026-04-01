@@ -8,7 +8,6 @@ import React, {
   ReactNode,
 } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
-import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 import {
   notificationService,
@@ -379,12 +378,8 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     };
   }, [isAuthenticated]);
 
-  // Supprimer le token du serveur à la déconnexion
-  useEffect(() => {
-    if (!isAuthenticated && expoPushToken) {
-      notificationService.unregisterTokenFromServer();
-    }
-  }, [isAuthenticated, expoPushToken]);
+  // Désinscription du push token gérée explicitement dans AuthContext.logout()
+  // avant la suppression des JWT — plus besoin d'un effet réactif ici.
 
   // ===========================================================================
   // VALEUR DU CONTEXTE

@@ -9,6 +9,7 @@ import {
   CURRENT_PRIVACY_VERSION,
 } from '@/utils/legalNotifications';
 import { legalService } from '@/services/legalService';
+import { notificationService } from '@/services/notificationService';
 import {
   User,
   RestaurateurProfile,
@@ -537,7 +538,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       console.log('🚪 Déconnexion...');
       
-      // Nettoyer directement les données locales
+      // Désinscrire le push token PENDANT qu'on a encore le JWT
+      try {
+        await notificationService.unregisterTokenFromServer();
+      } catch (e) {
+        console.warn('⚠️ Échec désinscription push token:', e);
+      }
+      
+      // Nettoyer les données locales
       await secureStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
       await secureStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
       await secureStorage.removeItem(STORAGE_KEYS.USER_DATA);
