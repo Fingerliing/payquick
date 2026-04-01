@@ -61,7 +61,16 @@ class OrderViewSet(viewsets.ModelViewSet):
 
         # Si client connecté, voir ses commandes
         elif user.is_authenticated:
-            return Order.objects.filter(user=user).select_related('restaurant')
+            qs = Order.objects.filter(user=user).select_related('restaurant')
+
+            # Filtrage par scope (utilisé par le frontend client)
+            scope = self.request.query_params.get('scope')
+            if scope == 'active':
+                qs = qs.filter(status__in=['pending', 'confirmed', 'preparing', 'ready'])
+            elif scope == 'history':
+                qs = qs.exclude(status__in=['pending', 'confirmed', 'preparing', 'ready'])
+
+            return qs
 
         return Order.objects.none()
 
@@ -93,6 +102,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         description="Liste des commandes avec filtres par statut, restaurant, type de commande.",
         parameters=[
             OpenApiParameter(name="status", type=str, description="Filtrer par statut"),
+            OpenApiParameter(name="scope", type=str, description="active (en cours) ou history (historique)", enum=["active", "history"]),
             OpenApiParameter(name="restaurant", type=int, description="Filtrer par restaurant"),
             OpenApiParameter(name="order_type", type=str, description="dine_in ou takeaway"),
             OpenApiParameter(name="search", type=str, description="Recherche par numéro, nom client, table"),

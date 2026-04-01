@@ -26,6 +26,108 @@ import {
   BORDER_RADIUS 
 } from '@/utils/designSystem';
 
+type OrderTab = 'active' | 'history';
+
+// Sélecteur d'onglets En cours / Historique
+const SegmentedTabs = React.memo(({
+  selected,
+  onSelect,
+  activeCount,
+  historyCount,
+  screenType,
+}: {
+  selected: OrderTab;
+  onSelect: (tab: OrderTab) => void;
+  activeCount: number;
+  historyCount: number;
+  screenType: 'mobile' | 'tablet' | 'desktop';
+}) => {
+  const tabs: { key: OrderTab; label: string; count: number }[] = [
+    { key: 'active', label: 'En cours', count: activeCount },
+    { key: 'history', label: 'Historique', count: historyCount },
+  ];
+
+  const styles = {
+    container: {
+      flexDirection: 'row' as const,
+      marginHorizontal: getResponsiveValue(SPACING.container, screenType),
+      marginBottom: getResponsiveValue(SPACING.md, screenType),
+      backgroundColor: COLORS.background,
+      borderRadius: BORDER_RADIUS.lg,
+      borderWidth: 1,
+      borderColor: COLORS.border.light,
+      padding: 3,
+    },
+    tab: {
+      flex: 1,
+      borderRadius: BORDER_RADIUS.md,
+      overflow: 'hidden' as const,
+    },
+    tabInner: (isSelected: boolean) => ({
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      paddingVertical: getResponsiveValue(
+        { mobile: 10, tablet: 12, desktop: 14 },
+        screenType
+      ),
+      borderRadius: BORDER_RADIUS.md,
+      backgroundColor: isSelected ? COLORS.primary : 'transparent',
+      gap: getResponsiveValue(SPACING.xs, screenType),
+    }),
+    label: (isSelected: boolean) => ({
+      fontSize: getResponsiveValue(
+        { mobile: 14, tablet: 15, desktop: 16 },
+        screenType
+      ),
+      fontWeight: '600' as const,
+      color: isSelected ? '#fff' : COLORS.text.secondary,
+    }),
+    badge: (isSelected: boolean) => ({
+      backgroundColor: isSelected ? 'rgba(255,255,255,0.25)' : COLORS.border.light,
+      paddingHorizontal: getResponsiveValue(
+        { mobile: 7, tablet: 8, desktop: 9 },
+        screenType
+      ),
+      paddingVertical: 2,
+      borderRadius: BORDER_RADIUS.full,
+    }),
+    badgeText: (isSelected: boolean) => ({
+      fontSize: getResponsiveValue(
+        { mobile: 12, tablet: 13, desktop: 14 },
+        screenType
+      ),
+      fontWeight: '700' as const,
+      color: isSelected ? '#fff' : COLORS.text.secondary,
+    }),
+  };
+
+  return (
+    <View style={styles.container}>
+      {tabs.map(({ key, label, count }) => {
+        const isSelected = selected === key;
+        return (
+          <Pressable
+            key={key}
+            style={styles.tab}
+            onPress={() => onSelect(key)}
+            android_ripple={{ color: COLORS.primary + '15', borderless: false }}
+          >
+            <View style={styles.tabInner(isSelected)}>
+              <Text style={styles.label(isSelected)}>{label}</Text>
+              {count > 0 && (
+                <View style={styles.badge(isSelected)}>
+                  <Text style={styles.badgeText(isSelected)}>{count}</Text>
+                </View>
+              )}
+            </View>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+});
+
 // Hook pour auto-refresh des commandes actives
 const useAutoRefresh = (
   hasActiveOrders: boolean, 
@@ -503,7 +605,38 @@ const ActiveOrdersSection = React.memo(({
     ['pending', 'confirmed', 'preparing', 'ready'].includes(o.status)
   );
 
-  if (activeOrders.length === 0) return null;
+  if (activeOrders.length === 0) {
+    const emptyStyles = {
+      container: {
+        alignItems: 'center' as const,
+        justifyContent: 'center' as const,
+        padding: getResponsiveValue(
+          { mobile: 40, tablet: 60, desktop: 80 },
+          screenType
+        ),
+      },
+      text: {
+        fontSize: getResponsiveValue(
+          { mobile: 16, tablet: 18, desktop: 20 },
+          screenType
+        ),
+        color: COLORS.text.secondary,
+        marginTop: getResponsiveValue(SPACING.md, screenType),
+        textAlign: 'center' as const,
+      },
+    };
+
+    return (
+      <View style={emptyStyles.container}>
+        <Ionicons
+          name="checkmark-circle-outline"
+          size={getResponsiveValue({ mobile: 56, tablet: 64, desktop: 72 }, screenType)}
+          color={COLORS.text.light}
+        />
+        <Text style={emptyStyles.text}>Aucune commande en cours</Text>
+      </View>
+    );
+  }
 
   const styles = {
     section: {
@@ -525,15 +658,6 @@ const ActiveOrdersSection = React.memo(({
       gap: getResponsiveValue(SPACING.sm, screenType),
     },
 
-    title: {
-      fontSize: getResponsiveValue(
-        { mobile: 18, tablet: 22, desktop: 26 },
-        screenType
-      ),
-      fontWeight: '700' as const,
-      color: COLORS.text.primary,
-    },
-
     refreshButton: {
       padding: getResponsiveValue(SPACING.xs, screenType),
     },
@@ -548,7 +672,6 @@ const ActiveOrdersSection = React.memo(({
     <View style={styles.section}>
       <View style={styles.header}>
         <View style={styles.titleContainer}>
-          <Text style={styles.title}>Commandes en cours</Text>
           {realtimeState && (
             <RealtimeIndicator 
               connectionState={realtimeState.connectionState}
@@ -597,30 +720,49 @@ const HistorySection = React.memo(({
 }) => {
   const historyOrders = orders.filter(o => 
     ['served', 'cancelled'].includes(o.status)
-  ).slice(0, 5);
+  );
 
-  if (historyOrders.length === 0) return null;
+  if (historyOrders.length === 0) {
+    const emptyStyles = {
+      container: {
+        alignItems: 'center' as const,
+        justifyContent: 'center' as const,
+        padding: getResponsiveValue(
+          { mobile: 40, tablet: 60, desktop: 80 },
+          screenType
+        ),
+      },
+      text: {
+        fontSize: getResponsiveValue(
+          { mobile: 16, tablet: 18, desktop: 20 },
+          screenType
+        ),
+        color: COLORS.text.secondary,
+        marginTop: getResponsiveValue(SPACING.md, screenType),
+        textAlign: 'center' as const,
+      },
+    };
+
+    return (
+      <View style={emptyStyles.container}>
+        <Ionicons
+          name="time-outline"
+          size={getResponsiveValue({ mobile: 56, tablet: 64, desktop: 72 }, screenType)}
+          color={COLORS.text.light}
+        />
+        <Text style={emptyStyles.text}>Aucune commande passée</Text>
+      </View>
+    );
+  }
 
   const styles = {
     section: {
       marginBottom: getResponsiveValue(SPACING.xl, screenType),
     },
-
-    title: {
-      fontSize: getResponsiveValue(
-        { mobile: 18, tablet: 22, desktop: 26 },
-        screenType
-      ),
-      fontWeight: '700' as const,
-      color: COLORS.text.primary,
-      marginBottom: getResponsiveValue(SPACING.md, screenType),
-      paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
-    },
   };
 
   return (
     <View style={styles.section}>
-      <Text style={styles.title}>Historique récent</Text>
       {historyOrders.map(order => (
         <View key={order.id} style={{ paddingHorizontal: getResponsiveValue(SPACING.container, screenType) }}>
           <OrderCard item={order} screenType={screenType} />
@@ -634,6 +776,7 @@ const HistorySection = React.memo(({
 export default function ClientOrdersScreen() {
   const { isClient, isAuthenticated } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedTab, setSelectedTab] = useState<OrderTab>('active');
   
   const {
     orders,
@@ -658,6 +801,16 @@ export default function ClientOrdersScreen() {
 
   const hasActiveOrders = orders.some(o => 
     ['pending', 'confirmed', 'preparing', 'ready'].includes(o.status)
+  );
+
+  const activeCount = useMemo(() =>
+    orders.filter(o => ['pending', 'confirmed', 'preparing', 'ready'].includes(o.status)).length,
+    [orders]
+  );
+
+  const historyCount = useMemo(() =>
+    orders.filter(o => ['served', 'cancelled'].includes(o.status)).length,
+    [orders]
   );
 
   const handleRefresh = useCallback(async () => {
@@ -786,19 +939,30 @@ export default function ClientOrdersScreen() {
     return (
       <FlatList
         data={[1]}
+        extraData={selectedTab}
         renderItem={() => (
           <View style={styles.content}>
-            <ActiveOrdersSection 
-              orders={orders}
-              onRefresh={handleRefresh}
-              isLoading={refreshing}
-              realtimeState={realtimeState}
+            <SegmentedTabs
+              selected={selectedTab}
+              onSelect={setSelectedTab}
+              activeCount={activeCount}
+              historyCount={historyCount}
               screenType={screenType}
             />
-            <HistorySection 
-              orders={orders}
-              screenType={screenType}
-            />
+            {selectedTab === 'active' ? (
+              <ActiveOrdersSection 
+                orders={orders}
+                onRefresh={handleRefresh}
+                isLoading={refreshing}
+                realtimeState={realtimeState}
+                screenType={screenType}
+              />
+            ) : (
+              <HistorySection 
+                orders={orders}
+                screenType={screenType}
+              />
+            )}
           </View>
         )}
         keyExtractor={() => 'content'}
@@ -814,7 +978,7 @@ export default function ClientOrdersScreen() {
         contentContainerStyle={{ flexGrow: 1 }}
       />
     );
-  }, [orders, isLoading, refreshing, handleRefresh, realtimeState, screenType, styles.content]);
+  }, [orders, isLoading, refreshing, handleRefresh, realtimeState, screenType, styles.content, selectedTab, activeCount, historyCount]);
 
   // Gestion des erreurs d'accès
   if (!isClient) {
