@@ -431,8 +431,16 @@ export const SessionJoinModal: React.FC<SessionJoinModalProps> = ({
         <Ionicons name="chevron-forward" size={24} color="#666" />
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.soloButton} onPress={handleOrderAlone}>
+      <View style={styles.soloDivider}>
+        <View style={styles.soloDividerLine} />
+        <Text style={styles.soloDividerText}>ou</Text>
+        <View style={styles.soloDividerLine} />
+      </View>
+
+      <TouchableOpacity style={styles.soloButton} onPress={handleOrderAlone} activeOpacity={0.8}>
+        <Ionicons name="person" size={22} color="#1E2A78" />
         <Text style={styles.soloButtonText}>Commander seul(e)</Text>
+        <Ionicons name="chevron-forward" size={20} color="#1E2A78" />
       </TouchableOpacity>
     </View>
   );
@@ -734,15 +742,41 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
-  soloButton: {
-    padding: 16,
+  soloDivider: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 16,
+    marginBottom: 16,
+  },
+  soloDividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#DDD',
+  },
+  soloDividerText: {
+    marginHorizontal: 12,
+    fontSize: 14,
+    color: '#999',
+  },
+  soloButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E8EAF6',
+    borderWidth: 2,
+    borderColor: '#1E2A78',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    gap: 10,
+    marginBottom: 8,
   },
   soloButtonText: {
-    fontSize: 16,
-    color: '#999',
-    textDecorationLine: 'underline',
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1E2A78',
+    flex: 1,
+    textAlign: 'center',
   },
   inputGroup: {
     marginBottom: 16,
