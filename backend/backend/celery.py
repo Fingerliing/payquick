@@ -23,37 +23,35 @@ app.conf.update(
     task_soft_time_limit=25 * 60,
     worker_hijack_root_logger=False,
     worker_log_format='[%(asctime)s: %(levelname)s/%(processName)s] %(message)s',
-)
 
-@app.on_after_configure.connect
-def setup_periodic_tasks(sender, **kwargs):
-    """Import lazy après configuration Django complète"""
-    # from api.tasks import COMPTABILITE_BEAT_SCHEDULE
-
-    sender.conf.beat_schedule = {
+    # ── Beat schedule ──────────────────────────────────────────────────────
+    # Défini directement dans app.conf.update() et non dans
+    # @app.on_after_configure.connect qui peut silencieusement ne pas fire,
+    # laissant beat_schedule vide → aucune tâche périodique ne se lance.
+    beat_schedule={
+        'auto-complete-inactive-sessions': {
+            'task': 'api.tasks.auto_complete_inactive_sessions',
+            'schedule': crontab(minute='*/5'),
+        },
         'auto-archive-sessions': {
             'task': 'api.tasks.auto_archive_eligible_sessions',
             'schedule': crontab(minute='*/15'),
-            'options': {'expires': 600}
-        },
-        'cleanup-old-archived-sessions': {
-            'task': 'api.tasks.cleanup_old_archived_sessions',
-            'schedule': crontab(hour=3, minute=0),
-            'kwargs': {'days': 30},
-            'options': {'expires': 3600}
+            'options': {'expires': 600},
         },
         'force-archive-abandoned-sessions': {
             'task': 'api.tasks.force_archive_abandoned_sessions',
             'schedule': crontab(minute='*/15'),
             'kwargs': {'hours': 1},
-            'options': {'expires': 3600}
+            'options': {'expires': 3600},
         },
-        'auto-complete-inactive-sessions': {
-            'task': 'api.tasks.auto_complete_inactive_sessions',
-            'schedule': crontab(minute='*/5'),  # Toutes les 5 minutes
+        'cleanup-old-archived-sessions': {
+            'task': 'api.tasks.cleanup_old_archived_sessions',
+            'schedule': crontab(hour=3, minute=0),
+            'kwargs': {'days': 30},
+            'options': {'expires': 3600},
         },
-        # **COMPTABILITE_BEAT_SCHEDULE,
-    }
+    },
+)
 
 @app.task(bind=True, ignore_result=True)
 def debug_task(self):

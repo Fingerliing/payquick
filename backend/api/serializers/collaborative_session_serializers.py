@@ -56,15 +56,11 @@ class CollaborativeSessionSerializer(serializers.ModelSerializer):
             'split_payment_enabled',
             'participant_count', 'is_full', 'can_join',
             'participants', 'total_orders_count', 'total_amount',
-            'created_at', 'locked_at', 'completed_at',
+            'created_at', 'updated_at', 'locked_at', 'completed_at',
             'session_notes'
         ]
         read_only_fields = [
-            'id', 'share_code', 'created_at', 'locked_at', 'completed_at',
-            # Champs de gouvernance — modifiables uniquement via les actions
-            # dédiées (session_action, archive_session…), jamais via PATCH/PUT
-            # direct. Défense en profondeur : même si le ViewSet laissait passer
-            # un PATCH, ces champs ne seraient pas écrits.
+            'id', 'share_code', 'created_at', 'updated_at', 'locked_at', 'completed_at',
             'status', 'restaurant', 'table',
         ]
     

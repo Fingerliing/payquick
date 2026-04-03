@@ -34,6 +34,8 @@ import {
 } from '@/utils/designSystem';
 import type { CollaborativeSession } from '@/contexts/SessionContext';
 import { useSessionWebSocket } from '@/hooks/session/useSessionWebSocket';
+import { useSessionArchiveCountdown, useInactivityWarning } from '@/hooks/session/useSessionArchiving';
+import { SessionArchiveWarning } from '@/components/session/SessionArchiveWarning';
 import { QRSessionUtils } from '@/utils/qrSessionUtils';
 
 // =============================================================================
@@ -179,6 +181,56 @@ export default function ClientHome() {
     session !== null &&
     session.status === 'completed';
 
+  // ── Auto-clear : session terminée/annulée → pas de bandeau fantôme ──────
+  // Couvre le cas où refreshSession() re-sauvegarde une session completed
+  // (race condition navigation), ou quand le status change via WS/polling.
+  useEffect(() => {
+    if (session && ['completed', 'cancelled'].includes(session.status)) {
+      clearSession();
+    }
+  }, [session?.status, clearSession]);
+
+  // ── Surveillance expiration / archivage de la session locale (WS) ──
+  const { isArchived: isSessionArchived, timeUntilArchive } = useSessionArchiveCountdown(session?.id ?? null);
+
+  // ── Écoute WS directe : réagir IMMÉDIATEMENT à session_completed/archived ──
+  const { on: onSessionWs } = useSessionWebSocket(session?.id ?? null);
+
+  useEffect(() => {
+    if (!session?.id) return;
+
+    const unsubCompleted = onSessionWs('session_completed', () => {
+      clearSession();
+    });
+
+    const unsubArchived = onSessionWs('session_archived', () => {
+      clearSession();
+    });
+
+    return () => {
+      unsubCompleted();
+      unsubArchived();
+    };
+  }, [session?.id, onSessionWs, clearSession]);
+
+  // ── Avertissement d'inactivité (session active/locked) ──
+  const { showInactivityWarning, inactivityFormattedTime } = useInactivityWarning(
+    hasActiveSession ? session?.id ?? null : null
+  );
+
+  // ── Fallback : auto-clear via countdown (si WS manqué) ──
+  useEffect(() => {
+    if (isSessionArchived) {
+      clearSession();
+    }
+  }, [isSessionArchived, clearSession]);
+
+  useEffect(() => {
+    if (timeUntilArchive !== null && timeUntilArchive <= 0) {
+      clearSession();
+    }
+  }, [timeUntilArchive, clearSession]);
+
   // ── Rafraîchir et chercher une session côté serveur à chaque focus ──
   // Deps primitives uniquement (id, bool) — pas les objets session/user :
   // chaque setSession() crée un nouvel objet → invalide le useCallback →
@@ -186,12 +238,35 @@ export default function ClientHome() {
   const refreshSessionRef = useRef(refreshSession);
   refreshSessionRef.current = refreshSession;
 
+  const clearSessionRef = useRef(clearSession);
+  clearSessionRef.current = clearSession;
+
   useFocusEffect(
     React.useCallback(() => {
-      refreshSessionRef.current().catch(() => {
-        // Silencieux si pas de réseau
-      });
+      // ── Si une session est en cache local, vérifier qu'elle est toujours active ──
+      // On NE fait PAS refreshSession() aveuglément car il re-sauvegarde les sessions
+      // completed dans le contexte → le bandeau fantôme persiste.
+      if (isSessionInitialized && session) {
+        collaborativeSessionService.getSession(session.id)
+          .then((serverSession) => {
+            if (['completed', 'cancelled'].includes(serverSession.status)) {
+              // Session terminée côté serveur → nettoyer le cache local
+              clearSessionRef.current();
+            } else {
+              // Session encore active → rafraîchir les données (participants, montants…)
+              refreshSessionRef.current().catch(() => {});
+            }
+          })
+          .catch((error: any) => {
+            const status = error?.status ?? error?.response?.status;
+            if (status === 404) {
+              // Session archivée / supprimée → nettoyer
+              clearSessionRef.current();
+            }
+          });
+      }
 
+      // ── Pas de session locale → chercher si le serveur en connaît une ──
       if (isSessionInitialized && !session && user) {
         checkServerForActiveSession();
       }
@@ -201,14 +276,28 @@ export default function ClientHome() {
   /**
    * Interroge l'API pour trouver une session active à laquelle l'utilisateur
    * participait — utile après un changement de device ou un clear de cache.
+   *
+   * Ignore les sessions dont updated_at > 15 min (sur le point d'être
+   * auto-complétées par Celery) pour éviter le bandeau "Session retrouvée"
+   * fantôme quand le client a déjà été redirigé pour inactivité.
    */
   const checkServerForActiveSession = async () => {
     setIsCheckingServer(true);
     try {
       const sessions = await collaborativeSessionService.getMyActiveSessions();
-      const active = sessions?.find((s: CollaborativeSession) =>
-        ['active', 'locked', 'payment'].includes(s.status)
-      );
+      const INACTIVITY_THRESHOLD_MS = 15 * 60 * 1000;
+      const now = Date.now();
+
+      const active = sessions?.find((s: CollaborativeSession) => {
+        if (!['active', 'locked', 'payment'].includes(s.status)) return false;
+        // Exclure les sessions inactives (bientôt auto-complétées par Celery)
+        const lastActivity = s.updated_at ?? s.created_at;
+        if (lastActivity) {
+          const age = now - new Date(lastActivity).getTime();
+          if (age > INACTIVITY_THRESHOLD_MS) return false;
+        }
+        return true;
+      });
       setServerSession(active ?? null);
     } catch {
       setServerSession(null);
@@ -260,6 +349,8 @@ export default function ClientHome() {
         },
       });
     } catch (error: any) {
+      // Session n'existe plus → supprimer le bandeau
+      setServerSession(null);
       setRejoinError(error?.message ?? "La session n'est peut-être plus disponible.");
     } finally {
       setIsRejoining(false);
@@ -1161,6 +1252,27 @@ export default function ClientHome() {
           </View>
         )}
 
+        {/* 1️⃣bis  Avertissement inactivité (5 min avant auto-completion) */}
+        {hasActiveSession && showInactivityWarning && inactivityFormattedTime && (
+          <View style={viewStyles.sessionBannerWrapper}>
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: '#FF9800',
+              borderRadius: BORDER_RADIUS.lg,
+              paddingVertical: 10,
+              paddingHorizontal: 16,
+              gap: 8,
+            }}>
+              <Ionicons name="time-outline" size={18} color="#FFF" />
+              <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '600' }}>
+                ⚠️ Session inactive — fermeture auto dans {inactivityFormattedTime}
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* 2️⃣  Session retrouvée côté serveur (pas de cache local) → rejoindre */}
         {!hasActiveSession && serverSession && (
           <View style={viewStyles.sessionBannerWrapper}>
@@ -1258,6 +1370,9 @@ export default function ClientHome() {
         {hasCompletedSession && session && (
           <View style={viewStyles.sessionBannerWrapper}>
             <View style={viewStyles.completedSessionCard}>
+              {/* Bandeau d'archivage (orange/rouge selon urgence) */}
+              <SessionArchiveWarning sessionId={session.id} />
+
               {/* En-tête */}
               <View style={viewStyles.completedSessionHeader}>
                 <Ionicons name="checkmark-circle" size={20} color="#2E7D32" />

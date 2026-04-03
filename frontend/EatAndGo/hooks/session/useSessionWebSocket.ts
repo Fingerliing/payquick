@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import secureStorage from '@/utils/secureStorage';
 import { SessionWebSocket, SessionWebSocketEvent } from '@/services/sessionWebSocket';
 
 // =============================================================================
@@ -93,7 +93,7 @@ export const useSessionWebSocket = (
     // le composant se démonte avant que le .then() ne résout.
     const listenerCleanupRef = { fn: () => {} };
 
-    AsyncStorage.getItem('access_token').then(token => {
+    secureStorage.getItem('access_token').then(token => {
       if (!mountedRef.current) return;
 
       const entry = getOrCreateEntry(sessionId, token);

@@ -22,7 +22,7 @@ import { menuService } from '@/services/menuService';
 import { useCollaborativeSession } from '@/hooks/session/useCollaborativeSession';
 import { useSessionWebSocket } from '@/hooks/session/useSessionWebSocket';
 import { useSessionCart } from '@/hooks/session/useSessionCart';
-import { useSessionArchiving } from '@/hooks/session/useSessionArchiving';
+import { useSessionArchiving, useInactivityWarning } from '@/hooks/session/useSessionArchiving';
 import { restaurantService } from '@/services/restaurantService';
 import { Header } from '@/components/ui/Header';
 import { Loading } from '@/components/ui/Loading';
@@ -67,11 +67,10 @@ interface FilterOptions {
   showVegetarianOnly: boolean;
   showVeganOnly: boolean;
   showGlutenFreeOnly: boolean;
-  showAvailableOnly: boolean;
   searchQuery: string;
 }
 
-type ViewMode = 'compact' | 'grid' | 'masonry' | 'accordion' | 'table';
+type ViewMode = 'compact' | 'masonry' | 'accordion' | 'table';
 
 // =============================================================================
 // COMPOSANT PRINCIPAL
@@ -129,6 +128,50 @@ export default function OptimizedRestaurantPage() {
     sessionId: effectiveSessionId,
   });
 
+  // ─── Avertissement d'inactivité (5 min avant auto-completion) ─────────────
+  const { showInactivityWarning, inactivityFormattedTime, isInactivityExpired } =
+    useInactivityWarning(effectiveSessionId);
+
+  // ─── Auto-redirection quand la session se ferme ───────────────────────────
+  const redirectedRef = useRef(false);
+  // Ref pour accéder à splitPaymentAlert dans le callback WS sans dépendance
+  const splitPaymentAlertRef = useRef<any>(null);
+
+  const redirectToHome = useCallback(() => {
+    if (redirectedRef.current) return;
+    // Ne pas rediriger si un split payment est en cours
+    if (splitPaymentAlertRef.current) return;
+    redirectedRef.current = true;
+    dismissExpiredAlert();
+    clearSession();
+    router.replace('/(client)');
+  }, [clearSession, dismissExpiredAlert]);
+
+  // WS : redirection immédiate sur session_completed / session_archived
+  useEffect(() => {
+    if (!effectiveSessionId) return;
+
+    const unsubCompleted = on('session_completed', () => redirectToHome());
+    const unsubArchived = on('session_archived', () => redirectToHome());
+
+    return () => {
+      unsubCompleted();
+      unsubArchived();
+    };
+  }, [effectiveSessionId, on, redirectToHome]);
+
+  // Contexte : si un autre écran a déjà cleared la session
+  useEffect(() => {
+    if (effectiveSessionId && !ctxSession) {
+      redirectToHome();
+    }
+  }, [ctxSession, effectiveSessionId, redirectToHome]);
+
+  // Fallback : inactivité expirée côté client (si Celery Beat est en retard)
+  useEffect(() => {
+    if (isInactivityExpired) redirectToHome();
+  }, [isInactivityExpired, redirectToHome]);
+
   useEffect(() => {
     if (!effectiveSessionId) return;
 
@@ -179,7 +222,7 @@ export default function OptimizedRestaurantPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('compact');
   const [showDailyMenuFirst, setShowDailyMenuFirst] = useState(true);
   const [groupByCategory, setGroupByCategory] = useState(true);
-  const [quickFilterMode, setQuickFilterMode] = useState<'all' | 'available' | 'dietary'>('all');
+  const [quickFilterMode, setQuickFilterMode] = useState<'all' | 'dietary'>('all');
 
   // États des filtres
   const [filters, setFilters] = useState<FilterOptions>({
@@ -188,7 +231,6 @@ export default function OptimizedRestaurantPage() {
     showVegetarianOnly: false,
     showVeganOnly: false,
     showGlutenFreeOnly: false,
-    showAvailableOnly: false,
     searchQuery: '',
   });
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
@@ -219,6 +261,9 @@ export default function OptimizedRestaurantPage() {
     portionsCount: number;
     totalAmount: string;
   } | null>(null);
+
+  // Synchroniser la ref pour le callback WS redirectToHome
+  splitPaymentAlertRef.current = splitPaymentAlert;
 
   // Ref pour tracker les pending précédents
   const prevPendingCountRef = useRef(0);
@@ -327,9 +372,7 @@ export default function OptimizedRestaurantPage() {
   const filteredItems = useMemo(() => {
     let items = [...allMenuItems];
 
-    if (quickFilterMode === 'available') {
-      items = items.filter(item => item.is_available);
-    } else if (quickFilterMode === 'dietary') {
+    if (quickFilterMode === 'dietary') {
       items = items.filter(item => item.is_vegan || item.is_vegetarian || item.is_gluten_free);
     }
 
@@ -349,7 +392,6 @@ export default function OptimizedRestaurantPage() {
     if (filters.showVeganOnly)        items = items.filter(item => item.is_vegan);
     if (filters.showVegetarianOnly)   items = items.filter(item => item.is_vegetarian);
     if (filters.showGlutenFreeOnly)   items = items.filter(item => item.is_gluten_free);
-    if (filters.showAvailableOnly)    items = items.filter(item => item.is_available);
 
     if (filters.hideAllergens.length > 0) {
       items = items.filter(item => {
@@ -367,7 +409,6 @@ export default function OptimizedRestaurantPage() {
     if (filters.showVegetarianOnly) count++;
     if (filters.showVeganOnly) count++;
     if (filters.showGlutenFreeOnly) count++;
-    if (filters.showAvailableOnly) count++;
     if (filters.hideAllergens.length > 0) count++;
     if (filters.searchQuery) count++;
     return count;
@@ -467,7 +508,7 @@ export default function OptimizedRestaurantPage() {
   }, [loadData]);
 
   const handleViewModeChange = (mode: ViewMode) => setViewMode(mode);
-  const handleQuickFilter = (mode: 'all' | 'available' | 'dietary') => setQuickFilterMode(mode);
+  const handleQuickFilter = (mode: 'all' | 'dietary') => setQuickFilterMode(mode);
   const handleCategorySelect = (categoryId: string | null) =>
     setFilters(prev => ({ ...prev, selectedCategory: categoryId }));
   const handleSearchChange = (text: string) =>
@@ -491,7 +532,6 @@ export default function OptimizedRestaurantPage() {
       showVegetarianOnly: false,
       showVeganOnly: false,
       showGlutenFreeOnly: false,
-      showAvailableOnly: false,
       searchQuery: '',
     });
     setQuickFilterMode('all');
@@ -760,6 +800,27 @@ export default function OptimizedRestaurantPage() {
         </View>
       )}
 
+      {/* Bandeau inactivité (visible 5 min avant auto-completion) */}
+      {showInactivityWarning && !splitPaymentAlert && (
+        <View style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: isInactivityExpired ? '#F44336' : '#FF9800',
+          paddingVertical: 10,
+          paddingHorizontal: 16,
+          gap: 8,
+        }}>
+          <Ionicons name="time-outline" size={18} color="#FFF" />
+          <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '600' }}>
+            {isInactivityExpired
+              ? '⚠️ Session expirée — redirection…'
+              : `⚠️ Session inactive — fermeture auto dans ${inactivityFormattedTime}`
+            }
+          </Text>
+        </View>
+      )}
+
       {/* Split payment initié — redirection des membres vers le paiement */}
       {splitPaymentAlert && (
         <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
@@ -911,19 +972,19 @@ export default function OptimizedRestaurantPage() {
         <View style={styles.displayControls}>
           {/* View Mode Selector */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
-            {(['compact', 'grid', 'accordion'] as ViewMode[]).map(mode => (
+            {(['compact', 'accordion'] as ViewMode[]).map(mode => (
               <TouchableOpacity
                 key={mode}
                 style={[styles.viewModeButton, viewMode === mode && styles.viewModeButtonActive]}
                 onPress={() => handleViewModeChange(mode)}
               >
                 <Ionicons
-                  name={mode === 'compact' ? 'list' : mode === 'grid' ? 'grid' : 'layers'}
+                  name={mode === 'compact' ? 'list' : 'layers'}
                   size={18}
                   color={viewMode === mode ? COLORS.primary : COLORS.text.secondary}
                 />
                 <Text style={[styles.viewModeText, viewMode === mode && styles.viewModeTextActive]}>
-                  {mode === 'compact' ? 'Liste' : mode === 'grid' ? 'Grille' : 'Catégories'}
+                  {mode === 'compact' ? 'Liste' : 'Catégories'}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -949,14 +1010,14 @@ export default function OptimizedRestaurantPage() {
 
           {/* Quick Filters */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
-            {(['all', 'available', 'dietary'] as const).map(mode => (
+            {(['all', 'dietary'] as const).map(mode => (
               <TouchableOpacity
                 key={mode}
                 style={[styles.quickFilterButton, quickFilterMode === mode && styles.quickFilterButtonActive]}
                 onPress={() => handleQuickFilter(mode)}
               >
                 <Text style={[styles.quickFilterText, quickFilterMode === mode && styles.quickFilterTextActive]}>
-                  {mode === 'all' ? 'Tout' : mode === 'available' ? 'Disponibles' : '🥗 Diétiques'}
+                  {mode === 'all' ? 'Tout' : '🥗 Diététiques'}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -1038,14 +1099,6 @@ export default function OptimizedRestaurantPage() {
                   trackColor={{ false: COLORS.border.default, true: COLORS.success }}
                 />
               </View>
-              <View style={styles.settingRow}>
-                <Text style={styles.settingLabel}>Disponibles uniquement</Text>
-                <Switch
-                  value={filters.showAvailableOnly}
-                  onValueChange={value => setFilters(prev => ({ ...prev, showAvailableOnly: value }))}
-                  trackColor={{ false: COLORS.border.default, true: COLORS.primary }}
-                />
-              </View>
               {activeFiltersCount > 0 && (
                 <TouchableOpacity
                   style={{ marginTop: 12, backgroundColor: COLORS.primary, padding: 10, borderRadius: BORDER_RADIUS.lg, alignItems: 'center' }}
@@ -1076,9 +1129,6 @@ export default function OptimizedRestaurantPage() {
             <>
               {viewMode === 'compact' && (
                 <MenuItemsGrid items={filteredItems} onAddToCart={handleAddToCart} layout="list" showCategoryHeaders={groupByCategory} />
-              )}
-              {viewMode === 'grid' && (
-                <MenuItemsGrid items={filteredItems} onAddToCart={handleAddToCart} layout="grid" showCategoryHeaders={groupByCategory} />
               )}
               {viewMode === 'masonry' && screenWidth >= 768 && (
                 <MenuItemsMasonry items={filteredItems} onAddToCart={handleAddToCart} />

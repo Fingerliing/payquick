@@ -1105,6 +1105,9 @@ def _broadcast_cart_update(session):
         return
 
     try:
+        # Reset inactivity timer — toute activité panier maintient la session vivante
+        CollaborativeTableSession.objects.filter(id=session.id).update(updated_at=timezone.now())
+
         items = session.cart_items.select_related(
             'participant', 'participant__user', 'menu_item'
         ).all()

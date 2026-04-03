@@ -44,6 +44,7 @@ export interface CollaborativeSession {
   total_orders_count: number;
   total_amount: number;
   created_at: string;
+  updated_at?: string;
   locked_at?: string;
   completed_at?: string;
   session_notes?: string;
