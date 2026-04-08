@@ -18,7 +18,6 @@ import {
   BORDER_RADIUS,
   SHADOWS,
   TYPOGRAPHY,
-  COMPONENT_CONSTANTS,
 } from '@/utils/designSystem';
 import { SplitPaymentSession, SplitPaymentPortion } from '@/types/splitPayment';
 
@@ -40,7 +39,7 @@ export const SplitPaymentStatus: React.FC<SplitPaymentStatusProps> = ({
   const screenType = useScreenType();
   const styles = createResponsiveStyles(screenType);
 
-  const formatCurrency = (amount: number) => `${amount.toFixed(2)} €`;
+  const formatCurrency = (amount: number | string) => `${safeParseFloat(amount).toFixed(2)} €`;
 
   const safeParseFloat = (value: any, fallback = 0): number => {
     if (typeof value === 'number' && !isNaN(value)) return value;
@@ -507,7 +506,7 @@ export const SplitPaymentStatus: React.FC<SplitPaymentStatusProps> = ({
         <View style={customStyles.completedStats}>
           <View style={customStyles.completedStat}>
             <Text style={customStyles.completedStatValue}>
-              {formatCurrency(session.totalAmount + session.tipAmount)}
+              {formatCurrency(safeParseFloat(session.totalAmount) + safeParseFloat(session.tipAmount))}
             </Text>
             <Text style={customStyles.completedStatLabel}>Total</Text>
           </View>

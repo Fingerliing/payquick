@@ -384,7 +384,12 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
   };
 
   const iconSize = getResponsiveValue({ mobile: 20, tablet: 22, desktop: 24 }, screenType);
-  const formatCurrency = (amount: number) => `${amount.toFixed(2)} €`;
+  const safeNum = (v: any, fb = 0): number => {
+    if (typeof v === 'number' && !isNaN(v)) return v;
+    const p = parseFloat(String(v || fb));
+    return isNaN(p) ? fb : p;
+  };
+  const formatCurrency = (amount: number | string) => `${safeNum(amount).toFixed(2)} €`;
 
   // Calcul amélioré des montants équitables avec distribution intelligente des centimes
   const equalPortions = useMemo(() => {

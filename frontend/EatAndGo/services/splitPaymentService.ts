@@ -21,8 +21,8 @@ export class SplitPaymentService {
       
       return {
         orderId,
-        totalAmount: response.total_amount,
-        tipAmount: response.tip_amount || 0,
+        totalAmount: parseFloat(response.total_amount) || 0,
+        tipAmount: parseFloat(response.tip_amount) || 0,
         splitType,
         portions: response.portions.map((p: any) => ({
           id: p.id,
@@ -55,8 +55,8 @@ export class SplitPaymentService {
       
       return {
         orderId,
-        totalAmount: response.total_amount,
-        tipAmount: response.tip_amount || 0,
+        totalAmount: parseFloat(response.total_amount) || 0,
+        tipAmount: parseFloat(response.tip_amount) || 0,
         splitType: response.split_type,
         portions: response.portions.map((p: any) => ({
           id: p.id,
@@ -101,7 +101,7 @@ export class SplitPaymentService {
       return {
         client_secret: response.client_secret,
         payment_intent_id: response.payment_intent_id,
-        amount: response.amount
+        amount: parseFloat(response.amount) || 0
       };
     } catch (error) {
       console.error('Error creating portion payment intent:', error);
@@ -143,7 +143,7 @@ export class SplitPaymentService {
       return {
         client_secret: response.client_secret,
         payment_intent_id: response.payment_intent_id,
-        amount: response.amount,
+        amount: parseFloat(response.amount) || 0,
         portions: response.portions
       };
     } catch (error) {

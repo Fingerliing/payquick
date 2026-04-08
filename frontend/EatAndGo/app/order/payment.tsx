@@ -603,6 +603,8 @@ export default function PaymentScreen() {
           }
         }
   
+        clearCart();
+        setPaymentSuccess(true);
         showSuccess(
           'Tous les paiements ont été effectués. La commande est maintenant complète.',
           'Paiement réussi !'
@@ -726,6 +728,8 @@ export default function PaymentScreen() {
             }
           }
 
+          clearCart();
+          setPaymentSuccess(true);
           showSuccess(
             'Tous les paiements ont été effectués. La commande est maintenant complète.',
             'Paiement réussi !'
