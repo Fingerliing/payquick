@@ -24,7 +24,7 @@ export function LegalFooter() {
         
         <Text style={styles.separator}>•</Text>
         
-        <TouchableOpacity onPress={() => console.log('Mentions légales')}>
+        <TouchableOpacity onPress={() => router.push('/(legal)/notice')}>
           <Text style={styles.link}>Mentions légales</Text>
         </TouchableOpacity>
       </View>

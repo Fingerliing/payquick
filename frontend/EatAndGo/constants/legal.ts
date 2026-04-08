@@ -1375,3 +1375,136 @@ export const PRIVACY_POLICY = {
     }
   ]
 };
+
+export const LEGAL_NOTICE = {
+  title: "Mentions Légales",
+  lastUpdate: "8 avril 2026",
+  sections: [
+    {
+      title: "ÉDITEUR DE L'APPLICATION",
+      subsections: [
+        {
+          title: "Identité",
+          content: "L'application EatQuickeR est éditée par :",
+          bulletPoints: [
+            "Nom : BETTONI ALEX",
+            "Statut : Entrepreneur individuel",
+            "SIRET : 992 144 006 00010",
+            "Adresse : 2965 RTE D URKOI, 64240 HASPARREN, France",
+            "Email : contact@eatquicker.com",
+            "TVA intracommunautaire : TVA1"
+          ]
+        },
+        {
+          title: "Directeur de la publication",
+          content: "Le directeur de la publication est BETTONI ALEX, joignable à l'adresse contact@eatquicker.com."
+        }
+      ]
+    },
+    {
+      title: "HÉBERGEMENT",
+      subsections: [
+        {
+          title: "Hébergeur",
+          content: "L'application et ses données sont hébergées par :",
+          bulletPoints: [
+            "Raison sociale : OVHcloud",
+            "Adresse : 2, rue Kellermann, 59100 Roubaix, France",
+            "Téléphone : 1007 (depuis la France)",
+            "Site web : www.ovhcloud.com"
+          ]
+        }
+      ]
+    },
+    {
+      title: "PROPRIÉTÉ INTELLECTUELLE",
+      subsections: [
+        {
+          title: "Droits d'auteur",
+          content: "L'ensemble du contenu de l'application EatQuickeR (textes, graphismes, logos, icônes, images, logiciels) est la propriété exclusive de BETTONI ALEX ou de ses partenaires et est protégé par les lois françaises et internationales relatives à la propriété intellectuelle."
+        },
+        {
+          title: "Marques",
+          content: "EatQuickeR et le logo associé sont des marques de BETTONI ALEX. Toute reproduction, imitation ou utilisation, totale ou partielle, de ces marques sans autorisation préalable est interdite."
+        },
+        {
+          title: "Utilisation du contenu",
+          content: "Toute reproduction, représentation, modification, publication ou adaptation de tout ou partie du contenu de l'application, quel que soit le moyen ou le procédé utilisé, est interdite sans l'autorisation écrite préalable de BETTONI ALEX."
+        }
+      ]
+    },
+    {
+      title: "DONNÉES PERSONNELLES",
+      content: "Le traitement des données personnelles est détaillé dans notre Politique de Confidentialité, accessible depuis l'application.",
+      subsections: [
+        {
+          title: "Responsable du traitement",
+          content: "BETTONI ALEX est responsable du traitement des données personnelles collectées via l'application.",
+          bulletPoints: [
+            "Contact DPO : contact@eatquicker.com",
+            "Courrier : BETTONI ALEX - DPO, 2965 RTE D URKOI, 64240 HASPARREN"
+          ]
+        },
+        {
+          title: "Autorité de contrôle",
+          content: "Vous pouvez adresser une réclamation à la CNIL :",
+          bulletPoints: [
+            "Commission Nationale de l'Informatique et des Libertés (CNIL)",
+            "Adresse : 3 Place de Fontenoy - TSA 80715 - 75334 PARIS CEDEX 07",
+            "Site web : www.cnil.fr"
+          ]
+        }
+      ]
+    },
+    {
+      title: "PRESTATAIRES DE PAIEMENT",
+      subsections: [
+        {
+          title: "Stripe",
+          content: "Les paiements sont traités par Stripe, Inc. en tant que sous-traitant :",
+          bulletPoints: [
+            "Siège européen : Stripe Payments Europe, Limited, 1 Grand Canal Street Lower, Grand Canal Dock, Dublin, D02 H210, Irlande",
+            "Les données bancaires ne sont jamais stockées sur nos serveurs",
+            "Stripe est certifié PCI DSS Level 1"
+          ]
+        }
+      ]
+    },
+    {
+      title: "COOKIES ET TRACEURS",
+      content: "L'application mobile EatQuickeR n'utilise pas de cookies au sens du web. Des identifiants techniques (tokens d'authentification, tokens de notification push) sont stockés localement sur votre appareil pour le bon fonctionnement du service. Ces données techniques sont strictement nécessaires et ne nécessitent pas de consentement au titre de l'article 82 de la loi Informatique et Libertés."
+    },
+    {
+      title: "LIMITATION DE RESPONSABILITÉ",
+      subsections: [
+        {
+          title: "Disponibilité du service",
+          content: "EatQuickeR s'efforce d'assurer la disponibilité de l'application mais ne peut la garantir de manière permanente. L'accès peut être interrompu pour des raisons de maintenance, de mise à jour ou pour toute autre raison technique."
+        },
+        {
+          title: "Contenu des restaurants",
+          content: "Les informations relatives aux menus, prix et disponibilités des plats sont fournies par les restaurateurs partenaires. EatQuickeR ne saurait être tenu responsable d'éventuelles erreurs ou omissions dans ces informations."
+        }
+      ]
+    },
+    {
+      title: "DROIT APPLICABLE",
+      content: "Les présentes mentions légales sont régies par le droit français. En cas de litige, les tribunaux de Bayonne seront compétents, sauf disposition légale contraire en faveur du consommateur."
+    },
+    {
+      title: "CONTACT",
+      content: "Pour toute question relative aux présentes mentions légales :",
+      subsections: [
+        {
+          title: "Coordonnées",
+          content: "",
+          bulletPoints: [
+            "Email : contact@eatquicker.com",
+            "Questions juridiques : legal@eatquicker.com",
+            "Courrier : BETTONI ALEX, 2965 RTE D URKOI, 64240 HASPARREN"
+          ]
+        }
+      ]
+    }
+  ]
+};
