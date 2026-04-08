@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/contexts/AuthContext';
+import { ApiClient } from '@/services/api';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
@@ -49,6 +50,12 @@ export default function LoginScreen() {
   const { login } = useAuth();
   const { isMobile, isTablet, isSmallScreen, getSpacing, getFontSize, getResponsiveValue } = useResponsive();
   const insets = useSafeAreaInsets();
+
+  // ✅ Empêche handleSessionExpired de rediriger quand on est déjà sur login
+  useEffect(() => {
+    ApiClient._isOnLoginPage = true;
+    return () => { ApiClient._isOnLoginPage = false; };
+  }, []);
 
   // VALIDATION
   const validateForm = useCallback((): boolean => {
@@ -195,7 +202,7 @@ export default function LoginScreen() {
 
   const params = useLocalSearchParams<{ reason?: string }>();
 
-  // Afficher l'alerte "session expirée" si redirigé depuis handleSessionExpired
+  // ✅ Afficher l'alerte "session expirée" une seule fois puis nettoyer le param
   useEffect(() => {
     if (params.reason === 'session_expired') {
       setCustomAlert({
@@ -203,6 +210,8 @@ export default function LoginScreen() {
         title: 'Session expirée',
         message: 'Votre session a expiré. Veuillez vous reconnecter.',
       });
+      // Nettoyer le param pour éviter les re-triggers au remontage
+      router.setParams({ reason: undefined });
     }
   }, [params.reason]);
 

@@ -27,6 +27,12 @@ class ApiClient {
     reject: (reason?: any) => void;
   }> = [];
 
+  /**
+   * Flag statique posé par le LoginScreen pour empêcher handleSessionExpired
+   * de rediriger (et donc remonter la page) alors qu'on est déjà sur login.
+   */
+  static _isOnLoginPage = false;
+
   constructor() {
     this.baseURL = process.env.EXPO_PUBLIC_API_URL ||
       (__DEV__ ? 'http://localhost:8000' : (() => { throw new Error('[EatQuickeR] EXPO_PUBLIC_API_URL non défini en production'); })());
@@ -198,6 +204,12 @@ class ApiClient {
       console.log('🗑️ Données d\'authentification supprimées');
     } catch (cleanupError) {
       console.error('⚠️ Erreur lors du nettoyage des données:', cleanupError);
+    }
+
+    // ✅ Ne pas rediriger si on est déjà sur la page login
+    if (ApiClient._isOnLoginPage) {
+      console.log('⏭️ Déjà sur login — skip redirect');
+      return;
     }
 
     // Rediriger vers la page de connexion
@@ -416,4 +428,5 @@ class ApiClient {
   }
 }
 
+export { ApiClient };
 export const apiClient = new ApiClient();
