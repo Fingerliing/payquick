@@ -174,7 +174,7 @@ export default function ClientHome() {
   const hasActiveSession =
     isSessionInitialized &&
     session !== null &&
-    ['active', 'locked', 'payment'].includes(session.status);
+    ['active', 'locked'].includes(session.status);
 
   const hasCompletedSession =
     isSessionInitialized &&
@@ -185,7 +185,7 @@ export default function ClientHome() {
   // Couvre le cas où refreshSession() re-sauvegarde une session completed
   // (race condition navigation), ou quand le status change via WS/polling.
   useEffect(() => {
-    if (session && ['completed', 'cancelled'].includes(session.status)) {
+    if (session && ['completed', 'cancelled', 'payment'].includes(session.status)) {
       clearSession();
     }
   }, [session?.status, clearSession]);
@@ -249,7 +249,7 @@ export default function ClientHome() {
       if (isSessionInitialized && session) {
         collaborativeSessionService.getSession(session.id)
           .then((serverSession) => {
-            if (['completed', 'cancelled'].includes(serverSession.status)) {
+            if (['completed', 'cancelled', 'payment'].includes(serverSession.status)) {
               // Session terminée côté serveur → nettoyer le cache local
               clearSessionRef.current();
             } else {
@@ -289,7 +289,7 @@ export default function ClientHome() {
       const now = Date.now();
 
       const active = sessions?.find((s: CollaborativeSession) => {
-        if (!['active', 'locked', 'payment'].includes(s.status)) return false;
+        if (!['active', 'locked'].includes(s.status)) return false;
         // Exclure les sessions inactives (bientôt auto-complétées par Celery)
         const lastActivity = s.updated_at ?? s.created_at;
         if (lastActivity) {
