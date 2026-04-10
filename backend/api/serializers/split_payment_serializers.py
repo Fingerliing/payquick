@@ -8,7 +8,7 @@ class SplitPaymentPortionSerializer(serializers.ModelSerializer):
         model = SplitPaymentPortion
         fields = [
             'id', 'name', 'amount', 'is_paid', 'payment_intent_id', 
-            'payment_method', 'paid_at', 'created_at'
+            'payment_method', 'paid_at', 'created_at', 'participant'
         ]
         read_only_fields = ['id', 'is_paid', 'payment_intent_id', 'paid_at', 'created_at']
 

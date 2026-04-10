@@ -108,6 +108,10 @@ class SplitPaymentPortion(models.Model):
         related_name='portions'
     )
     name = models.CharField(max_length=100, blank=True, default='')
+    participant = models.ForeignKey(
+        'SessionParticipant', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='split_portions'
+    )
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     
     is_paid = models.BooleanField(default=False)

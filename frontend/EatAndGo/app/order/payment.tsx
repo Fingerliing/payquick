@@ -489,6 +489,13 @@ export default function PaymentScreen() {
       clearCart();
       setPaymentSuccess(true);
 
+      // Annuler toute session de split orpheline (si l'hôte a payé tout seul)
+      try {
+        await splitPaymentService.cancelSplitSession(orderId as string);
+      } catch (e) {
+        // Pas de split session ou déjà annulée → ignore
+      }
+
       const successMessage = method === 'online'
         ? 'Votre paiement a été confirmé.'
         : 'Votre commande est confirmée. Vous paierez au restaurant.';

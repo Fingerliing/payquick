@@ -5,6 +5,7 @@ export interface SplitPaymentPortion {
   isPaid: boolean;
   paymentIntentId?: string;
   paidAt?: string;
+  participant_id?: string | null;
 }
 
 export interface SplitPaymentSession {

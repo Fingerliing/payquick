@@ -30,7 +30,8 @@ export class SplitPaymentService {
           amount: parseFloat(p.amount),
           isPaid: p.is_paid || false,
           paymentIntentId: p.payment_intent_id,
-          paidAt: p.paid_at
+          paidAt: p.paid_at,
+          participant_id: p.participant || null,
         })),
         createdAt: response.created_at,
         completedAt: response.completed_at,
@@ -64,7 +65,8 @@ export class SplitPaymentService {
           amount: parseFloat(p.amount),
           isPaid: p.is_paid || false,
           paymentIntentId: p.payment_intent_id,
-          paidAt: p.paid_at
+          paidAt: p.paid_at,
+          participant_id: p.participant || null,
         })),
         createdAt: response.created_at,
         completedAt: response.completed_at,

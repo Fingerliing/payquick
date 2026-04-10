@@ -38,6 +38,7 @@ import {
   SHADOWS,
 } from '@/utils/designSystem';
 import { QRSessionUtils } from '@/utils/qrSessionUtils';
+import { collaborativeSessionService } from '@/services/collaborativeSessionService';
 
 // ============================================================================
 // TYPES
@@ -248,6 +249,7 @@ interface CartSummaryProps {
   onCheckout: () => void;
   screenType: 'mobile' | 'tablet' | 'desktop';
   canCheckout?: boolean;
+  checkoutTitle?: string;
 }
 
 const CartSummary = React.memo<CartSummaryProps>(({ 
@@ -257,6 +259,7 @@ const CartSummary = React.memo<CartSummaryProps>(({
   onCheckout,
   screenType,
   canCheckout = true,
+  checkoutTitle = 'Passer la commande',
 }) => {
   const styles = createResponsiveStyles(screenType);
   const iconSize = getResponsiveValue({ mobile: 20, tablet: 24, desktop: 28 }, screenType);
@@ -307,7 +310,7 @@ const CartSummary = React.memo<CartSummaryProps>(({
       
       {canCheckout ? (
         <Button
-          title={isCreatingOrder ? "Traitement en cours..." : "Passer la commande"}
+          title={isCreatingOrder ? "Traitement en cours..." : checkoutTitle}
           onPress={onCheckout}
           disabled={isCreatingOrder || itemCount === 0}
           fullWidth
@@ -487,6 +490,7 @@ export default function CartScreen() {
   const [updatingItems, setUpdatingItems] = useState<Set<string>>(new Set());
   const [showClearConfirmation, setShowClearConfirmation] = useState(false);
   const [itemToRemove, setItemToRemove] = useState<string | null>(null);
+  const [showSplitConfirmation, setShowSplitConfirmation] = useState(false);
 
   // ============================================================================
   // EFFECTS
@@ -658,15 +662,59 @@ export default function CartScreen() {
       return;
     }
   
+    // ── Mode session collaborative (hôte) → commande groupée ──
+    if (isSessionMode && isHost && ctxSessionId) {
+      setShowSplitConfirmation(true);
+      return;
+    }
+
+    // ── Mode classique (pas de session ou membre non-hôte) ──
     try {
       setIsCreatingOrder(true);
-      navigateToCheckout(isSessionMode ? ctxSessionId : undefined);
+      navigateToCheckout(isSessionMode ? ctxSessionId ?? undefined : undefined);
     } catch (error) {
       showError('Erreur lors de la préparation de la commande');
     } finally {
       setIsCreatingOrder(false);
     }
-  }, [isSessionMode, sessionCart.items_count, cart.items.length, cart.restaurantId, ctxSession, ctxSessionId, navigateToCheckout, showError]);
+  }, [isSessionMode, isHost, sessionCart.items_count, cart.items.length, cart.restaurantId, ctxSession, ctxSessionId, navigateToCheckout, showError]);
+
+  /**
+   * Place la commande groupée via le backend.
+   * @param withSplit true → division automatique, false → l'hôte paie tout
+   */
+  const handlePlaceGroupOrder = useCallback(async (withSplit: boolean) => {
+    if (!ctxSessionId) return;
+    setShowSplitConfirmation(false);
+    setIsCreatingOrder(true);
+
+    try {
+      const result = await collaborativeSessionService.placeGroupOrder(
+        ctxSessionId,
+        withSplit
+      );
+
+      if (withSplit) {
+        // Le WS broadcast split_payment_initiated → SessionContext redirige tout le monde
+        // vers /order/split-payment. On redirige aussi l'hôte explicitement au cas où
+        // le WS soit lent.
+        showSuccess('Commande passée ! Division de la note en cours...');
+        router.push(`/order/split-payment?orderId=${result.order_id}` as any);
+      } else {
+        // Pas de split → l'hôte paie seul sur la page payment classique
+        showSuccess('Commande passée avec succès !');
+        router.push(`/order/payment?orderId=${result.order_id}` as any);
+      }
+    } catch (error: any) {
+      console.error('Error placing group order:', error);
+      const msg = error?.response?.data?.error
+        || error?.message
+        || 'Erreur lors de la commande groupée';
+      showError(msg);
+    } finally {
+      setIsCreatingOrder(false);
+    }
+  }, [ctxSessionId, showSuccess, showError]);
 
   // ============================================================================
   // MEMOIZED VALUES
@@ -774,6 +822,7 @@ export default function CartScreen() {
         onCheckout={handleCheckout}
         screenType={screenType}
         canCheckout={!isSessionMode || isHost}
+        checkoutTitle={isSessionMode && isHost ? 'Commander pour le groupe' : 'Passer la commande'}
       />
 
       {/* Confirmation Modals using AlertWithAction */}
@@ -813,6 +862,29 @@ export default function CartScreen() {
               secondaryButton={{
                 text: "Annuler",
                 onPress: () => setItemToRemove(null),
+              }}
+            />
+          </View>
+        </View>
+      )}
+
+      {/* Modal : Diviser la note ? */}
+      {showSplitConfirmation && (
+        <View style={localStyles.modalOverlay}>
+          <View style={[localStyles.modalContainer, styles.mx('md')]}>
+            <AlertWithAction
+              variant="info"
+              title="Commander pour le groupe"
+              message="Souhaitez-vous diviser la note entre les participants ? Chacun pourra payer sa part depuis son téléphone."
+              showIcon
+              primaryButton={{
+                text: "Diviser la note",
+                onPress: () => handlePlaceGroupOrder(true),
+                variant: "primary",
+              }}
+              secondaryButton={{
+                text: "Je paie tout",
+                onPress: () => handlePlaceGroupOrder(false),
               }}
             />
           </View>

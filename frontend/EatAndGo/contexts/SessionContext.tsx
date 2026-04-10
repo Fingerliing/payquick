@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
 import { collaborativeSessionService } from '@/services/collaborativeSessionService';
+import { useSessionWebSocket } from '@/hooks/session/useSessionWebSocket';
 
 // =============================================================================
 // TYPES
@@ -119,6 +121,41 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const isHost = session?.participants?.some(
     p => p.id === participantId && p.is_host
   ) ?? false;
+
+  // =============================================================================
+  // WEBSOCKET : REDIRECTION SPLIT PAYMENT
+  // =============================================================================
+
+  const sessionId = session?.id ?? null;
+  const wsHook = useSessionWebSocket(sessionId);
+  const onWsEvent = wsHook?.on;
+
+  useEffect(() => {
+    if (!sessionId || !onWsEvent) return;
+
+    // Écouter session_update avec event='split_payment_initiated'
+    const unsub1 = onWsEvent('session_update', (data: any) => {
+      if (data?.event === 'split_payment_initiated') {
+        const orderId = data?.data?.order_id;
+        if (!orderId) return;
+        console.log('[SessionContext] split_payment_initiated → redirection', orderId);
+        router.push(`/order/split-payment?orderId=${orderId}` as any);
+      }
+    });
+
+    // Écouter aussi le type WS direct 'split_payment_initiated'
+    const unsub2 = onWsEvent('split_payment_initiated', (data: any) => {
+      const orderId = data?.order_id;
+      if (!orderId) return;
+      console.log('[SessionContext] split_payment_initiated (direct) → redirection', orderId);
+      router.push(`/order/split-payment?orderId=${orderId}` as any);
+    });
+
+    return () => {
+      if (unsub1) unsub1();
+      if (unsub2) unsub2();
+    };
+  }, [sessionId, onWsEvent]);
 
   // =============================================================================
   // CHARGEMENT INITIAL

@@ -4,7 +4,7 @@ from django.conf import settings
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -19,9 +19,55 @@ from drf_spectacular.types import OpenApiTypes
 from decimal import Decimal
 import uuid
 
-from api.models import Order, SplitPaymentSession, SplitPaymentPortion
+from api.models import Order, SplitPaymentSession, SplitPaymentPortion, SessionParticipant
 from api.views.payment_views import _is_order_owner
 from api.utils.commission_utils import build_stripe_payment_params
+
+
+def _is_split_payment_participant(request, order):
+    """
+    Vérifie si l'appelant peut accéder au split payment d'une commande.
+
+    Autorisé si :
+    1. L'utilisateur est le propriétaire de la commande (hôte)
+    2. L'utilisateur authentifié est un participant actif de la session collaborative
+    3. Le header X-Participant-ID correspond à un participant actif de la session
+
+    Cela permet à TOUS les membres d'une session collaborative d'accéder
+    à la page de paiement divisé, pas seulement l'hôte.
+    """
+    # 1. Owner de la commande
+    if request.user.is_authenticated and _is_order_owner(request.user, order):
+        return True
+
+    # 2/3. Participant de la session collaborative liée à la commande
+    collab_session = getattr(order, 'collaborative_session', None)
+    if not collab_session:
+        return False
+
+    # Chemin auth : utilisateur authentifié → lookup par user
+    if request.user.is_authenticated:
+        if SessionParticipant.objects.filter(
+            session=collab_session,
+            user=request.user,
+            status='active'
+        ).exists():
+            return True
+
+    # Chemin guest : header X-Participant-ID
+    participant_id = (
+        request.headers.get('X-Participant-ID', '').strip()
+        or request.data.get('participant_id', '')
+    )
+    if participant_id:
+        if SessionParticipant.objects.filter(
+            session=collab_session,
+            id=participant_id,
+            status='active'
+        ).exists():
+            return True
+
+    return False
 from api.serializers.split_payment_serializers import (
     SplitPaymentSessionSerializer,
     CreateSplitPaymentSessionSerializer,
@@ -232,14 +278,14 @@ class CreateSplitPaymentSessionView(APIView):
 class GetSplitPaymentSessionView(APIView):
     """Récupérer une session de paiement divisé existante"""
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     
     def get(self, request, order_id):
         try:
             order = Order.objects.get(id=order_id)
             
-            # Vérifier l'autorisation
-            if not _is_order_owner(request.user, order):
+            # Vérifier l'autorisation (owner OU participant de la session)
+            if not _is_split_payment_participant(request, order):
                 return Response(
                     {'error': 'Non autorisé'}, 
                     status=status.HTTP_403_FORBIDDEN
@@ -328,14 +374,14 @@ class GetSplitPaymentSessionView(APIView):
 class PayPortionView(APIView):
     """Créer un PaymentIntent Stripe pour payer une portion spécifique"""
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     
     def post(self, request, order_id):
         try:
             order = Order.objects.get(id=order_id)
             
-            # Vérifier l'autorisation
-            if not _is_order_owner(request.user, order):
+            # Vérifier l'autorisation (owner OU participant de la session)
+            if not _is_split_payment_participant(request, order):
                 return Response(
                     {'error': 'Non autorisé'}, 
                     status=status.HTTP_403_FORBIDDEN
@@ -415,14 +461,14 @@ class PayPortionView(APIView):
 class ConfirmPortionPaymentView(APIView):
     """Confirmer qu'une portion a été payée avec succès"""
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     
     def post(self, request, order_id):
         try:
             order = Order.objects.get(id=order_id)
             
-            # Vérifier l'autorisation
-            if not _is_order_owner(request.user, order):
+            # Vérifier l'autorisation (owner OU participant de la session)
+            if not _is_split_payment_participant(request, order):
                 return Response(
                     {'error': 'Non autorisé'}, 
                     status=status.HTTP_403_FORBIDDEN
@@ -490,14 +536,14 @@ class ConfirmPortionPaymentView(APIView):
 class PayRemainingPortionsView(APIView):
     """Créer un PaymentIntent pour toutes les portions non payées"""
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     
     def post(self, request, order_id):
         try:
             order = Order.objects.get(id=order_id)
             
-            # Vérifier l'autorisation
-            if not _is_order_owner(request.user, order):
+            # Vérifier l'autorisation (owner OU participant de la session)
+            if not _is_split_payment_participant(request, order):
                 return Response(
                     {'error': 'Non autorisé'}, 
                     status=status.HTTP_403_FORBIDDEN
@@ -570,14 +616,14 @@ class PayRemainingPortionsView(APIView):
 class ConfirmRemainingPaymentsView(APIView):
     """Confirmer que toutes les portions restantes ont été payées"""
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     
     def post(self, request, order_id):
         try:
             order = Order.objects.get(id=order_id)
             
-            # Vérifier l'autorisation
-            if not _is_order_owner(request.user, order):
+            # Vérifier l'autorisation (owner OU participant de la session)
+            if not _is_split_payment_participant(request, order):
                 return Response(
                     {'error': 'Non autorisé'}, 
                     status=status.HTTP_403_FORBIDDEN
@@ -687,14 +733,14 @@ class ConfirmRemainingPaymentsView(APIView):
 class SplitPaymentStatusView(APIView):
     """Vérifier le statut d'un paiement divisé"""
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     
     def get(self, request, order_id):
         try:
             order = Order.objects.get(id=order_id)
             
-            # Vérifier l'autorisation
-            if not _is_order_owner(request.user, order):
+            # Vérifier l'autorisation (owner OU participant de la session)
+            if not _is_split_payment_participant(request, order):
                 return Response(
                     {'error': 'Non autorisé'}, 
                     status=status.HTTP_403_FORBIDDEN
@@ -737,14 +783,14 @@ class SplitPaymentStatusView(APIView):
 class CompleteSplitPaymentView(APIView):
     """Finaliser une session de paiement divisé"""
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     
     def post(self, request, order_id):
         try:
             order = Order.objects.get(id=order_id)
             
-            # Vérifier l'autorisation
-            if not _is_order_owner(request.user, order):
+            # Vérifier l'autorisation (owner OU participant de la session)
+            if not _is_split_payment_participant(request, order):
                 return Response(
                     {'error': 'Non autorisé'}, 
                     status=status.HTTP_403_FORBIDDEN
@@ -795,34 +841,48 @@ class CompleteSplitPaymentView(APIView):
 class CancelSplitPaymentSessionView(APIView):
     """Annuler une session de paiement divisé"""
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     
     def delete(self, request, order_id):
         try:
             order = Order.objects.get(id=order_id)
             
-            # Vérifier l'autorisation
-            if not _is_order_owner(request.user, order):
+            # Vérifier l'autorisation (owner OU participant de la session)
+            if not _is_split_payment_participant(request, order):
                 return Response(
                     {'error': 'Non autorisé'}, 
                     status=status.HTTP_403_FORBIDDEN
                 )
             
+            if not hasattr(order, 'split_payment_session'):
+                return Response(
+                    {'error': 'Aucune session de paiement divisé trouvée'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
             session = order.split_payment_session
+
+            # Cas 1 : l'order a été payée normalement → nettoyer le split orphelin
+            if order.payment_status == 'paid':
+                session.status = 'cancelled'
+                session.cancelled_at = timezone.now()
+                session.save()
+                order.is_split_payment = False
+                order.save(update_fields=['is_split_payment'])
+                return Response({'success': True, 'message': 'Session split orpheline annulée'})
             
-            # Vérifier qu'aucun paiement n'a été effectué
+            # Cas 2 : des portions ont déjà été payées → refuser
             if session.portions.filter(is_paid=True).exists():
                 return Response(
                     {'error': 'Impossible d\'annuler: des paiements ont déjà été effectués'}, 
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # Annuler la session
+            # Cas 3 : aucun paiement → annulation classique
             session.status = 'cancelled'
             session.cancelled_at = timezone.now()
             session.save()
             
-            # Remettre le statut de la commande
             order.payment_status = 'unpaid'
             order.is_split_payment = False
             order.save()

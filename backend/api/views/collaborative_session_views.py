@@ -70,6 +70,9 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
             # L'identité du participant est vérifiée dans _get_current_participant
             # via le header X-Participant-ID (chemin guest) ou le JWT (chemin auth).
             'cart', 'cart_add', 'cart_update_item', 'cart_remove_item', 'cart_clear',
+            # La commande groupée est déclenchée par l'hôte (auth ou guest).
+            # La vérification hôte est faite dans _can_manage_session.
+            'place_group_order',
         }
         if self.action in public_actions:
             return [AllowAny()]
@@ -782,6 +785,180 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
                 session, context={'request': request}
             ).data
         })
+
+    # ── Commande groupée ─────────────────────────────────────────────────────
+
+    @extend_schema(summary="Passer une commande groupée pour la session (hôte uniquement)")
+    @action(detail=True, methods=['post'])
+    def place_group_order(self, request, pk=None):
+        """
+        L'hôte crée UNE commande regroupant tout le panier partagé.
+        Retourne l'order_id.
+
+        POST body optionnel : { "split_payment": true }
+        Si split_payment=true → crée automatiquement la SplitPaymentSession
+        et broadcast WS split_payment_initiated à tous les participants.
+        """
+        from api.models import Order, OrderItem, SplitPaymentSession, SplitPaymentPortion
+        from decimal import Decimal
+        import random, string as string_module
+
+        session = self.get_object()
+
+        if not self._can_manage_session(request, session):
+            return Response(
+                {'error': "Seul l'hôte peut passer la commande groupée."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if session.status not in ('active', 'locked'):
+            return Response(
+                {'error': f'Session en statut {session.status}, commande impossible.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        cart_items = list(
+            session.cart_items.select_related('participant', 'menu_item').all()
+        )
+        if not cart_items:
+            return Response(
+                {'error': 'Le panier est vide.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Calculer le total
+        subtotal = sum(
+            Decimal(str(item.menu_item.price)) * item.quantity
+            for item in cart_items
+        )
+
+        # Générer un numéro de commande unique
+        order_number = f"GRP-{''.join(random.choices(string_module.digits, k=6))}"
+
+        # Créer la commande (owner = host)
+        host_participant = session.participants.filter(
+            role='host', status='active'
+        ).first()
+
+        order = Order.objects.create(
+            restaurant=session.restaurant,
+            table_number=session.table_number,
+            order_number=order_number,
+            subtotal=subtotal,
+            total_amount=subtotal,
+            collaborative_session=session,
+            participant=host_participant,
+            order_type='dine_in',
+            status='pending',
+            payment_status='unpaid',
+        )
+        if request.user.is_authenticated:
+            order.user = request.user
+            order.save(update_fields=['user'])
+
+        # Créer les OrderItems
+        for cart_item in cart_items:
+            OrderItem.objects.create(
+                order=order,
+                menu_item=cart_item.menu_item,
+                quantity=cart_item.quantity,
+                unit_price=cart_item.menu_item.price,
+                total_price=Decimal(str(cart_item.menu_item.price)) * cart_item.quantity,
+                special_instructions=cart_item.special_instructions,
+                customizations=cart_item.customizations or {},
+            )
+
+        # Passer la session en mode paiement
+        session.status = 'payment'
+        session.save(update_fields=['status'])
+
+        # Vider le panier
+        session.cart_items.all().delete()
+
+        want_split = request.data.get('split_payment', False)
+        split_session_data = None
+
+        if want_split:
+            # Calculer le breakdown par participant
+            breakdown = {}
+            for cart_item in cart_items:
+                pid = str(cart_item.participant_id)
+                item_total = float(
+                    Decimal(str(cart_item.menu_item.price)) * cart_item.quantity
+                )
+                if pid not in breakdown:
+                    breakdown[pid] = {
+                        'participant': cart_item.participant,
+                        'total': 0.0,
+                    }
+                breakdown[pid]['total'] += item_total
+
+            # Créer la SplitPaymentSession
+            split_session = SplitPaymentSession.objects.create(
+                order=order,
+                split_type='custom',
+                total_amount=order.total_amount,
+                tip_amount=Decimal('0'),
+                created_by=request.user if request.user.is_authenticated else None,
+            )
+
+            for pid, info in breakdown.items():
+                SplitPaymentPortion.objects.create(
+                    session=split_session,
+                    name=info['participant'].display_name,
+                    amount=Decimal(str(round(info['total'], 2))),
+                    participant=info['participant'],
+                )
+
+            order.payment_status = 'partial_paid'
+            order.is_split_payment = True
+            order.save(update_fields=['payment_status', 'is_split_payment'])
+
+            # Broadcast WS → tous les participants redirigés vers la page split
+            try:
+                from api.utils.websocket_notifications import notify_split_payment_initiated
+                notify_split_payment_initiated(
+                    session_id=str(session.id),
+                    order_id=order.id,
+                    portions_count=len(breakdown),
+                    total_amount=str(order.total_amount),
+                )
+            except Exception as e:
+                logger.warning(f"WS notify split_payment_initiated failed: {e}")
+
+            from api.serializers.split_payment_serializers import SplitPaymentSessionSerializer
+            split_session_data = SplitPaymentSessionSerializer(split_session).data
+
+        else:
+            # Pas de split → broadcast simple order_placed
+            try:
+                notify_session_update(
+                    str(session.id),
+                    {
+                        'event': 'order_placed',
+                        'actor': self._actor_name(request),
+                        'data': {
+                            'order_id': order.id,
+                            'total_amount': str(order.total_amount),
+                        }
+                    }
+                )
+            except Exception as e:
+                logger.warning(f"WS notify order_placed failed: {e}")
+
+        _broadcast_cart_update(session)  # Envoyer panier vide
+
+        response_data = {
+            'message': 'Commande groupée créée avec succès',
+            'order_id': order.id,
+            'order_number': order.order_number,
+            'total_amount': str(order.total_amount),
+            'split_payment': want_split,
+        }
+        if split_session_data:
+            response_data['split_session'] = split_session_data
+
+        return Response(response_data, status=status.HTTP_201_CREATED)
 
     # ── Panier partagé ────────────────────────────────────────────────────────
 

@@ -243,6 +243,32 @@ class CollaborativeSessionService {
       return null;
     }
   }
+
+  /**
+   * Commander pour tout le groupe (hôte uniquement).
+   * Crée une commande unique à partir du panier partagé.
+   * 
+   * @param sessionId  ID de la session collaborative
+   * @param splitPayment  true → crée automatiquement le split + broadcast WS
+   * @returns { order_id, order_number, total_amount, split_payment, split_session? }
+   */
+  async placeGroupOrder(
+    sessionId: string,
+    splitPayment: boolean = false
+  ): Promise<{
+    message: string;
+    order_id: number;
+    order_number: string;
+    total_amount: string;
+    split_payment: boolean;
+    split_session?: any;
+  }> {
+    const response = await apiClient.post(
+      `/api/v1/collaborative-sessions/${sessionId}/place_group_order/`,
+      { split_payment: splitPayment }
+    );
+    return response;
+  }
 }
 
 export const collaborativeSessionService = new CollaborativeSessionService();
