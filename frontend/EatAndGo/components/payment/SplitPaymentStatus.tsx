@@ -26,6 +26,7 @@ interface SplitPaymentStatusProps {
   currentUserPortionId?: string;
   onPayPortion: (portionId: string) => void;
   onPayAllRemaining?: () => void;
+  onEditSplit?: () => void;
   isProcessing?: boolean;
 }
 
@@ -34,6 +35,7 @@ export const SplitPaymentStatus: React.FC<SplitPaymentStatusProps> = ({
   currentUserPortionId,
   onPayPortion,
   onPayAllRemaining,
+  onEditSplit,
   isProcessing = false,
 }) => {
   const screenType = useScreenType();
@@ -571,9 +573,33 @@ export const SplitPaymentStatus: React.FC<SplitPaymentStatusProps> = ({
 
       {/* Liste des portions avec design amélioré */}
       <Card style={customStyles.portionsSection}>
-        <Text style={customStyles.portionsTitle}>
-          📋 Détail des paiements
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: getResponsiveValue(SPACING.sm, screenType) }}>
+          <Text style={[customStyles.portionsTitle, { marginBottom: 0, flex: 1, textAlign: 'center' }]}>
+            📋 Détail des paiements
+          </Text>
+          {onEditSplit && (
+            <TouchableOpacity
+              onPress={onEditSplit}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4,
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: BORDER_RADIUS.lg,
+                borderWidth: 1,
+                borderColor: COLORS.primary + '30',
+                backgroundColor: COLORS.primary + '08',
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="options-outline" size={16} color={COLORS.primary} />
+              <Text style={{ fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType), fontWeight: TYPOGRAPHY.fontWeight.semibold, color: COLORS.primary }}>
+                Modifier
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
         
         <View style={customStyles.portionsList}>
           {session.portions.map(renderPortion)}

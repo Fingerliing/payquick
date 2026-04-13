@@ -818,14 +818,18 @@ class CompleteSplitPaymentView(APIView):
             # Finaliser la session si pas déjà fait
             if session.status != 'completed':
                 session.mark_as_completed()
-            
-            # Mettre à jour le statut de paiement de la commande
-            order.payment_status = 'paid'
-            order.payment_method = 'online'
-            order.save(update_fields=['payment_status', 'payment_method'])
-            logger.info(f"💰 Split payment finalisé — commande #{order.id} marquée paid")
-            
-            return Response({'success': True, 'message': 'Paiement divisé finalisé'})
+
+            # order.payment_status est géré par le webhook Stripe uniquement
+            logger.info(
+                f"Split session finalisée pour commande #{order.id} "
+                f"— payment_status actuel : {order.payment_status}"
+            )
+
+            return Response({
+                'success': True,
+                'message': 'Session de paiement divisé finalisée',
+                'payment_status': order.payment_status,
+            })
             
         except Order.DoesNotExist:
             return Response(

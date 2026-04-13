@@ -25,7 +25,8 @@ import { Alert, useAlert } from '@/components/ui/Alert';
 
 // Split payment
 import { SplitPaymentStatus } from '@/components/payment/SplitPaymentStatus';
-import { SplitPaymentSession } from '@/types/splitPayment';
+import { SplitPaymentModal } from '@/components/payment/SplitPaymentModal';
+import { SplitPaymentSession, SplitPaymentMode, SplitPaymentPortion } from '@/types/splitPayment';
 import { splitPaymentService } from '@/services/splitPaymentService';
 
 // Services
@@ -110,6 +111,7 @@ export default function SplitPaymentScreen() {
   const [currentUserPortionId, setCurrentUserPortionId] = useState<string>('');
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [customerEmail, setCustomerEmail] = useState(user?.email || '');
+  const [showSplitModal, setShowSplitModal] = useState(false);
 
   // ── Load data ──────────────────────────────────────────────────────────
 
@@ -129,9 +131,6 @@ export default function SplitPaymentScreen() {
       if (sess) {
         setSplitSession(sess);
 
-        // Trouver la portion du participant courant
-        // 1. Par participant_id (si le backend a assigné participant sur les portions)
-        // 2. Sinon, la première portion non payée
         const myPortion = sess.portions.find(
           (p: any) => p.participant_id === participantId
         );
@@ -174,6 +173,63 @@ export default function SplitPaymentScreen() {
     setRefreshing(false);
   };
 
+  // ── Configure split ────────────────────────────────────────────────────
+
+  const handleSplitConfirm = async (
+    mode: SplitPaymentMode,
+    portions: Omit<SplitPaymentPortion, 'id' | 'isPaid' | 'paidAt'>[]
+  ) => {
+    setShowSplitModal(false);
+
+    if (mode === 'none') {
+      // Paiement unique — pas de split, retour au checkout classique
+      router.replace(`/checkout?orderId=${orderId}`);
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      // Si une session existe déjà, l'annuler avant d'en créer une nouvelle
+      if (splitSession) {
+        await splitPaymentService.cancelSplitSession(orderId as string);
+      }
+
+      const sess = await splitPaymentService.createSplitSession(
+        orderId as string,
+        mode,
+        portions.map((p) => ({
+          name: p.name,
+          amount: safeParseAmount(p.amount),
+        }))
+      );
+
+      setSplitSession(sess);
+
+      // Trouver la portion du participant courant
+      const myPortion = sess.portions.find(
+        (p: any) => p.participant_id === participantId
+      );
+      if (myPortion) {
+        setCurrentUserPortionId(myPortion.id);
+      } else {
+        const firstUnpaid = sess.portions.find((p: any) => !p.isPaid);
+        if (firstUnpaid) setCurrentUserPortionId(firstUnpaid.id);
+      }
+
+      showSuccess(
+        mode === 'equal'
+          ? `Note divisée équitablement entre ${portions.length} personnes`
+          : `Note divisée en ${portions.length} parts personnalisées`,
+        'Division configurée'
+      );
+    } catch (error) {
+      console.error('Error creating split session:', error);
+      showError('Impossible de créer la division de la note', 'Erreur');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   // ── Pay portion ────────────────────────────────────────────────────────
 
   const handlePayPortion = async (portionId: string) => {
@@ -189,13 +245,11 @@ export default function SplitPaymentScreen() {
 
     setProcessing(true);
     try {
-      // Créer le PaymentIntent pour cette portion
       const paymentData = await splitPaymentService.createPortionPaymentIntent(
         orderId as string,
         portionId
       );
 
-      // Initialiser Stripe Payment Sheet
       const { error: initError } = await initPaymentSheet({
         merchantDisplayName: order.restaurant_name || 'Restaurant',
         paymentIntentClientSecret: paymentData.client_secret,
@@ -218,7 +272,6 @@ export default function SplitPaymentScreen() {
         return;
       }
 
-      // Présenter le Payment Sheet
       const { error: paymentError } = await presentPaymentSheet();
 
       if (paymentError) {
@@ -234,17 +287,14 @@ export default function SplitPaymentScreen() {
         return;
       }
 
-      // Confirmer côté backend
       await splitPaymentService.confirmPortionPayment(
         orderId as string,
         portionId,
         paymentData.payment_intent_id
       );
 
-      // Recharger
       await loadSplitSession();
 
-      // Vérifier completion
       const completionStatus = await splitPaymentService.checkCompletion(orderId as string);
 
       if (completionStatus.isCompleted) {
@@ -384,6 +434,10 @@ export default function SplitPaymentScreen() {
 
   const styles = createStyles(screenType);
 
+  // Montants pour le modal
+  const orderTotal = safeParseAmount(order?.total_amount);
+  const tipAmount = safeParseAmount((order as any)?.tip_amount);
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -428,6 +482,11 @@ export default function SplitPaymentScreen() {
       </View>
     );
   }
+
+  // Déterminer si aucune portion n'a encore été payée (permet de reconfigurer)
+  const hasAnyPaidPortion = splitSession
+    ? splitSession.portions.some((p: any) => p.isPaid)
+    : false;
 
   return (
     <StripeProvider publishableKey={STRIPE_PUBLISHABLE_KEY}>
@@ -520,6 +579,8 @@ export default function SplitPaymentScreen() {
                     : 'Chargement des portions...'}
                 </Text>
               </View>
+
+
             </View>
           </Card>
 
@@ -530,22 +591,42 @@ export default function SplitPaymentScreen() {
               currentUserPortionId={currentUserPortionId}
               onPayPortion={handlePayPortion}
               onPayAllRemaining={handlePayAllRemaining}
+              onEditSplit={isHost && !hasAnyPaidPortion ? () => setShowSplitModal(true) : undefined}
               isProcessing={processing}
             />
           ) : (
             <Card style={styles.card}>
               <View style={styles.emptyState}>
-                <Ionicons name="hourglass-outline" size={40} color={COLORS.text.light} />
+                <Ionicons name="options-outline" size={40} color={COLORS.primary} />
                 <Text style={styles.emptyText}>
-                  En attente de la création du paiement divisé...
+                  Configurez la division de la note
                 </Text>
                 <Text style={styles.emptySubtext}>
-                  L'hôte est en train de configurer la division de la note.
+                  {isHost
+                    ? 'Choisissez comment répartir le paiement entre les participants.'
+                    : 'L\'hôte est en train de configurer la division de la note.'}
                 </Text>
+                {isHost && (
+                  <Button
+                    title="Diviser la note"
+                    onPress={() => setShowSplitModal(true)}
+                    leftIcon={<Ionicons name="cut-outline" size={18} color={COLORS.surface} />}
+                    style={{ marginTop: 16, borderRadius: 12 }}
+                  />
+                )}
               </View>
             </Card>
           )}
         </ScrollView>
+
+        {/* Modal de configuration du split */}
+        <SplitPaymentModal
+          visible={showSplitModal}
+          onClose={() => setShowSplitModal(false)}
+          totalAmount={orderTotal}
+          tipAmount={tipAmount}
+          onConfirm={handleSplitConfirm}
+        />
       </View>
     </StripeProvider>
   );

@@ -291,7 +291,6 @@ class StripeWebhookView(APIView):
             logger.error(f"Error handling split payment success: {e}")
 
     def _handle_single_portion_success(self, session, portion_id, payment_intent_id):
-        """Traiter le succès d'une portion individuelle"""
         try:
             portion = session.portions.get(id=portion_id)
             
@@ -299,7 +298,6 @@ class StripeWebhookView(APIView):
                 logger.warning(f"Portion {portion_id} already marked as paid")
                 return
             
-            # Marquer la portion comme payée
             portion.mark_as_paid(
                 payment_intent_id=payment_intent_id,
                 payment_method='online'
@@ -307,21 +305,24 @@ class StripeWebhookView(APIView):
             
             logger.info(f"Portion {portion_id} marked as paid")
             
-            # Vérifier si toutes les portions sont payées
-            if session.is_completed and session.status != 'completed':
-                session.mark_as_completed()
-                logger.info(f"Split payment session {session.id} completed")
-                
-                # Envoyer notifications si nécessaire
-                self._send_completion_notifications(session.order)
-                
+            # Rafraîchir la session (mark_as_paid peut avoir auto-complété)
+            session.refresh_from_db()
+            
+            if session.status == 'completed':
+                order = session.order
+                if order.payment_status != 'paid':
+                    order.payment_status = 'paid'
+                    order.payment_method = 'online'
+                    order.save(update_fields=['payment_status', 'payment_method'])
+                    logger.info(f"Order {order.id} marked as paid via split payment webhook")
+                self._send_completion_notifications(order)
+
         except SplitPaymentPortion.DoesNotExist:
             logger.error(f"Portion {portion_id} not found")
         except Exception as e:
             logger.error(f"Error handling single portion success: {e}")
 
     def _handle_remaining_payment_success(self, session, payment_intent_id):
-        """Traiter le succès du paiement du montant restant"""
         try:
             unpaid_portions = session.portions.filter(is_paid=False)
             
@@ -329,7 +330,6 @@ class StripeWebhookView(APIView):
                 logger.warning("No unpaid portions found for remaining payment")
                 return
             
-            # Marquer toutes les portions restantes comme payées
             for portion in unpaid_portions:
                 portion.mark_as_paid(
                     payment_intent_id=payment_intent_id,
@@ -338,13 +338,18 @@ class StripeWebhookView(APIView):
             
             logger.info(f"All remaining portions marked as paid for session {session.id}")
             
-            # La session devrait être automatiquement complétée par le signal
-            if session.status != 'completed':
-                session.mark_as_completed()
-                
-            # Envoyer notifications
-            self._send_completion_notifications(session.order)
+            # Rafraîchir la session
+            session.refresh_from_db()
             
+            if session.status == 'completed':
+                order = session.order
+                if order.payment_status != 'paid':
+                    order.payment_status = 'paid'
+                    order.payment_method = 'online'
+                    order.save(update_fields=['payment_status', 'payment_method'])
+                    logger.info(f"Order {order.id} marked as paid via remaining split payment webhook")
+                self._send_completion_notifications(order)
+
         except Exception as e:
             logger.error(f"Error handling remaining payment success: {e}")
 

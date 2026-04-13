@@ -86,17 +86,11 @@ class SplitPaymentSession(models.Model):
         return self.portions.filter(is_paid=False).count()
 
     def mark_as_completed(self):
-        """Marquer la session comme terminée"""
+        """Marquer la session comme terminée."""
+        
         self.status = 'completed'
         self.completed_at = timezone.now()
         self.save()
-
-        # Marquer la commande comme payée
-        if hasattr(self.order, 'payment_status'):
-            self.order.payment_status = 'paid'
-            self.order.save()
-
-
 
 class SplitPaymentPortion(models.Model):
     """Une portion d'un paiement divisé"""
