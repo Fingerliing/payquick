@@ -9,6 +9,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { router } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useClientOrders } from '@/hooks/client/useClientOrders';
@@ -821,6 +822,13 @@ export default function ClientOrdersScreen() {
 
   // Auto-refresh pour commandes actives
   useAutoRefresh(hasActiveOrders, handleRefresh, realtimeState.isConnected);
+
+  // Rafraîchir les commandes à chaque retour sur l'écran (ex: après paiement)
+  useFocusEffect(
+    useCallback(() => {
+      fetchOrders();
+    }, [fetchOrders])
+  );
 
   // Configuration responsive
   const layoutConfig = {

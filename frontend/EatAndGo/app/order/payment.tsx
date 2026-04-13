@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -191,6 +191,9 @@ export default function PaymentScreen() {
   // Confirmation dialog state
   const [confirmationAlert, setConfirmationAlert] = useState<ConfirmationAlert | null>(null);
 
+  // Ref pour stocker le PI ID entre initializePayment et handlePaymentSuccess
+  const paymentIntentIdRef = useRef<string | null>(null);
+
   const TIP_PERCENTAGES = [5, 10, 15, 20];
 
   // Payment methods configuration
@@ -361,10 +364,12 @@ export default function PaymentScreen() {
           total_with_tip: totalWithTip.toString(),
         });
         clientSecret = res?.client_secret;
+        paymentIntentIdRef.current = res?.payment_intent_id ?? null;
       } catch (e) {
         // fallback compat: API sans payload additionnel
         const res = await paymentService.createPaymentIntent(orderId as string);
         clientSecret = (res as any)?.client_secret;
+        paymentIntentIdRef.current = (res as any)?.payment_intent_id ?? null;
       }
 
       if (!clientSecret) throw new Error('Client secret manquant');
@@ -471,8 +476,22 @@ export default function PaymentScreen() {
 
   const handlePaymentSuccess = async (method: PaymentMethodType) => {
     try {
-      // Paiement online : le webhook Stripe met à jour order.payment_status → rien à faire ici.
-      // Paiement cash   : déjà mis à jour par handleCashPayment() avant cet appel.
+      // Paiement online : confirmer côté backend avec vérification Stripe du PI.
+      // Le webhook Stripe sert de fallback asynchrone.
+      if (method === 'online' && paymentIntentIdRef.current) {
+        try {
+          await paymentService.updatePaymentStatus(
+            orderId as string,
+            'paid',
+            'online',
+            paymentIntentIdRef.current
+          );
+        } catch (e) {
+          // Le webhook Stripe fera le travail en fallback
+          console.warn('Sync payment confirmation failed, webhook will handle:', e);
+        }
+      }
+      // Paiement cash : déjà mis à jour par handleCashPayment() avant cet appel.
       if (wantReceipt && customerEmail && isValidEmail(customerEmail)) {
         try {
           await receiptService.sendReceiptByEmail({ 

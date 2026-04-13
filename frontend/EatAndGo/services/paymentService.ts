@@ -12,10 +12,18 @@ export class PaymentService {
     });
   }
 
-  async updatePaymentStatus(orderId: string, paymentStatus: string, paymentMethod?: string): Promise<void> {
+  async updatePaymentStatus(
+    orderId: string,
+    paymentStatus: string,
+    paymentMethod?: string,
+    paymentIntentId?: string
+  ): Promise<void> {
     const payload: any = { payment_status: paymentStatus };
     if (paymentMethod) {
       payload.payment_method = paymentMethod;
+    }
+    if (paymentIntentId) {
+      payload.payment_intent_id = paymentIntentId;
     }
     await apiClient.post(`/api/v1/payments/update-status/${orderId}/`, payload);
   }
