@@ -147,12 +147,10 @@ const useAutoRefresh = (
 const RealtimeIndicator = React.memo(({ 
   connectionState, 
   activeOrdersCount,
-  lastUpdateTime,
   screenType 
 }: { 
   connectionState: 'connecting' | 'connected' | 'disconnected' | 'error';
   activeOrdersCount: number;
-  lastUpdateTime?: Date;
   screenType: 'mobile' | 'tablet' | 'desktop';
 }) => {
   if (activeOrdersCount === 0) return null;
@@ -208,25 +206,12 @@ const RealtimeIndicator = React.memo(({
       fontWeight: '500' as const,
       color,
     },
-    timeText: {
-      fontSize: getResponsiveValue(
-        { mobile: 10, tablet: 11, desktop: 12 },
-        screenType
-      ),
-      color: COLORS.text.secondary,
-      marginLeft: getResponsiveValue(SPACING.xs, screenType),
-    },
   };
 
   return (
     <View style={styles.indicator}>
       <Ionicons name={icon} size={getResponsiveValue({ mobile: 12, tablet: 13, desktop: 14 }, screenType)} color={color} />
       <Text style={styles.text}>{text}</Text>
-      {lastUpdateTime && connectionState === 'connected' && (
-        <Text style={styles.timeText}>
-          {lastUpdateTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-        </Text>
-      )}
     </View>
   );
 });
@@ -448,7 +433,7 @@ const OrderCard = React.memo(({
         </View>
 
         <View style={styles.details}>
-          {item.table_number && (
+          {!!item.table_number && (
             <View style={styles.detailItem}>
               <Ionicons name="restaurant-outline" size={iconSize} color={COLORS.text.secondary} />
               <Text style={styles.detailText}>Table {item.table_number}</Text>
@@ -482,7 +467,7 @@ const OrderCard = React.memo(({
         </View>
 
         {/* Temps d'attente pour commandes actives */}
-        {displayInfo.isActive && item.waiting_time && (
+        {displayInfo.isActive && !!item.waiting_time && (
           <View style={styles.waitingTime}>
             <Ionicons name="time-outline" size={iconSize} color={COLORS.warning} />
             <Text style={styles.waitingTimeText}>
@@ -598,7 +583,6 @@ const ActiveOrdersSection = React.memo(({
   realtimeState?: {
     connectionState: 'connecting' | 'connected' | 'disconnected' | 'error';
     activeOrdersCount: number;
-    lastUpdateTime?: Date;
   };
   screenType: 'mobile' | 'tablet' | 'desktop';
 }) => {
@@ -677,7 +661,6 @@ const ActiveOrdersSection = React.memo(({
             <RealtimeIndicator 
               connectionState={realtimeState.connectionState}
               activeOrdersCount={realtimeState.activeOrdersCount}
-              lastUpdateTime={realtimeState.lastUpdateTime}
               screenType={screenType}
             />
           )}

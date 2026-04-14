@@ -426,7 +426,7 @@ ${trackingData.gamification.message}
                     {stats.preparationQuality}/100
                   </Text>
                 </View>
-                {stats.timeEfficiency && (
+                {!!stats.timeEfficiency && (
                   <View style={styles.statItem}>
                     <Text style={styles.statLabel}>Efficacité</Text>
                     <Text style={styles.statValue}>
@@ -434,7 +434,7 @@ ${trackingData.gamification.message}
                     </Text>
                   </View>
                 )}
-                {stats.serviceSpeedScore && (
+                {!!stats.serviceSpeedScore && (
                   <View style={styles.statItem}>
                     <Text style={styles.statLabel}>Vitesse</Text>
                     <Text style={styles.statValue}>
@@ -548,7 +548,7 @@ ${trackingData.gamification.message}
                       trackingData.completion_prediction
                     )}
                   </Text>
-                  {trackingData.completion_prediction.confidence && (
+                  {!!trackingData.completion_prediction.confidence && (
                     <View style={styles.confidenceMeter}>
                       <Text style={styles.confidenceLabel}>Précision</Text>
                       <View style={styles.confidenceBarContainer}>
@@ -623,7 +623,7 @@ ${trackingData.gamification.message}
           <Text style={styles.headerTitleText}>Suivi en temps réel</Text>
           {trackingData && (
             <View style={styles.headerSubtitleRow}>
-              {trackingData.table_number && (
+              {!!trackingData.table_number && (
                 <Text style={styles.headerSubtitle}>Table {trackingData.table_number}</Text>
               )}
               <Text style={styles.headerSubtitle}>#{orderId}</Text>
@@ -639,6 +639,12 @@ ${trackingData.gamification.message}
           )}
           {renderHealthIndicator()}
           {renderProgressRateIndicator()}
+          {trackingData && ['pending', 'confirmed', 'preparing', 'ready'].includes(trackingData.order_status) && (
+            <View style={styles.realtimeIndicator}>
+              <View style={styles.realtimeDot} />
+              <Text style={styles.realtimeText}>Temps réel activé</Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.headerActions}>
@@ -855,6 +861,29 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#059669',
     fontWeight: '700',
+  },
+  realtimeIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 5,
+    backgroundColor: '#F0FDF4',
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+  },
+  realtimeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10B981',
+  },
+  realtimeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#10B981',
   },
   loadingContainer: {
     flex: 1,
