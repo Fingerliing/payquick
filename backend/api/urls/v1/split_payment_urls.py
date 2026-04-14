@@ -8,7 +8,6 @@ from api.views.split_payment_views import (
     ConfirmRemainingPaymentsView,
     SplitPaymentStatusView,
     CompleteSplitPaymentView,
-    CancelSplitPaymentSessionView,
     SplitPaymentHistoryView,
 )
 
@@ -16,7 +15,6 @@ urlpatterns = [
     # Gestion des sessions
     path('create/<int:order_id>/', CreateSplitPaymentSessionView.as_view(), name='create-split-session'),
     path('session/<int:order_id>/', GetSplitPaymentSessionView.as_view(), name='get-split-session'),
-    path('session/<int:order_id>/', CancelSplitPaymentSessionView.as_view(), name='cancel-split-session'),
     
     # Paiement des portions individuelles
     path('pay-portion/<int:order_id>/', PayPortionView.as_view(), name='pay-portion'),

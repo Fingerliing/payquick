@@ -308,6 +308,10 @@ class GetSplitPaymentSessionView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
+    def delete(self, request, order_id):
+        """Annuler la session — délègue à CancelSplitPaymentSessionView."""
+        return CancelSplitPaymentSessionView().delete(request, order_id)
+
 @extend_schema(
     tags=["Paiement Divisé"],
     summary="Créer un PaymentIntent pour une portion",
@@ -819,11 +823,18 @@ class CompleteSplitPaymentView(APIView):
             if session.status != 'completed':
                 session.mark_as_completed()
 
-            # order.payment_status est géré par le webhook Stripe uniquement
-            logger.info(
-                f"Split session finalisée pour commande #{order.id} "
-                f"— payment_status actuel : {order.payment_status}"
-            )
+            # Marquer la commande comme payée — le webhook fait pareil
+            # (idempotent : on vérifie avant d'écrire)
+            if order.payment_status != 'paid':
+                order.payment_status = 'paid'
+                order.payment_method = 'online'
+                order.save(update_fields=['payment_status', 'payment_method'])
+                logger.info(f"Order #{order.id} marked as paid via CompleteSplitPaymentView")
+            else:
+                logger.info(
+                    f"Split session finalisée pour commande #{order.id} "
+                    f"— payment_status déjà : {order.payment_status}"
+                )
 
             return Response({
                 'success': True,

@@ -294,18 +294,17 @@ class StripeWebhookView(APIView):
         try:
             portion = session.portions.get(id=portion_id)
             
-            if portion.is_paid:
-                logger.warning(f"Portion {portion_id} already marked as paid")
-                return
+            if not portion.is_paid:
+                portion.mark_as_paid(
+                    payment_intent_id=payment_intent_id,
+                    payment_method='online'
+                )
+                logger.info(f"Portion {portion_id} marked as paid")
+            else:
+                logger.info(f"Portion {portion_id} already paid, checking session completion")
             
-            portion.mark_as_paid(
-                payment_intent_id=payment_intent_id,
-                payment_method='online'
-            )
-            
-            logger.info(f"Portion {portion_id} marked as paid")
-            
-            # Rafraîchir la session (mark_as_paid peut avoir auto-complété)
+            # Toujours vérifier la complétion de la session/order,
+            # même si la portion était déjà marquée (race avec ConfirmPortionPaymentView)
             session.refresh_from_db()
             
             if session.status == 'completed':
@@ -326,19 +325,17 @@ class StripeWebhookView(APIView):
         try:
             unpaid_portions = session.portions.filter(is_paid=False)
             
-            if not unpaid_portions.exists():
-                logger.warning("No unpaid portions found for remaining payment")
-                return
+            if unpaid_portions.exists():
+                for portion in unpaid_portions:
+                    portion.mark_as_paid(
+                        payment_intent_id=payment_intent_id,
+                        payment_method='online'
+                    )
+                logger.info(f"All remaining portions marked as paid for session {session.id}")
+            else:
+                logger.info(f"All portions already paid for session {session.id}, checking order status")
             
-            for portion in unpaid_portions:
-                portion.mark_as_paid(
-                    payment_intent_id=payment_intent_id,
-                    payment_method='online'
-                )
-            
-            logger.info(f"All remaining portions marked as paid for session {session.id}")
-            
-            # Rafraîchir la session
+            # Toujours vérifier la complétion, même si tout était déjà marqué
             session.refresh_from_db()
             
             if session.status == 'completed':
