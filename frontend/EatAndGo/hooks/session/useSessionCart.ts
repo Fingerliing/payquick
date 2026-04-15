@@ -2,7 +2,7 @@
  * Hook pour gérer le panier partagé en temps réel lors d'une session collaborative. 
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import secureStorage from '@/utils/secureStorage';
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -268,11 +268,15 @@ export const useSessionCart = ({
   ): Promise<void> => {
     if (!sessionId) return;
 
-    const prev = state.items;
-    const optimisticItems = prev.map(item =>
-      item.id === itemId ? { ...item, ...updates } : item
-    );
-    setState(s => ({ ...s, items: optimisticItems, ...computeSummary(optimisticItems) }));
+    // Snapshot pour rollback
+    let prevItems: SessionCartItem[] = [];
+    setState(s => {
+      prevItems = s.items;
+      const optimisticItems = s.items.map(item =>
+        item.id === itemId ? { ...item, ...updates } : item
+      );
+      return { ...s, items: optimisticItems, ...computeSummary(optimisticItems) };
+    });
 
     try {
       const headers = await getAuthHeaders();
@@ -283,16 +287,19 @@ export const useSessionCart = ({
       });
       if (!res.ok && res.status !== 204) throw new Error(`HTTP ${res.status}`);
     } catch (err: any) {
-      setState(s => ({ ...s, items: prev, ...computeSummary(prev), error: err.message }));
+      setState(s => ({ ...s, items: prevItems, ...computeSummary(prevItems), error: err.message }));
     }
-  }, [sessionId, sessionBase, getAuthHeaders, state.items]);
+  }, [sessionId, sessionBase, getAuthHeaders]);
 
   const removeItem = useCallback(async (itemId: string): Promise<void> => {
     if (!sessionId) return;
 
-    const prev = state.items;
-    const optimisticItems = prev.filter(i => i.id !== itemId);
-    setState(s => ({ ...s, items: optimisticItems, ...computeSummary(optimisticItems) }));
+    let prevItems: SessionCartItem[] = [];
+    setState(s => {
+      prevItems = s.items;
+      const optimisticItems = s.items.filter(i => i.id !== itemId);
+      return { ...s, items: optimisticItems, ...computeSummary(optimisticItems) };
+    });
 
     try {
       const headers = await getAuthHeaders();
@@ -302,18 +309,21 @@ export const useSessionCart = ({
       });
       if (!res.ok && res.status !== 204) throw new Error(`HTTP ${res.status}`);
     } catch (err: any) {
-      setState(s => ({ ...s, items: prev, ...computeSummary(prev), error: err.message }));
+      setState(s => ({ ...s, items: prevItems, ...computeSummary(prevItems), error: err.message }));
     }
-  }, [sessionId, sessionBase, getAuthHeaders, state.items]);
+  }, [sessionId, sessionBase, getAuthHeaders]);
 
   const clearMyItems = useCallback(async (): Promise<void> => {
     if (!sessionId) return;
 
-    const prev = state.items;
-    const optimisticItems = participantId
-      ? prev.filter(i => i.participant !== participantId)
-      : [];
-    setState(s => ({ ...s, items: optimisticItems, ...computeSummary(optimisticItems) }));
+    let prevItems: SessionCartItem[] = [];
+    setState(s => {
+      prevItems = s.items;
+      const optimisticItems = participantId
+        ? s.items.filter(i => i.participant !== participantId)
+        : [];
+      return { ...s, items: optimisticItems, ...computeSummary(optimisticItems) };
+    });
 
     try {
       const headers = await getAuthHeaders();
@@ -323,25 +333,31 @@ export const useSessionCart = ({
       });
       if (!res.ok && res.status !== 204) throw new Error(`HTTP ${res.status}`);
     } catch (err: any) {
-      setState(s => ({ ...s, items: prev, ...computeSummary(prev), error: err.message }));
+      setState(s => ({ ...s, items: prevItems, ...computeSummary(prevItems), error: err.message }));
     }
-  }, [sessionId, sessionBase, getAuthHeaders, participantId, state.items]);
+  }, [sessionId, sessionBase, getAuthHeaders, participantId]);
 
   // ── Items groupés par participant ─────────────────────────────────────────
 
-  const itemsByParticipant = state.items.reduce<Record<string, SessionCartItem[]>>(
-    (acc, item) => {
-      const key = item.participant_name;
-      if (!acc[key]) acc[key] = [];
-      acc[key].push(item);
-      return acc;
-    },
-    {}
+  const itemsByParticipant = useMemo(() =>
+    state.items.reduce<Record<string, SessionCartItem[]>>(
+      (acc, item) => {
+        const key = item.participant_name;
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(item);
+        return acc;
+      },
+      {}
+    ),
+    [state.items]
   );
 
-  const myItems = participantId
-    ? state.items.filter(item => item.participant === participantId)
-    : [];
+  const myItems = useMemo(() =>
+    participantId
+      ? state.items.filter(item => item.participant === participantId)
+      : [],
+    [state.items, participantId]
+  );
 
   return {
     ...state,

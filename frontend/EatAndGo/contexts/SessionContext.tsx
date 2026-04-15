@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { collaborativeSessionService } from '@/services/collaborativeSessionService';
@@ -118,9 +118,10 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const sessionRef = useRef<CollaborativeSession | null>(null);
   const participantIdRef = useRef<string | null>(null);
 
-  const isHost = session?.participants?.some(
-    p => p.id === participantId && p.is_host
-  ) ?? false;
+  const isHost = useMemo(() =>
+    session?.participants?.some(p => p.id === participantId && p.is_host) ?? false,
+    [session?.participants, participantId]
+  );
 
   // =============================================================================
   // WEBSOCKET : REDIRECTION SPLIT PAYMENT
@@ -175,9 +176,11 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (storedSession) {
         const parsedSession: CollaborativeSession = JSON.parse(storedSession);
         setSession(parsedSession);
+        sessionRef.current = parsedSession;
 
         if (storedParticipantId) {
           setParticipantId(storedParticipantId);
+          participantIdRef.current = storedParticipantId;
         }
 
         // Tenter un refresh pour obtenir l'état serveur le plus récent.
@@ -314,11 +317,11 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // =============================================================================
 
   const leaveSession = useCallback(async () => {
-    if (!session || !participantId) return;
+    if (!sessionRef.current || !participantIdRef.current) return;
 
     setIsLoading(true);
     try {
-      await collaborativeSessionService.leaveSession(session.id, participantId);
+      await collaborativeSessionService.leaveSession(sessionRef.current.id, participantIdRef.current);
       await clearSession();
     } catch (error) {
       console.error('[SessionContext] Erreur quitter:', error);
@@ -326,7 +329,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } finally {
       setIsLoading(false);
     }
-  }, [session, participantId, clearSession]);
+  }, [clearSession]);
 
 
   // =============================================================================
@@ -395,7 +398,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // VALEUR DU CONTEXTE
   // =============================================================================
 
-  const value: SessionContextType = {
+  const value: SessionContextType = useMemo(() => ({
     session,
     participantId,
     isHost,
@@ -408,7 +411,11 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     clearSession,
     getSessionByCode,
     activatePendingSession,
-  };
+  }), [
+    session, participantId, isHost, isLoading, isSessionInitialized,
+    createSession, joinSession, leaveSession, refreshSession,
+    clearSession, getSessionByCode, activatePendingSession,
+  ]);
 
   return (
     <SessionContext.Provider value={value}>

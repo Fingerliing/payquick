@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo, ReactNode } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { Cart, CartItem, CartContextType } from "@/types/cart";
 import { tableOrderService, TableOrdersResponse, OrderWithTableInfo } from "@/services/tableOrderService";
@@ -71,13 +71,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     loadInitialData();
   }, []);
 
-  // Charger les commandes de table quand on a un restaurant, une table ET une session QR valide
-  useEffect(() => {
-    if (cart.restaurantId && cart.tableNumber && isInitialized && qrSessionData) {
-      refreshTableOrders();
-    }
-  }, [cart.restaurantId, cart.tableNumber, isInitialized, qrSessionData]);
-
   const loadInitialData = async () => {
     try {
       // Charger le cart persistant
@@ -137,7 +130,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   }, [cart, isInitialized]);
 
   // Méthodes pour les commandes multiples
-  const refreshTableOrders = async () => {
+  const refreshTableOrders = useCallback(async () => {
     if (!cart.restaurantId || !cart.tableNumber) {
       setTableOrders(null);
       return;
@@ -153,17 +146,26 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       );
       
       setTableOrders(data);
+      setIsLoadingTableOrders(false);
       console.log('📋 Table orders refreshed:', data.active_orders.length + ' active orders');
       
     } catch (error: any) {
       console.error('⚠️ Error loading table orders:', error);
       setTableOrdersError(error.message || 'Erreur lors du chargement des commandes');
-    } finally {
       setIsLoadingTableOrders(false);
     }
-  };
+  }, [cart.restaurantId, cart.tableNumber]);
 
-  const addOrderToTable = async (orderData: CreateOrderRequest): Promise<OrderWithTableInfo> => {
+  // Charger les commandes de table quand on a un restaurant, une table ET une session QR valide
+  useEffect(() => {
+    if (cart.restaurantId && cart.tableNumber && isInitialized && qrSessionData) {
+      refreshTableOrders();
+    }
+  }, [cart.restaurantId, cart.tableNumber, isInitialized, qrSessionData, refreshTableOrders]);
+
+  const clearCart: CartContextType["clearCart"] = useCallback(() => setCart(emptyCart()), []);
+
+  const addOrderToTable = useCallback(async (orderData: CreateOrderRequest): Promise<OrderWithTableInfo> => {
     if (!cart.restaurantId || !cart.tableNumber) {
       throw new Error('Restaurant et table requis pour passer une commande');
     }
@@ -218,10 +220,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       console.error('⚠️ Error adding order to table:', error);
       throw error;
     }
-  };
+  }, [cart.restaurantId, cart.tableNumber, cart.items, canAddOrderToTable, clearCart, refreshTableOrders]);
 
   // Méthodes QR existantes (inchangées)
-  const initializeFromQRSession = async (): Promise<void> => {
+  const initializeFromQRSession = useCallback(async (): Promise<void> => {
     try {
       const qrRaw = await AsyncStorage.getItem(QR_SESSION_KEY);
       if (!qrRaw) return;
@@ -248,9 +250,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error('⚠️ Error initializing from QR session:', error);
     }
-  };
+  }, []);
 
-  const getQRSessionData = async (): Promise<QRSessionData | null> => {
+  const getQRSessionData = useCallback(async (): Promise<QRSessionData | null> => {
     try {
       const qrRaw = await AsyncStorage.getItem(QR_SESSION_KEY);
       return qrRaw ? JSON.parse(qrRaw) : null;
@@ -258,9 +260,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       console.error('⚠️ Error getting QR session data:', error);
       return null;
     }
-  };
+  }, []);
 
-  const updateTableFromQR = async (tableNumber: string): Promise<void> => {
+  const updateTableFromQR = useCallback(async (tableNumber: string): Promise<void> => {
     try {
       setCart(prev => ({ ...prev, tableNumber }));
 
@@ -273,10 +275,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error('⚠️ Error updating table from QR:', error);
     }
-  };
+  }, [qrSessionData]);
 
   // Méthodes du cart
-  const addToCart: CartContextType["addToCart"] = (item, quantity = 1) => {
+  const addToCart: CartContextType["addToCart"] = useCallback((item, quantity = 1) => {
     setCart(prev => {
       const shouldReset = prev.restaurantId && prev.restaurantId !== item.restaurantId;
       const base = shouldReset ? emptyCart() : prev;
@@ -333,36 +335,35 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         });
       }
     });
-  };
+  }, []);
 
-  const removeFromCart: CartContextType["removeFromCart"] = (itemId) => {
+  const removeFromCart: CartContextType["removeFromCart"] = useCallback((itemId) => {
     setCart(prev => {
       const newItems = prev.items.filter(it => it.id !== itemId);
       const next = newItems.length ? { ...prev, items: newItems } : emptyCart();
       return calculateTotals(next);
     });
-  };
+  }, []);
 
-  const updateQuantity: CartContextType["updateQuantity"] = (itemId, quantity) => {
+  const updateQuantity: CartContextType["updateQuantity"] = useCallback((itemId, quantity) => {
     if (quantity <= 0) return removeFromCart(itemId);
     setCart(prev => {
       const newItems = prev.items.map(it => (it.id === itemId ? { ...it, quantity } : it));
       return calculateTotals({ ...prev, items: newItems });
     });
-  };
+  }, [removeFromCart]);
 
-  const setTableNumber: CartContextType["setTableNumber"] = (tableNumber) => {
+  const setTableNumber: CartContextType["setTableNumber"] = useCallback((tableNumber) => {
     setCart(prev => ({ ...prev, tableNumber }));
     updateTableFromQR(tableNumber).catch(console.error);
-  };
+  }, [updateTableFromQR]);
 
-  const clearCart: CartContextType["clearCart"] = () => setCart(emptyCart());
-  const getCartTotal: CartContextType["getCartTotal"] = () => cart.total;
-  const getItemCount: CartContextType["getItemCount"] = () => cart.itemCount;
-  const isCartForRestaurant: CartContextType["isCartForRestaurant"] = (restaurantId) =>
-    !cart.restaurantId || cart.restaurantId === restaurantId;
+  const getCartTotal: CartContextType["getCartTotal"] = useCallback(() => cart.total, [cart.total]);
+  const getItemCount: CartContextType["getItemCount"] = useCallback(() => cart.itemCount, [cart.itemCount]);
+  const isCartForRestaurant: CartContextType["isCartForRestaurant"] = useCallback((restaurantId) =>
+    !cart.restaurantId || cart.restaurantId === restaurantId, [cart.restaurantId]);
 
-  const value: ExtendedCartContextType = {
+  const value: ExtendedCartContextType = useMemo(() => ({
     // Méthodes existantes
     cart,
     addToCart,
@@ -388,7 +389,13 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     hasActiveTableOrders,
     canAddOrderToTable,
     addOrderToTable
-  };
+  }), [
+    cart, addToCart, removeFromCart, updateQuantity, clearCart, getCartTotal,
+    getItemCount, isCartForRestaurant, setTableNumber, initializeFromQRSession,
+    getQRSessionData, updateTableFromQR, qrSessionData, tableOrders,
+    isLoadingTableOrders, tableOrdersError, refreshTableOrders,
+    hasActiveTableOrders, canAddOrderToTable, addOrderToTable
+  ]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 };

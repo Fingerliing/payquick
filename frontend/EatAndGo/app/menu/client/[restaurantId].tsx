@@ -419,8 +419,6 @@ export default function OptimizedRestaurantPage() {
     [effectiveSessionId, sessionCart.items_count, cart.itemCount]
   );
 
-  console.log('totalCartItems', totalCartItems);
-
   // =============================================================================
   // HANDLERS
   // =============================================================================
@@ -470,7 +468,7 @@ export default function OptimizedRestaurantPage() {
       addToCart(cartItem);
       showToast('success', 'Ajouté au panier', `${item.name} a été ajouté`);
     },
-    [effectiveSessionId, sessionCart, cart.items.length, cart.restaurantId, restaurantId, restaurant, addToCart, showToast]
+    [effectiveSessionId, sessionCart.addItem, sessionCart.refresh, cart.items.length, cart.restaurantId, restaurantId, restaurant, addToCart, showToast]
   );
 
   const proceedAddToCart = useCallback(
@@ -507,14 +505,14 @@ export default function OptimizedRestaurantPage() {
     loadData();
   }, [loadData]);
 
-  const handleViewModeChange = (mode: ViewMode) => setViewMode(mode);
-  const handleQuickFilter = (mode: 'all' | 'dietary') => setQuickFilterMode(mode);
-  const handleCategorySelect = (categoryId: string | null) =>
-    setFilters(prev => ({ ...prev, selectedCategory: categoryId }));
-  const handleSearchChange = (text: string) =>
-    setFilters(prev => ({ ...prev, searchQuery: text }));
+  const handleViewModeChange = useCallback((mode: ViewMode) => setViewMode(mode), []);
+  const handleQuickFilter = useCallback((mode: 'all' | 'dietary') => setQuickFilterMode(mode), []);
+  const handleCategorySelect = useCallback((categoryId: string | null) =>
+    setFilters(prev => ({ ...prev, selectedCategory: categoryId })), []);
+  const handleSearchChange = useCallback((text: string) =>
+    setFilters(prev => ({ ...prev, searchQuery: text })), []);
 
-  const toggleDietaryFilter = (filter: 'vegan' | 'vegetarian' | 'glutenFree') => {
+  const toggleDietaryFilter = useCallback((filter: 'vegan' | 'vegetarian' | 'glutenFree') => {
     setFilters(prev => {
       switch (filter) {
         case 'vegan':        return { ...prev, showVeganOnly: !prev.showVeganOnly };
@@ -523,9 +521,9 @@ export default function OptimizedRestaurantPage() {
         default:             return prev;
       }
     });
-  };
+  }, []);
 
-  const clearAllFilters = () => {
+  const clearAllFilters = useCallback(() => {
     setFilters({
       selectedCategory: null,
       hideAllergens: [],
@@ -535,7 +533,7 @@ export default function OptimizedRestaurantPage() {
       searchQuery: '',
     });
     setQuickFilterMode('all');
-  };
+  }, []);
 
   // =============================================================================
   // HANDLERS SESSION BANNER
