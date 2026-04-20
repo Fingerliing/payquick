@@ -32,6 +32,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-secure-store",
       [
         "expo-notifications",
         {
@@ -40,9 +41,11 @@
           "defaultChannel": "default",
           "sounds": []
         }
-      ]
+      ],
+      "@stripe/stripe-react-native"
     ],
     "extra": {
+      "apiUrl": "https://api.eatquicker.fr",
       "router": {
         "origin": false
       },

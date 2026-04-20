@@ -2,8 +2,13 @@ import Constants from 'expo-constants';
 
 // Configuration de l'API
 export const API_BASE_URL = __DEV__ 
-  ? process.env.EXPO_PUBLIC_API_BASE_URL || 'http://192.168.1.163:8000' // Développement
-  : Constants.expoConfig?.extra?.apiUrl || 'https://your-production-api.com'; // Production
+  ? process.env.EXPO_PUBLIC_API_BASE_URL || 'http://192.168.1.163:8000'
+  : Constants.expoConfig?.extra?.apiUrl || 'https://api.eatquicker.fr';
+
+// URL WebSocket
+export const WS_BASE_URL = __DEV__
+  ? process.env.EXPO_PUBLIC_WS_BASE_URL || 'ws://192.168.1.163:8000'
+  : 'wss://ws.eatquicker.fr';
 
 if (!API_BASE_URL) {
   console.warn('⚠️ API_BASE_URL est undefined ! Vérifie ton .env et que EXPO_PUBLIC_API_BASE_URL est bien défini.');
@@ -12,10 +17,10 @@ if (!API_BASE_URL) {
 export const API_VERSION = 'v1';
 export const API_TIMEOUT = 10000; // 10 secondes
 
-// Configuration Stripe (si utilisé pour les paiements)
+// Configuration Stripe
 export const STRIPE_PUBLISHABLE_KEY = __DEV__
-  ? Constants.expoConfig?.extra?.stripePublishableKeyDev
-  : Constants.expoConfig?.extra?.stripePublishableKeyProd;
+  ? process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY_DEV
+  : process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY_PROD;
 
 // Configuration générale de l'app
 export const APP_CONFIG = {
@@ -59,63 +64,5 @@ export const ERROR_MESSAGES = {
     passwordMismatch: 'Les mots de passe ne correspondent pas',
     phoneInvalid: 'Format de téléphone invalide',
     nameTooShort: 'Le nom doit contenir au moins 2 caractères',
-  },
-};
-
-// Configuration des couleurs (peut être utilisé dans les composants UI)
-export const COLORS = {
-  primary: '#3B82F6',
-  secondary: '#6B7280',
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444',
-  background: '#F9FAFB',
-  surface: '#FFFFFF',
-  text: {
-    primary: '#111827',
-    secondary: '#6B7280',
-    light: '#9CA3AF',
-  },
-};
-
-// app.config.js (configuration Expo)
-export default {
-  expo: {
-    name: 'EatQuickeR',
-    slug: 'eatquicker',
-    version: '1.0.0',
-    orientation: 'portrait',
-    icon: './assets/icon.png',
-    userInterfaceStyle: 'light',
-    splash: {
-      image: './assets/splash.png',
-      resizeMode: 'contain',
-      backgroundColor: '#ffffff'
-    },
-    assetBundlePatterns: [
-      '**/*'
-    ],
-    ios: {
-      supportsTablet: true,
-      bundleIdentifier: 'com.yourcompany.eatquicker',
-      buildNumber: '1.0.0'
-    },
-    android: {
-      adaptiveIcon: {
-        foregroundImage: './assets/adaptive-icon.png',
-        backgroundColor: '#FFFFFF'
-      },
-      package: 'com.yourcompany.eatquicker',
-      versionCode: 1
-    },
-    web: {
-      favicon: './assets/favicon.png'
-    },
-    extra: {
-      // Variables d'environnement accessibles via Constants.expoConfig.extra
-      apiUrl: process.env.API_URL || 'http://localhost:8000',
-      stripePublishableKeyDev: process.env.STRIPE_PUBLISHABLE_KEY_DEV,
-      stripePublishableKeyProd: process.env.STRIPE_PUBLISHABLE_KEY_PROD,
-    },
   },
 };

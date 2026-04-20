@@ -1,0 +1,26 @@
+# Caddyfile — EatQuickeR Production
+# Certificats TLS gérés automatiquement par Let's Encrypt
+
+api.eatquicker.fr {
+	# Fichiers statiques (admin Django, Swagger)
+	handle /static/* {
+		root * /srv
+		file_server
+	}
+
+	# Fichiers media (images restaurants, avatars, etc.)
+	handle /media/* {
+		root * /srv
+		file_server
+	}
+
+	# Tout le reste → Django/Daphne (HTTP + WebSocket)
+	handle {
+		reverse_proxy web:8000
+	}
+}
+
+ws.eatquicker.fr {
+	# WebSocket uniquement → Daphne
+	reverse_proxy web:8000
+}

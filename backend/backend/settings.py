@@ -7,7 +7,7 @@ import socket
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Fonction pour obtenir l'IP locale
+# Fonction pour obtenir l'IP locale (utile en dev uniquement)
 def get_local_ip():
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -42,26 +42,46 @@ def get_redis_config():
             },
         }
 
-# CORS Configuration pour l'app mobile
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:19006",
-    f"http://{LOCAL_IP}:19006",
-    "http://localhost:8081",
-    f"http://{LOCAL_IP}:8081",
-]
-
-# Sécurité
+# ── Sécurité ─────────────────────────────────────────────────────────────────
 SECRET_KEY = config("SECRET_KEY")
 DEBUG = config("DEBUG", cast=bool, default=False)
-ALLOWED_HOSTS = [
-    'localhost',
-    '127.0.0.1',
-    LOCAL_IP,
-    '0.0.0.0',
-    '192.168.1.163',
-    '192.168.1.129',
-    '192.168.1.26',
-]
+
+# ALLOWED_HOSTS : en prod lu depuis .env, en dev on ajoute les IPs locales
+ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="", cast=Csv())
+if DEBUG:
+    ALLOWED_HOSTS += [
+        'localhost',
+        '127.0.0.1',
+        LOCAL_IP,
+        '0.0.0.0',
+    ]
+
+# ── CORS / CSRF ──────────────────────────────────────────────────────────────
+# En prod : lu depuis .env (ex: https://api.eatquicker.fr,https://eatquicker.fr)
+# En dev  : on ajoute les URLs locales pour Expo
+CORS_ALLOWED_ORIGINS = config("CORS_ALLOWED_ORIGINS", default="", cast=Csv())
+if DEBUG:
+    CORS_ALLOWED_ORIGINS += [
+        "http://localhost:19006",
+        f"http://{LOCAL_IP}:19006",
+        "http://localhost:8081",
+        f"http://{LOCAL_IP}:8081",
+    ]
+# L'app React Native mobile utilise des requêtes HTTP directes, pas un navigateur.
+# CORS_ALLOW_ALL_ORIGINS peut être True si seule l'app mobile consomme l'API.
+# Mais on garde la whitelist pour sécuriser l'admin Django et Swagger.
+
+CSRF_TRUSTED_ORIGINS = config("CSRF_TRUSTED_ORIGINS", default="", cast=Csv())
+
+# ── Sécurité HTTPS (production uniquement) ───────────────────────────────────
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 31536000       # 1 an
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
 
 # Apps Django
 INSTALLED_APPS = [
@@ -176,13 +196,24 @@ if 'test' in sys.argv:
     REST_FRAMEWORK['DEFAULT_THROTTLE_CLASSES'] = []
     REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'] = {}
 
-SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(days=7),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
-}
+# ── JWT ──────────────────────────────────────────────────────────────────────
+# En prod : access token court (30 min), refresh token 7 jours.
+# En dev  : access token long (7 jours) pour simplifier le debug.
+if DEBUG:
+    SIMPLE_JWT = {
+        "ACCESS_TOKEN_LIFETIME": timedelta(days=7),
+        "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
+    }
+else:
+    SIMPLE_JWT = {
+        "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+        "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+        "ROTATE_REFRESH_TOKENS": True,
+        "BLACKLIST_AFTER_ROTATION": True,
+    }
 
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'Eat & Go API',
+    'TITLE': 'EatQuickeR API',
     'DESCRIPTION': 'SaaS Restaurant Backend',
     'VERSION': '1.0.0',
 }
@@ -192,18 +223,16 @@ ACCOUNTING_SETTINGS = {
     'FEC_EXPORT_PATH': 'exports/fec/',
 }
 
-# Stripe
+# ── Stripe ───────────────────────────────────────────────────────────────────
 STRIPE_SECRET_KEY = config("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET = config("STRIPE_WEBHOOK_SECRET")
+STRIPE_CONNECT_WEBHOOK_SECRET = config("STRIPE_CONNECT_WEBHOOK_SECRET", default="")
 DOMAIN = config("DOMAIN")
 
 # Sirene API + Recaptcha
 SIRENE_API_TOKEN = config("SIRENE_API_TOKEN")
 RECAPTCHA_SECRET_KEY = config("RECAPTCHA_SECRET_KEY")
 RECAPTCHA_SCORE_THRESHOLD = config("RECAPTCHA_SCORE_THRESHOLD", default=0.5, cast=float)
-
-CORS_ALLOWED_ORIGINS = config("CORS_ALLOWED_ORIGINS", default="", cast=Csv())
-CSRF_TRUSTED_ORIGINS = config("CSRF_TRUSTED_ORIGINS", default="", cast=Csv())
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -283,19 +312,16 @@ else:
     EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
     EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 
-DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@eatquicker.com')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@eatquicker.fr')
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
 
 # ─── Twilio (désactivé — conservé pour migration progressive) ─────────────────
-# Plus utilisé pour la vérification. Conserver les variables dans .env
-# si vous utilisez encore Twilio pour d'autres usages.
 TWILIO_ACCOUNT_SID = config("TWILIO_ACCOUNT_SID", default="")
 TWILIO_AUTH_TOKEN = config("TWILIO_AUTH_TOKEN", default="")
 TWILIO_PHONE_NUMBER = config("TWILIO_PHONE_NUMBER", default="")
 TWILIO_VERIFY_SERVICE_SID = config('TWILIO_VERIFY_SERVICE_SID', default="")
 
 # ─── Vérification (email) ─────────────────────────────────────────────────────
-# Ces noms sont conservés pour ne pas casser les références existantes dans les modèles.
 SMS_CODE_EXPIRY_MINUTES = 10
 SMS_MAX_ATTEMPTS = 3
 SMS_RESEND_COOLDOWN_SECONDS = 60

@@ -15,8 +15,8 @@ from django.utils import timezone
 logger = logging.getLogger(__name__)
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
-APP_RETURN_URL  = "eatandgo://stripe/success"
-APP_REFRESH_URL = "eatandgo://stripe/refresh"
+APP_RETURN_URL  = "eatquicker://stripe/success"
+APP_REFRESH_URL = "eatquicker://stripe/refresh"
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -47,13 +47,13 @@ def create_stripe_account(request):
             email=user.email or user.username,
             business_profile={
                 'name': restaurateur_profile.user.get_full_name() or restaurateur_profile.user.first_name or restaurateur_profile.user.username,
-                'product_description': 'Restaurant et livraison de repas via Eat&Go',
+                'product_description': 'Restaurant et livraison de repas via EatQuickeR',
             },
             metadata={
                 'user_id': str(user.id),
                 'user_email': user.email or user.username,
                 'siret': restaurateur_profile.siret,
-                'app': 'Eat&Go',
+                'app': 'EatQuickeR',
                 'profile_id': str(restaurateur_profile.id),
             }
         )
@@ -180,20 +180,20 @@ def create_onboarding_link(request):
                          # La sécurité repose sur stripe.Webhook.construct_event()
                          # qui vérifie la signature HMAC du payload.
 def stripe_webhook(request):
-    """Gérer les webhooks Stripe"""
+    """Gérer les webhooks Stripe Connect (account events)"""
     payload = request.body
     sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
-    endpoint_secret = settings.STRIPE_WEBHOOK_SECRET
+    endpoint_secret = settings.STRIPE_CONNECT_WEBHOOK_SECRET
     
     try:
         event = stripe.Webhook.construct_event(
             payload, sig_header, endpoint_secret
         )
     except ValueError:
-        logger.error("Payload invalide dans webhook Stripe")
+        logger.error("Payload invalide dans webhook Stripe Connect")
         return HttpResponse(status=400)
     except stripe.error.SignatureVerificationError:
-        logger.error("Signature invalide dans webhook Stripe")
+        logger.error("Signature invalide dans webhook Stripe Connect")
         return HttpResponse(status=400)
     
     # Gérer l'événement
@@ -204,7 +204,7 @@ def stripe_webhook(request):
     elif event['type'] == 'account.application.deauthorized':
         handle_account_deauthorized(event['data']['object'])
     else:
-        logger.info(f"Événement Stripe non géré: {event['type']}")
+        logger.info(f"Événement Stripe Connect non géré: {event['type']}")
     
     return HttpResponse(status=200)
 

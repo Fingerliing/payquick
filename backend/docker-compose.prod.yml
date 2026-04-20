@@ -1,0 +1,83 @@
+# docker-compose.prod.yml — Production (OVH VPS 141.94.121.252)
+# Usage : docker compose -f docker-compose.prod.yml up -d --build
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"      # HTTP (redirigé automatiquement vers HTTPS)
+      - "443:443"    # HTTPS
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data          # Certificats Let's Encrypt
+      - caddy_config:/config
+      - static_data:/srv/static:ro
+      - media_data:/srv/media:ro
+    depends_on:
+      - web
+    restart: unless-stopped
+
+  web:
+    build: .
+    command: daphne -b 0.0.0.0 -p 8000 backend.asgi:application
+    volumes:
+      - static_data:/app/static
+      - media_data:/app/media
+    # Plus de ports exposés publiquement — Caddy s'en charge
+    expose:
+      - "8000"
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+  db:
+    image: postgres:15
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+
+  celery_worker:
+    build: .
+    command: celery -A backend worker -l info --concurrency=2
+    volumes:
+      - media_data:/app/media
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+  celery_beat:
+    build: .
+    command: celery -A backend beat -l info
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  static_data:
+  media_data:
+  caddy_data:
+  caddy_config:

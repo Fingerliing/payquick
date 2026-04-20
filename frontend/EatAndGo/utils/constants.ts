@@ -3,7 +3,7 @@ export const APP_CONFIG = {
   version: '1.0.0',
   api: {
     baseUrl: process.env.EXPO_PUBLIC_API_URL ||
-      (__DEV__ ? 'http://localhost:8000' : (() => { throw new Error('[EatQuickeR] EXPO_PUBLIC_API_URL non défini en production'); })()),
+      (__DEV__ ? 'http://localhost:8000' : 'https://api.eatquicker.fr'),
     timeout: 10000,
   },
   stripe: {
@@ -37,54 +37,10 @@ export const ERROR_MESSAGES = {
   unauthorized: 'Session expirée, veuillez vous reconnecter',
   validation: {
     required: 'Ce champ est obligatoire',
-    email: 'Format d\'email invalide',
+    email: "Format d'email invalide",
     passwordTooShort: 'Le mot de passe doit contenir au moins 8 caractères',
     passwordMismatch: 'Les mots de passe ne correspondent pas',
     phoneInvalid: 'Format de téléphone invalide',
     nameTooShort: 'Le nom doit contenir au moins 2 caractères',
-  },
-};
-
-// Configuration Expo mise à jour
-export const EXPO_CONFIG = {
-  expo: {
-    name: 'EatQuickeR',
-    slug: 'eatquicker',
-    version: '1.0.0',
-    orientation: 'portrait',
-    icon: './assets/icon.png',
-    userInterfaceStyle: 'light',
-    splash: {
-      image: './assets/splash.png',
-      resizeMode: 'contain',
-      backgroundColor: '#1E2A78' // Couleur principale de la marque
-    },
-    assetBundlePatterns: ['**/*'],
-    ios: {
-      supportsTablet: true,
-      bundleIdentifier: 'com.yourcompany.eatquicker',
-      buildNumber: '1.0.0'
-    },
-    android: {
-      adaptiveIcon: {
-        foregroundImage: './assets/adaptive-icon.png',
-        backgroundColor: '#1E2A78' // Couleur principale de la marque
-      },
-      package: 'com.yourcompany.eatquicker',
-      versionCode: 1
-    },
-    web: {
-      favicon: './assets/favicon.png'
-    },
-    plugins: [
-      'expo-router',
-      '@stripe/stripe-react-native',
-    ],
-    extra: {
-      apiUrl: process.env.API_URL ||
-        (__DEV__ ? 'http://localhost:8000' : (() => { throw new Error('[EatQuickeR] API_URL non défini en production'); })()),
-      stripePublishableKeyDev: process.env.STRIPE_PUBLISHABLE_KEY_DEV,
-      stripePublishableKeyProd: process.env.STRIPE_PUBLISHABLE_KEY_PROD,
-    },
   },
 };
