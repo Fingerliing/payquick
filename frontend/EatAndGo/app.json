@@ -42,7 +42,10 @@
           "sounds": []
         }
       ],
-      "@stripe/stripe-react-native"
+      ["@stripe/stripe-react-native", {
+        "merchantIdentifier": "merchant.com.fingerliing.EatQuickeR",
+        "enableGooglePay": true
+      }]
     ],
     "extra": {
       "apiUrl": "https://api.eatquicker.fr",
