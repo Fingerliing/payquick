@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/Button';
 import { Loading } from '@/components/ui/Loading';
 import { RestaurantCard } from '@/components/restaurant/RestaurantCard';
 import { ValidationPending } from '@/components/restaurant/ValidationPending';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { OrderList, OrderDetail } from '@/types/order';
 import { RecentOrder } from '@/types/user';
@@ -220,6 +220,7 @@ export default function DashboardScreen() {
     isLoading: restaurantsLoading,
     error: restaurantsError,
     validationStatus,
+    clearValidationStatus,
   } = useRestaurant();
 
   const {
@@ -652,11 +653,7 @@ export default function DashboardScreen() {
     },
   });
 
-  // Validation check
-  if (isRestaurateur && validationStatus?.needsValidation) {
-    return <ValidationPending validationStatus={validationStatus} />;
-  }
-
+  // Chargement initial (au montage uniquement)
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -683,6 +680,50 @@ export default function DashboardScreen() {
 
     fetchData();
   }, []);
+
+  // Rafraîchir à chaque fois que l'écran reprend le focus (ex: retour depuis Stripe onboarding)
+  // Permet de sortir automatiquement de l'état ValidationPending une fois le compte validé.
+  useFocusEffect(
+    useCallback(() => {
+      if (!isRestaurateur) return;
+
+      const stillNeedsValidation =
+        validationStatus?.needsValidation === true ||
+        user?.roles?.has_validated_profile === false;
+
+      if (stillNeedsValidation) {
+        refreshUser().catch(() => {});
+        loadRestaurants().catch(() => {});
+      }
+    }, [
+      isRestaurateur,
+      validationStatus?.needsValidation,
+      user?.roles?.has_validated_profile,
+    ])
+  );
+
+  // Si le backend a confirmé la validation mais que le flag local est resté collé,
+  // on le nettoie ici pour éviter la boucle infinie vers /(auth)/stripe.
+  useEffect(() => {
+    if (
+      user?.roles?.has_validated_profile === true &&
+      validationStatus?.needsValidation === true &&
+      typeof clearValidationStatus === 'function'
+    ) {
+      clearValidationStatus();
+    }
+  }, [user?.roles?.has_validated_profile, validationStatus?.needsValidation]);
+
+  // Affichage ValidationPending : UNIQUEMENT si le user n'est pas encore validé côté backend.
+  // Sans cette double garde, un flag `validationStatus` resté collé créait une boucle
+  // dashboard → (auth)/stripe → dashboard.
+  if (
+    isRestaurateur &&
+    validationStatus?.needsValidation &&
+    !user?.roles?.has_validated_profile
+  ) {
+    return <ValidationPending validationStatus={validationStatus} />;
+  }
 
   const onRefresh = async () => {
     setRefreshing(true);

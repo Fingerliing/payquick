@@ -242,10 +242,14 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
       
       const { restaurants, pagination } = extractRestaurantData(response);
       
-      
       dispatch({ type: 'SET_RESTAURANTS', payload: restaurants });
       dispatch({ type: 'SET_PAGINATION', payload: pagination || state.pagination });
-      
+
+      // Si l'appel a réussi, on n'est plus dans un état de validation bloquante
+      if (state.validationStatus?.needsValidation) {
+        dispatch({ type: 'SET_VALIDATION_STATUS', payload: null });
+      }
+
       if (filters) {
         dispatch({ type: 'SET_FILTERS', payload: filters });
       }
@@ -322,7 +326,12 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
       
       dispatch({ type: 'SET_RESTAURANTS', payload: restaurants });
       dispatch({ type: 'SET_PAGINATION', payload: pagination || state.pagination });
-      
+
+      // Si l'appel a réussi, on n'est plus dans un état de validation bloquante
+      if (state.validationStatus?.needsValidation) {
+        dispatch({ type: 'SET_VALIDATION_STATUS', payload: null });
+      }
+
       if (filters) {
         dispatch({ type: 'SET_FILTERS', payload: filters });
       }

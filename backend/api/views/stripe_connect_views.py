@@ -205,17 +205,26 @@ def get_stripe_account_status(request):
         
         if has_validated and not restaurateur_profile.stripe_verified:
             restaurateur_profile.stripe_verified = True
-            restaurateur_profile.save(update_fields=['stripe_verified'])
-            for restaurant in Restaurant.objects.filter(restaurateur=restaurateur_profile):
-                restaurant.payments_enabled = True
-                restaurant.save(update_fields=['payments_enabled'])
+            restaurateur_profile.stripe_onboarding_completed = True
+            restaurateur_profile.is_validated = True
+            restaurateur_profile.is_active = True
+            restaurateur_profile.save(update_fields=[
+                'stripe_verified',
+                'stripe_onboarding_completed',
+                'is_validated',
+                'is_active',
+            ])
+            for restaurant in Restaurant.objects.filter(owner=restaurateur_profile):
+                restaurant.is_stripe_active = True
+                restaurant.is_active = True
+                restaurant.save(update_fields=['is_stripe_active', 'is_active'])
             logger.info(f"Profil Stripe validé pour restaurateur {restaurateur_profile.id}")
 
         if not has_validated:
-            for restaurant in Restaurant.objects.filter(restaurateur=restaurateur_profile):
-                if restaurant.payments_enabled:
-                    restaurant.payments_enabled = False
-                    restaurant.save(update_fields=['payments_enabled'])
+            for restaurant in Restaurant.objects.filter(owner=restaurateur_profile):
+                if restaurant.is_stripe_active:
+                    restaurant.is_stripe_active = False
+                    restaurant.save(update_fields=['is_stripe_active'])
                     logger.info(f"Restaurants désactivés pour le restaurateur {restaurateur_profile.id} ({user.username})")
         
         return Response({
@@ -309,10 +318,19 @@ def stripe_webhook(request):
 
                 if has_validated and not profile.stripe_verified:
                     profile.stripe_verified = True
-                    profile.save(update_fields=['stripe_verified'])
-                    for restaurant in Restaurant.objects.filter(restaurateur=profile):
-                        restaurant.payments_enabled = True
-                        restaurant.save(update_fields=['payments_enabled'])
+                    profile.stripe_onboarding_completed = True
+                    profile.is_validated = True
+                    profile.is_active = True
+                    profile.save(update_fields=[
+                        'stripe_verified',
+                        'stripe_onboarding_completed',
+                        'is_validated',
+                        'is_active',
+                    ])
+                    for restaurant in Restaurant.objects.filter(owner=profile):
+                        restaurant.is_stripe_active = True
+                        restaurant.is_active = True
+                        restaurant.save(update_fields=['is_stripe_active', 'is_active'])
                     logger.info(f"Webhook: Stripe validé pour restaurateur {profile.id}")
                     
             except RestaurateurProfile.DoesNotExist:

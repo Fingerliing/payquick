@@ -13,6 +13,8 @@ import {
 import { router } from 'expo-router';
 import { stripeService } from '@/services/stripeService';
 import { AlertWithAction } from '@/components/ui/Alert';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRestaurant } from '@/contexts/RestaurantContext';
 
 // -----------------------
 // Types
@@ -106,7 +108,22 @@ export default function StripeScreen() {
   const { status, message, refresh } = useStripeAccountStatus(3000, 5000);
   const [opening, setOpening] = useState(false);
 
-  const goToDashboard = () => router.replace('/(restaurant)');
+  // Hooks pour synchroniser l'état des contextes après validation Stripe.
+  // Sans ça, le dashboard garde en mémoire un validationStatus.needsValidation=true
+  // et renvoie immédiatement ici → boucle infinie.
+  const { refreshUser } = useAuth();
+  const { clearValidationStatus, loadRestaurants } = useRestaurant();
+
+  const goToDashboard = async () => {
+    try {
+      clearValidationStatus();
+      await refreshUser();
+      await loadRestaurants();
+    } catch {
+      // On redirige malgré tout : le dashboard re-essaiera au focus via useFocusEffect.
+    }
+    router.replace('/(restaurant)');
+  };
 
   const openOnboarding = async () => {
     if (opening) return;
