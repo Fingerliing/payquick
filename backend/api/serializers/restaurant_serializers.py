@@ -388,6 +388,10 @@ class RestaurantCreateSerializer(serializers.ModelSerializer):
     
     # Gestion de l'image
     image = serializers.ImageField(required=False, allow_null=True)
+
+    # SIRET optionnel : hérité automatiquement du RestaurateurProfile pour le 1er restaurant.
+    # Obligatoire uniquement pour un établissement secondaire (même SIREN, NIC distinct).
+    siret = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     
     # NOUVEAU: Support des nouveaux horaires
     openingHours = serializers.ListField(
@@ -427,13 +431,50 @@ class RestaurantCreateSerializer(serializers.ModelSerializer):
                 )
         
         return value
+
+    def validate_siret(self, value):
+        """Validation du SIRET s'il est fourni : format 14 chiffres + unicité sur Restaurant"""
+        if not value:
+            return value
+        value = value.strip().replace(' ', '')
+        if not value.isdigit() or len(value) != 14:
+            raise serializers.ValidationError(
+                "Le SIRET doit contenir exactement 14 chiffres."
+            )
+        if Restaurant.objects.filter(siret=value).exists():
+            raise serializers.ValidationError(
+                "Un restaurant utilise déjà ce SIRET."
+            )
+        return value
     
     def create(self, validated_data):
-        """Création avec gestion des nouveaux horaires"""
+        """Création avec gestion des nouveaux horaires et héritage du SIRET"""
         
         # Extraire les horaires
         opening_hours_data = validated_data.pop('openingHours', [])
-        
+
+        # Héritage automatique du SIRET depuis le profil restaurateur pour le 1er établissement.
+        # Si l'utilisateur en ouvre un second, il devra saisir un SIRET d'établissement distinct.
+        if not validated_data.get('siret'):
+            request = self.context.get('request')
+            profile = getattr(getattr(request, 'user', None), 'restaurateur_profile', None)
+            profile_siret = getattr(profile, 'siret', None)
+
+            if not profile_siret:
+                raise serializers.ValidationError({
+                    'siret': "SIRET requis. Votre profil restaurateur ne contient pas de SIRET de référence."
+                })
+
+            if Restaurant.objects.filter(siret=profile_siret).exists():
+                raise serializers.ValidationError({
+                    'siret': (
+                        "Vous avez déjà un restaurant enregistré avec votre SIRET personnel. "
+                        "Merci de renseigner le SIRET d'établissement distinct de ce nouveau restaurant."
+                    )
+                })
+
+            validated_data['siret'] = profile_siret
+
         # Valeurs par défaut
         validated_data.setdefault('is_active', True)
         validated_data.setdefault('rating', 0.00)

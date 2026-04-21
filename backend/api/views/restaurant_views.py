@@ -141,9 +141,28 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             return RestaurantImageSerializer
         return RestaurantSerializer
 
+    def create(self, request, *args, **kwargs):
+        """Override pour logger les erreurs 400 en détail"""
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            logger.warning(
+                "Restaurant create 400 | user=%s | errors=%s | data_keys=%s",
+                getattr(request.user, 'username', 'anonymous'),
+                serializer.errors,
+                list(request.data.keys()) if hasattr(request.data, 'keys') else 'n/a',
+            )
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
     def perform_create(self, serializer):
-        """Assigne automatiquement le propriétaire lors de la création"""
-        serializer.save(owner=self.request.user.restaurateur_profile)
+        """Assigne automatiquement le propriétaire + hérite du statut Stripe du restaurateur"""
+        profile = self.request.user.restaurateur_profile
+        serializer.save(
+            owner=profile,
+            is_stripe_active=bool(profile.stripe_verified),
+        )
 
     @action(detail=False, methods=['get'])
     def meal_voucher_accepted(self, request):
