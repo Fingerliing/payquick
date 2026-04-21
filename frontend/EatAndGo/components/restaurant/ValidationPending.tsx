@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Linking } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
@@ -22,15 +22,11 @@ export const ValidationPending: React.FC<ValidationPendingProps> = ({
   const { user } = useAuth();
   
   const handleStripeSetup = () => {
-    router.push('/stripe');
+    router.push('/(auth)/stripe');
   };
 
   const handleContactSupport = () => {
-    Alert.alert(
-      'Support',
-      'Besoin d\'aide ? Contactez-nous à support@eatandgo.com',
-      [{ text: 'OK' }]
-    );
+    Linking.openURL('mailto:contact@eatquicker.fr?subject=Aide%20validation%20profil%20restaurateur');
   };
 
   return (
@@ -96,99 +92,92 @@ export const ValidationPending: React.FC<ValidationPendingProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    padding: 24,
+    backgroundColor: '#FFFFFF',
   },
   iconContainer: {
-    marginBottom: 24,
+    marginBottom: 16,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '600',
+    fontSize: 22,
+    fontWeight: '700',
     color: '#111827',
-    marginBottom: 12,
     textAlign: 'center',
+    marginBottom: 8,
   },
   message: {
     fontSize: 16,
     color: '#6B7280',
     textAlign: 'center',
-    marginBottom: 32,
-    lineHeight: 24,
+    marginBottom: 24,
+    lineHeight: 22,
   },
   statusContainer: {
     width: '100%',
-    backgroundColor: 'white',
+    backgroundColor: '#F9FAFB',
     borderRadius: 12,
-    padding: 20,
-    marginBottom: 32,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    padding: 16,
+    marginBottom: 24,
+    gap: 12,
   },
   statusItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    gap: 8,
   },
   statusText: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#374151',
-    marginLeft: 12,
-    flex: 1,
   },
   actionContainer: {
     width: '100%',
+    gap: 10,
     marginBottom: 24,
   },
   primaryButton: {
-    backgroundColor: '#3B82F6',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 12,
+    backgroundColor: '#111827',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    gap: 8,
   },
   primaryButtonText: {
-    color: 'white',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
-    marginLeft: 8,
   },
   secondaryButton: {
-    backgroundColor: 'white',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    gap: 8,
   },
   secondaryButtonText: {
-    color: '#6B7280',
+    color: '#374151',
     fontSize: 16,
-    fontWeight: '500',
-    marginLeft: 8,
+    fontWeight: '600',
   },
   infoContainer: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     backgroundColor: '#EFF6FF',
-    padding: 16,
+    padding: 12,
     borderRadius: 8,
-    width: '100%',
+    gap: 8,
   },
   infoText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#6B7280',
-    marginLeft: 8,
     flex: 1,
-    lineHeight: 20,
+    lineHeight: 18,
   },
 });

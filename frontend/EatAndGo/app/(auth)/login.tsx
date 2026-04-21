@@ -220,7 +220,6 @@ export default function LoginScreen() {
     container: {
       flex: 1,
       backgroundColor: '#F9FAFB',
-      paddingTop: insets.top,
     },
     
     contentContainer: {
@@ -229,7 +228,7 @@ export default function LoginScreen() {
     },
     
     header: {
-      height: getSpacing(
+      height: insets.top + getSpacing(
         Math.min(screenHeight * 0.20, 160),
         Math.min(screenHeight * 0.22, 180),
         Math.min(screenHeight * 0.22, 180)
@@ -263,7 +262,7 @@ export default function LoginScreen() {
     },
     backButton: {
       position: 'absolute' as const,
-      top: getSpacing(SPACING.md, SPACING.lg),
+      top: insets.top + getSpacing(SPACING.md, SPACING.lg),
       left: getSpacing(SPACING.lg, SPACING.xl),
       width: 44,
       height: 44,
@@ -283,7 +282,7 @@ export default function LoginScreen() {
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
       paddingHorizontal: getSpacing(SPACING.lg, SPACING.xl),
-      paddingTop: getSpacing(SPACING.md, SPACING.lg),
+      paddingTop: insets.top + getSpacing(SPACING.md, SPACING.lg),
       zIndex: 1,
     },
     

@@ -763,7 +763,11 @@ export default function DashboardScreen() {
 
           {/* Alerte Stripe */}
           {isRestaurateur && !user?.roles?.has_validated_profile && (
-            <View style={styles.alertCard}>
+            <TouchableOpacity
+              style={styles.alertCard}
+              onPress={() => router.push('/(auth)/stripe')}
+              activeOpacity={0.7}
+            >
               <View style={styles.alertIconContainer}>
                 <Ionicons name="warning" size={24} color={COLORS.warning} />
               </View>
@@ -772,10 +776,11 @@ export default function DashboardScreen() {
                   Validation de compte requise
                 </Text>
                 <Text style={styles.alertText}>
-                  Validez votre compte Stripe pour activer vos restaurants et recevoir des paiements.
+                  Appuyez ici pour configurer votre compte Stripe et activer les paiements.
                 </Text>
               </View>
-            </View>
+              <Ionicons name="chevron-forward" size={20} color={COLORS.warning} />
+            </TouchableOpacity>
           )}
 
           {/* Rappel Stripe Connect — restaurants existants mais Stripe inactif */}

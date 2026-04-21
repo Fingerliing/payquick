@@ -63,6 +63,8 @@ ALLOWED_HOSTS = [
     '192.168.1.26',
 ]
 
+API_BASE_URL = f"http://{LOCAL_IP}:8000"
+
 # Apps Django
 INSTALLED_APPS = [
     "django.contrib.admin",
