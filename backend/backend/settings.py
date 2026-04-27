@@ -64,6 +64,7 @@ ALLOWED_HOSTS = [
 ]
 
 API_BASE_URL = f"http://{LOCAL_IP}:8000"
+BASE_URL = os.environ.get('BASE_URL', 'http://localhost:8000')
 
 # Apps Django
 INSTALLED_APPS = [

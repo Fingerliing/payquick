@@ -970,7 +970,7 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
         """
         session = self.get_object()
         items = session.cart_items.select_related('participant', 'menu_item')
-        serializer = SessionCartItemSerializer(items, many=True)
+        serializer = SessionCartItemSerializer(items, many=True, context={'request': request})
         items_data = list(serializer.data)
         total = float(sum(float(item.get('total_price', 0)) for item in items_data))
         return Response({
@@ -1022,7 +1022,7 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
 
         _broadcast_cart_update(session)
         return Response(
-            SessionCartItemSerializer(item).data,
+            SessionCartItemSerializer(item, context={'request': request}).data,
             status=status.HTTP_201_CREATED
         )
 
@@ -1058,7 +1058,7 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
 
         item.save()
         _broadcast_cart_update(session)
-        return Response(SessionCartItemSerializer(item).data)
+        return Response(SessionCartItemSerializer(item, context={'request': request}).data)
 
     @action(detail=True, methods=['delete'], url_path=r'cart_remove/(?P<item_id>[^/.]+)')
     def cart_remove_item(self, request, pk=None, item_id=None):
