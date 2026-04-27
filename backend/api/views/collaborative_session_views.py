@@ -1000,7 +1000,6 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
         instructions = serializer.validated_data.get('special_instructions', '')
 
         existing_item = session.cart_items.filter(
-            participant=participant,
             menu_item=menu_item,
             special_instructions=instructions,
         ).first()
