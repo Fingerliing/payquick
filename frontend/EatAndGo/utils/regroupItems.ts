@@ -1,7 +1,11 @@
 import { OrderItem } from "@/types/order";
 import { ProcessedReceiptItem } from "@/types/receipt"
 
-export const groupIdenticalItems = (items: OrderItem[]): OrderItem[] => {
+export const groupIdenticalItems = (
+  items: OrderItem[] | null | undefined
+): OrderItem[] => {
+  if (!Array.isArray(items) || items.length === 0) return [];
+
   const groupedMap = new Map<string, OrderItem>();
 
   items.forEach(item => {
@@ -24,7 +28,11 @@ export const groupIdenticalItems = (items: OrderItem[]): OrderItem[] => {
   return Array.from(groupedMap.values());
 };
 
-export const groupIdenticalReceiptItems = (items: ProcessedReceiptItem[]): ProcessedReceiptItem[] => {
+export const groupIdenticalReceiptItems = (
+  items: ProcessedReceiptItem[] | null | undefined
+): ProcessedReceiptItem[] => {
+  if (!Array.isArray(items) || items.length === 0) return [];
+
   const groupedMap = new Map<string, ProcessedReceiptItem>();
 
   items.forEach(item => {

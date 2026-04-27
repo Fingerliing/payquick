@@ -40,6 +40,9 @@ import { useSession } from '@/contexts/SessionContext';
 
 const STRIPE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || '';
 
+// Stripe refuse les montants < 0,50 € en EUR.
+const STRIPE_MIN_AMOUNT_EUR = 0.50;
+
 // ==== Design System
 const COLORS = {
   primary: '#1E2A78',
@@ -235,6 +238,18 @@ export default function SplitPaymentScreen() {
   const handlePayPortion = async (portionId: string) => {
     if (!order) return;
 
+    // Pré-validation : Stripe refuse les montants < 0,50 €. Sans ce garde,
+    // l'appel échoue côté Stripe et le backend renvoie un 500 générique.
+    const portion = splitSession?.portions.find((p) => p.id === portionId);
+    if (portion && portion.amount < STRIPE_MIN_AMOUNT_EUR) {
+      showError(
+        `Le montant de cette part (${portion.amount.toFixed(2)} €) est inférieur au minimum accepté par Stripe (0,50 €). ` +
+        `Demandez à un autre participant de combiner sa part avec la vôtre, ou utilisez « Tout payer ».`,
+        'Montant trop faible'
+      );
+      return;
+    }
+
     if (!STRIPE_PUBLISHABLE_KEY) {
       showError(
         "La clé publique Stripe n'est pas configurée.",
@@ -349,6 +364,16 @@ export default function SplitPaymentScreen() {
     const unpaidPortions = splitSession.portions.filter((p: any) => !p.isPaid);
     if (unpaidPortions.length === 0) {
       showInfo('Toutes les portions sont déjà payées', 'Information');
+      return;
+    }
+
+    // Pré-validation : Stripe refuse les montants < 0,50 €.
+    const remainingTotal = unpaidPortions.reduce((sum, p) => sum + p.amount, 0);
+    if (remainingTotal < STRIPE_MIN_AMOUNT_EUR) {
+      showError(
+        `Le montant restant (${remainingTotal.toFixed(2)} €) est inférieur au minimum accepté par Stripe (0,50 €).`,
+        'Montant trop faible'
+      );
       return;
     }
 
