@@ -7,9 +7,11 @@ import {
   RefreshControl,
   ActivityIndicator,
   Modal,
+  ScrollView,
+  StyleSheet,
   useWindowDimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -23,15 +25,19 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Alert as InlineAlert, AlertWithAction } from '@/components/ui/Alert';
-import { 
-  useScreenType, 
-  getResponsiveValue, 
-  COLORS, 
-  SPACING, 
-  BORDER_RADIUS 
+import {
+  useScreenType,
+  getResponsiveValue,
+  COLORS,
+  SPACING,
+  BORDER_RADIUS,
 } from '@/utils/designSystem';
 
 type ScreenType = 'mobile' | 'tablet' | 'desktop';
+
+// ════════════════════════════════════════════════════════════════════════════
+// Hooks utilitaires (conservés à l'identique)
+// ════════════════════════════════════════════════════════════════════════════
 
 /** ---------- Utilitaires alertes ---------- */
 type AlertItem = {
@@ -103,7 +109,7 @@ const useOrderArchiving = () => {
     const completedOrderIds = orders
       .filter(order => ['served', 'cancelled'].includes(order.status))
       .map(order => order.id);
-    
+
     if (completedOrderIds.length === 0) return 0;
 
     const newArchived = new Set([...archivedOrders, ...completedOrderIds]);
@@ -137,7 +143,7 @@ const useRestaurantSelection = () => {
       if (restaurants.length > 0 ? selectedRestaurantId === null : false) {
         try {
           const savedRestaurantId = await AsyncStorage.getItem('selectedRestaurantId');
-          
+
           if (savedRestaurantId && restaurants.find(r => r.id === savedRestaurantId)) {
             setSelectedRestaurantId(parseInt(savedRestaurantId));
           } else if (restaurants.length > 0) {
@@ -167,10 +173,43 @@ const useRestaurantSelection = () => {
   };
 };
 
+/** ---------- Timer "temps écoulé" mis à jour chaque seconde ---------- */
+const useElapsedTime = (createdAtIso: string) => {
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const tick = () => setNow(Date.now());
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return useMemo(() => {
+    const elapsedMs = Math.max(0, now - new Date(createdAtIso).getTime());
+    const seconds = Math.floor(elapsedMs / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+
+    let label: string;
+    if (seconds < 60) label = `${seconds}s`;
+    else if (minutes < 60) label = `${minutes}m`;
+    else label = `${hours}h ${minutes % 60}m`;
+
+    let urgency: 'normal' | 'warning' | 'urgent' = 'normal';
+    if (minutes >= 15) urgency = 'urgent';
+    else if (minutes >= 5) urgency = 'warning';
+
+    return { label, urgency, minutes, seconds };
+  }, [now, createdAtIso]);
+};
+
+// ════════════════════════════════════════════════════════════════════════════
+// Composants conservés (utilisés dans le modal Historique)
+// ════════════════════════════════════════════════════════════════════════════
+
 /** ---------- Composant sélecteur de restaurant ---------- */
-const RestaurantSelector = React.memo(({ 
-  restaurants, 
-  selectedRestaurantId, 
+const RestaurantSelector = React.memo(({
+  restaurants,
+  selectedRestaurantId,
   onSelect,
   isLoading,
   screenType
@@ -195,30 +234,23 @@ const RestaurantSelector = React.memo(({
       borderBottomColor: COLORS.border.light,
       gap: getResponsiveValue(SPACING.xs, screenType),
     },
-    
     selectorText: {
       flex: 1,
-      fontSize: getResponsiveValue(
-        { mobile: 16, tablet: 18, desktop: 20 },
-        screenType
-      ),
+      fontSize: getResponsiveValue({ mobile: 16, tablet: 18, desktop: 20 }, screenType),
       fontWeight: '500' as const,
       color: COLORS.text.primary,
     },
-
     modalOverlay: {
       flex: 1,
       backgroundColor: 'rgba(0, 0, 0, 0.5)',
       justifyContent: 'flex-end' as const,
     },
-
     modalContent: {
       backgroundColor: COLORS.surface,
       borderTopLeftRadius: BORDER_RADIUS.xl,
       borderTopRightRadius: BORDER_RADIUS.xl,
       maxHeight: '70%' as const,
     },
-
     modalHeader: {
       flexDirection: 'row' as const,
       justifyContent: 'space-between' as const,
@@ -227,16 +259,11 @@ const RestaurantSelector = React.memo(({
       borderBottomWidth: 1,
       borderBottomColor: COLORS.border.light,
     },
-
     modalTitle: {
-      fontSize: getResponsiveValue(
-        { mobile: 18, tablet: 20, desktop: 22 },
-        screenType
-      ),
+      fontSize: getResponsiveValue({ mobile: 18, tablet: 20, desktop: 22 }, screenType),
       fontWeight: '600' as const,
       color: COLORS.text.primary,
     },
-
     restaurantOption: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
@@ -244,38 +271,25 @@ const RestaurantSelector = React.memo(({
       borderBottomWidth: 1,
       borderBottomColor: COLORS.border.light,
     },
-
     restaurantOptionSelected: {
       backgroundColor: COLORS.secondary + '10',
     },
-
     restaurantOptionText: {
-      fontSize: getResponsiveValue(
-        { mobile: 16, tablet: 18, desktop: 20 },
-        screenType
-      ),
+      fontSize: getResponsiveValue({ mobile: 16, tablet: 18, desktop: 20 }, screenType),
       fontWeight: '500' as const,
       color: COLORS.text.primary,
       marginBottom: getResponsiveValue(SPACING.xs, screenType) / 2,
     },
-
     restaurantOptionTextSelected: {
       color: COLORS.secondary,
     },
-
     restaurantOptionAddress: {
-      fontSize: getResponsiveValue(
-        { mobile: 14, tablet: 15, desktop: 16 },
-        screenType
-      ),
+      fontSize: getResponsiveValue({ mobile: 14, tablet: 15, desktop: 16 }, screenType),
       color: COLORS.text.secondary,
     },
   };
 
-  const iconSize = getResponsiveValue(
-    { mobile: 20, tablet: 22, desktop: 24 },
-    screenType
-  );
+  const iconSize = getResponsiveValue({ mobile: 20, tablet: 22, desktop: 24 }, screenType);
 
   if (isLoading) {
     return (
@@ -296,23 +310,15 @@ const RestaurantSelector = React.memo(({
   }
 
   if (restaurants.length === 1) {
-    return (
-      <View style={styles.selector}>
-        <Ionicons name="restaurant" size={iconSize} color={COLORS.secondary} />
-        <Text style={styles.selectorText}>{restaurants[0].name}</Text>
-      </View>
-    );
+    return null; // Plus besoin d'afficher le sélecteur si 1 seul resto (il est dans le bandeau navy)
   }
 
   return (
     <>
-      <Pressable 
+      <Pressable
         style={styles.selector}
         onPress={() => setShowModal(true)}
-        android_ripple={{ 
-          color: COLORS.primary + '20',
-          borderless: false 
-        }}
+        android_ripple={{ color: COLORS.primary + '20', borderless: false }}
       >
         <Ionicons name="restaurant" size={iconSize} color={COLORS.secondary} />
         <Text style={styles.selectorText}>
@@ -325,6 +331,7 @@ const RestaurantSelector = React.memo(({
         visible={showModal}
         transparent
         animationType="slide"
+        statusBarTranslucent
         onRequestClose={() => setShowModal(false)}
       >
         <SafeAreaView style={styles.modalOverlay}>
@@ -335,7 +342,6 @@ const RestaurantSelector = React.memo(({
                 <Ionicons name="close" size={24} color={COLORS.text.secondary} />
               </Pressable>
             </View>
-            
             <FlatList
               data={restaurants}
               keyExtractor={item => item.id}
@@ -349,10 +355,7 @@ const RestaurantSelector = React.memo(({
                     onSelect(parseInt(item.id));
                     setShowModal(false);
                   }}
-                  android_ripple={{ 
-                    color: COLORS.primary + '20',
-                    borderless: false 
-                  }}
+                  android_ripple={{ color: COLORS.primary + '20', borderless: false }}
                 >
                   <View style={{ flex: 1 }}>
                     <Text style={[
@@ -378,9 +381,9 @@ const RestaurantSelector = React.memo(({
   );
 });
 
-/** ---------- Carte de commande ---------- */
-const OrderCard = React.memo(({ 
-  item, 
+/** ---------- Carte de commande (vue détaillée pour modal historique) ---------- */
+const OrderCard = React.memo(({
+  item,
   onStatusUpdate,
   onRequestPaymentMethod,
   onArchive,
@@ -388,7 +391,7 @@ const OrderCard = React.memo(({
   isUpdating = false,
   isArchived = false,
   screenType
-}: { 
+}: {
   item: OrderList;
   onStatusUpdate: (orderId: number, newStatus: string) => Promise<void>;
   onRequestPaymentMethod: (orderId: number) => void;
@@ -405,7 +408,7 @@ const OrderCard = React.memo(({
     const date = new Date(item.created_at);
     const isActive = ['pending', 'confirmed', 'preparing', 'ready'].includes(item.status);
     const isUrgent = isActive && (Date.now() - date.getTime()) > 30 * 60 * 1000;
-    
+
     return {
       title: `Commande ${item.order_number}`,
       time: date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
@@ -430,103 +433,58 @@ const OrderCard = React.memo(({
       borderWidth: 1,
       borderColor: displayInfo.isActive ? COLORS.secondary : COLORS.border.light,
     },
-
-    archivedCard: {
-      opacity: 0.7,
-      borderColor: COLORS.border.default,
-    },
-
-    urgentCard: {
-      borderColor: COLORS.error,
-      backgroundColor: COLORS.error + '05',
-    },
-
+    archivedCard: { opacity: 0.7, borderColor: COLORS.border.default },
+    urgentCard: { borderColor: COLORS.error, backgroundColor: COLORS.error + '05' },
     header: {
       flexDirection: 'row' as const,
       justifyContent: 'space-between' as const,
       alignItems: 'flex-start' as const,
       marginBottom: getResponsiveValue(SPACING.sm, screenType),
     },
-
-    orderInfo: {
-      flex: 1,
-    },
-
+    orderInfo: { flex: 1 },
     titleRow: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
       gap: getResponsiveValue(SPACING.xs, screenType),
     },
-
     title: {
-      fontSize: getResponsiveValue(
-        { mobile: 18, tablet: 20, desktop: 22 },
-        screenType
-      ),
+      fontSize: getResponsiveValue({ mobile: 18, tablet: 20, desktop: 22 }, screenType),
       fontWeight: '600' as const,
       color: COLORS.text.primary,
       marginBottom: getResponsiveValue(SPACING.xs, screenType) / 2,
     },
-
     badge: {
-      width: getResponsiveValue(
-        { mobile: 20, tablet: 22, desktop: 24 },
-        screenType
-      ),
-      height: getResponsiveValue(
-        { mobile: 20, tablet: 22, desktop: 24 },
-        screenType
-      ),
-      borderRadius: getResponsiveValue(
-        { mobile: 10, tablet: 11, desktop: 12 },
-        screenType
-      ),
+      width: getResponsiveValue({ mobile: 20, tablet: 22, desktop: 24 }, screenType),
+      height: getResponsiveValue({ mobile: 20, tablet: 22, desktop: 24 }, screenType),
+      borderRadius: getResponsiveValue({ mobile: 10, tablet: 11, desktop: 12 }, screenType),
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
     },
-
-    urgentBadge: {
-      backgroundColor: COLORS.error + '20',
-    },
-
+    urgentBadge: { backgroundColor: COLORS.error + '20' },
     customerName: {
-      fontSize: getResponsiveValue(
-        { mobile: 16, tablet: 18, desktop: 20 },
-        screenType
-      ),
+      fontSize: getResponsiveValue({ mobile: 16, tablet: 18, desktop: 20 }, screenType),
       color: COLORS.text.secondary,
       marginBottom: getResponsiveValue(SPACING.xs, screenType),
     },
-
     orderTime: {
-      fontSize: getResponsiveValue(
-        { mobile: 14, tablet: 15, desktop: 16 },
-        screenType
-      ),
+      fontSize: getResponsiveValue({ mobile: 14, tablet: 15, desktop: 16 }, screenType),
       color: COLORS.text.secondary,
     },
-
     details: {
       flexDirection: screenType === 'mobile' ? 'column' as const : 'row' as const,
       flexWrap: 'wrap' as const,
       gap: getResponsiveValue(SPACING.sm, screenType),
       marginBottom: getResponsiveValue(SPACING.sm, screenType),
     },
-
     detailItem: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
       gap: getResponsiveValue(SPACING.xs, screenType) / 2,
     },
-
     detailText: {
-      fontSize: getResponsiveValue(
-        { mobile: 14, tablet: 15, desktop: 16 },
-        screenType
-      ),
+      fontSize: getResponsiveValue({ mobile: 14, tablet: 15, desktop: 16 }, screenType),
       color: COLORS.text.secondary,
     },
-
     waitingTime: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
@@ -537,22 +495,16 @@ const OrderCard = React.memo(({
       backgroundColor: COLORS.warning + '10',
       borderRadius: BORDER_RADIUS.sm,
     },
-
     waitingTimeText: {
-      fontSize: getResponsiveValue(
-        { mobile: 14, tablet: 15, desktop: 16 },
-        screenType
-      ),
+      fontSize: getResponsiveValue({ mobile: 14, tablet: 15, desktop: 16 }, screenType),
       color: COLORS.warning,
       fontWeight: '500' as const,
     },
-
     actions: {
       flexDirection: screenType === 'mobile' ? 'column' as const : 'row' as const,
       gap: getResponsiveValue(SPACING.xs, screenType),
       marginBottom: getResponsiveValue(SPACING.sm, screenType),
     },
-
     viewDetails: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
@@ -561,25 +513,17 @@ const OrderCard = React.memo(({
       borderTopWidth: 1,
       borderTopColor: COLORS.border.light,
     },
-
     viewDetailsText: {
-      fontSize: getResponsiveValue(
-        { mobile: 16, tablet: 18, desktop: 20 },
-        screenType
-      ),
+      fontSize: getResponsiveValue({ mobile: 16, tablet: 18, desktop: 20 }, screenType),
       color: COLORS.primary,
       fontWeight: '500' as const,
     },
   };
 
-  const iconSize = getResponsiveValue(
-    { mobile: 16, tablet: 18, desktop: 20 },
-    screenType
-  );
+  const iconSize = getResponsiveValue({ mobile: 16, tablet: 18, desktop: 20 }, screenType);
 
   const handleStatusChange = useCallback(async (newStatus: string) => {
     if (localUpdating || isUpdating) return;
-    
     setLocalUpdating(true);
     try {
       await onStatusUpdate(item.id, newStatus);
@@ -594,7 +538,7 @@ const OrderCard = React.memo(({
 
   const renderActions = () => {
     const isCompleted = ['served', 'cancelled'].includes(item.status);
-    
+
     if (isArchived) {
       return (
         <View style={styles.actions}>
@@ -606,10 +550,7 @@ const OrderCard = React.memo(({
             size="sm"
             leftIcon={<Ionicons name="archive-outline" size={16} color={COLORS.text.secondary} />}
             fullWidth={screenType === 'mobile'}
-            style={{ 
-              borderColor: COLORS.text.secondary,
-              backgroundColor: 'transparent' 
-            }}
+            style={{ borderColor: COLORS.text.secondary, backgroundColor: 'transparent' }}
             textStyle={{ color: COLORS.text.secondary }}
           />
         </View>
@@ -627,94 +568,79 @@ const OrderCard = React.memo(({
 
     return (
       <>
-      <View style={styles.actions}>
-      {nextAction ? (
-        <Button
-          title={nextAction.label}
-          onPress={() => handleStatusChange(nextAction.next)}
-          disabled={localUpdating || isUpdating}
-          loading={localUpdating}
-          style={{ backgroundColor: COLORS.secondary }}
-          textStyle={{ color: COLORS.text.primary }}
-          size="sm"
-          leftIcon={<Ionicons name="arrow-forward" size={16} color={COLORS.text.secondary} />}
-          fullWidth={screenType === 'mobile'}
-        />
-      ) : null}
+        <View style={styles.actions}>
+          {nextAction ? (
+            <Button
+              title={nextAction.label}
+              onPress={() => handleStatusChange(nextAction.next)}
+              disabled={localUpdating || isUpdating}
+              loading={localUpdating}
+              style={{ backgroundColor: COLORS.secondary }}
+              textStyle={{ color: COLORS.text.primary }}
+              size="sm"
+              leftIcon={<Ionicons name="arrow-forward" size={16} color={COLORS.text.secondary} />}
+              fullWidth={screenType === 'mobile'}
+            />
+          ) : null}
 
-      {item.payment_status !== 'paid' && !isCompleted ? (
-        <Button
-          title="Encaisser"
-          onPress={() => onRequestPaymentMethod(item.id)}
-          disabled={localUpdating || isUpdating}
-          variant="outline"
-          size="sm"
-          leftIcon={<Ionicons name="card" size={16} color={COLORS.text.secondary} />}
-          fullWidth={screenType === 'mobile'}
-          style={{ 
-            borderColor: COLORS.success,
-            backgroundColor: 'transparent' 
-          }}
-          textStyle={{ color: COLORS.success }}
-        />
-      ) : null}
+          {item.payment_status !== 'paid' && !isCompleted ? (
+            <Button
+              title="Encaisser"
+              onPress={() => onRequestPaymentMethod(item.id)}
+              disabled={localUpdating || isUpdating}
+              variant="outline"
+              size="sm"
+              leftIcon={<Ionicons name="card" size={16} color={COLORS.text.secondary} />}
+              fullWidth={screenType === 'mobile'}
+              style={{ borderColor: COLORS.success, backgroundColor: 'transparent' }}
+              textStyle={{ color: COLORS.success }}
+            />
+          ) : null}
 
-      {!isCompleted ? (
-        <Button
-          title="Annuler"
-          onPress={() => setCancelConfirm(true)}
-          disabled={localUpdating || isUpdating}
-          variant="outline"
-          size="sm"
-          leftIcon={<Ionicons name="close-circle" size={16} color={COLORS.error} />}
-          fullWidth={screenType === 'mobile'}
-          style={{ 
-            borderColor: COLORS.error,
-            backgroundColor: 'transparent' 
-          }}
-          textStyle={{ color: COLORS.error }}
-        />
-      ) : null}
+          {!isCompleted ? (
+            <Button
+              title="Annuler"
+              onPress={() => setCancelConfirm(true)}
+              disabled={localUpdating || isUpdating}
+              variant="outline"
+              size="sm"
+              leftIcon={<Ionicons name="close-circle" size={16} color={COLORS.error} />}
+              fullWidth={screenType === 'mobile'}
+              style={{ borderColor: COLORS.error, backgroundColor: 'transparent' }}
+              textStyle={{ color: COLORS.error }}
+            />
+          ) : null}
 
-      {isCompleted && onArchive ? (
-        <Button
-          title="Archiver"
-          onPress={() => onArchive(item.id)}
-          disabled={isUpdating}
-          variant="outline"
-          size="sm"
-          leftIcon={<Ionicons name="archive" size={16} color={COLORS.text.secondary} />}
-          fullWidth={screenType === 'mobile'}
-          style={{ 
-            borderColor: COLORS.text.secondary,
-            backgroundColor: 'transparent' 
-          }}
-          textStyle={{ color: COLORS.text.secondary }}
-        />
-      ) : null}
-      </View>
-
-      {cancelConfirm && (
-        <View style={{ paddingHorizontal: getResponsiveValue(SPACING.xs, screenType), paddingTop: getResponsiveValue(SPACING.xs, screenType) }}>
-          <AlertWithAction
-            variant="warning"
-            title="Annuler la commande"
-            message={`Voulez-vous vraiment annuler la commande ${item.order_number} ?`}
-            secondaryButton={{
-              text: 'Non, garder',
-              onPress: () => setCancelConfirm(false),
-            }}
-            primaryButton={{
-              text: 'Oui, annuler',
-              onPress: () => {
-                setCancelConfirm(false);
-                handleStatusChange('cancelled');
-              },
-              variant: 'danger',
-            }}
-          />
+          {isCompleted && onArchive ? (
+            <Button
+              title="Archiver"
+              onPress={() => onArchive(item.id)}
+              disabled={isUpdating}
+              variant="outline"
+              size="sm"
+              leftIcon={<Ionicons name="archive" size={16} color={COLORS.text.secondary} />}
+              fullWidth={screenType === 'mobile'}
+              style={{ borderColor: COLORS.text.secondary, backgroundColor: 'transparent' }}
+              textStyle={{ color: COLORS.text.secondary }}
+            />
+          ) : null}
         </View>
-      )}
+
+        {cancelConfirm && (
+          <View style={{ paddingHorizontal: getResponsiveValue(SPACING.xs, screenType), paddingTop: getResponsiveValue(SPACING.xs, screenType) }}>
+            <AlertWithAction
+              variant="warning"
+              title="Annuler la commande"
+              message={`Voulez-vous vraiment annuler la commande ${item.order_number} ?`}
+              secondaryButton={{ text: 'Non, garder', onPress: () => setCancelConfirm(false) }}
+              primaryButton={{
+                text: 'Oui, annuler',
+                onPress: () => { setCancelConfirm(false); handleStatusChange('cancelled'); },
+                variant: 'danger',
+              }}
+            />
+          </View>
+        )}
       </>
     );
   };
@@ -755,13 +681,9 @@ const OrderCard = React.memo(({
               <Text style={styles.detailText}>Table {item.table_number}</Text>
             </View>
           ) : null}
-          
+
           <View style={styles.detailItem}>
-            <Ionicons 
-              name={item.order_type === 'dine_in' ? "restaurant" : "bag"} 
-              size={iconSize} 
-              color={COLORS.text.secondary} 
-            />
+            <Ionicons name={item.order_type === 'dine_in' ? 'restaurant' : 'bag'} size={iconSize} color={COLORS.text.secondary} />
             <Text style={styles.detailText}>
               {item.order_type === 'dine_in' ? 'Sur place' : 'À emporter'}
             </Text>
@@ -775,15 +697,8 @@ const OrderCard = React.memo(({
           </View>
 
           <View style={styles.detailItem}>
-            <Ionicons 
-              name={item.payment_status === 'paid' ? "checkmark-circle" : "time"} 
-              size={iconSize} 
-              color={item.payment_status === 'paid' ? COLORS.success : COLORS.warning} 
-            />
-            <Text style={[
-              styles.detailText,
-              { color: item.payment_status === 'paid' ? COLORS.success : COLORS.warning }
-            ]}>
+            <Ionicons name={item.payment_status === 'paid' ? 'checkmark-circle' : 'time'} size={iconSize} color={item.payment_status === 'paid' ? COLORS.success : COLORS.warning} />
+            <Text style={[styles.detailText, { color: item.payment_status === 'paid' ? COLORS.success : COLORS.warning }]}>
               {item.payment_status === 'paid' ? 'Payée' : 'Non payée'}
             </Text>
           </View>
@@ -811,10 +726,10 @@ const OrderCard = React.memo(({
   );
 });
 
-/** ---------- Filtres par statut ---------- */
-const StatusFilters = React.memo(({ 
-  currentFilter, 
-  onFilterChange, 
+/** ---------- Filtres par statut (modal historique uniquement) ---------- */
+const StatusFilters = React.memo(({
+  currentFilter,
+  onFilterChange,
   orders,
   archivedCount,
   screenType
@@ -826,27 +741,18 @@ const StatusFilters = React.memo(({
   screenType: ScreenType;
 }) => {
   const filters = [
-    { key: 'all', label: 'Actives', count: orders.length },
-    { key: 'pending', label: 'En attente', count: orders.filter(o => o.status === 'pending').length },
-    { key: 'confirmed', label: 'Confirmées', count: orders.filter(o => o.status === 'confirmed').length },
-    { key: 'preparing', label: 'En préparation', count: orders.filter(o => o.status === 'preparing').length },
-    { key: 'ready', label: 'Prêtes', count: orders.filter(o => o.status === 'ready').length },
+    { key: 'all', label: 'Toutes', count: orders.length },
     { key: 'served', label: 'Servies', count: orders.filter(o => o.status === 'served').length },
+    { key: 'cancelled', label: 'Annulées', count: orders.filter(o => o.status === 'cancelled').length },
     { key: 'archived', label: 'Archives', count: archivedCount },
   ];
 
   const styles = {
-    container: {
-      backgroundColor: COLORS.surface,
-      borderBottomWidth: 1,
-      borderBottomColor: COLORS.border.light,
-    },
-
+    container: { backgroundColor: COLORS.surface, borderBottomWidth: 1, borderBottomColor: COLORS.border.light },
     content: {
       paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
       paddingVertical: getResponsiveValue(SPACING.sm, screenType),
     },
-
     filterButton: {
       paddingHorizontal: getResponsiveValue(SPACING.sm, screenType),
       paddingVertical: getResponsiveValue(SPACING.xs, screenType),
@@ -856,32 +762,15 @@ const StatusFilters = React.memo(({
       borderWidth: 1,
       borderColor: COLORS.border.light,
     },
-
-    filterButtonActive: {
-      backgroundColor: COLORS.primary,
-      borderColor: COLORS.primary,
-    },
-
-    filterButtonArchive: {
-      borderColor: COLORS.text.secondary,
-    },
-
+    filterButtonActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+    filterButtonArchive: { borderColor: COLORS.text.secondary },
     filterButtonText: {
-      fontSize: getResponsiveValue(
-        { mobile: 14, tablet: 15, desktop: 16 },
-        screenType
-      ),
+      fontSize: getResponsiveValue({ mobile: 14, tablet: 15, desktop: 16 }, screenType),
       fontWeight: '500' as const,
       color: COLORS.text.secondary,
     },
-
-    filterButtonTextActive: {
-      color: COLORS.surface,
-    },
-
-    filterButtonTextArchive: {
-      color: COLORS.text.secondary,
-    },
+    filterButtonTextActive: { color: COLORS.surface },
+    filterButtonTextArchive: { color: COLORS.text.secondary },
   };
 
   return (
@@ -899,10 +788,7 @@ const StatusFilters = React.memo(({
               item.key === 'archived' ? styles.filterButtonArchive : null
             ]}
             onPress={() => onFilterChange(item.key)}
-            android_ripple={{ 
-              color: COLORS.primary + '20',
-              borderless: false 
-            }}
+            android_ripple={{ color: COLORS.primary + '20', borderless: false }}
           >
             <Text style={[
               styles.filterButtonText,
@@ -919,31 +805,279 @@ const StatusFilters = React.memo(({
   );
 });
 
-/** ---------- Écran principal ---------- */
+// ════════════════════════════════════════════════════════════════════════════
+// NOUVEAUX COMPOSANTS — Vue Kanban
+// ════════════════════════════════════════════════════════════════════════════
+
+type KanbanColumnKey = 'new' | 'preparing' | 'ready';
+
+interface KanbanColumnDef {
+  key: KanbanColumnKey;
+  label: string;
+  color: string;          // accent color
+  bgTint: string;         // light bg for column header
+  statuses: string[];     // Status that fall into this column
+  nextStatus: string;     // status après l'action
+  actionLabel: string;    // label du bouton d'action
+  actionColor: string;    // couleur du bouton
+}
+
+const KANBAN_COLUMNS: KanbanColumnDef[] = [
+  {
+    key: 'new',
+    label: 'Nouvelles',
+    color: '#EF4444',
+    bgTint: '#FEF2F2',
+    statuses: ['pending', 'confirmed'],
+    nextStatus: 'preparing',
+    actionLabel: 'Commencer',
+    actionColor: '#1E2A78', // navy primary
+  },
+  {
+    key: 'preparing',
+    label: 'En préparation',
+    color: '#F59E0B',
+    bgTint: '#FFFBEB',
+    statuses: ['preparing'],
+    nextStatus: 'ready',
+    actionLabel: 'Marquer prête',
+    actionColor: '#10B981', // green
+  },
+  {
+    key: 'ready',
+    label: 'Prêtes',
+    color: '#10B981',
+    bgTint: '#ECFDF5',
+    statuses: ['ready'],
+    nextStatus: 'served',
+    actionLabel: 'Servie',
+    actionColor: '#1E2A78',
+  },
+];
+
+/** Card kanban (compacte, accent coloré à gauche) */
+interface KanbanCardProps {
+  order: OrderList;
+  column: KanbanColumnDef;
+  onAdvance: (orderId: number, nextStatus: string) => Promise<void>;
+  onPress: (orderId: number) => void;
+  isUpdating: boolean;
+}
+
+const KanbanCard: React.FC<KanbanCardProps> = React.memo(({ order, column, onAdvance, onPress, isUpdating }) => {
+  const [localUpdating, setLocalUpdating] = useState(false);
+  const elapsed = useElapsedTime(order.created_at);
+
+  const totalFormatted = `${parseFloat(String(order.total_amount || 0)).toFixed(2).replace('.', ',')} €`;
+  const itemsCount = order.items_count ?? 0;
+  const isPaid = order.payment_status === 'paid';
+
+  const handleAdvance = async () => {
+    if (localUpdating || isUpdating) return;
+    setLocalUpdating(true);
+    try {
+      await onAdvance(order.id, column.nextStatus);
+    } finally {
+      setLocalUpdating(false);
+    }
+  };
+
+  const elapsedColor =
+    elapsed.urgency === 'urgent' ? '#EF4444' :
+    elapsed.urgency === 'warning' ? '#F59E0B' :
+    '#6B7280';
+
+  return (
+    <Pressable
+      onPress={() => onPress(order.id)}
+      style={({ pressed }) => [kanbanStyles.card, pressed && { opacity: 0.85 }]}
+      android_ripple={{ color: COLORS.primary + '10' }}
+    >
+      {/* Accent coloré à gauche */}
+      <View style={[kanbanStyles.cardAccent, { backgroundColor: column.color }]} />
+
+      <View style={kanbanStyles.cardBody}>
+        {/* Header : #N° + badge statut */}
+        <View style={kanbanStyles.cardHeader}>
+          <Text style={kanbanStyles.orderNumber}>#{order.order_number}</Text>
+          <View style={[kanbanStyles.statusChip, { backgroundColor: column.color + '15', borderColor: column.color + '40' }]}>
+            <Text style={[kanbanStyles.statusChipText, { color: column.color }]} numberOfLines={1}>
+              {column.label === 'Nouvelles' ? 'Nouvelle' : column.label === 'En préparation' ? 'En préparation' : 'Prête'}
+            </Text>
+          </View>
+        </View>
+
+        {/* Table */}
+        {order.table_number && (
+          <Text style={kanbanStyles.tableLabel}>Table {order.table_number}</Text>
+        )}
+        {!order.table_number && order.order_type === 'takeaway' && (
+          <Text style={kanbanStyles.tableLabel}>À emporter</Text>
+        )}
+
+        {/* Nombre d'articles (placeholder en attendant items_preview backend) */}
+        <Text style={kanbanStyles.itemsLine} numberOfLines={1}>
+          {itemsCount} article{itemsCount > 1 ? 's' : ''}
+          {order.customer_display ? ` · ${order.customer_display}` : ''}
+        </Text>
+
+        {/* Footer : timer + prix + paiement */}
+        <View style={kanbanStyles.cardFooter}>
+          <View style={kanbanStyles.timerRow}>
+            <Ionicons name="time-outline" size={12} color={elapsedColor} />
+            <Text style={[kanbanStyles.timerText, { color: elapsedColor }]}>
+              {elapsed.label}
+            </Text>
+            {!isPaid && (
+              <>
+                <View style={kanbanStyles.dotSeparator} />
+                <Ionicons name="card-outline" size={12} color={COLORS.warning} />
+                <Text style={kanbanStyles.unpaidText}>Non payé</Text>
+              </>
+            )}
+          </View>
+          <Text style={kanbanStyles.priceText}>{totalFormatted}</Text>
+        </View>
+
+        {/* Bouton d'action */}
+        <Pressable
+          onPress={handleAdvance}
+          disabled={localUpdating || isUpdating}
+          style={({ pressed }) => [
+            kanbanStyles.actionButton,
+            { backgroundColor: column.actionColor },
+            pressed && { opacity: 0.85 },
+            (localUpdating || isUpdating) && { opacity: 0.6 },
+          ]}
+        >
+          {localUpdating ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Text style={kanbanStyles.actionButtonText}>{column.actionLabel}</Text>
+          )}
+        </Pressable>
+      </View>
+    </Pressable>
+  );
+});
+
+/** Header d'une colonne (badge couleur + titre + compteur) */
+const KanbanColumnHeader: React.FC<{ column: KanbanColumnDef; count: number }> = ({ column, count }) => (
+  <View style={kanbanStyles.columnHeader}>
+    <View style={kanbanStyles.columnHeaderLeft}>
+      <View style={[kanbanStyles.columnDot, { backgroundColor: column.color }]} />
+      <Text style={kanbanStyles.columnTitle}>{column.label}</Text>
+    </View>
+    <View style={[kanbanStyles.columnCountBadge, { backgroundColor: column.color + '15' }]}>
+      <Text style={[kanbanStyles.columnCountText, { color: column.color }]}>{count}</Text>
+    </View>
+  </View>
+);
+
+/** Bandeau navy en haut avec titre, date, stats et bouton historique */
+interface KanbanBannerProps {
+  restaurantName: string | undefined;
+  pendingCount: number;
+  todayRevenue: number;
+  onOpenHistory: () => void;
+  onRefresh: () => void;
+  refreshing: boolean;
+}
+
+const KanbanBanner: React.FC<KanbanBannerProps> = ({
+  restaurantName,
+  pendingCount,
+  todayRevenue,
+  onOpenHistory,
+  onRefresh,
+  refreshing,
+}) => {
+  const insets = useSafeAreaInsets();
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('fr-FR', { weekday: 'long' });
+  const timeStr = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const dateLabel = `${dateStr.charAt(0).toUpperCase() + dateStr.slice(1)} ${timeStr}`;
+
+  return (
+    <View style={[kanbanStyles.banner, { paddingTop: insets.top + 12 }]}>
+      <View style={kanbanStyles.bannerRow}>
+        <View style={kanbanStyles.bannerLeft}>
+          <Text style={kanbanStyles.bannerTitle} numberOfLines={1}>
+            {restaurantName ? `${restaurantName} — Service en cours` : 'Service en cours'}
+          </Text>
+          <Text style={kanbanStyles.bannerSubtitle}>{dateLabel}</Text>
+        </View>
+
+        <View style={kanbanStyles.bannerStats}>
+          <View style={kanbanStyles.bannerStatItem}>
+            <Text style={kanbanStyles.bannerStatValue}>{pendingCount}</Text>
+            <Text style={kanbanStyles.bannerStatLabel}>En attente</Text>
+          </View>
+          <View style={[kanbanStyles.bannerStatItem, kanbanStyles.bannerStatItemRevenue]}>
+            <Text style={[kanbanStyles.bannerStatValue, { color: COLORS.secondary }]}>
+              {todayRevenue.toFixed(0)} €
+            </Text>
+            <Text style={kanbanStyles.bannerStatLabel}>Ce soir</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Actions */}
+      <View style={kanbanStyles.bannerActions}>
+        <Pressable
+          style={kanbanStyles.bannerAction}
+          onPress={onOpenHistory}
+          android_ripple={{ color: 'rgba(255,255,255,0.15)' }}
+        >
+          <Ionicons name="time-outline" size={16} color="#FFFFFF" />
+          <Text style={kanbanStyles.bannerActionText}>Historique</Text>
+        </Pressable>
+        <Pressable
+          style={kanbanStyles.bannerAction}
+          onPress={onRefresh}
+          disabled={refreshing}
+          android_ripple={{ color: 'rgba(255,255,255,0.15)' }}
+        >
+          <Ionicons name="refresh" size={16} color={refreshing ? 'rgba(255,255,255,0.5)' : '#FFFFFF'} />
+          <Text style={[kanbanStyles.bannerActionText, refreshing && { opacity: 0.5 }]}>Actualiser</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+};
+
+// ════════════════════════════════════════════════════════════════════════════
+// Écran principal
+// ════════════════════════════════════════════════════════════════════════════
+
 export default function RestaurantOrdersScreen() {
   const { isRestaurateur, isAuthenticated } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter] = useState<string>('all');
-  
+
+  // Filtre du modal historique
+  const [historyFilter, setHistoryFilter] = useState<string>('all');
+  const [showHistory, setShowHistory] = useState(false);
+
+  // Onglet kanban actif (mobile)
+  const [activeColumnKey, setActiveColumnKey] = useState<KanbanColumnKey>('new');
+
   const screenType = useScreenType();
   const { width } = useWindowDimensions();
 
   // Gestion des alertes (bannières)
   const { alerts, pushAlert, dismissAlert } = useAlerts();
 
-  // Demande choix de paiement
+  // Demande choix de paiement (depuis le modal historique uniquement)
   const [paymentPrompt, setPaymentPrompt] = useState<null | { orderId: number }>(null);
-
-  // Confirmation d'archivage en masse
   const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
 
-  // Configuration responsive
   const layoutConfig = {
     containerPadding: getResponsiveValue(SPACING.container, screenType),
-    maxContentWidth: screenType === 'desktop' ? 1200 : undefined,
-    isTabletLandscape: screenType === 'tablet' && width > 1000,
+    maxContentWidth: screenType === 'desktop' ? 1400 : undefined,
   };
-  
+
+  const useKanbanColumns = screenType !== 'mobile';
+
   const {
     restaurants,
     selectedRestaurantId,
@@ -958,58 +1092,83 @@ export default function RestaurantOrdersScreen() {
     archiveCompletedOrders,
   } = useOrderArchiving();
 
-  const { 
-    orders: allOrders, 
-    isLoading, 
-    error, 
-    fetchOrders, 
+  const {
+    orders: allOrders,
+    isLoading,
+    error,
+    fetchOrders,
     updateOrderStatus,
-    markAsPaid 
+    markAsPaid
   } = useOrder();
 
   // Filtrer les commandes par restaurant sélectionné
+  // ⚠️ Tant qu'aucun restaurant n'est sélectionné, on renvoie [] et non `allOrders`,
+  // sinon on compte les commandes de TOUS les restaurants pendant l'init.
   const restaurantOrders = useMemo(() => {
-    if (!selectedRestaurantId) return allOrders;
-    
+    if (!selectedRestaurantId) return [];
     const selectedRestaurant = restaurants.find(r => r.id === String(selectedRestaurantId));
-    if (!selectedRestaurant) return allOrders;
-    
+    if (!selectedRestaurant) return [];
     return allOrders.filter(order => order.restaurant_name === selectedRestaurant.name);
   }, [allOrders, selectedRestaurantId, restaurants]);
+
+  // Commandes actives (kanban) : exclure servies, annulées et archivées
+  // + filtrage temporel : on ne montre que les commandes des dernières 24h
+  // pour éviter d'afficher des commandes "fantômes" en pending/confirmed
+  // qui n'auraient jamais été avancées.
+  const SERVICE_WINDOW_MS = 24 * 60 * 60 * 1000;
+  const activeOrders = useMemo(() => {
+    const cutoff = Date.now() - SERVICE_WINDOW_MS;
+    return restaurantOrders.filter(o =>
+      !archivedOrders.has(o.id) &&
+      ['pending', 'confirmed', 'preparing', 'ready'].includes(o.status) &&
+      new Date(o.created_at).getTime() >= cutoff
+    );
+  }, [restaurantOrders, archivedOrders]);
+
+  // Regroupement par colonne kanban
+  const kanbanGroups = useMemo(() => {
+    const groups: Record<KanbanColumnKey, OrderList[]> = { new: [], preparing: [], ready: [] };
+    activeOrders.forEach(order => {
+      const col = KANBAN_COLUMNS.find(c => c.statuses.includes(order.status));
+      if (col) groups[col.key].push(order);
+    });
+    // Tri par ancienneté (plus vieux en premier — urgent en haut)
+    Object.keys(groups).forEach(k => {
+      groups[k as KanbanColumnKey].sort((a, b) =>
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
+    });
+    return groups;
+  }, [activeOrders]);
+
+  // Stats du bandeau navy
+  const pendingCount = activeOrders.length;
+
+  const todayRevenue = useMemo(() => {
+    const cutoff = Date.now() - SERVICE_WINDOW_MS;
+    return restaurantOrders
+      .filter(o =>
+        new Date(o.created_at).getTime() >= cutoff &&
+        o.status !== 'cancelled'
+      )
+      .reduce((acc, o) => acc + parseFloat(String(o.total_amount || 0)), 0);
+  }, [restaurantOrders]);
+
+  const selectedRestaurant = restaurants.find(r => r.id === String(selectedRestaurantId));
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await fetchOrders({
-        page: 1,
-        limit: 100,
-      });
+      await fetchOrders({ page: 1, limit: 100 });
     } catch (err) {
       console.error('Error refreshing orders:', err);
-      pushAlert('error', 'Erreur', 'Impossible d’actualiser les commandes');
+      pushAlert('error', 'Erreur', 'Impossible d\'actualiser les commandes');
     } finally {
       setRefreshing(false);
     }
   }, [fetchOrders, pushAlert]);
-
-  // Filtrer par statut et archivage
-  const filteredOrders = useMemo(() => {
-    let filtered = restaurantOrders;
-
-    if (filter === 'archived') {
-      filtered = filtered.filter(order => archivedOrders.has(order.id));
-    } else {
-      filtered = filtered.filter(order => !archivedOrders.has(order.id));
-    }
-
-    if (filter !== 'all' && filter !== 'archived') {
-      filtered = filtered.filter(order => order.status === filter);
-    }
-
-    return filtered;
-  }, [restaurantOrders, filter, archivedOrders]);
-
-  const selectedRestaurant = restaurants.find(r => r.id === String(selectedRestaurantId));
 
   const handleStatusUpdate = useCallback(async (orderId: number, newStatus: string) => {
     try {
@@ -1019,6 +1178,10 @@ export default function RestaurantOrdersScreen() {
       pushAlert('error', 'Erreur', 'Impossible de mettre à jour le statut de la commande');
     }
   }, [updateOrderStatus, pushAlert]);
+
+  const navigateToDetail = useCallback((orderId: number) => {
+    router.push(`/order/${orderId}` as any);
+  }, []);
 
   const openPaymentPrompt = useCallback((orderId: number) => {
     setPaymentPrompt({ orderId });
@@ -1036,9 +1199,7 @@ export default function RestaurantOrdersScreen() {
     }
   }, [markAsPaid, pushAlert]);
 
-  const openArchiveConfirm = useCallback(() => {
-    setArchiveConfirmOpen(true);
-  }, []);
+  const openArchiveConfirm = useCallback(() => setArchiveConfirmOpen(true), []);
 
   const confirmBulkArchive = useCallback(async () => {
     try {
@@ -1050,7 +1211,7 @@ export default function RestaurantOrdersScreen() {
       }
     } catch (err) {
       console.error('Error bulk archiving:', err);
-      pushAlert('error', 'Erreur', 'Impossible d’archiver les commandes');
+      pushAlert('error', 'Erreur', 'Impossible d\'archiver les commandes');
     } finally {
       setArchiveConfirmOpen(false);
     }
@@ -1063,281 +1224,134 @@ export default function RestaurantOrdersScreen() {
     }
   }, [isAuthenticated, isRestaurateur]);
 
-  const styles = {
-    container: {
-      flex: 1,
-      backgroundColor: COLORS.background,
-    },
+  // ── Filtré pour l'historique ──────────────────────────────────────────────
 
-    content: {
-      padding: layoutConfig.containerPadding,
-      maxWidth: layoutConfig.maxContentWidth,
-      alignSelf: 'center' as const,
-      width: '100%' as const,
-    },
+  // L'historique montre uniquement les commandes terminées (servies, annulées, archivées)
+  const historyOrders = useMemo(() => {
+    let filtered = restaurantOrders;
+    if (historyFilter === 'archived') {
+      filtered = filtered.filter(o => archivedOrders.has(o.id));
+    } else {
+      filtered = filtered.filter(o => !archivedOrders.has(o.id));
+      // Par défaut on ne montre que les terminées
+      filtered = filtered.filter(o => ['served', 'cancelled'].includes(o.status));
+      if (historyFilter !== 'all') {
+        filtered = filtered.filter(o => o.status === historyFilter);
+      }
+    }
+    return filtered;
+  }, [restaurantOrders, historyFilter, archivedOrders]);
 
-    sectionHeader: {
-      flexDirection: 'row' as const,
-      justifyContent: 'space-between' as const,
-      alignItems: 'center' as const,
-      marginBottom: getResponsiveValue(SPACING.md, screenType),
-    },
+  // ── Rendu ─────────────────────────────────────────────────────────────────
 
-    sectionTitle: {
-      fontSize: getResponsiveValue(
-        { mobile: 20, tablet: 24, desktop: 28 },
-        screenType
-      ),
-      fontWeight: '600' as const,
-      color: COLORS.text.primary,
-    },
+  const insets = useSafeAreaInsets();
 
-    headerActions: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      gap: getResponsiveValue(SPACING.sm, screenType),
-    },
-
-    emptyContainer: {
-      flex: 1,
-      justifyContent: 'center' as const,
-      alignItems: 'center' as const,
-      padding: getResponsiveValue(
-        { mobile: 40, tablet: 60, desktop: 80 },
-        screenType
-      ),
-    },
-
-    emptyIcon: {
-      marginBottom: getResponsiveValue(SPACING.lg, screenType),
-    },
-
-    emptyTitle: {
-      fontSize: getResponsiveValue(
-        { mobile: 24, tablet: 28, desktop: 32 },
-        screenType
-      ),
-      fontWeight: '700' as const,
-      color: COLORS.primary,
-      marginBottom: getResponsiveValue(SPACING.sm, screenType),
-      textAlign: 'center' as const,
-    },
-
-    emptyMessage: {
-      fontSize: getResponsiveValue(
-        { mobile: 16, tablet: 18, desktop: 20 },
-        screenType
-      ),
-      color: COLORS.text.secondary,
-      textAlign: 'center' as const,
-      lineHeight: getResponsiveValue(
-        { mobile: 22, tablet: 24, desktop: 26 },
-        screenType
-      ),
-    },
-
-    errorContainer: {
-      flex: 1,
-      justifyContent: 'center' as const,
-      alignItems: 'center' as const,
-      padding: getResponsiveValue(
-        { mobile: 40, tablet: 60, desktop: 80 },
-        screenType
-      ),
-    },
-
-    errorText: {
-      fontSize: getResponsiveValue(
-        { mobile: 16, tablet: 18, desktop: 20 },
-        screenType
-      ),
-      color: COLORS.text.secondary,
-      marginTop: getResponsiveValue(SPACING.md, screenType),
-      textAlign: 'center' as const,
-    },
-
-    errorBanner: {
-      backgroundColor: COLORS.error + '10',
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      padding: getResponsiveValue(SPACING.sm, screenType),
-      margin: layoutConfig.containerPadding,
-      borderRadius: BORDER_RADIUS.lg,
-      borderWidth: 1,
-      borderColor: COLORS.error + '40',
-    },
-
-    errorBannerText: {
-      color: COLORS.error,
-      fontSize: getResponsiveValue(
-        { mobile: 14, tablet: 15, desktop: 16 },
-        screenType
-      ),
-      marginLeft: getResponsiveValue(SPACING.xs, screenType),
-      flex: 1,
-    },
-
-    loadingContainer: {
-      flex: 1,
-      justifyContent: 'center' as const,
-      alignItems: 'center' as const,
-    },
-
-    loadingText: {
-      marginTop: getResponsiveValue(SPACING.md, screenType),
-      fontSize: getResponsiveValue(
-        { mobile: 16, tablet: 18, desktop: 20 },
-        screenType
-      ),
-      color: COLORS.text.secondary,
-    },
-
-    alertsContainer: {
-      paddingHorizontal: layoutConfig.containerPadding,
-      paddingTop: getResponsiveValue(SPACING.sm, screenType),
-    },
-  };
-
-  const iconSize = getResponsiveValue(
-    { mobile: 64, tablet: 80, desktop: 96 },
-    screenType
-  );
-
-  // Gestion des erreurs d'accès
+  // Gestion accès non autorisé
   if (!isRestaurateur) {
     return (
-      <View style={styles.container}>
+      <View style={kanbanStyles.container}>
         <Header title="Commandes" />
-        <View style={styles.errorContainer}>
-          <Ionicons name="lock-closed-outline" size={iconSize} color={COLORS.secondary} />
-          <Text style={styles.errorText}>Accès réservé aux restaurateurs</Text>
+        <View style={kanbanStyles.errorContainer}>
+          <Ionicons name="lock-closed-outline" size={64} color={COLORS.secondary} />
+          <Text style={kanbanStyles.errorText}>Accès réservé aux restaurateurs</Text>
         </View>
       </View>
     );
   }
 
-  const renderContent = () => {
-    if (!selectedRestaurantId && !isLoadingRestaurants) {
-      return (
-        <View style={styles.emptyContainer}>
-          <View style={styles.emptyIcon}>
-            <Ionicons name="restaurant-outline" size={iconSize} color={COLORS.secondary} />
-          </View>
-          <Text style={styles.emptyTitle}>Aucun restaurant sélectionné</Text>
-          <Text style={styles.emptyMessage}>
-            Sélectionnez un restaurant pour voir les commandes
-          </Text>
-        </View>
-      );
-    }
-
-    if (restaurantOrders.length === 0 && !isLoading) {
-      return (
-        <View style={styles.emptyContainer}>
-          <View style={styles.emptyIcon}>
-            <Ionicons name="receipt-outline" size={iconSize} color={COLORS.secondary} />
-          </View>
-          <Text style={styles.emptyTitle}>Aucune commande</Text>
-          <Text style={styles.emptyMessage}>
-            {selectedRestaurant 
-              ? `Aucune commande pour ${selectedRestaurant.name}`
-              : 'Les nouvelles commandes apparaîtront ici'
-            }
-          </Text>
-        </View>
-      );
-    }
-
+  const renderKanbanColumn = (column: KanbanColumnDef, isFullWidth = false) => {
+    const orders = kanbanGroups[column.key];
     return (
-      <FlatList
-        data={filteredOrders}
-        renderItem={({ item }) => (
-          <OrderCard
-            key={item.id}
-            item={item}
-            onStatusUpdate={handleStatusUpdate}
-            onRequestPaymentMethod={openPaymentPrompt}
-            onArchive={archiveOrder}
-            onUnarchive={unarchiveOrder}
-            isUpdating={refreshing}
-            isArchived={filter === 'archived'}
-            screenType={screenType}
-          />
-        )}
-        keyExtractor={(item) => String(item.id)}
-        refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
-            onRefresh={handleRefresh}
-            colors={[COLORS.primary]}
-            tintColor={COLORS.primary}
-          />
-        }
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
-        ListHeaderComponent={() => {
-          const completedOrders = restaurantOrders.filter(o => 
-            ['served', 'cancelled'].includes(o.status) && !archivedOrders.has(o.id)
-          );
-
-          return (
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>
-                {filter === 'archived' ? 'Archives' : 'Commandes actives'} ({filteredOrders.length})
-              </Text>
-              <View style={styles.headerActions}>
-                {completedOrders.length > 0 && filter !== 'archived' ? (
-                  <Button
-                    title={`Archiver (${completedOrders.length})`}
-                    onPress={openArchiveConfirm}
-                    variant="outline"
-                    size="sm"
-                    leftIcon={<Ionicons name="archive" size={16} color={COLORS.text.secondary} />}
-                    style={{ 
-                      borderColor: COLORS.text.secondary,
-                      backgroundColor: 'transparent' 
-                    }}
-                    textStyle={{ color: COLORS.text.secondary }}
-                  />
-                ) : null}
-                <Pressable onPress={handleRefresh} disabled={refreshing}>
-                  <Ionicons 
-                    name="refresh" 
-                    size={getResponsiveValue(
-                      { mobile: 20, tablet: 22, desktop: 24 },
-                      screenType
-                    )} 
-                    color={refreshing ? COLORS.text.light : COLORS.primary} 
-                  />
-                </Pressable>
-              </View>
+      <View
+        key={column.key}
+        style={[
+          kanbanStyles.column,
+          isFullWidth ? kanbanStyles.columnFullWidth : null,
+          { borderTopColor: column.color },
+        ]}
+      >
+        <KanbanColumnHeader column={column} count={orders.length} />
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ padding: 12, paddingBottom: 24 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[column.color]}
+              tintColor={column.color}
+            />
+          }
+        >
+          {orders.length === 0 ? (
+            <View style={kanbanStyles.emptyColumn}>
+              <Ionicons name="checkmark-circle-outline" size={32} color={COLORS.text.light} />
+              <Text style={kanbanStyles.emptyColumnText}>Rien ici</Text>
             </View>
-          );
-        }}
-      />
+          ) : (
+            orders.map(order => (
+              <KanbanCard
+                key={order.id}
+                order={order}
+                column={column}
+                onAdvance={handleStatusUpdate}
+                onPress={navigateToDetail}
+                isUpdating={refreshing}
+              />
+            ))
+          )}
+        </ScrollView>
+      </View>
+    );
+  };
+
+  const renderMobileTabs = () => {
+    const activeColumn = KANBAN_COLUMNS.find(c => c.key === activeColumnKey)!;
+    return (
+      <>
+        <View style={kanbanStyles.mobileTabs}>
+          {KANBAN_COLUMNS.map(col => {
+            const count = kanbanGroups[col.key].length;
+            const isActive = col.key === activeColumnKey;
+            return (
+              <Pressable
+                key={col.key}
+                onPress={() => setActiveColumnKey(col.key)}
+                style={[
+                  kanbanStyles.mobileTab,
+                  isActive && { backgroundColor: col.color + '15', borderColor: col.color },
+                ]}
+                android_ripple={{ color: col.color + '20' }}
+              >
+                <View style={[kanbanStyles.mobileTabDot, { backgroundColor: col.color }]} />
+                <Text style={[kanbanStyles.mobileTabText, isActive && { color: col.color, fontWeight: '700' }]}>
+                  {col.label}
+                </Text>
+                <View style={[kanbanStyles.mobileTabBadge, { backgroundColor: col.color + (isActive ? '25' : '15') }]}>
+                  <Text style={[kanbanStyles.mobileTabBadgeText, { color: col.color }]}>{count}</Text>
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+        {renderKanbanColumn(activeColumn, true)}
+      </>
     );
   };
 
   return (
-    <View style={styles.container}>
-      <Header title="Gestion des commandes" />
+    <View style={kanbanStyles.container}>
+      {/* Bandeau navy custom (remplace le Header standard) */}
+      <KanbanBanner
+        restaurantName={selectedRestaurant?.name}
+        pendingCount={pendingCount}
+        todayRevenue={todayRevenue}
+        onOpenHistory={() => setShowHistory(true)}
+        onRefresh={handleRefresh}
+        refreshing={refreshing}
+      />
 
-      {/* Bannières d’alertes (success / error / info / warning) */}
-      {alerts.length > 0 && (
-        <View style={styles.alertsContainer}>
-          {alerts.map(a => (
-            <InlineAlert
-              key={a.id}
-              variant={a.variant}
-              title={a.title}
-              message={a.message}
-              onDismiss={() => dismissAlert(a.id)}
-              // autoDismiss true par défaut (dans ton composant)
-            />
-          ))}
-        </View>
-      )}
-
+      {/* Sélecteur de restaurant (uniquement si plusieurs) */}
       <RestaurantSelector
         restaurants={restaurants}
         selectedRestaurantId={selectedRestaurantId}
@@ -1346,37 +1360,131 @@ export default function RestaurantOrdersScreen() {
         screenType={screenType}
       />
 
+      {/* Bannières d'alertes */}
+      {alerts.length > 0 && (
+        <View style={{ paddingHorizontal: layoutConfig.containerPadding, paddingTop: 8 }}>
+          {alerts.map(a => (
+            <InlineAlert
+              key={a.id}
+              variant={a.variant}
+              title={a.title}
+              message={a.message}
+              onDismiss={() => dismissAlert(a.id)}
+            />
+          ))}
+        </View>
+      )}
+
+      {/* Erreur API */}
       {error ? (
-        <View style={styles.errorBanner}>
+        <View style={kanbanStyles.errorBanner}>
           <Ionicons name="warning" size={16} color={COLORS.error} />
-          <Text style={styles.errorBannerText}>{error}</Text>
+          <Text style={kanbanStyles.errorBannerText}>{error}</Text>
         </View>
       ) : null}
 
-      {restaurantOrders.length > 0 ? (
-        <StatusFilters 
-          currentFilter={filter}
-          onFilterChange={setFilter}
-          orders={restaurantOrders.filter(order => !archivedOrders.has(order.id))}
-          archivedCount={archivedOrders.size}
-          screenType={screenType}
-        />
-      ) : null}
-
+      {/* Loading initial */}
       {(isLoading || isLoadingRestaurants) && allOrders.length === 0 ? (
-        <View style={styles.loadingContainer}>
+        <View style={kanbanStyles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>
+          <Text style={kanbanStyles.loadingText}>
             {isLoadingRestaurants ? 'Chargement des restaurants...' : 'Chargement des commandes...'}
           </Text>
         </View>
       ) : (
-        renderContent()
+        // Vue kanban
+        <View style={kanbanStyles.kanbanWrapper}>
+          {useKanbanColumns ? (
+            <View style={kanbanStyles.columnsRow}>
+              {KANBAN_COLUMNS.map(col => renderKanbanColumn(col))}
+            </View>
+          ) : (
+            renderMobileTabs()
+          )}
+        </View>
       )}
 
-      {/* Prompt d’encaissement (carte / espèces) */}
+      {/* ─── Modal Historique ─────────────────────────────────────────────── */}
+      <Modal
+        visible={showHistory}
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={() => setShowHistory(false)}
+      >
+        <View style={[kanbanStyles.container, { paddingTop: insets.top }]}>
+          <View style={kanbanStyles.historyHeader}>
+            <Pressable onPress={() => setShowHistory(false)} hitSlop={8}>
+              <Ionicons name="arrow-back" size={24} color={COLORS.primary} />
+            </Pressable>
+            <Text style={kanbanStyles.historyTitle}>Historique des commandes</Text>
+            <View style={{ width: 24 }} />
+          </View>
+
+          <StatusFilters
+            currentFilter={historyFilter}
+            onFilterChange={setHistoryFilter}
+            orders={restaurantOrders.filter(o => !archivedOrders.has(o.id) && ['served', 'cancelled'].includes(o.status))}
+            archivedCount={archivedOrders.size}
+            screenType={screenType}
+          />
+
+          {/* Bouton archivage en masse */}
+          {(() => {
+            const completedToArchive = restaurantOrders.filter(o =>
+              ['served', 'cancelled'].includes(o.status) && !archivedOrders.has(o.id)
+            );
+            if (completedToArchive.length === 0 || historyFilter === 'archived') return null;
+            return (
+              <View style={kanbanStyles.bulkArchiveBar}>
+                <Button
+                  title={`Archiver les ${completedToArchive.length} commande(s) terminée(s)`}
+                  onPress={openArchiveConfirm}
+                  variant="outline"
+                  size="sm"
+                  leftIcon={<Ionicons name="archive" size={16} color={COLORS.text.secondary} />}
+                  style={{ borderColor: COLORS.text.secondary, backgroundColor: 'transparent' }}
+                  textStyle={{ color: COLORS.text.secondary }}
+                />
+              </View>
+            );
+          })()}
+
+          {historyOrders.length === 0 ? (
+            <View style={kanbanStyles.emptyContainer}>
+              <Ionicons name="receipt-outline" size={48} color={COLORS.text.light} />
+              <Text style={kanbanStyles.emptyTitle}>Aucune commande</Text>
+              <Text style={kanbanStyles.emptyMessage}>
+                {historyFilter === 'archived'
+                  ? 'Aucune commande archivée'
+                  : 'Aucune commande terminée pour le moment'}
+              </Text>
+            </View>
+          ) : (
+            <FlatList
+              data={historyOrders}
+              keyExtractor={(item) => String(item.id)}
+              contentContainerStyle={{ padding: layoutConfig.containerPadding, paddingBottom: 40 }}
+              showsVerticalScrollIndicator={false}
+              renderItem={({ item }) => (
+                <OrderCard
+                  item={item}
+                  onStatusUpdate={handleStatusUpdate}
+                  onRequestPaymentMethod={openPaymentPrompt}
+                  onArchive={archiveOrder}
+                  onUnarchive={unarchiveOrder}
+                  isUpdating={refreshing}
+                  isArchived={historyFilter === 'archived'}
+                  screenType={screenType}
+                />
+              )}
+            />
+          )}
+        </View>
+      </Modal>
+
+      {/* Prompt encaissement */}
       {paymentPrompt && (
-        <View style={{ paddingHorizontal: layoutConfig.containerPadding, paddingTop: getResponsiveValue(SPACING.sm, screenType) }}>
+        <View style={kanbanStyles.bottomActionBanner}>
           <AlertWithAction
             variant="info"
             title="Marquer comme payée"
@@ -1390,22 +1498,18 @@ export default function RestaurantOrdersScreen() {
               text: 'Carte',
               onPress: () => performMarkAsPaid(paymentPrompt.orderId, 'card'),
             }}
-            // autoDismiss est désactivé par défaut dans AlertWithAction
           />
         </View>
       )}
 
-      {/* Confirmation d’archivage en masse */}
+      {/* Confirmation archivage en masse */}
       {archiveConfirmOpen && (
-        <View style={{ paddingHorizontal: layoutConfig.containerPadding, paddingTop: getResponsiveValue(SPACING.sm, screenType) }}>
+        <View style={kanbanStyles.bottomActionBanner}>
           <AlertWithAction
             variant="warning"
             title="Archiver les commandes terminées"
             message="Voulez-vous archiver toutes les commandes servies et annulées ?"
-            secondaryButton={{
-              text: 'Annuler',
-              onPress: () => setArchiveConfirmOpen(false),
-            }}
+            secondaryButton={{ text: 'Annuler', onPress: () => setArchiveConfirmOpen(false) }}
             primaryButton={{
               text: 'Archiver',
               onPress: confirmBulkArchive,
@@ -1417,3 +1521,401 @@ export default function RestaurantOrdersScreen() {
     </View>
   );
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// Styles Kanban
+// ════════════════════════════════════════════════════════════════════════════
+
+const kanbanStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+
+  // ── Bandeau navy ────────────────────────────────────────────────────────
+  banner: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+  },
+  bannerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  bannerLeft: {
+    flex: 1,
+  },
+  bannerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: -0.3,
+  },
+  bannerSubtitle: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginTop: 2,
+  },
+  bannerStats: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  bannerStatItem: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: BORDER_RADIUS.md,
+    alignItems: 'center',
+    minWidth: 70,
+  },
+  bannerStatItemRevenue: {
+    backgroundColor: 'rgba(212, 175, 55, 0.15)',
+  },
+  bannerStatValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    lineHeight: 24,
+  },
+  bannerStatLabel: {
+    fontSize: 10,
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginTop: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  bannerActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  bannerAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  bannerActionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+
+  // ── Wrapper kanban ──────────────────────────────────────────────────────
+  kanbanWrapper: {
+    flex: 1,
+  },
+  columnsRow: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: 12,
+    padding: 12,
+  },
+
+  // ── Colonne ─────────────────────────────────────────────────────────────
+  column: {
+    flex: 1,
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.lg,
+    borderTopWidth: 3,
+    overflow: 'hidden',
+    shadowColor: COLORS.shadow.default,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  columnFullWidth: {
+    flex: 1,
+    margin: 12,
+  },
+  columnHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border.light,
+  },
+  columnHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  columnDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  columnTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.text.primary,
+  },
+  columnCountBadge: {
+    minWidth: 24,
+    height: 22,
+    borderRadius: 11,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  columnCountText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  emptyColumn: {
+    alignItems: 'center',
+    paddingVertical: 32,
+    gap: 6,
+  },
+  emptyColumnText: {
+    fontSize: 13,
+    color: COLORS.text.light,
+  },
+
+  // ── Card kanban ─────────────────────────────────────────────────────────
+  card: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.md,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: COLORS.border.light,
+    overflow: 'hidden',
+    shadowColor: COLORS.shadow.default,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  cardAccent: {
+    width: 4,
+  },
+  cardBody: {
+    flex: 1,
+    padding: 12,
+    gap: 6,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  orderNumber: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.text.primary,
+  },
+  statusChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+  },
+  statusChipText: {
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'capitalize',
+  },
+  tableLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.text.primary,
+  },
+  itemsLine: {
+    fontSize: 12,
+    color: COLORS.text.secondary,
+    marginTop: 2,
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  timerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    flexShrink: 1,
+  },
+  timerText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  dotSeparator: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: COLORS.text.light,
+    marginHorizontal: 2,
+  },
+  unpaidText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: COLORS.warning,
+  },
+  priceText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.text.primary,
+  },
+  actionButton: {
+    marginTop: 6,
+    paddingVertical: 8,
+    borderRadius: BORDER_RADIUS.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+
+  // ── Mobile tabs ─────────────────────────────────────────────────────────
+  mobileTabs: {
+    flexDirection: 'row',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 6,
+    backgroundColor: COLORS.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border.light,
+  },
+  mobileTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: COLORS.border.light,
+  },
+  mobileTabDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  mobileTabText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: COLORS.text.secondary,
+  },
+  mobileTabBadge: {
+    minWidth: 20,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mobileTabBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+
+  // ── Modal historique ────────────────────────────────────────────────────
+  historyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: COLORS.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border.light,
+  },
+  historyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  bulkArchiveBar: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: COLORS.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border.light,
+  },
+
+  // ── États génériques ────────────────────────────────────────────────────
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: COLORS.text.secondary,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+    gap: 12,
+  },
+  errorText: {
+    fontSize: 16,
+    color: COLORS.text.secondary,
+    textAlign: 'center',
+  },
+  errorBanner: {
+    backgroundColor: COLORS.error + '10',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    margin: 12,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.error + '40',
+    gap: 8,
+  },
+  errorBannerText: {
+    color: COLORS.error,
+    fontSize: 13,
+    flex: 1,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+    gap: 8,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.text.primary,
+    marginTop: 8,
+  },
+  emptyMessage: {
+    fontSize: 14,
+    color: COLORS.text.secondary,
+    textAlign: 'center',
+  },
+
+  // ── Banner d'action en bas (paymentPrompt / archiveConfirm) ─────────────
+  bottomActionBanner: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 24,
+    zIndex: 9999,
+    elevation: 9999,
+  },
+});
