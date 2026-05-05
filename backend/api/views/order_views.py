@@ -359,13 +359,13 @@ class OrderViewSet(viewsets.ModelViewSet):
             try:
                 updated_order = serializer.save()
 
-                return Response({
-                    'message': 'Commande marquée comme payée',
-                    'order_number': updated_order.order_number,
-                    'payment_method': updated_order.payment_method,
-                    'payment_status': updated_order.payment_status,
-                    'total_amount': str(updated_order.total_amount)
-                })
+                # Retourner les détails complets pour que le frontend puisse
+                # remplacer currentOrder sans perdre items / subtotal / etc.
+                response_serializer = OrderDetailSerializer(
+                    updated_order,
+                    context={'request': request}
+                )
+                return Response(response_serializer.data)
 
             except Exception as e:
                 logger.exception("Erreur lors du marquage du paiement")

@@ -83,6 +83,9 @@ if not DEBUG:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
 
+API_BASE_URL = f"http://{LOCAL_IP}:8000"
+BASE_URL = os.environ.get('BASE_URL', 'http://localhost:8000')
+
 # Apps Django
 INSTALLED_APPS = [
     "django.contrib.admin",

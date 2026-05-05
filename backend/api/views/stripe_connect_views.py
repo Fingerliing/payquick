@@ -1,5 +1,11 @@
+import logging
+import uuid
+
 import stripe
 from django.conf import settings
+from django.http import HttpResponse
+from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -21,7 +27,7 @@ APP_REFRESH_URL = "eatquicker://stripe/refresh"
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def create_stripe_account(request):
-    """Créer un compte Stripe Connect pour un restaurateur"""
+    """Créer un compte Stripe Connect Express pour un restaurateur."""
     user = request.user
     
     # Vérifier que l'utilisateur est un restaurateur
@@ -30,32 +36,42 @@ def create_stripe_account(request):
     except RestaurateurProfile.DoesNotExist:
         return Response(
             {'error': 'Seuls les restaurateurs peuvent créer un compte Stripe'},
-            status=status.HTTP_403_FORBIDDEN
+            status=status.HTTP_403_FORBIDDEN,
         )
-    
+
     if restaurateur_profile.stripe_account_id:
         return Response(
             {'error': 'Un compte Stripe existe déjà pour cet utilisateur'},
-            status=status.HTTP_400_BAD_REQUEST
+            status=status.HTTP_400_BAD_REQUEST,
         )
-    
+
+    email = _resolve_email(restaurateur_profile)
+    if not email:
+        return Response(
+            {'error': "Adresse email manquante ou invalide sur le profil"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     try:
         # Créer un compte Stripe Connect
         account = stripe.Account.create(
             type='express',
             country='FR',
-            email=user.email or user.username,
+            email=email,
+            business_type='individual',  # à adapter si tu gères aussi les sociétés
             business_profile={
                 'name': restaurateur_profile.user.get_full_name() or restaurateur_profile.user.first_name or restaurateur_profile.user.username,
                 'product_description': 'Restaurant et livraison de repas via EatQuickeR',
             },
             metadata={
                 'user_id': str(user.id),
-                'user_email': user.email or user.username,
+                'user_email': email,
                 'siret': restaurateur_profile.siret,
                 'app': 'EatQuickeR',
                 'profile_id': str(restaurateur_profile.id),
-            }
+                'app': 'EatQuickeR',
+            },
+            idempotency_key=idempotency_key,
         )
         
         # Sauvegarder l'ID du compte Stripe
@@ -67,23 +83,26 @@ def create_stripe_account(request):
         account_link = stripe.AccountLink.create(
             account=account.id,
             refresh_url=APP_REFRESH_URL,
-            return_url=APP_RETURN_URL, 
+            return_url=APP_RETURN_URL,
             type='account_onboarding',
         )
-        
-        logger.info(f"Compte Stripe créé pour le restaurateur {restaurateur_profile.id} ({user.username})")
-        
+
+        logger.info(
+            f"Compte Stripe créé pour restaurateur {restaurateur_profile.id} "
+            f"({user.username})"
+        )
+
         return Response({
             'account_id': account.id,
             'onboarding_url': account_link.url,
-            'message': 'Compte Stripe créé avec succès'
+            'message': 'Compte Stripe créé avec succès',
         })
         
     except stripe.error.StripeError as e:
         logger.error(f"Erreur Stripe pour restaurateur {restaurateur_profile.id}: {str(e)}")
         return Response(
             {'error': 'Erreur lors de la création du compte Stripe'},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
     except Exception as e:
         logger.error(f"Erreur inattendue lors de la création du compte Stripe: {str(e)}")
@@ -92,13 +111,13 @@ def create_stripe_account(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_stripe_account_status(request):
     """Vérifier le statut du compte Stripe"""
     user = request.user
-    
-    # Vérifier si l'utilisateur est un restaurateur
+
     try:
         restaurateur_profile = RestaurateurProfile.objects.get(user=user)
     except RestaurateurProfile.DoesNotExist:
@@ -118,7 +137,7 @@ def get_stripe_account_status(request):
             'status': 'no_account',
             'has_validated_profile': False,
         })
-    
+
     try:
         account = stripe.Account.retrieve(restaurateur_profile.stripe_account_id)
         
@@ -139,27 +158,28 @@ def get_stripe_account_status(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def create_onboarding_link(request):
-    """Créer un nouveau lien d'onboarding si nécessaire"""
+    """Créer un nouveau lien d'onboarding Stripe (en cas de lien expiré)."""
     user = request.user
+
     try:
         restaurateur_profile = RestaurateurProfile.objects.get(user=user)
     except RestaurateurProfile.DoesNotExist:
         return Response(
             {'error': 'Seuls les restaurateurs peuvent accéder à cette fonctionnalité'},
-            status=status.HTTP_403_FORBIDDEN
+            status=status.HTTP_403_FORBIDDEN,
         )
-    
+
     if not restaurateur_profile.stripe_account_id:
         return Response(
             {'error': 'Aucun compte Stripe trouvé'},
-            status=status.HTTP_400_BAD_REQUEST
+            status=status.HTTP_400_BAD_REQUEST,
         )
-    
+
     try:
         account_link = stripe.AccountLink.create(
             account=restaurateur_profile.stripe_account_id,
             refresh_url=APP_REFRESH_URL,
-            return_url=APP_RETURN_URL, 
+            return_url=APP_RETURN_URL,
             type='account_onboarding',
         )
         
@@ -171,8 +191,18 @@ def create_onboarding_link(request):
         logger.error(f"Erreur création lien onboarding pour {restaurateur_profile.id}: {str(e)}")
         return Response(
             {'error': 'Erreur lors de la création du lien'},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+# ════════════════════════════════════════════════════════════════════
+# Webhook Stripe Connect (account events)
+#
+# Dashboard Stripe : Developers → Webhooks → Connect tab → Add endpoint
+# URL : https://api.eatquicker.fr/api/v1/stripe/connect/webhook/
+# Events : account.updated, account.application.authorized,
+#          account.application.deauthorized
+# ════════════════════════════════════════════════════════════════════
 
 @csrf_exempt
 @api_view(['POST'])

@@ -155,6 +155,11 @@ const normalizeRestaurantData = (data: any): Restaurant => {
     },
     can_receive_orders: data.can_receive_orders ?? false,
     image_url: data.image_url || data.image || null,
+    // Normalisation snake_case → camelCase : le backend peut renvoyer l'un ou l'autre
+    // selon le serializer. Sans cette conversion, les alertes du dashboard basées sur
+    // `r.isStripeActive` lisaient systématiquement `undefined`.
+    isStripeActive: data.isStripeActive ?? data.is_stripe_active ?? false,
+    isActive: data.isActive ?? data.is_active ?? true,
   };
 };
 
@@ -242,10 +247,14 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
       
       const { restaurants, pagination } = extractRestaurantData(response);
       
-      
       dispatch({ type: 'SET_RESTAURANTS', payload: restaurants });
       dispatch({ type: 'SET_PAGINATION', payload: pagination || state.pagination });
-      
+
+      // Si l'appel a réussi, on n'est plus dans un état de validation bloquante
+      if (state.validationStatus?.needsValidation) {
+        dispatch({ type: 'SET_VALIDATION_STATUS', payload: null });
+      }
+
       if (filters) {
         dispatch({ type: 'SET_FILTERS', payload: filters });
       }
@@ -322,7 +331,12 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
       
       dispatch({ type: 'SET_RESTAURANTS', payload: restaurants });
       dispatch({ type: 'SET_PAGINATION', payload: pagination || state.pagination });
-      
+
+      // Si l'appel a réussi, on n'est plus dans un état de validation bloquante
+      if (state.validationStatus?.needsValidation) {
+        dispatch({ type: 'SET_VALIDATION_STATUS', payload: null });
+      }
+
       if (filters) {
         dispatch({ type: 'SET_FILTERS', payload: filters });
       }
@@ -413,6 +427,9 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
       dispatch({ type: 'ADD_RESTAURANT', payload: normalizedRestaurant });
       return normalizedRestaurant;
     } catch (error: any) {
+      console.log('❌ CREATE RESTAURANT — status:', error?.response?.status);
+      console.log('❌ CREATE RESTAURANT — data:', JSON.stringify(error?.response?.data, null, 2));
+      console.log('❌ CREATE RESTAURANT — message:', error?.message);
       console.error('RestaurantContext: Create error:', error?.message ?? error);
       
       // Log des détails de l'erreur pour diagnostiquer

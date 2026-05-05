@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.conf import settings
 from api.models import (
     CollaborativeTableSession, SessionParticipant, SessionCartItem, Order, Restaurant, Table, MenuItem
 )
@@ -213,10 +214,12 @@ class SessionCartItemSerializer(serializers.ModelSerializer):
         decimal_places=2,
         read_only=True
     )
-    menu_item_image = serializers.ImageField(
-        source='menu_item.image',
-        read_only=True
-    )
+    # FIX : SerializerMethodField pour garantir une URL absolue côté frontend.
+    # ImageField renvoie une URL relative quand il n'y a pas de request dans
+    # le contexte (broadcasts WebSocket via _broadcast_cart_update,
+    # consumers._get_cart_data), ce qui empêche React Native de charger
+    # l'image et provoque l'affichage d'un carré gris dans le panier.
+    menu_item_image = serializers.SerializerMethodField()
     total_price = serializers.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -236,6 +239,38 @@ class SessionCartItemSerializer(serializers.ModelSerializer):
             'total_price', 'added_at', 'updated_at',
         ]
         read_only_fields = ['id', 'added_at', 'updated_at', 'participant']
+
+    def get_menu_item_image(self, obj):
+        """
+        URL absolue de l'image du plat.
+        - Avec request en contexte (vues REST) → request.build_absolute_uri()
+        - Sans request (broadcasts WebSocket) → fallback settings.BASE_URL
+          ou settings.SITE_URL
+        - En dernier recours → URL relative (mieux que rien, mais le frontend
+          ne pourra pas la charger).
+        """
+        menu_item = getattr(obj, 'menu_item', None)
+        if not menu_item or not getattr(menu_item, 'image', None):
+            return None
+        try:
+            url = menu_item.image.url
+        except (ValueError, AttributeError):
+            return None
+
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(url)
+
+        # Fallback hors-request (WebSocket broadcasts)
+        base_url = (
+            getattr(settings, 'BASE_URL', None)
+            or getattr(settings, 'SITE_URL', None)
+            or ''
+        )
+        if base_url:
+            return f"{base_url.rstrip('/')}{url}"
+
+        return url
 
 
 class SessionCartSerializer(serializers.Serializer):

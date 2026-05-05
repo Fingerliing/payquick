@@ -11,7 +11,10 @@ import {
   Linking,
 } from 'react-native';
 import { router } from 'expo-router';
-import { stripeService } from '@/services/stripeService'; // ajuste le chemin si besoin
+import { stripeService } from '@/services/stripeService';
+import { AlertWithAction } from '@/components/ui/Alert';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRestaurant } from '@/contexts/RestaurantContext';
 
 // -----------------------
 // Types
@@ -20,7 +23,7 @@ type Status = 'checking' | 'waiting' | 'success' | 'error';
 
 interface AccountStatus {
   has_validated_profile?: boolean;
-  status?: 'account_exists' | 'needs_onboarding' | 'pending' | 'unknown' | string;
+  status?: 'account_exists' | 'needs_onboarding' | 'pending' | 'no_account' | 'unknown' | string;
 }
 
 // -----------------------
@@ -52,7 +55,6 @@ function useStripeAccountStatus(initialDelayMs = 3000, pollMs = 5000) {
         if (!isMounted) return;
         setStatus('error');
         setMessage('Erreur lors de la vérification du statut de votre compte.');
-
         if (interval) clearInterval(interval);
       }
     };
@@ -106,18 +108,28 @@ export default function StripeScreen() {
   const { status, message, refresh } = useStripeAccountStatus(3000, 5000);
   const [opening, setOpening] = useState(false);
 
-  const goToDashboard = () => router.replace('/(restaurant)');
+  // Hooks pour synchroniser l'état des contextes après validation Stripe.
+  // Sans ça, le dashboard garde en mémoire un validationStatus.needsValidation=true
+  // et renvoie immédiatement ici → boucle infinie.
+  const { refreshUser } = useAuth();
+  const { clearValidationStatus, loadRestaurants } = useRestaurant();
+
+  const goToDashboard = async () => {
+    try {
+      clearValidationStatus();
+      await refreshUser();
+      await loadRestaurants();
+    } catch {
+      // On redirige malgré tout : le dashboard re-essaiera au focus via useFocusEffect.
+    }
+    router.replace('/(restaurant)');
+  };
 
   const openOnboarding = async () => {
+    if (opening) return;
     try {
       setOpening(true);
-      const link = await stripeService.createOnboardingLink();
-      // Préfère l’ouverture via le service (in-app/browser) si dispo
-      if (stripeService.openStripeOnboarding) {
-        await stripeService.openStripeOnboarding(link.onboarding_url);
-      } else {
-        await Linking.openURL(link.onboarding_url);
-      }
+      await stripeService.openStripeOnboarding();
     } catch {
       // Optionnel: journaliser (Sentry)
     } finally {
@@ -125,15 +137,22 @@ export default function StripeScreen() {
     }
   };
 
-  // Ouvre automatiquement l'onboarding Stripe si aucun compte n'existe encore
-  // (status retourné par le backend === 'no_account'). Pour les autres statuts 
-  // (compte existant non validé, etc.), aucune redirection automatique.
+  // Redirection automatique vers le dashboard après validation
+  useEffect(() => {
+    if (status === 'success') {
+      const timer = setTimeout(goToDashboard, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [status]);
+
   useEffect(() => {
     let isMounted = true;
     (async () => {
       try {
         const account: AccountStatus = await stripeService.getAccountStatus();
-        if (isMounted && account.status === 'no_account') {
+        if (!isMounted) return;
+
+        if (account.status === 'no_account' || account.status === 'needs_onboarding') {
           await openOnboarding();
         }
       } catch {
@@ -149,7 +168,6 @@ export default function StripeScreen() {
     if (status === 'success') {
       return goToDashboard();
     }
-    // Sinon on tente un refresh rapide
     await refresh();
   };
 
@@ -157,6 +175,10 @@ export default function StripeScreen() {
     if (status === 'waiting' || status === 'error') {
       await openOnboarding();
     }
+  };
+
+  const handleContact = () => {
+    Linking.openURL('mailto:contact@eatquicker.fr?subject=Aide%20configuration%20Stripe');
   };
 
   return (
@@ -178,6 +200,12 @@ export default function StripeScreen() {
           <ActivityIndicator size="large" style={styles.loader} />
         )}
 
+        {status === 'success' && (
+          <Text style={styles.redirectNote}>
+            Redirection automatique vers le tableau de bord...
+          </Text>
+        )}
+
         <View style={styles.actions}>
           <PrimaryButton
             label={status === 'success' ? 'Accéder au tableau de bord' : 'Rafraîchir le statut'}
@@ -188,7 +216,7 @@ export default function StripeScreen() {
 
           {(status === 'waiting' || status === 'error') && (
             <SecondaryButton
-              label={opening ? 'Ouverture...' : 'Modifier mes infos Stripe'}
+              label={opening ? 'Ouverture...' : 'Configurer mon compte Stripe'}
               onPress={handleSecondary}
               disabled={opening}
             />
@@ -202,10 +230,23 @@ export default function StripeScreen() {
                 onPress={goToDashboard}
               />
               <Text style={styles.note} accessibilityLabel="Information importante">
-                Les paiements resteront <Text style={styles.bold}>désactivés</Text> tant que la validation Stripe n’est pas terminée.
+                Les paiements resteront <Text style={styles.bold}>désactivés</Text> tant que la validation Stripe n'est pas terminée.
               </Text>
             </>
           )}
+        </View>
+
+        <View style={styles.alertContainer}>
+          <AlertWithAction
+            variant="info"
+            title="Besoin d'aide ?"
+            message="Si vous rencontrez des difficultés lors de la configuration de votre compte Stripe, n'hésitez pas à nous contacter."
+            autoDismiss={false}
+            primaryButton={{
+              text: 'Nous contacter',
+              onPress: handleContact,
+            }}
+          />
         </View>
       </View>
     </View>
@@ -287,7 +328,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 20,
-    // Ombres natives (iOS/Android)
     shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -313,6 +353,13 @@ const styles = StyleSheet.create({
   },
   loader: {
     marginVertical: 8,
+  },
+  redirectNote: {
+    fontSize: 14,
+    textAlign: 'center',
+    color: '#10B981',
+    fontWeight: '500',
+    marginBottom: 8,
   },
   actions: {
     marginTop: 8,
@@ -357,9 +404,11 @@ const styles = StyleSheet.create({
   bold: {
     fontWeight: '700',
   },
+  alertContainer: {
+    marginTop: 16,
+  },
 });
 
-// Styles responsives dérivés
 function makeResponsiveStyles(width: number) {
   const isTablet = width >= 768;
   const isSmall = width < 360;
