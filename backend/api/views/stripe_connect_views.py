@@ -8,29 +8,168 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from django.contrib.auth.models import User
-from django.views.decorators.csrf import csrf_exempt
-from django.http import HttpResponse
-from api.models import RestaurateurProfile, ClientProfile, Restaurant
-import json
-import logging
-from django.utils import timezone
+
+from api.models import Restaurant, RestaurateurProfile
 
 logger = logging.getLogger(__name__)
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
-APP_RETURN_URL  = "eatquicker://stripe/success"
-APP_REFRESH_URL = "eatquicker://stripe/refresh"
+
+# Base URL de l'API (HTTPS en prod, HTTP en dev)
+API_BASE_URL = getattr(settings, 'API_BASE_URL', 'http://localhost:8000')
+
+# URLs HTTPS que Stripe accepte — redirigent vers les deep links de l'app
+APP_RETURN_URL = f"{API_BASE_URL}/api/v1/stripe/redirect/success/"
+APP_REFRESH_URL = f"{API_BASE_URL}/api/v1/stripe/redirect/refresh/"
+
+# Deep link scheme de l'app (défini dans app.json → "scheme": "eatquicker")
+APP_DEEP_LINK_SCHEME = "eatquicker"
+
+
+# ════════════════════════════════════════════════════════════════════
+# Helpers
+# ════════════════════════════════════════════════════════════════════
+
+def _is_stripe_account_validated(account_data) -> bool:
+    """Critère unique pour considérer un compte Stripe Connect comme validé.
+
+    Source de vérité utilisée à la fois par le webhook et par la vue de statut
+    pour éviter tout drift de logique entre les deux.
+
+    `payouts_enabled` est essentiel : sans lui, le restaurateur ne reçoit pas
+    réellement les fonds, même si `charges_enabled` est True.
+    """
+    return (
+        account_data.get('charges_enabled', False)
+        and account_data.get('details_submitted', False)
+        and account_data.get('payouts_enabled', False)
+    )
+
+
+def _activate_restaurateur(profile: RestaurateurProfile) -> None:
+    """Active le restaurateur et tous ses restaurants après validation Stripe."""
+    profile.stripe_verified = True
+    profile.stripe_onboarding_completed = True
+    profile.is_validated = True
+    profile.is_active = True
+    profile.save(update_fields=[
+        'stripe_verified',
+        'stripe_onboarding_completed',
+        'is_validated',
+        'is_active',
+    ])
+    Restaurant.objects.filter(owner=profile).update(
+        is_stripe_active=True,
+        is_active=True,
+    )
+    logger.info(f"Stripe validé — restaurateur {profile.id} activé")
+
+
+def _deactivate_stripe(profile: RestaurateurProfile) -> None:
+    """Désactive Stripe sur les restaurants sans toucher au profil lui-même
+    (cas transitoire : le compte peut redevenir valide)."""
+    profile.stripe_verified = False
+    profile.save(update_fields=['stripe_verified'])
+    updated = Restaurant.objects.filter(
+        owner=profile, is_stripe_active=True
+    ).update(is_stripe_active=False)
+    if updated:
+        logger.info(
+            f"Stripe désactivé sur {updated} restaurant(s) du profil {profile.id}"
+        )
+
+
+def _render_redirect_html(emoji: str, title: str, message: str, deep_link: str) -> str:
+    """Page HTML intermédiaire qui redirige vers le deep link de l'app."""
+    return f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>{title}</title>
+    <meta http-equiv="refresh" content="2;url={deep_link}">
+    <style>
+        body {{ font-family: -apple-system, sans-serif; display: flex; align-items: center;
+               justify-content: center; min-height: 100vh; margin: 0; background: #F7F7FA;
+               text-align: center; padding: 20px; }}
+        .card {{ background: white; border-radius: 16px; padding: 40px; max-width: 400px;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.08); }}
+        h1 {{ color: #111827; font-size: 22px; }}
+        p {{ color: #6B7280; font-size: 16px; }}
+        a {{ color: #1E2A78; text-decoration: none; font-weight: 600; }}
+    </style>
+</head>
+<body>
+    <div class="card">
+        <p style="font-size:40px">{emoji}</p>
+        <h1>{title}</h1>
+        <p>{message}</p>
+        <p><a href="{deep_link}">Ouvrir EatQuickeR</a></p>
+    </div>
+</body>
+</html>"""
+
+
+def _resolve_business_name(profile: RestaurateurProfile) -> str:
+    """Préfère la raison sociale (entité légale) au nom personnel."""
+    raison_sociale = getattr(profile, 'raison_sociale', None)
+    if raison_sociale:
+        return raison_sociale
+    user = profile.user
+    return user.get_full_name() or user.first_name or user.username
+
+
+def _resolve_email(profile: RestaurateurProfile) -> str | None:
+    """Retourne l'email du restaurateur uniquement si c'est bien un email."""
+    email = profile.user.email
+    if email and '@' in email:
+        return email
+    return None
+
+
+# ════════════════════════════════════════════════════════════════════
+# Vues de redirection Stripe → Deep link app
+# ════════════════════════════════════════════════════════════════════
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def stripe_redirect_success(request):
+    """Stripe redirige ici après onboarding réussi → redirige vers l'app."""
+    deep_link = f"{APP_DEEP_LINK_SCHEME}://stripe/success"
+    html = _render_redirect_html(
+        emoji="✅",
+        title="Configuration terminée !",
+        message="Vous allez être redirigé vers l'application...",
+        deep_link=deep_link,
+    )
+    return HttpResponse(html, content_type='text/html')
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def stripe_redirect_refresh(request):
+    """Stripe redirige ici si le lien a expiré → relance l'app."""
+    deep_link = f"{APP_DEEP_LINK_SCHEME}://stripe/refresh"
+    html = _render_redirect_html(
+        emoji="🔄",
+        title="Lien expiré",
+        message="Retour vers l'application pour générer un nouveau lien...",
+        deep_link=deep_link,
+    )
+    return HttpResponse(html, content_type='text/html')
+
+
+# ════════════════════════════════════════════════════════════════════
+# Vues Stripe Connect
+# ════════════════════════════════════════════════════════════════════
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def create_stripe_account(request):
     """Créer un compte Stripe Connect Express pour un restaurateur."""
     user = request.user
-    
-    # Vérifier que l'utilisateur est un restaurateur
+
     try:
         restaurateur_profile = RestaurateurProfile.objects.get(user=user)
     except RestaurateurProfile.DoesNotExist:
@@ -53,33 +192,36 @@ def create_stripe_account(request):
         )
 
     try:
-        # Créer un compte Stripe Connect
+        # Idempotency key : si la requête est rejouée (réseau qui retry),
+        # Stripe renverra le même Account au lieu d'en créer un nouveau.
+        idempotency_key = f"acct-create-{restaurateur_profile.id}-{uuid.uuid4().hex[:8]}"
+
         account = stripe.Account.create(
             type='express',
             country='FR',
             email=email,
             business_type='individual',  # à adapter si tu gères aussi les sociétés
             business_profile={
-                'name': restaurateur_profile.user.get_full_name() or restaurateur_profile.user.first_name or restaurateur_profile.user.username,
-                'product_description': 'Restaurant et livraison de repas via EatQuickeR',
+                'name': _resolve_business_name(restaurateur_profile),
+                'product_description': 'Restaurant et commande de repas via EatQuickeR',
             },
             metadata={
                 'user_id': str(user.id),
                 'user_email': email,
                 'siret': restaurateur_profile.siret,
-                'app': 'EatQuickeR',
                 'profile_id': str(restaurateur_profile.id),
                 'app': 'EatQuickeR',
             },
             idempotency_key=idempotency_key,
         )
-        
-        # Sauvegarder l'ID du compte Stripe
+
         restaurateur_profile.stripe_account_id = account.id
         restaurateur_profile.stripe_account_created = timezone.now()
-        restaurateur_profile.save()
-        
-        # Créer un lien d'onboarding avec des URLs adaptées à votre app
+        restaurateur_profile.save(update_fields=[
+            'stripe_account_id',
+            'stripe_account_created',
+        ])
+
         account_link = stripe.AccountLink.create(
             account=account.id,
             refresh_url=APP_REFRESH_URL,
@@ -97,41 +239,44 @@ def create_stripe_account(request):
             'onboarding_url': account_link.url,
             'message': 'Compte Stripe créé avec succès',
         })
-        
-    except stripe.error.StripeError as e:
-        logger.error(f"Erreur Stripe pour restaurateur {restaurateur_profile.id}: {str(e)}")
+
+    except stripe.error.StripeError:
+        logger.exception(
+            f"Erreur Stripe création compte pour restaurateur {restaurateur_profile.id}"
+        )
         return Response(
             {'error': 'Erreur lors de la création du compte Stripe'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
-    except Exception as e:
-        logger.error(f"Erreur inattendue lors de la création du compte Stripe: {str(e)}")
+    except Exception:
+        logger.exception(
+            f"Erreur inattendue création compte pour restaurateur {restaurateur_profile.id}"
+        )
         return Response(
-            {'error': 'Erreur inattendue lors de la création du compte'},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            {'error': 'Erreur interne'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_stripe_account_status(request):
-    """Vérifier le statut du compte Stripe"""
+    """Récupérer le statut du compte Stripe Connect.
+
+    En plus du retour, applique une réconciliation BDD :
+    le webhook est la source principale, mais cette vue sert de défense
+    en profondeur si un event a été manqué.
+    """
     user = request.user
 
     try:
         restaurateur_profile = RestaurateurProfile.objects.get(user=user)
     except RestaurateurProfile.DoesNotExist:
-        # Si c'est un client, retourner un statut simple
-        try:
-            ClientProfile.objects.get(user=user)
-            return Response({
-                'status': 'client_account',
-                'has_validated_profile': True,
-                'message': 'Compte client - aucune validation Stripe requise'
-            })
-        except ClientProfile.DoesNotExist:
-            return Response({'status': 'unknown_user'})
-    
+        return Response(
+            {'error': 'Profil restaurateur non trouvé'},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
     if not restaurateur_profile.stripe_account_id:
         return Response({
             'status': 'no_account',
@@ -140,20 +285,32 @@ def get_stripe_account_status(request):
 
     try:
         account = stripe.Account.retrieve(restaurateur_profile.stripe_account_id)
-        
-        return Response({
-            'status': 'account_exists',
-            'account_id': account.id,
-            'charges_enabled': account.charges_enabled,
-            'details_submitted': account.details_submitted,
-            'payouts_enabled': account.payouts_enabled,
-            'requirements': account.requirements,
-            'has_validated_profile': restaurateur_profile.stripe_verified,
-        })
-        
-    except stripe.error.StripeError as e:
-        logger.error(f"Erreur lors de la récupération du compte {restaurateur_profile.stripe_account_id}: {str(e)}")
-        return Response({'error': 'Erreur lors de la vérification du compte'})
+    except stripe.error.StripeError:
+        logger.exception(
+            f"Erreur récupération compte {restaurateur_profile.stripe_account_id}"
+        )
+        return Response(
+            {'error': 'Erreur lors de la vérification du compte'},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+
+    has_validated = _is_stripe_account_validated(account)
+
+    # Réconciliation BDD si l'état a changé
+    if has_validated and not restaurateur_profile.stripe_verified:
+        _activate_restaurateur(restaurateur_profile)
+    elif not has_validated and restaurateur_profile.stripe_verified:
+        _deactivate_stripe(restaurateur_profile)
+
+    return Response({
+        'status': 'account_exists',
+        'account_id': restaurateur_profile.stripe_account_id,
+        'charges_enabled': account.get('charges_enabled', False),
+        'details_submitted': account.get('details_submitted', False),
+        'payouts_enabled': account.get('payouts_enabled', False),
+        'has_validated_profile': has_validated,
+    })
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -182,13 +339,12 @@ def create_onboarding_link(request):
             return_url=APP_RETURN_URL,
             type='account_onboarding',
         )
-        
-        return Response({
-            'onboarding_url': account_link.url
-        })
-        
-    except stripe.error.StripeError as e:
-        logger.error(f"Erreur création lien onboarding pour {restaurateur_profile.id}: {str(e)}")
+        return Response({'onboarding_url': account_link.url})
+
+    except stripe.error.StripeError:
+        logger.exception(
+            f"Erreur création lien onboarding pour {restaurateur_profile.id}"
+        )
         return Response(
             {'error': 'Erreur lors de la création du lien'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -206,92 +362,85 @@ def create_onboarding_link(request):
 
 @csrf_exempt
 @api_view(['POST'])
-@permission_classes([])  # Public : Stripe ne peut pas envoyer de JWT.
-                         # La sécurité repose sur stripe.Webhook.construct_event()
-                         # qui vérifie la signature HMAC du payload.
-def stripe_webhook(request):
-    """Gérer les webhooks Stripe Connect (account events)"""
+@permission_classes([AllowAny])
+def stripe_connect_webhook(request):
+    """Reçoit les événements Stripe sur les comptes connectés des restaurateurs."""
     payload = request.body
     sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
-    endpoint_secret = settings.STRIPE_CONNECT_WEBHOOK_SECRET
-    
+    endpoint_secret = getattr(settings, 'STRIPE_CONNECT_WEBHOOK_SECRET', None)
+
+    if not endpoint_secret:
+        logger.error("STRIPE_CONNECT_WEBHOOK_SECRET non configuré")
+        return HttpResponse(status=500)
+
     try:
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, endpoint_secret
-        )
+        event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
     except ValueError:
-        logger.error("Payload invalide dans webhook Stripe Connect")
+        logger.warning("Payload invalide dans webhook Stripe Connect")
         return HttpResponse(status=400)
     except stripe.error.SignatureVerificationError:
-        logger.error("Signature invalide dans webhook Stripe Connect")
+        logger.warning("Signature invalide dans webhook Stripe Connect")
         return HttpResponse(status=400)
-    
-    # Gérer l'événement
-    if event['type'] == 'account.updated':
-        handle_account_updated(event['data']['object'])
-    elif event['type'] == 'account.application.authorized':
-        handle_account_authorized(event['data']['object'])
-    elif event['type'] == 'account.application.deauthorized':
-        handle_account_deauthorized(event['data']['object'])
+
+    event_type = event['type']
+    account = event['data']['object']
+
+    if event_type == 'account.updated':
+        _handle_account_updated(account)
+    elif event_type == 'account.application.authorized':
+        logger.info(f"Compte Stripe autorisé: {account.get('id')}")
+    elif event_type == 'account.application.deauthorized':
+        _handle_account_deauthorized(account)
     else:
-        logger.info(f"Événement Stripe Connect non géré: {event['type']}")
-    
+        logger.info(f"Événement Stripe Connect non géré: {event_type}")
+
     return HttpResponse(status=200)
 
-def handle_account_updated(account):
-    """Gérer la mise à jour d'un compte Stripe"""
+
+def _handle_account_updated(account):
+    """Gestion d'un account.updated : synchronise l'état BDD avec Stripe."""
+    account_id = account.get('id')
+    if not account_id:
+        return
+
     try:
-        restaurateur_profile = RestaurateurProfile.objects.get(stripe_account_id=account['id'])
-        
-        # Vérifier si le compte est maintenant validé
-        is_validated = (
-            account.get('charges_enabled', False) and 
-            account.get('details_submitted', False) and
-            account.get('payouts_enabled', False)
-        )
-        
-        if is_validated:
-            restaurateur_profile.stripe_verified = True
-            restaurateur_profile.stripe_onboarding_completed = True
-            restaurateur_profile.is_validated = True
-            restaurateur_profile.is_active = True
-            
-            # Activer les restaurants de ce restaurateur
-            Restaurant.objects.filter(owner=restaurateur_profile).update(is_stripe_active=True)
-            
-            logger.info(f"Compte Stripe validé pour le restaurateur {restaurateur_profile.id} ({restaurateur_profile.display_name})")
+        profile = RestaurateurProfile.objects.get(stripe_account_id=account_id)
+    except RestaurateurProfile.DoesNotExist:
+        logger.warning(f"Webhook: aucun profil pour compte Stripe {account_id}")
+        return
+
+    try:
+        if _is_stripe_account_validated(account):
+            if not profile.stripe_verified:
+                _activate_restaurateur(profile)
         else:
-            restaurateur_profile.stripe_verified = False
-            Restaurant.objects.filter(owner=restaurateur_profile).update(is_stripe_active=False)
-            
-            logger.info(f"Compte Stripe non validé pour le restaurateur {restaurateur_profile.id}")
-            
-        restaurateur_profile.save()
-        
-    except RestaurateurProfile.DoesNotExist:
-        logger.error(f"RestaurateurProfile non trouvé pour le compte Stripe {account['id']}")
-    except Exception as e:
-        logger.error(f"Erreur lors de la mise à jour du compte Stripe: {str(e)}")
+            if profile.stripe_verified:
+                _deactivate_stripe(profile)
+    except Exception:
+        logger.exception(f"Erreur _handle_account_updated pour {account_id}")
 
-def handle_account_authorized(account):
-    """Gérer l'autorisation d'un compte"""
-    logger.info(f"Compte Stripe autorisé: {account['id']}")
 
-def handle_account_deauthorized(account):
-    """Gérer la déauthorisation d'un compte"""
+def _handle_account_deauthorized(account):
+    """Le restaurateur a révoqué l'accès depuis son dashboard Stripe."""
+    account_id = account.get('id')
+    if not account_id:
+        return
+
     try:
-        restaurateur_profile = RestaurateurProfile.objects.get(stripe_account_id=account['id'])
-        restaurateur_profile.stripe_verified = False
-        restaurateur_profile.stripe_onboarding_completed = False
-        restaurateur_profile.is_validated = False
-        restaurateur_profile.is_active = False
-        
-        # Désactiver les restaurants
-        Restaurant.objects.filter(owner=restaurateur_profile).update(is_stripe_active=False)
-        
-        restaurateur_profile.save()
-        
-        logger.info(f"Compte Stripe déautorisé pour le restaurateur {restaurateur_profile.id}")
-        
+        profile = RestaurateurProfile.objects.get(stripe_account_id=account_id)
     except RestaurateurProfile.DoesNotExist:
-        logger.error(f"RestaurateurProfile non trouvé pour le compte Stripe déautorisé {account['id']}")
+        logger.warning(f"Webhook: profil non trouvé pour compte déautorisé {account_id}")
+        return
+
+    profile.stripe_verified = False
+    profile.stripe_onboarding_completed = False
+    profile.is_validated = False
+    profile.is_active = False
+    profile.save(update_fields=[
+        'stripe_verified',
+        'stripe_onboarding_completed',
+        'is_validated',
+        'is_active',
+    ])
+    Restaurant.objects.filter(owner=profile).update(is_stripe_active=False)
+    logger.info(f"Compte Stripe déautorisé — profil {profile.id} désactivé")
