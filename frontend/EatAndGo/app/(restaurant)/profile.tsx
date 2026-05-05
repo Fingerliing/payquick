@@ -448,13 +448,13 @@ export default function ProfileScreen() {
             </Card>
 
             {/* Actions */}
-            <TouchableOpacity onPress={() => router.push('/(comptabilite)/index' as any)}>
+            {/* <TouchableOpacity onPress={() => router.push('/(comptabilite)/index' as any)}>
               <View style={styles.actionsSection}>
                 <Ionicons name="calculator-outline" size={24} />
                 <Text>Comptabilité</Text>
                 <Ionicons name="chevron-forward" size={20} />
               </View>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
 
             <View style={styles.actionsSection}>
               <Button
