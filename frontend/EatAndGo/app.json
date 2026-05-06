@@ -42,10 +42,13 @@
           "sounds": []
         }
       ],
-      ["@stripe/stripe-react-native", {
-        "merchantIdentifier": "merchant.com.fingerliing.EatQuickeR",
-        "enableGooglePay": true
-      }]
+      [
+        "@stripe/stripe-react-native",
+        {
+          "merchantIdentifier": "merchant.com.fingerliing.EatQuickeR",
+          "enableGooglePay": true
+        }
+      ]
     ],
     "extra": {
       "apiUrl": "https://api.eatquicker.fr",
@@ -56,6 +59,12 @@
         "projectId": "aec49fe2-48a9-417e-9552-31fc13700804"
       }
     },
-    "scheme": "eatquicker"
+    "scheme": "eatquicker",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/aec49fe2-48a9-417e-9552-31fc13700804"
+    }
   }
 }

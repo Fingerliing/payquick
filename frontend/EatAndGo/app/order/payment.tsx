@@ -48,7 +48,8 @@ import { splitPaymentService } from '@/services/splitPaymentService';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 
-const STRIPE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || '';
+// Constants
+import { STRIPE_PUBLISHABLE_KEY } from '@/constants/config';
 
 // Stripe refuse les montants < 0,50 € en EUR.
 const STRIPE_MIN_AMOUNT_EUR = 0.50;

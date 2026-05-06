@@ -29,7 +29,6 @@ payquick_db/
 db.sqlite3
 celerybeat-schedule
 db.sqlite3-journal
-migrations/
 media/
 static/
 *.pid
