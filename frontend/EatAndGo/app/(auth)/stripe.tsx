@@ -1,5 +1,5 @@
 // app/(auth)/stripe.tsx
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Platform,
   useWindowDimensions,
   Linking,
+  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { stripeService } from '@/services/stripeService';
@@ -27,11 +28,31 @@ interface AccountStatus {
 }
 
 // -----------------------
+// Helpers
+// -----------------------
+function extractErrorMessage(err: any, fallback: string): string {
+  // Axios / apiClient style
+  const status = err?.response?.status;
+  const data = err?.response?.data;
+  const backendMsg =
+    data?.error ||
+    data?.detail ||
+    data?.message ||
+    (typeof data === 'string' ? data : null);
+
+  if (backendMsg) return `${backendMsg}${status ? ` (HTTP ${status})` : ''}`;
+  if (err?.message) return err.message;
+  return fallback;
+}
+
+// -----------------------
 // Hook mutualisé
 // -----------------------
-function useStripeAccountStatus(initialDelayMs = 3000, pollMs = 5000) {
+function useStripeAccountStatus(initialDelayMs = 800, pollMs = 5000) {
   const [status, setStatus] = useState<Status>('checking');
-  const [message, setMessage] = useState<string>('Vérification de votre compte Stripe...');
+  const [message, setMessage] = useState<string>('Préparation de votre configuration Stripe...');
+  const [lastAccount, setLastAccount] = useState<AccountStatus | null>(null);
+  const [lastError, setLastError] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -43,6 +64,9 @@ function useStripeAccountStatus(initialDelayMs = 3000, pollMs = 5000) {
         const a: AccountStatus = await stripeService.getAccountStatus();
         if (!isMounted) return;
 
+        setLastAccount(a);
+        setLastError(null);
+
         if (a?.has_validated_profile) {
           setStatus('success');
           setMessage('Votre compte Stripe a été validé avec succès !');
@@ -51,10 +75,13 @@ function useStripeAccountStatus(initialDelayMs = 3000, pollMs = 5000) {
           setStatus('waiting');
           setMessage('Configuration en cours. Cela peut prendre quelques minutes...');
         }
-      } catch (e) {
+      } catch (e: any) {
         if (!isMounted) return;
+        const msg = extractErrorMessage(e, 'Erreur lors de la vérification du statut.');
+        console.error('[Stripe] getAccountStatus failed:', msg, e?.response?.data);
+        setLastError(msg);
         setStatus('error');
-        setMessage('Erreur lors de la vérification du statut de votre compte.');
+        setMessage('Impossible de récupérer le statut de votre compte.');
         if (interval) clearInterval(interval);
       }
     };
@@ -74,6 +101,8 @@ function useStripeAccountStatus(initialDelayMs = 3000, pollMs = 5000) {
   const refresh = async () => {
     try {
       const a: AccountStatus = await stripeService.getAccountStatus();
+      setLastAccount(a);
+      setLastError(null);
       if (a?.has_validated_profile) {
         setStatus('success');
         setMessage('Votre compte Stripe a été validé avec succès !');
@@ -81,13 +110,16 @@ function useStripeAccountStatus(initialDelayMs = 3000, pollMs = 5000) {
         setStatus('waiting');
         setMessage('Toujours en cours de vérification...');
       }
-    } catch {
+    } catch (e: any) {
+      const msg = extractErrorMessage(e, 'Impossible de rafraîchir le statut. Réessayez.');
+      console.error('[Stripe] refresh failed:', msg, e?.response?.data);
+      setLastError(msg);
       setStatus('error');
-      setMessage('Impossible de rafraîchir le statut. Réessayez.');
+      setMessage('Impossible de rafraîchir le statut.');
     }
   };
 
-  return { status, message, refresh };
+  return { status, message, refresh, lastAccount, lastError, setLastError };
 }
 
 // -----------------------
@@ -95,7 +127,11 @@ function useStripeAccountStatus(initialDelayMs = 3000, pollMs = 5000) {
 // -----------------------
 function StatusEmoji({ status }: { status: Status }) {
   const emoji = status === 'success' ? '✅' : status === 'error' ? '❌' : '⏳';
-  return <Text style={styles.emoji} accessibilityRole="image" accessibilityLabel={`Statut: ${status}`}>{emoji}</Text>;
+  return (
+    <Text style={styles.emoji} accessibilityRole="image" accessibilityLabel={`Statut: ${status}`}>
+      {emoji}
+    </Text>
+  );
 }
 
 // -----------------------
@@ -105,12 +141,15 @@ export default function StripeScreen() {
   const { width } = useWindowDimensions();
   const responsive = useMemo(() => makeResponsiveStyles(width), [width]);
 
-  const { status, message, refresh } = useStripeAccountStatus(3000, 5000);
-  const [opening, setOpening] = useState(false);
+  const { status, message, refresh, lastAccount, lastError, setLastError } =
+    useStripeAccountStatus(800, 5000);
 
-  // Hooks pour synchroniser l'état des contextes après validation Stripe.
-  // Sans ça, le dashboard garde en mémoire un validationStatus.needsValidation=true
-  // et renvoie immédiatement ici → boucle infinie.
+  const [opening, setOpening] = useState(false);
+  // Mutex partagé entre l'auto-open et le clic bouton pour éviter les doubles ouvertures
+  const openingRef = useRef(false);
+  // Garde-fou pour ne tenter l'auto-open qu'une seule fois par montage
+  const autoOpenedRef = useRef(false);
+
   const { refreshUser } = useAuth();
   const { clearValidationStatus, loadRestaurants } = useRestaurant();
 
@@ -120,19 +159,91 @@ export default function StripeScreen() {
       await refreshUser();
       await loadRestaurants();
     } catch {
-      // On redirige malgré tout : le dashboard re-essaiera au focus via useFocusEffect.
+      // Le dashboard re-essaiera au focus.
     }
     router.replace('/(restaurant)');
   };
 
+  /**
+   * Tente d'ouvrir l'onboarding Stripe.
+   * - createOnboardingLink (compte existant) sinon createAccount (premier passage)
+   * - Web : window.open ; Native : Linking.openURL
+   * - Surface toutes les erreurs à l'utilisateur.
+   */
   const openOnboarding = async () => {
-    if (opening) return;
+    if (openingRef.current) {
+      console.log('[Stripe] openOnboarding skipped (already opening)');
+      return;
+    }
+    openingRef.current = true;
+    setOpening(true);
+    setLastError(null);
+
     try {
-      setOpening(true);
-      await stripeService.openStripeOnboarding();
-    } catch {
-      // Optionnel: journaliser (Sentry)
+      // 1) Récupérer l'URL : essayer un nouveau lien d'abord, sinon créer le compte
+      let onboardingUrl: string | undefined;
+
+      try {
+        const link = await stripeService.createOnboardingLink();
+        onboardingUrl = link.onboarding_url;
+        console.log('[Stripe] createOnboardingLink OK');
+      } catch (linkErr: any) {
+        const linkStatus = linkErr?.response?.status;
+        console.warn(
+          '[Stripe] createOnboardingLink failed → fallback createAccount',
+          linkStatus,
+          linkErr?.response?.data,
+        );
+        // Pas de compte ? On le crée. (Backend renvoie 400 "Aucun compte Stripe trouvé")
+        try {
+          const created = await stripeService.createAccount();
+          onboardingUrl = created.onboarding_url;
+          console.log('[Stripe] createAccount OK');
+        } catch (createErr: any) {
+          // Si createAccount échoue avec "compte déjà existant", on remonte l'erreur
+          // de createOnboardingLink (la vraie cause), sinon celle de createAccount.
+          const createStatus = createErr?.response?.status;
+          console.error(
+            '[Stripe] createAccount failed:',
+            createStatus,
+            createErr?.response?.data,
+          );
+          throw createStatus === 400 ? linkErr : createErr;
+        }
+      }
+
+      if (!onboardingUrl) {
+        throw new Error("Aucune URL d'onboarding renvoyée par le serveur.");
+      }
+
+      console.log('[Stripe] Opening onboarding URL:', onboardingUrl);
+
+      // 2) Ouvrir l'URL selon la plateforme
+      if (Platform.OS === 'web') {
+        // window.open est le seul moyen fiable d'ouvrir un onglet sur Web depuis un click
+        const opened = window.open(onboardingUrl, '_blank', 'noopener,noreferrer');
+        if (!opened) {
+          throw new Error(
+            "Le navigateur a bloqué l'ouverture de l'onglet. Autorisez les pop-ups pour eatquicker.fr.",
+          );
+        }
+      } else {
+        // Sur natif, on utilise le service qui gère Linking + WebBrowser fallback
+        const ok = await stripeService.openStripeOnboarding(onboardingUrl);
+        if (!ok) {
+          throw new Error("Impossible d'ouvrir le navigateur Stripe.");
+        }
+      }
+    } catch (e: any) {
+      const msg = extractErrorMessage(
+        e,
+        "Impossible d'ouvrir la page Stripe. Vérifiez votre connexion et réessayez.",
+      );
+      console.error('[Stripe] openOnboarding failed:', msg, e);
+      setLastError(msg);
+      Alert.alert('Configuration Stripe', msg, [{ text: 'OK' }]);
     } finally {
+      openingRef.current = false;
       setOpening(false);
     }
   };
@@ -145,24 +256,25 @@ export default function StripeScreen() {
     }
   }, [status]);
 
+  // Auto-open de l'onboarding au premier chargement si pas de compte / onboarding incomplet.
+  // On attend que `lastAccount` soit défini par le hook avant de décider.
   useEffect(() => {
-    let isMounted = true;
-    (async () => {
-      try {
-        const account: AccountStatus = await stripeService.getAccountStatus();
-        if (!isMounted) return;
+    if (!lastAccount) return;
+    if (autoOpenedRef.current) return;
+    if (lastAccount.has_validated_profile) return;
 
-        if (account.status === 'no_account' || account.status === 'needs_onboarding') {
-          await openOnboarding();
-        }
-      } catch {
-        // Optionnel: journaliser l'erreur (Sentry)
-      }
-    })();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+    const needsOnboarding =
+      lastAccount.status === 'no_account' ||
+      lastAccount.status === 'needs_onboarding' ||
+      // Compte existe mais incomplet : on relance aussi l'onboarding
+      lastAccount.status === 'account_exists';
+
+    if (needsOnboarding) {
+      autoOpenedRef.current = true;
+      console.log('[Stripe] Auto-opening onboarding, account status:', lastAccount.status);
+      openOnboarding();
+    }
+  }, [lastAccount]);
 
   const handlePrimary = async () => {
     if (status === 'success') {
@@ -172,23 +284,21 @@ export default function StripeScreen() {
   };
 
   const handleSecondary = async () => {
-    if (status === 'waiting' || status === 'error') {
-      await openOnboarding();
-    }
+    await openOnboarding();
   };
 
   const handleContact = () => {
     Linking.openURL('mailto:contact@eatquicker.fr?subject=Aide%20configuration%20Stripe');
   };
 
+  const showSecondaryButton =
+    status === 'waiting' || status === 'error' || status === 'checking';
+
   return (
     <View style={[styles.container, responsive.container]}>
       <View style={[styles.card, responsive.card, webShadow]}>
         <StatusEmoji status={status} />
-        <Text
-          style={[styles.title, responsive.title]}
-          accessibilityRole="header"
-        >
+        <Text style={[styles.title, responsive.title]} accessibilityRole="header">
           Configuration Stripe
         </Text>
 
@@ -196,14 +306,19 @@ export default function StripeScreen() {
           {message}
         </Text>
 
-        {status === 'checking' && (
-          <ActivityIndicator size="large" style={styles.loader} />
-        )}
+        {status === 'checking' && <ActivityIndicator size="large" style={styles.loader} />}
 
         {status === 'success' && (
           <Text style={styles.redirectNote}>
             Redirection automatique vers le tableau de bord...
           </Text>
+        )}
+
+        {!!lastError && status !== 'success' && (
+          <View style={styles.errorBox}>
+            <Text style={styles.errorTitle}>Détail de l'erreur</Text>
+            <Text style={styles.errorMsg}>{lastError}</Text>
+          </View>
         )}
 
         <View style={styles.actions}>
@@ -214,23 +329,22 @@ export default function StripeScreen() {
             loading={status === 'checking'}
           />
 
-          {(status === 'waiting' || status === 'error') && (
+          {showSecondaryButton && (
             <SecondaryButton
               label={opening ? 'Ouverture...' : 'Configurer mon compte Stripe'}
               onPress={handleSecondary}
               disabled={opening}
+              loading={opening}
             />
           )}
 
           {status === 'waiting' && (
             <>
               <View style={styles.divider} />
-              <SecondaryButton
-                label="Continuer sans Stripe"
-                onPress={goToDashboard}
-              />
+              <SecondaryButton label="Continuer sans Stripe" onPress={goToDashboard} />
               <Text style={styles.note} accessibilityLabel="Information importante">
-                Les paiements resteront <Text style={styles.bold}>désactivés</Text> tant que la validation Stripe n'est pas terminée.
+                Les paiements resteront <Text style={styles.bold}>désactivés</Text> tant que la
+                validation Stripe n'est pas terminée.
               </Text>
             </>
           )}
@@ -276,7 +390,7 @@ function PrimaryButton({
       disabled={disabled}
       activeOpacity={0.8}
     >
-      {loading ? <ActivityIndicator /> : <Text style={styles.btnPrimaryText}>{label}</Text>}
+      {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.btnPrimaryText}>{label}</Text>}
     </TouchableOpacity>
   );
 }
@@ -285,10 +399,12 @@ function SecondaryButton({
   label,
   onPress,
   disabled,
+  loading,
 }: {
   label: string;
   onPress: () => void | Promise<void>;
   disabled?: boolean;
+  loading?: boolean;
 }) {
   return (
     <TouchableOpacity
@@ -299,7 +415,7 @@ function SecondaryButton({
       disabled={disabled}
       activeOpacity={0.8}
     >
-      <Text style={styles.btnSecondaryText}>{label}</Text>
+      {loading ? <ActivityIndicator /> : <Text style={styles.btnSecondaryText}>{label}</Text>}
     </TouchableOpacity>
   );
 }
@@ -361,6 +477,25 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginBottom: 8,
   },
+  errorBox: {
+    backgroundColor: '#FEE2E2',
+    borderColor: '#FCA5A5',
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+  },
+  errorTitle: {
+    color: '#991B1B',
+    fontWeight: '700',
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  errorMsg: {
+    color: '#991B1B',
+    fontSize: 13,
+    lineHeight: 18,
+  },
   actions: {
     marginTop: 8,
     gap: 10,
@@ -373,7 +508,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   btnPrimary: {
-    backgroundColor: '#111827',
+    backgroundColor: '#1E2A78',
   },
   btnPrimaryText: {
     color: '#FFFFFF',
