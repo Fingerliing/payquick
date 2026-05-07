@@ -20,6 +20,7 @@ import logging
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from drf_spectacular.utils import extend_schema, OpenApiResponse
@@ -50,6 +51,21 @@ def _get_client_ip(request) -> str:
     if xff:
         return xff.split(',')[0].strip()
     return request.META.get('REMOTE_ADDR', '0.0.0.0')
+
+
+def _find_user_by_email(email: str):
+    """
+    Recherche un User à partir d'un email — robuste.
+    À l'inscription, l'app stocke l'email à la fois dans `username` ET dans
+    `email`, mais on cherche sur les DEUX champs pour couvrir :
+      - les comptes créés via l'admin Django (où seul email peut être rempli)
+      - les éventuelles divergences héritées d'anciennes migrations
+      - les espaces parasites (déjà strip côté serializer, mais on lit tel quel)
+    `__iexact` gère la casse côté PostgreSQL (ILIKE).
+    """
+    return User.objects.filter(
+        Q(username__iexact=email) | Q(email__iexact=email)
+    ).first()
 
 
 @extend_schema(
@@ -91,7 +107,7 @@ class InitiatePasswordResetView(APIView):
         ) * 60
 
         try:
-            user = User.objects.filter(username__iexact=email).first()
+            user = _find_user_by_email(email)
 
             # Vérifier le cooldown sur l'email (anti-spam).
             recent = PasswordResetCode.objects.filter(
