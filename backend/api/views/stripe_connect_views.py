@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
 # Base URL de l'API (HTTPS en prod, HTTP en dev)
-API_BASE_URL = getattr(settings, 'API_BASE_URL', 'http://localhost:8000')
+API_BASE_URL = settings.DOMAIN
 
 # URLs HTTPS que Stripe accepte — redirigent vers les deep links de l'app
 APP_RETURN_URL = f"{API_BASE_URL}/api/v1/stripe/redirect/success/"

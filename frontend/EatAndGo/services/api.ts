@@ -1,7 +1,9 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+import { AppState, AppStateStatus, NativeEventSubscription } from 'react-native';
 import secureStorage from '@/utils/secureStorage';
 import { router } from 'expo-router';
 import { ApiError, ApiResponse } from '../types/common';
+import { getTokenExpiresInMs, isTokenExpiringSoon } from '@/utils/jwt';
 
 // Clés de stockage (doit correspondre à AuthContext)
 const STORAGE_KEYS = {
@@ -16,6 +18,8 @@ const STORAGE_KEYS = {
  * - Ajoute automatiquement le Bearer token si présent dans le stockage sécurisé
  * - Normalise les chemins pour éviter les doubles slashs
  * - Gère automatiquement le refresh token et la redirection vers login en cas d'expiration
+ * - Refresh PROACTIF (~2 min avant expiration) pour empêcher la session de tomber
+ *   en plein service côté restaurateur ou en pleine commande côté client
  * - Expose des helpers génériques: get/post/put/patch/delete/options
  */
 class ApiClient {
@@ -26,6 +30,14 @@ class ApiClient {
     resolve: (value: any) => void;
     reject: (reason?: any) => void;
   }> = [];
+
+  // ── Refresh proactif (anti-expiration en plein service) ──────────────────
+  // Le token d'accès est rafraîchi automatiquement ~2 min avant son expiration
+  // tant que l'app est utilisée (foreground + cycle de vie surveillé).
+  private proactiveRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+  private appStateSubscription: NativeEventSubscription | null = null;
+  private isMonitoring = false;
+  private static readonly REFRESH_BUFFER_MS = 2 * 60 * 1000; // 2 min avant expiration
 
   /**
    * Flag statique posé par le LoginScreen pour empêcher handleSessionExpired
@@ -116,6 +128,10 @@ class ApiClient {
               // Succès du refresh - réessayer la requête originale
               this.processQueue(null, newToken);
               originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
+              // Reprogrammer le refresh proactif sur le nouveau token
+              if (this.isMonitoring) {
+                this.scheduleProactiveRefresh().catch(() => {});
+              }
               return this.client(originalRequest);
             } else {
               // Échec du refresh - rediriger vers login
@@ -162,9 +178,16 @@ class ApiClient {
       );
 
       const newAccessToken = response.data?.access;
-      
+      const newRefreshToken = response.data?.refresh;
+
       if (newAccessToken) {
         await secureStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, newAccessToken);
+        // SimpleJWT avec ROTATE_REFRESH_TOKENS=True renvoie un nouveau refresh
+        // Si on ne le persiste pas, on continue avec l'ancien (potentiellement
+        // blacklisté à la prochaine rotation) → erreurs aléatoires.
+        if (newRefreshToken) {
+          await secureStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, newRefreshToken);
+        }
         console.log('✅ Token rafraîchi avec succès');
         return newAccessToken;
       }
@@ -195,7 +218,10 @@ class ApiClient {
    */
   private async handleSessionExpired(): Promise<void> {
     console.log('🚪 Session expirée - redirection vers la page de connexion...');
-    
+
+    // Stopper la surveillance pour ne pas tenter un refresh dans le vide
+    this.stopSessionMonitoring();
+
     try {
       // Nettoyer toutes les données d'authentification
       await secureStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
@@ -409,6 +435,135 @@ class ApiClient {
     );
     return this.extractData<T>(response);
   }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  //  Refresh proactif : empêche l'expiration de la session pendant l'utilisation
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Démarre la surveillance de la session :
+   *  - planifie un refresh ~2 min avant expiration du token courant
+   *  - rafraîchit immédiatement à chaque retour en foreground si nécessaire
+   *
+   * Idempotent : sûr d'appeler plusieurs fois (login + checkAuth concurrent).
+   */
+  async startSessionMonitoring(): Promise<void> {
+    if (this.isMonitoring) {
+      // Déjà actif — juste resynchroniser sur le token courant
+      await this.scheduleProactiveRefresh();
+      return;
+    }
+
+    this.isMonitoring = true;
+    console.log('🟢 Session monitoring activé (refresh proactif anti-expiration)');
+
+    // Programmer le premier refresh
+    await this.scheduleProactiveRefresh();
+
+    // Réagir au retour en foreground (les timers RN se mettent en pause en background)
+    this.appStateSubscription = AppState.addEventListener('change', this.handleAppStateChange);
+  }
+
+  /**
+   * Arrête la surveillance (à appeler lors du logout).
+   */
+  stopSessionMonitoring(): void {
+    if (!this.isMonitoring) return;
+
+    if (this.proactiveRefreshTimer) {
+      clearTimeout(this.proactiveRefreshTimer);
+      this.proactiveRefreshTimer = null;
+    }
+    if (this.appStateSubscription) {
+      this.appStateSubscription.remove();
+      this.appStateSubscription = null;
+    }
+    this.isMonitoring = false;
+    console.log('🔴 Session monitoring arrêté');
+  }
+
+  /**
+   * (Re)planifie le refresh proactif basé sur le token actuellement stocké.
+   * Si le token est déjà expiré ou proche de l'être, refresh immédiat.
+   */
+  private async scheduleProactiveRefresh(): Promise<void> {
+    if (this.proactiveRefreshTimer) {
+      clearTimeout(this.proactiveRefreshTimer);
+      this.proactiveRefreshTimer = null;
+    }
+
+    const token = await secureStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+    if (!token) return;
+
+    const expiresInMs = getTokenExpiresInMs(token);
+    if (expiresInMs === null) {
+      console.warn('⚠️ Token non décodable — pas de refresh proactif');
+      return;
+    }
+
+    const delayMs = expiresInMs - ApiClient.REFRESH_BUFFER_MS;
+
+    if (delayMs <= 0) {
+      // Token déjà expiré (ou < 2 min) → refresh immédiat
+      console.log('⏰ Token proche/déjà expiré, refresh immédiat');
+      await this.runProactiveRefresh();
+      return;
+    }
+
+    const minutes = Math.round(delayMs / 60_000);
+    console.log(`⏱️ Prochain refresh proactif dans ${minutes} min`);
+    this.proactiveRefreshTimer = setTimeout(() => {
+      this.runProactiveRefresh().catch((e) => {
+        console.warn('⚠️ Erreur refresh proactif:', e?.message);
+      });
+    }, delayMs);
+  }
+
+  /**
+   * Exécute un refresh proactif et reprogramme le suivant.
+   * Si le flux réactif (intercepteur 401) est déjà en cours, on cède la main.
+   */
+  private async runProactiveRefresh(): Promise<void> {
+    if (this.isRefreshing) {
+      // Le flux réactif s'en occupe — on reprogrammera après son passage
+      return;
+    }
+
+    this.isRefreshing = true;
+    try {
+      const newToken = await this.attemptTokenRefresh();
+      if (newToken) {
+        await this.scheduleProactiveRefresh();
+      } else {
+        // Refresh token probablement expiré (>7j d'inactivité totale).
+        // Ne PAS forcer le logout ici — laisser la prochaine requête le déclencher
+        // pour ne pas couper une action en cours.
+        console.warn('⚠️ Refresh proactif échoué — la prochaine requête déclenchera la reconnexion');
+      }
+    } finally {
+      this.isRefreshing = false;
+    }
+  }
+
+  /**
+   * Quand l'app revient en foreground, vérifier l'état du token.
+   * Les timers setTimeout sont mis en pause en background (surtout iOS),
+   * il faut donc recalculer à chaque retour.
+   */
+  private handleAppStateChange = async (nextState: AppStateStatus): Promise<void> => {
+    if (nextState !== 'active' || !this.isMonitoring) return;
+
+    const token = await secureStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+    if (!token) return;
+
+    if (isTokenExpiringSoon(token, ApiClient.REFRESH_BUFFER_MS)) {
+      console.log('📱 App foreground — token proche expiration, refresh');
+      await this.runProactiveRefresh();
+    } else {
+      // Token encore valide — juste reprogrammer le timer (qui était en pause)
+      await this.scheduleProactiveRefresh();
+    }
+  };
 
   /**
    * Méthode utilitaire pour forcer la déconnexion depuis l'extérieur

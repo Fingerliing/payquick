@@ -54,6 +54,7 @@ if DEBUG:
         '127.0.0.1',
         LOCAL_IP,
         '0.0.0.0',
+        '192.168.1.163',
     ]
 
 # ── CORS / CSRF ──────────────────────────────────────────────────────────────
@@ -209,7 +210,7 @@ if DEBUG:
     }
 else:
     SIMPLE_JWT = {
-        "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+        "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
         "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
         "ROTATE_REFRESH_TOKENS": True,
         "BLACKLIST_AFTER_ROTATION": True,
