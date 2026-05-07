@@ -13,9 +13,6 @@ Sécurité :
   - Cooldown applicatif sur le renvoi.
   - Limite de tentatives par code.
   - Expiration courte du code.
-  - Toutes les sessions JWT actives sont laissées telles quelles, mais le
-    nouveau mot de passe invalide les anciennes sessions Django session-based.
-    (Si on souhaite révoquer les refresh tokens existants, voir TODO en bas.)
 """
 
 import logging
@@ -88,9 +85,6 @@ class InitiatePasswordResetView(APIView):
 
         email = serializer.validated_data['email']
 
-        # Réponse générique (qu'il existe ou non un compte)
-        # On utilise un id factice si nécessaire pour éviter de révéler
-        # l'existence du compte par la présence/absence du champ reset_id.
         masked_email = email_verification_service.mask_email(email)
         expiry_seconds = getattr(
             settings, 'PASSWORD_RESET_CODE_EXPIRY_MINUTES', 10
@@ -99,16 +93,13 @@ class InitiatePasswordResetView(APIView):
         try:
             user = User.objects.filter(username__iexact=email).first()
 
-            # Vérifier le cooldown sur l'email (anti-spam même si l'utilisateur
-            # n'existe pas — on garde le même comportement).
+            # Vérifier le cooldown sur l'email (anti-spam).
             recent = PasswordResetCode.objects.filter(
                 email=email,
                 is_used=False,
             ).order_by('-created_at').first()
 
             if recent and not recent.is_expired() and not recent.can_resend():
-                # On retourne toujours le même message : on ne révèle ni
-                # l'existence du compte ni la présence d'une demande active.
                 logger.info(
                     f"Password reset throttled (cooldown) for {masked_email}"
                 )
@@ -141,7 +132,6 @@ class InitiatePasswordResetView(APIView):
                     email, reset_code.code
                 )
                 if not sent:
-                    # On loggue, mais on ne change pas la réponse utilisateur.
                     logger.error(
                         f"Échec envoi email reset password pour {masked_email}"
                     )
@@ -151,16 +141,11 @@ class InitiatePasswordResetView(APIView):
                     "(no email sent)"
                 )
 
-            # Toujours la même réponse, qu'il y ait eu envoi ou non.
             return Response({
                 'message': (
                     'Si un compte existe avec cet email, un code de '
                     'réinitialisation vient de vous être envoyé.'
                 ),
-                # On expose reset_id seulement quand l'utilisateur existe —
-                # côté client, l'absence n'est pas révélatrice tant que le
-                # message reste générique. (Alternative : exposer un id même
-                # pour comptes inconnus mais le rejeter à confirm.)
                 'reset_id': str(reset_code.id) if user else None,
                 'email': masked_email,
                 'expires_in': expiry_seconds,
@@ -206,64 +191,73 @@ class ConfirmPasswordResetView(APIView):
         code = serializer.validated_data['code']
         new_password = serializer.validated_data['new_password']
 
+        max_attempts = getattr(settings, 'SMS_MAX_ATTEMPTS', 3)
+
+        # ──────────────────────────────────────────────────────────────────
+        # IMPORTANT : select_for_update() DOIT être dans un atomic block.
+        # On enveloppe TOUT le flow critique dans un seul transaction.atomic().
+        # Les `return Response(...)` à l'intérieur du `with atomic()` sortent
+        # proprement du contexte (commit), ce qui persiste les changements
+        # partiels comme increment_attempts() — comportement souhaité.
+        # ──────────────────────────────────────────────────────────────────
+
         try:
-            try:
-                reset_code = PasswordResetCode.objects.select_for_update().get(
-                    id=reset_id,
-                    is_used=False,
-                )
-            except PasswordResetCode.DoesNotExist:
-                return Response({
-                    'error': 'Demande introuvable ou déjà utilisée.',
-                }, status=status.HTTP_404_NOT_FOUND)
-
-            # Expiration
-            if reset_code.is_expired():
-                return Response({
-                    'error': 'Le code a expiré. Veuillez demander un nouveau code.',
-                }, status=status.HTTP_400_BAD_REQUEST)
-
-            # Tentatives max
-            max_attempts = getattr(settings, 'SMS_MAX_ATTEMPTS', 3)
-            if reset_code.attempts >= max_attempts:
-                return Response({
-                    'error': 'Trop de tentatives. Veuillez demander un nouveau code.',
-                }, status=status.HTTP_429_TOO_MANY_REQUESTS)
-
-            # Code incorrect ?
-            if reset_code.code != code:
-                reset_code.increment_attempts()
-                remaining = max(0, max_attempts - reset_code.attempts)
-                return Response({
-                    'error': 'Code incorrect.',
-                    'attempts_remaining': remaining,
-                }, status=status.HTTP_400_BAD_REQUEST)
-
-            # Code OK : on change le mot de passe.
-            # Si le user a été supprimé entre-temps, on annule.
-            if not reset_code.user_id:
-                # Cas : demande créée pour un email inconnu (anti-énumération).
-                # On échoue silencieusement avec un message générique.
-                logger.warning(
-                    f"Confirm password reset rejected: no user linked "
-                    f"(reset_id={reset_id})"
-                )
-                return Response({
-                    'error': 'Demande invalide.',
-                }, status=status.HTTP_400_BAD_REQUEST)
-
-            try:
-                user = User.objects.select_for_update().get(pk=reset_code.user_id)
-            except User.DoesNotExist:
-                return Response({
-                    'error': 'Compte introuvable.',
-                }, status=status.HTTP_404_NOT_FOUND)
-
             with transaction.atomic():
+                try:
+                    reset_code = PasswordResetCode.objects.select_for_update().get(
+                        id=reset_id,
+                        is_used=False,
+                    )
+                except PasswordResetCode.DoesNotExist:
+                    return Response({
+                        'error': 'Demande introuvable ou déjà utilisée.',
+                    }, status=status.HTTP_404_NOT_FOUND)
+
+                # Expiration
+                if reset_code.is_expired():
+                    return Response({
+                        'error': 'Le code a expiré. Veuillez demander un nouveau code.',
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                # Tentatives max
+                if reset_code.attempts >= max_attempts:
+                    return Response({
+                        'error': 'Trop de tentatives. Veuillez demander un nouveau code.',
+                    }, status=status.HTTP_429_TOO_MANY_REQUESTS)
+
+                # Code incorrect ?
+                if reset_code.code != code:
+                    reset_code.increment_attempts()
+                    remaining = max(0, max_attempts - reset_code.attempts)
+                    return Response({
+                        'error': 'Code incorrect.',
+                        'attempts_remaining': remaining,
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                # Code OK : on change le mot de passe.
+                # Si la demande n'est liée à aucun user (email inconnu lors
+                # de l'étape forgot/), on échoue avec un message générique.
+                if not reset_code.user_id:
+                    logger.warning(
+                        f"Confirm password reset rejected: no user linked "
+                        f"(reset_id={reset_id})"
+                    )
+                    return Response({
+                        'error': 'Demande invalide.',
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                try:
+                    user = User.objects.select_for_update().get(pk=reset_code.user_id)
+                except User.DoesNotExist:
+                    return Response({
+                        'error': 'Compte introuvable.',
+                    }, status=status.HTTP_404_NOT_FOUND)
+
+                # Application du nouveau mot de passe
                 user.set_password(new_password)
                 user.save(update_fields=['password'])
 
-                # Invalider tous les autres codes en cours pour cet utilisateur.
+                # Invalider tous les autres codes en cours pour cet utilisateur
                 PasswordResetCode.objects.filter(
                     user=user,
                     is_used=False,
@@ -274,9 +268,14 @@ class ConfirmPasswordResetView(APIView):
 
                 reset_code.mark_used()
 
+                # Capture pour log hors transaction
+                user_id_for_log = reset_code.user_id
+                email_for_log = reset_code.email
+
+            # ── Hors atomic ────────────────────────────────────────────────
             logger.info(
-                f"Password reset confirmé pour user_id={user.pk} "
-                f"({email_verification_service.mask_email(user.username)})"
+                f"Password reset confirmé pour user_id={user_id_for_log} "
+                f"({email_verification_service.mask_email(email_for_log)})"
             )
 
             # TODO (optionnel, sécurité avancée) : révoquer les refresh tokens
@@ -327,49 +326,58 @@ class ResendPasswordResetCodeView(APIView):
         ) * 60
 
         try:
-            try:
-                reset_code = PasswordResetCode.objects.get(
-                    id=reset_id,
-                    is_used=False,
-                )
-            except PasswordResetCode.DoesNotExist:
-                return Response({
-                    'error': 'Demande introuvable ou déjà utilisée.',
-                }, status=status.HTTP_404_NOT_FOUND)
-
-            if reset_code.is_expired():
-                return Response({
-                    'error': 'La demande a expiré. Veuillez recommencer.',
-                }, status=status.HTTP_400_BAD_REQUEST)
-
-            if not reset_code.can_resend():
-                return Response({
-                    'error': 'Veuillez attendre avant de renvoyer un code.',
-                    'retry_after': cooldown_seconds,
-                }, status=status.HTTP_429_TOO_MANY_REQUESTS)
+            # On capture les valeurs nécessaires à l'envoi d'email pour les
+            # utiliser hors transaction (mauvaise pratique d'envoyer un email
+            # à l'intérieur d'un atomic — l'envoi pourrait commit puis échouer).
+            user_id = None
+            code_to_send = None
+            email_to_send = None
 
             with transaction.atomic():
+                try:
+                    reset_code = PasswordResetCode.objects.select_for_update().get(
+                        id=reset_id,
+                        is_used=False,
+                    )
+                except PasswordResetCode.DoesNotExist:
+                    return Response({
+                        'error': 'Demande introuvable ou déjà utilisée.',
+                    }, status=status.HTTP_404_NOT_FOUND)
+
+                if reset_code.is_expired():
+                    return Response({
+                        'error': 'La demande a expiré. Veuillez recommencer.',
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                if not reset_code.can_resend():
+                    return Response({
+                        'error': 'Veuillez attendre avant de renvoyer un code.',
+                        'retry_after': cooldown_seconds,
+                    }, status=status.HTTP_429_TOO_MANY_REQUESTS)
+
                 reset_code.generate_code()
                 reset_code.last_resend_at = timezone.now()
                 reset_code.attempts = 0
                 reset_code.save(update_fields=['code', 'last_resend_at', 'attempts'])
 
-            # N'envoyer l'email que si un user est lié à la demande.
-            if reset_code.user_id:
+                user_id = reset_code.user_id
+                code_to_send = reset_code.code
+                email_to_send = reset_code.email
+
+            # ── Hors atomic : envoi d'email ────────────────────────────────
+            if user_id:
                 sent = email_verification_service.send_password_reset_code(
-                    reset_code.email, reset_code.code
+                    email_to_send, code_to_send
                 )
                 if not sent:
                     logger.error(
                         "Échec envoi email reset password (resend) "
-                        f"pour {email_verification_service.mask_email(reset_code.email)}"
+                        f"pour {email_verification_service.mask_email(email_to_send)}"
                     )
                     return Response({
                         'error': "Impossible d'envoyer l'email. Veuillez réessayer.",
                     }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            # Sinon, on retourne un succès générique sans rien envoyer
-            # (l'utilisateur n'aurait jamais eu de premier code de toute façon,
-            # mais on ne le révèle pas).
+            # Sinon, succès générique sans envoi (cas anti-énumération).
 
             return Response({
                 'message': 'Nouveau code envoyé.',
