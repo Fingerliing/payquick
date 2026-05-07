@@ -10,6 +10,10 @@ import {
 } from '@/utils/legalNotifications';
 import { legalService } from '@/services/legalService';
 import { notificationService } from '@/services/notificationService';
+// Importé uniquement pour piloter le refresh proactif (anti-expiration en plein
+// service). Le client local fetch-based (défini plus bas) reste utilisé pour les
+// appels HTTP de ce contexte. Renommé pour éviter la collision de nom.
+import { apiClient as sessionMonitor } from '@/services/api';
 import {
   User,
   RestaurateurProfile,
@@ -355,6 +359,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const clearAuthData = async () => {
     try {
       console.log('🗑️ Suppression des données auth');
+      // Stop monitoring avant de purger pour éviter des refresh dans le vide
+      sessionMonitor.stopSessionMonitoring();
       await secureStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
       await secureStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
       await secureStorage.removeItem(STORAGE_KEYS.USER_DATA);
@@ -375,6 +381,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const response = await apiClient.refreshToken(refreshToken);
       await secureStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, response.access);
+      // SimpleJWT avec ROTATE_REFRESH_TOKENS=True renvoie un nouveau refresh.
+      // Si on ne le persiste pas, l'ancien sera blacklisté à la prochaine
+      // rotation → erreurs aléatoires.
+      const newRefresh = (response as any)?.refresh;
+      if (newRefresh) {
+        await secureStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, newRefresh);
+      }
       console.log('🔄 Token rafraîchi avec succès');
       clearError();
     } catch (error) {
@@ -413,7 +426,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const parsedUser = JSON.parse(userData);
         setUser(parsedUser);
         console.log('✅ Authentification restaurée depuis le cache');
-  
+
+        // Démarrer la surveillance de session (refresh proactif anti-expiration).
+        // Si le token est déjà expiré, sera rafraîchi immédiatement.
+        await sessionMonitor.startSessionMonitoring();
+
         // Synchro consentement légal en attente (fire-and-forget)
         syncPendingLegalConsent();
 
@@ -473,6 +490,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await secureStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, response.refresh);
       console.log('💾 Tokens enregistrés');
 
+      // Démarrer la surveillance de session (refresh proactif anti-expiration)
+      await sessionMonitor.startSessionMonitoring();
+
       const currentUser = await apiClient.getCurrentUser();
       await secureStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(currentUser));
       setUser(currentUser);
@@ -507,6 +527,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await secureStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, response.refresh);
       console.log('💾 Tokens enregistrés');
 
+      // Démarrer la surveillance de session (refresh proactif anti-expiration)
+      await sessionMonitor.startSessionMonitoring();
+
       const currentUser = await apiClient.getCurrentUser();
       if (currentUser) {
         await secureStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(currentUser));
@@ -537,7 +560,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     try {
       console.log('🚪 Déconnexion...');
-      
+
+      // Arrêter la surveillance de session avant de purger les tokens
+      sessionMonitor.stopSessionMonitoring();
+
       // Désinscrire le push token PENDANT qu'on a encore le JWT
       try {
         await notificationService.unregisterTokenFromServer();
