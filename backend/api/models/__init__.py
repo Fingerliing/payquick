@@ -67,6 +67,12 @@ from .authentication_models import (
     cleanup_expired_registrations
 )
 
+# Password Reset
+from .password_reset_models import (
+    PasswordResetCode,
+    cleanup_expired_password_reset_codes,
+)
+
 # Legal & RGPD
 from .legal_models import (
     LegalConsent,
@@ -94,17 +100,17 @@ __all__ = [
     # Validators
     'validate_siret',
     'validate_phone',
-    
+
     # User & Profile
     'RestaurateurProfile',
     'ClientProfile',
-    
+
     # Restaurant & Configuration
     'Restaurant',
     'OpeningPeriod',
     'OpeningHours',
     'RestaurantHoursTemplate',
-    
+
     # Menu & Items
     'Menu',
     'MenuCategory',
@@ -117,42 +123,46 @@ __all__ = [
     'DailyMenuItem',
     'DailyMenuTemplate',
     'DailyMenuTemplateItem',
-    
+
     # Tables
     'Table',
-    
+
     # Orders
     'OrderManager',
     'Order',
     'OrderItem',
-    
+
     # Collaborative Sessions
     'ActiveSessionManager',
     'CollaborativeTableSession',
     'SessionParticipant',
-    
+
     # Payment
     'SplitPaymentSession',
     'SplitPaymentPortion',
-    
+
     # Authentication
     'EmailVerification',
     'PhoneVerification',
     'PendingRegistration',
     'cleanup_expired_registrations',
-    
+
+    # Password Reset
+    'PasswordResetCode',
+    'cleanup_expired_password_reset_codes',
+
     # Legal & RGPD
     'LegalConsent',
     'AccountDeletionRequest',
     'DataAccessLog',
-    
+
     # Accounting
     'ComptabiliteSettings',
     'FactureSequence',
     'EcritureComptable',
     'RecapitulatifTVA',
     'ExportComptable',
-    
+
     # Notification
     'PushNotificationToken',
     'NotificationPreferences',

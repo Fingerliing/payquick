@@ -184,13 +184,15 @@ REST_FRAMEWORK = {
         "rest_framework.throttling.UserRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
-        "anon": "60/min",        # visiteurs anonymes (navigation publique)
-        "user": "300/min",       # utilisateurs authentifiés
-        "register": "10/hour",   # inscription (AnonRateThrottle scopé)
-        "login": "5/min",        # login — anti brute-force burst
-        "login_hour": "20/hour", # login — anti brute-force lent
+        "anon": "60/min",                # visiteurs anonymes (navigation publique)
+        "user": "300/min",               # utilisateurs authentifiés
+        "register": "10/hour",           # inscription (AnonRateThrottle scopé)
+        "login": "5/min",                # login — anti brute-force burst
+        "login_hour": "20/hour",         # login — anti brute-force lent
         "qrcode": "5/min",
         "stripe_checkout": "3/min",
+        "password_reset": "3/min",       # reset mot de passe — anti-spam burst
+        "password_reset_hour": "15/hour" # reset mot de passe — anti-énumération lent
     },
 }
 
@@ -329,3 +331,8 @@ SMS_CODE_EXPIRY_MINUTES = 10
 SMS_MAX_ATTEMPTS = 3
 SMS_RESEND_COOLDOWN_SECONDS = 60
 REGISTRATION_TEMP_DATA_EXPIRY_MINUTES = 30
+
+# ─── Réinitialisation mot de passe ────────────────────────────────────────────
+# Réutilise SMS_MAX_ATTEMPTS pour la limite de tentatives par code.
+PASSWORD_RESET_CODE_EXPIRY_MINUTES = 10
+PASSWORD_RESET_RESEND_COOLDOWN_SECONDS = 60

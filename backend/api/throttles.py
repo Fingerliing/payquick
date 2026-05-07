@@ -29,3 +29,20 @@ class LoginThrottle(AnonRateThrottle):
 class LoginHourThrottle(AnonRateThrottle):
     scope = 'login_hour'
     rate = '20/hour'
+
+
+class PasswordResetThrottle(AnonRateThrottle):
+    """
+    Limite les demandes de réinitialisation de mot de passe par IP.
+    Anti-spam : 3 demandes par minute max (cooldown applicatif de 60 s en plus).
+    """
+    scope = 'password_reset'
+    rate = '3/min'
+
+
+class PasswordResetHourThrottle(AnonRateThrottle):
+    """
+    Limite plus large pour bloquer les attaques par énumération sur la durée.
+    """
+    scope = 'password_reset_hour'
+    rate = '15/hour'
