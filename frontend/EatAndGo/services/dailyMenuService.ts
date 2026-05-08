@@ -1,16 +1,17 @@
 import { apiClient } from './api';
 
 export interface DailyMenuItem {
-  id: string;
-  menu_item: string;
+  id: string;                            // DailyMenuItem.id (UUID)
+  menu_item: number;                     // FK vers MenuItem (entier) — clé du panier
   menu_item_name: string;
   menu_item_description: string;
-  menu_item_category: string;
+  menu_item_category: string;            // nom de la catégorie
+  menu_item_category_id: string | null;  // UUID — utilisé pour la règle "1 par catégorie"
   menu_item_category_icon: string;
   menu_item_image: string | null;
-  original_price: number;
-  special_price: number | null;
-  effective_price: number;
+  original_price: number;                // prix de base du MenuItem
+  special_price: number | null;          // prix spécial éventuel sur le DailyMenuItem
+  effective_price: number;               // prix à afficher (formule | spécial | normal)
   has_discount: boolean;
   discount_percentage: number;
   is_available: boolean;
@@ -24,6 +25,7 @@ export interface DailyMenuItem {
 
 export interface CategoryWithItems {
   name: string;
+  category_id: string | null;  // UUID de la catégorie (null si "Autres")
   icon: string;
   items: DailyMenuItem[];
 }
@@ -32,7 +34,6 @@ export interface DailyMenu {
   id: string;
   restaurant: string;
   restaurant_name: string;
-  restaurant_logo: string | null;
   date: string;
   title: string;
   description: string | null;
@@ -67,11 +68,18 @@ export interface CreateDailyMenuData {
 export interface PublicDailyMenu {
   id: string;
   restaurant_name: string;
-  restaurant_logo: string | null;
+  restaurant_image: string | null;       // côté API publique le champ est `restaurant_image`
   date: string;
   title: string;
   description: string | null;
+  /** Prix total du menu si fixé (ex: 18€). null = pas de formule, à la carte. */
   special_price: number | null;
+  /** True si une formule est active (special_price défini ET au moins une catégorie). */
+  is_formula: boolean;
+  /** Prix par catégorie (= special_price / nb_catégories). null hors formule. */
+  price_per_category: number | null;
+  /** Nombre de catégories distinctes représentées dans le menu du jour. */
+  categories_count: number;
   items_by_category: CategoryWithItems[];
   total_items_count: number;
   estimated_total_price: number;
@@ -187,9 +195,9 @@ export class DailyMenuService {
     date: string;
     restaurants_count: number;
     restaurants: {
-      restaurant_id: number;
+      restaurant_id: string;            // backend renvoie str(restaurant.id)
       restaurant_name: string;
-      restaurant_logo: string | null;
+      restaurant_image: string | null;  // le champ s'appelle restaurant_image côté backend
       menu_title: string;
       special_price: number | null;
       items_count: number;

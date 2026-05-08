@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.utils import timezone
 from datetime import timedelta
+from decimal import Decimal
 from api.models import DailyMenu, DailyMenuItem, DailyMenuTemplate, DailyMenuTemplateItem, MenuItem, MenuCategory
 from api.serializers.menu_serializers import MenuItemSerializer
 from api.serializers.restaurant_serializers import RestaurantSerializer
@@ -157,23 +158,70 @@ class DailyMenuCreateSerializer(serializers.ModelSerializer):
 
 
 class DailyMenuPublicSerializer(serializers.ModelSerializer):
-    """Serializer pour l'API publique (côté client)"""
-    
+    """Serializer pour l'API publique (côté client).
+
+    Expose les informations nécessaires au front mobile pour afficher le
+    menu du jour ET appliquer la logique "formule" :
+    - si `special_price` est défini sur le menu et qu'au moins une
+      catégorie est représentée, on bascule en mode formule : le prix
+      affiché par item devient `special_price / nb_catégories_distinctes`
+      et la règle "1 plat par catégorie" peut être appliquée côté client ;
+    - sinon, on retombe sur l'`effective_price` standard du DailyMenuItem
+      (prix spécial éventuel sinon prix de base du MenuItem).
+    """
+
     restaurant_name = serializers.CharField(source='restaurant.name', read_only=True)
     # FIX: Le modèle Restaurant utilise 'image', pas 'logo'
     restaurant_image = serializers.SerializerMethodField()
     items_by_category = serializers.SerializerMethodField()
     total_items_count = serializers.ReadOnlyField()
     estimated_total_price = serializers.ReadOnlyField()
-    
+
+    # Champs spécifiques au mode formule
+    is_formula = serializers.SerializerMethodField()
+    price_per_category = serializers.SerializerMethodField()
+    categories_count = serializers.SerializerMethodField()
+
     class Meta:
         model = DailyMenu
         fields = [
-            'id', 'restaurant_name', 'restaurant_image', 'date', 'title', 
-            'description', 'special_price', 'items_by_category', 
-            'total_items_count', 'estimated_total_price'
+            'id', 'restaurant_name', 'restaurant_image', 'date', 'title',
+            'description', 'special_price',
+            'is_formula', 'price_per_category', 'categories_count',
+            'items_by_category',
+            'total_items_count', 'estimated_total_price',
         ]
-    
+
+    # ---------- Helpers internes ----------
+
+    def _distinct_category_ids(self, obj):
+        """Set des UUIDs de catégories distinctes représentées par les items
+        disponibles de ce menu du jour. Sert de base au calcul du prix
+        par catégorie en mode formule."""
+        return set(
+            obj.daily_menu_items
+                .filter(is_available=True)
+                .values_list('menu_item__category_id', flat=True)
+                .distinct()
+        )
+
+    def _is_formula(self, obj):
+        return obj.special_price is not None and len(self._distinct_category_ids(obj)) > 0
+
+    def _price_per_category(self, obj):
+        """Prix d'un item en mode formule : special_price / nb_catégories.
+        Retourne None si on n'est pas en mode formule."""
+        if obj.special_price is None:
+            return None
+        cat_ids = self._distinct_category_ids(obj)
+        if not cat_ids:
+            return None
+        # Decimal pour éviter les imprécisions float, arrondi à 2 décimales
+        per_cat = (Decimal(obj.special_price) / Decimal(len(cat_ids))).quantize(Decimal('0.01'))
+        return float(per_cat)
+
+    # ---------- Méthodes du serializer ----------
+
     def get_restaurant_image(self, obj):
         """Retourne l'URL de l'image du restaurant"""
         if obj.restaurant and obj.restaurant.image:
@@ -182,40 +230,84 @@ class DailyMenuPublicSerializer(serializers.ModelSerializer):
             except (ValueError, AttributeError):
                 pass
         return None
-    
+
+    def get_is_formula(self, obj):
+        return self._is_formula(obj)
+
+    def get_price_per_category(self, obj):
+        return self._price_per_category(obj)
+
+    def get_categories_count(self, obj):
+        return len(self._distinct_category_ids(obj))
+
     def get_items_by_category(self, obj):
-        """Items groupés par catégorie pour affichage client"""
+        """Items groupés par catégorie pour affichage client.
+
+        Note : la forme renvoyée doit rester cohérente avec le typage
+        front `DailyMenuItem` (champs préfixés `menu_item_*`). En mode
+        formule, l'`effective_price` exposé est le prix par catégorie
+        de la formule, pas l'éventuel prix spécial du DailyMenuItem.
+        """
         items = obj.daily_menu_items.filter(is_available=True).select_related(
             'menu_item__category'
         ).order_by('menu_item__category__order', 'display_order')
-        
+
+        is_formula = self._is_formula(obj)
+        per_cat_price = self._price_per_category(obj)
+
         categories = {}
         for item in items:
-            category_name = item.menu_item.category.name if item.menu_item.category else 'Autres'
-            if category_name not in categories:
-                categories[category_name] = {
-                    'name': category_name,
-                    'icon': item.menu_item.category.icon if item.menu_item.category else '🍽️',
+            mi = item.menu_item
+            cat = mi.category
+            cat_name = cat.name if cat else 'Autres'
+            cat_id = str(cat.id) if cat else None
+            cat_icon = cat.icon if cat else '🍽️'
+
+            if cat_name not in categories:
+                categories[cat_name] = {
+                    'name': cat_name,
+                    'category_id': cat_id,
+                    'icon': cat_icon,
                     'items': []
                 }
-            
-            # Données simplifiées pour le client
-            categories[category_name]['items'].append({
-                'id': str(item.id),
-                'name': item.menu_item.name,
-                'description': item.menu_item.description,
-                'price': float(item.effective_price),
-                'original_price': float(item.menu_item.price) if item.has_discount else None,
+
+            # Prix effectif côté client : formule prioritaire sinon prix
+            # spécial du DailyMenuItem sinon prix de base du MenuItem.
+            if is_formula and per_cat_price is not None:
+                effective = per_cat_price
+            else:
+                effective = float(item.effective_price)
+
+            original = float(mi.price)
+            has_discount = effective < original
+            discount_pct = (
+                round((original - effective) / original * 100)
+                if has_discount and original > 0 else 0
+            )
+
+            categories[cat_name]['items'].append({
+                'id': str(item.id),                  # DailyMenuItem.id (UUID)
+                'menu_item': mi.id,                  # FK MenuItem (entier) — utilisé par le panier
+                'menu_item_name': mi.name,
+                'menu_item_description': mi.description,
+                'menu_item_image': mi.image.url if mi.image else None,
+                'menu_item_category': cat_name,
+                'menu_item_category_id': cat_id,
+                'menu_item_category_icon': cat_icon,
+                'original_price': original,
+                'special_price': float(item.special_price) if item.special_price is not None else None,
+                'effective_price': effective,
+                'has_discount': has_discount,
+                'discount_percentage': discount_pct,
+                'is_available': item.is_available,
+                'display_order': item.display_order,
                 'special_note': item.special_note,
-                'image_url': item.menu_item.image.url if item.menu_item.image else None,
-                'is_vegetarian': item.menu_item.is_vegetarian,
-                'is_vegan': item.menu_item.is_vegan,
-                'is_gluten_free': item.menu_item.is_gluten_free,
-                'allergens': item.menu_item.allergens,
-                'has_discount': item.has_discount,
-                'discount_percentage': item.discount_percentage
+                'is_vegetarian': mi.is_vegetarian,
+                'is_vegan': mi.is_vegan,
+                'is_gluten_free': mi.is_gluten_free,
+                'allergens': mi.allergens,
             })
-        
+
         return list(categories.values())
 
 
