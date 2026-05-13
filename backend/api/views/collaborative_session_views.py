@@ -802,6 +802,7 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
         from api.models import Order, OrderItem, SplitPaymentSession, SplitPaymentPortion
         from api.utils.daily_menu_pricing import (
             get_active_daily_menu, formula_pricing_context, unit_price_for,
+            validate_formula_completeness,
         )
         from decimal import Decimal
         import random, string as string_module
@@ -835,6 +836,20 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
         # (special_price / nb_catégories) et non au prix de carte.
         active_dm = get_active_daily_menu(session.restaurant)
         formula_per_cat, formula_menu_item_ids = formula_pricing_context(active_dm)
+
+        # ─── Validation formule complète (option A) ───────────────────────
+        # Si le panier contient des items de la formule, ils doivent couvrir
+        # toutes les catégories du menu du jour. Sinon refuser la commande.
+        if formula_per_cat is not None:
+            unique_menu_items = list({
+                ci.menu_item_id: ci.menu_item for ci in cart_items
+            }.values())
+            is_valid, error_msg = validate_formula_completeness(active_dm, unique_menu_items)
+            if not is_valid:
+                return Response(
+                    {'error': error_msg},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         def _line_unit_price(menu_item):
             return unit_price_for(menu_item, formula_per_cat, formula_menu_item_ids)

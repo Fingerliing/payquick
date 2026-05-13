@@ -98,3 +98,73 @@ def unit_price_for(menu_item, formula_per_cat, formula_menu_item_ids):
     if formula_per_cat is not None and menu_item.id in formula_menu_item_ids:
         return formula_per_cat
     return Decimal(str(menu_item.price))
+
+
+def validate_formula_completeness(daily_menu, ordered_menu_items):
+    """Vérifie qu'une commande respecte la règle "1 plat par catégorie" du menu
+    du jour formule.
+
+    Règle (option A) :
+    - Si AUCUN item de la commande n'appartient à la formule → la règle ne
+      s'applique pas, la commande est valide (mode à la carte classique).
+    - Si AU MOINS un item appartient à la formule → la commande doit contenir
+      exactement une catégorie distincte par catégorie de la formule, sans
+      doublon par catégorie. Sinon le client pourrait obtenir des plats à un
+      prix formule en n'achetant qu'une partie de la formule.
+
+    @param daily_menu Instance DailyMenu actif (ou None si pas de menu du jour).
+    @param ordered_menu_items Iterable de MenuItem (instances Django, avec
+        category_id chargé) représentant les lignes de la commande, déjà
+        dédupliquées par MenuItem (un même MenuItem n'apparaît qu'une fois
+        peu importe sa quantité — la quantité ne change pas la validation).
+
+    @returns (is_valid, error_message). error_message vaut None si is_valid.
+    """
+    if daily_menu is None or not is_formula(daily_menu):
+        return True, None
+
+    formula_items = list(
+        daily_menu.daily_menu_items.filter(is_available=True).select_related('menu_item')
+    )
+    formula_menu_item_ids = {it.menu_item_id for it in formula_items}
+    # menu_item_id -> category_id, pour retrouver la catégorie d'un plat de la formule
+    formula_item_to_cat = {
+        it.menu_item_id: it.menu_item.category_id for it in formula_items
+    }
+    # category_id -> nom (pour message d'erreur lisible)
+    cat_id_to_name = {
+        it.menu_item.category_id: (it.menu_item.category.name if it.menu_item.category else 'Autres')
+        for it in formula_items if it.menu_item.category_id
+    }
+    required_cat_ids = set(formula_item_to_cat.values())
+
+    # Catégories couvertes par la commande, comptées
+    picked_per_cat = {}
+    has_formula_item = False
+    for mi in ordered_menu_items:
+        if mi.id in formula_menu_item_ids:
+            has_formula_item = True
+            cat_id = formula_item_to_cat.get(mi.id)
+            picked_per_cat[cat_id] = picked_per_cat.get(cat_id, 0) + 1
+
+    if not has_formula_item:
+        return True, None
+
+    missing = required_cat_ids - set(picked_per_cat.keys())
+    duplicates = [cid for cid, count in picked_per_cat.items() if count > 1]
+
+    if missing:
+        names = [cat_id_to_name.get(cid, 'Autres') for cid in missing]
+        return False, (
+            "Formule incomplète : il manque un plat dans "
+            + ", ".join(names) + "."
+        )
+
+    if duplicates:
+        names = [cat_id_to_name.get(cid, 'Autres') for cid in duplicates]
+        return False, (
+            "Formule invalide : plusieurs plats sélectionnés dans "
+            + ", ".join(names) + "."
+        )
+
+    return True, None

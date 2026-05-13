@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -39,6 +39,8 @@ import {
 } from '@/utils/designSystem';
 import { QRSessionUtils } from '@/utils/qrSessionUtils';
 import { collaborativeSessionService } from '@/services/collaborativeSessionService';
+import { dailyMenuService, PublicDailyMenu } from '@/services/dailyMenuService';
+import { computeFormulaStatus, formatFormulaMissingMessage } from '@/utils/dailyMenuFormula';
 
 // ============================================================================
 // TYPES
@@ -250,16 +252,22 @@ interface CartSummaryProps {
   screenType: 'mobile' | 'tablet' | 'desktop';
   canCheckout?: boolean;
   checkoutTitle?: string;
+  /**
+   * Si renseigné, affiche un bandeau d'avertissement et désactive le bouton.
+   * Utilisé pour le verrou "formule menu du jour incomplète".
+   */
+  formulaWarning?: string | null;
 }
 
-const CartSummary = React.memo<CartSummaryProps>(({ 
-  subtotal, 
-  itemCount, 
-  isCreatingOrder, 
+const CartSummary = React.memo<CartSummaryProps>(({
+  subtotal,
+  itemCount,
+  isCreatingOrder,
   onCheckout,
   screenType,
   canCheckout = true,
   checkoutTitle = 'Passer la commande',
+  formulaWarning = null,
 }) => {
   const styles = createResponsiveStyles(screenType);
   const iconSize = getResponsiveValue({ mobile: 20, tablet: 24, desktop: 28 }, screenType);
@@ -267,6 +275,8 @@ const CartSummary = React.memo<CartSummaryProps>(({
   // Calcul des frais (à adapter selon votre logique métier)
   const serviceFee = 0; // Exemple: pas de frais de service
   const total = subtotal + serviceFee;
+
+  const isLockedByFormula = !!formulaWarning;
 
   return (
     <View style={localStyles.summaryContainer}>
@@ -279,7 +289,7 @@ const CartSummary = React.memo<CartSummaryProps>(({
             {subtotal.toFixed(2)} €
           </Text>
         </View>
-        
+
         {serviceFee > 0 && (
           <View style={[localStyles.summaryRow, styles.mt('xs')]}>
             <Text style={styles.textCaption}>
@@ -290,14 +300,14 @@ const CartSummary = React.memo<CartSummaryProps>(({
             </Text>
           </View>
         )}
-        
+
         <View style={localStyles.divider} />
-        
+
         <View style={localStyles.totalRow}>
           <Text style={styles.textSubtitle}>
             Total
           </Text>
-          <Text 
+          <Text
             style={[
               styles.textTitle,
               { color: COLORS.primary }
@@ -307,23 +317,41 @@ const CartSummary = React.memo<CartSummaryProps>(({
           </Text>
         </View>
       </View>
-      
+
+      {isLockedByFormula && (
+        <View style={localStyles.formulaBanner}>
+          <Ionicons name="information-circle" size={18} color={COLORS.warning} />
+          <View style={{ flex: 1, marginLeft: 8 }}>
+            <Text style={localStyles.formulaBannerTitle}>Formule incomplète</Text>
+            <Text style={localStyles.formulaBannerText}>{formulaWarning}</Text>
+          </View>
+        </View>
+      )}
+
       {canCheckout ? (
         <Button
           title={isCreatingOrder ? "Traitement en cours..." : checkoutTitle}
           onPress={onCheckout}
-          disabled={isCreatingOrder || itemCount === 0}
+          disabled={isCreatingOrder || itemCount === 0 || isLockedByFormula}
           fullWidth
           leftIcon={
             isCreatingOrder ? (
               <ActivityIndicator size="small" color={COLORS.text.inverse} />
             ) : (
-              <Ionicons name="checkmark-circle" size={iconSize} color={COLORS.text.inverse} />
+              <Ionicons
+                name={isLockedByFormula ? 'lock-closed' : 'checkmark-circle'}
+                size={iconSize}
+                color={COLORS.text.inverse}
+              />
             )
           }
           accessibilityLabel={`Commander pour un total de ${total.toFixed(2)} euros`}
-          accessibilityHint="Appuyez pour procéder au paiement"
-          accessibilityState={{ disabled: isCreatingOrder || itemCount === 0 }}
+          accessibilityHint={
+            isLockedByFormula
+              ? 'Complétez votre formule pour passer commande'
+              : 'Appuyez pour procéder au paiement'
+          }
+          accessibilityState={{ disabled: isCreatingOrder || itemCount === 0 || isLockedByFormula }}
         />
       ) : (
         <View style={{ paddingVertical: 12, alignItems: 'center' }}>
@@ -492,6 +520,9 @@ export default function CartScreen() {
   const [itemToRemove, setItemToRemove] = useState<string | null>(null);
   const [showSplitConfirmation, setShowSplitConfirmation] = useState(false);
 
+  // Menu du jour du restaurant : chargé pour valider la formule à la commande
+  const [dailyMenu, setDailyMenu] = useState<PublicDailyMenu | null>(null);
+
   // ============================================================================
   // EFFECTS
   // ============================================================================
@@ -550,6 +581,37 @@ export default function CartScreen() {
       router.replace('/(client)/orders' as any);
     }
   }, [ctxSession?.status, isHost]);
+
+  // ── Menu du jour : chargé pour valider la formule ────────────────────────
+  // On en a besoin pour savoir quels items du panier appartiennent à la formule
+  // et combien de catégories distinctes doivent être représentées.
+  const restaurantIdForDailyMenu = useMemo(() => {
+    const raw = cart.restaurantId ?? (isSessionMode ? ctxSession?.restaurant : undefined);
+    if (raw == null) return null;
+    const asNum = Number(raw);
+    return Number.isFinite(asNum) ? asNum : null;
+  }, [cart.restaurantId, isSessionMode, ctxSession?.restaurant]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (restaurantIdForDailyMenu == null) {
+      setDailyMenu(null);
+      return;
+    }
+    (async () => {
+      try {
+        const menu = await dailyMenuService.getPublicDailyMenu(restaurantIdForDailyMenu);
+        if (!cancelled) setDailyMenu(menu);
+      } catch {
+        // Pas bloquant : si l'API renvoie 404 ou échoue, on considère qu'il
+        // n'y a pas de menu du jour formule et on laisse le checkout passer.
+        if (!cancelled) setDailyMenu(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [restaurantIdForDailyMenu]);
 
   // ============================================================================
   // UTILITY FUNCTIONS
@@ -646,22 +708,44 @@ export default function CartScreen() {
     }
   }, [isSessionMode, sessionCart, clearCart, showSuccess, showError]);
 
+  // Ref miroir de formulaStatus : utilisée par handleCheckout (défini avant
+  // formulaStatus dans la source pour éviter de tout réorganiser). Le contenu
+  // de la ref est synchronisé après la déclaration de formulaStatus, plus bas.
+  const formulaStatusRef = useRef<ReturnType<typeof computeFormulaStatus>>({
+    isFormula: false,
+    totalCategories: 0,
+    pickedCategories: 0,
+    missingCategoryNames: [],
+    hasFormulaItemsInCart: false,
+    isValid: true,
+    hasDuplicateCategoryPicks: false,
+  });
+
   const handleCheckout = useCallback(async () => {
     const hasItems = isSessionMode
       ? sessionCart.items_count > 0
       : cart.items.length > 0;
-  
+
     if (!hasItems) {
       showError('Votre panier est vide. Ajoutez des articles pour continuer.');
       return;
     }
-  
+
+    // Gate formule menu du jour : tant qu'elle n'est pas complète, on bloque.
+    const status = formulaStatusRef.current;
+    if (!status.isValid) {
+      const msg = formatFormulaMissingMessage(status)
+        ?? 'Complétez votre formule pour passer commande.';
+      showError(msg);
+      return;
+    }
+
     const effectiveRestaurantId = cart.restaurantId ?? (isSessionMode ? ctxSession?.restaurant : undefined);
     if (!effectiveRestaurantId) {
       showError('Restaurant non trouvé. Veuillez scanner à nouveau le QR code.');
       return;
     }
-  
+
     // ── Mode session collaborative (hôte) → commande groupée ──
     if (isSessionMode && isHost && ctxSessionId) {
       setShowSplitConfirmation(true);
@@ -745,6 +829,42 @@ export default function CartScreen() {
     [isSessionMode, sessionCart.total, cart.total]
   );
 
+  // ── Validation formule menu du jour ─────────────────────────────────────
+  // Construit une liste { menuItemId, quantity } à partir du panier (solo ou
+  // session) puis calcule le statut via le helper partagé.
+  const formulaCartLines = useMemo(() => {
+    const lines: Array<{ menuItemId: number; quantity: number }> = [];
+    if (isSessionMode) {
+      sessionCart.items.forEach(it => {
+        const id = Number(it.menu_item);
+        if (Number.isFinite(id) && it.quantity > 0) {
+          lines.push({ menuItemId: id, quantity: it.quantity });
+        }
+      });
+    } else {
+      (cart.items ?? []).forEach((it: any) => {
+        const id = Number(it.menuItemId);
+        if (Number.isFinite(id) && it.quantity > 0) {
+          lines.push({ menuItemId: id, quantity: it.quantity });
+        }
+      });
+    }
+    return lines;
+  }, [isSessionMode, sessionCart.items, cart.items]);
+
+  const formulaStatus = useMemo(
+    () => computeFormulaStatus(dailyMenu, formulaCartLines),
+    [dailyMenu, formulaCartLines]
+  );
+
+  // Maintien de la ref miroir utilisée par handleCheckout
+  formulaStatusRef.current = formulaStatus;
+
+  const formulaWarningMessage = useMemo(
+    () => formatFormulaMissingMessage(formulaStatus),
+    [formulaStatus]
+  );
+
   // ============================================================================
   // RENDER
   // ============================================================================
@@ -823,6 +943,7 @@ export default function CartScreen() {
         screenType={screenType}
         canCheckout={!isSessionMode || isHost}
         checkoutTitle={isSessionMode && isHost ? 'Commander pour le groupe' : 'Passer la commande'}
+        formulaWarning={formulaWarningMessage}
       />
 
       {/* Confirmation Modals using AlertWithAction */}
@@ -1103,6 +1224,29 @@ const localStyles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 4,
+  },
+
+  // Bandeau "formule incomplète"
+  formulaBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: COLORS.warning + '15',
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.warning,
+    borderRadius: BORDER_RADIUS.sm,
+    padding: 10,
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  formulaBannerTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.text.primary,
+  },
+  formulaBannerText: {
+    fontSize: 12,
+    color: COLORS.text.secondary,
+    marginTop: 2,
   },
 
   // Empty Cart Styles

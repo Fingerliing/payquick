@@ -31,6 +31,7 @@ import { useSessionArchiving, useInactivityWarning } from '@/hooks/session/useSe
 import { menuService } from '@/services/menuService';
 import { restaurantService } from '@/services/restaurantService';
 import { dailyMenuService, PublicDailyMenu } from '@/services/dailyMenuService';
+import { computeFormulaStatus, formatFormulaMissingMessage } from '@/utils/dailyMenuFormula';
 
 // UI components conservés
 import { Loading } from '@/components/ui/Loading';
@@ -539,6 +540,73 @@ export default function ClientRestaurantPage() {
     [cartQuantities]
   );
 
+  // ─── Données enrichies pour l'onglet menu du jour ──────────────────────────
+  // Pour l'onglet "Menu du jour" on insère des en-têtes de catégorie entre
+  // les groupes de plats afin que le client comprenne qu'il doit choisir
+  // 1 plat par catégorie. Pour les onglets de la carte normale (une seule
+  // catégorie par onglet par construction), on garde la liste plate.
+  type DailyListRow =
+    | { kind: 'header'; key: string; categoryId: string; name: string; completed: boolean }
+    | { kind: 'item'; key: string; item: MenuItem };
+
+  const dailyListData = useMemo<DailyListRow[]>(() => {
+    if (!isDailyTab) return [];
+    const items = (activeTab?.items ?? []) as MenuItem[];
+    const rows: DailyListRow[] = [];
+    let currentCatId: string | null = null;
+    for (const item of items) {
+      const catId = String((item as any)._dailyCategoryId ?? '');
+      const catName = String((item as any)._dailyCategoryName ?? (item as any).category_name ?? '');
+      if (catId && catId !== currentCatId) {
+        currentCatId = catId;
+        // Une catégorie est "complétée" si au moins un de ses plats est dans
+        // le panier. La logique 1-par-catégorie côté handleAddToCart garantit
+        // qu'il n'y en a qu'un à la fois.
+        const completed = items.some(it => {
+          const itCat = String((it as any)._dailyCategoryId ?? '');
+          if (itCat !== catId) return false;
+          const id = Number((it as any).id);
+          return Number.isFinite(id) && (cartQuantities.get(id) ?? 0) > 0;
+        });
+        rows.push({
+          kind: 'header',
+          key: `h-${catId}`,
+          categoryId: catId,
+          name: catName,
+          completed,
+        });
+      }
+      rows.push({
+        kind: 'item',
+        key: `i-${(item as any).id}`,
+        item,
+      });
+    }
+    return rows;
+  }, [isDailyTab, activeTab?.items, cartQuantities]);
+
+  // ─── Validation de la formule menu du jour ─────────────────────────────────
+  // Règle : dès qu'un plat de la formule est dans le panier, le client doit
+  // avoir un plat par catégorie distincte avant de pouvoir passer commande.
+  // Sinon il pourrait obtenir un plat à la carte moins cher en partie de formule.
+  const formulaCartLines = useMemo(() => {
+    const lines: Array<{ menuItemId: number; quantity: number }> = [];
+    cartQuantities.forEach((qty, menuItemId) => {
+      if (Number.isFinite(menuItemId) && qty > 0) {
+        lines.push({ menuItemId, quantity: qty });
+      }
+    });
+    return lines;
+  }, [cartQuantities]);
+
+  const formulaStatus = useMemo(
+    () => computeFormulaStatus(dailyMenu, formulaCartLines),
+    [dailyMenu, formulaCartLines]
+  );
+
+  // Verrou : bouton panier désactivé tant que la formule n'est pas valide.
+  const cartLocked = !formulaStatus.isValid;
+
   // Animation pulse du panier flottant à chaque ajout (déclenchée via ref tick)
   const cartPulse = useRef(new Animated.Value(1)).current;
   const triggerCartPulse = useCallback(() => {
@@ -990,18 +1058,41 @@ export default function ClientRestaurantPage() {
         </View>
 
         {/* ─── Liste de plats (commune aux onglets daily et catégories) ──── */}
-        <FlatList
-          data={activeTab?.items ?? []}
-          keyExtractor={(item) => String((item as any).id)}
-          renderItem={({ item }) => (
-            <DishCard
-              item={item}
-              cartQuantity={getCartQuantity(item)}
-              onAddToCart={handleAddToCart}
-              onDecrement={handleDecrementFromCart}
-              lockedQuantity={isDailyTab && dailyMenuConfig.isFormula && !!(item as any)._dailyCategoryId}
-            />
-          )}
+        <FlatList<any>
+          data={isDailyTab ? dailyListData : (activeTab?.items ?? [])}
+          keyExtractor={(row: any) =>
+            isDailyTab ? row.key : String(row?.id)
+          }
+          renderItem={({ item: row }: { item: any }) => {
+            if (isDailyTab && row?.kind === 'header') {
+              return (
+                <View style={styles.dailyCategoryHeader}>
+                  <View style={styles.dailyCategoryHeaderInner}>
+                    <Text style={styles.dailyCategoryHeaderTitle}>{row.name}</Text>
+                    {row.completed ? (
+                      <View style={styles.dailyCategoryHeaderBadge}>
+                        <Ionicons name="checkmark" size={12} color={COLORS.surface} />
+                        <Text style={styles.dailyCategoryHeaderBadgeText}>Choisi</Text>
+                      </View>
+                    ) : (
+                      <Text style={styles.dailyCategoryHeaderHint}>Choisissez 1 plat</Text>
+                    )}
+                  </View>
+                  <View style={styles.dailyCategoryHeaderDivider} />
+                </View>
+              );
+            }
+            const item = isDailyTab ? row.item : row;
+            return (
+              <DishCard
+                item={item}
+                cartQuantity={getCartQuantity(item)}
+                onAddToCart={handleAddToCart}
+                onDecrement={handleDecrementFromCart}
+                lockedQuantity={isDailyTab && dailyMenuConfig.isFormula && !!(item as any)._dailyCategoryId}
+              />
+            );
+          }}
           contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(120, insets.bottom + 100) }]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           showsVerticalScrollIndicator={false}
@@ -1033,22 +1124,42 @@ export default function ClientRestaurantPage() {
               {
                 bottom: Math.max(20, insets.bottom + 10),
                 transform: [{ scale: cartPulse }],
+                opacity: cartLocked ? 0.85 : 1,
               },
             ]}
           >
             <Pressable
-              style={styles.floatingCartInner}
-              onPress={() => router.push('/(client)/cart' as any)}
+              style={[
+                styles.floatingCartInner,
+                cartLocked && { backgroundColor: COLORS.text.secondary },
+              ]}
+              onPress={() => {
+                if (cartLocked) {
+                  const msg = formatFormulaMissingMessage(formulaStatus)
+                    ?? 'Complétez votre formule pour accéder au panier.';
+                  showToast('warning', 'Formule incomplète', msg);
+                  return;
+                }
+                router.push('/(client)/cart' as any);
+              }}
               android_ripple={{ color: 'rgba(255,255,255,0.15)' }}
             >
               <View style={styles.cartLeft}>
                 <View style={styles.cartBadge}>
-                  <Text style={styles.cartBadgeText}>{totalCartItems}</Text>
+                  {cartLocked ? (
+                    <Ionicons name="lock-closed" size={14} color={COLORS.surface} />
+                  ) : (
+                    <Text style={styles.cartBadgeText}>{totalCartItems}</Text>
+                  )}
                 </View>
                 <View>
-                  <Text style={styles.cartLabel}>Voir le panier</Text>
+                  <Text style={styles.cartLabel}>
+                    {cartLocked ? 'Formule incomplète' : 'Voir le panier'}
+                  </Text>
                   <Text style={styles.cartSubLabel}>
-                    {totalCartItems} article{totalCartItems > 1 ? 's' : ''}
+                    {cartLocked
+                      ? `${formulaStatus.pickedCategories}/${formulaStatus.totalCategories} catégorie${formulaStatus.totalCategories > 1 ? 's' : ''} choisie${formulaStatus.pickedCategories > 1 ? 's' : ''}`
+                      : `${totalCartItems} article${totalCartItems > 1 ? 's' : ''}`}
                   </Text>
                 </View>
               </View>
@@ -1497,6 +1608,54 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingTop: 4,
   },
+
+  // ─── En-têtes de catégorie pour l'onglet menu du jour ─────────────────
+  dailyCategoryHeader: {
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  dailyCategoryHeaderInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
+    marginBottom: 8,
+  },
+  dailyCategoryHeaderTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.text.primary,
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+  },
+  dailyCategoryHeaderHint: {
+    fontSize: 11,
+    color: COLORS.text.secondary,
+    fontWeight: '500',
+    fontStyle: 'italic',
+  },
+  dailyCategoryHeaderBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: COLORS.success,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  dailyCategoryHeaderBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: COLORS.surface,
+    letterSpacing: 0.5,
+  },
+  dailyCategoryHeaderDivider: {
+    height: 2,
+    backgroundColor: COLORS.primary,
+    borderRadius: 1,
+    opacity: 0.6,
+  },
+
   empty: {
     alignItems: 'center',
     justifyContent: 'center',

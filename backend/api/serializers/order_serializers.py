@@ -11,6 +11,7 @@ from api.utils.daily_menu_pricing import (
     get_active_daily_menu,
     formula_pricing_context,
     unit_price_for,
+    validate_formula_completeness,
 )
 
 
@@ -121,6 +122,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         restaurant_id = self.initial_data.get('restaurant')
 
         # ─── Détection formule menu du jour active ────────────────────
+        active_dm = None
         formula_per_cat = None
         formula_menu_item_ids = set()
         if restaurant_id:
@@ -131,6 +133,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
                 formula_per_cat, formula_menu_item_ids = formula_pricing_context(active_dm)
             except Exception:
                 # Si quoi que ce soit échoue, on retombe sur les prix de carte
+                active_dm = None
                 formula_per_cat = None
                 formula_menu_item_ids = set()
 
@@ -185,6 +188,20 @@ class OrderCreateSerializer(serializers.ModelSerializer):
                 'total_price': unit_price * Decimal(str(quantity)),
                 'vat_rate': menu_item.vat_rate or Decimal('10.00')
             })
+
+        # ─── Validation formule complète (option A) ────────────────────
+        # Si le panier contient des items de la formule, ils doivent couvrir
+        # toutes les catégories du menu du jour. Sinon le client obtiendrait
+        # des plats au prix formule sans payer la formule entière.
+        if formula_per_cat is not None:
+            # On dédupe par menu_item pour la validation (la quantité ne joue pas)
+            unique_menu_items = list({
+                v['menu_item'].id: v['menu_item'] for v in validated_items
+            }.values())
+            # active_dm est défini si formula_per_cat l'est (cf. plus haut)
+            is_valid, error_msg = validate_formula_completeness(active_dm, unique_menu_items)
+            if not is_valid:
+                raise serializers.ValidationError({'items': [error_msg]})
 
         return validated_items
 
