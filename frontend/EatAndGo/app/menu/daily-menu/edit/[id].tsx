@@ -3,10 +3,8 @@ import {
   View,
   Text,
   ScrollView,
-  TextInput,
   Switch,
   StyleSheet,
-  ActivityIndicator,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,10 +28,8 @@ import {
   TYPOGRAPHY,
   SPACING,
   BORDER_RADIUS,
-  SHADOWS,
   useScreenType,
   getResponsiveValue,
-  createResponsiveStyles,
 } from '@/utils/designSystem';
 import { useResponsive } from '@/utils/responsive';
 
@@ -52,7 +48,6 @@ export default function EditDailyMenuScreen() {
   const responsive = useResponsive();
   const styles = createStyles(screenType, responsive);
 
-  // États
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [dailyMenu, setDailyMenu] = useState<DailyMenu | null>(null);
@@ -60,16 +55,14 @@ export default function EditDailyMenuScreen() {
   const [description, setDescription] = useState('');
   const [specialPrice, setSpecialPrice] = useState('');
   const [isActive, setIsActive] = useState(true);
-  const [modifiedItems, setModifiedItems] = useState<Map<string, any>>(new Map());
 
-  // Pile d’alertes
   const [alerts, setAlerts] = useState<LocalAlert[]>([]);
-  const pushAlert = (variant: AppAlertVariant, title: string, message: string, onDismiss?: () => void) => {
+  const pushAlert = (variant: AppAlertVariant, alertTitle: string, message: string, onDismiss?: () => void) => {
     setAlerts(prev => [
       {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         variant,
-        title,
+        title: alertTitle,
         message,
         onDismiss,
       },
@@ -83,6 +76,7 @@ export default function EditDailyMenuScreen() {
 
   useEffect(() => {
     if (id) loadDailyMenu();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const loadDailyMenu = async () => {
@@ -102,25 +96,28 @@ export default function EditDailyMenuScreen() {
     }
   };
 
-  const updateItemPrice = (itemId: string, price: string) => {
-    const newModified = new Map(modifiedItems);
-    const existing = newModified.get(itemId) || {};
-    existing.special_price = price ? parseFloat(price) : null;
-    newModified.set(itemId, existing);
-    setModifiedItems(newModified);
-  };
-
-  const toggleItemAvailability = (itemId: string, currentState: boolean) => {
-    const newModified = new Map(modifiedItems);
-    const existing = newModified.get(itemId) || {};
-    existing.is_available = !currentState;
-    newModified.set(itemId, existing);
-    setModifiedItems(newModified);
+  const toggleItemAvailability = async (itemId: string) => {
+    if (!id) return;
+    try {
+      await dailyMenuService.quickToggleItem(id, itemId);
+      await loadDailyMenu();
+    } catch {
+      pushAlert('error', 'Erreur', 'Impossible de modifier la disponibilité');
+    }
   };
 
   const handleSave = async () => {
     if (!title.trim()) {
       pushAlert('error', 'Erreur', 'Le titre du menu est requis');
+      return;
+    }
+
+    if (!specialPrice || parseFloat(specialPrice) <= 0) {
+      pushAlert(
+        'error',
+        'Prix requis',
+        'Le prix total du menu du jour doit être renseigné et strictement positif.'
+      );
       return;
     }
 
@@ -131,78 +128,73 @@ export default function EditDailyMenuScreen() {
       await dailyMenuService.updateDailyMenu(id, {
         title: title.trim(),
         description: description.trim() || undefined,
-        special_price: specialPrice ? parseFloat(specialPrice) : undefined,
+        special_price: parseFloat(specialPrice),
         is_active: isActive,
       });
-
-      for (const [itemId, changes] of modifiedItems.entries()) {
-        console.log('Updating item', itemId, changes);
-      }
 
       pushAlert('success', 'Succès', 'Le menu du jour a été mis à jour', () => router.back());
     } catch (error: any) {
       console.error('Erreur lors de la mise à jour:', error);
-      pushAlert('error', 'Erreur', error.response?.data?.message || 'Impossible de mettre à jour le menu');
+      pushAlert(
+        'error',
+        'Erreur',
+        error?.response?.data?.message ||
+          error?.response?.data?.special_price?.[0] ||
+          error?.response?.data?.detail ||
+          'Impossible de mettre à jour le menu'
+      );
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleDelete = () => {
-    pushAlert('warning', 'Confirmation', 'Êtes-vous sûr de vouloir supprimer ce menu du jour ?', async () => {
-      if (!id) return;
-      try {
-        await dailyMenuService.deleteDailyMenu(id);
-        pushAlert('success', 'Supprimé', 'Menu supprimé avec succès', () => router.back());
-      } catch {
-        pushAlert('error', 'Erreur', 'Impossible de supprimer le menu');
+    pushAlert(
+      'warning',
+      'Confirmation',
+      'Êtes-vous sûr de vouloir supprimer ce menu du jour ?',
+      async () => {
+        if (!id) return;
+        try {
+          await dailyMenuService.deleteDailyMenu(id);
+          pushAlert('success', 'Supprimé', 'Menu supprimé avec succès', () => router.back());
+        } catch {
+          pushAlert('error', 'Erreur', 'Impossible de supprimer le menu');
+        }
       }
-    });
+    );
   };
 
-  const renderMenuItem = (item: DailyMenuItem) => {
-    const modified = modifiedItems.get(item.id);
-    const currentPrice =
-      modified?.special_price !== undefined ? modified.special_price : item.special_price;
-    const currentAvailable =
-      modified?.is_available !== undefined ? modified.is_available : item.is_available;
+  // Calcul aperçu formule
+  const categoriesCount = dailyMenu?.items_by_category?.length ?? 0;
+  const pricePerCategory =
+    specialPrice && categoriesCount > 0
+      ? (parseFloat(specialPrice) / categoriesCount).toFixed(2)
+      : null;
 
+  const renderMenuItem = (item: DailyMenuItem) => {
     return (
       <View key={item.id} style={styles.menuItem}>
         <View style={styles.menuItemHeader}>
           <Switch
-            value={currentAvailable}
-            onValueChange={() => toggleItemAvailability(item.id, item.is_available)}
+            value={item.is_available}
+            onValueChange={() => toggleItemAvailability(item.id)}
             trackColor={{
               false: COLORS.border.default,
               true: COLORS.variants.secondary[400],
             }}
-            thumbColor={currentAvailable ? COLORS.variants.secondary[500] : COLORS.text.light}
+            thumbColor={item.is_available ? COLORS.variants.secondary[500] : COLORS.text.light}
           />
           <View style={styles.menuItemInfo}>
             <Text
-              style={[styles.menuItemName, !currentAvailable && styles.menuItemDisabled]}
+              style={[styles.menuItemName, !item.is_available && styles.menuItemDisabled]}
             >
               {item.menu_item_name}
             </Text>
-            <Text style={styles.menuItemOriginalPrice}>
-              Prix normal : {item.original_price}€
-            </Text>
+            <Text style={styles.menuItemCategory}>{item.menu_item_category}</Text>
           </View>
         </View>
-
-        <View style={styles.priceEditContainer}>
-          <Text style={styles.priceLabel}>Prix spécial :</Text>
-          <TextInput
-            style={styles.priceInput}
-            value={currentPrice?.toString() || ''}
-            onChangeText={text => updateItemPrice(item.id, text)}
-            keyboardType="numeric"
-            placeholder={String(item.original_price)}
-            placeholderTextColor={COLORS.text.light}
-          />
-          <Text style={styles.currency}>€</Text>
-        </View>
+        {/* ⚠️ Plus de champ prix par plat — la formule fixe le prix global */}
       </View>
     );
   };
@@ -227,7 +219,6 @@ export default function EditDailyMenuScreen() {
         onRightPress={handleDelete}
       />
 
-      {/* Zone d’alertes */}
       {alerts.length > 0 && (
         <View style={styles.alertsContainer}>
           {alerts.map(a => (
@@ -275,13 +266,24 @@ export default function EditDailyMenuScreen() {
           />
 
           <Input
-            label="Prix du menu complet (optionnel)"
+            label="Prix total du menu (€) *"
             value={specialPrice}
             onChangeText={setSpecialPrice}
             keyboardType="numeric"
             placeholder="Ex: 19.90"
             leftIcon="pricetag"
           />
+
+          {!!pricePerCategory && categoriesCount > 0 && (
+            <View style={styles.formulaPreview}>
+              <Ionicons name="information-circle" size={16} color={COLORS.text.golden} />
+              <Text style={styles.formulaPreviewText}>
+                {categoriesCount > 1
+                  ? `${categoriesCount} catégories • ${pricePerCategory}€ par plat`
+                  : `1 plat à ${pricePerCategory}€`}
+              </Text>
+            </View>
+          )}
 
           <View style={styles.switchContainer}>
             <Text style={styles.switchLabel}>Menu actif</Text>
@@ -300,7 +302,7 @@ export default function EditDailyMenuScreen() {
         <Card variant="surface" style={styles.itemsCard}>
           <Text style={styles.sectionTitle}>Plats du menu</Text>
           <Text style={styles.sectionSubtitle}>
-            {dailyMenu.total_items_count} plats • Prix estimé : {dailyMenu.estimated_total_price}€
+            {dailyMenu.total_items_count} plats disponibles
           </Text>
 
           {dailyMenu.items_by_category.map(category => (
@@ -336,8 +338,7 @@ export default function EditDailyMenuScreen() {
   );
 }
 
-const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: any) => {
-  const responsiveStyles = createResponsiveStyles(screenType);
+const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', _responsive: any) => {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: COLORS.background },
     alertsContainer: {
@@ -367,55 +368,62 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: COLORS.goldenSurface,
-      padding: getResponsiveValue(SPACING.md, screenType),
+      padding: getResponsiveValue(SPACING.sm, screenType),
       borderRadius: BORDER_RADIUS.md,
-      marginBottom: getResponsiveValue(SPACING.lg, screenType),
+      gap: getResponsiveValue(SPACING.sm, screenType),
+      marginBottom: getResponsiveValue(SPACING.md, screenType),
     },
     dateText: {
-      marginLeft: getResponsiveValue(SPACING.sm, screenType),
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.md, screenType),
-      color: COLORS.text.golden,
-      fontWeight: TYPOGRAPHY.fontWeight.medium,
-      textTransform: 'capitalize',
-    },
-    switchContainer: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingVertical: getResponsiveValue(SPACING.md, screenType),
-      borderTopWidth: 1,
-      borderTopColor: COLORS.border.light,
-      marginTop: getResponsiveValue(SPACING.md, screenType),
-    },
-    switchLabel: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
-      color: COLORS.text.primary,
-      fontWeight: TYPOGRAPHY.fontWeight.medium,
+      color: COLORS.text.golden,
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
     },
     sectionTitle: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
       fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: COLORS.primary,
-      marginBottom: getResponsiveValue(SPACING.xs, screenType),
+      color: COLORS.text.primary,
     },
     sectionSubtitle: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
       color: COLORS.text.secondary,
-      marginBottom: getResponsiveValue(SPACING.lg, screenType),
+      marginBottom: getResponsiveValue(SPACING.md, screenType),
     },
-    categorySection: { marginBottom: getResponsiveValue(SPACING.lg, screenType) },
+    formulaPreview: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: getResponsiveValue(SPACING.xs, screenType),
+      backgroundColor: COLORS.goldenSurface,
+      padding: getResponsiveValue(SPACING.sm, screenType),
+      borderRadius: BORDER_RADIUS.md,
+      marginTop: getResponsiveValue(SPACING.sm, screenType),
+    },
+    formulaPreviewText: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+      color: COLORS.text.golden,
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      flex: 1,
+    },
+    switchContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: getResponsiveValue(SPACING.md, screenType),
+    },
+    switchLabel: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
+      color: COLORS.text.primary,
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    },
+    categorySection: { marginTop: getResponsiveValue(SPACING.md, screenType) },
     categoryHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: getResponsiveValue(SPACING.md, screenType),
-      paddingBottom: getResponsiveValue(SPACING.sm, screenType),
+      gap: getResponsiveValue(SPACING.sm, screenType),
+      paddingVertical: getResponsiveValue(SPACING.sm, screenType),
       borderBottomWidth: 1,
       borderBottomColor: COLORS.border.light,
     },
-    categoryIcon: {
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xl, screenType),
-      marginRight: getResponsiveValue(SPACING.sm, screenType),
-    },
+    categoryIcon: { fontSize: 18 },
     categoryTitle: {
       flex: 1,
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.md, screenType),
@@ -433,65 +441,37 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
       fontWeight: TYPOGRAPHY.fontWeight.bold,
       color: COLORS.variants.secondary[700],
     },
-    categoryItems: { paddingLeft: getResponsiveValue(SPACING.md, screenType) },
+    categoryItems: { paddingTop: getResponsiveValue(SPACING.sm, screenType) },
     menuItem: {
-      backgroundColor: COLORS.surface,
-      padding: getResponsiveValue(SPACING.md, screenType),
-      marginBottom: getResponsiveValue(SPACING.sm, screenType),
-      borderRadius: BORDER_RADIUS.md,
-      borderWidth: 1,
-      borderColor: COLORS.border.light,
+      paddingVertical: getResponsiveValue(SPACING.sm, screenType),
+      borderBottomWidth: 1,
+      borderBottomColor: COLORS.border.light,
     },
     menuItemHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: getResponsiveValue(SPACING.sm, screenType),
+      gap: getResponsiveValue(SPACING.md, screenType),
     },
-    menuItemInfo: { flex: 1, marginLeft: getResponsiveValue(SPACING.md, screenType) },
+    menuItemInfo: { flex: 1 },
     menuItemName: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
-      fontWeight: TYPOGRAPHY.fontWeight.medium,
       color: COLORS.text.primary,
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
     },
-    menuItemDisabled: { opacity: 0.5, textDecorationLine: 'line-through' },
-    menuItemOriginalPrice: {
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+    menuItemDisabled: {
+      color: COLORS.text.secondary,
+      textDecorationLine: 'line-through',
+    },
+    menuItemCategory: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
       color: COLORS.text.secondary,
       marginTop: 2,
     },
-    priceEditContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingTop: getResponsiveValue(SPACING.sm, screenType),
+    footer: {
+      padding: getResponsiveValue(SPACING.container, screenType),
+      backgroundColor: COLORS.surface,
       borderTopWidth: 1,
       borderTopColor: COLORS.border.light,
-    },
-    priceLabel: {
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
-      color: COLORS.text.secondary,
-      marginRight: getResponsiveValue(SPACING.sm, screenType),
-    },
-    priceInput: {
-      flex: 1,
-      height: 32,
-      borderWidth: 1,
-      borderColor: COLORS.border.default,
-      borderRadius: BORDER_RADIUS.sm,
-      paddingHorizontal: getResponsiveValue(SPACING.sm, screenType),
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
-      color: COLORS.text.primary,
-      backgroundColor: COLORS.surface,
-    },
-    currency: {
-      marginLeft: getResponsiveValue(SPACING.xs, screenType),
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
-      color: COLORS.text.secondary,
-    },
-    footer: {
-      backgroundColor: COLORS.surface,
-      padding: getResponsiveValue(SPACING.lg, screenType),
-      paddingBottom: getResponsiveValue(SPACING.xl, screenType),
-      ...SHADOWS.lg,
     },
   });
 };

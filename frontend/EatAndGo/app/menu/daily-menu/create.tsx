@@ -4,8 +4,6 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  TextInput,
-  Switch,
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
@@ -14,7 +12,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { LinearGradient } from 'expo-linear-gradient';
 
 // UI Components
 import { Header } from '@/components/ui/Header';
@@ -37,13 +34,12 @@ import {
   SHADOWS,
   useScreenType,
   getResponsiveValue,
-  createResponsiveStyles,
 } from '@/utils/designSystem';
 import { useResponsive } from '@/utils/responsive';
 
 interface SelectedItem {
   menuItemId: string;
-  specialPrice?: number;
+  // ⚠️ Plus de specialPrice : la formule fixe le prix total au niveau du menu
   specialNote?: string;
   isAvailable: boolean;
 }
@@ -54,21 +50,23 @@ type LocalAlert = {
   variant: AppAlertVariant;
   title?: string;
   message: string;
-  onDismiss?: () => void; // optionnel : action au dismiss
+  onDismiss?: () => void;
 };
 
 export default function CreateDailyMenuScreen() {
-  const { restaurantId, selectedDate: selectedDateParam } = useLocalSearchParams<{ restaurantId: string; selectedDate?: string }>();
+  const { restaurantId, selectedDate: selectedDateParam } = useLocalSearchParams<{
+    restaurantId: string;
+    selectedDate?: string;
+  }>();
   const screenType = useScreenType();
   const responsive = useResponsive();
   const insets = useSafeAreaInsets();
   const styles = createStyles(screenType, responsive, insets);
 
-  // Initialiser avec la date passée en paramètre ou aujourd'hui
   const initialDate = selectedDateParam ? new Date(selectedDateParam) : new Date();
 
   // États
-  const [selectedDate, setSelectedDate] = useState(initialDate);
+  const [selectedDate] = useState(initialDate);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [title, setTitle] = useState(`Menu du ${format(initialDate, 'dd MMMM', { locale: fr })}`);
@@ -78,14 +76,14 @@ export default function CreateDailyMenuScreen() {
   const [selectedItems, setSelectedItems] = useState<Map<string, SelectedItem>>(new Map());
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
-  // Pile d'alertes (top screen)
+  // Alertes
   const [alerts, setAlerts] = useState<LocalAlert[]>([]);
-  const pushAlert = (variant: AppAlertVariant, title: string, message: string, onDismiss?: () => void) => {
+  const pushAlert = (variant: AppAlertVariant, alertTitle: string, message: string, onDismiss?: () => void) => {
     setAlerts(prev => [
       {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         variant,
-        title,
+        title: alertTitle,
         message,
         onDismiss,
       },
@@ -99,22 +97,16 @@ export default function CreateDailyMenuScreen() {
 
   useEffect(() => {
     loadMenuItems();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restaurantId]);
-
-  useEffect(() => {
-    // Mettre à jour automatiquement le titre quand la date sélectionnée change
-    setTitle(`Menu du ${format(selectedDate, 'dd MMMM', { locale: fr })}`);
-  }, [selectedDate]);
 
   const loadMenuItems = async () => {
     if (!restaurantId) return;
     try {
       setIsLoading(true);
-      // Charger tous les plats du restaurant
       const items = await menuService.menuItems.getMyMenuItems();
       setMenuItems(items);
 
-      // Grouper par catégorie et expandre toutes les catégories
       const categories = new Set(items.map((item: MenuItem) => item.category_name || 'Autres'));
       setExpandedCategories(categories);
     } catch (error) {
@@ -134,7 +126,6 @@ export default function CreateDailyMenuScreen() {
     } else {
       newSelected.set(itemId, {
         menuItemId: itemId,
-        specialPrice: undefined,
         specialNote: '',
         isAvailable: true,
       });
@@ -143,19 +134,32 @@ export default function CreateDailyMenuScreen() {
     setSelectedItems(newSelected);
   };
 
-  const updateItemSpecialPrice = (itemId: string, price: string) => {
-    const newSelected = new Map(selectedItems);
-    const item = newSelected.get(itemId);
-    if (item) {
-      item.specialPrice = price ? parseFloat(price) : undefined;
-      newSelected.set(itemId, item);
-      setSelectedItems(newSelected);
-    }
-  };
+  // ─── Aperçu formule en direct ────────────────────────────────────────
+  const selectedItemsArray = Array.from(selectedItems.values());
+  const selectedMenuItems = selectedItemsArray
+    .map(s => menuItems.find(m => String(m.id) === s.menuItemId))
+    .filter(Boolean) as MenuItem[];
+  const distinctCategories = new Set(
+    selectedMenuItems.map(m => m.category_name || 'Autres')
+  );
+  const categoriesCount = distinctCategories.size;
+  const pricePerCategory =
+    specialPrice && categoriesCount > 0
+      ? (parseFloat(specialPrice) / categoriesCount).toFixed(2)
+      : null;
 
   const handleSave = async () => {
     if (!title.trim()) {
       pushAlert('error', 'Erreur', 'Le titre du menu est requis');
+      return;
+    }
+
+    if (!specialPrice || parseFloat(specialPrice) <= 0) {
+      pushAlert(
+        'error',
+        'Prix requis',
+        'Le prix total du menu du jour doit être renseigné et strictement positif.'
+      );
       return;
     }
 
@@ -175,10 +179,9 @@ export default function CreateDailyMenuScreen() {
         title: title.trim(),
         description: description.trim() || undefined,
         is_active: true,
-        special_price: specialPrice ? parseFloat(specialPrice) : undefined,
+        special_price: parseFloat(specialPrice),
         items: Array.from(selectedItems.values()).map(item => ({
           menu_item: item.menuItemId,
-          special_price: item.specialPrice,
           special_note: item.specialNote,
           is_available: item.isAvailable,
           display_order: 0,
@@ -187,14 +190,16 @@ export default function CreateDailyMenuScreen() {
 
       await dailyMenuService.createDailyMenu(menuData);
 
-      // Succès : afficher l'alerte puis revenir en arrière au dismiss
       pushAlert('success', 'Succès', 'Le menu du jour a été créé avec succès', () => router.back());
     } catch (error: any) {
       console.error('Erreur lors de la création du menu:', error);
       pushAlert(
         'error',
         'Erreur',
-        error?.response?.data?.message || 'Impossible de créer le menu du jour'
+        error?.response?.data?.message ||
+          error?.response?.data?.special_price?.[0] ||
+          error?.response?.data?.detail ||
+          'Impossible de créer le menu du jour'
       );
     } finally {
       setIsSaving(false);
@@ -224,7 +229,6 @@ export default function CreateDailyMenuScreen() {
   const renderMenuItem = (item: MenuItem) => {
     const itemId = String(item.id);
     const isSelected = selectedItems.has(itemId);
-    const selectedItem = selectedItems.get(itemId);
 
     return (
       <TouchableOpacity
@@ -232,39 +236,22 @@ export default function CreateDailyMenuScreen() {
         style={[styles.menuItem, isSelected && styles.menuItemSelected]}
         onPress={() => toggleItemSelection(item)}
       >
-        <View style={styles.menuItemHeader}>
-          <View style={styles.menuItemCheckbox}>
-            {isSelected && (
-              <Ionicons name="checkmark" size={16} color={COLORS.variants.secondary[600]} />
-            )}
-          </View>
-          <View style={styles.menuItemInfo}>
-            <Text style={styles.menuItemName}>{item.name}</Text>
-            {item.description && (
-              <Text style={styles.menuItemDescription} numberOfLines={1}>
-                {item.description}
-              </Text>
-            )}
-            <Text style={styles.menuItemPrice}>Prix normal : {item.price}€</Text>
-          </View>
+        <View style={styles.menuItemInfo}>
+          <Text style={styles.menuItemName}>{item.name}</Text>
+          {!!item.description && (
+            <Text style={styles.menuItemDescription} numberOfLines={2}>
+              {item.description}
+            </Text>
+          )}
         </View>
 
-        {isSelected && (
-          <View style={styles.menuItemOptions}>
-            <View style={styles.specialPriceContainer}>
-              <Text style={styles.optionLabel}>Prix spécial (optionnel) :</Text>
-              <TextInput
-                style={styles.priceInput}
-                value={selectedItem?.specialPrice?.toString() || ''}
-                onChangeText={(text) => updateItemSpecialPrice(itemId, text)}
-                keyboardType="numeric"
-                placeholder={String(item.price)}
-                placeholderTextColor={COLORS.text.light}
-              />
-              <Text style={styles.currency}>€</Text>
-            </View>
-          </View>
-        )}
+        <View style={styles.menuItemRight}>
+          {isSelected ? (
+            <Ionicons name="checkmark-circle" size={24} color={COLORS.success} />
+          ) : (
+            <Ionicons name="ellipse-outline" size={24} color={COLORS.text.light} />
+          )}
+        </View>
       </TouchableOpacity>
     );
   };
@@ -273,19 +260,14 @@ export default function CreateDailyMenuScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={COLORS.variants.secondary[500]} />
-        <Text style={styles.loadingText}>Chargement des plats...</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <Header
-        title="Créer un Menu du Jour"
-        showBackButton
-      />
+      <Header title="Créer un menu du jour" showBackButton />
 
-      {/* Zone d'alertes (en haut de page) */}
       {alerts.length > 0 && (
         <View style={styles.alertsContainer}>
           {alerts.map(a => (
@@ -328,19 +310,38 @@ export default function CreateDailyMenuScreen() {
           />
 
           <Input
-            label="Prix du menu complet (optionnel)"
+            label="Prix total du menu (€) *"
             value={specialPrice}
             onChangeText={setSpecialPrice}
             keyboardType="numeric"
             placeholder="Ex: 19.90"
             leftIcon="pricetag"
           />
+
+          {/* Aperçu de la formule en direct */}
+          {!!pricePerCategory && categoriesCount > 0 && (
+            <View style={styles.formulaPreview}>
+              <Ionicons name="information-circle" size={16} color={COLORS.text.golden} />
+              <Text style={styles.formulaPreviewText}>
+                {categoriesCount > 1
+                  ? `${categoriesCount} catégories • ${pricePerCategory}€ par plat`
+                  : `1 plat à ${pricePerCategory}€`}
+              </Text>
+            </View>
+          )}
+
+          <Text style={styles.helperText}>
+            Le client paiera ce prix total. Il choisit un plat par catégorie parmi
+            ceux que vous sélectionnez ci-dessous.
+          </Text>
         </Card>
 
         <Card variant="surface" style={styles.selectionCard}>
           <Text style={styles.sectionTitle}>Sélection des plats</Text>
           <Text style={styles.selectionSubtitle}>
-            {selectedItems.size} plat{selectedItems.size > 1 ? 's' : ''} sélectionné{selectedItems.size > 1 ? 's' : ''}
+            {selectedItems.size} plat{selectedItems.size > 1 ? 's' : ''} sélectionné
+            {selectedItems.size > 1 ? 's' : ''}
+            {categoriesCount > 0 && ` • ${categoriesCount} catégorie${categoriesCount > 1 ? 's' : ''}`}
           </Text>
 
           {Object.entries(itemsByCategory).map(([category, items]) => {
@@ -362,7 +363,7 @@ export default function CreateDailyMenuScreen() {
                     )}
                   </View>
                   <Ionicons
-                    name={isExpanded ? "chevron-up" : "chevron-down"}
+                    name={isExpanded ? 'chevron-up' : 'chevron-down'}
                     size={20}
                     color={COLORS.text.secondary}
                   />
@@ -380,66 +381,49 @@ export default function CreateDailyMenuScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <LinearGradient
-          colors={[COLORS.surface, COLORS.goldenSurface]}
-          style={styles.footerGradient}
-        >
-          <Button
-            title={isSaving ? "Création en cours..." : "Créer le menu du jour"}
-            onPress={handleSave}
-            loading={isSaving}
-            disabled={isSaving || selectedItems.size === 0}
-            variant="primary"
-            fullWidth
-            leftIcon={<Ionicons name="checkmark-circle" size={20} color={COLORS.surface} />}
-          />
-        </LinearGradient>
+        <Button
+          title={isSaving ? 'Enregistrement...' : 'Créer le menu'}
+          onPress={handleSave}
+          loading={isSaving}
+          disabled={isSaving}
+          variant="primary"
+          fullWidth
+          leftIcon={<Ionicons name="checkmark-circle" size={20} color={COLORS.surface} />}
+        />
       </View>
     </View>
   );
 }
 
-const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: any, insets: any) => {
-  const responsiveStyles = createResponsiveStyles(screenType);
-
+const createStyles = (
+  screenType: 'mobile' | 'tablet' | 'desktop',
+  _responsive: any,
+  insets: any
+) => {
   return StyleSheet.create({
-    container: {
+    container: { flex: 1, backgroundColor: COLORS.background },
+    loadingContainer: {
       flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
       backgroundColor: COLORS.background,
     },
-    // Conteneur des alertes custom (marge sous le Header)
     alertsContainer: {
       paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
       paddingTop: getResponsiveValue(SPACING.md, screenType),
       gap: getResponsiveValue(SPACING.xs, screenType),
     },
-    scrollView: {
-      flex: 1,
-    },
+    scrollView: { flex: 1 },
     scrollContent: {
       padding: getResponsiveValue(SPACING.container, screenType),
-      paddingBottom: 100 + insets.bottom, // Ajouter la safe area bottom
+      paddingBottom: 100,
     },
-    loadingContainer: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    loadingText: {
-      marginTop: getResponsiveValue(SPACING.md, screenType),
-      color: COLORS.text.secondary,
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
-    },
-    formCard: {
-      marginBottom: getResponsiveValue(SPACING.lg, screenType),
-    },
-    selectionCard: {
-      marginBottom: getResponsiveValue(SPACING.lg, screenType),
-    },
+    formCard: { marginBottom: getResponsiveValue(SPACING.lg, screenType) },
+    selectionCard: { marginBottom: getResponsiveValue(SPACING.lg, screenType) },
     sectionTitle: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
       fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: COLORS.primary,
+      color: COLORS.text.primary,
       marginBottom: getResponsiveValue(SPACING.md, screenType),
     },
     selectionSubtitle: {
@@ -447,25 +431,40 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
       color: COLORS.text.secondary,
       marginBottom: getResponsiveValue(SPACING.md, screenType),
     },
-    categorySection: {
-      marginBottom: getResponsiveValue(SPACING.md, screenType),
-      backgroundColor: COLORS.surface,
-      borderRadius: BORDER_RADIUS.lg,
-      overflow: 'hidden',
-      borderWidth: 1,
-      borderColor: COLORS.border.light,
+    formulaPreview: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: getResponsiveValue(SPACING.xs, screenType),
+      backgroundColor: COLORS.goldenSurface,
+      padding: getResponsiveValue(SPACING.sm, screenType),
+      borderRadius: BORDER_RADIUS.md,
+      marginTop: getResponsiveValue(SPACING.sm, screenType),
     },
+    formulaPreviewText: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+      color: COLORS.text.golden,
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      flex: 1,
+    },
+    helperText: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
+      color: COLORS.text.secondary,
+      marginTop: getResponsiveValue(SPACING.sm, screenType),
+      fontStyle: 'italic',
+    },
+    categorySection: { marginBottom: getResponsiveValue(SPACING.md, screenType) },
     categoryHeader: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
       alignItems: 'center',
-      padding: getResponsiveValue(SPACING.md, screenType),
-      backgroundColor: COLORS.goldenSurface,
+      justifyContent: 'space-between',
+      paddingVertical: getResponsiveValue(SPACING.sm, screenType),
+      borderBottomWidth: 1,
+      borderBottomColor: COLORS.border.light,
     },
     categoryTitleContainer: {
       flexDirection: 'row',
       alignItems: 'center',
-      flex: 1,
+      gap: getResponsiveValue(SPACING.sm, screenType),
     },
     categoryTitle: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.md, screenType),
@@ -473,8 +472,7 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
       color: COLORS.text.primary,
     },
     categoryBadge: {
-      marginLeft: getResponsiveValue(SPACING.sm, screenType),
-      backgroundColor: COLORS.variants.secondary[200],
+      backgroundColor: COLORS.variants.secondary[500],
       paddingHorizontal: getResponsiveValue(SPACING.sm, screenType),
       paddingVertical: 2,
       borderRadius: BORDER_RADIUS.full,
@@ -482,100 +480,46 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
     categoryBadgeText: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
       fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: COLORS.variants.secondary[700],
+      color: COLORS.surface,
     },
     categoryItems: {
-      padding: getResponsiveValue(SPACING.sm, screenType),
+      paddingTop: getResponsiveValue(SPACING.sm, screenType),
+      gap: getResponsiveValue(SPACING.xs, screenType),
     },
     menuItem: {
-      backgroundColor: COLORS.surface,
+      flexDirection: 'row',
+      alignItems: 'center',
       padding: getResponsiveValue(SPACING.md, screenType),
-      marginBottom: getResponsiveValue(SPACING.sm, screenType),
       borderRadius: BORDER_RADIUS.md,
+      backgroundColor: COLORS.surface,
       borderWidth: 1,
       borderColor: COLORS.border.light,
     },
     menuItemSelected: {
-      borderColor: COLORS.variants.secondary[400],
-      backgroundColor: COLORS.goldenSurface,
-      ...SHADOWS.goldenGlow,
+      borderColor: COLORS.success,
+      backgroundColor: COLORS.success + '10',
     },
-    menuItemHeader: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-    },
-    menuItemCheckbox: {
-      width: 24,
-      height: 24,
-      borderRadius: BORDER_RADIUS.sm,
-      borderWidth: 2,
-      borderColor: COLORS.border.default,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginRight: getResponsiveValue(SPACING.sm, screenType),
-      backgroundColor: COLORS.surface,
-    },
-    menuItemInfo: {
-      flex: 1,
-    },
+    menuItemInfo: { flex: 1, paddingRight: getResponsiveValue(SPACING.sm, screenType) },
     menuItemName: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
-      fontWeight: TYPOGRAPHY.fontWeight.medium,
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
       color: COLORS.text.primary,
-      marginBottom: 2,
     },
     menuItemDescription: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
       color: COLORS.text.secondary,
-      marginBottom: 4,
+      marginTop: 2,
     },
-    menuItemPrice: {
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
-      color: COLORS.text.golden,
-      fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    },
-    menuItemOptions: {
-      marginTop: getResponsiveValue(SPACING.md, screenType),
-      paddingTop: getResponsiveValue(SPACING.md, screenType),
-      borderTopWidth: 1,
-      borderTopColor: COLORS.border.light,
-    },
-    specialPriceContainer: {
-      flexDirection: 'row',
+    menuItemRight: {
       alignItems: 'center',
-    },
-    optionLabel: {
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
-      color: COLORS.text.secondary,
-      marginRight: getResponsiveValue(SPACING.sm, screenType),
-    },
-    priceInput: {
-      flex: 1,
-      height: 36,
-      borderWidth: 1,
-      borderColor: COLORS.border.default,
-      borderRadius: BORDER_RADIUS.md,
-      paddingHorizontal: getResponsiveValue(SPACING.sm, screenType),
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
-      color: COLORS.text.primary,
-      backgroundColor: COLORS.surface,
-    },
-    currency: {
-      marginLeft: getResponsiveValue(SPACING.xs, screenType),
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
-      color: COLORS.text.secondary,
+      justifyContent: 'center',
     },
     footer: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
+      padding: getResponsiveValue(SPACING.container, screenType),
+      paddingBottom: Math.max(insets?.bottom ?? 0, 20),
       backgroundColor: COLORS.surface,
-      ...SHADOWS.lg,
-    },
-    footerGradient: {
-      padding: getResponsiveValue(SPACING.lg, screenType),
-      paddingBottom: getResponsiveValue(SPACING.xl, screenType) + insets.bottom, // Ajouter la safe area bottom
+      borderTopWidth: 1,
+      borderTopColor: COLORS.border.light,
     },
   });
 };
