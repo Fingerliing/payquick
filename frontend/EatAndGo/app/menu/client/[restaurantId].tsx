@@ -11,6 +11,8 @@ import {
   Modal,
   Share,
   StyleSheet,
+  Animated,
+  Easing,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -244,7 +246,7 @@ export default function ClientRestaurantPage() {
   }, [session?.status, isHost]);
 
   // ─── Cart ──────────────────────────────────────────────────────────────────
-  const { cart, addToCart, clearCart } = useCart();
+  const { cart, addToCart, removeFromCart, updateQuantity, clearCart } = useCart();
 
   // ─── État principal ────────────────────────────────────────────────────────
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
@@ -357,28 +359,88 @@ export default function ClientRestaurantPage() {
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [allMenuItems]);
 
+  // ─── Menu du jour : config formule + items aplatis ─────────────────────
+  /**
+   * Configuration de la formule du menu du jour.
+   * - is_formula: true si le menu a un special_price ET au moins une catégorie
+   * - pricePerCategory: special_price / nb_catégories (le prix à afficher
+   *   sur chaque DishCard du menu du jour)
+   * - On retombe sur la propriété backend `is_formula` / `price_per_category`
+   *   si dispo, sinon on recalcule côté client (compat avec ancien backend).
+   */
+  const dailyMenuConfig = useMemo(() => {
+    if (!dailyMenu) {
+      return { isFormula: false, pricePerCategory: null as number | null, categoriesCount: 0, totalPrice: null as number | null };
+    }
+    const cats = dailyMenu.items_by_category ?? [];
+    const categoriesCount = (dailyMenu as any).categories_count ?? cats.length ?? 0;
+    const totalPrice = dailyMenu.special_price != null
+      ? Number(dailyMenu.special_price)
+      : null;
+    const backendFormula = (dailyMenu as any).is_formula;
+    const isFormula = typeof backendFormula === 'boolean'
+      ? backendFormula
+      : (totalPrice != null && categoriesCount > 0);
+    let pricePerCategory: number | null = (dailyMenu as any).price_per_category ?? null;
+    if (pricePerCategory == null && isFormula && totalPrice != null && categoriesCount > 0) {
+      pricePerCategory = Math.round((totalPrice / categoriesCount) * 100) / 100;
+    }
+    return { isFormula, pricePerCategory, categoriesCount, totalPrice };
+  }, [dailyMenu]);
+
   // Items du menu du jour aplatis au format MenuItem pour réutiliser DishCard.
-  // L'ID conservé est `menu_item` (l'ID du MenuItem original) et non l'ID du
-  // DailyMenuItem — c'est cet ID qui est attendu par sessionCart.addItem
-  // et par le panier solo.
+  // L'ID conservé est `menu_item` (l'ID du MenuItem original) — c'est cet
+  // ID qui est attendu par sessionCart.addItem et par le panier solo.
+  // Le prix appliqué est :
+  //   - le prix de la formule (special_price / nb_catégories) si formule
+  //   - sinon l'effective_price renvoyé par le backend
   const dailyMenuItems = useMemo<MenuItem[]>(() => {
     if (!dailyMenu) return [];
     const items: MenuItem[] = [];
     for (const cat of dailyMenu.items_by_category ?? []) {
+      const catId = (cat as any).category_id ?? cat.name;
       for (const it of cat.items ?? []) {
+        const formulaPrice = dailyMenuConfig.isFormula && dailyMenuConfig.pricePerCategory != null
+          ? dailyMenuConfig.pricePerCategory
+          : null;
+        const displayPrice = formulaPrice != null
+          ? formulaPrice
+          : (it.effective_price ?? (it as any).price ?? 0);
+
         items.push({
-          id: it.menu_item,
-          name: it.menu_item_name,
-          description: it.menu_item_description,
-          price: it.effective_price,
-          image_url: it.menu_item_image,
-          is_available: it.is_available,
-          category_name: it.menu_item_category,
+          id: it.menu_item ?? (it as any).id,
+          name: it.menu_item_name ?? (it as any).name ?? '',
+          description: it.menu_item_description ?? (it as any).description ?? '',
+          price: displayPrice,
+          image_url: it.menu_item_image ?? (it as any).image_url ?? null,
+          is_available: it.is_available !== false,
+          category_name: it.menu_item_category ?? cat.name,
+          // Marqueurs internes pour la logique "1 par catégorie"
+          _dailyCategoryId: catId,
+          _dailyCategoryName: cat.name,
         } as any);
       }
     }
     return items;
-  }, [dailyMenu]);
+  }, [dailyMenu, dailyMenuConfig]);
+
+  /**
+   * Map menuItemId -> identifiant de la catégorie du menu du jour.
+   * Permet de retrouver, pour un item présent dans le panier, à quel "slot"
+   * de catégorie du menu du jour il correspond. Sert à appliquer la règle
+   * "un seul item par catégorie dans le menu du jour".
+   */
+  const dailyCategoryByMenuItemId = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const it of dailyMenuItems) {
+      const id = Number((it as any).id);
+      const catId = (it as any)._dailyCategoryId;
+      if (Number.isFinite(id) && catId) {
+        map.set(id, String(catId));
+      }
+    }
+    return map;
+  }, [dailyMenuItems]);
 
   // Onglets : Menu du jour (si présent et non vide) + catégories
   const tabs = useMemo<MenuCategory[]>(() => {
@@ -413,6 +475,56 @@ export default function ClientRestaurantPage() {
     [effectiveSessionId, sessionCart.items_count, cart.itemCount]
   );
 
+  // Map menuItemId -> quantité actuelle dans le panier (pour afficher le badge
+  // et basculer entre "+" et contrôles inline sur les DishCards).
+  // En mode session, on ne compte QUE les items du participant courant.
+  const cartQuantities = useMemo(() => {
+    const map = new Map<number, number>();
+    if (effectiveSessionId) {
+      sessionCart.myItems.forEach((it) => {
+        const id = Number(it.menu_item);
+        if (Number.isFinite(id)) map.set(id, (map.get(id) ?? 0) + it.quantity);
+      });
+    } else {
+      cart.items.forEach((it) => {
+        const id = Number(it.menuItemId);
+        if (Number.isFinite(id)) map.set(id, (map.get(id) ?? 0) + it.quantity);
+      });
+    }
+    return map;
+  }, [effectiveSessionId, sessionCart.myItems, cart.items]);
+
+  const getCartQuantity = useCallback(
+    (item: MenuItem) => {
+      const id = typeof (item as any).id === 'number'
+        ? (item as any).id
+        : parseInt(String((item as any).id), 10);
+      return cartQuantities.get(id) ?? 0;
+    },
+    [cartQuantities]
+  );
+
+  // Animation pulse du panier flottant à chaque ajout (déclenchée via ref tick)
+  const cartPulse = useRef(new Animated.Value(1)).current;
+  const triggerCartPulse = useCallback(() => {
+    cartPulse.stopAnimation();
+    cartPulse.setValue(1);
+    Animated.sequence([
+      Animated.timing(cartPulse, {
+        toValue: 1.08,
+        duration: 140,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.spring(cartPulse, {
+        toValue: 1,
+        friction: 4,
+        tension: 120,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [cartPulse]);
+
   // ─── Handlers cart ─────────────────────────────────────────────────────────
   const handleAddToCart = useCallback(
     async (item: MenuItem) => {
@@ -422,11 +534,61 @@ export default function ClientRestaurantPage() {
           ? (item as any).id
           : parseInt(String((item as any).id), 10);
 
+      // ─── Logique formule "menu du jour" ──────────────────────────────
+      // Si l'item provient de l'onglet menu du jour ET que le menu est en
+      // mode formule (special_price défini), on applique deux règles :
+      //   1) Quantité plafonnée à 1 par item (la formule = 1 plat / catégorie).
+      //   2) Un seul item par catégorie de la formule : si une autre
+      //      sélection occupe déjà le même "slot", on la remplace.
+      const dailyCatId = (item as any)._dailyCategoryId as string | undefined;
+      const isDailyFormulaItem = !!dailyCatId && dailyMenuConfig.isFormula;
+
+      if (isDailyFormulaItem) {
+        // Règle 1 : déjà sélectionné → ne rien faire
+        if (effectiveSessionId) {
+          const existing = sessionCart.myItems.find((ci) => Number(ci.menu_item) === menuItemId);
+          if (existing && existing.quantity >= 1) {
+            showToast('info', 'Déjà sélectionné', `${item.name} fait déjà partie de votre formule`);
+            return;
+          }
+        } else {
+          const existing = cart.items.find((ci) => Number(ci.menuItemId) === menuItemId);
+          if (existing && existing.quantity >= 1) {
+            showToast('info', 'Déjà sélectionné', `${item.name} fait déjà partie de votre formule`);
+            return;
+          }
+        }
+
+        // Règle 2 : retirer toute sélection actuelle du même slot de catégorie
+        if (effectiveSessionId) {
+          const conflicting = sessionCart.myItems.find((ci) => {
+            const otherCatId = dailyCategoryByMenuItemId.get(Number(ci.menu_item));
+            return !!otherCatId && otherCatId === dailyCatId;
+          });
+          if (conflicting) {
+            try {
+              await sessionCart.removeItem(conflicting.id);
+            } catch {
+              // best-effort, on continue à ajouter le nouveau choix
+            }
+          }
+        } else {
+          const conflicting = cart.items.find((ci) => {
+            const otherCatId = dailyCategoryByMenuItemId.get(Number(ci.menuItemId));
+            return !!otherCatId && otherCatId === dailyCatId;
+          });
+          if (conflicting) {
+            removeFromCart(conflicting.id);
+          }
+        }
+      }
+
       // Mode session collaborative
       if (effectiveSessionId) {
         try {
           await sessionCart.addItem({ menu_item: menuItemId, quantity: 1 });
           await sessionCart.refresh();
+          triggerCartPulse();
           showToast('success', 'Ajouté au panier partagé', `${item.name} a été ajouté`);
         } catch (err) {
           showToast('error', 'Erreur', "Impossible d'ajouter au panier partagé");
@@ -440,22 +602,27 @@ export default function ClientRestaurantPage() {
         return;
       }
 
-      const cartItem: any = {
+      const cartItem = {
         id: String(menuItemId),
         menuItemId,
         name: item.name,
-        price: (item as any).price,
+        description: (item as any).description,
+        price: parseFloat(String((item as any).price ?? 0)) || 0,
+        image: (item as any).image_url,
         restaurantId: parsedRestaurantId,
         restaurantName: restaurant?.name || '',
-        imageUrl: (item as any).image_url,
-        isAvailable: (item as any).is_available,
         customizations: {},
         specialInstructions: '',
       };
       addToCart(cartItem);
+      triggerCartPulse();
       showToast('success', 'Ajouté au panier', `${item.name} a été ajouté`);
     },
-    [effectiveSessionId, sessionCart, cart.items.length, cart.restaurantId, restaurantId, restaurant, addToCart, showToast]
+    [
+      effectiveSessionId, sessionCart, cart.items, cart.restaurantId,
+      restaurantId, restaurant, addToCart, removeFromCart, showToast, triggerCartPulse,
+      dailyMenuConfig.isFormula, dailyCategoryByMenuItemId,
+    ]
   );
 
   const proceedAddToCart = useCallback(
@@ -466,22 +633,63 @@ export default function ClientRestaurantPage() {
         typeof (item as any).id === 'number'
           ? (item as any).id
           : parseInt(String((item as any).id), 10);
-      const cartItem: any = {
+      const cartItem = {
         id: String(menuItemId),
         menuItemId,
         name: item.name,
-        price: (item as any).price,
+        description: (item as any).description,
+        price: parseFloat(String((item as any).price ?? 0)) || 0,
+        image: (item as any).image_url,
         restaurantId: parsedRestaurantId,
         restaurantName: restaurant?.name || '',
-        imageUrl: (item as any).image_url,
-        isAvailable: (item as any).is_available,
         customizations: {},
         specialInstructions: '',
       };
       addToCart(cartItem);
+      triggerCartPulse();
       showToast('success', 'Ajouté au panier', `${item.name} a été ajouté`);
     },
-    [clearCart, addToCart, restaurantId, restaurant, showToast]
+    [clearCart, addToCart, restaurantId, restaurant, showToast, triggerCartPulse]
+  );
+
+  /**
+   * Décrémente la quantité d'un plat depuis la DishCard.
+   * - Mode solo : remove si qty == 1, sinon updateQuantity.
+   * - Mode session : agit sur le PREMIER item du participant courant
+   *   matchant ce menu_item.
+   */
+  const handleDecrementFromCart = useCallback(
+    async (item: MenuItem) => {
+      const id = typeof (item as any).id === 'number'
+        ? (item as any).id
+        : parseInt(String((item as any).id), 10);
+
+      // Mode session collaborative
+      if (effectiveSessionId) {
+        const myItem = sessionCart.myItems.find((it) => Number(it.menu_item) === id);
+        if (!myItem) return;
+        try {
+          if (myItem.quantity <= 1) {
+            await sessionCart.removeItem(myItem.id);
+          } else {
+            await sessionCart.updateItem(myItem.id, { quantity: myItem.quantity - 1 });
+          }
+        } catch {
+          showToast('error', 'Erreur', "Impossible de retirer l'article");
+        }
+        return;
+      }
+
+      // Mode solo
+      const cartItem = cart.items.find((ci) => ci.menuItemId === id);
+      if (!cartItem) return;
+      if (cartItem.quantity <= 1) {
+        removeFromCart(cartItem.id);
+      } else {
+        updateQuantity(cartItem.id, cartItem.quantity - 1);
+      }
+    },
+    [effectiveSessionId, sessionCart, cart.items, removeFromCart, updateQuantity, showToast]
   );
 
   const onRefresh = useCallback(() => {
@@ -751,11 +959,27 @@ export default function ClientRestaurantPage() {
           data={activeTab?.items ?? []}
           keyExtractor={(item) => String((item as any).id)}
           renderItem={({ item }) => (
-            <DishCard item={item} onAddToCart={handleAddToCart} />
+            <DishCard
+              item={item}
+              cartQuantity={getCartQuantity(item)}
+              onAddToCart={handleAddToCart}
+              onDecrement={handleDecrementFromCart}
+              lockedQuantity={isDailyTab && dailyMenuConfig.isFormula && !!(item as any)._dailyCategoryId}
+            />
           )}
           contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(120, insets.bottom + 100) }]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           showsVerticalScrollIndicator={false}
+          ListHeaderComponent={
+            isDailyTab && dailyMenuConfig.isFormula ? (
+              <DailyFormulaBanner
+                totalPrice={dailyMenuConfig.totalPrice ?? 0}
+                pricePerCategory={dailyMenuConfig.pricePerCategory ?? 0}
+                categoriesCount={dailyMenuConfig.categoriesCount}
+                description={dailyMenu?.description ?? null}
+              />
+            ) : null
+          }
           ListEmptyComponent={
             <View style={styles.empty}>
               <Ionicons name="restaurant-outline" size={48} color={COLORS.text.light} />
@@ -768,25 +992,36 @@ export default function ClientRestaurantPage() {
 
         {/* ─── Floating cart button ─────────────────────────────────────── */}
         {totalCartItems > 0 && (
-          <Pressable
-            style={[styles.floatingCart, { bottom: Math.max(20, insets.bottom + 10) }]}
-            onPress={() => router.push('/(client)/cart' as any)}
+          <Animated.View
+            style={[
+              styles.floatingCart,
+              {
+                bottom: Math.max(20, insets.bottom + 10),
+                transform: [{ scale: cartPulse }],
+              },
+            ]}
           >
-            <View style={styles.cartLeft}>
-              <View style={styles.cartBadge}>
-                <Text style={styles.cartBadgeText}>{totalCartItems}</Text>
+            <Pressable
+              style={styles.floatingCartInner}
+              onPress={() => router.push('/(client)/cart' as any)}
+              android_ripple={{ color: 'rgba(255,255,255,0.15)' }}
+            >
+              <View style={styles.cartLeft}>
+                <View style={styles.cartBadge}>
+                  <Text style={styles.cartBadgeText}>{totalCartItems}</Text>
+                </View>
+                <View>
+                  <Text style={styles.cartLabel}>Voir le panier</Text>
+                  <Text style={styles.cartSubLabel}>
+                    {totalCartItems} article{totalCartItems > 1 ? 's' : ''}
+                  </Text>
+                </View>
               </View>
-              <View>
-                <Text style={styles.cartLabel}>Voir le panier</Text>
-                <Text style={styles.cartSubLabel}>
-                  {totalCartItems} article{totalCartItems > 1 ? 's' : ''}
-                </Text>
-              </View>
-            </View>
-            <Text style={styles.cartTotal}>
-              {(effectiveSessionId ? sessionCart.total : cart.total).toFixed(2)} €
-            </Text>
-          </Pressable>
+              <Text style={styles.cartTotal}>
+                {formatPrice(effectiveSessionId ? sessionCart.total : cart.total)}
+              </Text>
+            </Pressable>
+          </Animated.View>
         )}
 
         {/* ─── Session sheet (code partage + participants) ──────────────── */}
@@ -864,42 +1099,135 @@ export default function ClientRestaurantPage() {
 }
 
 // =============================================================================
+// SOUS-COMPOSANT : DailyFormulaBanner
+// =============================================================================
+
+/**
+ * Bandeau d'explication affiché au-dessus de la liste quand l'onglet
+ * Menu du jour est en mode formule (special_price + plusieurs catégories).
+ * Indique le prix total, le prix par catégorie et la règle "1 plat / catégorie".
+ */
+const DailyFormulaBanner: React.FC<{
+  totalPrice: number;
+  pricePerCategory: number;
+  categoriesCount: number;
+  description: string | null;
+}> = React.memo(({ totalPrice, pricePerCategory, categoriesCount, description }) => {
+  return (
+    <View style={bannerStyles.wrap}>
+      <View style={bannerStyles.iconCircle}>
+        <Ionicons name="restaurant" size={18} color={COLORS.primary} />
+      </View>
+      <View style={bannerStyles.body}>
+        <View style={bannerStyles.headerRow}>
+          <Text style={bannerStyles.title}>Formule du jour</Text>
+          <Text style={bannerStyles.totalPrice}>{formatPrice(totalPrice)}</Text>
+        </View>
+        <Text style={bannerStyles.subtitle}>
+          {categoriesCount > 1
+            ? `1 plat par catégorie • ${categoriesCount} catégories • ${formatPrice(pricePerCategory)} / plat`
+            : `1 plat à choisir • ${formatPrice(pricePerCategory)}`}
+        </Text>
+        {description ? (
+          <Text style={bannerStyles.description} numberOfLines={3}>{description}</Text>
+        ) : null}
+      </View>
+    </View>
+  );
+});
+
+// =============================================================================
 // SOUS-COMPOSANT : DishCard
 // =============================================================================
 
 const DishCard: React.FC<{
   item: MenuItem;
+  cartQuantity: number;
   onAddToCart: (item: MenuItem) => void;
-}> = React.memo(({ item, onAddToCart }) => {
-  const visual = useMemo(() => inferDishVisual(item.name), [item.name]);
+  onDecrement: (item: MenuItem) => void;
+  /**
+   * Si true, l'item ne peut pas dépasser qty=1 (mode formule menu du jour).
+   * Le contrôle qty (− N +) est remplacé par une pastille "Sélectionné" qui
+   * sert aussi de bouton de désélection.
+   */
+  lockedQuantity?: boolean;
+}> = React.memo(({ item, cartQuantity, onAddToCart, onDecrement, lockedQuantity = false }) => {
   const imageUrl = (item as any).image_url;
+  const hasImage = !!imageUrl;
   const isAvailable = (item as any).is_available !== false;
+  const inCart = cartQuantity > 0;
+
+  // Animation pop de la carte à l'ajout (track la quantité pour pulser
+  // uniquement quand la quantité augmente, pas quand on décrémente).
+  const scale = useRef(new Animated.Value(1)).current;
+  const prevQtyRef = useRef(cartQuantity);
+
+  useEffect(() => {
+    if (cartQuantity > prevQtyRef.current) {
+      // Pop : grossit puis revient avec un léger rebond
+      scale.stopAnimation();
+      scale.setValue(1);
+      Animated.sequence([
+        Animated.timing(scale, {
+          toValue: 1.04,
+          duration: 120,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.spring(scale, {
+          toValue: 1,
+          friction: 4,
+          tension: 140,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+    prevQtyRef.current = cartQuantity;
+  }, [cartQuantity, scale]);
+
+  const handleAddPress = useCallback(() => {
+    onAddToCart(item);
+  }, [item, onAddToCart]);
+
+  const handleDecPress = useCallback(() => {
+    onDecrement(item);
+  }, [item, onDecrement]);
 
   return (
-    <Pressable
-      onPress={() => isAvailable && onAddToCart(item)}
-      style={({ pressed }) => [
+    <Animated.View
+      style={[
         cardStyles.card,
-        pressed && isAvailable && cardStyles.cardPressed,
+        !hasImage && cardStyles.cardNoImage,
+        inCart && cardStyles.cardInCart,
         !isAvailable && cardStyles.cardDisabled,
+        { transform: [{ scale }] },
       ]}
-      android_ripple={{ color: COLORS.primary + '10' }}
-      disabled={!isAvailable}
     >
-      {/* Vignette */}
-      <View style={[cardStyles.thumb, { backgroundColor: visual.bg }]}>
-        {imageUrl ? (
+      {/* Vignette : uniquement si une image existe */}
+      {hasImage && (
+        <View style={cardStyles.thumb}>
           <Image source={{ uri: imageUrl }} style={cardStyles.thumbImage} resizeMode="cover" />
-        ) : (
-          <Text style={cardStyles.thumbEmoji}>{visual.emoji}</Text>
-        )}
-      </View>
+          {inCart && (
+            <View style={cardStyles.qtyBadge}>
+              <Text style={cardStyles.qtyBadgeText}>{cartQuantity}</Text>
+            </View>
+          )}
+        </View>
+      )}
 
       {/* Infos */}
       <View style={cardStyles.infoBlock}>
-        <Text style={cardStyles.dishName} numberOfLines={2}>
-          {item.name}
-        </Text>
+        <View style={cardStyles.dishNameRow}>
+          {/* Pastille quantité quand pas de vignette pour rester visible */}
+          {!hasImage && inCart && (
+            <View style={cardStyles.qtyBadgeInline}>
+              <Text style={cardStyles.qtyBadgeText}>{cartQuantity}</Text>
+            </View>
+          )}
+          <Text style={cardStyles.dishName} numberOfLines={2}>
+            {item.name}
+          </Text>
+        </View>
         {item.description ? (
           <Text style={cardStyles.dishDescription} numberOfLines={2}>
             {item.description}
@@ -914,7 +1242,69 @@ const DishCard: React.FC<{
           )}
         </View>
       </View>
-    </Pressable>
+
+      {/* Action : "+" seul, contrôles inline (− qty +), ou pastille "Sélectionné" en formule */}
+      {isAvailable && (
+        <View style={cardStyles.actionWrap}>
+          {inCart ? (
+            lockedQuantity ? (
+              // Mode formule : un seul plat par catégorie, qty plafonnée à 1.
+              // La pastille fait double rôle : feedback "déjà choisi" + bouton de désélection.
+              <Pressable
+                onPress={handleDecPress}
+                style={({ pressed }) => [
+                  cardStyles.selectedPill,
+                  pressed && cardStyles.selectedPillPressed,
+                ]}
+                hitSlop={6}
+                accessibilityLabel={`Retirer ${item.name} de la formule`}
+              >
+                <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" />
+                <Text style={cardStyles.selectedPillText}>Choisi</Text>
+                <Ionicons name="close" size={14} color="#FFFFFF" />
+              </Pressable>
+            ) : (
+              <View style={cardStyles.qtyControls}>
+                <Pressable
+                  onPress={handleDecPress}
+                  style={({ pressed }) => [cardStyles.qtyBtn, pressed && cardStyles.qtyBtnPressed]}
+                  hitSlop={6}
+                  accessibilityLabel={`Retirer ${item.name}`}
+                >
+                  <Ionicons
+                    name={cartQuantity === 1 ? 'trash-outline' : 'remove'}
+                    size={18}
+                    color={cartQuantity === 1 ? COLORS.error : COLORS.primary}
+                  />
+                </Pressable>
+                <Text style={cardStyles.qtyText}>{cartQuantity}</Text>
+                <Pressable
+                  onPress={handleAddPress}
+                  style={({ pressed }) => [
+                    cardStyles.qtyBtn,
+                    cardStyles.qtyBtnAdd,
+                    pressed && cardStyles.qtyBtnPressed,
+                  ]}
+                  hitSlop={6}
+                  accessibilityLabel={`Ajouter un ${item.name}`}
+                >
+                  <Ionicons name="add" size={18} color="#FFFFFF" />
+                </Pressable>
+              </View>
+            )
+          ) : (
+            <Pressable
+              onPress={handleAddPress}
+              style={({ pressed }) => [cardStyles.addBtn, pressed && cardStyles.addBtnPressed]}
+              hitSlop={6}
+              accessibilityLabel={`Ajouter ${item.name} au panier`}
+            >
+              <Ionicons name="add" size={24} color="#FFFFFF" />
+            </Pressable>
+          )}
+        </View>
+      )}
+    </Animated.View>
   );
 });
 
@@ -1109,16 +1499,19 @@ const styles = StyleSheet.create({
     right: 16,
     backgroundColor: COLORS.primary,
     borderRadius: BORDER_RADIUS.lg,
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
     elevation: 8,
+    overflow: 'hidden',
+  },
+  floatingCartInner: {
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   cartLeft: {
     flexDirection: 'row',
@@ -1299,10 +1692,15 @@ const cardStyles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
     position: 'relative',
+    borderWidth: 1.5,
+    borderColor: 'transparent',
   },
-  cardPressed: {
-    opacity: 0.85,
-    transform: [{ scale: 0.99 }],
+  // Variante quand pas d'image : on resserre légèrement la carte
+  cardNoImage: {
+    paddingVertical: 14,
+  },
+  cardInCart: {
+    borderColor: COLORS.primary + '40',
   },
   cardDisabled: {
     opacity: 0.55,
@@ -1314,20 +1712,55 @@ const cardStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+    backgroundColor: COLORS.background,
+    position: 'relative',
   },
   thumbImage: {
     width: '100%',
     height: '100%',
   },
-  thumbEmoji: {
-    fontSize: 38,
+  // Badge quantité posé sur la vignette (mode "avec image")
+  qtyBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    minWidth: 24,
+    height: 24,
+    paddingHorizontal: 6,
+    borderRadius: 12,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.surface,
+  },
+  // Pastille quantité inline (mode "sans image") : devant le nom
+  qtyBadgeInline: {
+    minWidth: 24,
+    height: 24,
+    paddingHorizontal: 6,
+    borderRadius: 12,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  qtyBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
   },
   infoBlock: {
     flex: 1,
     minWidth: 0,
     gap: 4,
   },
+  dishNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   dishName: {
+    flex: 1,
     fontSize: 16,
     fontWeight: '700',
     color: COLORS.text.primary,
@@ -1360,5 +1793,149 @@ const cardStyles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     color: COLORS.error,
+  },
+
+  // ─── Action zone (+ ou contrôles inline) ───────────────────────────────
+  actionWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  addBtnPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.95 }],
+  },
+  qtyControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: COLORS.background,
+    borderRadius: BORDER_RADIUS.full,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: COLORS.border.light,
+  },
+  qtyBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: COLORS.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border.light,
+  },
+  qtyBtnAdd: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  qtyBtnPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.92 }],
+  },
+  qtyText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.text.primary,
+    minWidth: 18,
+    textAlign: 'center',
+  },
+
+  // ─── Pastille "Choisi" (mode formule menu du jour) ─────────────────────
+  selectedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: COLORS.primary,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  selectedPillPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.96 }],
+  },
+  selectedPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
+  },
+});
+
+// =============================================================================
+// STYLES — Bandeau formule menu du jour
+// =============================================================================
+
+const bannerStyles = StyleSheet.create({
+  wrap: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    backgroundColor: COLORS.secondary + '18',
+    borderRadius: BORDER_RADIUS.lg,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: COLORS.secondary + '40',
+  },
+  iconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.secondary + '30',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  body: {
+    flex: 1,
+    minWidth: 0,
+    gap: 4,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  title: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.text.primary,
+    letterSpacing: -0.2,
+  },
+  totalPrice: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: COLORS.primary,
+  },
+  subtitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.text.secondary,
+  },
+  description: {
+    fontSize: 12,
+    color: COLORS.text.secondary,
+    lineHeight: 16,
+    marginTop: 2,
   },
 });

@@ -122,36 +122,26 @@ export const DailyMenuDisplay: React.FC<Props> = ({
     >
       <View style={styles.menuItemContent}>
         <View style={styles.menuItemInfo}>
-          <Text style={styles.menuItemName}>{item.name}</Text>
-          {item.description && (
+          <Text style={styles.menuItemName}>{item.menu_item_name || item.name}</Text>
+          {!!(item.menu_item_description || item.description) && (
             <Text style={styles.menuItemDescription} numberOfLines={2}>
-              {item.description}
+              {item.menu_item_description || item.description}
             </Text>
           )}
-          
-          {item.special_note && (
+
+          {!!item.special_note && (
             <View style={styles.specialNoteContainer}>
               <Ionicons name="star" size={12} color={COLORS.warning} />
               <Text style={styles.specialNote}>{item.special_note}</Text>
             </View>
           )}
-          
+
           {renderDietaryTags(item)}
         </View>
-        
+
+        {/* Plus de prix par plat : le prix est annoncé au niveau du menu (formule).
+            On garde uniquement un bouton "Ajouter" si onAddToCart est fourni. */}
         <View style={styles.priceSection}>
-          {item.has_discount ? (
-            <View style={styles.discountContainer}>
-              <View style={styles.discountBadge}>
-                <Text style={styles.discountPercentage}>-{item.discount_percentage}%</Text>
-              </View>
-              <Text style={styles.originalPrice}>{item.original_price}€</Text>
-              <Text style={styles.discountedPrice}>{item.price}€</Text>
-            </View>
-          ) : (
-            <Text style={styles.regularPrice}>{item.price}€</Text>
-          )}
-          
           {onAddToCart && (
             <TouchableOpacity
               style={styles.addToCartButton}
@@ -162,10 +152,10 @@ export const DailyMenuDisplay: React.FC<Props> = ({
           )}
         </View>
       </View>
-      
-      {item.image_url && (
-        <Image 
-          source={{ uri: item.image_url }} 
+
+      {!!(item.menu_item_image || item.image_url) && (
+        <Image
+          source={{ uri: item.menu_item_image || item.image_url }}
           style={styles.menuItemImage}
           resizeMode="cover"
         />
@@ -215,7 +205,11 @@ export const DailyMenuDisplay: React.FC<Props> = ({
 
   const renderItemModal = () => {
     if (!selectedItem) return null;
-    
+
+    const itemName = selectedItem.menu_item_name || selectedItem.name;
+    const itemDesc = selectedItem.menu_item_description || selectedItem.description;
+    const itemImage = selectedItem.menu_item_image || selectedItem.image_url;
+
     return (
       <Modal
         visible={!!selectedItem}
@@ -223,29 +217,29 @@ export const DailyMenuDisplay: React.FC<Props> = ({
         animationType="fade"
         onRequestClose={() => setSelectedItem(null)}
       >
-        <Pressable 
+        <Pressable
           style={styles.modalOverlay}
           onPress={() => setSelectedItem(null)}
         >
           <BlurView intensity={95} style={StyleSheet.absoluteFillObject} />
           <View style={styles.modalContent}>
-            {selectedItem.image_url && (
-              <Image 
-                source={{ uri: selectedItem.image_url }}
+            {!!itemImage && (
+              <Image
+                source={{ uri: itemImage }}
                 style={styles.modalImage}
                 resizeMode="cover"
               />
             )}
-            
+
             <View style={styles.modalInfo}>
-              <Text style={styles.modalTitle}>{selectedItem.name}</Text>
-              
-              {selectedItem.description && (
-                <Text style={styles.modalDescription}>{selectedItem.description}</Text>
+              <Text style={styles.modalTitle}>{itemName}</Text>
+
+              {!!itemDesc && (
+                <Text style={styles.modalDescription}>{itemDesc}</Text>
               )}
-              
+
               {renderDietaryTags(selectedItem)}
-              
+
               {selectedItem.allergens && selectedItem.allergens.length > 0 && (
                 <View style={styles.allergensContainer}>
                   <Text style={styles.allergensTitle}>⚠️ Allergènes:</Text>
@@ -254,19 +248,13 @@ export const DailyMenuDisplay: React.FC<Props> = ({
                   </Text>
                 </View>
               )}
-              
+
               <View style={styles.modalFooter}>
-                <View style={styles.modalPriceContainer}>
-                  {selectedItem.has_discount ? (
-                    <>
-                      <Text style={styles.modalOriginalPrice}>{selectedItem.original_price}€</Text>
-                      <Text style={styles.modalPrice}>{selectedItem.price}€</Text>
-                    </>
-                  ) : (
-                    <Text style={styles.modalPrice}>{selectedItem.price}€</Text>
-                  )}
-                </View>
-                
+                {/* Plus de prix par plat dans le menu du jour : on ne montre que
+                    le CTA "Ajouter au panier". Le prix global de la formule est
+                    affiché en haut de l'écran. */}
+                <View style={{ flex: 1 }} />
+
                 {onAddToCart && (
                   <TouchableOpacity
                     style={styles.modalAddButton}
@@ -337,7 +325,19 @@ export const DailyMenuDisplay: React.FC<Props> = ({
               colors={COLORS.gradients.goldenHorizontal}
               style={styles.specialPriceGradient}
             >
-              <Text style={styles.specialPriceLabel}>🎯 Formule complète</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.specialPriceLabel}>🎯 Formule complète</Text>
+                {!!menu.is_formula && !!menu.price_per_category && menu.categories_count > 1 && (
+                  <Text style={{
+                    color: COLORS.surface,
+                    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+                    opacity: 0.9,
+                    marginTop: 2,
+                  }}>
+                    1 plat par catégorie • {Number(menu.price_per_category).toFixed(2)}€ / plat
+                  </Text>
+                )}
+              </View>
               <Text style={styles.specialPriceValue}>{menu.special_price}€</Text>
             </LinearGradient>
           </View>
@@ -354,11 +354,17 @@ export const DailyMenuDisplay: React.FC<Props> = ({
             <Ionicons name="restaurant" size={16} color={COLORS.text.secondary} />
             <Text style={styles.statText}>{menu.total_items_count} plats</Text>
           </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Ionicons name="cash-outline" size={16} color={COLORS.text.secondary} />
-            <Text style={styles.statText}>~{menu.estimated_total_price}€ à la carte</Text>
-          </View>
+          {!!menu.is_formula && menu.categories_count > 0 && (
+            <>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Ionicons name="grid-outline" size={16} color={COLORS.text.secondary} />
+                <Text style={styles.statText}>
+                  {menu.categories_count} catégorie{menu.categories_count > 1 ? 's' : ''}
+                </Text>
+              </View>
+            </>
+          )}
         </View>
         
         <View style={styles.categoriesSection}>

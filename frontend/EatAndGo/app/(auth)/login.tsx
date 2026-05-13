@@ -199,6 +199,16 @@ export default function LoginScreen() {
     });
   }, []);
 
+  // MOT DE PASSE OUBLIÉ — navigation vers le flux de réinitialisation
+  // L'email pré-rempli (s'il y en a un) est passé en param pour gagner du temps
+  const handleForgotPassword = useCallback(() => {
+    const email = formData.email.trim().toLowerCase();
+    router.push({
+      pathname: '/(auth)/forgot-password',
+      params: email ? { email } : {},
+    });
+  }, [formData.email]);
+
 
   const params = useLocalSearchParams<{ reason?: string }>();
 
@@ -590,11 +600,7 @@ export default function LoginScreen() {
               </View>
 
               <TouchableOpacity 
-                onPress={() => setCustomAlert({
-                  variant: 'info',
-                  title: 'Récupération',
-                  message: 'Fonctionnalité bientôt disponible',
-                })}
+                onPress={handleForgotPassword}
                 activeOpacity={0.7}
               >
                 <Text style={styles.forgotPassword}>

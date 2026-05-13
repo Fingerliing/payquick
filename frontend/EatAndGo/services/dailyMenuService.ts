@@ -1,16 +1,22 @@
 import { apiClient } from './api';
 
 export interface DailyMenuItem {
-  id: string;
-  menu_item: string;
+  id: string;                            // DailyMenuItem.id (UUID)
+  menu_item: number;                     // FK vers MenuItem (entier) — clé du panier
   menu_item_name: string;
   menu_item_description: string;
-  menu_item_category: string;
+  menu_item_category: string;            // nom de la catégorie
+  menu_item_category_id: string | null;  // UUID — utilisé pour la règle "1 par catégorie"
   menu_item_category_icon: string;
   menu_item_image: string | null;
-  original_price: number;
+  original_price: number;                // prix de base du MenuItem
+  /**
+   * @deprecated Depuis mai 2026, le prix est géré au niveau du DailyMenu
+   * (formule). Ce champ est toujours `null` côté API publique. Il reste typé
+   * pour rétrocompat avec les anciens menus en BDD (vue restaurateur).
+   */
   special_price: number | null;
-  effective_price: number;
+  effective_price: number;               // prix à afficher (formule | normal)
   has_discount: boolean;
   discount_percentage: number;
   is_available: boolean;
@@ -24,6 +30,7 @@ export interface DailyMenuItem {
 
 export interface CategoryWithItems {
   name: string;
+  category_id: string | null;  // UUID de la catégorie (null si "Autres")
   icon: string;
   items: DailyMenuItem[];
 }
@@ -32,11 +39,11 @@ export interface DailyMenu {
   id: string;
   restaurant: string;
   restaurant_name: string;
-  restaurant_logo: string | null;
   date: string;
   title: string;
   description: string | null;
   is_active: boolean;
+  /** Prix total du menu (formule) — depuis mai 2026 toujours défini à la création. */
   special_price: number | null;
   daily_menu_items?: DailyMenuItem[];
   items_by_category: CategoryWithItems[];
@@ -44,6 +51,12 @@ export interface DailyMenu {
   estimated_total_price: number;
   is_today: boolean;
   is_future: boolean;
+  /** Mode formule actif : special_price défini ET au moins une catégorie. */
+  is_formula?: boolean;
+  /** Prix par catégorie en formule (= special_price / nb_catégories). */
+  price_per_category?: number | null;
+  /** Nombre de catégories distinctes représentées dans le menu. */
+  categories_count?: number;
   created_at: string;
   updated_at: string;
 }
@@ -54,10 +67,17 @@ export interface CreateDailyMenuData {
   title: string;
   description?: string;
   is_active?: boolean;
-  special_price?: number;
+  /**
+   * Prix total du menu (formule). Obligatoire désormais : c'est le prix
+   * unique payé par le client, qui se répartit entre catégories.
+   */
+  special_price: number;
   items?: {
     menu_item: string;
-    special_price?: number;
+    /**
+     * @deprecated Le prix par plat n'est plus pris en charge à la création.
+     * Le prix se calcule au niveau du menu (formule).
+     */
     display_order?: number;
     special_note?: string;
     is_available?: boolean;
@@ -67,11 +87,18 @@ export interface CreateDailyMenuData {
 export interface PublicDailyMenu {
   id: string;
   restaurant_name: string;
-  restaurant_logo: string | null;
+  restaurant_image: string | null;       // côté API publique le champ est `restaurant_image`
   date: string;
   title: string;
   description: string | null;
+  /** Prix total du menu si fixé (ex: 18€). null = pas de formule, à la carte. */
   special_price: number | null;
+  /** True si une formule est active (special_price défini ET au moins une catégorie). */
+  is_formula: boolean;
+  /** Prix par catégorie (= special_price / nb_catégories). null hors formule. */
+  price_per_category: number | null;
+  /** Nombre de catégories distinctes représentées dans le menu du jour. */
+  categories_count: number;
   items_by_category: CategoryWithItems[];
   total_items_count: number;
   estimated_total_price: number;
@@ -91,49 +118,49 @@ export interface DailyMenuTemplate {
 }
 
 export class DailyMenuService {
-  
+
   /**
    * Récupère tous les menus du jour du restaurateur
    */
   async getMyDailyMenus(): Promise<DailyMenu[]> {
     return apiClient.get('/api/v1/daily-menus/');
   }
-  
+
   /**
    * Récupère un menu du jour spécifique
    */
   async getDailyMenu(id: string): Promise<DailyMenu> {
     return apiClient.get(`/api/v1/daily-menus/${id}/`);
   }
-  
+
   /**
    * Récupère le menu du jour d'aujourd'hui pour un restaurant
    */
   async getTodayMenu(restaurantId: number): Promise<DailyMenu> {
     return apiClient.get(`/api/v1/daily-menus/today/?restaurant_id=${restaurantId}`);
   }
-  
+
   /**
    * Crée un nouveau menu du jour
    */
   async createDailyMenu(data: CreateDailyMenuData): Promise<DailyMenu> {
     return apiClient.post('/api/v1/daily-menus/', data);
   }
-  
+
   /**
    * Met à jour un menu du jour
    */
   async updateDailyMenu(id: string, data: Partial<CreateDailyMenuData>): Promise<DailyMenu> {
     return apiClient.patch(`/api/v1/daily-menus/${id}/`, data);
   }
-  
+
   /**
    * Supprime un menu du jour
    */
   async deleteDailyMenu(id: string): Promise<void> {
     return apiClient.delete(`/api/v1/daily-menus/${id}/`);
   }
-  
+
   /**
    * Toggle rapide de disponibilité d'un plat
    */
@@ -147,16 +174,19 @@ export class DailyMenuService {
       item_id: itemId
     });
   }
-  
+
   /**
-   * Duplique un menu du jour pour une nouvelle date
+   * Duplique un menu du jour pour une nouvelle date.
+   * @param force Si true, écrase un menu existant à la date cible. Sinon le
+   *              backend renvoie 409 si la date est occupée.
    */
-  async duplicateMenu(menuId: string, newDate: string): Promise<DailyMenu> {
+  async duplicateMenu(menuId: string, newDate: string, force = false): Promise<DailyMenu> {
     return apiClient.post(`/api/v1/daily-menus/${menuId}/duplicate/`, {
-      date: newDate
+      date: newDate,
+      force,
     });
   }
-  
+
   /**
    * Récupère des suggestions de plats pour un restaurant
    */
@@ -172,14 +202,14 @@ export class DailyMenuService {
   }
 
   // === API PUBLIQUE ===
-  
+
   /**
    * Récupère le menu du jour public d'un restaurant
    */
   async getPublicDailyMenu(restaurantId: number): Promise<PublicDailyMenu> {
     return apiClient.get(`/api/v1/daily-menus/public/restaurant/${restaurantId}/`);
   }
-  
+
   /**
    * Liste des restaurants avec menu du jour aujourd'hui
    */
@@ -187,9 +217,9 @@ export class DailyMenuService {
     date: string;
     restaurants_count: number;
     restaurants: {
-      restaurant_id: number;
+      restaurant_id: string;
       restaurant_name: string;
-      restaurant_logo: string | null;
+      restaurant_image: string | null;
       menu_title: string;
       special_price: number | null;
       items_count: number;
@@ -199,17 +229,11 @@ export class DailyMenuService {
   }
 
   // === TEMPLATES ===
-  
-  /**
-   * Récupère tous les templates de menus du jour
-   */
+
   async getTemplates(): Promise<DailyMenuTemplate[]> {
     return apiClient.get('/api/v1/daily-menus/templates/');
   }
-  
-  /**
-   * Applique un template pour créer un menu du jour
-   */
+
   async applyTemplate(templateId: number, date: string): Promise<DailyMenu> {
     return apiClient.post(`/api/v1/daily-menus/templates/${templateId}/apply/`, { date });
   }
@@ -227,8 +251,8 @@ export class DailyMenuService {
    * Récupère les menus d'une période pour un restaurant
    */
   async getMenusByDateRange(
-    restaurantId: number, 
-    startDate: string, 
+    restaurantId: number,
+    startDate: string,
     endDate: string
   ): Promise<DailyMenu[]> {
     return apiClient.get(
@@ -250,10 +274,12 @@ export class DailyMenuService {
 
   /**
    * Copie un menu vers une nouvelle date
+   * @param force Si true, écrase un menu existant à la date cible.
    */
-  async copyMenuToDate(sourceMenuId: string, targetDate: string): Promise<DailyMenu> {
+  async copyMenuToDate(sourceMenuId: string, targetDate: string, force = false): Promise<DailyMenu> {
     return apiClient.post(`/api/v1/daily-menus/${sourceMenuId}/copy/`, {
-      target_date: targetDate
+      target_date: targetDate,
+      force,
     });
   }
 
@@ -261,8 +287,8 @@ export class DailyMenuService {
    * Récupère le calendrier des menus du mois
    */
   async getMonthlyCalendar(
-    restaurantId: number, 
-    year: number, 
+    restaurantId: number,
+    year: number,
     month: number
   ): Promise<{
     dates_with_menu: string[];

@@ -105,34 +105,83 @@ export const DailyMenuManager: React.FC<Props> = ({
   };
 
   const duplicateYesterday = async () => {
+    // Si un menu existe déjà à la date sélectionnée, on demande confirmation
+    // explicite avant de remplacer (le backend renvoie 409 sans `force`).
+    if (dailyMenu) {
+      Alert.alert(
+        'Menu déjà existant',
+        `Un menu du jour existe déjà pour le ${format(selectedDate, 'dd MMMM', {
+          locale: fr,
+        })}. Voulez-vous le remplacer par celui du jour précédent ?`,
+        [
+          { text: 'Annuler', style: 'cancel' },
+          { text: 'Remplacer', style: 'destructive', onPress: () => doDuplicate(true) },
+        ],
+      );
+      return;
+    }
+
     Alert.alert(
       'Dupliquer le menu précédent',
       `Voulez-vous copier le menu du ${format(subDays(selectedDate, 1), 'dd MMMM', { locale: fr })} ?`,
       [
         { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Dupliquer',
-          onPress: async () => {
-            try {
-              const previousDate = format(subDays(selectedDate, 1), 'yyyy-MM-dd');
-              const currentDate = format(selectedDate, 'yyyy-MM-dd');
-              const previousMenu = await dailyMenuService.getMenuByDate(Number(restaurantId), previousDate);
-
-              if (previousMenu) {
-                await dailyMenuService.duplicateMenu(previousMenu.id, currentDate);
-                Alert.alert('Succès', 'Menu dupliqué avec succès');
-                await loadDailyMenu();
-                onMenuUpdated?.();
-              } else {
-                Alert.alert('Information', 'Aucun menu trouvé pour la date précédente');
-              }
-            } catch (error) {
-              Alert.alert('Erreur', "Impossible de dupliquer le menu");
-            }
-          },
-        },
+        { text: 'Dupliquer', onPress: () => doDuplicate(false) },
       ],
     );
+  };
+
+  const doDuplicate = async (force: boolean) => {
+    try {
+      const previousDate = format(subDays(selectedDate, 1), 'yyyy-MM-dd');
+      const currentDate = format(selectedDate, 'yyyy-MM-dd');
+      const previousMenu = await dailyMenuService.getMenuByDate(
+        Number(restaurantId),
+        previousDate,
+      );
+
+      if (!previousMenu) {
+        Alert.alert(
+          'Information',
+          `Aucun menu trouvé pour le ${format(subDays(selectedDate, 1), 'dd MMMM', { locale: fr })}.`,
+        );
+        return;
+      }
+
+      await dailyMenuService.duplicateMenu(previousMenu.id, currentDate, force);
+      Alert.alert('Succès', 'Menu dupliqué avec succès');
+      await loadDailyMenu();
+      onMenuUpdated?.();
+    } catch (error: any) {
+      const status = error?.response?.status;
+
+      // 404 : pas de menu hier → message clair
+      if (status === 404) {
+        Alert.alert(
+          'Information',
+          `Aucun menu trouvé pour le ${format(subDays(selectedDate, 1), 'dd MMMM', { locale: fr })}.`,
+        );
+        return;
+      }
+
+      // 409 : conflit de date — proposer le force
+      if (status === 409 && !force) {
+        Alert.alert(
+          'Menu déjà existant',
+          'Un menu du jour existe déjà pour cette date. Voulez-vous le remplacer ?',
+          [
+            { text: 'Annuler', style: 'cancel' },
+            { text: 'Remplacer', style: 'destructive', onPress: () => doDuplicate(true) },
+          ],
+        );
+        return;
+      }
+
+      Alert.alert(
+        'Erreur',
+        error?.response?.data?.error || "Impossible de dupliquer le menu",
+      );
+    }
   };
 
   const renderMenuItem = ({ item }: { item: DailyMenuItem }) => (
@@ -160,19 +209,7 @@ export const DailyMenuManager: React.FC<Props> = ({
         )}
       </View>
 
-      <View style={styles.priceContainer}>
-        {item.has_discount ? (
-          <View style={styles.discountContainer}>
-            <Text style={styles.originalPrice}>{item.original_price}€</Text>
-            <Text style={styles.specialPrice}>{item.effective_price}€</Text>
-            <View style={styles.discountBadge}>
-              <Text style={styles.discountText}>-{item.discount_percentage}%</Text>
-            </View>
-          </View>
-        ) : (
-          <Text style={styles.itemPrice}>{item.effective_price}€</Text>
-        )}
-      </View>
+      {/* ⚠️ Plus de prix par plat : la formule fixe le prix global du menu. */}
 
       {isTogglingItem === item.id && (
         <ActivityIndicator size="small" color={COLORS.variants.secondary[500]} style={styles.loader} />
@@ -297,6 +334,17 @@ export const DailyMenuManager: React.FC<Props> = ({
             <Ionicons name="checkmark-circle-outline" size={16} color={COLORS.success} />
             <Text style={styles.statsText}>{availableItems} disponibles</Text>
           </View>
+          {!!dailyMenu.special_price && (
+            <>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Ionicons name="pricetag-outline" size={16} color={COLORS.text.golden} />
+                <Text style={[styles.statsText, { color: COLORS.text.golden, fontWeight: TYPOGRAPHY.fontWeight.semibold }]}>
+                  {Number(dailyMenu.special_price).toFixed(2)}€ / formule
+                </Text>
+              </View>
+            </>
+          )}
         </View>
 
         <View style={styles.categoriesGrid}>

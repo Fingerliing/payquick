@@ -800,6 +800,9 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
         et broadcast WS split_payment_initiated à tous les participants.
         """
         from api.models import Order, OrderItem, SplitPaymentSession, SplitPaymentPortion
+        from api.utils.daily_menu_pricing import (
+            get_active_daily_menu, formula_pricing_context, unit_price_for,
+        )
         from decimal import Decimal
         import random, string as string_module
 
@@ -826,9 +829,19 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Calculer le total
+        # ─── Détection formule menu du jour active ────────────────────────
+        # Si un menu du jour formule est actif aujourd'hui pour ce restaurant,
+        # les items qui en font partie sont facturés au prix par catégorie
+        # (special_price / nb_catégories) et non au prix de carte.
+        active_dm = get_active_daily_menu(session.restaurant)
+        formula_per_cat, formula_menu_item_ids = formula_pricing_context(active_dm)
+
+        def _line_unit_price(menu_item):
+            return unit_price_for(menu_item, formula_per_cat, formula_menu_item_ids)
+
+        # Calculer le total avec les prix formule appliqués
         subtotal = sum(
-            Decimal(str(item.menu_item.price)) * item.quantity
+            _line_unit_price(item.menu_item) * item.quantity
             for item in cart_items
         )
 
@@ -856,14 +869,15 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
             order.user = request.user
             order.save(update_fields=['user'])
 
-        # Créer les OrderItems
+        # Créer les OrderItems (avec prix formule menu du jour si applicable)
         for cart_item in cart_items:
+            unit = _line_unit_price(cart_item.menu_item)
             OrderItem.objects.create(
                 order=order,
                 menu_item=cart_item.menu_item,
                 quantity=cart_item.quantity,
-                unit_price=cart_item.menu_item.price,
-                total_price=Decimal(str(cart_item.menu_item.price)) * cart_item.quantity,
+                unit_price=unit,
+                total_price=unit * cart_item.quantity,
                 special_instructions=cart_item.special_instructions,
                 customizations=cart_item.customizations or {},
             )
@@ -879,13 +893,12 @@ class CollaborativeSessionViewSet(viewsets.ModelViewSet):
         split_session_data = None
 
         if want_split:
-            # Calculer le breakdown par participant
+            # Calculer le breakdown par participant (avec prix formule)
             breakdown = {}
             for cart_item in cart_items:
                 pid = str(cart_item.participant_id)
-                item_total = float(
-                    Decimal(str(cart_item.menu_item.price)) * cart_item.quantity
-                )
+                unit = _line_unit_price(cart_item.menu_item)
+                item_total = float(unit * cart_item.quantity)
                 if pid not in breakdown:
                     breakdown[pid] = {
                         'participant': cart_item.participant,
