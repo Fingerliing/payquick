@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from django.shortcuts import get_object_or_404
-from django.db.models import Q, Count, Sum, Avg
+from django.db.models import Q, Count, Sum, Avg, Max
 from django.utils import timezone
 from datetime import timedelta, datetime
 from calendar import monthrange
@@ -130,6 +130,192 @@ class DailyMenuViewSet(viewsets.ModelViewSet):
                 {'error': 'Plat non trouvé dans ce menu'},
                 status=status.HTTP_404_NOT_FOUND
             )
+
+    @extend_schema(
+        summary="Plats ajoutables au menu du jour",
+        description=(
+            "Renvoie la liste des MenuItems du restaurant de ce menu du jour "
+            "qui ne sont pas encore présents. Sert à peupler le sélecteur "
+            "d'ajout côté restaurateur."
+        )
+    )
+    @action(detail=True, methods=['get'], url_path='available_items')
+    def available_items(self, request, pk=None):
+        daily_menu = self.get_object()
+
+        # IDs des MenuItem déjà présents dans le menu du jour
+        existing_menu_item_ids = set(
+            daily_menu.daily_menu_items.values_list('menu_item_id', flat=True)
+        )
+
+        # Tous les plats du même restaurant que ce menu du jour
+        candidate_items = MenuItem.objects.filter(
+            menu__restaurant=daily_menu.restaurant,
+        ).exclude(
+            id__in=existing_menu_item_ids,
+        ).select_related('category', 'subcategory', 'menu').order_by(
+            'category__order', 'name',
+        )
+
+        # Sérialisation légère adaptée au sélecteur (pas besoin de tout MenuItemSerializer)
+        items = [
+            {
+                'id': item.id,
+                'name': item.name,
+                'description': item.description,
+                'price': float(item.price) if item.price is not None else None,
+                'is_available': item.is_available,
+                'category': str(item.category.id) if item.category_id else None,
+                'category_name': item.category.name if item.category_id else 'Autres',
+                'category_icon': item.category.icon if item.category_id else None,
+                'is_vegetarian': item.is_vegetarian,
+                'is_vegan': item.is_vegan,
+                'is_gluten_free': item.is_gluten_free,
+                'allergens': item.allergens,
+                'image_url': item.image.url if getattr(item, 'image', None) and item.image else None,
+            }
+            for item in candidate_items
+        ]
+
+        return Response({
+            'count': len(items),
+            'items': items,
+        })
+
+    @extend_schema(
+        summary="Ajouter un plat au menu du jour",
+        description=(
+            "Ajoute un MenuItem au menu du jour. Le plat doit appartenir au "
+            "même restaurant que le menu. Renvoie 409 si le plat fait déjà "
+            "partie du menu."
+        ),
+        request={
+            'application/json': {
+                'type': 'object',
+                'properties': {
+                    'menu_item': {
+                        'type': 'integer',
+                        'description': "ID du MenuItem à ajouter",
+                    },
+                    'special_note': {
+                        'type': 'string',
+                        'description': "Note spéciale optionnelle",
+                    },
+                    'display_order': {
+                        'type': 'integer',
+                        'description': "Ordre d'affichage (auto si omis)",
+                    },
+                },
+                'required': ['menu_item'],
+            }
+        }
+    )
+    @action(detail=True, methods=['post'])
+    def add_item(self, request, pk=None):
+        daily_menu = self.get_object()
+        menu_item_id = request.data.get('menu_item')
+
+        if not menu_item_id:
+            return Response(
+                {'error': 'menu_item est requis'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            menu_item = MenuItem.objects.select_related('menu__restaurant').get(pk=menu_item_id)
+        except MenuItem.DoesNotExist:
+            return Response(
+                {'error': 'MenuItem introuvable'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Vérifier que le plat appartient au même restaurant
+        if menu_item.menu.restaurant_id != daily_menu.restaurant_id:
+            return Response(
+                {'error': 'Ce plat n\'appartient pas au restaurant de ce menu du jour'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Vérifier qu'il n'est pas déjà présent
+        if DailyMenuItem.objects.filter(daily_menu=daily_menu, menu_item=menu_item).exists():
+            return Response(
+                {
+                    'error': 'Ce plat fait déjà partie du menu du jour',
+                    'code': 'item_already_in_menu',
+                },
+                status=status.HTTP_409_CONFLICT
+            )
+
+        # display_order : auto-incrément si non fourni
+        display_order = request.data.get('display_order')
+        if display_order is None:
+            last_order = DailyMenuItem.objects.filter(daily_menu=daily_menu).aggregate(
+                m=Max('display_order')
+            )['m']
+            display_order = (last_order or 0) + 1
+
+        special_note = request.data.get('special_note') or None
+        is_available = request.data.get('is_available', True)
+
+        new_item = DailyMenuItem.objects.create(
+            daily_menu=daily_menu,
+            menu_item=menu_item,
+            special_price=None,  # Plus de prix par item — la formule fait foi
+            display_order=display_order,
+            special_note=special_note,
+            is_available=is_available,
+        )
+
+        serializer = DailyMenuItemSerializer(new_item, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @extend_schema(
+        summary="Retirer un plat du menu du jour",
+        description="Supprime un DailyMenuItem du menu du jour par son ID.",
+        request={
+            'application/json': {
+                'type': 'object',
+                'properties': {
+                    'item_id': {
+                        'type': 'string',
+                        'format': 'uuid',
+                        'description': 'UUID du DailyMenuItem à supprimer',
+                    },
+                },
+                'required': ['item_id'],
+            }
+        }
+    )
+    @action(detail=True, methods=['post'])
+    def remove_item(self, request, pk=None):
+        daily_menu = self.get_object()
+        item_id = request.data.get('item_id')
+
+        if not item_id:
+            return Response(
+                {'error': 'item_id est requis'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            daily_menu_item = DailyMenuItem.objects.get(
+                daily_menu=daily_menu,
+                id=item_id,
+            )
+        except DailyMenuItem.DoesNotExist:
+            return Response(
+                {'error': 'Plat non trouvé dans ce menu'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        item_name = daily_menu_item.menu_item.name
+        daily_menu_item.delete()
+
+        return Response({
+            'success': True,
+            'item_id': str(item_id),
+            'message': f'« {item_name} » retiré du menu du jour',
+        })
 
     @extend_schema(
         summary="Dupliquer un menu existant",

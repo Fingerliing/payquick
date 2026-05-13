@@ -151,8 +151,33 @@ export default function ClientRestaurantPage() {
 
   // ─── SessionContext : source de vérité pour le participantId en mémoire ───
   const { session: ctxSession, participantId: ctxParticipantId, clearSession } = useSession();
-  const effectiveSessionId = (sessionId as string | null) ?? ctxSession?.id ?? null;
+
+  // Le sessionId peut venir de l'URL ou du contexte. On le filtre ensuite sur
+  // le statut connu : une session 'completed'/'cancelled' ne doit pas alimenter
+  // le panier partagé (le backend renvoie 404 sur cart_add, ce qui ferait
+  // disparaître instantanément les items ajoutés en optimiste).
+  const rawEffectiveSessionId = (sessionId as string | null) ?? ctxSession?.id ?? null;
+  const effectiveSessionId = useMemo(() => {
+    if (!rawEffectiveSessionId) return null;
+    if (
+      ctxSession?.id === rawEffectiveSessionId &&
+      ctxSession?.status &&
+      ctxSession.status !== 'active' &&
+      ctxSession.status !== 'locked'
+    ) {
+      return null;
+    }
+    return rawEffectiveSessionId;
+  }, [rawEffectiveSessionId, ctxSession?.id, ctxSession?.status]);
+
   const isHostRef = useRef(false);
+
+  // Ref vers showToast pour pouvoir l'appeler dans onSessionGone (le hook
+  // useSessionCart est instancié AVANT la déclaration de showToast, donc on
+  // ne peut pas le référencer directement sans TDZ).
+  const showToastRef = useRef<
+    (variant: 'success' | 'error' | 'info' | 'warning', title: string, message: string) => void
+  >(() => {});
 
   // ─── Session cart ──────────────────────────────────────────────────────────
   const sessionCart = useSessionCart({
@@ -163,6 +188,13 @@ export default function ClientRestaurantPage() {
       if (!isHostRef.current) {
         router.replace('/(client)/orders' as any);
       }
+    },
+    // Auto-purge si la session a disparu côté serveur (404 sur cart_add/etc.) :
+    // on bascule l'utilisateur en mode solo sans qu'il reste coincé sur une
+    // session zombie qui empêcherait tout ajout au panier.
+    onSessionGone: () => {
+      showToastRef.current('warning', 'Session terminée', 'La session collaborative a été fermée.');
+      clearSession();
     },
   });
 
@@ -303,6 +335,10 @@ export default function ClientRestaurantPage() {
     []
   );
 
+  // Garder la ref de showToast synchronisée pour que onSessionGone (passé à
+  // useSessionCart plus haut) puisse l'appeler une fois que la fonction existe.
+  showToastRef.current = showToast;
+
   // ─── Chargement données ────────────────────────────────────────────────────
   const loadData = useCallback(async () => {
     if (!restaurantId) return;
@@ -321,7 +357,6 @@ export default function ClientRestaurantPage() {
       setMenus(menusData);
       setDailyMenu(dailyMenuRes);
     } catch (error) {
-      console.error('Error loading restaurant data:', error);
       showToast('error', 'Erreur', 'Impossible de charger le menu');
       setRestaurant(null);
       setMenus([]);

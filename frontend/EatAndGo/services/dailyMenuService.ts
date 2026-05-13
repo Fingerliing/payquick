@@ -176,6 +176,66 @@ export class DailyMenuService {
   }
 
   /**
+   * Récupère les plats du restaurant ajoutables au menu du jour (pas encore présents).
+   * Utilisé pour peupler le sélecteur d'ajout côté restaurateur.
+   */
+  async getAvailableItemsForDailyMenu(menuId: string): Promise<{
+    count: number;
+    items: Array<{
+      id: number;
+      name: string;
+      description: string;
+      price: number | null;
+      is_available: boolean;
+      category: string | null;
+      category_name: string;
+      category_icon: string | null;
+      is_vegetarian: boolean;
+      is_vegan: boolean;
+      is_gluten_free: boolean;
+      allergens: string[];
+      image_url: string | null;
+    }>;
+  }> {
+    return apiClient.get(`/api/v1/daily-menus/${menuId}/available_items/`);
+  }
+
+  /**
+   * Ajoute un plat (MenuItem) au menu du jour.
+   * @param menuId UUID du DailyMenu
+   * @param menuItemId ID entier du MenuItem à ajouter
+   * @param options note spéciale, ordre d'affichage, disponibilité
+   */
+  async addItemToDailyMenu(
+    menuId: string,
+    menuItemId: number,
+    options?: {
+      special_note?: string;
+      display_order?: number;
+      is_available?: boolean;
+    }
+  ): Promise<DailyMenuItem> {
+    return apiClient.post(`/api/v1/daily-menus/${menuId}/add_item/`, {
+      menu_item: menuItemId,
+      ...options,
+    });
+  }
+
+  /**
+   * Retire un plat (DailyMenuItem) du menu du jour.
+   * @param menuId UUID du DailyMenu
+   * @param itemId UUID du DailyMenuItem à retirer
+   */
+  async removeItemFromDailyMenu(
+    menuId: string,
+    itemId: string
+  ): Promise<{ success: boolean; item_id: string; message: string }> {
+    return apiClient.post(`/api/v1/daily-menus/${menuId}/remove_item/`, {
+      item_id: itemId,
+    });
+  }
+
+  /**
    * Duplique un menu du jour pour une nouvelle date.
    * @param force Si true, écrase un menu existant à la date cible. Sinon le
    *              backend renvoie 409 si la date est occupée.

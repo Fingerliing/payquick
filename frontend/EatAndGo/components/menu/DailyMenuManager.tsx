@@ -30,6 +30,12 @@ import { useResponsive } from '@/utils/responsive';
 interface Props {
   restaurantId: string;
   selectedDate?: Date;
+  /**
+   * Compteur de rafraîchissement. Incrémenté par le parent (par exemple sur
+   * useFocusEffect au retour de l'écran d'édition) pour forcer un rechargement
+   * du menu du jour sans changer de date.
+   */
+  refreshKey?: number;
   onNavigateToCreate: (selectedDate: Date) => void;
   onNavigateToEdit: (menuId: string) => void;
   onMenuUpdated?: () => void;
@@ -38,6 +44,7 @@ interface Props {
 export const DailyMenuManager: React.FC<Props> = ({
   restaurantId,
   selectedDate = new Date(),
+  refreshKey = 0,
   onNavigateToCreate,
   onNavigateToEdit,
   onMenuUpdated,
@@ -54,7 +61,8 @@ export const DailyMenuManager: React.FC<Props> = ({
 
   useEffect(() => {
     loadDailyMenu();
-  }, [restaurantId, selectedDate?.toISOString?.()]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restaurantId, selectedDate?.toISOString?.(), refreshKey]);
 
   const loadDailyMenu = async () => {
     try {

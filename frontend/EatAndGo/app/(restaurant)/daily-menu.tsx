@@ -9,7 +9,7 @@ import {
   Animated,
   Pressable,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Header } from '@/components/ui/Header';
 import { DailyMenuManager } from '@/components/menu/DailyMenuManager';
 import { useRestaurant } from '@/contexts/RestaurantContext';
@@ -63,6 +63,11 @@ function DailyMenuScreenContent({ restaurant }: { restaurant: NonNullable<Return
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showCalendar, setShowCalendar] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  // Compteur de rafraîchissement : incrémenté à chaque retour sur l'écran
+  // (useFocusEffect) ou après une mutation côté enfant. Passé au
+  // DailyMenuManager qui l'inclut dans ses deps pour forcer un reload.
+  const [refreshKey, setRefreshKey] = useState(0);
   
   // Cache et optimisations
   const menuCache = useRef<Map<string, MenuCacheEntry>>(new Map());
@@ -82,13 +87,11 @@ function DailyMenuScreenContent({ restaurant }: { restaurant: NonNullable<Return
     
     // Vérifier si le cache est valide
     if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
-      console.log(`📦 Menu trouvé dans le cache pour ${dateKey}`);
       return cached.menu;
     }
     
     // Si déjà en cours de chargement, attendre
     if (cached?.isLoading) {
-      console.log(`⏳ Chargement déjà en cours pour ${dateKey}`);
       return new Promise((resolve) => {
         const checkInterval = setInterval(() => {
           const updatedCache = menuCache.current.get(dateKey);
@@ -108,7 +111,6 @@ function DailyMenuScreenContent({ restaurant }: { restaurant: NonNullable<Return
     });
     
     try {
-      console.log(`🌐 Chargement du menu depuis l'API pour ${dateKey}`);
       const menu = await dailyMenuService.getMenuByDate(
         Number(restaurant.id),
         dateKey
@@ -140,10 +142,8 @@ function DailyMenuScreenContent({ restaurant }: { restaurant: NonNullable<Return
     if (date) {
       const dateKey = format(date, 'yyyy-MM-dd');
       menuCache.current.delete(dateKey);
-      console.log(`🗑️ Cache invalidé pour ${dateKey}`);
     } else {
       menuCache.current.clear();
-      console.log('🗑️ Tout le cache a été vidé');
     }
   }, []);
 
@@ -177,10 +177,9 @@ function DailyMenuScreenContent({ restaurant }: { restaurant: NonNullable<Return
       }
       
       try {
-        console.log(`🔄 Préchargement du menu pour ${dateKey}`);
         await getMenuFromCacheOrFetch(date);
-      } catch (error) {
-        console.log(`❌ Erreur préchargement pour ${dateKey}:`, error);
+      } catch {
+        // Préchargement best-effort : on ignore les erreurs.
       } finally {
         preloadQueue.current.delete(dateKey);
       }
@@ -197,8 +196,6 @@ function DailyMenuScreenContent({ restaurant }: { restaurant: NonNullable<Return
     
     isLoadingIndicatorsRef.current = true;
     try {
-      console.log(`📅 Chargement des indicateurs pour ${format(month, 'MMMM yyyy', { locale: fr })}`);
-      
       const response = await dailyMenuService.getMonthlyCalendar(
         Number(restaurant.id),
         month.getFullYear(),
@@ -222,10 +219,8 @@ function DailyMenuScreenContent({ restaurant }: { restaurant: NonNullable<Return
         ...prev,
         ...indicators
       }));
-      
-      console.log(`✅ ${response.menu_summaries.length} menus trouvés pour le mois`);
-    } catch (error) {
-      console.error('Erreur lors du chargement des indicateurs:', error);
+    } catch {
+      // Indicateurs non critiques : on laisse l'état précédent et on enchaîne.
     } finally {
       isLoadingIndicatorsRef.current = false;
     }
@@ -258,6 +253,26 @@ function DailyMenuScreenContent({ restaurant }: { restaurant: NonNullable<Return
       }),
     ]).start();
   }, [selectedDate]);
+
+  // Rafraîchissement automatique au retour sur l'écran.
+  // Quand on revient depuis l'écran d'édition (ou de création) d'un menu du jour,
+  // on invalide le cache pour la date sélectionnée, on recharge les indicateurs
+  // mensuels (icônes du calendrier) et on incrémente refreshKey pour forcer
+  // le DailyMenuManager à recharger ses données sans qu'on ait à scroll/reload.
+  // Le useRef garantit qu'on ne déclenche pas au tout premier mount (déjà couvert
+  // par les useEffect ci-dessus).
+  const hasFocusedOnceRef = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (!hasFocusedOnceRef.current) {
+        hasFocusedOnceRef.current = true;
+        return;
+      }
+      invalidateCache(selectedDate);
+      loadMonthlyIndicators(currentMonth);
+      setRefreshKey(k => k + 1);
+    }, [selectedDate, currentMonth, invalidateCache, loadMonthlyIndicators])
+  );
 
   // ==================== NAVIGATION DE DATE ====================
 
@@ -379,20 +394,25 @@ function DailyMenuScreenContent({ restaurant }: { restaurant: NonNullable<Return
         </View>
       )}
 
-      {/* Composant principal - ✅ CORRECTION ICI */}
+      {/* Composant principal */}
       <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
         <DailyMenuManager
           restaurantId={restaurant.id}
           selectedDate={selectedDate}
+          refreshKey={refreshKey}
           onNavigateToCreate={(selectedDate) => router.push({
             pathname: '/menu/daily-menu/create',
-            params: { 
-              restaurantId: restaurant.id, 
-              selectedDate: selectedDate.toISOString() 
+            params: {
+              restaurantId: restaurant.id,
+              selectedDate: selectedDate.toISOString()
             }
           })}
           onNavigateToEdit={(menuId) => router.push(`/menu/daily-menu/edit/${menuId}`)}
-          onMenuUpdated={() => invalidateCache(selectedDate)}
+          onMenuUpdated={() => {
+            invalidateCache(selectedDate);
+            loadMonthlyIndicators(currentMonth);
+            setRefreshKey(k => k + 1);
+          }}
         />
       </Animated.View>
 
@@ -538,7 +558,6 @@ export default function DailyMenuScreen() {
       noRestaurantMessage="Aucun restaurant pour gérer les menus"
       createButtonText="Créer mon restaurant"
       onRestaurantSelected={(restaurantId) => {
-        console.log('Restaurant sélectionné pour les menus du jour:', restaurantId);
       }}
     >
       {currentRestaurant && <DailyMenuScreenContent restaurant={currentRestaurant} />}
