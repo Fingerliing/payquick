@@ -1104,11 +1104,22 @@ export default function RestaurantOrdersScreen() {
   // Filtrer les commandes par restaurant sélectionné
   // ⚠️ Tant qu'aucun restaurant n'est sélectionné, on renvoie [] et non `allOrders`,
   // sinon on compte les commandes de TOUS les restaurants pendant l'init.
+  //
+  // Filtrage par ID (FK restaurant) — source de vérité, robuste aux doublons de nom
+  // et aux différences d'encodage (NFC vs NFD, espaces, casse).
+  // Fallback sur restaurant_name pour rester compatible avec une API qui n'aurait
+  // pas encore été redéployée avec le champ `restaurant` exposé par OrderListSerializer.
   const restaurantOrders = useMemo(() => {
     if (!selectedRestaurantId) return [];
     const selectedRestaurant = restaurants.find(r => r.id === String(selectedRestaurantId));
-    if (!selectedRestaurant) return [];
-    return allOrders.filter(order => order.restaurant_name === selectedRestaurant.name);
+    return allOrders.filter(order => {
+      if (typeof order.restaurant === 'number') {
+        return order.restaurant === selectedRestaurantId;
+      }
+      // Fallback legacy (avant exposition du FK côté backend)
+      if (!selectedRestaurant) return false;
+      return order.restaurant_name === selectedRestaurant.name;
+    });
   }, [allOrders, selectedRestaurantId, restaurants]);
 
   // Commandes actives (kanban) : exclure servies, annulées et archivées

@@ -288,7 +288,8 @@ class OrderListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'order_number', 'customer_display', 'order_type', 'order_type_display',
             'table_number', 'status', 'status_display', 'payment_status', 'payment_status_display',
-            'total_amount', 'items_count', 'waiting_time', 'restaurant_name',
+            'total_amount', 'items_count', 'waiting_time',
+            'restaurant', 'restaurant_name',  # 'restaurant' = ID FK pour filtrage côté frontend
             'estimated_ready_time', 'created_at'
         ]
 
@@ -362,7 +363,11 @@ class OrderStatusUpdateSerializer(serializers.ModelSerializer):
 
         current_status = instance.status
         valid_transitions = {
-            'pending': ['confirmed', 'cancelled'],
+            # 'preparing' autorisé depuis 'pending' : le kanban restaurateur fait
+            # accepter+démarrer en un seul geste ("Commencer"). L'étape 'confirmed'
+            # reste valide pour les flows qui veulent dissocier acceptation et
+            # démarrage de la préparation.
+            'pending': ['confirmed', 'preparing', 'cancelled'],
             'confirmed': ['preparing', 'cancelled'],
             'preparing': ['ready', 'cancelled'],
             'ready': ['served'],
