@@ -343,9 +343,16 @@ function DailyMenuScreenContent({ restaurant }: { restaurant: NonNullable<Return
 
   return (
     <View style={styles.container}>
-      <Header 
+      <Header
         title="Menu du Jour"
         subtitle={restaurant.name}
+        rightIcon="swap-vertical"
+        onRightPress={() =>
+          router.push({
+            pathname: '/menu/categories/reorder',
+            params: { restaurantId: String(restaurant.id) },
+          } as any)
+        }
       />
 
       {/* Sélecteur de date */}

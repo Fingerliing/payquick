@@ -217,12 +217,25 @@ interface CategorySidebarProps {
   categories: { id: string; name: string; count: number; color?: string }[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  onReorderPress?: () => void;
 }
 
-const CategorySidebar: React.FC<CategorySidebarProps> = ({ categories, selectedId, onSelect }) => {
+const CategorySidebar: React.FC<CategorySidebarProps> = ({ categories, selectedId, onSelect, onReorderPress }) => {
   return (
     <View style={styles.sidebar}>
-      <Text style={styles.sidebarTitle}>CATÉGORIES</Text>
+      <View style={styles.sidebarHeader}>
+        <Text style={styles.sidebarTitle}>CATÉGORIES</Text>
+        {!!onReorderPress && categories.length > 1 && (
+          <TouchableOpacity
+            onPress={onReorderPress}
+            style={styles.sidebarReorderButton}
+            hitSlop={8}
+            accessibilityLabel="Réorganiser les catégories"
+          >
+            <Ionicons name="swap-vertical" size={16} color={COLORS.primary} />
+          </TouchableOpacity>
+        )}
+      </View>
       <ScrollView showsVerticalScrollIndicator={false}>
         {categories.map((cat) => {
           const isActive = cat.id === selectedId;
@@ -260,15 +273,17 @@ interface CategoryTabsProps {
   categories: { id: string; name: string; count: number; color?: string }[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  onReorderPress?: () => void;
 }
 
-const CategoryTabs: React.FC<CategoryTabsProps> = ({ categories, selectedId, onSelect }) => {
+const CategoryTabs: React.FC<CategoryTabsProps> = ({ categories, selectedId, onSelect, onReorderPress }) => {
   return (
     <View style={styles.tabsContainer}>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.tabsContent}
+        style={{ flex: 1 }}
       >
         {categories.map((cat) => {
           const isActive = cat.id === selectedId;
@@ -293,6 +308,16 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({ categories, selectedId, onS
           );
         })}
       </ScrollView>
+      {!!onReorderPress && categories.length > 1 && (
+        <TouchableOpacity
+          onPress={onReorderPress}
+          style={styles.tabsReorderButton}
+          hitSlop={6}
+          accessibilityLabel="Réorganiser les catégories"
+        >
+          <Ionicons name="swap-vertical" size={20} color={COLORS.primary} />
+        </TouchableOpacity>
+      )}
     </View>
   );
 };
@@ -477,6 +502,14 @@ export default function MenuDetailScreen() {
     router.push(`/menu/item/edit/${item.id}` as any);
   };
 
+  const navigateToReorder = () => {
+    if (!menu?.restaurant) return;
+    router.push({
+      pathname: '/menu/categories/reorder',
+      params: { restaurantId: String(menu.restaurant) },
+    } as any);
+  };
+
   // ── Render helpers ─────────────────────────────────────────────────────────
 
   /** Calcule le nombre de colonnes selon la largeur disponible pour la grille */
@@ -603,6 +636,7 @@ export default function MenuDetailScreen() {
           categories={tabs}
           selectedId={selectedCategoryId}
           onSelect={setSelectedCategoryId}
+          onReorderPress={navigateToReorder}
         />
       )}
 
@@ -613,6 +647,7 @@ export default function MenuDetailScreen() {
             categories={tabs}
             selectedId={selectedCategoryId}
             onSelect={setSelectedCategoryId}
+            onReorderPress={navigateToReorder}
           />
         )}
 
@@ -746,8 +781,21 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.text.light,
     letterSpacing: 1.2,
+  },
+  sidebarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
     marginBottom: 12,
+  },
+  sidebarReorderButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: COLORS.variants.primary[50],
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sidebarItem: {
     flexDirection: 'row',
@@ -803,6 +851,8 @@ const styles = StyleSheet.create({
 
   // Onglets horizontaux (mobile)
   tabsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border.light,
@@ -811,6 +861,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     gap: 8,
+  },
+  tabsReorderButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: COLORS.variants.primary[50],
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 8,
   },
   tabItem: {
     flexDirection: 'row',
