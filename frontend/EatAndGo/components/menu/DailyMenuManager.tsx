@@ -6,13 +6,14 @@ import {
   ScrollView,
   TouchableOpacity,
   Switch,
-  Alert,
   RefreshControl,
   ActivityIndicator,
   FlatList,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { format, subDays } from 'date-fns';
+import { format, addDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { dailyMenuService, DailyMenu, DailyMenuItem } from '@/services/dailyMenuService';
 import {
@@ -23,9 +24,9 @@ import {
   SHADOWS,
   useScreenType,
   getResponsiveValue,
-  createResponsiveStyles,
 } from '@/utils/designSystem';
 import { useResponsive } from '@/utils/responsive';
+import { Alert as AppAlert, AlertWithAction } from '@/components/ui/Alert';
 
 interface Props {
   restaurantId: string;
@@ -41,6 +42,26 @@ interface Props {
   onMenuUpdated?: () => void;
 }
 
+type ToastVariant = 'success' | 'error' | 'warning' | 'info';
+
+type ToastState = {
+  variant: ToastVariant;
+  title?: string;
+  message: string;
+} | null;
+
+type ConfirmState = {
+  title: string;
+  message: string;
+  onConfirm: () => void | Promise<void>;
+  confirmText?: string;
+  cancelText?: string;
+  danger?: boolean;
+} | null;
+
+// Nombre de jours proposés dans la modale (à partir du lendemain de la date sélectionnée)
+const APPLY_RANGE_DAYS = 14;
+
 export const DailyMenuManager: React.FC<Props> = ({
   restaurantId,
   selectedDate = new Date(),
@@ -54,6 +75,18 @@ export const DailyMenuManager: React.FC<Props> = ({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isTogglingItem, setIsTogglingItem] = useState<string | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+
+  // ─── États pour la modale "Appliquer à d'autres jours" ─────────────────────
+  const [showApplyModal, setShowApplyModal] = useState(false);
+  const [applyCandidates, setApplyCandidates] = useState<Date[]>([]);
+  const [selectedTargets, setSelectedTargets] = useState<Set<string>>(new Set());
+  const [existingByDate, setExistingByDate] = useState<Record<string, string>>({});
+  const [isLoadingCandidates, setIsLoadingCandidates] = useState(false);
+  const [isApplying, setIsApplying] = useState(false);
+
+  // ─── Alertes custom (toast + confirm) ──────────────────────────────────────
+  const [toast, setToast] = useState<ToastState>(null);
+  const [confirm, setConfirm] = useState<ConfirmState>(null);
 
   const screenType = useScreenType();
   const responsive = useResponsive();
@@ -96,7 +129,11 @@ export const DailyMenuManager: React.FC<Props> = ({
       await loadDailyMenu();
       onMenuUpdated?.();
     } catch (error) {
-      Alert.alert('Erreur', "Impossible de modifier la disponibilité du plat");
+      setToast({
+        variant: 'error',
+        title: 'Erreur',
+        message: "Impossible de modifier la disponibilité du plat",
+      });
     } finally {
       setIsTogglingItem(null);
     }
@@ -112,85 +149,151 @@ export const DailyMenuManager: React.FC<Props> = ({
     setExpandedCategories(newExpanded);
   };
 
-  const duplicateYesterday = async () => {
-    // Si un menu existe déjà à la date sélectionnée, on demande confirmation
-    // explicite avant de remplacer (le backend renvoie 409 sans `force`).
-    if (dailyMenu) {
-      Alert.alert(
-        'Menu déjà existant',
-        `Un menu du jour existe déjà pour le ${format(selectedDate, 'dd MMMM', {
-          locale: fr,
-        })}. Voulez-vous le remplacer par celui du jour précédent ?`,
-        [
-          { text: 'Annuler', style: 'cancel' },
-          { text: 'Remplacer', style: 'destructive', onPress: () => doDuplicate(true) },
-        ],
+  // ──────────────────────────────────────────────────────────────────────────
+  // Appliquer le menu du jour courant à d'autres jours
+  // ──────────────────────────────────────────────────────────────────────────
+
+  const openApplyToOtherDays = async () => {
+    if (!dailyMenu) return;
+
+    // Génère les `APPLY_RANGE_DAYS` jours suivants à partir du lendemain de
+    // la date du menu source.
+    const start = addDays(selectedDate, 1);
+    const dates: Date[] = [];
+    for (let i = 0; i < APPLY_RANGE_DAYS; i++) {
+      dates.push(addDays(start, i));
+    }
+    setApplyCandidates(dates);
+    setSelectedTargets(new Set());
+    setExistingByDate({});
+    setShowApplyModal(true);
+    setIsLoadingCandidates(true);
+
+    // Précharge les menus existants sur la plage pour afficher un badge
+    // "Menu existant" et avertir l'utilisateur avant remplacement.
+    try {
+      const startDate = format(dates[0], 'yyyy-MM-dd');
+      const endDate = format(dates[dates.length - 1], 'yyyy-MM-dd');
+      const existing = await dailyMenuService.getMenusByDateRange(
+        Number(restaurantId),
+        startDate,
+        endDate,
       );
+      const map: Record<string, string> = {};
+      (existing || []).forEach((m: any) => {
+        // L'API renvoie la date au format 'yyyy-MM-dd'
+        if (m?.date) map[m.date] = m.id;
+      });
+      setExistingByDate(map);
+    } catch {
+      // En cas d'échec on continue : l'utilisateur sera juste prévenu via le
+      // 409 au moment d'appliquer.
+      setExistingByDate({});
+    } finally {
+      setIsLoadingCandidates(false);
+    }
+  };
+
+  const toggleTargetDate = (dateKey: string) => {
+    setSelectedTargets(prev => {
+      const next = new Set(prev);
+      if (next.has(dateKey)) {
+        next.delete(dateKey);
+      } else {
+        next.add(dateKey);
+      }
+      return next;
+    });
+  };
+
+  const selectAllCandidates = () => {
+    setSelectedTargets(new Set(applyCandidates.map(d => format(d, 'yyyy-MM-dd'))));
+  };
+
+  const clearSelection = () => {
+    setSelectedTargets(new Set());
+  };
+
+  const confirmApplyToDates = () => {
+    if (!dailyMenu || selectedTargets.size === 0) return;
+
+    const conflicts = Array.from(selectedTargets).filter(d => !!existingByDate[d]);
+
+    if (conflicts.length > 0) {
+      setConfirm({
+        title: 'Remplacer les menus existants ?',
+        message:
+          conflicts.length === 1
+            ? `Un menu du jour existe déjà pour 1 des dates sélectionnées. Voulez-vous le remplacer ?`
+            : `Un menu du jour existe déjà pour ${conflicts.length} des dates sélectionnées. Voulez-vous les remplacer ?`,
+        onConfirm: () => doApplyToDates(true),
+        confirmText: 'Remplacer',
+        cancelText: 'Annuler',
+        danger: true,
+      });
       return;
     }
 
-    Alert.alert(
-      'Dupliquer le menu précédent',
-      `Voulez-vous copier le menu du ${format(subDays(selectedDate, 1), 'dd MMMM', { locale: fr })} ?`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        { text: 'Dupliquer', onPress: () => doDuplicate(false) },
-      ],
-    );
+    doApplyToDates(false);
   };
 
-  const doDuplicate = async (force: boolean) => {
+  const doApplyToDates = async (force: boolean) => {
+    if (!dailyMenu) return;
+    setConfirm(null);
+    setIsApplying(true);
+
     try {
-      const previousDate = format(subDays(selectedDate, 1), 'yyyy-MM-dd');
-      const currentDate = format(selectedDate, 'yyyy-MM-dd');
-      const previousMenu = await dailyMenuService.getMenuByDate(
-        Number(restaurantId),
-        previousDate,
+      const targets = Array.from(selectedTargets);
+      const results = await Promise.allSettled(
+        targets.map(dateKey =>
+          dailyMenuService.duplicateMenu(dailyMenu.id, dateKey, force),
+        ),
       );
 
-      if (!previousMenu) {
-        Alert.alert(
-          'Information',
-          `Aucun menu trouvé pour le ${format(subDays(selectedDate, 1), 'dd MMMM', { locale: fr })}.`,
-        );
-        return;
+      const succeeded = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+
+      setShowApplyModal(false);
+      setSelectedTargets(new Set());
+
+      if (failed === 0) {
+        setToast({
+          variant: 'success',
+          title: 'Succès',
+          message:
+            succeeded === 1
+              ? 'Menu appliqué à 1 jour'
+              : `Menu appliqué à ${succeeded} jours`,
+        });
+      } else if (succeeded === 0) {
+        setToast({
+          variant: 'error',
+          title: 'Échec',
+          message: "Impossible d'appliquer le menu aux dates sélectionnées",
+        });
+      } else {
+        setToast({
+          variant: 'warning',
+          title: 'Application partielle',
+          message: `${succeeded} réussi${succeeded > 1 ? 's' : ''}, ${failed} échoué${failed > 1 ? 's' : ''}`,
+        });
       }
 
-      await dailyMenuService.duplicateMenu(previousMenu.id, currentDate, force);
-      Alert.alert('Succès', 'Menu dupliqué avec succès');
-      await loadDailyMenu();
       onMenuUpdated?.();
-    } catch (error: any) {
-      const status = error?.response?.status;
-
-      // 404 : pas de menu hier → message clair
-      if (status === 404) {
-        Alert.alert(
-          'Information',
-          `Aucun menu trouvé pour le ${format(subDays(selectedDate, 1), 'dd MMMM', { locale: fr })}.`,
-        );
-        return;
-      }
-
-      // 409 : conflit de date — proposer le force
-      if (status === 409 && !force) {
-        Alert.alert(
-          'Menu déjà existant',
-          'Un menu du jour existe déjà pour cette date. Voulez-vous le remplacer ?',
-          [
-            { text: 'Annuler', style: 'cancel' },
-            { text: 'Remplacer', style: 'destructive', onPress: () => doDuplicate(true) },
-          ],
-        );
-        return;
-      }
-
-      Alert.alert(
-        'Erreur',
-        error?.response?.data?.error || "Impossible de dupliquer le menu",
-      );
+    } catch {
+      setToast({
+        variant: 'error',
+        title: 'Erreur',
+        message: "Une erreur est survenue lors de l'application du menu",
+      });
+    } finally {
+      setIsApplying(false);
     }
   };
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Rendu des items
+  // ──────────────────────────────────────────────────────────────────────────
 
   const renderMenuItem = ({ item }: { item: DailyMenuItem }) => (
     <View style={styles.itemRow} collapsable={false}>
@@ -282,6 +385,154 @@ export const DailyMenuManager: React.FC<Props> = ({
     );
   };
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // Rendu de la modale "Appliquer à d'autres jours"
+  // ──────────────────────────────────────────────────────────────────────────
+
+  const renderApplyModal = () => {
+    const allSelected =
+      applyCandidates.length > 0 &&
+      applyCandidates.every(d => selectedTargets.has(format(d, 'yyyy-MM-dd')));
+
+    return (
+      <Modal
+        visible={showApplyModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !isApplying && setShowApplyModal(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => !isApplying && setShowApplyModal(false)}
+        >
+          <Pressable style={styles.applyModal} onPress={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <View style={styles.applyModalHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.applyModalTitle}>Appliquer à d'autres jours</Text>
+                <Text style={styles.applyModalSubtitle}>
+                  Source : {format(selectedDate, 'EEEE d MMMM', { locale: fr })}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => !isApplying && setShowApplyModal(false)}
+                disabled={isApplying}
+                style={styles.applyModalClose}
+              >
+                <Ionicons name="close" size={24} color={COLORS.text.primary} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Barre d'actions rapides */}
+            <View style={styles.applyQuickActions}>
+              <TouchableOpacity
+                onPress={allSelected ? clearSelection : selectAllCandidates}
+                disabled={isLoadingCandidates || isApplying}
+              >
+                <Text style={styles.applyQuickActionText}>
+                  {allSelected ? 'Tout désélectionner' : 'Tout sélectionner'}
+                </Text>
+              </TouchableOpacity>
+              <Text style={styles.applySelectionCount}>
+                {selectedTargets.size} sélectionné{selectedTargets.size > 1 ? 's' : ''}
+              </Text>
+            </View>
+
+            {/* Liste des dates candidates */}
+            {isLoadingCandidates ? (
+              <View style={styles.applyLoading}>
+                <ActivityIndicator size="small" color={COLORS.variants.secondary[500]} />
+              </View>
+            ) : (
+              <ScrollView
+                style={styles.applyList}
+                contentContainerStyle={{ paddingBottom: getResponsiveValue(SPACING.sm, screenType) }}
+                showsVerticalScrollIndicator={false}
+              >
+                {applyCandidates.map(date => {
+                  const key = format(date, 'yyyy-MM-dd');
+                  const isSelected = selectedTargets.has(key);
+                  const hasMenu = !!existingByDate[key];
+
+                  return (
+                    <TouchableOpacity
+                      key={key}
+                      style={[styles.applyDateRow, isSelected && styles.applyDateRowSelected]}
+                      onPress={() => toggleTargetDate(key)}
+                      activeOpacity={0.7}
+                      disabled={isApplying}
+                    >
+                      <View
+                        style={[
+                          styles.applyCheckbox,
+                          isSelected && styles.applyCheckboxSelected,
+                        ]}
+                      >
+                        {isSelected && (
+                          <Ionicons name="checkmark" size={16} color={COLORS.surface} />
+                        )}
+                      </View>
+
+                      <View style={styles.applyDateInfo}>
+                        <Text style={styles.applyDateLabel}>
+                          {format(date, 'EEEE d MMMM', { locale: fr })}
+                        </Text>
+                        {hasMenu && (
+                          <View style={styles.applyConflictBadge}>
+                            <Ionicons
+                              name="alert-circle-outline"
+                              size={12}
+                              color={COLORS.warning}
+                            />
+                            <Text style={styles.applyConflictText}>Menu existant</Text>
+                          </View>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            )}
+
+            {/* Footer */}
+            <View style={styles.applyFooter}>
+              <TouchableOpacity
+                style={styles.applyCancelButton}
+                onPress={() => setShowApplyModal(false)}
+                disabled={isApplying}
+              >
+                <Text style={styles.applyCancelText}>Annuler</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.applyConfirmButton,
+                  (selectedTargets.size === 0 || isApplying) &&
+                    styles.applyConfirmButtonDisabled,
+                ]}
+                onPress={confirmApplyToDates}
+                disabled={selectedTargets.size === 0 || isApplying}
+              >
+                {isApplying ? (
+                  <ActivityIndicator size="small" color={COLORS.surface} />
+                ) : (
+                  <Text style={styles.applyConfirmText}>
+                    Appliquer
+                    {selectedTargets.size > 0 ? ` (${selectedTargets.size})` : ''}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    );
+  };
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Rendu principal
+  // ──────────────────────────────────────────────────────────────────────────
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -290,78 +541,138 @@ export const DailyMenuManager: React.FC<Props> = ({
     );
   }
 
-  if (!dailyMenu) {
-    return (
-      <ScrollView
-        style={styles.container}
-        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
-      >
-        {renderEmptyState()}
-      </ScrollView>
-    );
-  }
-
-  const totalItems = dailyMenu.items_by_category?.reduce((acc: number, cat: any) => acc + cat.items.length, 0) || 0;
-  const availableItems = dailyMenu.items_by_category?.reduce(
-    (acc: number, cat: any) => acc + cat.items.filter((i: DailyMenuItem) => i.is_available).length,
-    0
-  ) || 0;
+  const totalItems =
+    dailyMenu?.items_by_category?.reduce(
+      (acc: number, cat: any) => acc + cat.items.length,
+      0,
+    ) || 0;
+  const availableItems =
+    dailyMenu?.items_by_category?.reduce(
+      (acc: number, cat: any) =>
+        acc + cat.items.filter((i: DailyMenuItem) => i.is_available).length,
+      0,
+    ) || 0;
 
   return (
-    <ScrollView
-      style={styles.container}
-      refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
-    >
-      <View style={styles.header}>
-        <View style={styles.actionsContainer}>
-          <TouchableOpacity style={styles.actionButton} onPress={() => onNavigateToEdit(dailyMenu.id)}>
-            <Ionicons name="create-outline" size={20} color={COLORS.text.primary} />
-            <Text style={styles.actionButtonText}>Modifier</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton} onPress={duplicateYesterday}>
-            <Ionicons name="copy-outline" size={20} color={COLORS.text.primary} />
-            <Text style={styles.actionButtonText}>Dupliquer</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+    <View style={styles.container}>
+      {!dailyMenu ? (
+        <ScrollView
+          style={styles.container}
+          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
+        >
+          {renderEmptyState()}
+        </ScrollView>
+      ) : (
+        <ScrollView
+          style={styles.container}
+          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
+        >
+          <View style={styles.header}>
+            <View style={styles.actionsContainer}>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => onNavigateToEdit(dailyMenu.id)}
+              >
+                <Ionicons name="create-outline" size={20} color={COLORS.text.primary} />
+                <Text style={styles.actionButtonText}>Modifier</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.actionButton} onPress={openApplyToOtherDays}>
+                <Ionicons name="copy-outline" size={20} color={COLORS.text.primary} />
+                <Text style={styles.actionButtonText}>Dupliquer</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
 
-      <View style={styles.menuContent}>
-        {dailyMenu.description && (
-          <View style={styles.descriptionCard}>
-            <Text style={styles.menuDescription}>{dailyMenu.description}</Text>
-          </View>
-        )}
+          <View style={styles.menuContent}>
+            {dailyMenu.description && (
+              <View style={styles.descriptionCard}>
+                <Text style={styles.menuDescription}>{dailyMenu.description}</Text>
+              </View>
+            )}
 
-        <View style={styles.statsCard}>
-          <View style={styles.statItem}>
-            <Ionicons name="restaurant-outline" size={16} color={COLORS.text.secondary} />
-            <Text style={styles.statsText}>{totalItems} plats</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Ionicons name="checkmark-circle-outline" size={16} color={COLORS.success} />
-            <Text style={styles.statsText}>{availableItems} disponibles</Text>
-          </View>
-          {!!dailyMenu.special_price && (
-            <>
+            <View style={styles.statsCard}>
+              <View style={styles.statItem}>
+                <Ionicons name="restaurant-outline" size={16} color={COLORS.text.secondary} />
+                <Text style={styles.statsText}>{totalItems} plats</Text>
+              </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Ionicons name="pricetag-outline" size={16} color={COLORS.text.golden} />
-                <Text style={[styles.statsText, { color: COLORS.text.golden, fontWeight: TYPOGRAPHY.fontWeight.semibold }]}>
-                  {Number(dailyMenu.special_price).toFixed(2)}€ / formule
-                </Text>
+                <Ionicons name="checkmark-circle-outline" size={16} color={COLORS.success} />
+                <Text style={styles.statsText}>{availableItems} disponibles</Text>
               </View>
-            </>
-          )}
-        </View>
+              {!!dailyMenu.special_price && (
+                <>
+                  <View style={styles.statDivider} />
+                  <View style={styles.statItem}>
+                    <Ionicons name="pricetag-outline" size={16} color={COLORS.text.golden} />
+                    <Text
+                      style={[
+                        styles.statsText,
+                        { color: COLORS.text.golden, fontWeight: TYPOGRAPHY.fontWeight.semibold },
+                      ]}
+                    >
+                      {Number(dailyMenu.special_price).toFixed(2)}€ / formule
+                    </Text>
+                  </View>
+                </>
+              )}
+            </View>
 
-        <View style={styles.categoriesGrid}>
-          {dailyMenu.items_by_category?.map((category: any, index: number) =>
-            renderCategorySection(category, index)
-          )}
+            <View style={styles.categoriesGrid}>
+              {dailyMenu.items_by_category?.map((category: any, index: number) =>
+                renderCategorySection(category, index),
+              )}
+            </View>
+          </View>
+        </ScrollView>
+      )}
+
+      {/* Modale "Appliquer à d'autres jours" */}
+      {renderApplyModal()}
+
+      {/* ─── Zone d'alertes custom ───────────────────────────────────────── */}
+      {/* Toast (auto dismiss & swipe) */}
+      {toast && (
+        <View
+          pointerEvents="box-none"
+          style={styles.alertOverlay}
+        >
+          <AppAlert
+            variant={toast.variant}
+            title={toast.title}
+            message={toast.message}
+            onDismiss={() => setToast(null)}
+            autoDismiss
+            autoDismissDuration={5000}
+          />
         </View>
-      </View>
-    </ScrollView>
+      )}
+
+      {/* Confirmation (pas d'auto dismiss) */}
+      {confirm && (
+        <View
+          pointerEvents="box-none"
+          style={styles.alertOverlay}
+        >
+          <AlertWithAction
+            variant={confirm.danger ? 'warning' : 'info'}
+            title={confirm.title}
+            message={confirm.message}
+            onDismiss={() => setConfirm(null)}
+            autoDismiss={false}
+            primaryButton={{
+              text: confirm.confirmText || 'Confirmer',
+              onPress: () => confirm.onConfirm(),
+              variant: confirm.danger ? 'danger' : 'primary',
+            }}
+            secondaryButton={{
+              text: confirm.cancelText || 'Annuler',
+              onPress: () => setConfirm(null),
+            }}
+          />
+        </View>
+      )}
+    </View>
   );
 };
 
@@ -596,6 +907,164 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
       color: COLORS.surface,
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
+    },
+
+    // ─── Modale "Appliquer à d'autres jours" ──────────────────────────────
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: getResponsiveValue(SPACING.lg, screenType),
+    },
+    applyModal: {
+      backgroundColor: COLORS.surface,
+      borderRadius: BORDER_RADIUS.xl,
+      width: responsive.isMobile ? '100%' : '80%',
+      maxWidth: 480,
+      maxHeight: '85%',
+      overflow: 'hidden',
+      ...SHADOWS.xl,
+    },
+    applyModalHeader: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      paddingHorizontal: getResponsiveValue(SPACING.lg, screenType),
+      paddingTop: getResponsiveValue(SPACING.lg, screenType),
+      paddingBottom: getResponsiveValue(SPACING.sm, screenType),
+    },
+    applyModalTitle: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.bold,
+      color: COLORS.primary,
+    },
+    applyModalSubtitle: {
+      marginTop: 2,
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+      color: COLORS.text.secondary,
+      textTransform: 'capitalize',
+    },
+    applyModalClose: {
+      padding: 4,
+    },
+    applyQuickActions: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: getResponsiveValue(SPACING.lg, screenType),
+      paddingVertical: getResponsiveValue(SPACING.sm, screenType),
+      borderBottomWidth: 1,
+      borderBottomColor: COLORS.border.light,
+    },
+    applyQuickActionText: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      color: COLORS.variants.secondary[700],
+    },
+    applySelectionCount: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+      color: COLORS.text.secondary,
+    },
+    applyLoading: {
+      paddingVertical: getResponsiveValue(SPACING.xl, screenType),
+      alignItems: 'center',
+    },
+    applyList: {
+      flexGrow: 0,
+      paddingHorizontal: getResponsiveValue(SPACING.lg, screenType),
+      paddingTop: getResponsiveValue(SPACING.sm, screenType),
+    },
+    applyDateRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: getResponsiveValue(SPACING.sm, screenType),
+      paddingHorizontal: getResponsiveValue(SPACING.sm, screenType),
+      borderRadius: BORDER_RADIUS.md,
+      marginBottom: getResponsiveValue(SPACING.xs, screenType),
+      borderWidth: 1,
+      borderColor: 'transparent',
+    },
+    applyDateRowSelected: {
+      backgroundColor: COLORS.variants.secondary[100],
+      borderColor: COLORS.variants.secondary[300],
+    },
+    applyCheckbox: {
+      width: 22,
+      height: 22,
+      borderRadius: BORDER_RADIUS.sm,
+      borderWidth: 2,
+      borderColor: COLORS.border.default,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: getResponsiveValue(SPACING.sm, screenType),
+      backgroundColor: COLORS.surface,
+    },
+    applyCheckboxSelected: {
+      backgroundColor: COLORS.variants.secondary[500],
+      borderColor: COLORS.variants.secondary[500],
+    },
+    applyDateInfo: {
+      flex: 1,
+    },
+    applyDateLabel: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
+      color: COLORS.text.primary,
+      textTransform: 'capitalize',
+    },
+    applyConflictBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 4,
+      gap: 4,
+    },
+    applyConflictText: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
+      color: COLORS.warning,
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    },
+    applyFooter: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      gap: getResponsiveValue(SPACING.sm, screenType),
+      paddingHorizontal: getResponsiveValue(SPACING.lg, screenType),
+      paddingVertical: getResponsiveValue(SPACING.md, screenType),
+      borderTopWidth: 1,
+      borderTopColor: COLORS.border.light,
+    },
+    applyCancelButton: {
+      paddingVertical: getResponsiveValue(SPACING.sm, screenType),
+      paddingHorizontal: getResponsiveValue(SPACING.lg, screenType),
+      borderRadius: BORDER_RADIUS.md,
+    },
+    applyCancelText: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
+      color: COLORS.text.secondary,
+      fontWeight: TYPOGRAPHY.fontWeight.medium,
+    },
+    applyConfirmButton: {
+      backgroundColor: COLORS.primary,
+      paddingVertical: getResponsiveValue(SPACING.sm, screenType),
+      paddingHorizontal: getResponsiveValue(SPACING.lg, screenType),
+      borderRadius: BORDER_RADIUS.md,
+      minWidth: 120,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    applyConfirmButtonDisabled: {
+      opacity: 0.5,
+    },
+    applyConfirmText: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
+      color: COLORS.surface,
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    },
+
+    // ─── Overlay alertes custom (toast + confirm) ─────────────────────────
+    alertOverlay: {
+      position: 'absolute',
+      left: 16,
+      right: 16,
+      bottom: 24,
     },
   });
 };
