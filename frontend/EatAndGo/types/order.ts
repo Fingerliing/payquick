@@ -55,8 +55,10 @@ export interface OrderList {
   total_amount: string;              // décimal en string
   items_count?: number;              // SerializerMethodField
   waiting_time?: number | null;      // minutes (SerializerMethodField)
+
+  restaurant?: number;               // ⭐ FK ID du restaurant (source de vérité pour filtrage)
   restaurant_name?: string;
-  
+
   estimated_ready_time?: string | null; // "HH:MM:SS"
   created_at: string;                // ISO
 }
