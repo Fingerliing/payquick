@@ -9,6 +9,7 @@ from django.db import transaction
 from api.models import Table, Restaurant, Menu, MenuItem
 from api.serializers import TableSerializer, TableCreateSerializer
 from api.permissions import IsRestaurateur, IsValidatedRestaurateur
+from api.utils.qrcode_utils import make_qr_with_logo
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
 import qrcode
 import logging
@@ -208,18 +209,8 @@ class TableViewSet(viewsets.ModelViewSet):
             # si installée, sinon page de fallback vers les stores).
             qr_url = _build_qr_url(request, table.qr_code)
             
-            # Générer le QR code
-            qr = qrcode.QRCode(
-                version=1,
-                error_correction=qrcode.constants.ERROR_CORRECT_L,
-                box_size=10,
-                border=4,
-            )
-            qr.add_data(qr_url)
-            qr.make(fit=True)
-            
-            # Créer l'image QR code
-            qr_img = qr.make_image(fill_color="black", back_color="white")
+            # Générer le QR code avec logo EatQuickeR au centre
+            qr_img = make_qr_with_logo(qr_url, box_size=10, border=4)
             
             # Convertir en base64 pour la réponse
             buffer = BytesIO()
@@ -374,17 +365,8 @@ class RestaurantTableManagementViewSet(viewsets.ViewSet):
                 # URL Universal Links / App Links
                 qr_url = _build_qr_url(request, table.qr_code)
                 
-                # Générer QR code
-                qr = qrcode.QRCode(
-                    version=1,
-                    error_correction=qrcode.constants.ERROR_CORRECT_L,
-                    box_size=8,
-                    border=4,
-                )
-                qr.add_data(qr_url)
-                qr.make(fit=True)
-                
-                qr_img = qr.make_image(fill_color="black", back_color="white")
+                # Générer QR code avec logo EatQuickeR au centre
+                qr_img = make_qr_with_logo(qr_url, box_size=8, border=4)
                 
                 # Sauvegarder temporairement l'image
                 with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as tmp_file:
