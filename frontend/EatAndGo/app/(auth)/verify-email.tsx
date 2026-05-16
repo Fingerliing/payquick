@@ -42,12 +42,23 @@ const GRADIENT: [string, string, string] = [
 ];
 
 export default function VerifyEmailScreen() {
+  // ── Paramètres d'URL ────────────────────────────────────────────────────────
+  // - registration_id, email_masked, expires_in : provenant de l'étape 1 du
+  //   register.
+  // - returnTo : optionnel. Si fourni, on redirige l'utilisateur vers ce
+  //   chemin une fois la vérification réussie (utilisé par le parcours QR →
+  //   menu → checkout → AuthGateModal → register → verify-email).
   const params = useLocalSearchParams<{
     registration_id: string;
     email_masked: string;
     expires_in: string;
+    returnTo?: string;
   }>();
   const { registration_id, email_masked, expires_in } = params;
+  const returnTo =
+    typeof params.returnTo === 'string' && params.returnTo.trim().length > 0
+      ? params.returnTo
+      : null;
 
   const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(''));
   const [loading, setLoading] = useState(false);
@@ -152,8 +163,21 @@ export default function VerifyEmailScreen() {
         await refreshUser();
       }
       setCustomAlert({ variant: 'success', title: 'Compte créé !', message: 'Bienvenue sur EatQuickeR 🎉' });
+
+      // ── Redirection post-vérification ─────────────────────────────────────
+      // Si l'utilisateur arrive d'un AuthGate (returnTo défini), on le ramène
+      // à son point de départ (typiquement /order/checkout). Sinon, on suit
+      // le comportement par défaut basé sur son rôle.
       const role = data.user?.role;
       setTimeout(() => {
+        if (returnTo) {
+          try {
+            router.replace(returnTo as any);
+            return;
+          } catch (navError) {
+            console.warn('⚠️ Redirection returnTo échouée, fallback rôle:', navError);
+          }
+        }
         if (role === 'restaurateur') {
           router.replace('/(restaurant)');
         } else {
@@ -165,7 +189,7 @@ export default function VerifyEmailScreen() {
     } finally {
       setLoading(false);
     }
-  }, [fullCode, isComplete, registration_id, refreshUser]);
+  }, [fullCode, isComplete, registration_id, refreshUser, returnTo]);
 
   // ── Renvoi ──────────────────────────────────────────────────────────────────
   const handleResend = useCallback(async () => {
@@ -228,7 +252,7 @@ export default function VerifyEmailScreen() {
       borderRadius: 36,
       backgroundColor: 'rgba(255, 255, 255, 0.10)',
       borderWidth: 1.5,
-      borderColor: COLORS.secondary,          // or #D4AF37
+      borderColor: 'rgba(212, 175, 55, 0.40)',
       alignItems: 'center',
       justifyContent: 'center',
       marginBottom: sp(SPACING.md),
@@ -269,6 +293,26 @@ export default function VerifyEmailScreen() {
     alert: {
       marginBottom: sp(SPACING.md),
     },
+
+    // Bandeau d'info si on revient d'un AuthGate (returnTo défini)
+    returnToBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: 'rgba(212, 175, 55, 0.12)',
+      borderLeftWidth: 3,
+      borderLeftColor: COLORS.secondary,
+      padding: sp(SPACING.sm),
+      borderRadius: BORDER_RADIUS.md,
+      marginBottom: sp(SPACING.md),
+    },
+    returnToBannerText: {
+      flex: 1,
+      fontSize: sp(TYPOGRAPHY.fontSize.xs),
+      color: COLORS.text.primary,
+      lineHeight: sp(TYPOGRAPHY.fontSize.xs) * TYPOGRAPHY.lineHeight.relaxed,
+    },
+
     cardLabel: {
       fontSize: sp(TYPOGRAPHY.fontSize.base),
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
@@ -384,6 +428,16 @@ export default function VerifyEmailScreen() {
 
             {/* Liseré doré */}
             <View style={styles.goldenAccent} />
+
+            {/* Bandeau d'info si on revient d'un AuthGate */}
+            {returnTo && (
+              <View style={styles.returnToBanner}>
+                <Ionicons name="information-circle" size={16} color={COLORS.secondary} />
+                <Text style={styles.returnToBannerText}>
+                  Validez votre email pour reprendre votre commande.
+                </Text>
+              </View>
+            )}
 
             {/* Alerte */}
             {customAlert && (

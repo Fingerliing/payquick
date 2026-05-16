@@ -51,6 +51,17 @@ export default function LoginScreen() {
   const { isMobile, isTablet, isSmallScreen, getSpacing, getFontSize, getResponsiveValue } = useResponsive();
   const insets = useSafeAreaInsets();
 
+  // ── Paramètres d'URL ─────────────────────────────────────────────────────
+  // - `reason=session_expired` : déclenche l'alerte de session expirée
+  // - `returnTo=<path>` : chemin vers lequel rediriger après connexion réussie.
+  //   Utilisé par AuthGateModal pour ramener l'utilisateur au checkout (ou
+  //   tout autre écran à l'origine du gate d'authentification).
+  const params = useLocalSearchParams<{ reason?: string; returnTo?: string }>();
+  const returnTo =
+    typeof params.returnTo === 'string' && params.returnTo.trim().length > 0
+      ? params.returnTo
+      : null;
+
   // ✅ Empêche handleSessionExpired de rediriger quand on est déjà sur login
   useEffect(() => {
     ApiClient._isOnLoginPage = true;
@@ -164,12 +175,29 @@ export default function LoginScreen() {
         username: formData.email.trim().toLowerCase(),
         password: formData.password,
       });
+
+      // ── Override de la navigation par défaut si `returnTo` est présent ──
+      // AuthContext.login() appelle navigateByRole() qui redirige vers
+      // /(client) ou /(restaurant). Si l'utilisateur arrive du flow QR
+      // → AuthGateModal → login, on doit le ramener à son écran d'origine
+      // (typiquement /order/checkout). Notre router.replace s'exécute APRÈS
+      // celui de navigateByRole et l'écrase.
+      if (returnTo) {
+        // Petit délai pour laisser navigateByRole se terminer, évite un flicker
+        setTimeout(() => {
+          try {
+            router.replace(returnTo as any);
+          } catch (navError) {
+            console.warn('⚠️ Redirection returnTo échouée, fallback:', navError);
+          }
+        }, 50);
+      }
     } catch (error: any) {
       handleLoginError(error);
     } finally {
       setLoading(false);
     }
-  }, [formData, login, validateForm]);
+  }, [formData, login, validateForm, returnTo]);
 
   // HELPERS
   const updateFormData = useCallback((field: keyof LoginFormData) => 
@@ -210,8 +238,6 @@ export default function LoginScreen() {
   }, [formData.email]);
 
 
-  const params = useLocalSearchParams<{ reason?: string }>();
-
   // ✅ Afficher l'alerte "session expirée" une seule fois puis nettoyer le param
   useEffect(() => {
     if (params.reason === 'session_expired') {
@@ -221,6 +247,7 @@ export default function LoginScreen() {
         message: 'Votre session a expiré. Veuillez vous reconnecter.',
       });
       // Nettoyer le param pour éviter les re-triggers au remontage
+      // (returnTo est conservé pour qu'il survive au nettoyage de `reason`)
       router.setParams({ reason: undefined });
     }
   }, [params.reason]);
@@ -450,6 +477,25 @@ export default function LoginScreen() {
       top: Math.max(insets.top, 12) + 8,
       zIndex: 50,
     },
+
+    // Bandeau d'information si l'utilisateur arrive d'un AuthGate
+    returnToBanner: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 8,
+      backgroundColor: 'rgba(212, 175, 55, 0.12)',
+      borderLeftWidth: 3,
+      borderLeftColor: COLORS.secondary,
+      padding: 12,
+      borderRadius: 8,
+      marginBottom: getSpacing(SPACING.md, SPACING.lg),
+    },
+    returnToBannerText: {
+      flex: 1,
+      fontSize: 13,
+      color: COLORS.text.primary,
+      lineHeight: 18,
+    },
   } as const;
 
   return (
@@ -524,6 +570,16 @@ export default function LoginScreen() {
           >
             <Card style={styles.formCard} variant="elevated" padding="xl">
               <Text style={styles.formTitle}>Connexion</Text>
+
+              {/* Bandeau d'info si on revient d'un AuthGate (returnTo défini) */}
+              {returnTo && (
+                <View style={styles.returnToBanner}>
+                  <Ionicons name="information-circle" size={18} color={COLORS.secondary} />
+                  <Text style={styles.returnToBannerText}>
+                    Connectez-vous pour reprendre votre commande là où vous l'aviez laissée.
+                  </Text>
+                </View>
+              )}
               
               {/* SOCIAL LOGIN SECTION */}
               <View style={styles.socialSection}>
@@ -625,7 +681,13 @@ export default function LoginScreen() {
           {/* FOOTER */}
           <View style={styles.footer}>
             <TouchableOpacity 
-              onPress={() => router.push('/(auth)/register')}
+              onPress={() => router.push({
+                pathname: '/(auth)/register' as any,
+                // Propager returnTo : si l'utilisateur n'a pas de compte
+                // et passe par "S'inscrire", il doit revenir au même endroit
+                // après création de compte.
+                params: returnTo ? { returnTo } : {},
+              })}
               activeOpacity={0.7}
             >
               <Text style={styles.registerLink}>

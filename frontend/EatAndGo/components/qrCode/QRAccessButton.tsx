@@ -14,10 +14,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import QRScanner from '@/components/client/QRScanner';
 import { QRSessionUtils } from '@/utils/qrSessionUtils';
-import { 
-  useScreenType, 
-  getResponsiveValue, 
-  COLORS, 
+import {
+  useScreenType,
+  getResponsiveValue,
+  COLORS,
   SPACING,
   TYPOGRAPHY,
   BORDER_RADIUS,
@@ -38,6 +38,27 @@ interface QRAccessButtonsProps {
   containerStyle?: ViewStyle;
 }
 
+/**
+ * QRAccessButtons
+ *
+ * Deux entrées : scan QR code ou saisie manuelle d'un code.
+ *
+ * Logique de routage selon ce qui est saisi/scanné :
+ *
+ *  - **Code de table** (URL https://api.eatquicker.fr/t/R12T005, format
+ *    R<id>T<num>, etc.) → navigation DIRECTE vers `/menu/client/[id]`.
+ *    L'utilisateur parcourt le menu librement. La décision "solo /
+ *    session collaborative" est repoussée :
+ *      - via le CTA "Commander ensemble" dans le header du menu, ou
+ *      - via l'AuthGateModal au moment de "Passer commande".
+ *
+ *  - **Share code de session** (6 caractères alphanumériques valides
+ *    côté backend) → ouverture de SessionJoinModal. L'utilisateur a
+ *    explicitement tapé un code de session : son intention est de
+ *    rejoindre, donc on l'amène directement au flow approprié.
+ *    Fonctionne aussi pour les invités (le backend accepte les
+ *    participants anonymes via `guest_name`).
+ */
 export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
   onSuccess,
   title = 'Scanner le QR code de votre table',
@@ -54,15 +75,14 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
   const [accessCode, setAccessCode] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // États pour la session collaborative
+  // États pour la session collaborative (utilisés uniquement quand on
+  // détecte un share_code de session — pas pour les codes de table).
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [scannedData, setScannedData] = useState<{
     restaurantId: number;
     tableNumber: string;
     code: string;
   } | null>(null);
-
-  // Hook pour vérifier s'il existe une session active
   const [activeSession, setActiveSession] = useState<any>(null);
 
   // Erreur affichée dans la vue principale (après fermeture du modal)
@@ -77,15 +97,16 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
     button: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
   };
 
+  // ─── Handlers ─────────────────────────────────────────────────────────────
+
   const handleScanSuccess = (qrData: string) => {
-    
-    // Vibration pour feedback utilisateur
+    // Feedback haptique
     if (Platform.OS === 'ios') {
       Vibration.vibrate(100);
     } else {
       Vibration.vibrate(50);
     }
-    
+
     setShowScanner(false);
     processCode(qrData);
   };
@@ -103,24 +124,57 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
     await processCode(accessCode.trim());
   };
 
+  /**
+   * Navigue directement vers le menu du restaurant.
+   * Utilisé pour les codes de TABLE uniquement (pas pour les share_codes).
+   */
+  const navigateToMenu = (params: {
+    restaurantId: number;
+    tableNumber: string;
+    code: string;
+  }) => {
+    const { restaurantId, tableNumber, code } = params;
+
+    // Permettre à l'appelant de surcharger la navigation par défaut
+    if (onSuccess) {
+      onSuccess(restaurantId, tableNumber, code);
+      return;
+    }
+
+    router.push({
+      pathname: `/menu/client/${restaurantId}` as any,
+      params: {
+        code,
+        restaurantId: restaurantId.toString(),
+        tableNumber,
+        // fromQR=1 sert au menu pour afficher des éléments d'UX
+        // contextuels (bandeau de bienvenue, etc.) si pertinent.
+        fromQR: '1',
+      },
+    });
+  };
+
   const processCode = async (codeData: string): Promise<void> => {
     if (isProcessing) return;
     setIsProcessing(true);
-  
+
     try {
       const trimmed = codeData.trim();
-  
-      // Détecter un share code de session (6 caractères alphanumériques)
+
+      // ─── Cas 1 : share_code de session collaborative ───────────────────
+      // 6 caractères alphanumériques. L'utilisateur veut explicitement
+      // rejoindre une session existante.
       if (/^[A-Z0-9]{6}$/i.test(trimmed)) {
         try {
           const session = await collaborativeSessionService.getSessionByCode(
             trimmed.toUpperCase()
           );
           if (session) {
-            const restaurantId = typeof session.restaurant === 'number'
-              ? session.restaurant
-              : parseInt(session.restaurant as any);
-  
+            const restaurantId =
+              typeof session.restaurant === 'number'
+                ? session.restaurant
+                : parseInt(session.restaurant as any);
+
             await QRSessionUtils.saveSession({
               restaurantId: restaurantId.toString(),
               restaurantName: session.restaurant_name,
@@ -128,10 +182,13 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
               originalCode: trimmed.toUpperCase(),
               timestamp: Date.now(),
             });
-  
+
             setShowCodeInput(false);
             setAccessCode('');
-            setActiveSession(null);
+            // ✅ Passer la session résolue (pas null) à SessionJoinModal
+            // pour qu'elle affiche "Rejoindre la session en cours" en
+            // premier choix avec le bon contexte.
+            setActiveSession(session);
             setScannedData({
               restaurantId,
               tableNumber: session.table_number,
@@ -141,48 +198,53 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
             return;
           }
         } catch {
-          // Pas une session connue, on essaie comme QR de table
+          // Pas une session connue → on essaie comme QR de table classique
         }
       }
-  
-      // Essayer comme QR de table (R123T05, URL, etc.)
+
+      // ─── Cas 2 : code de table (R<id>T<num>, URL, etc.) ────────────────
+      // Navigation DIRECTE vers le menu, sans modal de décision session/solo.
       const sessionData = await QRSessionUtils.createSessionFromCode(trimmed);
-  
-      if (sessionData) {
-        const restaurantId = parseInt(sessionData.restaurantId);
-        const tableNumber = sessionData.tableNumber || '';
 
-        // 1. Vérifier que le restaurant existe.
-        //    L'apiClient émet une ApiError plain object { code, message, details }
-        //    sans propriété `response`, donc on lit err.code directement.
-        try {
-          await restaurantService.getPublicRestaurant(restaurantId.toString());
-        } catch (err: any) {
-          const code = err?.code ?? err?.response?.status ?? err?.status;
-          throw new Error(
-            code === 404
-              ? "Ce code ne correspond à aucun restaurant enregistré. Vérifiez le QR code."
-              : "Impossible de vérifier ce restaurant. Vérifiez votre connexion et réessayez."
-          );
-        }
-
-        // 2. Récupérer une éventuelle session active sur cette table
-        const foundSession = await collaborativeSessionService.checkActiveSession(
-          restaurantId,
-          tableNumber
+      if (!sessionData) {
+        throw new Error(
+          'Ce code ne correspond à aucun restaurant ni table. Vérifiez le code ou scannez le QR code.'
         );
-
-        setActiveSession(foundSession ?? null);
-        setScannedData({ restaurantId, tableNumber, code: sessionData.originalCode });
-        setShowCodeInput(false);
-        setAccessCode('');
-        setShowSessionModal(true);
-      } else {
-        throw new Error('Ce code ne correspond à aucun restaurant ni table. Vérifiez le code ou scannez le QR code.');
       }
-  
+
+      const restaurantId = parseInt(sessionData.restaurantId);
+      const tableNumber = sessionData.tableNumber || '';
+
+      // Vérifier que le restaurant existe.
+      // L'apiClient émet une ApiError plain object { code, message, details }
+      // sans propriété `response`, donc on lit err.code directement.
+      try {
+        await restaurantService.getPublicRestaurant(restaurantId.toString());
+      } catch (err: any) {
+        const code = err?.code ?? err?.response?.status ?? err?.status;
+        throw new Error(
+          code === 404
+            ? "Ce code ne correspond à aucun restaurant enregistré. Vérifiez le QR code."
+            : "Impossible de vérifier ce restaurant. Vérifiez votre connexion et réessayez."
+        );
+      }
+
+      setShowCodeInput(false);
+      setAccessCode('');
+
+      // Navigation directe — pas de SessionJoinModal forcée.
+      // Le menu détectera une éventuelle session active sur la table
+      // et affichera un bandeau "Rejoindre la session en cours" en
+      // option (non bloquant).
+      navigateToMenu({
+        restaurantId,
+        tableNumber,
+        code: sessionData.originalCode,
+      });
     } catch (error: any) {
-      const msg = error?.message ?? 'Ce code ne correspond à aucun restaurant ni table. Vérifiez le code ou scannez le QR code.';
+      const msg =
+        error?.message ??
+        'Ce code ne correspond à aucun restaurant ni table. Vérifiez le code ou scannez le QR code.';
       setShowCodeInput(false);
       setAccessCode('');
       setModalInputError(null);
@@ -192,13 +254,14 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
     }
   };
 
+  // ─── Handlers SessionJoinModal (cas share_code uniquement) ────────────────
+
   const handleSessionCreated = (session: any) => {
     setShowSessionModal(false);
-    
+
     if (onSuccess && scannedData) {
       onSuccess(scannedData.restaurantId, scannedData.tableNumber, scannedData.code);
     } else if (scannedData) {
-      // Navigation par défaut vers le menu avec les paramètres de session
       router.push({
         pathname: `/menu/client/${scannedData.restaurantId}` as any,
         params: {
@@ -206,18 +269,17 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
           restaurantId: scannedData.restaurantId.toString(),
           tableNumber: scannedData.tableNumber,
           sessionId: session.id,
-        }
+        },
       });
     }
   };
 
   const handleSessionJoined = (session: any) => {
     setShowSessionModal(false);
-    
+
     if (onSuccess && scannedData) {
       onSuccess(scannedData.restaurantId, scannedData.tableNumber, scannedData.code);
     } else if (scannedData) {
-      // Navigation par défaut vers le menu avec les paramètres de session
       router.push({
         pathname: `/menu/client/${scannedData.restaurantId}` as any,
         params: {
@@ -225,30 +287,30 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
           restaurantId: scannedData.restaurantId.toString(),
           tableNumber: scannedData.tableNumber,
           sessionId: session.id,
-        }
+        },
       });
     }
   };
 
   const handleOrderAlone = () => {
     setShowSessionModal(false);
-    
+
     if (onSuccess && scannedData) {
       onSuccess(scannedData.restaurantId, scannedData.tableNumber, scannedData.code);
     } else if (scannedData) {
-      // Navigation vers le menu SANS sessionId (mode solo)
       router.push({
         pathname: `/menu/client/${scannedData.restaurantId}` as any,
         params: {
           code: scannedData.code,
           restaurantId: scannedData.restaurantId.toString(),
           tableNumber: scannedData.tableNumber,
-          // PAS de sessionId = mode solo
-          soloMode: 'true', // Indicateur optionnel pour l'écran de menu
-        }
+          soloMode: 'true',
+        },
       });
     }
   };
+
+  // ─── Render ───────────────────────────────────────────────────────────────
 
   if (showScanner) {
     return (
@@ -259,10 +321,7 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
         onRequestClose={handleScanClose}
       >
         <View style={{ flex: 1 }}>
-          <QRScanner
-            onScanSuccess={handleScanSuccess}
-            onClose={handleScanClose}
-          />
+          <QRScanner onScanSuccess={handleScanSuccess} onClose={handleScanClose} />
         </View>
       </Modal>
     );
@@ -272,9 +331,7 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
     <View style={[compact ? styles.compactContainer : styles.container, containerStyle]}>
       {!compact && (
         <View style={styles.header}>
-          <Text style={[styles.title, { fontSize: fontSize.title }]}>
-            {title}
-          </Text>
+          <Text style={[styles.title, { fontSize: fontSize.title }]}>{title}</Text>
           <Text style={[styles.description, { fontSize: fontSize.description }]}>
             {description}
           </Text>
@@ -288,7 +345,7 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
           disabled={isProcessing}
         >
           <Ionicons name="qr-code-outline" size={iconSize} color={COLORS.text.inverse} />
-          <Text 
+          <Text
             style={[styles.buttonText, { fontSize: fontSize.button }]}
             numberOfLines={1}
             adjustsFontSizeToFit
@@ -304,7 +361,7 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
           disabled={isProcessing}
         >
           <Ionicons name="keypad-outline" size={iconSize} color={COLORS.primary} />
-          <Text 
+          <Text
             style={[styles.buttonTextSecondary, { fontSize: fontSize.button }]}
             numberOfLines={1}
             adjustsFontSizeToFit
@@ -335,9 +392,9 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Entrer le code de table</Text>
+            <Text style={styles.modalTitle}>Entrer un code</Text>
             <Text style={styles.modalDescription}>
-              Saisissez le code à 6 chiffres affiché sur votre table
+              Code de table (Ex: R12T005) ou code de session partagé (6 caractères).
             </Text>
 
             <TextInput
@@ -347,10 +404,15 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
                 setAccessCode(t);
                 if (modalInputError) setModalInputError(null);
               }}
-              placeholder="Ex: ABC123"
+              placeholder="Ex: R12T005 ou ABC123"
+              placeholderTextColor="#9CA3AF"
               autoCapitalize="characters"
-              maxLength={6}
+              autoCorrect={false}
+              maxLength={20}
               autoFocus
+              editable={!isProcessing}
+              returnKeyType="go"
+              onSubmitEditing={handleManualCodeSubmit}
             />
 
             {modalInputError && (
@@ -368,7 +430,9 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
                 onPress={() => {
                   setShowCodeInput(false);
                   setAccessCode('');
+                  setModalInputError(null);
                 }}
+                disabled={isProcessing}
               >
                 <Text style={styles.cancelButtonText}>Annuler</Text>
               </TouchableOpacity>
@@ -376,15 +440,18 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
               <TouchableOpacity
                 style={[styles.modalButton, styles.confirmButton]}
                 onPress={handleManualCodeSubmit}
+                disabled={isProcessing || !accessCode.trim()}
               >
-                <Text style={styles.confirmButtonText}>Valider</Text>
+                <Text style={styles.confirmButtonText}>
+                  {isProcessing ? 'Vérification…' : 'Valider'}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
 
-      {/* Modal de session collaborative */}
+      {/* Modal de session collaborative (cas share_code uniquement) */}
       {showSessionModal && scannedData && (
         <SessionJoinModal
           visible={showSessionModal}
@@ -407,7 +474,7 @@ export const QRAccessButtons: React.FC<QRAccessButtonsProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    padding: SPACING.lg.mobile, // Note: utiliser getResponsiveValue dans le composant pour vraie responsivité
+    padding: SPACING.lg.mobile,
   },
   compactContainer: {
     padding: SPACING.sm.mobile,
@@ -494,17 +561,19 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
     marginBottom: SPACING.lg.mobile,
     textAlign: 'center',
+    lineHeight: 20,
   },
   input: {
     borderWidth: 1,
     borderColor: COLORS.border.default,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md.mobile,
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     textAlign: 'center',
-    letterSpacing: 4,
-    marginBottom: SPACING.lg.mobile,
+    letterSpacing: 2,
+    marginBottom: SPACING.md.mobile,
+    color: COLORS.text.primary,
   },
   inputError: {
     borderColor: '#EF4444',
@@ -513,12 +582,15 @@ const styles = StyleSheet.create({
   modalButtons: {
     flexDirection: 'row',
     gap: SPACING.md.mobile,
+    marginTop: SPACING.sm.mobile,
   },
   modalButton: {
     flex: 1,
     padding: SPACING.md.mobile,
     borderRadius: BORDER_RADIUS.md,
     alignItems: 'center',
+    minHeight: 48,
+    justifyContent: 'center',
   },
   cancelButton: {
     backgroundColor: COLORS.variants.secondary[100],

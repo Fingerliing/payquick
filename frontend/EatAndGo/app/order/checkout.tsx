@@ -7,7 +7,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, usePathname } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 // Contexts & Hooks
@@ -22,6 +22,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Alert as InlineAlert } from '@/components/ui/Alert';
+import { AuthGateModal } from '@/components/auth/AuthGateModal';
 
 // Services & Utils
 import { clientOrderService } from '@/services/clientOrderService';
@@ -38,9 +39,10 @@ import {
 export default function CheckoutScreen() {
   const params = useLocalSearchParams();
   const { cart, clearCart, setTableNumber } = useCart();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const screenType = useScreenType();
   const insets = useSafeAreaInsets();
+  const pathname = usePathname();
 
   // Typage sûr des paramètres
   const restaurantId = params.restaurantId as string | undefined;
@@ -86,6 +88,27 @@ export default function CheckoutScreen() {
   // Aliases pour compatibilité avec le reste du code
   const isInSession = isSessionMode;
   const currentParticipant = session?.participants?.find(p => p.id === ctxParticipantId) ?? null;
+
+  // ── Gate d'authentification ──────────────────────────────────────────────
+  // Si l'utilisateur n'est pas connecté et qu'il atterrit ici (typiquement
+  // après "Passer commande" depuis le menu d'un QR scan), on affiche une
+  // modale de choix : se connecter, créer un compte, ou continuer en invité.
+  //
+  // Cas particulier : en session collaborative, on désactive le mode invité.
+  // Les invités peuvent rejoindre une session (déjà géré côté backend via
+  // guest_name + participantId), mais le checkout final passe soit par
+  // l'hôte authentifié, soit par le split payment qui accepte les
+  // participants invités via X-Participant-ID.
+  const [showAuthGate, setShowAuthGate] = useState(false);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!isAuthenticated) {
+      setShowAuthGate(true);
+    } else {
+      setShowAuthGate(false);
+    }
+  }, [isAuthenticated, authLoading]);
 
   // Charger les données de session QR au montage
   useEffect(() => {
@@ -251,38 +274,110 @@ export default function CheckoutScreen() {
     body: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
   };
 
-  if (false) { // supprimé : SessionContext est synchrone, pas de sessionLoading
+  // ─── Cas spéciaux d'affichage ─────────────────────────────────────────────
+
+  // 1) Auth encore en chargement → loader plein écran
+  if (authLoading) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
-        <Header 
-          title="Finaliser la commande" 
-          leftIcon="arrow-back" 
-          onLeftPress={() => router.back()} 
+        <Header
+          title="Finaliser la commande"
+          leftIcon="arrow-back"
+          onLeftPress={() => router.back()}
         />
-        <View style={{ paddingHorizontal: 16, marginTop: 8, zIndex: 10 }}>
-          {toast.visible && (
-            <InlineAlert
-              variant={toast.variant}
-              title={toast.title}
-              message={toast.message}
-              onDismiss={hideToast}
-              autoDismiss
-            />
-          )}
-        </View>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={{ 
-            marginTop: getResponsiveValue(SPACING.md, screenType), 
+          <Text style={{
+            marginTop: getResponsiveValue(SPACING.md, screenType),
             color: COLORS.text.secondary,
             fontSize: fontSize.body,
           }}>
-            Chargement de la session...
+            Chargement...
           </Text>
         </View>
       </SafeAreaView>
     );
   }
+
+  // 2) Non authentifié → AuthGateModal bloquant (rien d'autre affiché)
+  //    On ne montre pas le formulaire de checkout en arrière-plan car il
+  //    n'est pas utilisable sans authentification.
+  if (!isAuthenticated) {
+    return (
+      <View style={{ flex: 1, backgroundColor: COLORS.background }}>
+        <Header
+          title="Finaliser la commande"
+          leftIcon="arrow-back"
+          onLeftPress={() => router.back()}
+        />
+
+        <View style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: getResponsiveValue(SPACING['2xl'], screenType),
+        }}>
+          <Ionicons
+            name="lock-closed-outline"
+            size={getResponsiveValue({ mobile: 60, tablet: 70, desktop: 80 }, screenType)}
+            color={COLORS.border.dark}
+          />
+          <Text style={{
+            fontSize: fontSize.title,
+            fontWeight: TYPOGRAPHY.fontWeight.semibold,
+            color: COLORS.text.primary,
+            marginTop: getResponsiveValue(SPACING.md, screenType),
+            textAlign: 'center',
+          }}>
+            Connexion requise
+          </Text>
+          <Text style={{
+            fontSize: fontSize.body,
+            color: COLORS.text.secondary,
+            marginTop: getResponsiveValue(SPACING.xs, screenType),
+            textAlign: 'center',
+          }}>
+            Choisissez comment vous souhaitez commander.
+          </Text>
+
+          <Button
+            title="Voir les options"
+            onPress={() => setShowAuthGate(true)}
+            style={{ marginTop: getResponsiveValue(SPACING.lg, screenType) }}
+          />
+        </View>
+
+        <AuthGateModal
+          visible={showAuthGate}
+          onClose={() => {
+            // Si l'utilisateur ferme la modale sans choisir, il revient
+            // simplement à l'état d'attente (bouton "Voir les options")
+            setShowAuthGate(false);
+          }}
+          returnTo={pathname || '/order/checkout'}
+          guestCheckoutParams={{
+            restaurantId: restaurantId ? String(restaurantId) : undefined,
+            tableNumber: effectiveTableNumber || tableNumber || undefined,
+            sessionId: sessionId || undefined,
+          }}
+          // Bloquer le mode invité en session collaborative :
+          // - la commande groupée est l'affaire de l'hôte authentifié
+          // - les invités déjà dans la session passent par split payment
+          allowGuest={!isSessionMode}
+          title={isSessionMode
+            ? 'Connectez-vous pour finaliser votre commande'
+            : 'Comment souhaitez-vous commander ?'
+          }
+          subtitle={isSessionMode
+            ? 'Une session collaborative est en cours. Connectez-vous ou créez un compte pour la rejoindre.'
+            : 'Connectez-vous pour retrouver votre historique ou continuez en invité.'
+          }
+        />
+      </View>
+    );
+  }
+
+  // ─── Affichage normal (utilisateur authentifié) ──────────────────────────
 
   const activeItems = isSessionMode ? sessionCart.items : cart.items;
   if (activeItems.length === 0) {

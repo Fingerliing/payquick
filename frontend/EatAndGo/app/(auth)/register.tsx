@@ -12,7 +12,7 @@ import {
   Pressable,
   StyleSheet,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -79,6 +79,17 @@ export default function RegisterScreen() {
   const insets     = useSafeAreaInsets();
   const screenType = useScreenType();
   const scrollViewRef = useRef<ScrollView>(null);
+
+  // ── Paramètre `returnTo` ───────────────────────────────────────────────────
+  // Si l'utilisateur arrive depuis un AuthGateModal (parcours QR → menu →
+  // checkout → "Créer un compte"), on doit le ramener à son écran d'origine
+  // une fois la vérification email terminée. On propage simplement à
+  // verify-email qui appellera router.replace(returnTo) après succès.
+  const params = useLocalSearchParams<{ returnTo?: string }>();
+  const returnTo =
+    typeof params.returnTo === 'string' && params.returnTo.trim().length > 0
+      ? params.returnTo
+      : null;
 
   // Raccourci responsive numérique
   const sp = (token: { mobile: number; tablet: number; desktop: number }): number =>
@@ -189,6 +200,8 @@ export default function RegisterScreen() {
           registration_id: data.registration_id,
           email_masked:    data.email ?? '',
           expires_in:      String(data.expires_in ?? 600),
+          // Propager returnTo pour redirection post-vérification
+          ...(returnTo ? { returnTo } : {}),
         },
       });
     } catch (error: any) {
@@ -196,7 +209,7 @@ export default function RegisterScreen() {
     } finally {
       setLoading(false);
     }
-  }, [formData, validateForm]);
+  }, [formData, validateForm, returnTo]);
 
   // ── Helpers formulaire ─────────────────────────────────────────────────────
   const updateFormData = useCallback(
@@ -295,6 +308,25 @@ export default function RegisterScreen() {
     },
     alertStyle: {
       marginBottom: sp(SPACING.md),
+    },
+
+    // Bandeau d'info si on revient d'un AuthGate
+    returnToBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: 'rgba(212, 175, 55, 0.12)',
+      borderLeftWidth: 3,
+      borderLeftColor: COLORS.secondary,
+      padding: sp(SPACING.sm),
+      borderRadius: BORDER_RADIUS.md,
+      marginBottom: sp(SPACING.md),
+    },
+    returnToBannerText: {
+      flex: 1,
+      fontSize: sp(TYPOGRAPHY.fontSize.xs),
+      color: COLORS.text.primary,
+      lineHeight: sp(TYPOGRAPHY.fontSize.xs) * TYPOGRAPHY.lineHeight.relaxed,
     },
 
     // Sélecteur de rôle
@@ -477,6 +509,16 @@ export default function RegisterScreen() {
             <View style={styles.formCard}>
               <Text style={styles.formTitle}>Créer un compte</Text>
 
+              {/* Bandeau d'info si on vient d'un AuthGate (returnTo défini) */}
+              {returnTo && (
+                <View style={styles.returnToBanner}>
+                  <Ionicons name="information-circle" size={16} color={COLORS.secondary} />
+                  <Text style={styles.returnToBannerText}>
+                    Créez votre compte pour reprendre votre commande après vérification.
+                  </Text>
+                </View>
+              )}
+
               {customAlert && (
                 <CustomAlert
                   variant={customAlert.variant}
@@ -640,7 +682,12 @@ export default function RegisterScreen() {
               {/* Lien connexion */}
               <TouchableOpacity
                 style={styles.loginLink}
-                onPress={() => router.push('/(auth)/login')}
+                onPress={() => router.push({
+                  pathname: '/(auth)/login' as any,
+                  // Propager returnTo : si l'utilisateur a finalement un compte
+                  // et passe par "Se connecter", il doit revenir au même endroit.
+                  params: returnTo ? { returnTo } : {},
+                })}
               >
                 <Text style={styles.loginLinkText}>
                   Déjà un compte ?{' '}
