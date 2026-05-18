@@ -346,12 +346,24 @@ export default function QRCodesScreen() {
 
     const generateOptimizedQRCodeSVG = (url: string, size: number) => {
       const qrData = encodeURIComponent(url);
+      const logoSize = Math.round(size * 0.22);
+      const logoOverlay = logoBase64
+        ? `<img src="${logoBase64}"
+                width="${logoSize}" height="${logoSize}"
+                style="position: absolute; top: 50%; left: 50%;
+                       transform: translate(-50%, -50%);
+                       background: #FFFFFF; padding: 3px;
+                       border-radius: 6px; box-sizing: content-box;
+                       image-rendering: -webkit-optimize-contrast;"
+                alt="Logo" />`
+        : '';
       return `
         <div style="position: relative; width: ${size}px; height: ${size}px; margin: 0 auto;">
-          <img src="https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${qrData}&format=png&ecc=M&margin=8"
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${qrData}&format=png&ecc=H&margin=8"
                width="${size}" height="${size}"
                style="display: block; image-rendering: -webkit-optimize-contrast;"
                alt="QR Code" />
+          ${logoOverlay}
         </div>
       `;
     };
@@ -1247,6 +1259,11 @@ export default function QRCodesScreen() {
           color={COLORS.text.primary}
           ecl="H"
           quietZone={16}
+          logo={APP_LOGO}
+          logoSize={QR_SIZES[qrSize].displaySize * 0.22}
+          logoBackgroundColor={COLORS.surface}
+          logoMargin={2}
+          logoBorderRadius={6}
         />
       </View>
 
@@ -1334,6 +1351,11 @@ export default function QRCodesScreen() {
                 color={COLORS.text.primary}
                 ecl="H"
                 quietZone={16}
+                logo={APP_LOGO}
+                logoSize={33}
+                logoBackgroundColor={COLORS.surface}
+                logoMargin={2}
+                logoBorderRadius={6}
               />
             </View>
 

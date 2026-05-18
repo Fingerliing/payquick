@@ -9,8 +9,10 @@ from django.db import transaction
 from api.models import Table, Restaurant, Menu, MenuItem
 from api.serializers import TableSerializer, TableCreateSerializer
 from api.permissions import IsRestaurateur, IsValidatedRestaurateur
+from api.utils.qrcode_utils import make_qr_with_logo
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
 import qrcode
+import logging
 from io import BytesIO
 import base64
 from reportlab.pdfgen import canvas
@@ -22,6 +24,37 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
 import os
 import tempfile
+
+logger = logging.getLogger(__name__)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Helpers QR URL
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _build_qr_url(request, qr_code: str) -> str:
+    """
+    Construit l'URL publique encodée dans les QR codes de table.
+
+    Format : `{base_url}/t/{qr_code}/`
+
+    Pourquoi `/t/<code>/` et non `/table/<code>` :
+      - C'est l'URL interceptée par les Universal Links (iOS) et App Links
+        (Android) configurés dans app.json (associatedDomains +
+        intentFilters avec pathPrefix='/t/').
+      - Si l'app EatQuickeR est installée, le scan du QR ouvre directement
+        l'app sur l'écran du menu de la table.
+      - Sinon, le navigateur natif charge la page HTML servie par
+        `qr_table_redirect` (cf. backend/api/views/qr_redirect_views.py)
+        qui propose un fallback vers les stores.
+
+    La route legacy `/table/<code>` reste fonctionnelle côté backend (cf.
+    `TableQRRouterView`) pour les QR codes physiques déjà imprimés avant
+    cette migration.
+    """
+    base_url = request.build_absolute_uri('/').rstrip('/')
+    return f"{base_url}/t/{qr_code}/"
+
 
 @extend_schema(tags=["Tables • Management"])
 class TableViewSet(viewsets.ModelViewSet):
@@ -131,7 +164,6 @@ class TableViewSet(viewsets.ModelViewSet):
             # Formater la réponse
             tables_data = []
             for table in created_tables:
-                base_url = request.build_absolute_uri('/').rstrip('/')
                 tables_data.append({
                     'id': str(table.id),
                     'number': table.number,
@@ -139,7 +171,8 @@ class TableViewSet(viewsets.ModelViewSet):
                     'restaurant': str(table.restaurant.id),
                     'capacity': table.capacity,
                     'is_active': table.is_active,
-                    'qrCodeUrl': f"{base_url}/table/{table.qr_code}",
+                    # URL Universal Links / App Links — utilisée à l'impression du QR
+                    'qrCodeUrl': _build_qr_url(request, table.qr_code),
                     'manualCode': table.qr_code,
                     'created_at': table.created_at.isoformat()
                 })
@@ -152,6 +185,7 @@ class TableViewSet(viewsets.ModelViewSet):
             }, status=status.HTTP_201_CREATED)
             
         except Exception as e:
+            logger.exception("Erreur lors de la création en lot des tables")
             return Response({
                 'error': 'Erreur lors de la création des tables.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -171,22 +205,12 @@ class TableViewSet(viewsets.ModelViewSet):
                 table.qr_code = f"R{table.restaurant.id}T{str(table.number).zfill(3)}"
                 table.save(update_fields=['qr_code'])
             
-            # URL pour accéder à la table
-            base_url = request.build_absolute_uri('/').rstrip('/')
-            qr_url = f"{base_url}/table/{table.qr_code}"
+            # URL Universal Links / App Links (déclenche l'ouverture de l'app
+            # si installée, sinon page de fallback vers les stores).
+            qr_url = _build_qr_url(request, table.qr_code)
             
-            # Générer le QR code
-            qr = qrcode.QRCode(
-                version=1,
-                error_correction=qrcode.constants.ERROR_CORRECT_L,
-                box_size=10,
-                border=4,
-            )
-            qr.add_data(qr_url)
-            qr.make(fit=True)
-            
-            # Créer l'image QR code
-            qr_img = qr.make_image(fill_color="black", back_color="white")
+            # Générer le QR code avec logo EatQuickeR au centre
+            qr_img = make_qr_with_logo(qr_url, box_size=10, border=4)
             
             # Convertir en base64 pour la réponse
             buffer = BytesIO()
@@ -204,6 +228,7 @@ class TableViewSet(viewsets.ModelViewSet):
             })
             
         except Exception as e:
+            logger.exception("Erreur lors de la génération du QR code")
             return Response({
                 'error': 'Erreur lors de la génération du QR code.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -228,6 +253,7 @@ class TableViewSet(viewsets.ModelViewSet):
             })
             
         except Exception as e:
+            logger.exception("Erreur lors du toggle de table")
             return Response({
                 'error': 'Erreur lors du changement de statut.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -259,15 +285,18 @@ class RestaurantTableManagementViewSet(viewsets.ViewSet):
             
             tables_data = []
             for table in tables:
-                base_url = request.build_absolute_uri('/').rstrip('/')
+                # Fallback si qr_code manquant (anciennes tables) : on génère
+                # à la volée le format R<id>T<num> sans persister, juste pour
+                # l'URL retournée. La persistance se fait via generate_qr.
+                effective_code = table.qr_code or f"R{restaurant.id}T{str(table.number).zfill(3)}"
                 tables_data.append({
                     'id': str(table.id),
                     'number': table.number,
-                    'identifiant': table.qr_code or f"R{restaurant.id}T{str(table.number).zfill(3)}",
+                    'identifiant': effective_code,
                     'capacity': table.capacity,
                     'is_active': table.is_active,
-                    'qrCodeUrl': f"{base_url}/table/{table.qr_code or table.id}",
-                    'manualCode': table.qr_code or str(table.id),
+                    'qrCodeUrl': _build_qr_url(request, effective_code),
+                    'manualCode': effective_code,
                     'created_at': table.created_at.isoformat()
                 })
             
@@ -281,6 +310,7 @@ class RestaurantTableManagementViewSet(viewsets.ViewSet):
             })
             
         except Exception as e:
+            logger.exception("Erreur lors de la récupération des tables")
             return Response({
                 'error': 'Erreur lors de la récupération des tables.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -326,27 +356,17 @@ class RestaurantTableManagementViewSet(viewsets.ViewSet):
             story.append(Paragraph(f"QR Codes - {restaurant.name}", title_style))
             story.append(Spacer(1, 20))
             
-            base_url = request.build_absolute_uri('/').rstrip('/')
-            
             # Générer les QR codes pour chaque table
             for table in tables:
                 if not table.qr_code:
                     table.qr_code = f"R{restaurant.id}T{str(table.number).zfill(3)}"
                     table.save(update_fields=['qr_code'])
                 
-                qr_url = f"{base_url}/table/{table.qr_code}"
+                # URL Universal Links / App Links
+                qr_url = _build_qr_url(request, table.qr_code)
                 
-                # Générer QR code
-                qr = qrcode.QRCode(
-                    version=1,
-                    error_correction=qrcode.constants.ERROR_CORRECT_L,
-                    box_size=8,
-                    border=4,
-                )
-                qr.add_data(qr_url)
-                qr.make(fit=True)
-                
-                qr_img = qr.make_image(fill_color="black", back_color="white")
+                # Générer QR code avec logo EatQuickeR au centre
+                qr_img = make_qr_with_logo(qr_url, box_size=8, border=4)
                 
                 # Sauvegarder temporairement l'image
                 with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as tmp_file:
@@ -354,7 +374,7 @@ class RestaurantTableManagementViewSet(viewsets.ViewSet):
                     
                     # Contenu de la table
                     table_data = [
-                        [Paragraph("<b>Eat&Go</b>", styles['Heading2']), ""],
+                        [Paragraph("<b>EatQuickeR</b>", styles['Heading2']), ""],
                         [Paragraph(f"<b>Table {table.number}</b>", styles['Heading3']), ""],
                         [Image(tmp_file.name, width=2*inch, height=2*inch), ""],
                         [Paragraph(f"<b>Code manuel :</b><br/>{table.qr_code}", styles['Normal']), ""],
@@ -416,6 +436,13 @@ class TableQRRouterView(APIView):
     """
     Endpoint public : accessible via un QR code sans authentification.
     Permet de récupérer le menu actif associé à une table.
+
+    Note : la route HTTP `/table/<code>` qui pointe vers cette vue est
+    conservée pour la compatibilité avec les anciens QR codes physiques.
+    Les nouveaux QR codes pointent vers `/t/<code>/` (cf. _build_qr_url),
+    qui sert une page HTML de redirection Universal Links / App Links.
+    L'app, une fois ouverte, appelle de toute façon `scan_table` (cf.
+    `OrderViewSet.scan_table`) pour résoudre la table — pas cette vue.
     """
     permission_classes = [AllowAny]
     # Désactive toute authentification pour cet endpoint afin qu'il reste réellement public.
@@ -514,8 +541,8 @@ class TableQRRouterView(APIView):
             }, status=status.HTTP_404_NOT_FOUND)
             
         except Exception as e:
+            logger.exception("Erreur dans TableQRRouterView")
             return Response({
                 "error": "Erreur serveur",
                 "message": "Une erreur est survenue lors de la récupération du menu.",
-                # details intentionally omitted
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -4,12 +4,28 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, Sp
 from django.conf import settings
 from django.conf.urls.static import static
 
+from api.views.qr_redirect_views import qr_table_redirect
+
 urlpatterns = [
    path('admin/', admin.site.urls),
    path('api/', include('api.urls')),
    path("schema/", SpectacularAPIView.as_view(), name="schema"),
    path("swagger/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
    path("redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
+
+   # ────────────────────────────────────────────────────────────────────
+   # QR codes de table — landing page publique au scan
+   #
+   # Atteinte par le navigateur natif (caméra iOS/Android) après scan d'un
+   # QR code. Sert une page qui tente d'ouvrir l'app via deep link et
+   # propose les stores en fallback. La même URL est interceptée par les
+   # Universal Links / App Links quand l'app est installée.
+   #
+   # Format des codes : R<restaurant_id>T<table_number_padded> (ex: R12T005)
+   # ────────────────────────────────────────────────────────────────────
+   path('t/<str:table_code>/', qr_table_redirect, name='qr_table_redirect'),
+   # Variante sans slash final pour les QR codes plus courts
+   path('t/<str:table_code>', qr_table_redirect, name='qr_table_redirect_noslash'),
 ]
 
 if settings.DEBUG:

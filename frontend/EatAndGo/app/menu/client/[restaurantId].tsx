@@ -32,8 +32,10 @@ import { menuService } from '@/services/menuService';
 import { restaurantService } from '@/services/restaurantService';
 import { dailyMenuService, PublicDailyMenu } from '@/services/dailyMenuService';
 import { computeFormulaStatus, formatFormulaMissingMessage } from '@/utils/dailyMenuFormula';
+import { collaborativeSessionService } from '@/services/collaborativeSessionService';
 
 // UI components conservés
+import { SessionJoinModal } from '@/components/session/SessionJoinModal';
 import { Loading } from '@/components/ui/Loading';
 import { Alert as InlineAlert, AlertWithAction } from '@/components/ui/Alert';
 import { UnpaidOrderGate } from '@/components/guards/UnpaidOrderGate';
@@ -144,9 +146,12 @@ const DAILY_TAB_ID = '__daily_menu__';
 // =============================================================================
 
 export default function ClientRestaurantPage() {
-  const { restaurantId, sessionId } = useLocalSearchParams<{
+  const { restaurantId, sessionId, tableNumber: tableNumberParam, fromQR } =
+  useLocalSearchParams<{
     restaurantId: string;
     sessionId?: string;
+    tableNumber?: string;  // passé par QRAccessButton et app/t/[code].tsx
+    fromQR?: string;       // '1' si l'utilisateur arrive d'un scan QR
   }>();
   const insets = useSafeAreaInsets();
 
@@ -215,6 +220,68 @@ export default function ClientRestaurantPage() {
     sessionId: effectiveSessionId,
   });
   const { isInactivityExpired } = useInactivityWarning(effectiveSessionId);
+
+  // ─── Mode "pré-session" pour le scan QR sans session active ──────────────
+// Quand un client scanne un QR de table et arrive ici SANS sessionId dans
+// l'URL, on doit :
+//   1. lui laisser parcourir le menu librement,
+//   2. l'informer si une session collaborative existe déjà sur la table,
+//   3. lui proposer d'ouvrir/rejoindre une session à la demande via le CTA
+//      "Commander ensemble" dans le header.
+//
+// L'auth n'est PAS requise pour rejoindre une session (le backend accepte
+// les invités via guest_name + X-Participant-ID). Le SessionJoinModal gère
+// l'invité côté frontend.
+const [showSessionJoinModal, setShowSessionJoinModal] = useState(false);
+const [activeSessionOnTable, setActiveSessionOnTable] = useState<any>(null);
+
+useEffect(() => {
+  // Si on est déjà dans une session active (sessionId en URL ou contexte),
+  // pas besoin de vérifier — c'est notre session, gérée par les hooks
+  // useCollaborativeSession et useSessionCart au-dessus.
+  if (effectiveSessionId) {
+    setActiveSessionOnTable(null);
+    return;
+  }
+  if (!restaurantId || !tableNumberParam) return;
+
+  let cancelled = false;
+  (async () => {
+    try {
+      const found = await collaborativeSessionService.checkActiveSession(
+        parseInt(restaurantId),
+        tableNumberParam
+      );
+      if (!cancelled) setActiveSessionOnTable(found ?? null);
+    } catch {
+      // 404 = aucune session active — comportement attendu, on ne loggue pas
+      if (!cancelled) setActiveSessionOnTable(null);
+    }
+  })();
+
+  return () => { cancelled = true; };
+}, [effectiveSessionId, restaurantId, tableNumberParam]);
+
+// ─── Handlers SessionJoinModal ───────────────────────────────────────────
+// Réutilise la même logique que QRAccessButton, mais avec les params déjà
+// connus depuis l'URL du menu.
+const handleSessionJoinedFromMenu = useCallback((joinedSession: any) => {
+  setShowSessionJoinModal(false);
+  if (!restaurantId) return;
+  router.replace({
+    pathname: `/menu/client/${restaurantId}` as any,
+    params: {
+      restaurantId,
+      tableNumber: tableNumberParam ?? joinedSession.table_number ?? '',
+      sessionId: joinedSession.id,
+    },
+  });
+}, [restaurantId, tableNumberParam]);
+
+const handleOrderAloneFromMenu = useCallback(() => {
+  setShowSessionJoinModal(false);
+  // Pas de redirection : on reste sur le menu en mode solo
+}, []);
 
   // ─── Auto-redirection ──────────────────────────────────────────────────────
   const redirectedRef = useRef(false);
@@ -967,9 +1034,22 @@ export default function ClientRestaurantPage() {
 
         {/* ─── Header navy ──────────────────────────────────────────────── */}
         <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-          <View style={styles.headerSide}>
-            <Ionicons name="restaurant-outline" size={22} color="#FFFFFF" />
-          </View>
+          {/* Côté droit : bouton "Commander ensemble" si pas en session,
+              sinon placeholder pour équilibrer */}
+          {!effectiveSessionId && tableNumberParam ? (
+            <Pressable
+              onPress={() => setShowSessionJoinModal(true)}
+              style={({ pressed }) => [
+                styles.headerActionButton,
+                pressed && { opacity: 0.7 },
+              ]}
+              hitSlop={8}
+            >
+              <Ionicons name="people" size={20} color={COLORS.secondary} />
+            </Pressable>
+          ) : (
+            <View style={styles.headerSide} />
+          )}
 
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle} numberOfLines={1}>
@@ -983,6 +1063,36 @@ export default function ClientRestaurantPage() {
           {/* Espace équilibré (le code session a son propre banner sous le header) */}
           <View style={styles.headerSide} />
         </View>
+
+        {/* ─── Bandeau session active sur la table (hors session courante) ── */}
+        {activeSessionOnTable && !effectiveSessionId && (
+          <Pressable
+            onPress={() => setShowSessionJoinModal(true)}
+            style={({ pressed }) => [
+              styles.activeSessionBanner,
+              pressed && { opacity: 0.95 },
+            ]}
+            android_ripple={{ color: COLORS.success + '15' }}
+          >
+            <View style={styles.activeSessionBannerLeft}>
+              <Ionicons name="people" size={20} color={COLORS.success} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.activeSessionBannerTitle}>
+                  Session en cours sur cette table
+                </Text>
+                <Text style={styles.activeSessionBannerSubtitle}>
+                  {activeSessionOnTable.participant_count ?? 0} participant
+                  {(activeSessionOnTable.participant_count ?? 0) > 1 ? 's' : ''}
+                  {activeSessionOnTable.share_code ? ` · Code ${activeSessionOnTable.share_code}` : ''}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.activeSessionBannerCTA}>
+              <Text style={styles.activeSessionBannerCTAText}>Rejoindre</Text>
+              <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
+            </View>
+          </Pressable>
+        )}
 
         {/* ─── Banner code de session (si session collaborative active) ──── */}
         {session?.share_code ? (
@@ -1240,6 +1350,20 @@ export default function ClientRestaurantPage() {
           </Pressable>
         </Modal>
       </View>
+      {/* SessionJoinModal — déclenchée par le CTA "Commander ensemble" ou
+          par le bandeau "Session active sur cette table" */}
+      {showSessionJoinModal && restaurantId && tableNumberParam && (
+        <SessionJoinModal
+          visible={showSessionJoinModal}
+          onClose={() => setShowSessionJoinModal(false)}
+          restaurantId={parseInt(restaurantId)}
+          tableNumber={tableNumberParam}
+          activeSession={activeSessionOnTable}
+          onSessionCreated={handleSessionJoinedFromMenu}
+          onSessionJoined={handleSessionJoinedFromMenu}
+          onOrderAlone={handleOrderAloneFromMenu}
+        />
+      )}
     </UnpaidOrderGate>
   );
 }
@@ -1495,6 +1619,67 @@ const styles = StyleSheet.create({
     color: COLORS.secondary,
     marginTop: 2,
     textAlign: 'center',
+  },
+  headerActionButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.40)', // or léger
+  },
+  activeSessionBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.surface,
+    marginHorizontal: 14,
+    marginTop: -10, // chevauche légèrement le header navy
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1.5,
+    borderColor: COLORS.success,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.10,
+    shadowRadius: 8,
+    elevation: 4,
+    gap: 12,
+    zIndex: 5,
+  },
+  activeSessionBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+    minWidth: 0,
+  },
+  activeSessionBannerTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.text.primary,
+    marginBottom: 2,
+  },
+  activeSessionBannerSubtitle: {
+    fontSize: 12,
+    color: COLORS.text.secondary,
+  },
+  activeSessionBannerCTA: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: COLORS.success,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: BORDER_RADIUS.md,
+  },
+  activeSessionBannerCTAText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
   },
   sessionBanner: {
     flexDirection: 'row',

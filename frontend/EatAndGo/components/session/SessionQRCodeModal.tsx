@@ -15,6 +15,9 @@ import ViewShot from 'react-native-view-shot';
 import * as MediaLibrary from 'expo-media-library';
 import * as Clipboard from 'expo-clipboard';
 
+// Logo intégré au centre des QR codes pour cohérence de marque
+const APP_LOGO = require('@/assets/images/logo.png');
+
 interface SessionQRCodeModalProps {
   visible: boolean;
   onClose: () => void;
@@ -102,7 +105,7 @@ export const SessionQRCodeModal: React.FC<SessionQRCodeModalProps> = ({
 
       // Capturer l'image
       const uri = await viewShotRef.current.capture?.();
-      
+
       if (!uri) {
         throw new Error('Échec de la capture');
       }
@@ -169,6 +172,13 @@ export const SessionQRCodeModal: React.FC<SessionQRCodeModalProps> = ({
                   size={qrSize}
                   color="#1E2A78"
                   backgroundColor="white"
+                  ecl="H"
+                  quietZone={12}
+                  logo={APP_LOGO}
+                  logoSize={qrSize * 0.22}
+                  logoBackgroundColor="white"
+                  logoMargin={3}
+                  logoBorderRadius={8}
                 />
               </View>
 
