@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Modal,
   View,
@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, usePathname } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   markLegalAsRead,
   checkLegalUpdates,
@@ -26,6 +25,20 @@ import { legalService } from '@/services/legalService';
 import { COLORS, BORDER_RADIUS, SHADOWS, TYPOGRAPHY } from '@/utils/designSystem';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+// ⚠️ Dans Expo Router, les groupes entre parenthèses comme (legal) ne font PAS
+// partie du pathname. usePathname() retourne donc "/terms", "/privacy", "/notice"
+// et NON "/(legal)/terms". On matche donc sur les vrais pathnames.
+const LEGAL_PATHS = ['/terms', '/privacy', '/notice'] as const;
+
+const isLegalPath = (pathname: string | null | undefined): boolean => {
+  if (!pathname) return false;
+  // Retirer les query params et un éventuel slash final
+  const basePath = pathname.split('?')[0].replace(/\/$/, '') || '/';
+  return LEGAL_PATHS.some(
+    (p) => basePath === p || basePath.startsWith(`${p}/`)
+  );
+};
 
 export function FirstLaunchLegalModal() {
   const router = useRouter();
@@ -53,11 +66,9 @@ export function FirstLaunchLegalModal() {
 
   // Afficher/masquer la modal en fonction de la route et de l'état shouldShow
   useEffect(() => {
-    // Extraire le chemin de base sans les paramètres de requête
-    const basePath = pathname?.split('?')[0] ?? '';
-    const onLegalRoute = basePath.startsWith('/(legal)/terms') || basePath.startsWith('/(legal)/privacy');
-    if (onLegalRoute) {
-      // Pendant la lecture d'un document, masquer la modal
+    if (isLegalPath(pathname)) {
+      // Pendant la lecture d'un document légal, masquer la modal
+      console.log('📄 Route légale détectée, masquage de la modal:', pathname);
       setVisible(false);
       return;
     }
@@ -182,7 +193,7 @@ export function FirstLaunchLegalModal() {
 
           {/* Content */}
           <View style={styles.content}>
-            <ScrollView 
+            <ScrollView
               contentContainerStyle={styles.scrollContent}
               showsVerticalScrollIndicator={false}
             >
@@ -196,8 +207,8 @@ export function FirstLaunchLegalModal() {
                   <Ionicons name="document-text" size={22} color={COLORS.primary} />
                   <Text style={styles.documentName}>Conditions Générales d'Utilisation</Text>
                 </View>
-                
-                <TouchableOpacity 
+
+                <TouchableOpacity
                   style={styles.viewDocumentButton}
                   onPress={openTerms}
                   activeOpacity={0.7}
@@ -208,7 +219,7 @@ export function FirstLaunchLegalModal() {
                 </TouchableOpacity>
 
                 {/* Checkbox cliquable directement */}
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.checkboxRow}
                   onPress={toggleTermsAccepted}
                   activeOpacity={0.7}
@@ -230,8 +241,8 @@ export function FirstLaunchLegalModal() {
                   <Ionicons name="shield-checkmark" size={22} color={COLORS.primary} />
                   <Text style={styles.documentName}>Politique de Confidentialité</Text>
                 </View>
-                
-                <TouchableOpacity 
+
+                <TouchableOpacity
                   style={styles.viewDocumentButton}
                   onPress={openPrivacy}
                   activeOpacity={0.7}
@@ -242,7 +253,7 @@ export function FirstLaunchLegalModal() {
                 </TouchableOpacity>
 
                 {/* Checkbox cliquable directement */}
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.checkboxRow}
                   onPress={togglePrivacyAccepted}
                   activeOpacity={0.7}
