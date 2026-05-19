@@ -18,8 +18,8 @@ Routes exposées (à câbler dans backend/backend/urls.py) :
 
 Variables d'environnement attendues (dans backend/.env) :
     APPLE_TEAM_ID            (10 caractères alphanumériques, ex: A1B2C3D4E5)
-    IOS_BUNDLE_ID            (défaut: com.fingerliing.EatQuickeR)
-    ANDROID_PACKAGE_NAME     (défaut: com.fingerliing.EatQuickeR)
+    IOS_BUNDLE_ID            (défaut: fr.fingerliing.EatQuickeR)
+    ANDROID_PACKAGE_NAME     (défaut: fr.fingerliing.EatQuickeR)
     ANDROID_SHA256_FINGERPRINTS  (séparés par des virgules ; voir guide)
 
 Vérification après déploiement :
@@ -52,11 +52,11 @@ def _get_apple_team_id() -> str | None:
 
 
 def _get_ios_bundle_id() -> str:
-    return getattr(settings, "IOS_BUNDLE_ID", "com.fingerliing.EatQuickeR")
+    return getattr(settings, "IOS_BUNDLE_ID", "fr.fingerliing.EatQuickeR")
 
 
 def _get_android_package_name() -> str:
-    return getattr(settings, "ANDROID_PACKAGE_NAME", "com.fingerliing.EatQuickeR")
+    return getattr(settings, "ANDROID_PACKAGE_NAME", "fr.fingerliing.EatQuickeR")
 
 
 def _get_android_sha256_fingerprints() -> list[str]:

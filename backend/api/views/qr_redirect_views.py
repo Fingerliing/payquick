@@ -43,7 +43,7 @@ APP_DEEP_LINK_SCHEME = "eatquicker"
 
 # Liens vers les stores (à remplacer par les vrais IDs une fois publiés)
 APP_STORE_URL = "https://apps.apple.com/app/eatquicker/id0000000000"
-PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.fingerliing.EatQuickeR"
+PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=fr.fingerliing.EatQuickeR"
 
 
 def _render_qr_landing_html(
