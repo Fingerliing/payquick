@@ -4,6 +4,8 @@ from decouple import config, Csv
 import dj_database_url
 from datetime import timedelta
 import socket
+from decouple import config
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -336,3 +338,8 @@ REGISTRATION_TEMP_DATA_EXPIRY_MINUTES = 30
 # Réutilise SMS_MAX_ATTEMPTS pour la limite de tentatives par code.
 PASSWORD_RESET_CODE_EXPIRY_MINUTES = 10
 PASSWORD_RESET_RESEND_COOLDOWN_SECONDS = 60
+
+APPLE_TEAM_ID = config('APPLE_TEAM_ID', default='')
+IOS_BUNDLE_ID = config('IOS_BUNDLE_ID', default='com.fingerliing.EatQuickeR')
+ANDROID_PACKAGE_NAME = config('ANDROID_PACKAGE_NAME', default='com.fingerliing.EatQuickeR')
+ANDROID_SHA256_FINGERPRINTS = config('ANDROID_SHA256_FINGERPRINTS', default='')

@@ -16,7 +16,11 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.fingerliing.EatQuickeR"
+      "bundleIdentifier": "com.fingerliing.EatQuickeR",
+      "associatedDomains": [
+        "applinks:api.eatquicker.fr",
+        "applinks:eatquicker.fr"
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -24,7 +28,21 @@
         "backgroundColor": "#1E3A5F"
       },
       "package": "com.fingerliing.EatQuickeR",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "api.eatquicker.fr",
+              "pathPrefix": "/t/"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/images/favicon.png",
