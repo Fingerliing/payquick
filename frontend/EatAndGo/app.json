@@ -16,7 +16,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.fingerliing.EatQuickeR",
+      "bundleIdentifier": "fr.fingerliing.EatQuickeR",
       "associatedDomains": [
         "applinks:api.eatquicker.fr",
         "applinks:eatquicker.fr"
@@ -27,7 +27,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#1E3A5F"
       },
-      "package": "com.fingerliing.EatQuickeR",
+      "package": "fr.fingerliing.EatQuickeR",
       "googleServicesFile": "./google-services.json",
       "intentFilters": [
         {
@@ -63,7 +63,7 @@
       [
         "@stripe/stripe-react-native",
         {
-          "merchantIdentifier": "merchant.com.fingerliing.EatQuickeR",
+          "merchantIdentifier": "merchant.fr.fingerliing.EatQuickeR",
           "enableGooglePay": true
         }
       ]
