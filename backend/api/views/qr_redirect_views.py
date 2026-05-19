@@ -4,19 +4,26 @@ Vue de redirection intelligente pour les QR codes de table.
 Quand un client scanne un QR code avec son appareil photo natif, il arrive sur
 une URL HTTPS publique. Cette vue sert une page HTML qui :
 
-1. Tente immédiatement d'ouvrir l'application via le scheme `eatquicker://`.
-   Si l'app est installée, les Universal Links / App Links la déclencheront
-   automatiquement (configurés via .well-known/apple-app-site-association
-   et .well-known/assetlinks.json).
+1. Si l'app est installée ET les App Links / Universal Links sont vérifiés
+   (`assetlinks.json` / `apple-app-site-association` OK), l'app intercepte
+   l'URL avant même que cette vue soit appelée. Cette page n'est donc
+   affichée que pour les utilisateurs SANS l'app, ou pour les devices où
+   la vérification n'a pas (encore) eu lieu.
 
-2. Si l'app n'est pas installée, propose un lien vers l'App Store ou le
-   Play Store selon la plateforme détectée par user-agent.
+2. Pour ces utilisateurs, la page propose un bouton "Ouvrir l'application"
+   (qui tente le scheme custom `eatquicker://`) ET un bouton clair vers
+   le store correspondant à leur OS.
 
-3. Fournit une URL de secours pour les utilisateurs desktop ou les cas où
-   ni l'app ni le store ne s'ouvrent.
+3. Si le code de table est invalide, la page affiche une erreur explicite
+   plutôt que de rediriger vers une app cassée.
 
-Le code de table est validé côté serveur avant de générer la page : un code
-invalide affiche une erreur claire au lieu de rediriger vers une app cassée.
+⚠️ Ancienne version : la page contenait un script JS qui tentait
+   automatiquement `window.location.href = 'eatquicker://...'` avec un
+   fallback `setTimeout` vers le store après 1.8s. Cette technique ne
+   fonctionne plus avec les versions récentes de Chrome (et iOS Safari) :
+   Chrome interprète l'URL custom comme HTTPS et déclenche une 404
+   "Impossible de trouver l'URL". La version actuelle s'appuie sur des
+   liens cliqués par l'utilisateur (interaction = autorisé par les navs).
 """
 
 import logging
@@ -45,7 +52,7 @@ def _render_qr_landing_html(
     table_number: str,
     error: str | None = None,
 ) -> str:
-    """Page HTML universelle qui essaie d'ouvrir l'app puis tombe sur les stores."""
+    """Page HTML universelle, sans redirection JS automatique."""
 
     deep_link = f"{APP_DEEP_LINK_SCHEME}://t/{table_code}"
 
@@ -59,7 +66,6 @@ def _render_qr_landing_html(
                  l'aide au personnel du restaurant.</p>
             </div>
         """
-        scripts = ""
     else:
         body = f"""
             <div class="card">
@@ -67,8 +73,16 @@ def _render_qr_landing_html(
               <h1>{restaurant_name}</h1>
               <p class="table">Table {table_number}</p>
 
-              <p>Ouverture de l'application en cours…</p>
+              <p>Bienvenue ! Pour commander, ouvrez l'application EatQuickeR.</p>
 
+              <!-- Bouton principal : tentative d'ouverture de l'app -->
+              <a href="{deep_link}" class="primary-btn">
+                📲 Ouvrir l'application
+              </a>
+
+              <p class="separator">— Pas encore installée ? —</p>
+
+              <!-- Boutons stores (un seul affiché selon l'OS via JS plus bas) -->
               <div class="stores">
                 <a href="{APP_STORE_URL}" class="store-btn ios" id="ios-store">
                   Télécharger sur l'App Store
@@ -79,47 +93,9 @@ def _render_qr_landing_html(
               </div>
 
               <p class="hint">
-                Si l'application ne s'ouvre pas automatiquement, installez-la
-                puis scannez à nouveau le QR code.
-              </p>
-
-              <p class="manual">
-                <a href="{deep_link}">Ouvrir EatQuickeR manuellement</a>
+                Après installation, scannez à nouveau le QR code de votre table.
               </p>
             </div>
-        """
-        # Tente l'ouverture du deep link tout de suite. Le `setTimeout` 1500ms
-        # bascule sur le store si rien ne se passe (l'app a intercepté la
-        # navigation via Universal Link sinon).
-        scripts = f"""
-        <script>
-          (function() {{
-            var ua = navigator.userAgent || navigator.vendor || window.opera;
-            var isAndroid = /android/i.test(ua);
-            var isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
-
-            // Masquer le bouton store de l'OS opposé
-            var iosBtn = document.getElementById('ios-store');
-            var androidBtn = document.getElementById('android-store');
-            if (isAndroid && iosBtn) iosBtn.style.display = 'none';
-            if (isIOS && androidBtn) androidBtn.style.display = 'none';
-
-            // Tenter le deep link immédiatement
-            if (isIOS || isAndroid) {{
-              var fallbackTimer = setTimeout(function() {{
-                if (isIOS) window.location.href = '{APP_STORE_URL}';
-                else if (isAndroid) window.location.href = '{PLAY_STORE_URL}';
-              }}, 1800);
-
-              // Si la page perd le focus, l'app a été ouverte : on annule le fallback
-              window.addEventListener('pagehide', function() {{ clearTimeout(fallbackTimer); }});
-              window.addEventListener('blur', function() {{ clearTimeout(fallbackTimer); }});
-
-              // Lancer le deep link
-              window.location.href = '{deep_link}';
-            }}
-          }})();
-        </script>
         """
 
     return f"""<!DOCTYPE html>
@@ -169,11 +145,34 @@ def _render_qr_landing_html(
             margin-bottom: 24px;
             letter-spacing: 0.5px;
         }}
+        .primary-btn {{
+            display: block;
+            margin: 24px 0 16px;
+            padding: 16px 20px;
+            background: #1E2A78;
+            color: white;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 17px;
+            transition: transform 0.1s, opacity 0.2s;
+        }}
+        .primary-btn:active {{
+            opacity: 0.85;
+            transform: scale(0.98);
+        }}
+        .separator {{
+            color: #9CA3AF;
+            font-size: 13px;
+            margin: 20px 0 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }}
         .stores {{
             display: flex;
             flex-direction: column;
             gap: 12px;
-            margin: 28px 0 20px;
+            margin: 0 0 20px;
         }}
         .store-btn {{
             display: block;
@@ -186,27 +185,39 @@ def _render_qr_landing_html(
         }}
         .store-btn:active {{ opacity: 0.7; }}
         .store-btn.ios {{ background: #000; color: white; }}
-        .store-btn.android {{ background: #1E2A78; color: white; }}
+        .store-btn.android {{
+            background: white;
+            color: #1E2A78;
+            border: 2px solid #1E2A78;
+        }}
         .hint {{
             color: #6B7280;
             font-size: 13px;
-            margin-top: 20px;
-            font-style: italic;
-        }}
-        .manual {{
             margin-top: 16px;
-            font-size: 13px;
-        }}
-        .manual a {{
-            color: #1E2A78;
-            text-decoration: underline;
-            font-weight: 600;
+            font-style: italic;
         }}
     </style>
 </head>
 <body>
     {body}
-    {scripts}
+
+    <script>
+      // Affiche uniquement le bouton du store correspondant à l'OS de
+      // l'utilisateur. Aucune redirection automatique : ce sont les
+      // navigateurs modernes (Chrome, Safari) qui exigent une interaction
+      // utilisateur pour ouvrir un scheme custom.
+      (function() {{
+        var ua = navigator.userAgent || navigator.vendor || window.opera || '';
+        var isAndroid = /android/i.test(ua);
+        var isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+
+        var iosBtn = document.getElementById('ios-store');
+        var androidBtn = document.getElementById('android-store');
+
+        if (isAndroid && iosBtn) iosBtn.style.display = 'none';
+        if (isIOS && androidBtn) androidBtn.style.display = 'none';
+      }})();
+    </script>
 </body>
 </html>"""
 
@@ -217,49 +228,58 @@ def qr_table_redirect(request, table_code: str):
     """
     Endpoint public servi sur GET /t/<table_code>/.
 
-    Sert une page HTML qui tente d'ouvrir l'app via deep link et propose
-    les stores en fallback. C'est l'URL pointée par les QR codes physiques
-    sur les tables.
+    Sert une page HTML qui propose à l'utilisateur d'ouvrir l'app via deep
+    link OU d'installer l'app depuis le store. Pas de redirection JS
+    automatique : Chrome moderne refuse les redirections non-interactives
+    vers des schemes custom et déclenche une 404 "URL introuvable".
 
     Cette vue ne renvoie jamais de JSON : elle est destinée à être atteinte
-    par le navigateur natif (Safari / Chrome) au scan d'un QR. Les Universal
-    Links / App Links intercepteront l'URL avant que le navigateur ne charge
-    cette page si l'application est installée.
+    par le navigateur natif (Safari / Chrome) au scan d'un QR.
+
+    Quand les App Links Android / Universal Links iOS sont correctement
+    vérifiés sur le device de l'utilisateur, cette vue n'est même pas
+    appelée : l'OS ouvre directement l'app installée. Cette page est donc
+    le fallback pour les utilisateurs sans l'app.
     """
-    code = (table_code or '').strip()
-
-    if not code:
-        html = _render_qr_landing_html(
-            table_code='',
-            restaurant_name='',
-            table_number='',
-            error="Aucun code de table fourni dans l'URL.",
-        )
-        return HttpResponse(html, content_type='text/html', status=400)
-
     try:
-        table = get_object_or_404(Table, qr_code=code)
+        table = Table.objects.select_related('restaurant').get(
+            qr_code=table_code,
+            is_active=True,
+        )
         restaurant = table.restaurant
 
-        # Vérifier que le restaurant peut recevoir des commandes. On laisse
-        # tout de même la page s'afficher : l'app gérera le détail (restaurant
-        # fermé, table inactive, etc.) avec un meilleur contexte UX.
-        restaurant_name = restaurant.name or "Restaurant"
-        table_number = str(table.number) if table.number is not None else code
+        if not restaurant.is_active:
+            html = _render_qr_landing_html(
+                table_code=table_code,
+                restaurant_name='',
+                table_number='',
+                error="Ce restaurant n'est pas actif pour le moment.",
+            )
+            return HttpResponse(html, content_type='text/html; charset=utf-8', status=503)
 
         html = _render_qr_landing_html(
-            table_code=code,
-            restaurant_name=restaurant_name,
-            table_number=table_number,
+            table_code=table_code,
+            restaurant_name=restaurant.name,
+            table_number=str(table.number),
         )
-        return HttpResponse(html, content_type='text/html')
+        return HttpResponse(html, content_type='text/html; charset=utf-8')
 
-    except Exception as exc:
-        logger.warning(f"QR redirect — code invalide '{code}': {exc}")
+    except Table.DoesNotExist:
+        logger.warning(f"QR scan : code de table invalide '{table_code}'")
         html = _render_qr_landing_html(
-            table_code=code,
+            table_code=table_code,
             restaurant_name='',
             table_number='',
-            error="Ce code de table n'existe pas ou n'est plus actif.",
+            error="Ce QR code ne correspond à aucune table active.",
         )
-        return HttpResponse(html, content_type='text/html', status=404)
+        return HttpResponse(html, content_type='text/html; charset=utf-8', status=404)
+
+    except Exception as e:
+        logger.exception(f"QR scan : erreur inattendue pour '{table_code}'")
+        html = _render_qr_landing_html(
+            table_code=table_code,
+            restaurant_name='',
+            table_number='',
+            error="Une erreur est survenue. Réessayez plus tard.",
+        )
+        return HttpResponse(html, content_type='text/html; charset=utf-8', status=500)
