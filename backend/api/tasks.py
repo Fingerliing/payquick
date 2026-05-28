@@ -278,3 +278,6 @@ __all__ = [
     'cleanup_old_archived_sessions',
     'force_archive_abandoned_sessions',
 ]
+
+from api.services.menu_ai import tasks as _menu_ai_tasks
+from api.services.menu_ai import translate_tasks as _menu_ai_tr

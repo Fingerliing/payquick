@@ -52,4 +52,7 @@ urlpatterns = [
 
     # Notifications
     path('notifications/', include('api.urls.v1.notification_urls')),
+
+    # AI Menu
+    path('menu-ai/', include('api.urls.v1.menu_ai_urls')),
 ]

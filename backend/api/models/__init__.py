@@ -96,6 +96,12 @@ from .notification_models import (
     Notification
 )
 
+# AI Menu
+from .ai_menu_models import (
+    MenuScanJob, MenuScanImage, RestaurantBranding, MenuTranslationJob,
+    SUPPORTED_LANGUAGES, SOURCE_LANGUAGE, DEFAULT_TARGET_LANGUAGES,
+)
+
 __all__ = [
     # Validators
     'validate_siret',
@@ -167,4 +173,13 @@ __all__ = [
     'PushNotificationToken',
     'NotificationPreferences',
     'Notification',
+
+    # AI Menu
+    'MenuScanJob',
+    'MenuScanImage',
+    'RestaurantBranding',
+    'MenuTranslationJob',
+    'SUPPORTED_LANGUAGES',
+    'SOURCE_LANGUAGE',
+    'DEFAULT_TARGET_LANGUAGES',
 ]

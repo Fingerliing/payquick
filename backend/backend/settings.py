@@ -337,3 +337,10 @@ REGISTRATION_TEMP_DATA_EXPIRY_MINUTES = 30
 # Réutilise SMS_MAX_ATTEMPTS pour la limite de tentatives par code.
 PASSWORD_RESET_CODE_EXPIRY_MINUTES = 10
 PASSWORD_RESET_RESEND_COOLDOWN_SECONDS = 60
+
+# ── IA — Import de menu par photo ────────────────────────────────────────────
+MENU_AI_PROVIDER = config("MENU_AI_PROVIDER", default="anthropic")  # anthropic | openai
+ANTHROPIC_API_KEY = config("ANTHROPIC_API_KEY", default="")
+OPENAI_API_KEY = config("OPENAI_API_KEY", default="")
+MENU_AI_VISION_MODEL = config("MENU_AI_VISION_MODEL", default="")   # override optionnel
+MENU_AI_TEXT_MODEL = config("MENU_AI_TEXT_MODEL", default="")       # override optionnel
