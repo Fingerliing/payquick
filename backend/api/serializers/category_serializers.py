@@ -7,15 +7,35 @@ class MenuSubCategorySerializer(serializers.ModelSerializer):
     
     menu_items_count = serializers.ReadOnlyField()
     restaurant_id = serializers.CharField(source='category.restaurant.id', read_only=True)
+    # Multilingue : `display_name` resolu via ?lang= (repli francais).
+    display_name = serializers.SerializerMethodField()
+    available_languages = serializers.SerializerMethodField()
     
     class Meta:
         model = MenuSubCategory
         fields = [
             'id', 'name', 'description', 'is_active', 'order',
             'menu_items_count', 'restaurant_id',
+            'translations', 'display_name', 'available_languages',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'menu_items_count']
+
+    def _requested_lang(self):
+        request = self.context.get('request')
+        if not request:
+            return ''
+        return (request.query_params.get('lang') or '').strip().lower()
+
+    def get_display_name(self, obj):
+        if hasattr(obj, 'get_translated'):
+            return obj.get_translated('name', self._requested_lang())
+        return obj.name
+
+    def get_available_languages(self, obj):
+        if hasattr(obj, 'available_languages'):
+            return obj.available_languages()
+        return ['fr']
     
     def validate_name(self, value):
         """Validation du nom de sous-catégorie"""
@@ -33,6 +53,9 @@ class MenuCategorySerializer(serializers.ModelSerializer):
     active_subcategories_count = serializers.ReadOnlyField()
     total_menu_items_count = serializers.ReadOnlyField()
     restaurant_name = serializers.CharField(source='restaurant.name', read_only=True)
+    # Multilingue : `display_name` resolu via ?lang= (repli francais).
+    display_name = serializers.SerializerMethodField()
+    available_languages = serializers.SerializerMethodField()
     
     class Meta:
         model = MenuCategory
@@ -40,12 +63,29 @@ class MenuCategorySerializer(serializers.ModelSerializer):
             'id', 'name', 'description', 'icon', 'color', 
             'is_active', 'order', 'restaurant', 'restaurant_name',
             'subcategories', 'active_subcategories_count', 'total_menu_items_count',
+            'translations', 'display_name', 'available_languages',
             'created_at', 'updated_at'
         ]
         read_only_fields = [
             'id', 'created_at', 'updated_at', 
             'active_subcategories_count', 'total_menu_items_count'
         ]
+
+    def _requested_lang(self):
+        request = self.context.get('request')
+        if not request:
+            return ''
+        return (request.query_params.get('lang') or '').strip().lower()
+
+    def get_display_name(self, obj):
+        if hasattr(obj, 'get_translated'):
+            return obj.get_translated('name', self._requested_lang())
+        return obj.name
+
+    def get_available_languages(self, obj):
+        if hasattr(obj, 'available_languages'):
+            return obj.available_languages()
+        return ['fr']
     
     def validate_name(self, value):
         """Validation du nom de catégorie"""

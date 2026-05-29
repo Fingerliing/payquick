@@ -340,6 +340,13 @@ PASSWORD_RESET_CODE_EXPIRY_MINUTES = 10
 PASSWORD_RESET_RESEND_COOLDOWN_SECONDS = 60
 
 APPLE_TEAM_ID = config('APPLE_TEAM_ID', default='')
-IOS_BUNDLE_ID = config('IOS_BUNDLE_ID', default='com.fingerliing.EatQuickeR')
-ANDROID_PACKAGE_NAME = config('ANDROID_PACKAGE_NAME', default='com.fingerliing.EatQuickeR')
+IOS_BUNDLE_ID = config('IOS_BUNDLE_ID', default='fr.fingerliing.EatQuickeR')
+ANDROID_PACKAGE_NAME = config('ANDROID_PACKAGE_NAME', default='fr.fingerliing.EatQuickeR')
 ANDROID_SHA256_FINGERPRINTS = config('ANDROID_SHA256_FINGERPRINTS', default='')
+
+# ── IA — Import de menu par photo ────────────────────────────────────────────
+MENU_AI_PROVIDER = config("MENU_AI_PROVIDER", default="anthropic")  # anthropic | openai
+ANTHROPIC_API_KEY = config("ANTHROPIC_API_KEY", default="")
+OPENAI_API_KEY = config("OPENAI_API_KEY", default="")
+MENU_AI_VISION_MODEL = config("MENU_AI_VISION_MODEL", default="")   # override optionnel
+MENU_AI_TEXT_MODEL = config("MENU_AI_TEXT_MODEL", default="")       # override optionnel

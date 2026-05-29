@@ -196,7 +196,10 @@ class MenuViewSet(viewsets.ModelViewSet):
             restaurant_id=restaurant_id,
             is_available=True
         ).prefetch_related("items")  # si le serializer inclut les items
-        serializer = self.get_serializer(qs, many=True)
+        # Contexte explicite : garantit que `request` (donc ?lang=) est
+        # disponible dans MenuItemSerializer pour resoudre display_name /
+        # available_languages selon la langue demandee.
+        serializer = self.get_serializer(qs, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
     
 @extend_schema(tags=["Menu Items"])

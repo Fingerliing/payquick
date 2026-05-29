@@ -28,10 +28,13 @@ export class MenuService {
   }
 
   /**
-   * Récupérer un menu spécifique avec ses items
+   * Récupérer un menu spécifique avec ses items.
+   * @param lang Code langue d'aperçu ('' ou 'fr' = français). Propagé en
+   *             ?lang= pour obtenir display_name/display_description traduits.
    */
-  async getMenu(id: number): Promise<Menu> {
-    const menu = await apiClient.get(`/api/v1/menus/${id}/`);
+  async getMenu(id: number, lang?: string): Promise<Menu> {
+    const params = lang && lang !== 'fr' ? { lang } : undefined;
+    const menu = await apiClient.get(`/api/v1/menus/${id}/`, { params });
     return this.normalizeMenu(menu);
   }
 
@@ -107,9 +110,12 @@ export class MenuService {
   /**
    * Récupère les menus publics (is_available=True) d'un restaurant.
    * Accessible sans authentification — à utiliser côté client / session QR.
+   * @param lang Code langue d'affichage ('' ou 'fr' = français). Propagé en
+   *             ?lang= pour obtenir display_name/display_description traduits.
    */
-  async getPublicMenusByRestaurant(restaurantId: number): Promise<Menu[]> {
-    const menus = await apiClient.get(`/api/v1/menus/public/${restaurantId}/menus/`);
+  async getPublicMenusByRestaurant(restaurantId: number, lang?: string): Promise<Menu[]> {
+    const params = lang && lang !== 'fr' ? { lang } : undefined;
+    const menus = await apiClient.get(`/api/v1/menus/public/${restaurantId}/menus/`, { params });
     return Array.isArray(menus) ? menus.map(menu => this.normalizeMenu(menu)) : [];
   }
 

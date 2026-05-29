@@ -1,13 +1,15 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
+  Pressable,
   Image,
   Switch,
   Modal,
   StyleSheet,
+  ActivityIndicator,
   useWindowDimensions,
 } from 'react-native';
 import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
@@ -23,6 +25,13 @@ import { Alert, AlertWithAction, useAlert } from '@/components/ui/Alert';
 // Services & Types
 import { menuService } from '@/services/menuService';
 import { categoryService } from '@/services/categoryService';
+import { menuTranslationService } from '@/services/menuTranslationService';
+import {
+  MENU_LANGUAGES,
+  getMenuLanguage,
+  collectAvailableLanguages,
+  type MenuLanguage,
+} from '@/utils/menuLocale';
 import { Menu, MenuItem } from '@/types/menu';
 import { MenuCategory } from '@/types/category';
 
@@ -341,27 +350,102 @@ export default function MenuDetailScreen() {
   const [itemToDelete, setItemToDelete] = useState<MenuItem | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
 
+  // ── Traduction automatique du menu (IA) ────────────────────────────────────
+  const [translating, setTranslating] = useState(false);
+  const [translationProgress, setTranslationProgress] = useState(0);
+  const translationPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // ── Aperçu multilingue (lecture seule, comme le client) ────────────────────
+  const [previewLang, setPreviewLang] = useState<string>('fr');
+  const [showPreviewPicker, setShowPreviewPicker] = useState(false);
+  const [availableLanguages, setAvailableLanguages] =
+    useState<MenuLanguage[]>(MENU_LANGUAGES.slice(0, 1));
+
+  // ── Sélection des langues à traduire (popup avant lancement) ───────────────
+  const [showLangSelector, setShowLangSelector] = useState(false);
+  const [selectedLangs, setSelectedLangs] = useState<string[]>(['en', 'es', 'de', 'it']);
+
   // ── Chargement ─────────────────────────────────────────────────────────────
   useFocusEffect(
     useCallback(() => {
       loadInitialData();
-    }, [id])
+    }, [id, previewLang])
   );
 
   const loadInitialData = async () => {
     if (!id) return;
     try {
       setIsLoading(true);
-      const menuData = await menuService.getMenu(parseInt(id));
-      setMenu(menuData);
 
-      if (menuData.restaurant) {
-        const categoriesData = await categoryService.getCategoriesByRestaurant(
-          String(menuData.restaurant)
-        );
-        setCategories(categoriesData.categories || []);
+      // ── Étape 1 : le menu ───────────────────────────────────────────────
+      // `Menu.id` est un entier auto-incrémenté côté backend -> parseInt OK.
+      const menuId = parseInt(id, 10);
+      if (Number.isNaN(menuId)) {
+        console.error('[menu/[id]] ID de menu invalide:', id);
+        showError('Identifiant de menu invalide', 'Erreur');
+        router.back();
+        return;
       }
-    } catch (error) {
+
+      let menuData: Menu;
+      try {
+        menuData = await menuService.getMenu(menuId, previewLang);
+      } catch (menuError: any) {
+        console.error(
+          '[menu/[id]] Échec getMenu — id:', menuId,
+          '| code:', menuError?.code,
+          '| message:', menuError?.message,
+        );
+        showError('Ce menu est introuvable', 'Erreur');
+        router.back();
+        return;
+      }
+      // Résout les noms/descriptions dans la langue d'aperçu : on écrase
+      // name/description par les valeurs traduites (display_*), pour que
+      // l'affichage existant les utilise sans modification.
+      const rawItems: any[] = (menuData as any)?.items || [];
+      const localizedMenu: any = {
+        ...menuData,
+        items: rawItems.map((it: any) => ({
+          ...it,
+          name: it.display_name || it.name,
+          description: it.display_description ?? it.description ?? '',
+        })),
+      };
+      setMenu(localizedMenu);
+
+      // Langues réellement traduites (agrégées sur les plats du menu), pour
+      // alimenter le sélecteur d'aperçu en lecture seule.
+      setAvailableLanguages(
+        collectAvailableLanguages(rawItems.map((it: any) => it.available_languages)),
+      );
+
+      // ── Étape 2 : les catégories du restaurant (non bloquant) ───────────
+      // Un échec ici ne doit PAS empêcher l'affichage du menu : on continue
+      // avec une liste de catégories vide.
+      if (menuData.restaurant) {
+        try {
+          const categoriesData = await categoryService.getCategoriesByRestaurant(
+            String(menuData.restaurant),
+          );
+          // La réponse peut être { categories: [...] } ou directement un tableau.
+          const list = Array.isArray(categoriesData)
+            ? categoriesData
+            : categoriesData?.categories ?? [];
+          setCategories(list);
+        } catch (catError: any) {
+          console.warn(
+            '[menu/[id]] Échec getCategoriesByRestaurant — restaurant:',
+            menuData.restaurant,
+            '| code:', catError?.code,
+            '| message:', catError?.message,
+          );
+          setCategories([]);
+        }
+      } else {
+        setCategories([]);
+      }
+    } catch (error: any) {
       console.error('Erreur lors du chargement des données:', error);
       showError('Impossible de charger le menu', 'Erreur');
       router.back();
@@ -510,6 +594,103 @@ export default function MenuDetailScreen() {
     } as any);
   };
 
+  /** Ouvre l'import de carte par photo (IA) pour le restaurant du menu. */
+  const navigateToScan = () => {
+    if (!menu?.restaurant) return;
+    // On transmet aussi l'id du menu courant : l'import sera appliqué à CE
+    // menu, et non au premier menu du restaurant.
+    const menuParam = menu?.id ? `&menuId=${menu.id}` : '';
+    router.push(`/menu/scan?restaurantId=${menu.restaurant}${menuParam}` as any);
+  };
+
+  // Nettoyage du polling de traduction au démontage.
+  useEffect(() => {
+    return () => {
+      if (translationPollRef.current) {
+        clearInterval(translationPollRef.current);
+        translationPollRef.current = null;
+      }
+    };
+  }, []);
+
+  /**
+   * Lance la traduction automatique du menu : complète par IA toutes les
+   * langues manquantes des plats et catégories. Suit l'avancement par polling.
+   */
+  /** Ouvre le popup de choix des langues avant de lancer la traduction. */
+  const handleTranslateMenu = useCallback(() => {
+    if (translating) return;
+    setShowLangSelector(true);
+  }, [translating]);
+
+  /** Bascule une langue dans la sélection. */
+  const toggleSelectedLang = useCallback((code: string) => {
+    setSelectedLangs((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code],
+    );
+  }, []);
+
+  /** Lance effectivement la traduction avec les langues choisies. */
+  const launchTranslation = useCallback(async () => {
+    if (!menu?.restaurant || translating || selectedLangs.length === 0) return;
+
+    setShowLangSelector(false);
+    setTranslating(true);
+    setTranslationProgress(0);
+    try {
+      const job = await menuTranslationService.start(
+        String(menu.restaurant),
+        selectedLangs,
+      );
+
+      // Polling de l'avancement, toutes les 2,5 s (plafond ~5 min).
+      let attempts = 0;
+      const maxAttempts = 120;
+      translationPollRef.current = setInterval(async () => {
+        attempts += 1;
+        try {
+          const fresh = await menuTranslationService.get(job.id);
+          setTranslationProgress(fresh.progress_percent || 0);
+
+          if (fresh.status === 'done' || fresh.status === 'failed' || attempts >= maxAttempts) {
+            if (translationPollRef.current) {
+              clearInterval(translationPollRef.current);
+              translationPollRef.current = null;
+            }
+            setTranslating(false);
+
+            if (fresh.status === 'done') {
+              const r = fresh.report as any;
+              const total =
+                (r?.items_translated || 0) +
+                (r?.categories_translated || 0) +
+                (r?.subcategories_translated || 0);
+              showSuccess(
+                total > 0
+                  ? `${total} élément(s) traduits dans ${fresh.target_languages.length} langue(s).`
+                  : 'Tout était déjà traduit.',
+                'Traduction terminée',
+              );
+              loadInitialData();
+            } else if (fresh.status === 'failed') {
+              showError(
+                fresh.error_message || 'La traduction a échoué.',
+                'Erreur',
+              );
+            } else {
+              showError('La traduction prend trop de temps. Réessayez.', 'Délai dépassé');
+            }
+          }
+        } catch {
+          /* erreur réseau ponctuelle : on retentera au prochain tick */
+        }
+      }, 2500);
+    } catch (error: any) {
+      setTranslating(false);
+      showError(error?.message || 'Impossible de lancer la traduction.', 'Erreur');
+    }
+  }, [menu?.restaurant, translating, selectedLangs, showSuccess, showError]);
+
   // ── Render helpers ─────────────────────────────────────────────────────────
 
   /** Calcule le nombre de colonnes selon la largeur disponible pour la grille */
@@ -540,6 +721,15 @@ export default function MenuDetailScreen() {
             variant="primary"
             leftIcon={<Ionicons name="add-circle-outline" size={20} color={COLORS.text.inverse} />}
           />
+          {totalItems === 0 && (
+            <Button
+              title="Importer une carte par photo"
+              onPress={navigateToScan}
+              variant="outline"
+              leftIcon={<Ionicons name="sparkles-outline" size={20} color={COLORS.primary} />}
+              style={{ marginTop: 12 }}
+            />
+          )}
         </View>
       );
     }
@@ -620,6 +810,32 @@ export default function MenuDetailScreen() {
       {/* Bandeau "Ajouter un plat" — visible uniquement sur desktop/tablet (sinon icône header suffit) */}
       {useSidebar && (
         <View style={styles.actionBar}>
+          <Button
+            title="Importer par photo"
+            onPress={navigateToScan}
+            variant="outline"
+            size="sm"
+            leftIcon={<Ionicons name="sparkles-outline" size={16} color={COLORS.primary} />}
+          />
+          <Button
+            title={translating ? `Traduction… ${translationProgress}%` : 'Traduire le menu'}
+            onPress={handleTranslateMenu}
+            variant="outline"
+            size="sm"
+            disabled={translating}
+            leftIcon={<Ionicons name="language-outline" size={16} color={COLORS.primary} />}
+            style={{ marginLeft: 8 }}
+          />
+          {availableLanguages.length > 1 && (
+            <Button
+              title={`Aperçu : ${getMenuLanguage(previewLang).flag} ${previewLang.toUpperCase()}`}
+              onPress={() => setShowPreviewPicker(true)}
+              variant="ghost"
+              size="sm"
+              leftIcon={<Ionicons name="eye-outline" size={16} color={COLORS.primary} />}
+              style={{ marginLeft: 8 }}
+            />
+          )}
           <View style={styles.actionBarSpacer} />
           <Button
             title="+ Ajouter un plat"
@@ -627,6 +843,58 @@ export default function MenuDetailScreen() {
             variant="primary"
             size="sm"
           />
+        </View>
+      )}
+
+      {/* Barre d'accès à l'import par photo — mobile uniquement */}
+      {!useSidebar && (
+        <View style={styles.scanBar}>
+          <TouchableOpacity
+            style={styles.scanBarButton}
+            onPress={navigateToScan}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="sparkles" size={16} color={COLORS.primary} />
+            <Text style={styles.scanBarText}>Importer une carte par photo</Text>
+            <Ionicons
+              name="chevron-forward"
+              size={16}
+              color={COLORS.text.secondary}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.scanBarButton, { marginTop: 8 }]}
+            onPress={handleTranslateMenu}
+            activeOpacity={0.8}
+            disabled={translating}
+          >
+            {translating ? (
+              <ActivityIndicator size="small" color={COLORS.primary} />
+            ) : (
+              <Ionicons name="language-outline" size={16} color={COLORS.primary} />
+            )}
+            <Text style={styles.scanBarText}>
+              {translating ? `Traduction en cours… ${translationProgress}%` : 'Traduire le menu'}
+            </Text>
+            {!translating && (
+              <Ionicons name="chevron-forward" size={16} color={COLORS.text.secondary} />
+            )}
+          </TouchableOpacity>
+
+          {availableLanguages.length > 1 && (
+            <TouchableOpacity
+              style={[styles.scanBarButton, { marginTop: 8 }]}
+              onPress={() => setShowPreviewPicker(true)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="eye-outline" size={16} color={COLORS.primary} />
+              <Text style={styles.scanBarText}>
+                Aperçu : {getMenuLanguage(previewLang).flag} {getMenuLanguage(previewLang).label}
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color={COLORS.text.secondary} />
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
@@ -707,6 +975,100 @@ export default function MenuDetailScreen() {
         </Modal>
       )}
 
+      {/* Modal — sélection des langues à traduire */}
+      <Modal
+        visible={showLangSelector}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setShowLangSelector(false)}
+      >
+        <View style={styles.langModalOverlay}>
+          <View style={styles.langModalCard}>
+            <Text style={styles.langModalTitle}>Langues à traduire</Text>
+            <Text style={styles.langModalSubtitle}>
+              Seul ce qui n'est pas encore traduit sera complété.
+            </Text>
+            <View style={styles.langChipsWrap}>
+              {MENU_LANGUAGES.filter((l) => l.code !== 'fr').map((language) => {
+                const selected = selectedLangs.includes(language.code);
+                return (
+                  <TouchableOpacity
+                    key={language.code}
+                    onPress={() => toggleSelectedLang(language.code)}
+                    activeOpacity={0.8}
+                    style={[styles.langChip, selected && styles.langChipSelected]}
+                  >
+                    {selected && (
+                      <Ionicons name="checkmark-circle" size={15} color={COLORS.primary} />
+                    )}
+                    <Text style={[styles.langChipText, selected && styles.langChipTextSelected]}>
+                      {language.flag} {language.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <View style={styles.langModalActions}>
+              <Button
+                title="Annuler"
+                onPress={() => setShowLangSelector(false)}
+                variant="ghost"
+                size="sm"
+              />
+              <Button
+                title={`Traduire (${selectedLangs.length})`}
+                onPress={launchTranslation}
+                variant="primary"
+                size="sm"
+                disabled={selectedLangs.length === 0}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal — aperçu langue (lecture seule) */}
+      <Modal
+        visible={showPreviewPicker}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setShowPreviewPicker(false)}
+      >
+        <Pressable
+          onPress={() => setShowPreviewPicker(false)}
+          style={styles.langModalOverlay}
+        >
+          <View style={styles.langModalCard}>
+            <Text style={styles.langModalTitle}>Aperçu du menu</Text>
+            <Text style={styles.langModalSubtitle}>
+              Visualisez votre menu tel que le verra le client.
+            </Text>
+            {availableLanguages.map((language) => {
+              const selected = language.code === previewLang;
+              return (
+                <TouchableOpacity
+                  key={language.code}
+                  onPress={() => {
+                    setShowPreviewPicker(false);
+                    if (language.code !== previewLang) setPreviewLang(language.code);
+                  }}
+                  activeOpacity={0.8}
+                  style={[styles.previewRow, selected && styles.previewRowSelected]}
+                >
+                  <Text style={{ fontSize: 20 }}>{language.flag}</Text>
+                  <Text style={[styles.previewRowText, selected && { color: COLORS.primary, fontWeight: '700' }]}>
+                    {language.label}
+                  </Text>
+                  {selected && <Ionicons name="checkmark-circle" size={18} color={COLORS.primary} />}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </Pressable>
+      </Modal>
+
       {/* Toast d'alerte (success / error) — épinglé en haut, sous le notch */}
       {alertState && (
         <View
@@ -754,6 +1116,108 @@ const styles = StyleSheet.create({
   },
   actionBarSpacer: {
     flex: 1,
+  },
+
+  // Barre d'accès à l'import de carte par photo (mobile)
+  scanBar: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: COLORS.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border.light,
+  },
+  scanBarButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    backgroundColor: COLORS.goldenSurface,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border.golden,
+  },
+  scanBarText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.primary,
+  },
+
+  // Modaux de langue (sélection + aperçu)
+  langModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    paddingHorizontal: 28,
+  },
+  langModalCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
+    padding: 18,
+  },
+  langModalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.text.primary,
+  },
+  langModalSubtitle: {
+    fontSize: 13,
+    color: COLORS.text.secondary,
+    marginTop: 4,
+    marginBottom: 14,
+  },
+  langChipsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  langChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: COLORS.border.default,
+    backgroundColor: COLORS.background,
+  },
+  langChipSelected: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primary + '12',
+  },
+  langChipText: {
+    fontSize: 13,
+    color: COLORS.text.secondary,
+    fontWeight: '500',
+  },
+  langChipTextSelected: {
+    color: COLORS.primary,
+    fontWeight: '700',
+  },
+  langModalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+    marginTop: 18,
+  },
+  previewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+  },
+  previewRowSelected: {
+    backgroundColor: COLORS.primary + '12',
+  },
+  previewRowText: {
+    flex: 1,
+    fontSize: 15,
+    color: COLORS.text.primary,
+    fontWeight: '500',
   },
 
   // Body (layout sidebar+grid ou colonne)

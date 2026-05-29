@@ -15,6 +15,71 @@ import random
 import string
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Mixin de traduction
+# ─────────────────────────────────────────────────────────────────────────────
+class TranslatableModelMixin(models.Model):
+    """Ajoute un champ `translations` et un accès traduit avec repli français.
+
+    Le contenu en français (langue source des cartes) reste porté par les
+    champs natifs du modèle (`name`, `description`...). Le champ `translations`
+    ne stocke QUE les langues étrangères, sous la forme ::
+
+        {
+          "en": {"name": "Caesar salad", "description": "..."},
+          "es": {"name": "Ensalada César", "description": "..."}
+        }
+
+    Alimenté automatiquement par le pipeline d'import de menu par IA
+    (cf. services/menu_ai/), mais éditable manuellement par le restaurateur.
+    """
+
+    translations = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name="Traductions",
+        help_text=(
+            "Traductions par code langue : "
+            "{'en': {'name': ..., 'description': ...}}. "
+            "Le français est porté par les champs natifs."
+        ),
+    )
+
+    class Meta:
+        abstract = True
+
+    def get_translated(self, field_name, lang=None):
+        """Retourne la valeur d'un champ dans la langue demandée.
+
+        - `lang` vide ou `'fr'` -> valeur française native du champ.
+        - Sinon -> traduction si elle existe et n'est pas vide ;
+          repli sur la valeur française native dans le cas contraire.
+
+        Ne lève jamais d'erreur : un champ ou une langue absente renvoie
+        simplement la valeur native (éventuellement une chaîne vide).
+        """
+        native = getattr(self, field_name, '') or ''
+        if not lang or lang == 'fr':
+            return native
+
+        bucket = (self.translations or {}).get(lang)
+        if isinstance(bucket, dict):
+            value = bucket.get(field_name)
+            if isinstance(value, str) and value.strip():
+                return value
+        return native
+
+    def available_languages(self):
+        """Codes langues disposant d'au moins une traduction, français inclus."""
+        langs = ['fr']
+        for code, bucket in (self.translations or {}).items():
+            if isinstance(bucket, dict) and any(
+                isinstance(v, str) and v.strip() for v in bucket.values()
+            ):
+                langs.append(code)
+        return langs
+
+
 class Menu(models.Model):
     name = models.CharField(max_length=100)
     restaurant = models.ForeignKey('Restaurant', on_delete=models.CASCADE, related_name='menu')
@@ -26,7 +91,7 @@ class Menu(models.Model):
         return f"Menu de {self.restaurant.name}"
 
 
-class MenuCategory(models.Model):
+class MenuCategory(TranslatableModelMixin):
     """
     Modèle pour les catégories principales de menu (Entrées, Plats, Desserts, etc.)
     """
@@ -114,7 +179,7 @@ class MenuCategory(models.Model):
         return MenuItem.objects.filter(category=self, is_available=True).count()
 
 
-class MenuSubCategory(models.Model):
+class MenuSubCategory(TranslatableModelMixin):
     """
     Modèle pour les sous-catégories (Terre, Mer, Végétarien, etc.)
     """
@@ -179,7 +244,7 @@ class MenuSubCategory(models.Model):
         ).count()
 
 
-class MenuItem(models.Model):
+class MenuItem(TranslatableModelMixin):
     menu = models.ForeignKey(Menu, on_delete=models.CASCADE, related_name='items')
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)

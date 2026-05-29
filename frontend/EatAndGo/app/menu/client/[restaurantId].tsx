@@ -33,6 +33,12 @@ import { restaurantService } from '@/services/restaurantService';
 import { dailyMenuService, PublicDailyMenu } from '@/services/dailyMenuService';
 import { computeFormulaStatus, formatFormulaMissingMessage } from '@/utils/dailyMenuFormula';
 import { collaborativeSessionService } from '@/services/collaborativeSessionService';
+import {
+  MENU_LANGUAGES,
+  getMenuLanguage,
+  collectAvailableLanguages,
+  type MenuLanguage,
+} from '@/utils/menuLocale';
 
 // UI components conservés
 import { SessionJoinModal } from '@/components/session/SessionJoinModal';
@@ -235,6 +241,12 @@ export default function ClientRestaurantPage() {
 const [showSessionJoinModal, setShowSessionJoinModal] = useState(false);
 const [activeSessionOnTable, setActiveSessionOnTable] = useState<any>(null);
 
+// ─── Langue d'affichage du menu (multilingue) ──────────────────────────────
+const [lang, setLang] = useState<string>('fr');
+const [showLanguagePicker, setShowLanguagePicker] = useState(false);
+const [availableLanguages, setAvailableLanguages] =
+  useState<MenuLanguage[]>(MENU_LANGUAGES.slice(0, 1));
+
 useEffect(() => {
   // Si on est déjà dans une session active (sessionId en URL ou contexte),
   // pas besoin de vérifier — c'est notre session, gérée par les hooks
@@ -418,11 +430,32 @@ const handleOrderAloneFromMenu = useCallback(() => {
       // ne doit pas faire échouer le chargement de la page entière.
       const [restaurantData, menusData, dailyMenuRes] = await Promise.all([
         restaurantService.getPublicRestaurant(restaurantId),
-        menuService.getPublicMenusByRestaurant(parsedId),
+        menuService.getPublicMenusByRestaurant(parsedId, lang),
         dailyMenuService.getPublicDailyMenu(parsedId).catch(() => null),
       ]);
       setRestaurant(restaurantData);
-      setMenus(menusData);
+
+      // Résout les noms/descriptions dans la langue choisie : on écrase
+      // `name`/`description` par les valeurs traduites (display_*), pour que
+      // tout le reste de l'écran (DishCard, panier, recherche) les utilise
+      // sans changement. Le nom français reste accessible via `_originalName`.
+      const localizedMenus = (menusData || []).map((m: any) => ({
+        ...m,
+        items: (m.items || []).map((it: any) => ({
+          ...it,
+          _originalName: it.name,
+          name: it.display_name || it.name,
+          description: it.display_description || it.description || '',
+        })),
+      }));
+      setMenus(localizedMenus);
+
+      // Langues réellement disponibles, agrégées sur tous les plats.
+      const allItems = (menusData || []).flatMap((m: any) => m.items || []);
+      setAvailableLanguages(
+        collectAvailableLanguages(allItems.map((it: any) => it.available_languages)),
+      );
+
       setDailyMenu(dailyMenuRes);
     } catch (error) {
       showToast('error', 'Erreur', 'Impossible de charger le menu');
@@ -433,7 +466,7 @@ const handleOrderAloneFromMenu = useCallback(() => {
       setIsLoading(false);
       setRefreshing(false);
     }
-  }, [restaurantId, showToast]);
+  }, [restaurantId, showToast, lang]);
 
   useEffect(() => {
     loadData();
@@ -1060,8 +1093,20 @@ const handleOrderAloneFromMenu = useCallback(() => {
             </Text>
           </View>
 
-          {/* Espace équilibré (le code session a son propre banner sous le header) */}
-          <View style={styles.headerSide} />
+          {/* Sélecteur de langue (visible si plus d'une langue traduite) */}
+          {availableLanguages.length > 1 ? (
+            <Pressable
+              onPress={() => setShowLanguagePicker(true)}
+              style={styles.headerSide}
+              hitSlop={8}
+            >
+              <Text style={{ fontSize: 13, fontWeight: '700', color: COLORS.text.inverse }}>
+                {getMenuLanguage(lang).flag} {lang.toUpperCase()}
+              </Text>
+            </Pressable>
+          ) : (
+            <View style={styles.headerSide} />
+          )}
         </View>
 
         {/* ─── Bandeau session active sur la table (hors session courante) ── */}
@@ -1364,6 +1409,63 @@ const handleOrderAloneFromMenu = useCallback(() => {
           onOrderAlone={handleOrderAloneFromMenu}
         />
       )}
+
+      {/* Sélecteur de langue du menu */}
+      <Modal
+        visible={showLanguagePicker}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setShowLanguagePicker(false)}
+      >
+        <Pressable
+          onPress={() => setShowLanguagePicker(false)}
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.45)',
+            justifyContent: 'center',
+            paddingHorizontal: 32,
+          }}
+        >
+          <View style={{ backgroundColor: COLORS.surface, borderRadius: 16, padding: 16 }}>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: COLORS.text.primary, marginBottom: 12 }}>
+              Langue du menu
+            </Text>
+            {availableLanguages.map((language) => {
+              const selected = language.code === lang;
+              return (
+                <Pressable
+                  key={language.code}
+                  onPress={() => {
+                    setShowLanguagePicker(false);
+                    if (language.code !== lang) setLang(language.code);
+                  }}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 12,
+                    paddingVertical: 12,
+                    paddingHorizontal: 12,
+                    borderRadius: 12,
+                    backgroundColor: selected ? COLORS.primary + '15' : 'transparent',
+                  }}
+                >
+                  <Text style={{ fontSize: 22 }}>{language.flag}</Text>
+                  <Text style={{
+                    flex: 1,
+                    fontSize: 15,
+                    fontWeight: selected ? '700' : '500',
+                    color: selected ? COLORS.primary : COLORS.text.primary,
+                  }}>
+                    {language.label}
+                  </Text>
+                  {selected && <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />}
+                </Pressable>
+              );
+            })}
+          </View>
+        </Pressable>
+      </Modal>
     </UnpaidOrderGate>
   );
 }

@@ -8,3 +8,5 @@ from .guest_serializers import *
 from .table_serializers import *
 from .notification_serializers import *
 from .daily_menu_serializers import *
+from .menu_ai_serializers import *
+from .menu_translation_serializers import *

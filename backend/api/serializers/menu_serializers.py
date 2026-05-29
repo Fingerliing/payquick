@@ -5,9 +5,12 @@ from api.models import Menu, MenuItem
 class MenuItemSerializer(serializers.ModelSerializer):
     """Serializer amélioré pour les items de menu avec catégories"""
     
-    category_name = serializers.CharField(source='category.name', read_only=True)
+    # category_name / subcategory_name : resolus dans la langue demandee
+    # (?lang=), repli francais. La categorie et la sous-categorie heritent du
+    # mixin de traduction (get_translated), comme les plats.
+    category_name = serializers.SerializerMethodField()
     category_icon = serializers.CharField(source='category.icon', read_only=True)
-    subcategory_name = serializers.CharField(source='subcategory.name', read_only=True)
+    subcategory_name = serializers.SerializerMethodField()
     dietary_tags = serializers.ReadOnlyField()
     allergen_display = serializers.ReadOnlyField()
     image = serializers.ImageField(required=False, allow_null=True)
@@ -27,7 +30,17 @@ class MenuItemSerializer(serializers.ModelSerializer):
     price_excl_vat = serializers.ReadOnlyField()
     vat_amount = serializers.ReadOnlyField()
     vat_rate_display = serializers.ReadOnlyField()
-    
+
+    # ── Multilingue ──────────────────────────────────────────────────────────
+    # `translations` : édition directe du dictionnaire complet de traductions.
+    # `display_name` / `display_description` : valeurs résolues dans la langue
+    #   demandée (paramètre de requête `?lang=`), avec repli français — pour
+    #   l'affichage côté client sans logique de résolution dans l'app.
+    # `available_languages` : codes langues réellement disponibles pour ce plat.
+    display_name = serializers.SerializerMethodField()
+    display_description = serializers.SerializerMethodField()
+    available_languages = serializers.SerializerMethodField()
+
     class Meta:
         model = MenuItem
         fields = [
@@ -40,9 +53,54 @@ class MenuItemSerializer(serializers.ModelSerializer):
             'image', 'image_url',
             'created_at', 'updated_at',
             'vat_category', 'vat_rate', 'price_excl_vat', 
-            'vat_amount', 'vat_rate_display'
+            'vat_amount', 'vat_rate_display',
+            'translations', 'display_name', 'display_description',
+            'available_languages',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'dietary_tags', 'allergen_display', 'image_url']
+
+    def _requested_lang(self):
+        """Code langue demandé via `?lang=` (vide -> français)."""
+        request = self.context.get('request')
+        if not request:
+            return ''
+        return (request.query_params.get('lang') or '').strip().lower()
+
+    def get_category_name(self, obj):
+        """Nom de catégorie résolu dans la langue demandée, repli français."""
+        category = obj.category
+        if category is None:
+            return None
+        if hasattr(category, 'get_translated'):
+            return category.get_translated('name', self._requested_lang())
+        return category.name
+
+    def get_subcategory_name(self, obj):
+        """Nom de sous-catégorie résolu dans la langue demandée, repli français."""
+        subcategory = obj.subcategory
+        if subcategory is None:
+            return None
+        if hasattr(subcategory, 'get_translated'):
+            return subcategory.get_translated('name', self._requested_lang())
+        return subcategory.name
+
+    def get_display_name(self, obj):
+        """Nom résolu dans la langue demandée, repli français."""
+        if hasattr(obj, 'get_translated'):
+            return obj.get_translated('name', self._requested_lang())
+        return obj.name
+
+    def get_display_description(self, obj):
+        """Description résolue dans la langue demandée, repli français."""
+        if hasattr(obj, 'get_translated'):
+            return obj.get_translated('description', self._requested_lang())
+        return obj.description
+
+    def get_available_languages(self, obj):
+        """Langues disposant d'au moins une traduction (français inclus)."""
+        if hasattr(obj, 'available_languages'):
+            return obj.available_languages()
+        return ['fr']
     
     def create(self, validated_data):
         # Arrondir le vat_rate à 3 décimales si fourni
