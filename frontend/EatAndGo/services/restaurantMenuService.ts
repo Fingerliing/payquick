@@ -65,8 +65,12 @@ export interface ApiMenuItem {
   category: string;
   category_name?: string;
   category_icon?: string;
+  /** Ordre de la categorie tel que defini cote restaurateur. */
+  category_order?: number;
   subcategory?: string | null;
   subcategory_name?: string | null;
+  /** Ordre de la sous-categorie tel que defini cote restaurateur. */
+  subcategory_order?: number;
   allergens?: string[];
   is_vegetarian?: boolean;
   is_vegan?: boolean;
@@ -188,7 +192,9 @@ export const restaurantMenuService = {
             id: it.category,
             name: it.category_name || 'Catégorie',
             icon: it.category_icon,
-            order: index + 1,
+            // Privilegie l'ordre defini cote restaurateur (expose par
+            // MenuItemSerializer). Fallback : position de decouverte.
+            order: it.category_order ?? index + 1,
           });
         }
         if (it.subcategory && !subMap.has(it.subcategory)) {
@@ -196,7 +202,7 @@ export const restaurantMenuService = {
             id: it.subcategory,
             name: it.subcategory_name || 'Sous-catégorie',
             category: it.category,
-            order: index + 1,
+            order: it.subcategory_order ?? index + 1,
           });
         }
       });

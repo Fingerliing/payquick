@@ -10,7 +10,13 @@ class MenuItemSerializer(serializers.ModelSerializer):
     # mixin de traduction (get_translated), comme les plats.
     category_name = serializers.SerializerMethodField()
     category_icon = serializers.CharField(source='category.icon', read_only=True)
+    # Ordre defini cote restaurateur (ecran "Reorganiser les categories").
+    # Expose ici pour que le menu client public puisse trier correctement,
+    # car l'endpoint /api/v1/menu/categories/restaurant/<id>/ est restreint
+    # aux restaurateurs authentifies.
+    category_order = serializers.IntegerField(source='category.order', read_only=True)
     subcategory_name = serializers.SerializerMethodField()
+    subcategory_order = serializers.IntegerField(source='subcategory.order', read_only=True)
     dietary_tags = serializers.ReadOnlyField()
     allergen_display = serializers.ReadOnlyField()
     image = serializers.ImageField(required=False, allow_null=True)
@@ -45,8 +51,8 @@ class MenuItemSerializer(serializers.ModelSerializer):
         model = MenuItem
         fields = [
             'id', 'menu', 'name', 'description', 'price', 'is_available',
-            'category', 'category_name', 'category_icon',
-            'subcategory', 'subcategory_name',
+            'category', 'category_name', 'category_icon', 'category_order',
+            'subcategory', 'subcategory_name', 'subcategory_order',
             'allergens', 'allergen_display',
             'is_vegetarian', 'is_vegan', 'is_gluten_free',
             'dietary_tags', 'preparation_time',

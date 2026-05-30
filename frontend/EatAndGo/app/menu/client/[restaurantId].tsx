@@ -476,9 +476,15 @@ const handleOrderAloneFromMenu = useCallback(() => {
   const allMenuItems = useMemo(() => menus.flatMap(m => m.items || []), [menus]);
 
   const categories = useMemo<MenuCategory[]>(() => {
-    const map = new Map<string, MenuCategory>();
+    // On capture l'ordre defini cote restaurateur (champ `category_order`
+    // expose par MenuItemSerializer depuis l'ecran "Reorganiser les
+    // categories"). Si plusieurs items d'une meme categorie portent un
+    // ordre different (incoherence backend), on garde le plus petit.
+    const map = new Map<string, MenuCategory & { _order: number }>();
     allMenuItems.forEach(item => {
       const catName = item.category_name || 'Autres';
+      const itemOrder = (item as any).category_order;
+      const order = typeof itemOrder === 'number' ? itemOrder : Number.MAX_SAFE_INTEGER;
       if (!map.has(catName)) {
         map.set(catName, {
           id: catName,
@@ -486,13 +492,18 @@ const handleOrderAloneFromMenu = useCallback(() => {
           emoji: inferCategoryEmoji(catName),
           count: 0,
           items: [],
+          _order: order,
         });
       }
       const cat = map.get(catName)!;
       cat.items.push(item);
       cat.count++;
+      if (order < cat._order) cat._order = order;
     });
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+    return Array.from(map.values()).sort((a, b) => {
+      if (a._order !== b._order) return a._order - b._order;
+      return a.name.localeCompare(b.name); // tie-breaker stable
+    });
   }, [allMenuItems]);
 
   // ─── Menu du jour : config formule + items aplatis ─────────────────────
