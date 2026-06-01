@@ -7,8 +7,9 @@ import {
   Image,
   StyleSheet,
   ActivityIndicator,
+  BackHandler,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 // Contexts & Hooks
@@ -554,6 +555,58 @@ export default function CartScreen() {
   // Mode session collaborative
   const isSessionMode = !!ctxSessionId;
 
+  // ============================================================================
+  // BACK NAVIGATION
+  // ============================================================================
+  // Le panier est dans le groupe Tabs (client), alors que la page menu
+  // (/menu/client/[restaurantId]) est hors-tabs. router.back() depuis l'onglet
+  // Panier bascule donc sur l'onglet par défaut du groupe (Scanner/Accueil)
+  // au lieu de remonter sur le menu. On reconstruit explicitement l'URL du
+  // menu à partir du contexte du panier pour rétablir le retour attendu.
+  const handleGoBack = useCallback(() => {
+    const targetRestaurantId =
+      cart.restaurantId ?? (isSessionMode ? ctxSession?.restaurant : undefined);
+    const targetTableNumber = currentTableNumber || cart.tableNumber;
+
+    if (targetRestaurantId != null) {
+      const qs: string[] = [];
+      if (targetTableNumber) {
+        qs.push(`tableNumber=${encodeURIComponent(String(targetTableNumber))}`);
+      }
+      if (isSessionMode && ctxSessionId) {
+        qs.push(`sessionId=${encodeURIComponent(String(ctxSessionId))}`);
+      }
+      const query = qs.length > 0 ? `?${qs.join('&')}` : '';
+      router.replace(`/menu/client/${targetRestaurantId}${query}` as any);
+      return;
+    }
+
+    // Pas de contexte restaurant : fallback raisonnable
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(client)' as any);
+    }
+  }, [
+    cart.restaurantId,
+    cart.tableNumber,
+    currentTableNumber,
+    isSessionMode,
+    ctxSession?.restaurant,
+    ctxSessionId,
+  ]);
+
+  // Bouton retour matériel Android — même comportement que la flèche du header
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        handleGoBack();
+        return true; // empêche le comportement par défaut
+      });
+      return () => sub.remove();
+    }, [handleGoBack])
+  );
+
   const sessionCart = useSessionCart({
     sessionId: ctxSessionId,
     participantId: ctxParticipantId,
@@ -876,7 +929,7 @@ export default function CartScreen() {
         <Header
           title="Panier"
           leftIcon="arrow-back"
-          onLeftPress={() => router.back()}
+          onLeftPress={handleGoBack}
         />
         <EmptyCart screenType={screenType} />
       </View>
@@ -889,7 +942,7 @@ export default function CartScreen() {
       <Header
         title={`Panier (${itemCount})`}
         leftIcon="arrow-back"
-        onLeftPress={() => router.back()}
+        onLeftPress={handleGoBack}
         rightIcon="trash-outline"
         onRightPress={handleClearCart}
       />
