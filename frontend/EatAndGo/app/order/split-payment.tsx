@@ -25,8 +25,13 @@ import { Alert, useAlert } from '@/components/ui/Alert';
 
 // Split payment
 import { SplitPaymentStatus } from '@/components/payment/SplitPaymentStatus';
-import { SplitPaymentModal } from '@/components/payment/SplitPaymentModal';
-import { SplitPaymentSession, SplitPaymentMode, SplitPaymentPortion } from '@/types/splitPayment';
+import { SplitPaymentModal, KnownParticipant } from '@/components/payment/SplitPaymentModal';
+import { ItemSplitSelector } from '@/components/payment/ItemSplitSelector';
+import {
+  SplitPaymentSession,
+  SplitPaymentMode,
+  CreatePortionInput,
+} from '@/types/splitPayment';
 import { splitPaymentService } from '@/services/splitPaymentService';
 
 // Services
@@ -161,15 +166,35 @@ export default function SplitPaymentScreen() {
     init();
   }, [orderId]);
 
-  // Polling pour rafraîchir le statut du split (toutes les 10s)
+  // Polling pour rafraîchir le statut du split (toutes les 12s) — fallback
+  // si le WebSocket ne fonctionne pas. La source de vérité primaire est
+  // l'événement `split_payment_updated` (cf. SessionContext + ws message handlers).
   useFocusEffect(
     useCallback(() => {
       const interval = setInterval(() => {
         if (!paymentSuccess) loadSplitSession();
-      }, 10000);
+      }, 12000);
       return () => clearInterval(interval);
     }, [loadSplitSession, paymentSuccess])
   );
+
+  // Liste des participants connus de la session collaborative — utilisée
+  // pour pré-remplir les portions en mode `items` (une part par participant).
+  const knownParticipants: KnownParticipant[] = useMemo(() => {
+    const rawParticipants = (session?.participants ?? []) as any[];
+    return rawParticipants
+      .filter((p) => p?.status === 'active' || p?.is_host)
+      .map((p) => ({
+        id: String(p.id),
+        name:
+          p.display_name
+          || p.guest_name
+          || p.user?.first_name
+          || p.user?.email
+          || p.name
+          || 'Participant',
+      }));
+  }, [session?.participants]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -181,7 +206,7 @@ export default function SplitPaymentScreen() {
 
   const handleSplitConfirm = async (
     mode: SplitPaymentMode,
-    portions: Omit<SplitPaymentPortion, 'id' | 'isPaid' | 'paidAt'>[]
+    portions: CreatePortionInput[]
   ) => {
     setShowSplitModal(false);
 
@@ -198,13 +223,18 @@ export default function SplitPaymentScreen() {
         await splitPaymentService.cancelSplitSession(orderId as string);
       }
 
+      const orderTotal = safeParseAmount(order?.total_amount);
+      const tipAmount = safeParseAmount((order as any)?.tip_amount);
+
       const sess = await splitPaymentService.createSplitSession(
         orderId as string,
         mode,
         portions.map((p) => ({
           name: p.name,
           amount: safeParseAmount(p.amount),
-        }))
+          participantId: p.participantId ?? null,
+        })),
+        tipAmount,
       );
 
       setSplitSession(sess);
@@ -220,12 +250,12 @@ export default function SplitPaymentScreen() {
         if (firstUnpaid) setCurrentUserPortionId(firstUnpaid.id);
       }
 
-      showSuccess(
-        mode === 'equal'
-          ? `Note divisée équitablement entre ${portions.length} personnes`
-          : `Note divisée en ${portions.length} parts personnalisées`,
-        'Division configurée'
-      );
+      const modeLabel = mode === 'equal'
+        ? `Note divisée équitablement entre ${portions.length} personnes`
+        : mode === 'custom'
+          ? `Note divisée en ${portions.length} parts personnalisées`
+          : `Mode "par plat" activé pour ${portions.length} personne(s)`;
+      showSuccess(modeLabel, 'Division configurée');
     } catch (error) {
       console.error('Error creating split session:', error);
       showError('Impossible de créer la division de la note', 'Erreur');
@@ -233,6 +263,42 @@ export default function SplitPaymentScreen() {
       setProcessing(false);
     }
   };
+
+  // ── Claim / Unclaim (mode `items`) ─────────────────────────────────────
+
+  const handleClaim = useCallback(async (portionId: string, orderItemId: number) => {
+    setProcessing(true);
+    try {
+      const updated = await splitPaymentService.claimItem(
+        orderId as string,
+        portionId,
+        orderItemId,
+      );
+      setSplitSession(updated);
+    } catch (error: any) {
+      console.error('Error claiming item:', error);
+      showError(error?.message || "Impossible d'ajouter cet article", 'Erreur');
+    } finally {
+      setProcessing(false);
+    }
+  }, [orderId]);
+
+  const handleUnclaim = useCallback(async (portionId: string, orderItemId: number) => {
+    setProcessing(true);
+    try {
+      const updated = await splitPaymentService.unclaimItem(
+        orderId as string,
+        portionId,
+        orderItemId,
+      );
+      setSplitSession(updated);
+    } catch (error: any) {
+      console.error('Error unclaiming item:', error);
+      showError(error?.message || "Impossible de retirer cet article", 'Erreur');
+    } finally {
+      setProcessing(false);
+    }
+  }, [orderId]);
 
   // ── Pay portion ────────────────────────────────────────────────────────
 
@@ -612,14 +678,28 @@ export default function SplitPaymentScreen() {
 
           {/* Split Payment Status — coeur de la page */}
           {splitSession ? (
-            <SplitPaymentStatus
-              session={splitSession}
-              currentUserPortionId={currentUserPortionId}
-              onPayPortion={handlePayPortion}
-              onPayAllRemaining={handlePayAllRemaining}
-              onEditSplit={isHost && !hasAnyPaidPortion ? () => setShowSplitModal(true) : undefined}
-              isProcessing={processing}
-            />
+            splitSession.splitType === 'items' && order ? (
+              <ItemSplitSelector
+                order={order}
+                session={splitSession}
+                currentUserPortionId={currentUserPortionId}
+                isHost={!!isHost}
+                isProcessing={processing}
+                onClaim={handleClaim}
+                onUnclaim={handleUnclaim}
+                onPayPortion={handlePayPortion}
+                onPayAllRemaining={handlePayAllRemaining}
+              />
+            ) : (
+              <SplitPaymentStatus
+                session={splitSession}
+                currentUserPortionId={currentUserPortionId}
+                onPayPortion={handlePayPortion}
+                onPayAllRemaining={handlePayAllRemaining}
+                onEditSplit={isHost && !hasAnyPaidPortion ? () => setShowSplitModal(true) : undefined}
+                isProcessing={processing}
+              />
+            )
           ) : (
             <Card style={styles.card}>
               <View style={styles.emptyState}>
@@ -652,6 +732,7 @@ export default function SplitPaymentScreen() {
           totalAmount={orderTotal}
           tipAmount={tipAmount}
           onConfirm={handleSplitConfirm}
+          knownParticipants={knownParticipants}
         />
       </View>
     </StripeProvider>

@@ -25,14 +25,28 @@ import {
   SHADOWS,
   TYPOGRAPHY,
 } from '@/utils/designSystem';
-import { SplitPaymentMode, SplitPaymentPortion } from '@/types/splitPayment';
+import { SplitPaymentMode, SplitPaymentPortion, CreatePortionInput } from '@/types/splitPayment';
+
+/**
+ * Représente un participant connu de la session collaborative,
+ * utilisé pour pré-remplir les portions en mode `items`.
+ */
+export interface KnownParticipant {
+  id: string;
+  name: string;
+}
 
 interface SplitPaymentModalProps {
   visible: boolean;
   onClose: () => void;
   totalAmount: number;
   tipAmount: number;
-  onConfirm: (mode: SplitPaymentMode, portions: Omit<SplitPaymentPortion, 'id' | 'isPaid' | 'paidAt'>[]) => void;
+  onConfirm: (mode: SplitPaymentMode, portions: CreatePortionInput[]) => void;
+  /**
+   * Participants connus de la session collaborative.
+   * Si fourni et ≥ 2, le mode "Par plat" sera proposé.
+   */
+  knownParticipants?: KnownParticipant[];
 }
 
 // Fonction utilitaire pour distribuer équitablement les centimes
@@ -64,6 +78,7 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
   totalAmount,
   tipAmount,
   onConfirm,
+  knownParticipants,
 }) => {
   const [mode, setMode] = useState<SplitPaymentMode>('none');
   const [numberOfPeople, setNumberOfPeople] = useState('2');
@@ -166,11 +181,13 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
 
   const modeGridStyle: ViewStyle = {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: getResponsiveValue(SPACING.sm, screenType),
   };
 
   const modeButtonStyle: ViewStyle = {
-    flex: 1,
+    flexBasis: '47%',
+    flexGrow: 1,
     alignItems: 'center',
     padding: getResponsiveValue(SPACING.md, screenType),
     borderRadius: BORDER_RADIUS.lg,
@@ -449,6 +466,23 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
       return;
     }
 
+    if (mode === 'items') {
+      if (!knownParticipants || knownParticipants.length < 2) {
+        Alert.alert(
+          'Participants insuffisants',
+          'Le mode "Par plat" nécessite au moins 2 participants dans la session.',
+        );
+        return;
+      }
+      const portions: CreatePortionInput[] = knownParticipants.map((p) => ({
+        name: p.name,
+        amount: 0,
+        participantId: p.id,
+      }));
+      onConfirm('items', portions);
+      return;
+    }
+
     if (mode === 'equal') {
       const people = parseInt(numberOfPeople) || 1;
       if (people < 2) {
@@ -456,7 +490,7 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
         return;
       }
 
-      const portions = equalPortions.map((amount, i) => ({
+      const portions: CreatePortionInput[] = equalPortions.map((amount, i) => ({
         name: `Personne ${i + 1}`,
         amount,
       }));
@@ -468,7 +502,7 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
         return;
       }
 
-      const portions = customPortions
+      const portions: CreatePortionInput[] = customPortions
         .filter(p => parseAmount(p.amount) > 0)
         .map((p, i) => ({
           name: p.name.trim() || `Personne ${i + 1}`,
@@ -484,9 +518,10 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
     }
   };
 
-  const canConfirm = mode === 'none' || 
+  const canConfirm = mode === 'none' ||
     (mode === 'equal' && parseInt(numberOfPeople) >= 2) ||
-    (mode === 'custom' && customValidation.isValid && customPortions.filter(p => parseAmount(p.amount) > 0).length >= 2);
+    (mode === 'custom' && customValidation.isValid && customPortions.filter(p => parseAmount(p.amount) > 0).length >= 2) ||
+    (mode === 'items' && !!knownParticipants && knownParticipants.length >= 2);
 
   const renderModeButton = (
     modeValue: SplitPaymentMode,
@@ -607,6 +642,8 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
               {renderModeButton('none', 'Paiement unique', 'person', 'Une seule personne paie')}
               {renderModeButton('equal', 'Équitable', 'people', 'Parts égales pour tous')}
               {renderModeButton('custom', 'Personnalisé', 'calculator', 'Montants sur mesure')}
+              {!!knownParticipants && knownParticipants.length >= 2 &&
+                renderModeButton('items', 'Par plat', 'restaurant', 'Chacun paie ce qu\'il a pris')}
             </View>
           </Card>
 
@@ -723,6 +760,47 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
                   )}
                 </Card>
               )}
+            </Card>
+          )}
+
+          {/* Division par plat — banner explicatif */}
+          {mode === 'items' && (
+            <Card style={{
+              padding: getResponsiveValue(SPACING.md, screenType),
+              gap: getResponsiveValue(SPACING.sm, screenType),
+              backgroundColor: COLORS.primary + '06',
+              borderWidth: 1,
+              borderColor: COLORS.primary + '20',
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Ionicons name="restaurant" size={20} color={COLORS.primary} />
+                <Text style={{
+                  fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.md, screenType),
+                  fontWeight: TYPOGRAPHY.fontWeight.semibold,
+                  color: COLORS.primary,
+                  flex: 1,
+                }}>
+                  Chacun paie ce qu'il a pris
+                </Text>
+              </View>
+              <Text style={{
+                fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+                color: COLORS.text.secondary,
+                lineHeight: 20,
+              }}>
+                Une fois la division créée, chaque participant choisira les articles
+                qu'il souhaite payer. Si plusieurs personnes choisissent le même plat
+                (vin, eau…), le prix sera divisé équitablement entre elles.
+              </Text>
+              <Text style={{
+                fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+                color: COLORS.text.secondary,
+              }}>
+                <Text style={{ fontWeight: TYPOGRAPHY.fontWeight.semibold }}>
+                  {knownParticipants?.length ?? 0} participant(s)
+                </Text>
+                {' '}à la table. Une part sera créée pour chacun.
+              </Text>
             </Card>
           )}
         </ScrollView>
