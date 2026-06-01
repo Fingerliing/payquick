@@ -11,6 +11,7 @@ import { FirstLaunchLegalModal } from '@/components/legal/FirstLaunchLegalModal'
 import { NotificationProvider as SessionNotificationProvider } from '@/components/session/SessionNotifications';
 import { NotificationProvider as PushNotificationProvider } from '@/contexts/NotificationContext';
 import { SessionProvider } from '@/contexts/SessionContext';
+import { configureGoogleSignIn } from '@/services/googleAuthService';
 
 try {
   SplashScreen.preventAutoHideAsync();
@@ -45,6 +46,12 @@ function SplashScreenManager({ children }: { children: React.ReactNode }) {
 }
 
 export default function RootLayout() {
+  // Initialisation du SDK Google Sign-In au démarrage de l'app.
+  // Idempotent : safe en cas de re-render.
+  useEffect(() => {
+    configureGoogleSignIn();
+  }, []);
+
   return (
     <SafeAreaProvider>
       <LegalAcceptanceProvider>

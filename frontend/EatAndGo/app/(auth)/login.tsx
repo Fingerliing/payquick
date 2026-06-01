@@ -47,7 +47,7 @@ export default function LoginScreen() {
     message: string;
   } | null>(null);
   
-  const { login } = useAuth();
+  const { login, googleLogin } = useAuth();
   const { isMobile, isTablet, isSmallScreen, getSpacing, getFontSize, getResponsiveValue } = useResponsive();
   const insets = useSafeAreaInsets();
 
@@ -211,13 +211,53 @@ export default function LoginScreen() {
   }, [errors]);
 
   // SOCIAL LOGIN HANDLERS
-  const handleGoogleLogin = useCallback(() => {
-    setCustomAlert({
-      variant: 'info',
-      title: 'Bientôt disponible',
-      message: 'La connexion Google sera disponible prochainement',
-    });
-  }, []);
+  const handleGoogleLogin = useCallback(async () => {
+    setLoading(true);
+    setErrors({});
+    try {
+      await googleLogin();
+
+      // ── Override de la navigation si `returnTo` est présent ────────────
+      // googleLogin() appelle navigateByRole() (comme login). Si on vient
+      // d'un AuthGate (flow QR → checkout), on doit ramener l'utilisateur
+      // à son écran d'origine après la navigation par défaut.
+      if (returnTo) {
+        setTimeout(() => {
+          try {
+            router.replace(returnTo as any);
+          } catch (navError) {
+            console.warn('⚠️ Redirection returnTo échouée, fallback:', navError);
+          }
+        }, 50);
+      }
+    } catch (error: any) {
+      // Annulation utilisateur → silencieux (l'utilisateur a fermé la modal Google)
+      const isCancelled =
+        error?.code === 'CANCELLED' ||
+        /annul|cancel/i.test(String(error?.message ?? ''));
+      if (isCancelled) {
+        return;
+      }
+
+      // Erreur Play Services (Android sans Google Play installé)
+      if (error?.code === 'PLAY_SERVICES_UNAVAILABLE') {
+        setCustomAlert({
+          variant: 'warning',
+          title: 'Google Play indisponible',
+          message: 'Google Play Services n\'est pas disponible sur cet appareil.',
+        });
+        return;
+      }
+
+      setCustomAlert({
+        variant: 'error',
+        title: 'Connexion Google impossible',
+        message: error?.message || 'Une erreur est survenue. Veuillez réessayer.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [googleLogin, returnTo]);
 
   const handleAppleLogin = useCallback(() => {
     setCustomAlert({

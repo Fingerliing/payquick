@@ -8,6 +8,7 @@ from api.views.auth_views import (
     VerifyRegistrationView,
     ResendVerificationCodeView,
 )
+from api.views.google_auth_views import GoogleLoginView
 from api.views.verification_views import (
     SendVerificationCodeView,
     VerifyEmailCodeView,
@@ -28,6 +29,9 @@ urlpatterns = [
     # Login + profil
     path('login/', LoginView.as_view(), name='login'),
     path('me/', MeView.as_view(), name='me'),
+
+    # Connexion sociale
+    path('google/', GoogleLoginView.as_view(), name='google-login'),
 
     # Vérification d'email post-inscription
     # path('phone/send-code/', SendVerificationCodeView.as_view(), name='send-verification-code'),

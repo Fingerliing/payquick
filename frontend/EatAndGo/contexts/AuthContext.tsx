@@ -15,6 +15,11 @@ import { notificationService } from '@/services/notificationService';
 // appels HTTP de ce contexte. Renommé pour éviter la collision de nom.
 import { apiClient as sessionMonitor } from '@/services/api';
 import {
+  signInWithGoogle,
+  signOutFromGoogle,
+  GoogleSignInError,
+} from '@/services/googleAuthService';
+import {
   User,
   RestaurateurProfile,
   Restaurant,
@@ -42,6 +47,7 @@ const API_ENDPOINTS = {
   auth: {
     register: `${API_URL}/auth/register/`,
     login: `${API_URL}/auth/login/`,
+    google: `${API_URL}/auth/google/`,
     user: `${API_URL}/auth/me/`,
     refresh: `${API_URL}/auth/refresh/`,
   },
@@ -61,6 +67,7 @@ interface AuthContextType {
   userRole: 'client' | 'restaurateur' | null;
   login: (data: LoginData) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
+  googleLogin: () => Promise<void>;
   logout: () => Promise<void>;
   refreshTokens: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -122,7 +129,7 @@ class ApiClient {
     };
   
     // Ne pas injecter le token sur les endpoints publics
-    const PUBLIC_ENDPOINTS = ['/auth/login', '/auth/register', '/auth/refresh'];
+    const PUBLIC_ENDPOINTS = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/google'];
     const isPublicEndpoint = PUBLIC_ENDPOINTS.some(ep => endpoint.includes(ep));
 
     let token: string | null = null;
@@ -230,6 +237,16 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify(data),
     });
+  }
+
+  async googleLogin(idToken: string): Promise<AuthResponse & { is_new_user?: boolean }> {
+    return this.request<AuthResponse & { is_new_user?: boolean }>(
+      API_ENDPOINTS.auth.google,
+      {
+        method: 'POST',
+        body: JSON.stringify({ id_token: idToken }),
+      }
+    );
   }
 
   async getCurrentUser(): Promise<User> {
@@ -557,9 +574,77 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // ── Connexion via Google Sign-In ─────────────────────────────────────────
+  // 1. Le SDK Google ouvre la modal native et retourne un idToken signé.
+  // 2. On envoie cet idToken à /auth/google/, qui le vérifie auprès de Google
+  //    et retourne nos JWT EatQuickeR (créant le compte si nécessaire).
+  // 3. Suite du flow identique à login() : surveillance de session, /auth/me/,
+  //    syncho consentement, navigation par rôle.
+  const googleLogin = async () => {
+    try {
+      setIsLoading(true);
+      clearError();
+      console.log('🔐 Tentative de connexion via Google...');
+
+      // 1. SDK Google → idToken
+      const { idToken } = await signInWithGoogle();
+      console.log('✅ idToken Google obtenu');
+
+      // 2. Backend → JWT EatQuickeR
+      const response = await apiClient.googleLogin(idToken);
+
+      await secureStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, response.access);
+      await secureStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, response.refresh);
+      console.log('💾 Tokens EatQuickeR enregistrés', {
+        isNewUser: response.is_new_user,
+      });
+
+      // 3. Démarrer la surveillance de session (refresh proactif anti-expiration)
+      await sessionMonitor.startSessionMonitoring();
+
+      const currentUser = await apiClient.getCurrentUser();
+      if (currentUser) {
+        await secureStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(currentUser));
+        setUser(currentUser);
+        console.log('👤 Utilisateur récupéré (login Google)', {
+          role: currentUser.role,
+          isAuthenticated: currentUser.is_authenticated,
+        });
+
+        console.log('✅ Connexion Google réussie');
+
+        // Synchro consentement légal si accepté avant connexion
+        await syncPendingLegalConsent();
+
+        // Navigation après connexion
+        navigateByRole(currentUser);
+      }
+    } catch (error: any) {
+      // Annulation utilisateur : on remonte tel quel pour que le composant
+      // décide de ne pas afficher d'alerte. On ne nettoie pas les données
+      // d'auth puisqu'aucune session n'a été ouverte.
+      if (error instanceof GoogleSignInError && error.code === 'CANCELLED') {
+        console.log('ℹ️ Connexion Google annulée par l\'utilisateur');
+        throw error;
+      }
+
+      console.error('❌ Erreur lors du login Google:', error);
+      handleError(error, 'login');
+      await clearAuthData();
+      throw new Error(lastError || 'Erreur lors de la connexion Google');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const logout = async () => {
     try {
       console.log('🚪 Déconnexion...');
+
+      // Best-effort : déconnexion du SDK Google (no-op si pas connecté via Google).
+      // Avant de purger les tokens locaux pour que `getCurrentUser()` côté SDK
+      // puisse encore vérifier l'état de connexion Google.
+      await signOutFromGoogle();
 
       // Arrêter la surveillance de session avant de purger les tokens
       sessionMonitor.stopSessionMonitoring();
@@ -681,6 +766,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     userRole,
     login,
     register,
+    googleLogin,
     logout,
     refreshTokens,
     refreshUser,
