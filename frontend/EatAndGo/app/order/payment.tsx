@@ -32,8 +32,9 @@ import { Receipt } from '@/components/receipt/Receipt';
 import { Alert, AlertWithAction, useAlert } from '@/components/ui/Alert';
 
 // Split payment components
-import { SplitPaymentModal } from '@/components/payment/SplitPaymentModal';
+import { SplitPaymentModal, KnownParticipant } from '@/components/payment/SplitPaymentModal';
 import { SplitPaymentStatus } from '@/components/payment/SplitPaymentStatus';
+import { ItemSplitSelector } from '@/components/payment/ItemSplitSelector';
 
 // Services
 import { orderService } from '@/services/orderService';
@@ -41,12 +42,18 @@ import { paymentService } from '@/services/paymentService';
 import { receiptService } from '@/services/receiptService';
 
 // Split payment types and services
-import { SplitPaymentMode, SplitPaymentPortion, SplitPaymentSession } from '@/types/splitPayment';
+import {
+  SplitPaymentMode,
+  SplitPaymentPortion,
+  SplitPaymentSession,
+  CreatePortionInput,
+} from '@/types/splitPayment';
 import { splitPaymentService } from '@/services/splitPaymentService';
 
 // Contexts
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSession } from '@/contexts/SessionContext';
 
 // Constants
 import { STRIPE_PUBLISHABLE_KEY } from '@/constants/config';
@@ -158,6 +165,7 @@ export default function PaymentScreen() {
   const { orderId } = useLocalSearchParams<{ orderId: string }>();
   const { clearCart } = useCart();
   const { user } = useAuth();
+  const { session: collabSession, participantId, isHost } = useSession();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const screenType = useScreenType();
   
@@ -294,67 +302,166 @@ export default function PaymentScreen() {
 
   // Split payment handlers
   const handleSplitPaymentConfirm = async (
-    mode: SplitPaymentMode, 
-    portions: Omit<SplitPaymentPortion, 'id' | 'isPaid' | 'paidAt'>[]
+    mode: SplitPaymentMode,
+    portions: CreatePortionInput[]
   ) => {
     console.log('handleSplitPaymentConfirm called with:', { mode, portions });
-    
+
     if (!order) {
       showError('Commande non trouvée', 'Erreur');
       return;
     }
-  
+
+    if (mode === 'none') {
+      setShowSplitModal(false);
+      setSplitMode('none');
+      setSplitSession(null);
+      return;
+    }
+
     try {
       setProcessing(true);
       console.log('Creating split session...');
-  
-      // Créer la session de paiement divisé
+
+      // Annuler la session existante avant d'en créer une nouvelle.
+      // Le backend supprime aussi automatiquement les sessions sans portion
+      // payée dans CreateSplitPaymentSessionView (belt+suspenders).
+      if (splitSession) {
+        try {
+          await splitPaymentService.cancelSplitSession(orderId as string);
+        } catch (e) {
+          console.warn('Could not cancel previous split session:', e);
+        }
+      }
+
       const session = await splitPaymentService.createSplitSession(
-        orderId as string, 
-        mode as 'equal' | 'custom', 
+        orderId as string,
+        mode,
         portions.map(p => ({
           name: p.name || '',
-          amount: p.amount
-        }))
+          amount: p.amount,
+          participantId: p.participantId ?? null,
+        })),
+        tipAmount,
       );
-  
+
       console.log('Split session created:', session);
-  
-      // Mettre à jour l'état local
+
       setSplitSession(session);
       setSplitMode(mode);
-      
-      // Trouver la portion de l'utilisateur actuel (la première non payée par défaut)
-      const userPortion = session.portions.find(p => !p.isPaid);
-      if (userPortion) {
-        setCurrentUserPortionId(userPortion.id);
-        console.log('User portion set:', userPortion.id);
-      }
-  
-      // Fermer la modal
-      setShowSplitModal(false);
-  
-      // Afficher un message de confirmation
-      showSuccess(
-        `La note a été divisée en ${session.portions.length} parts. Vous pouvez maintenant payer votre part.`,
-        'Paiement divisé créé !'
+
+      const myPortion = session.portions.find(
+        (p: any) => p.participant_id === participantId
       );
-  
+      if (myPortion) {
+        setCurrentUserPortionId(myPortion.id);
+      } else {
+        const firstUnpaid = session.portions.find((p: any) => !p.isPaid);
+        if (firstUnpaid) setCurrentUserPortionId(firstUnpaid.id);
+      }
+
+      setShowSplitModal(false);
+
+      const successMessage = mode === 'items'
+        ? `Mode "Par plat" activé. Chaque participant peut maintenant sélectionner les articles qu'il souhaite payer.`
+        : `La note a été divisée en ${session.portions.length} parts. Vous pouvez maintenant payer votre part.`;
+      showSuccess(successMessage, 'Paiement divisé créé !');
+
       console.log('Split payment setup completed successfully');
-  
+
     } catch (error) {
       console.error('Error creating split payment session:', error);
-      
-      // Afficher un message d'erreur plus informatif
-      const errorMessage = error instanceof Error 
-        ? error.message 
+      const errorMessage = error instanceof Error
+        ? error.message
         : 'Une erreur est survenue lors de la création du paiement divisé';
-        
       showError(errorMessage, 'Erreur');
     } finally {
       setProcessing(false);
     }
   };
+
+  // ── Claim / Unclaim (mode `items`) ─────────────────────────────────────
+
+  const handleClaim = async (portionId: string, orderItemId: number) => {
+    setProcessing(true);
+    try {
+      const updated = await splitPaymentService.claimItem(
+        orderId as string,
+        portionId,
+        orderItemId,
+      );
+      setSplitSession(updated);
+    } catch (error: any) {
+      console.error('Error claiming item:', error);
+      showError(error?.message || "Impossible d'ajouter cet article", 'Erreur');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleUnclaim = async (portionId: string, orderItemId: number) => {
+    setProcessing(true);
+    try {
+      const updated = await splitPaymentService.unclaimItem(
+        orderId as string,
+        portionId,
+        orderItemId,
+      );
+      setSplitSession(updated);
+    } catch (error: any) {
+      console.error('Error unclaiming item:', error);
+      showError(error?.message || "Impossible de retirer cet article", 'Erreur');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // ── Détermination du statut "hôte" effectif ───────────────────────────
+  // useSession().isHost ne fonctionne que si l'utilisateur a transité par
+  // le SessionContext. Sur cet écran (atterri directement via /order/payment),
+  // il est souvent à false même pour le vrai hôte. Fallback : l'utilisateur
+  // qui a CRÉÉ la commande (order.user) est de facto l'hôte.
+  const effectiveIsHost = useMemo(() => {
+    if (isHost) return true;
+    if (user?.id && order?.user && Number(order.user) === Number(user.id)) {
+      return true;
+    }
+    return false;
+  }, [isHost, user?.id, order?.user]);
+
+  // Liste des participants connus — utilisée pour pré-remplir les portions
+  // en mode `items` (une part par participant). Trois sources possibles,
+  // dans l'ordre de priorité :
+  //   1. session collaborative chargée via useSession() (cas nominal)
+  //   2. portions de la session de split existante (fallback : si on a déjà
+  //      un split en cours, ses portions sont liées aux SessionParticipant)
+  //   3. rien (mode items indisponible)
+  const knownParticipants: KnownParticipant[] = useMemo(() => {
+    const fromCollab = (collabSession?.participants ?? []) as any[];
+    if (fromCollab.length > 0) {
+      const list = fromCollab
+        .filter((p) => p?.status === 'active' || p?.is_host)
+        .map((p) => ({
+          id: String(p.id),
+          name:
+            p.display_name
+            || p.guest_name
+            || p.user?.first_name
+            || p.user?.email
+            || p.name
+            || 'Participant',
+        }));
+      if (list.length >= 2) return list;
+    }
+
+    const fromPortions = (splitSession?.portions ?? [])
+      .filter((p: any) => !!p.participant_id)
+      .map((p: any) => ({
+        id: String(p.participant_id),
+        name: p.name || 'Participant',
+      }));
+    return fromPortions;
+  }, [collabSession?.participants, splitSession?.portions]);
 
   const initializePayment = async () => {
     if (paymentMethod !== 'online' || !order) return false;
@@ -984,13 +1091,52 @@ export default function PaymentScreen() {
 
                 {/* Payment Methods */}
                 {splitSession && splitMode !== 'none' ? (
-                  <SplitPaymentStatus
-                    session={splitSession}
-                    currentUserPortionId={currentUserPortionId}
-                    onPayPortion={handlePayPortion}
-                    onPayAllRemaining={handlePayAllRemaining}
-                    isProcessing={processing}
-                  />
+                  <>
+                    {/* Bouton "Modifier la division" — affiché tant qu'aucune
+                        portion n'a été payée. L'autorisation effective est
+                        vérifiée côté backend (owner de la commande uniquement). */}
+                    {!splitSession.portions.some((p: any) => p.isPaid) && (
+                      <Pressable
+                        style={styles.splitPaymentButton}
+                        onPress={() => {
+                          console.log('[Modifier division]',
+                            'isHost=', isHost,
+                            'effectiveIsHost=', effectiveIsHost,
+                            'participantId=', participantId,
+                            'order.user=', order?.user,
+                            'user.id=', user?.id,
+                            'knownParticipants=', knownParticipants);
+                          setShowSplitModal(true);
+                        }}
+                      >
+                        <Ionicons name="create-outline" size={20} color={COLORS.secondary} />
+                        <Text style={styles.splitPaymentText}>Modifier la division</Text>
+                        <Ionicons name="chevron-forward" size={16} color={COLORS.text.secondary} />
+                      </Pressable>
+                    )}
+
+                    {splitSession.splitType === 'items' && order ? (
+                      <ItemSplitSelector
+                        order={order}
+                        session={splitSession}
+                        currentUserPortionId={currentUserPortionId}
+                        isHost={effectiveIsHost}
+                        isProcessing={processing}
+                        onClaim={handleClaim}
+                        onUnclaim={handleUnclaim}
+                        onPayPortion={handlePayPortion}
+                        onPayAllRemaining={handlePayAllRemaining}
+                      />
+                    ) : (
+                      <SplitPaymentStatus
+                        session={splitSession}
+                        currentUserPortionId={currentUserPortionId}
+                        onPayPortion={handlePayPortion}
+                        onPayAllRemaining={handlePayAllRemaining}
+                        isProcessing={processing}
+                      />
+                    )}
+                  </>
                 ) : (
                   <>
                     <Card style={styles.paymentMethodsCard}>
@@ -1203,6 +1349,7 @@ export default function PaymentScreen() {
           totalAmount={safeParseAmount(order?.total_amount)}
           tipAmount={tipAmount}
           onConfirm={handleSplitPaymentConfirm}
+          knownParticipants={knownParticipants}
         />
       </View>
     </StripeProvider>

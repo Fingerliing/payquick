@@ -403,6 +403,25 @@ class SessionConsumer(BaseAuthenticatedConsumer):
             }))
         except Exception as e:
             logger.error(f"Error sending split_payment_initiated: {e}")
+
+    async def split_payment_updated(self, event):
+        """
+        Handler pour notification de mise à jour d'une session de paiement
+        divisé (claim/unclaim d'un article en mode `items`, ou paiement
+        d'une portion). Les clients doivent re-fetch la session.
+        Appelé par notify_split_payment_updated() ou directement depuis
+        _broadcast_split_update() côté views.
+        """
+        try:
+            await self.send(text_data=json.dumps({
+                'type': 'split_payment_updated',
+                'order_id': event.get('order_id'),
+                'session_id': event.get('session_id'),
+                'split_session_id': event.get('split_session_id'),
+                'timestamp': event.get('timestamp'),
+            }))
+        except Exception as e:
+            logger.error(f"Error sending split_payment_updated: {e}")
     
     async def participant_update(self, event):
         """
@@ -853,6 +872,29 @@ def notify_split_payment_initiated(session_id, order_id, portions_count, total_a
             'session_id': str(session_id),
             'portions_count': portions_count,
             'total_amount': str(total_amount),
+            'timestamp': timezone.now().isoformat(),
+        }
+    )
+
+
+def notify_split_payment_updated(session_id, order_id, split_session_id=None):
+    """
+    Notifie tous les membres qu'une session de paiement divisé a été mise
+    à jour (claim/unclaim d'un article en mode `items`, paiement d'une
+    portion…). Les clients doivent re-fetch la session.
+    """
+    channel_layer = get_channel_layer()
+    if not channel_layer:
+        logger.warning("Channel layer not available")
+        return
+
+    async_to_sync(channel_layer.group_send)(
+        f'session_{session_id}',
+        {
+            'type': 'split_payment_updated',
+            'order_id': str(order_id),
+            'session_id': str(session_id),
+            'split_session_id': str(split_session_id) if split_session_id else None,
             'timestamp': timezone.now().isoformat(),
         }
     )

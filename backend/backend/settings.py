@@ -236,6 +236,19 @@ STRIPE_WEBHOOK_SECRET = config("STRIPE_WEBHOOK_SECRET")
 STRIPE_CONNECT_WEBHOOK_SECRET = config("STRIPE_CONNECT_WEBHOOK_SECRET", default="")
 DOMAIN = config("DOMAIN")
 
+# ── Google OAuth ─────────────────────────────────────────────────────────────
+# Liste des Client IDs autorisés à émettre des id_tokens pour notre app.
+# - Web Client ID  : audience renvoyée par le SDK sur Android
+# - iOS Client ID  : audience renvoyée par le SDK sur iOS
+# (Pas besoin d'inclure l'Android Client ID — le SDK Android n'émet jamais
+#  d'audience pour ce client, il utilise le Web Client ID comme audience.)
+# Format .env : GOOGLE_OAUTH_CLIENT_IDS=<web_id>,<ios_id>
+GOOGLE_OAUTH_CLIENT_IDS = config(
+    "GOOGLE_OAUTH_CLIENT_IDS",
+    default="",
+    cast=Csv(),
+)
+
 # Sirene API + Recaptcha
 SIRENE_API_TOKEN = config("SIRENE_API_TOKEN")
 RECAPTCHA_SECRET_KEY = config("RECAPTCHA_SECRET_KEY")

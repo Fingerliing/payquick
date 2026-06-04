@@ -56,7 +56,8 @@ from .collaborative_models import (
 # Payment
 from .payment_models import (
     SplitPaymentSession,
-    SplitPaymentPortion
+    SplitPaymentPortion,
+    SplitPaymentItemClaim
 )
 
 # Authentication
@@ -146,6 +147,7 @@ __all__ = [
     # Payment
     'SplitPaymentSession',
     'SplitPaymentPortion',
+    'SplitPaymentItemClaim',
 
     # Authentication
     'EmailVerification',

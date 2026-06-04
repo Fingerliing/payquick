@@ -9,6 +9,8 @@ from api.views.split_payment_views import (
     SplitPaymentStatusView,
     CompleteSplitPaymentView,
     SplitPaymentHistoryView,
+    ClaimItemView,
+    UnclaimItemView,
 )
 
 urlpatterns = [
@@ -16,6 +18,10 @@ urlpatterns = [
     path('create/<int:order_id>/', CreateSplitPaymentSessionView.as_view(), name='create-split-session'),
     path('session/<int:order_id>/', GetSplitPaymentSessionView.as_view(), name='get-split-session'),
     
+    # Mode `items` — claim/unclaim d'articles
+    path('claim/<int:order_id>/', ClaimItemView.as_view(), name='claim-item'),
+    path('unclaim/<int:order_id>/', UnclaimItemView.as_view(), name='unclaim-item'),
+
     # Paiement des portions individuelles
     path('pay-portion/<int:order_id>/', PayPortionView.as_view(), name='pay-portion'),
     path('confirm-portion/<int:order_id>/', ConfirmPortionPaymentView.as_view(), name='confirm-portion'),

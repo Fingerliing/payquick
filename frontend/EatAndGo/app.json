@@ -20,7 +20,8 @@
       "associatedDomains": [
         "applinks:api.eatquicker.fr",
         "applinks:eatquicker.fr"
-      ]
+      ],
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
       "adaptiveIcon": {
@@ -65,6 +66,12 @@
         {
           "merchantIdentifier": "merchant.fr.fingerliing.EatQuickeR",
           "enableGooglePay": true
+        }
+      ],
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.REPLACE_WITH_IOS_CLIENT_ID_REVERSED"
         }
       ]
     ],
