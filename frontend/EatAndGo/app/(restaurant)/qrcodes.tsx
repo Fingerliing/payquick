@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -21,7 +21,7 @@ import { Restaurant } from '@/types/restaurant';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import QRCode from 'react-native-qrcode-svg';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Asset } from 'expo-asset';
 import { Alert as InlineAlert, AlertWithAction } from '@/components/ui/Alert';
 import {
@@ -163,24 +163,102 @@ export default function QRCodesScreen() {
     }
   }, [restaurants]);
 
-  useEffect(() => {
-    const loadLogo = async () => {
-      try {
-        const asset = Asset.fromModule(APP_LOGO);
-        await asset.downloadAsync();
-        const localUri = asset.localUri || asset.uri;
-        if (localUri) {
-          const base64 = await FileSystem.readAsStringAsync(localUri, {
-            encoding: "base64",
-          });
-          setLogoBase64(`data:image/png;base64,${base64}`);
-        }
-      } catch (err) {
-        console.warn('Erreur chargement du logo en base64:', err);
-      }
-    };
-    loadLogo();
+  // ── Chargement du logo en base64 ─────────────────────────────────────────
+  // Le logo doit être disponible AVANT chaque impression / téléchargement
+  // pour qu'il apparaisse à la fois dans le QR (overlay) et dans l'en-tête
+  // de chaque carte du PDF. `ensureLogoLoaded` retourne le data URI pour
+  // éviter le piège du state React asynchrone : on ne peut pas faire
+  // `await setLogoBase64(...)` puis `generateHTML()` et compter sur la
+  // nouvelle valeur — `generateHTML` lirait l'ancienne valeur du closure.
+  const loadLogoBase64 = useCallback(async (): Promise<string> => {
+    try {
+      const asset = Asset.fromModule(APP_LOGO);
+      await asset.downloadAsync();
+      const localUri = asset.localUri || asset.uri;
+      if (!localUri) return '';
+      const base64 = await FileSystem.readAsStringAsync(localUri, {
+        encoding: 'base64',
+      });
+      return `data:image/png;base64,${base64}`;
+    } catch (err) {
+      console.warn('Erreur chargement du logo en base64:', err);
+      return '';
+    }
   }, []);
+
+  const ensureLogoLoaded = useCallback(async (): Promise<string> => {
+    if (logoBase64) return logoBase64;
+    const dataUri = await loadLogoBase64();
+    if (dataUri) setLogoBase64(dataUri);
+    return dataUri;
+  }, [logoBase64, loadLogoBase64]);
+
+  useEffect(() => {
+    // Pré-chargement au montage : l'aperçu et les boutons sont immédiatement
+    // utilisables. Si l'utilisateur clique très vite, ensureLogoLoaded prend
+    // le relais et awaite avant l'impression.
+    (async () => {
+      const dataUri = await loadLogoBase64();
+      if (dataUri) setLogoBase64(dataUri);
+    })();
+  }, [loadLogoBase64]);
+
+  // ── Capture des QR codes via react-native-qrcode-svg ─────────────────────
+  // STRATÉGIE :
+  // On rend (offscreen, en haute résolution) un QR par table avec le prop
+  // `logo={APP_LOGO}` — c'est react-native-qrcode-svg qui compose nativement
+  // le QR + logo en un seul SVG. On capture ensuite chaque SVG en PNG base64
+  // via `toDataURL()`, et on embarque ces data URIs dans le HTML d'impression.
+  //
+  // Avantages vs ancienne approche (qrserver.com + overlay <img> en CSS) :
+  //  - Le logo est intégré dans le QR au moment du rendu (pas un overlay
+  //    CSS qui peut être mal positionné par le moteur d'impression).
+  //  - Pas de dépendance réseau au moment de l'impression (qrserver.com).
+  //  - Le rendu imprimé est identique à l'affichage à l'écran (WYSIWYG).
+  const qrPrintRefs = useRef<Map<string | number, any>>(new Map());
+
+  const captureOneQRAsBase64 = useCallback(
+    (tableId: string | number): Promise<string> => {
+      return new Promise((resolve) => {
+        const ref = qrPrintRefs.current.get(tableId);
+        if (!ref || typeof ref.toDataURL !== 'function') {
+          resolve('');
+          return;
+        }
+        try {
+          ref.toDataURL((base64: string) => {
+            if (!base64) {
+              resolve('');
+              return;
+            }
+            // react-native-qrcode-svg retourne du base64 brut sans préfixe
+            const dataUri = base64.startsWith('data:')
+              ? base64
+              : `data:image/png;base64,${base64}`;
+            resolve(dataUri);
+          });
+        } catch (err) {
+          console.warn(`Capture QR table ${tableId} échouée:`, err);
+          resolve('');
+        }
+      });
+    },
+    [],
+  );
+
+  const captureAllQRsAsBase64 = useCallback(
+    async (tables: Table[]): Promise<Map<string | number, string>> => {
+      const result = new Map<string | number, string>();
+      await Promise.all(
+        tables.map(async (table) => {
+          const dataUri = await captureOneQRAsBase64(table.id);
+          if (dataUri) result.set(table.id, dataUri);
+        }),
+      );
+      return result;
+    },
+    [captureOneQRAsBase64],
+  );
 
   useEffect(() => {
     if (selectedRestaurant) {
@@ -195,9 +273,28 @@ export default function QRCodesScreen() {
       const existingTables = await loadRestaurantTables(selectedRestaurant);
       const tablesArray = Array.isArray(existingTables) ? existingTables : [];
       setExistingTablesCount(tablesArray.length);
+      // 🆕 Auto-affichage : si des tables existent déjà, on les peuple
+      // directement dans generatedTables. L'utilisateur n'a plus besoin
+      // de cliquer sur "Charger les tables existantes".
+      if (tablesArray.length > 0) {
+        setGeneratedTables(tablesArray);
+        // 🆕 Auto-suggestion du prochain numéro disponible pour faciliter
+        // l'ajout de tables. L'utilisateur peut toujours overrider via
+        // l'icône Settings dans le header.
+        const numbers = tablesArray
+          .map(t => parseInt((t as any).number, 10))
+          .filter(n => !isNaN(n));
+        const maxNumber = numbers.length > 0 ? Math.max(...numbers) : 0;
+        setStartNumber(maxNumber + 1);
+      } else {
+        setGeneratedTables([]);
+        setStartNumber(1);
+      }
     } catch (error: any) {
-      // On garde 0 par défaut, et on affiche un toast si besoin
+      // On garde 0 par défaut, et on vide la liste affichée
       setExistingTablesCount(0);
+      setGeneratedTables([]);
+      setStartNumber(1);
     }
   };
 
@@ -212,8 +309,17 @@ export default function QRCodesScreen() {
     setIsGenerating(true);
     try {
       const tables = await createTables(selectedRestaurant, tableCount, startNumber);
-      setGeneratedTables(tables);
-      pushAlert('success', 'Succès', `${tables.length} table(s) créées avec succès !`);
+      const createdCount = Array.isArray(tables) ? tables.length : tableCount;
+      // 🆕 Recharger la liste complète depuis le backend pour fusionner
+      // anciennes + nouvelles tables, et recomputer le prochain startNumber.
+      // Sans ça, setGeneratedTables(tables) écraserait les tables existantes
+      // dans l'affichage alors qu'elles sont toujours en base.
+      await checkExistingTables();
+      pushAlert(
+        'success',
+        existingTablesCount > 0 ? 'Tables ajoutées' : 'Tables créées',
+        `${createdCount} table(s) ${existingTablesCount > 0 ? 'ajoutée' : 'créée'}${createdCount > 1 ? 's' : ''} avec succès !`,
+      );
     } catch (error: any) {
       console.error('Erreur lors de la génération des tables:', error);
 
@@ -246,10 +352,15 @@ export default function QRCodesScreen() {
         await Promise.all(deletePromises);
       }
 
-      const newTables = await createTables(selectedRestaurant, tableCount, startNumber);
+      // 🆕 Pour un remplacement, on repart toujours à 1 (clean slate) —
+      // peu importe le startNumber auto-rempli pour l'ajout. L'utilisateur
+      // peut ensuite ajouter des tables au-delà via le bouton "Ajouter".
+      const newTables = await createTables(selectedRestaurant, tableCount, 1);
 
       setGeneratedTables(newTables);
       setExistingTablesCount(newTables.length);
+      // Recomputer le prochain startNumber suggéré pour de futurs ajouts.
+      setStartNumber(newTables.length + 1);
 
       pushAlert(
         'success',
@@ -341,27 +452,68 @@ export default function QRCodesScreen() {
     }
   };
 
-  const generateOptimizedPrintHTML = (tables: Table[], size: QRSize = qrSize) => {
+  const generateOptimizedPrintHTML = (
+    tables: Table[],
+    size: QRSize = qrSize,
+    logoOverride?: string,
+    qrDataUrlMap?: Map<string | number, string>,
+  ) => {
     const sizeConfig = QR_SIZES[size];
+    // logoOverride > state React : évite le piège du closure obsolète quand
+    // on vient d'appeler ensureLogoLoaded() juste avant cette fonction.
+    const effectiveLogo = logoOverride || logoBase64;
 
-    const generateOptimizedQRCodeSVG = (url: string, size: number) => {
+    /**
+     * Génère le HTML pour le QR code d'une table.
+     *  - Si la capture native a réussi (data URI dans qrDataUrlMap), on
+     *    utilise directement le PNG (QR + logo déjà composés ensemble).
+     *  - Sinon, on retombe sur l'ancien chemin (qrserver.com + overlay
+     *    logo en CSS) comme filet de sécurité.
+     */
+    const generateOptimizedQRCodeSVG = (
+      table: Table,
+      url: string,
+      qrPxSize: number,
+    ) => {
+      const capturedDataUri = qrDataUrlMap?.get(table.id);
+
+      // ── Chemin privilégié : QR capturé en RAM avec logo natif intégré ────
+      if (capturedDataUri) {
+        return `
+          <div style="width: ${qrPxSize}px; height: ${qrPxSize}px; margin: 0 auto;">
+            <img src="${capturedDataUri}"
+                 width="${qrPxSize}" height="${qrPxSize}"
+                 style="display: block; image-rendering: -webkit-optimize-contrast;"
+                 alt="QR Code" />
+          </div>
+        `;
+      }
+
+      // ── Fallback : qrserver.com + overlay logo (cas où la capture échoue) ─
       const qrData = encodeURIComponent(url);
-      const logoSize = Math.round(size * 0.22);
-      const logoOverlay = logoBase64
-        ? `<img src="${logoBase64}"
-                width="${logoSize}" height="${logoSize}"
-                style="position: absolute; top: 50%; left: 50%;
-                       transform: translate(-50%, -50%);
-                       background: #FFFFFF; padding: 3px;
-                       border-radius: 6px; box-sizing: content-box;
+      const logoSize = Math.round(qrPxSize * 0.22);
+      const logoBoxSize = logoSize + 6;
+      const logoOverlay = effectiveLogo
+        ? `<img src="${effectiveLogo}"
+                width="${logoBoxSize}" height="${logoBoxSize}"
+                style="position: absolute;
+                       top: 50%; left: 50%;
+                       margin-top: -${Math.round(logoBoxSize / 2)}px;
+                       margin-left: -${Math.round(logoBoxSize / 2)}px;
+                       background: #FFFFFF;
+                       padding: 3px;
+                       border-radius: 6px;
+                       box-sizing: border-box;
+                       display: block;
+                       z-index: 10;
                        image-rendering: -webkit-optimize-contrast;"
                 alt="Logo" />`
         : '';
       return `
-        <div style="position: relative; width: ${size}px; height: ${size}px; margin: 0 auto;">
-          <img src="https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${qrData}&format=png&ecc=H&margin=8"
-               width="${size}" height="${size}"
-               style="display: block; image-rendering: -webkit-optimize-contrast;"
+        <div style="position: relative; width: ${qrPxSize}px; height: ${qrPxSize}px; margin: 0 auto;">
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=${qrPxSize}x${qrPxSize}&data=${qrData}&format=png&ecc=H&margin=8"
+               width="${qrPxSize}" height="${qrPxSize}"
+               style="display: block; position: relative; z-index: 1; image-rendering: -webkit-optimize-contrast;"
                alt="QR Code" />
           ${logoOverlay}
         </div>
@@ -369,16 +521,34 @@ export default function QRCodesScreen() {
     };
 
     const buildOptimizedQRCard = (table: Table) => {
+      // Tailles textuelles selon le format de page
+      const brandFontSize = size === 'small' ? '9px' : size === 'medium' ? '11px' : '13px';
+      const brandLogoPx = size === 'small' ? 14 : size === 'medium' ? 18 : 22;
+      const tableFontSize = size === 'small' ? '12px' : size === 'medium' ? '14px' : '16px';
+      const codeBgFontSize = size === 'small' ? '8px' : size === 'medium' ? '10px' : '11px';
+      const codeFontSize = size === 'small' ? '9px' : size === 'medium' ? '11px' : '12px';
+      const hintFontSize = size === 'small' ? '6px' : size === 'medium' ? '7px' : '8px';
+
+      // 🆕 En-tête de marque EatQuickeR : logo image (si chargé) + texte.
+      // Le texte est toujours présent ; le logo s'ajoute si dispo.
+      const brandLogo = effectiveLogo
+        ? `<img src="${effectiveLogo}" width="${brandLogoPx}" height="${brandLogoPx}" style="display: inline-block; vertical-align: middle; margin-right: 4px;" alt="EatQuickeR" />`
+        : '';
+
       return `
         <div class="qr-card qr-card-${size}" style="width: ${sizeConfig.cardWidth}; height: ${sizeConfig.cardHeight};">
-          <div style="font-size: ${size === 'small' ? '12px' : size === 'medium' ? '14px' : '16px'}; font-weight: bold; color: #111827; margin-bottom: 4px; flex-shrink: 0;">Table ${table.number}</div>
+          <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 3px; flex-shrink: 0;">
+            ${brandLogo}
+            <span style="font-size: ${brandFontSize}; font-weight: 700; color: #1E2A78; letter-spacing: 0.3px;">EatQuickeR</span>
+          </div>
+          <div style="font-size: ${tableFontSize}; font-weight: bold; color: #111827; margin-bottom: 4px; flex-shrink: 0;">Table ${table.number}</div>
           <div style="display: flex; justify-content: center; align-items: center; flex: 1; margin: 2px 0;">
-            ${generateOptimizedQRCodeSVG((table as any).qrCodeUrl, sizeConfig.printSize)}
+            ${generateOptimizedQRCodeSVG(table, (table as any).qrCodeUrl, sizeConfig.printSize)}
           </div>
-          <div style="font-size: ${size === 'small' ? '8px' : size === 'medium' ? '10px' : '11px'}; color: #666; background: #f8f9fa; padding: 2px 4px; border-radius: 2px; margin-bottom: 2px; flex-shrink: 0;">
-            <span style="font-family: monospace; font-weight: bold; font-size: ${size === 'small' ? '9px' : size === 'medium' ? '11px' : '12px'}; color: #111827;">${(table as any).manualCode}</span>
+          <div style="font-size: ${codeBgFontSize}; color: #666; background: #f8f9fa; padding: 2px 4px; border-radius: 2px; margin-bottom: 2px; flex-shrink: 0;">
+            <span style="font-family: monospace; font-weight: bold; font-size: ${codeFontSize}; color: #111827;">${(table as any).manualCode}</span>
           </div>
-          <div style="font-size: ${size === 'small' ? '6px' : size === 'medium' ? '7px' : '8px'}; color: #999; line-height: 1.1; flex-shrink: 0;">Scanner ou saisir</div>
+          <div style="font-size: ${hintFontSize}; color: #999; line-height: 1.1; flex-shrink: 0;">Scanner ou saisir</div>
         </div>
       `;
     };
@@ -438,7 +608,12 @@ export default function QRCodesScreen() {
 
     setIsPrinting(true);
     try {
-      const html = generateOptimizedPrintHTML(generatedTables);
+      const logo = await ensureLogoLoaded();
+      // 🆕 Capture chaque QR rendu en RAM (avec logo natif intégré) en PNG
+      // base64. La map est passée à generateOptimizedPrintHTML qui choisit
+      // le PNG capturé plutôt que qrserver.com + overlay CSS.
+      const qrDataUrls = await captureAllQRsAsBase64(generatedTables);
+      const html = generateOptimizedPrintHTML(generatedTables, qrSize, logo, qrDataUrls);
       await Print.printAsync({
         html,
         orientation: 'landscape',
@@ -455,7 +630,9 @@ export default function QRCodesScreen() {
   const handlePrintSingle = async (table: Table) => {
     setIsPrinting(true);
     try {
-      const html = generateOptimizedPrintHTML([table]);
+      const logo = await ensureLogoLoaded();
+      const qrDataUrls = await captureAllQRsAsBase64([table]);
+      const html = generateOptimizedPrintHTML([table], qrSize, logo, qrDataUrls);
       await Print.printAsync({
         html,
         orientation: 'landscape',
@@ -474,7 +651,9 @@ export default function QRCodesScreen() {
 
     setIsDownloading(true);
     try {
-      const html = generateOptimizedPrintHTML(generatedTables);
+      const logo = await ensureLogoLoaded();
+      const qrDataUrls = await captureAllQRsAsBase64(generatedTables);
+      const html = generateOptimizedPrintHTML(generatedTables, qrSize, logo, qrDataUrls);
       const { uri } = await Print.printToFileAsync({ html });
       await Sharing.shareAsync(uri, {
         UTI: '.pdf',
@@ -491,7 +670,9 @@ export default function QRCodesScreen() {
   const handleDownloadSingle = async (table: Table) => {
     setIsDownloading(true);
     try {
-      const html = generateOptimizedPrintHTML([table]);
+      const logo = await ensureLogoLoaded();
+      const qrDataUrls = await captureAllQRsAsBase64([table]);
+      const html = generateOptimizedPrintHTML([table], qrSize, logo, qrDataUrls);
       const { uri } = await Print.printToFileAsync({ html });
       await Sharing.shareAsync(uri, {
         UTI: '.pdf',
@@ -1476,11 +1657,14 @@ export default function QRCodesScreen() {
               {/* Sélecteur de taille de QR Code */}
               {renderQRSizePicker()}
 
-              {/* Configuration du nombre de tables */}
+              {/* Configuration du nombre de tables — toujours visible.
+                  Quand des tables existent, "Numéro de départ" est auto-rempli
+                  avec le prochain numéro disponible (cf. checkExistingTables).
+                  L'utilisateur peut overrider via l'icône Settings du header. */}
               <View style={styles.controlsRow}>
                 <View style={styles.controlGroup}>
                   <Text style={styles.controlLabel}>
-                    Nombre de tables
+                    {existingTablesCount > 0 ? 'Nombre de tables à ajouter' : 'Nombre de tables'}
                   </Text>
                   <View style={styles.controlContainer}>
                     <Pressable
@@ -1529,49 +1713,56 @@ export default function QRCodesScreen() {
 
               {/* Boutons d'action */}
               <View style={styles.actionsSection}>
-                <View style={styles.actionsRow}>
-                  <Button
-                    title={isGenerating ? 'Génération...' : 'Générer les QR Codes'}
-                    onPress={handleGenerateTables}
-                    loading={isGenerating}
-                    disabled={!selectedRestaurant}
-                    style={{
-                      backgroundColor: COLORS.primary,
-                      flex: screenType === 'mobile' ? undefined : 2
-                    }}
-                    textStyle={{ color: COLORS.surface }}
-                    leftIcon={<Ionicons name="qr-code-outline" size={16} color={COLORS.surface} />}
-                  />
-
-                  {selectedRestaurant && existingTablesCount > 0 && (
+                {/* 🆕 Bouton "Générer" / "Ajouter" toujours visible.
+                    Label adapté selon qu'on crée from scratch ou qu'on ajoute. */}
+                {selectedRestaurant && (
+                  <View style={styles.actionsRow}>
                     <Button
-                      title="Remplacer"
-                      onPress={handleReplaceTables}
+                      title={
+                        isGenerating
+                          ? 'Génération...'
+                          : existingTablesCount > 0
+                            ? `Ajouter ${tableCount} table${tableCount > 1 ? 's' : ''}`
+                            : 'Générer les QR Codes'
+                      }
+                      onPress={handleGenerateTables}
                       loading={isGenerating}
                       disabled={!selectedRestaurant}
                       style={{
-                        backgroundColor: COLORS.error,
-                        borderColor: COLORS.error,
-                        flex: screenType === 'mobile' ? undefined : 1
+                        backgroundColor: COLORS.primary,
+                        flex: 1,
                       }}
                       textStyle={{ color: COLORS.surface }}
-                      leftIcon={<Ionicons name="refresh-outline" size={16} color={COLORS.surface} />}
+                      leftIcon={
+                        <Ionicons
+                          name={existingTablesCount > 0 ? 'add-circle-outline' : 'qr-code-outline'}
+                          size={16}
+                          color={COLORS.surface}
+                        />
+                      }
                     />
-                  )}
-                </View>
+                  </View>
+                )}
 
-                {selectedRestaurant && (
+                {/* 🆕 Bouton "Remplacer" full-width uniquement si des tables existent */}
+                {selectedRestaurant && existingTablesCount > 0 && (
                   <Button
-                    title="Charger les tables existantes"
-                    onPress={loadExistingTables}
+                    title="Remplacer toutes les tables"
+                    onPress={handleReplaceTables}
                     loading={isGenerating}
-                    variant="outline"
+                    disabled={!selectedRestaurant}
                     fullWidth
-                    leftIcon={<Ionicons name="download-outline" size={16} color={COLORS.primary} />}
-                    style={{ borderColor: COLORS.primary }}
-                    textStyle={{ color: COLORS.primary }}
+                    variant="outline"
+                    style={{
+                      borderColor: COLORS.error,
+                    }}
+                    textStyle={{ color: COLORS.error }}
+                    leftIcon={<Ionicons name="refresh-outline" size={16} color={COLORS.error} />}
                   />
                 )}
+
+                {/* 🚫 "Charger les tables existantes" supprimé — l'auto-chargement
+                       dans checkExistingTables (cf. plus haut) le rend inutile. */}
 
                 {generatedTables.length > 0 && (
                   <View style={styles.actionsRow}>
@@ -1683,6 +1874,53 @@ export default function QRCodesScreen() {
         </View>
       </ScrollView>
 
+      {/* 🆕 QR codes haute résolution rendus offscreen pour la capture PNG.
+          react-native-qrcode-svg compose nativement QR + logo en un seul
+          SVG ; on récupère un data URI via toDataURL() au moment d'imprimer.
+          Le HTML d'impression embarque ce PNG tel quel — pas d'overlay,
+          pas de dépendance qrserver.com. */}
+      {generatedTables.length > 0 && (
+        <View
+          pointerEvents="none"
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={{
+            position: 'absolute',
+            left: -99999,
+            top: -99999,
+            width: 1,
+            height: 1,
+            overflow: 'hidden',
+            opacity: 0,
+          }}
+        >
+          {generatedTables.map((table) => {
+            const hdSize = QR_SIZES[qrSize].printSize * 2; // 2x pour qualité d'impression
+            return (
+              <QRCode
+                key={`print-hd-${table.id}`}
+                value={(table as any).qrCodeUrl || ''}
+                size={hdSize}
+                backgroundColor="#FFFFFF"
+                color="#000000"
+                ecl="H"
+                quietZone={16}
+                logo={APP_LOGO}
+                logoSize={Math.round(hdSize * 0.22)}
+                logoBackgroundColor="#FFFFFF"
+                logoMargin={2}
+                logoBorderRadius={6}
+                getRef={(c) => {
+                  if (c) {
+                    qrPrintRefs.current.set(table.id, c);
+                  }
+                }}
+              />
+            );
+          })}
+        </View>
+      )}
+
       {/* Modals */}
       {renderRestaurantPicker()}
       {renderPreviewModal()}
@@ -1693,7 +1931,7 @@ export default function QRCodesScreen() {
           <AlertWithAction
             variant="warning"
             title="Confirmer le remplacement"
-            message={`Voulez-vous vraiment remplacer les tables existantes ?\n\nCette action va :\n• Supprimer toutes les tables existantes\n• Créer ${tableCount} nouvelles tables (${startNumber} à ${startNumber + tableCount - 1})\n\nCette action est irréversible.`}
+            message={`Voulez-vous vraiment remplacer les tables existantes ?\n\nCette action va :\n• Supprimer toutes les tables existantes\n• Créer ${tableCount} nouvelles tables (1 à ${tableCount})\n\nCette action est irréversible.`}
             secondaryButton={{
               text: 'Annuler',
               onPress: () => setReplaceConfirmOpen(false),
