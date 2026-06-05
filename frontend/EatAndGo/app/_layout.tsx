@@ -1,6 +1,15 @@
+// ⚠️ Ces deux imports DOIVENT rester les premiers du fichier.
+//   1) intl-pluralrules : polyfill Intl.PluralRules requis par i18next sous Hermes
+//   2) @/i18n            : initialisation i18next (effet de bord)
+import 'intl-pluralrules';
+import '@/i18n';
+
 import React, { useEffect, useState } from 'react';
 import { router, SplashScreen, Stack } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+import { ThemeProvider } from '@/contexts/ThemeContext';
+import { LanguageProvider } from '@/contexts/LanguageContext';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { RestaurantProvider } from '@/contexts/RestaurantContext';
 import { ComptabiliteProvider } from '@/contexts/ComptabiliteContext';
@@ -54,30 +63,40 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <LegalAcceptanceProvider>
-        <AuthProvider>
-          <RestaurantProvider>
-            <ComptabiliteProvider>
-              <OrderProvider>
-                <SessionProvider>
-                  <SplashScreenManager>
-                    <CartProvider>
-                      <PushNotificationProvider>
-                        <SessionNotificationProvider>
-                          <Stack screenOptions={{ headerShown: false }}>
-                            <Stack.Screen name="+not-found" />
-                          </Stack>
-                          <FirstLaunchLegalModal />
-                        </SessionNotificationProvider>
-                      </PushNotificationProvider>
-                    </CartProvider>
-                  </SplashScreenManager>
-                </SessionProvider>
-              </OrderProvider>
-            </ComptabiliteProvider>
-          </RestaurantProvider>
-        </AuthProvider>
-      </LegalAcceptanceProvider>
+      {/*
+        ThemeProvider et LanguageProvider sont placés au plus haut niveau
+        (juste sous SafeAreaProvider) pour que TOUS les écrans, modales et
+        FirstLaunchLegalModal puissent lire le thème courant via useAppTheme()
+        et les traductions via useTranslation().
+      */}
+      <ThemeProvider>
+        <LanguageProvider>
+          <LegalAcceptanceProvider>
+            <AuthProvider>
+              <RestaurantProvider>
+                <ComptabiliteProvider>
+                  <OrderProvider>
+                    <SessionProvider>
+                      <SplashScreenManager>
+                        <CartProvider>
+                          <PushNotificationProvider>
+                            <SessionNotificationProvider>
+                              <Stack screenOptions={{ headerShown: false }}>
+                                <Stack.Screen name="+not-found" />
+                              </Stack>
+                              <FirstLaunchLegalModal />
+                            </SessionNotificationProvider>
+                          </PushNotificationProvider>
+                        </CartProvider>
+                      </SplashScreenManager>
+                    </SessionProvider>
+                  </OrderProvider>
+                </ComptabiliteProvider>
+              </RestaurantProvider>
+            </AuthProvider>
+          </LegalAcceptanceProvider>
+        </LanguageProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }
