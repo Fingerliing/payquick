@@ -39,7 +39,9 @@
     "optional": "任意",
     "required": "必須",
     "available": "利用可能",
-    "unavailable": "利用不可"
+    "unavailable": "利用不可",
+    "comingSoon": "近日公開",
+    "error": "エラー"
   },
   "nav": {
     "home": "ホーム",
@@ -52,7 +54,8 @@
     "dashboard": "ダッシュボード",
     "history": "履歴",
     "help": "ヘルプ",
-    "logout": "ログアウト"
+    "logout": "ログアウト",
+    "scanner": "スキャン"
   },
   "auth": {
     "signIn": "ログイン",
@@ -115,7 +118,62 @@
     "specialInstructions": "特別な指示",
     "specialInstructionsPlaceholder": "アレルギー、調理、玉ねぎ抜き…",
     "table": "テーブル",
-    "tableNumber": "テーブル {{number}} 番"
+    "tableNumber": "テーブル {{number}} 番",
+    "titleWithCount": "カート ({{count}})",
+    "serviceFee": "サービス料",
+    "collaborativeSession": "共同セッション",
+    "scanToOrder": "スキャンして注文",
+    "scanToOrderDescription": "QRコードをスキャンしてメニューにアクセス",
+    "checkoutForGroup": "グループで注文",
+    "processing": "処理中…",
+    "hostOnlyCheckout": "グループ注文はホストのみが行えます。",
+    "formula": {
+      "incomplete": "セット未完成",
+      "completeAction": "セットを完成させて注文してください。"
+    },
+    "clearConfirm": {
+      "title": "カートを空にする",
+      "message": "カートを空にしてもよろしいですか？この操作は元に戻せません。",
+      "cta": "カートを空にする"
+    },
+    "removeConfirm": {
+      "title": "商品を削除",
+      "message": "この商品をカートから削除しますか？",
+      "cta": "削除"
+    },
+    "splitConfirm": {
+      "title": "グループで注文",
+      "message": "参加者で会計を分けますか？それぞれが自分のスマートフォンで支払えます。",
+      "split": "会計を分ける",
+      "payAll": "全額支払う"
+    },
+    "feedback": {
+      "quantityUpdated": "数量を更新しました",
+      "itemRemoved": "商品を削除しました",
+      "cleared": "カートを空にしました",
+      "emptyOnCheckout": "カートが空です。続行するには商品を追加してください。",
+      "restaurantNotFound": "レストランが見つかりません。QRコードを再スキャンしてください。",
+      "orderPlaced": "注文が完了しました！",
+      "orderPlacedSplit": "注文完了！会計を分割中…"
+    },
+    "errors": {
+      "quantityUpdate": "数量の更新に失敗しました",
+      "itemRemove": "商品の削除に失敗しました",
+      "cartClear": "カートの空化に失敗しました",
+      "checkout": "注文の準備に失敗しました",
+      "groupOrder": "グループ注文に失敗しました"
+    },
+    "a11y": {
+      "itemImage": "{{name}} の画像",
+      "itemRow": "{{name}}、数量 {{count}}、価格 {{price}}",
+      "removeItem": "商品を削除",
+      "decrease": "数量を減らす",
+      "increase": "数量を増やす",
+      "currentQuantity": "現在の数量: {{count}}",
+      "checkoutHint": "タップして支払いに進む",
+      "formulaLockHint": "セットを完成させて注文してください",
+      "checkoutLabel": "合計 {{amount}} で注文"
+    }
   },
   "order": {
     "title": "注文",
@@ -135,7 +193,48 @@
     "viewDetails": "詳細を見る",
     "track": "注文を追跡",
     "rate": "注文を評価",
-    "reorder": "再注文"
+    "reorder": "再注文",
+    "count_one": "{{count}}件の注文",
+    "count_other": "{{count}}件の注文",
+    "unpaidTitle_one": "未払いの注文が{{count}}件あります",
+    "unpaidTitle_other": "未払いの注文が{{count}}件あります",
+    "unpaidSubtitle": "新しく注文するには未払い分を清算してください",
+    "myOrders": "マイ注文",
+    "tabs": {
+      "active": "進行中",
+      "history": "履歴"
+    },
+    "fallbackRestaurant": "レストラン",
+    "todayAt": "今日 {{time}}",
+    "dineIn": "店内",
+    "takeaway": "テイクアウト",
+    "paid": "支払い済み",
+    "paymentPending": "支払い保留中",
+    "waitingTime": "推定待ち時間: {{minutes}} 分",
+    "noActiveOrders": "進行中の注文はありません",
+    "noHistoryOrders": "過去の注文はありません",
+    "scanPrompt": "テーブルのQRコードをスキャンして最初の注文をしてください",
+    "orderNow": "今すぐ注文",
+    "scanDescription": "テーブルのQRコードをスキャンしてメニューにアクセス",
+    "scanQR": "QRコードをスキャン",
+    "enterCode": "コードを入力",
+    "clientOnly": "お客様専用",
+    "loadingOrders": "注文を読み込み中…",
+    "realtimeUnavailable": "リアルタイム通知が利用できません。引っ張って更新してください。",
+    "realtime": {
+      "on": "リアルタイム ON",
+      "connecting": "接続中…",
+      "error": "接続エラー",
+      "offline": "オフライン"
+    },
+    "statusLabels": {
+      "pending": "保留中",
+      "confirmed": "確定",
+      "preparing": "準備中",
+      "ready": "準備完了",
+      "served": "提供済み",
+      "cancelled": "キャンセル"
+    }
   },
   "payment": {
     "title": "支払い",
@@ -165,7 +264,124 @@
     "yourName": "お名前",
     "leaveSession": "セッションを退出",
     "sessionEnded": "セッションが終了しました",
-    "waitingForOthers": "他の方をお待ちしています…"
+    "waitingForOthers": "他の方をお待ちしています…",
+    "tableLabel": "{{name}} · テーブル {{table}}",
+    "bannerCta": "タップして再開",
+    "foundLabel": "セッションが見つかりました",
+    "foundCta": "タップして参加",
+    "inactivityWarning": "⚠️ 非アクティブなセッション — {{time}} 後に自動的に閉じます",
+    "status": {
+      "active": "アクティブ",
+      "locked": "ロック中",
+      "payment": "支払い保留中"
+    },
+    "errors": {
+      "emptyCode": "セッションコードを入力してください。",
+      "notFound": "このコードのセッションが見つかりません。",
+      "inactive": "このセッションはもうアクティブではありません。",
+      "invalidCode": "このコードでアクティブなセッションがありません。確認して再試行してください。",
+      "joinFailed": "このセッションに参加できません。",
+      "maybeGone": "セッションが利用できない可能性があります。",
+      "rejected": "ホストが参加リクエストを拒否しました。",
+      "joinTitle": "参加できません"
+    },
+    "exit": {
+      "titleHost": "セッションを終了しますか？",
+      "titleMember": "セッションから退出しますか？",
+      "messageHost": "ホストとして、すべての参加者のセッションを閉じます。",
+      "messageMember": "この共同セッションから退出しようとしています。",
+      "ctaHost": "終了",
+      "ctaMember": "退出"
+    },
+    "completed": {
+      "title": "セッション終了",
+      "participantsLabel": "参加者 ({{count}})",
+      "totalLabel": "合計: {{amount}}",
+      "close": "閉じる"
+    },
+    "codeModal": {
+      "title": "セッションに参加",
+      "description": "テーブルのホストが共有したコードを入力して、現在のセッションに参加します。",
+      "placeholder": "例: ABC123",
+      "cta": "セッションに参加"
+    },
+    "pending": {
+      "title": "承認待ち",
+      "description": "ホストがリクエストを承認する必要があります。\n承認されると自動的にリダイレクトされます。",
+      "codeLabel": "セッションコード"
+    },
+    "archive": {
+      "archived": "このセッションはアーカイブされました",
+      "archivingIn": "{{time}} 後にアーカイブ",
+      "archivingSoonUrgent": "⚠️ {{time}} 後にアーカイブ"
+    },
+    "joinModal": {
+      "chooseTitle": "このテーブルで注文",
+      "chooseSubtitle": "注文方法を選択してください",
+      "rejoinExisting": {
+        "title": "現在のセッションに再参加",
+        "subtitle": "コード: {{code}} · 参加者 {{count}} 名"
+      },
+      "createGroup": {
+        "title": "グループセッションを作成",
+        "description": "友達と一緒に注文し、簡単に会計を分けましょう"
+      },
+      "joinGroup": {
+        "title": "セッションに参加",
+        "description": "グループから共有されたコードを入力"
+      },
+      "orderAlone": "一人で注文",
+      "createTitle": "グループセッションを作成",
+      "hostNameLabel": "あなたの名前",
+      "hostNamePlaceholder": "例: 太郎",
+      "sessionTypeLabel": "セッションタイプ",
+      "sessionType": {
+        "collaborative": {
+          "title": "共同",
+          "desc": "全員が注文を確認可能"
+        },
+        "individual": {
+          "title": "個別",
+          "desc": "各自が個別に注文"
+        }
+      },
+      "maxParticipantsLabel": "最大参加人数",
+      "requireApprovalLabel": "新規参加者を手動で承認",
+      "back": "戻る",
+      "createCta": "セッションを作成",
+      "joinTitle": "セッションに参加",
+      "codeLabel": "セッションコード",
+      "codePlaceholder": "ABC123",
+      "verifyCta": "確認",
+      "previewTitle": "セッション情報",
+      "previewHost": "ホスト:",
+      "previewParticipants": "参加者:",
+      "sessionFullOrLocked": "⚠️ このセッションは満員またはロックされています",
+      "guestNameLabel": "あなたの名前",
+      "guestNamePlaceholder": "例: 花子",
+      "joinCta": "参加",
+      "pendingDescription": "セッションホストがリクエストを承認する必要があります。\n承認されると自動的にリダイレクトされます。",
+      "feedback": {
+        "soloError": "個別注文を開始できませんでした。",
+        "fieldRequired": "必須項目",
+        "nameRequiredHost": "セッションを作成するには名前を入力してください。",
+        "nameRequiredGuest": "セッションに参加するには名前を入力してください。",
+        "invalidCode": "無効なコード",
+        "invalidCodeDesc": "コードは正確に 6 文字である必要があります。",
+        "codeNotFound": "コードが見つかりません",
+        "codeNotFoundDesc": "このコードに一致するアクティブなセッションはありません。",
+        "sessionCreated": "セッション作成完了!",
+        "sessionCreatedDesc": "コード {{code}} を友達と共有してください。",
+        "sessionCreateError": "セッションを作成できませんでした。",
+        "welcome": "ようこそ!",
+        "welcomeDesc": "セッションに参加しました。",
+        "joinError": "セッションに参加できませんでした。",
+        "approved": "✅ 承認!",
+        "approvedDesc": "ホストがセッションへの参加を承認しました。",
+        "rejected": "❌ 拒否",
+        "rejectedDesc": "ホストがリクエストを拒否しました。"
+      }
+    }
   },
   "profile": {
     "title": "プロフィール",
@@ -182,7 +398,16 @@
     "terms": "利用規約",
     "privacy": "プライバシーポリシー",
     "version": "バージョン {{version}}",
-    "deleteAccount": "アカウントを削除"
+    "deleteAccount": "アカウントを削除",
+    "signInPrompt": "プロフィールにアクセスするにはログインしてください",
+    "defaultName": "ユーザー",
+    "verified": "認証済み",
+    "logoutConfirm": "ログアウトしてもよろしいですか？",
+    "myActions": "マイアクション",
+    "information": "情報",
+    "helpFaq": "ヘルプ・FAQ",
+    "contactUs": "お問い合わせ",
+    "personalData": "個人データ"
   },
   "theme": {
     "title": "テーマ",
@@ -243,5 +468,125 @@
     "today": "今日",
     "yesterday": "昨日",
     "tomorrow": "明日"
+  },
+  "legal": {
+    "copyright": "© {{year}} EatQuicker. 全著作権所有。",
+    "termsShort": "利用規約",
+    "privacyShort": "プライバシー",
+    "noticeShort": "法的通知",
+    "downloadMyData": {
+      "cta": "マイデータをダウンロード",
+      "download": "ダウンロード",
+      "gdprNotice": "GDPR準拠のエクスポート（第20条）",
+      "confirmTitle": "データエクスポート",
+      "confirmMessage": "すべての個人データをダウンロードしますか？\n\n含まれる項目：プロフィール、注文、設定、履歴。",
+      "shareDialogTitle": "EatQuickeRデータをダウンロード",
+      "options": {
+        "title": "データエクスポート",
+        "message": "データの受け取り方法を選択してください",
+        "direct": "直接ダウンロード",
+        "email": "メール（48時間以内）"
+      },
+      "progress": {
+        "fetching": "データ取得中…",
+        "preparing": "ファイル準備中…",
+        "preparingShort": "準備中…",
+        "done": "エクスポート完了!",
+        "sending": "リクエスト送信中…"
+      },
+      "success": {
+        "title": "エクスポート成功",
+        "message": "データ ({{size}} KB) がエクスポートされました。\n\n保存または共有できます。",
+        "messageFallback": "データは次の場所にエクスポートされました：\n{{filename}}\n\nサイズ: {{size}} KB"
+      },
+      "email": {
+        "title": "メールエクスポート",
+        "confirmMessage": "48時間以内にセキュアなダウンロードリンク付きメールが届きます。\n\n続行しますか？",
+        "successTitle": "リクエスト登録",
+        "successMessage": "48時間以内に {{email}} にデータ付きメールが送信されます。"
+      },
+      "errors": {
+        "notLoggedIn": "データをエクスポートするにはログインが必要です",
+        "rateLimit": "1日のエクスポート上限に達しました。明日再試行してください。",
+        "sessionExpired": "セッションが期限切れです。再度ログインしてください。",
+        "forbidden": "これらのデータをエクスポートする権限がありません。",
+        "serverError": "サーバーエラー。しばらくしてから再試行してください。",
+        "serviceUnavailable": "エクスポートサービスは一時的に利用できません。数分後に再試行してください。",
+        "generic": "データをダウンロードできません。再試行してください。",
+        "connection": "接続エラー。インターネット接続を確認してください。",
+        "emailRequestFailed": "リクエストを登録できません。再試行してください。",
+        "emailPending": "すでにエクスポートリクエストが進行中です。お待ちください。"
+      },
+      "a11y": {
+        "label": "個人データをダウンロード",
+        "hint": "GDPRに準拠してすべてのデータをエクスポート"
+      }
+    }
+  },
+  "home": {
+    "subtitle": "簡単に注文",
+    "welcome": "こんにちは、{{name}}さん！👋",
+    "welcomeSubtext": "今日注文する準備はできましたか？",
+    "quickActions": "クイックアクション",
+    "actions": {
+      "myOrders": {
+        "title": "マイ注文",
+        "subtitle": "注文を追跡"
+      },
+      "myCart": {
+        "title": "マイカート",
+        "subtitle": "購入を完了"
+      },
+      "joinSession": {
+        "title": "セッションに参加",
+        "subtitle": "共有コードを入力"
+      }
+    }
+  },
+  "qrAccess": {
+    "title": "テーブルのQRコードをスキャン",
+    "description": "またはコードを手動で入力",
+    "scanButton": "QRをスキャン",
+    "codeButton": "コードを入力",
+    "emptyCode": "有効なコードを入力してください。",
+    "invalidCodeTitle": "無効なコード",
+    "errors": {
+      "notFound": "このコードに対応するレストランやテーブルがありません。コードを確認するかQRをスキャンしてください。",
+      "restaurantNotFound": "このコードに対応する登録レストランがありません。QRを確認してください。",
+      "serverUnavailable": "レストランを確認できません。接続を確認して再試行してください。"
+    },
+    "modal": {
+      "title": "コードを入力",
+      "description": "テーブルコード（例: R12T005）または6文字のセッション共有コード。",
+      "placeholder": "例: R12T005 または ABC123",
+      "confirm": "確定",
+      "verifying": "確認中…"
+    },
+    "account": {
+      "title": "アカウントを使いますか？",
+      "hint": "アカウントがあると注文と領収書を確認できます。メニューに直接アクセスもできます。",
+      "login": {
+        "title": "ログイン",
+        "desc": "EatQuickeRアカウントを持っています"
+      },
+      "register": {
+        "title": "アカウント作成",
+        "desc": "注文追跡のための簡単登録"
+      },
+      "or": "または",
+      "guestCta": "アカウントなしで続ける",
+      "guestHint": "メニューにすぐアクセスできます。注文時に名前と電話番号が求められます。"
+    }
+  },
+  "qrScanner": {
+    "invalidTitle": "無効なQRコード",
+    "invalidMessage": "このQRコードはEatQuickeRレストランと一致しません\n\nスキャンした値: {{value}}",
+    "retry": "再試行",
+    "instruction": "カメラをレストランのQRコードに向けてください",
+    "permission": {
+      "title": "カメラのアクセスが必要です",
+      "description": "QRコードをスキャンするため、カメラへのアクセスが必要です。",
+      "allow": "許可"
+    }
   }
 }

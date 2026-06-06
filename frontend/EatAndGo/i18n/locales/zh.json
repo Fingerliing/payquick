@@ -39,7 +39,9 @@
     "optional": "可选",
     "required": "必填",
     "available": "可用",
-    "unavailable": "不可用"
+    "unavailable": "不可用",
+    "comingSoon": "即将推出",
+    "error": "错误"
   },
   "nav": {
     "home": "首页",
@@ -52,7 +54,8 @@
     "dashboard": "仪表板",
     "history": "历史",
     "help": "帮助",
-    "logout": "退出登录"
+    "logout": "退出登录",
+    "scanner": "扫码"
   },
   "auth": {
     "signIn": "登录",
@@ -115,7 +118,62 @@
     "specialInstructions": "特殊要求",
     "specialInstructionsPlaceholder": "过敏、烹饪、不加洋葱…",
     "table": "桌号",
-    "tableNumber": "{{number}} 号桌"
+    "tableNumber": "{{number}} 号桌",
+    "titleWithCount": "购物车 ({{count}})",
+    "serviceFee": "服务费",
+    "collaborativeSession": "协作会话",
+    "scanToOrder": "扫码下单",
+    "scanToOrderDescription": "扫描二维码访问菜单",
+    "checkoutForGroup": "为团体下单",
+    "processing": "处理中…",
+    "hostOnlyCheckout": "仅团体发起人可下单。",
+    "formula": {
+      "incomplete": "套餐不完整",
+      "completeAction": "请完善您的套餐以提交订单。"
+    },
+    "clearConfirm": {
+      "title": "清空购物车",
+      "message": "确定要清空购物车吗？此操作无法撤销。",
+      "cta": "清空购物车"
+    },
+    "removeConfirm": {
+      "title": "移除商品",
+      "message": "要从购物车移除此商品吗？",
+      "cta": "移除"
+    },
+    "splitConfirm": {
+      "title": "为团体下单",
+      "message": "是否在参与者之间分账？每人可通过自己的手机支付各自部分。",
+      "split": "分账",
+      "payAll": "由我支付全部"
+    },
+    "feedback": {
+      "quantityUpdated": "数量已更新",
+      "itemRemoved": "商品已移除",
+      "cleared": "购物车已清空",
+      "emptyOnCheckout": "购物车为空，请添加商品后继续。",
+      "restaurantNotFound": "未找到餐厅，请重新扫描二维码。",
+      "orderPlaced": "下单成功！",
+      "orderPlacedSplit": "下单成功！正在分账…"
+    },
+    "errors": {
+      "quantityUpdate": "更新数量时出错",
+      "itemRemove": "移除商品时出错",
+      "cartClear": "清空购物车时出错",
+      "checkout": "准备订单时出错",
+      "groupOrder": "团体下单时出错"
+    },
+    "a11y": {
+      "itemImage": "{{name}} 的图片",
+      "itemRow": "{{name}}，数量 {{count}}，价格 {{price}}",
+      "removeItem": "移除商品",
+      "decrease": "减少数量",
+      "increase": "增加数量",
+      "currentQuantity": "当前数量：{{count}}",
+      "checkoutHint": "点击进入支付",
+      "formulaLockHint": "请完善您的套餐以提交订单",
+      "checkoutLabel": "下单总额 {{amount}}"
+    }
   },
   "order": {
     "title": "订单",
@@ -135,7 +193,48 @@
     "viewDetails": "查看详情",
     "track": "追踪订单",
     "rate": "评价订单",
-    "reorder": "再次订购"
+    "reorder": "再次订购",
+    "count_one": "{{count}} 个订单",
+    "count_other": "{{count}} 个订单",
+    "unpaidTitle_one": "您有 {{count}} 个未付订单",
+    "unpaidTitle_other": "您有 {{count}} 个未付订单",
+    "unpaidSubtitle": "请结清订单后再下新单",
+    "myOrders": "我的订单",
+    "tabs": {
+      "active": "进行中",
+      "history": "历史记录"
+    },
+    "fallbackRestaurant": "餐厅",
+    "todayAt": "今天 {{time}}",
+    "dineIn": "堂食",
+    "takeaway": "外带",
+    "paid": "已支付",
+    "paymentPending": "待支付",
+    "waitingTime": "预计等待时间：{{minutes}} 分钟",
+    "noActiveOrders": "暂无进行中的订单",
+    "noHistoryOrders": "暂无历史订单",
+    "scanPrompt": "扫描您餐桌的二维码即可下首单",
+    "orderNow": "立即点单",
+    "scanDescription": "通过扫描餐桌二维码访问菜单",
+    "scanQR": "扫描二维码",
+    "enterCode": "输入编码",
+    "clientOnly": "仅限客户访问",
+    "loadingOrders": "正在加载订单…",
+    "realtimeUnavailable": "实时通知不可用，请下拉刷新。",
+    "realtime": {
+      "on": "实时已开启",
+      "connecting": "连接中…",
+      "error": "连接错误",
+      "offline": "离线"
+    },
+    "statusLabels": {
+      "pending": "待处理",
+      "confirmed": "已确认",
+      "preparing": "准备中",
+      "ready": "已就绪",
+      "served": "已上菜",
+      "cancelled": "已取消"
+    }
   },
   "payment": {
     "title": "支付",
@@ -165,7 +264,124 @@
     "yourName": "您的姓名",
     "leaveSession": "退出会话",
     "sessionEnded": "会话已结束",
-    "waitingForOthers": "等待其他用餐者…"
+    "waitingForOthers": "等待其他用餐者…",
+    "tableLabel": "{{name}} · 第 {{table}} 桌",
+    "bannerCta": "点击继续",
+    "foundLabel": "已找到会话",
+    "foundCta": "点击加入",
+    "inactivityWarning": "⚠️ 会话不活跃 — {{time}} 后自动关闭",
+    "status": {
+      "active": "进行中",
+      "locked": "已锁定",
+      "payment": "待支付"
+    },
+    "errors": {
+      "emptyCode": "请输入会话代码。",
+      "notFound": "未找到此代码对应的会话。",
+      "inactive": "此会话已不再活跃。",
+      "invalidCode": "此代码无活跃会话。请检查后重试。",
+      "joinFailed": "无法加入此会话。",
+      "maybeGone": "会话可能已不可用。",
+      "rejected": "主持人拒绝了您的请求。",
+      "joinTitle": "无法加入"
+    },
+    "exit": {
+      "titleHost": "结束会话？",
+      "titleMember": "离开会话？",
+      "messageHost": "作为主持人，这将关闭所有参与者的会话。",
+      "messageMember": "您即将离开此协作会话。",
+      "ctaHost": "结束",
+      "ctaMember": "离开"
+    },
+    "completed": {
+      "title": "会话已结束",
+      "participantsLabel": "参与者 ({{count}})",
+      "totalLabel": "总计：{{amount}}",
+      "close": "关闭"
+    },
+    "codeModal": {
+      "title": "加入会话",
+      "description": "输入桌主持人分享的代码以加入当前会话。",
+      "placeholder": "例如：ABC123",
+      "cta": "加入会话"
+    },
+    "pending": {
+      "title": "等待批准",
+      "description": "主持人需要批准您的请求。\n通过后将自动跳转。",
+      "codeLabel": "会话代码"
+    },
+    "archive": {
+      "archived": "此会话已归档",
+      "archivingIn": "{{time}} 后归档",
+      "archivingSoonUrgent": "⚠️ {{time}} 后归档"
+    },
+    "joinModal": {
+      "chooseTitle": "在此桌点单",
+      "chooseSubtitle": "选择您的点单方式",
+      "rejoinExisting": {
+        "title": "重新加入当前会话",
+        "subtitle": "代码：{{code}} · {{count}} 位参与者"
+      },
+      "createGroup": {
+        "title": "创建群组会话",
+        "description": "与朋友一起点单，轻松分账"
+      },
+      "joinGroup": {
+        "title": "加入会话",
+        "description": "输入您的群组分享的代码"
+      },
+      "orderAlone": "独自点单",
+      "createTitle": "创建群组会话",
+      "hostNameLabel": "您的姓名",
+      "hostNamePlaceholder": "例如：张三",
+      "sessionTypeLabel": "会话类型",
+      "sessionType": {
+        "collaborative": {
+          "title": "协作式",
+          "desc": "所有人都能看到订单"
+        },
+        "individual": {
+          "title": "独立式",
+          "desc": "每个人单独点单"
+        }
+      },
+      "maxParticipantsLabel": "最大参与人数",
+      "requireApprovalLabel": "手动批准新参与者",
+      "back": "返回",
+      "createCta": "创建会话",
+      "joinTitle": "加入会话",
+      "codeLabel": "会话代码",
+      "codePlaceholder": "ABC123",
+      "verifyCta": "验证",
+      "previewTitle": "会话信息",
+      "previewHost": "主持人：",
+      "previewParticipants": "参与者：",
+      "sessionFullOrLocked": "⚠️ 此会话已满或已锁定",
+      "guestNameLabel": "您的姓名",
+      "guestNamePlaceholder": "例如：李四",
+      "joinCta": "加入",
+      "pendingDescription": "主持人需要批准您的请求。\n通过后将自动跳转。",
+      "feedback": {
+        "soloError": "无法启动独立点单。",
+        "fieldRequired": "必填字段",
+        "nameRequiredHost": "请输入您的姓名以创建会话。",
+        "nameRequiredGuest": "请输入您的姓名以加入会话。",
+        "invalidCode": "代码无效",
+        "invalidCodeDesc": "代码必须正好为 6 个字符。",
+        "codeNotFound": "未找到代码",
+        "codeNotFoundDesc": "没有活跃会话与此代码匹配。",
+        "sessionCreated": "会话已创建！",
+        "sessionCreatedDesc": "与朋友分享代码 {{code}}。",
+        "sessionCreateError": "无法创建会话。",
+        "welcome": "欢迎！",
+        "welcomeDesc": "您已成功加入会话。",
+        "joinError": "无法加入会话。",
+        "approved": "✅ 已接受！",
+        "approvedDesc": "主持人已将您接受加入会话。",
+        "rejected": "❌ 已拒绝",
+        "rejectedDesc": "主持人拒绝了您的请求。"
+      }
+    }
   },
   "profile": {
     "title": "个人资料",
@@ -182,7 +398,16 @@
     "terms": "使用条款",
     "privacy": "隐私政策",
     "version": "版本 {{version}}",
-    "deleteAccount": "删除我的账户"
+    "deleteAccount": "删除我的账户",
+    "signInPrompt": "登录以访问您的个人资料",
+    "defaultName": "用户",
+    "verified": "已验证",
+    "logoutConfirm": "确定要退出登录吗？",
+    "myActions": "我的操作",
+    "information": "信息",
+    "helpFaq": "帮助与常见问题",
+    "contactUs": "联系我们",
+    "personalData": "个人数据"
   },
   "theme": {
     "title": "主题",
@@ -243,5 +468,125 @@
     "today": "今天",
     "yesterday": "昨天",
     "tomorrow": "明天"
+  },
+  "legal": {
+    "copyright": "© {{year}} EatQuicker。保留所有权利。",
+    "termsShort": "条款",
+    "privacyShort": "隐私",
+    "noticeShort": "法律声明",
+    "downloadMyData": {
+      "cta": "下载我的数据",
+      "download": "下载",
+      "gdprNotice": "符合 GDPR 第 20 条的数据导出",
+      "confirmTitle": "数据导出",
+      "confirmMessage": "您要下载所有个人数据吗？\n\n包括：资料、订单、偏好和历史记录。",
+      "shareDialogTitle": "下载我的 EatQuickeR 数据",
+      "options": {
+        "title": "数据导出",
+        "message": "您希望如何接收数据？",
+        "direct": "直接下载",
+        "email": "通过电子邮件（48 小时内）"
+      },
+      "progress": {
+        "fetching": "获取数据中…",
+        "preparing": "准备文件中…",
+        "preparingShort": "准备中…",
+        "done": "导出完成！",
+        "sending": "发送请求中…"
+      },
+      "success": {
+        "title": "导出成功",
+        "message": "您的数据（{{size}} KB）已导出。\n\n现在可以保存或分享。",
+        "messageFallback": "您的数据已导出到：\n{{filename}}\n\n大小：{{size}} KB"
+      },
+      "email": {
+        "title": "邮件导出",
+        "confirmMessage": "您将在 48 小时内收到一封包含安全下载链接的邮件。\n\n继续？",
+        "successTitle": "请求已记录",
+        "successMessage": "将在 48 小时内向 {{email}} 发送包含您数据的邮件。"
+      },
+      "errors": {
+        "notLoggedIn": "您必须登录才能导出数据",
+        "rateLimit": "您已达到每日导出限制。请明天再试。",
+        "sessionExpired": "会话已过期，请重新登录。",
+        "forbidden": "您没有导出这些数据的权限。",
+        "serverError": "服务器错误，请稍后再试。",
+        "serviceUnavailable": "导出服务暂时不可用，请几分钟后再试。",
+        "generic": "无法下载您的数据，请重试。",
+        "connection": "连接错误，请检查网络连接。",
+        "emailRequestFailed": "无法记录您的请求，请重试。",
+        "emailPending": "您已有一个导出请求在处理中，请稍候。"
+      },
+      "a11y": {
+        "label": "下载我的个人数据",
+        "hint": "根据 GDPR 导出所有数据"
+      }
+    }
+  },
+  "home": {
+    "subtitle": "轻松点单",
+    "welcome": "您好，{{name}}！👋",
+    "welcomeSubtext": "今天准备好下单了吗？",
+    "quickActions": "快捷操作",
+    "actions": {
+      "myOrders": {
+        "title": "我的订单",
+        "subtitle": "跟踪您的订单"
+      },
+      "myCart": {
+        "title": "我的购物车",
+        "subtitle": "完成购买"
+      },
+      "joinSession": {
+        "title": "加入会话",
+        "subtitle": "输入分享代码"
+      }
+    }
+  },
+  "qrAccess": {
+    "title": "扫描您餐桌的二维码",
+    "description": "或手动输入代码",
+    "scanButton": "扫描二维码",
+    "codeButton": "输入代码",
+    "emptyCode": "请输入有效的代码。",
+    "invalidCodeTitle": "无效代码",
+    "errors": {
+      "notFound": "此代码不对应任何餐厅或餐桌。请核对代码或扫描二维码。",
+      "restaurantNotFound": "此代码不对应任何已注册餐厅。请核对二维码。",
+      "serverUnavailable": "无法验证此餐厅。请检查网络后重试。"
+    },
+    "modal": {
+      "title": "输入代码",
+      "description": "餐桌代码（如 R12T005）或 6 位会话共享代码。",
+      "placeholder": "如 R12T005 或 ABC123",
+      "confirm": "确认",
+      "verifying": "验证中…"
+    },
+    "account": {
+      "title": "是否使用账户？",
+      "hint": "账户可让您查看订单和发票。您也可直接进入菜单。",
+      "login": {
+        "title": "登录",
+        "desc": "我已有 EatQuickeR 账户"
+      },
+      "register": {
+        "title": "创建账户",
+        "desc": "快速注册以跟踪订单"
+      },
+      "or": "或",
+      "guestCta": "无需账户继续",
+      "guestHint": "您将直接进入菜单。下单时会要求姓名和电话号码。"
+    }
+  },
+  "qrScanner": {
+    "invalidTitle": "无效的二维码",
+    "invalidMessage": "此二维码与 EatQuickeR 餐厅不匹配\n\n扫描值：{{value}}",
+    "retry": "重试",
+    "instruction": "将摄像头对准餐厅二维码",
+    "permission": {
+      "title": "需要摄像头权限",
+      "description": "扫描二维码需要访问您的摄像头。",
+      "allow": "允许"
+    }
   }
 }

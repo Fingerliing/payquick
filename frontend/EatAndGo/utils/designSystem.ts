@@ -1,3 +1,29 @@
+/**
+ * Design System EatQuickeR — Light + Dark
+ *
+ * Ce fichier est un SUPERSET STRICT de la version legacy : tous les exports
+ * existants (COLORS, SHADOWS, COMPONENT_STYLES, ANIMATIONS, createResponsiveStyles,
+ * helpers mt/mb/.../py, etc.) sont conservés à l'identique pour ne PAS casser
+ * les centaines d'imports déjà en place dans l'app.
+ *
+ * Architecture du theming :
+ *  - LIGHT_COLORS / DARK_COLORS : deux palettes complètes, structure identique
+ *  - COLORS (legacy) = LIGHT_COLORS → les anciens écrans restent en mode clair
+ *  - useAppTheme()   : nouveau hook React, retourne { colors, isDark, mode, setMode, toggle }
+ *  - makeShadows(colors) : fabrique d'ombres theme-aware (pour les écrans migrés)
+ *  - SHADOWS legacy  = makeShadows(LIGHT_COLORS) → identique à avant
+ *  - createResponsiveStylesThemed(screenType, colors) : version thème-aware de
+ *    createResponsiveStyles ; l'original reste figé sur LIGHT_COLORS
+ *
+ * Pour migrer un écran : remplacer
+ *   import { COLORS, ... } from '@/utils/designSystem';
+ * par
+ *   import { useAppTheme, ... } from '@/utils/designSystem';
+ *   const { colors } = useAppTheme();
+ * et déplacer la création des StyleSheet dans une fabrique `(colors) => StyleSheet.create({...})`.
+ *
+ * Voir docs/THEME_I18N_MIGRATION.md.
+ */
 import { useWindowDimensions } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 
@@ -184,54 +210,61 @@ export const LIGHT_COLORS: AppColors = {
 };
 
 // ──────────────────────────────────────────────────────────────────────────
-// PALETTE DARK — exploite la charte navy + or du logo EatQuickeR
+// PALETTE DARK — fidèle au logo EatQuickeR (navy quasi-noir + or premium)
+//
+// Lecture du logo :
+//  - Fond : noir bleuté très profond, texture papier kraft, presque pure obscurité
+//  - Or : différents tons (or jaune lumineux pour les highlights, or cuivré/oxydé
+//    pour les ornements). On garde le D4AF37 historique comme accent principal.
+//  - Texte : blanc cassé, légèrement chaud mais PAS jaunâtre — il faut un contraste
+//    franc avec le navy, pas une harmonie tiède.
 //
 // Choix structurants :
-//  - background = navy profond du logo (#0D1629 = variants.primary.900)
-//  - surface = navy légèrement plus clair pour les cartes
-//  - primary clarifié (#818CF8 = variants.primary.400) pour ressortir sur fond navy
-//  - secondary (or #D4AF37) conservé : c'est notre signature, brille tout autant en dark
-//  - text.primary = blanc crème légèrement teinté or pour cohérence chromatique
-//  - variants : on inverse l'échelle 50↔900 (le 50 devient le plus sombre, le 900 le plus clair)
+//  - background = noir bleuté quasi-pur (#070B18) pour reproduire la profondeur du logo
+//  - surface = un cran plus clair (#0F1528) pour les cartes, modales
+//  - surfaceElevated implicite via shadow + élévation
+//  - primary = bleu indigo clair pour les CTAs (pas l'or, sinon collision avec secondary)
+//  - secondary (or) conservé en #D4AF37 — c'est notre signature
+//  - text.primary = blanc cassé chaud très lumineux (#F5F2E8) qui rappelle la dorure
+//    du logo SANS être jaunâtre comme avant
 // ──────────────────────────────────────────────────────────────────────────
 export const DARK_COLORS: AppColors = {
-  primary: '#818CF8',      // primary.400 light — clair sur fond navy
-  secondary: '#D4AF37',    // or conservé tel quel
+  primary: '#A5B4FC',      // indigo clair, lisible sur fond quasi-noir
+  secondary: '#D4AF37',    // or signature conservé
 
   success: '#34D399',
   warning: '#FBBF24',
   error:   '#F87171',
   info:    '#60A5FA',
-  card:    '#1B2745',
+  card:    '#0F1528',
 
-  background:    '#0D1629', // navy profond du logo
-  surface:       '#15203A', // navy un cran plus clair
-  goldenSurface: '#1F2A4A', // surface "or" en dark = navy teinté
-  overlay:       'rgba(0, 0, 0, 0.7)',
+  background:    '#070B18', // noir bleuté quasi pur (texture du logo)
+  surface:       '#0F1528', // navy très sombre, cartes et modales
+  goldenSurface: '#1A1A2E', // surface "or" en dark = navy à peine teinté
+  overlay:       'rgba(0, 0, 0, 0.78)',
 
   text: {
-    primary:   '#F8F0D8', // blanc crème (chaleur or-navy)
-    secondary: '#A8B0CC',
-    light:     '#6B7390',
-    inverse:   '#0D1629', // texte sur fonds clairs (ex. boutons or)
-    golden:    '#E6C76B',
+    primary:   '#F2EBD5', // blanc cassé chaud, rappelle subtilement la dorure du logo
+    secondary: '#B8B8C8', // gris-bleu doux pour le secondaire
+    light:     '#7A7A8E', // gris-bleu plus sombre pour les meta
+    inverse:   '#070B18', // texte sur fonds clairs (boutons or par ex.)
+    golden:    '#E6C76B', // accent or pour les titres "premium"
   },
 
   border: {
-    light:   '#1F2A4A',
-    default: '#2A375C',
-    dark:    '#3A4970',
-    golden:  '#A88A2E',
+    light:   '#161D33', // bordures subtiles, presque invisibles
+    default: '#222B47', // bordures par défaut
+    dark:    '#2D3760', // bordures plus marquées
+    golden:  '#8B6F1F', // bordure dorée vieillie (ton des feuilles de laurier)
   },
 
   shadow: {
-    // En dark, on garde les ombres très sombres (l'élévation passe par
-    // l'écart de luminosité avec le background, pas par une vraie ombre).
-    light:   'rgba(0, 0, 0, 0.3)',
-    default: 'rgba(0, 0, 0, 0.45)',
-    medium:  'rgba(0, 0, 0, 0.6)',
-    dark:    'rgba(0, 0, 0, 0.75)',
-    golden:  'rgba(212, 175, 55, 0.25)',
+    // En dark, les ombres très sombres créent l'élévation par contraste avec le fond.
+    light:   'rgba(0, 0, 0, 0.4)',
+    default: 'rgba(0, 0, 0, 0.55)',
+    medium:  'rgba(0, 0, 0, 0.7)',
+    dark:    'rgba(0, 0, 0, 0.85)',
+    golden:  'rgba(212, 175, 55, 0.35)', // halo or pour les éléments premium
   },
 
   progress: {
@@ -244,25 +277,25 @@ export const DARK_COLORS: AppColors = {
   variants: {
     // Échelle inversée pour conserver la sémantique "50 = subtil, 900 = saturé"
     primary: {
-      50:  '#0D1629',
-      100: '#111B39',
-      200: '#15204E',
-      300: '#1A2563',
-      400: '#1E2A78',
-      500: '#818CF8', // accent principal en dark
-      600: '#A5B4FC',
-      700: '#C7D2FE',
-      800: '#E0E7FF',
-      900: '#F0F3FF',
+      50:  '#070B18',
+      100: '#0F1528',
+      200: '#161D33',
+      300: '#1E2A78',
+      400: '#3A4CB8',
+      500: '#A5B4FC',  // accent principal en dark
+      600: '#C7D2FE',
+      700: '#E0E7FF',
+      800: '#F0F3FF',
+      900: '#FFFFFF',
     },
     secondary: {
-      // L'or reste identifiable, on inverse juste légèrement les bouts
-      50:  '#3F3210',
-      100: '#5C4818',
-      200: '#7A6020',
-      300: '#9C7C2A',
-      400: '#B8941F',
-      500: '#D4AF37',
+      // On va du brun-or oxydé (les feuilles de laurier du logo) à l'or éclatant (la cuillère)
+      50:  '#2B1F08',
+      100: '#3F2D0C',
+      200: '#5C4818',
+      300: '#7A6020',
+      400: '#A88A2E',
+      500: '#D4AF37',  // or signature
       600: '#E6C76B',
       700: '#F4E17B',
       800: '#FBEFA8',
@@ -271,11 +304,11 @@ export const DARK_COLORS: AppColors = {
   },
 
   gradients: {
-    goldenHorizontal: ['#B8941F', '#D4AF37', '#FFD700'],
-    goldenVertical:   ['#A16207', '#D4AF37', '#F4E17B'],
-    goldenRadial:     ['#854D0E', '#D4AF37', '#FACC15'],
-    premiumGold:      ['#8B7355', '#D4AF37', '#FFE55C'],
-    subtleGold:       ['#3A2F0A', '#7A6020', '#A88A2E'],
+    goldenHorizontal: ['#8B6F1F', '#D4AF37', '#F4E17B'],
+    goldenVertical:   ['#5C4818', '#D4AF37', '#FFE55C'],
+    goldenRadial:     ['#3F2D0C', '#D4AF37', '#FACC15'],
+    premiumGold:      ['#7A6020', '#D4AF37', '#FFE55C'],
+    subtleGold:       ['#161D33', '#3F2D0C', '#8B6F1F'],
   },
 };
 

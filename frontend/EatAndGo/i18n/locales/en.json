@@ -38,7 +38,9 @@
     "optional": "Optional",
     "required": "Required",
     "available": "Available",
-    "unavailable": "Unavailable"
+    "unavailable": "Unavailable",
+    "comingSoon": "Soon",
+    "error": "Error"
   },
   "nav": {
     "home": "Home",
@@ -51,7 +53,8 @@
     "dashboard": "Dashboard",
     "history": "History",
     "help": "Help",
-    "logout": "Log out"
+    "logout": "Log out",
+    "scanner": "Scan"
   },
   "auth": {
     "signIn": "Sign in",
@@ -114,7 +117,62 @@
     "specialInstructions": "Special instructions",
     "specialInstructionsPlaceholder": "Allergies, cooking, no onion…",
     "table": "Table",
-    "tableNumber": "Table {{number}}"
+    "tableNumber": "Table {{number}}",
+    "titleWithCount": "Cart ({{count}})",
+    "serviceFee": "Service fee",
+    "collaborativeSession": "Collaborative session",
+    "scanToOrder": "Scan to order",
+    "scanToOrderDescription": "Scan a QR code to access the menu",
+    "checkoutForGroup": "Order for the group",
+    "processing": "Processing…",
+    "hostOnlyCheckout": "Only the host can place the group order.",
+    "formula": {
+      "incomplete": "Incomplete formula",
+      "completeAction": "Complete your formula to place the order."
+    },
+    "clearConfirm": {
+      "title": "Empty cart",
+      "message": "Are you sure you want to empty your cart? This cannot be undone.",
+      "cta": "Empty cart"
+    },
+    "removeConfirm": {
+      "title": "Remove item",
+      "message": "Do you want to remove this item from your cart?",
+      "cta": "Remove"
+    },
+    "splitConfirm": {
+      "title": "Order for the group",
+      "message": "Would you like to split the bill between participants? Everyone can pay their share from their phone.",
+      "split": "Split the bill",
+      "payAll": "I pay for all"
+    },
+    "feedback": {
+      "quantityUpdated": "Quantity updated",
+      "itemRemoved": "Item removed from cart",
+      "cleared": "Cart emptied",
+      "emptyOnCheckout": "Your cart is empty. Add items to continue.",
+      "restaurantNotFound": "Restaurant not found. Please scan the QR code again.",
+      "orderPlaced": "Order placed successfully!",
+      "orderPlacedSplit": "Order placed! Splitting the bill…"
+    },
+    "errors": {
+      "quantityUpdate": "Failed to update quantity",
+      "itemRemove": "Failed to remove item",
+      "cartClear": "Failed to empty cart",
+      "checkout": "Failed to prepare the order",
+      "groupOrder": "Failed to place group order"
+    },
+    "a11y": {
+      "itemImage": "Image of {{name}}",
+      "itemRow": "{{name}}, quantity {{count}}, price {{price}}",
+      "removeItem": "Remove item",
+      "decrease": "Decrease quantity",
+      "increase": "Increase quantity",
+      "currentQuantity": "Current quantity: {{count}}",
+      "checkoutHint": "Tap to proceed to payment",
+      "formulaLockHint": "Complete your formula to place the order",
+      "checkoutLabel": "Order for a total of {{amount}}"
+    }
   },
   "order": {
     "title": "Order",
@@ -134,7 +192,48 @@
     "viewDetails": "View details",
     "track": "Track order",
     "rate": "Rate order",
-    "reorder": "Order again"
+    "reorder": "Order again",
+    "count_one": "{{count}} order",
+    "count_other": "{{count}} orders",
+    "unpaidTitle_one": "You have an unpaid order",
+    "unpaidTitle_other": "You have {{count}} unpaid orders",
+    "unpaidSubtitle": "Settle your orders to place a new one",
+    "myOrders": "My orders",
+    "tabs": {
+      "active": "Active",
+      "history": "History"
+    },
+    "fallbackRestaurant": "Restaurant",
+    "todayAt": "Today at {{time}}",
+    "dineIn": "Dine in",
+    "takeaway": "Takeaway",
+    "paid": "Paid",
+    "paymentPending": "Payment pending",
+    "waitingTime": "Estimated wait: {{minutes}} min",
+    "noActiveOrders": "No active orders",
+    "noHistoryOrders": "No past orders",
+    "scanPrompt": "Scan your table QR code to place your first order",
+    "orderNow": "Order now",
+    "scanDescription": "Access the menu by scanning your table QR code",
+    "scanQR": "Scan QR Code",
+    "enterCode": "Enter code",
+    "clientOnly": "For customers only",
+    "loadingOrders": "Loading your orders…",
+    "realtimeUnavailable": "Real-time notifications unavailable. Pull to refresh.",
+    "realtime": {
+      "on": "Real-time on",
+      "connecting": "Connecting…",
+      "error": "Connection error",
+      "offline": "Offline"
+    },
+    "statusLabels": {
+      "pending": "Pending",
+      "confirmed": "Confirmed",
+      "preparing": "Preparing",
+      "ready": "Ready",
+      "served": "Served",
+      "cancelled": "Cancelled"
+    }
   },
   "payment": {
     "title": "Payment",
@@ -164,7 +263,124 @@
     "yourName": "Your name",
     "leaveSession": "Leave session",
     "sessionEnded": "Session ended",
-    "waitingForOthers": "Waiting for other guests…"
+    "waitingForOthers": "Waiting for other guests…",
+    "tableLabel": "{{name}} · Table {{table}}",
+    "bannerCta": "Tap to resume",
+    "foundLabel": "Session found",
+    "foundCta": "Tap to rejoin",
+    "inactivityWarning": "⚠️ Inactive session — auto close in {{time}}",
+    "status": {
+      "active": "Active",
+      "locked": "Locked",
+      "payment": "Payment pending"
+    },
+    "errors": {
+      "emptyCode": "Please enter a session code.",
+      "notFound": "No session found with this code.",
+      "inactive": "This session is no longer active.",
+      "invalidCode": "No active session with this code. Check the code and try again.",
+      "joinFailed": "Unable to join this session.",
+      "maybeGone": "The session may no longer be available.",
+      "rejected": "The host declined your access request.",
+      "joinTitle": "Unable to join"
+    },
+    "exit": {
+      "titleHost": "End the session?",
+      "titleMember": "Leave the session?",
+      "messageHost": "As the host, this will close the session for everyone.",
+      "messageMember": "You are about to leave this collaborative session.",
+      "ctaHost": "End",
+      "ctaMember": "Leave"
+    },
+    "completed": {
+      "title": "Session ended",
+      "participantsLabel": "Participants ({{count}})",
+      "totalLabel": "Total: {{amount}}",
+      "close": "Close"
+    },
+    "codeModal": {
+      "title": "Join a session",
+      "description": "Enter the code shared by the table host to join the current session.",
+      "placeholder": "E.G. ABC123",
+      "cta": "Join session"
+    },
+    "pending": {
+      "title": "Waiting for approval",
+      "description": "The host must approve your request.\nYou will be redirected automatically once accepted.",
+      "codeLabel": "Session code"
+    },
+    "archive": {
+      "archived": "This session has been archived",
+      "archivingIn": "Archiving in {{time}}",
+      "archivingSoonUrgent": "⚠️ Archiving in {{time}}"
+    },
+    "joinModal": {
+      "chooseTitle": "Order at this table",
+      "chooseSubtitle": "Choose how you want to order",
+      "rejoinExisting": {
+        "title": "Rejoin the current session",
+        "subtitle": "Code: {{code}} · {{count}} participant(s)"
+      },
+      "createGroup": {
+        "title": "Create a group session",
+        "description": "Order with friends and split the bill easily"
+      },
+      "joinGroup": {
+        "title": "Join a session",
+        "description": "Enter the code shared by your group"
+      },
+      "orderAlone": "Order on my own",
+      "createTitle": "Create a group session",
+      "hostNameLabel": "Your name",
+      "hostNamePlaceholder": "E.g. John",
+      "sessionTypeLabel": "Session type",
+      "sessionType": {
+        "collaborative": {
+          "title": "Collaborative",
+          "desc": "Everyone sees all orders"
+        },
+        "individual": {
+          "title": "Individual",
+          "desc": "Everyone orders separately"
+        }
+      },
+      "maxParticipantsLabel": "Maximum number of participants",
+      "requireApprovalLabel": "Manually approve new participants",
+      "back": "Back",
+      "createCta": "Create session",
+      "joinTitle": "Join a session",
+      "codeLabel": "Session code",
+      "codePlaceholder": "ABC123",
+      "verifyCta": "Verify",
+      "previewTitle": "Session info",
+      "previewHost": "Host:",
+      "previewParticipants": "Participants:",
+      "sessionFullOrLocked": "⚠️ This session is full or locked",
+      "guestNameLabel": "Your name",
+      "guestNamePlaceholder": "E.g. Mary",
+      "joinCta": "Join",
+      "pendingDescription": "The session host must approve your request.\nYou will be redirected automatically once accepted.",
+      "feedback": {
+        "soloError": "Couldn't start the solo order.",
+        "fieldRequired": "Required field",
+        "nameRequiredHost": "Please enter your name to create the session.",
+        "nameRequiredGuest": "Please enter your name to join the session.",
+        "invalidCode": "Invalid code",
+        "invalidCodeDesc": "The code must be exactly 6 characters.",
+        "codeNotFound": "Code not found",
+        "codeNotFoundDesc": "No active session matches this code.",
+        "sessionCreated": "Session created!",
+        "sessionCreatedDesc": "Share code {{code}} with your friends.",
+        "sessionCreateError": "Couldn't create the session.",
+        "welcome": "Welcome!",
+        "welcomeDesc": "You successfully joined the session.",
+        "joinError": "Couldn't join the session.",
+        "approved": "✅ Approved!",
+        "approvedDesc": "The host has accepted you into the session.",
+        "rejected": "❌ Declined",
+        "rejectedDesc": "The host declined your request."
+      }
+    }
   },
   "profile": {
     "title": "Profile",
@@ -181,7 +397,16 @@
     "terms": "Terms of use",
     "privacy": "Privacy policy",
     "version": "Version {{version}}",
-    "deleteAccount": "Delete my account"
+    "deleteAccount": "Delete my account",
+    "signInPrompt": "Sign in to access your profile",
+    "defaultName": "User",
+    "verified": "Verified",
+    "logoutConfirm": "Are you sure you want to sign out?",
+    "myActions": "My actions",
+    "information": "Information",
+    "helpFaq": "Help & FAQ",
+    "contactUs": "Contact us",
+    "personalData": "Personal data"
   },
   "theme": {
     "title": "Theme",
@@ -242,5 +467,125 @@
     "today": "Today",
     "yesterday": "Yesterday",
     "tomorrow": "Tomorrow"
+  },
+  "legal": {
+    "copyright": "© {{year}} EatQuicker. All rights reserved.",
+    "termsShort": "Terms",
+    "privacyShort": "Privacy",
+    "noticeShort": "Legal notice",
+    "downloadMyData": {
+      "cta": "Download my data",
+      "download": "Download",
+      "gdprNotice": "GDPR-compliant export (Article 20)",
+      "confirmTitle": "Data export",
+      "confirmMessage": "Would you like to download all your personal data?\n\nThis includes: profile, orders, preferences, and history.",
+      "shareDialogTitle": "Download my EatQuickeR data",
+      "options": {
+        "title": "Data export",
+        "message": "How would you like to receive your data?",
+        "direct": "Direct download",
+        "email": "By email (within 48h)"
+      },
+      "progress": {
+        "fetching": "Fetching data…",
+        "preparing": "Preparing file…",
+        "preparingShort": "Preparing…",
+        "done": "Export complete!",
+        "sending": "Sending request…"
+      },
+      "success": {
+        "title": "Export successful",
+        "message": "Your data ({{size}} KB) has been exported.\n\nYou can now save or share it.",
+        "messageFallback": "Your data has been exported to:\n{{filename}}\n\nSize: {{size}} KB"
+      },
+      "email": {
+        "title": "Email export",
+        "confirmMessage": "You'll receive an email with a secure download link within 48h.\n\nContinue?",
+        "successTitle": "Request submitted",
+        "successMessage": "An email will be sent to {{email}} within 48h with your data."
+      },
+      "errors": {
+        "notLoggedIn": "You must be logged in to export your data",
+        "rateLimit": "You have reached the daily export limit. Please try again tomorrow.",
+        "sessionExpired": "Your session has expired. Please sign in again.",
+        "forbidden": "You don't have permission to export this data.",
+        "serverError": "Server error. Please try again in a few moments.",
+        "serviceUnavailable": "The export service is temporarily unavailable. Try again in a few minutes.",
+        "generic": "Unable to download your data. Please try again.",
+        "connection": "Connection error. Check your internet connection.",
+        "emailRequestFailed": "Unable to register your request. Please try again.",
+        "emailPending": "You already have an export request pending. Please wait."
+      },
+      "a11y": {
+        "label": "Download my personal data",
+        "hint": "Export all your data under GDPR"
+      }
+    }
+  },
+  "home": {
+    "subtitle": "Order with ease",
+    "welcome": "Hi {{name}}! 👋",
+    "welcomeSubtext": "Ready to order today?",
+    "quickActions": "Quick actions",
+    "actions": {
+      "myOrders": {
+        "title": "My orders",
+        "subtitle": "Track your orders"
+      },
+      "myCart": {
+        "title": "My cart",
+        "subtitle": "Complete your purchase"
+      },
+      "joinSession": {
+        "title": "Join a session",
+        "subtitle": "Enter a share code"
+      }
+    }
+  },
+  "qrAccess": {
+    "title": "Scan your table QR code",
+    "description": "Or enter the code manually",
+    "scanButton": "Scan QR code",
+    "codeButton": "Enter code",
+    "emptyCode": "Please enter a valid code.",
+    "invalidCodeTitle": "Invalid code",
+    "errors": {
+      "notFound": "This code doesn't match any restaurant or table. Check the code or scan the QR code.",
+      "restaurantNotFound": "This code doesn't match any registered restaurant. Check the QR code.",
+      "serverUnavailable": "Can't verify this restaurant. Check your connection and try again."
+    },
+    "modal": {
+      "title": "Enter a code",
+      "description": "Table code (e.g. R12T005) or 6-character session share code.",
+      "placeholder": "E.g. R12T005 or ABC123",
+      "confirm": "Submit",
+      "verifying": "Checking…"
+    },
+    "account": {
+      "title": "Would you like to use an account?",
+      "hint": "An account lets you find your orders and receipts. You can also access the menu directly.",
+      "login": {
+        "title": "Sign in",
+        "desc": "I already have an EatQuickeR account"
+      },
+      "register": {
+        "title": "Create an account",
+        "desc": "Quick signup to track your orders"
+      },
+      "or": "or",
+      "guestCta": "Continue without an account",
+      "guestHint": "You access the menu right away. A name and phone number will be requested at checkout."
+    }
+  },
+  "qrScanner": {
+    "invalidTitle": "Invalid QR code",
+    "invalidMessage": "This QR code doesn't match an EatQuickeR restaurant\n\nScanned value: {{value}}",
+    "retry": "Try again",
+    "instruction": "Point the camera at the restaurant QR code",
+    "permission": {
+      "title": "Camera access required",
+      "description": "To scan QR codes, we need access to your camera.",
+      "allow": "Allow"
+    }
   }
 }

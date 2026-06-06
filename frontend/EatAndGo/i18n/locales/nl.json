@@ -38,7 +38,9 @@
     "optional": "Optioneel",
     "required": "Verplicht",
     "available": "Beschikbaar",
-    "unavailable": "Niet beschikbaar"
+    "unavailable": "Niet beschikbaar",
+    "comingSoon": "Binnenkort",
+    "error": "Fout"
   },
   "nav": {
     "home": "Home",
@@ -51,7 +53,8 @@
     "dashboard": "Dashboard",
     "history": "Geschiedenis",
     "help": "Help",
-    "logout": "Uitloggen"
+    "logout": "Uitloggen",
+    "scanner": "Scannen"
   },
   "auth": {
     "signIn": "Inloggen",
@@ -114,7 +117,62 @@
     "specialInstructions": "Speciale instructies",
     "specialInstructionsPlaceholder": "Allergieën, bereiding, zonder ui…",
     "table": "Tafel",
-    "tableNumber": "Tafel nr. {{number}}"
+    "tableNumber": "Tafel nr. {{number}}",
+    "titleWithCount": "Winkelmand ({{count}})",
+    "serviceFee": "Servicekosten",
+    "collaborativeSession": "Gezamenlijke sessie",
+    "scanToOrder": "Scan om te bestellen",
+    "scanToOrderDescription": "Scan een QR-code om het menu te openen",
+    "checkoutForGroup": "Bestellen voor de groep",
+    "processing": "Verwerken…",
+    "hostOnlyCheckout": "Alleen de host kan de groepsbestelling plaatsen.",
+    "formula": {
+      "incomplete": "Menu onvolledig",
+      "completeAction": "Vul je menu aan om te bestellen."
+    },
+    "clearConfirm": {
+      "title": "Winkelmand legen",
+      "message": "Weet je zeker dat je je winkelmand wilt legen? Dit kan niet ongedaan worden gemaakt.",
+      "cta": "Winkelmand legen"
+    },
+    "removeConfirm": {
+      "title": "Artikel verwijderen",
+      "message": "Wil je dit artikel uit je winkelmand verwijderen?",
+      "cta": "Verwijderen"
+    },
+    "splitConfirm": {
+      "title": "Bestellen voor de groep",
+      "message": "Wil je de rekening delen tussen de deelnemers? Iedereen kan zijn deel met de telefoon betalen.",
+      "split": "Rekening delen",
+      "payAll": "Ik betaal alles"
+    },
+    "feedback": {
+      "quantityUpdated": "Aantal bijgewerkt",
+      "itemRemoved": "Artikel verwijderd",
+      "cleared": "Winkelmand geleegd",
+      "emptyOnCheckout": "Je winkelmand is leeg. Voeg artikelen toe om door te gaan.",
+      "restaurantNotFound": "Restaurant niet gevonden. Scan de QR-code opnieuw.",
+      "orderPlaced": "Bestelling geplaatst!",
+      "orderPlacedSplit": "Bestelling geplaatst! Rekening wordt gedeeld…"
+    },
+    "errors": {
+      "quantityUpdate": "Fout bij het bijwerken van het aantal",
+      "itemRemove": "Fout bij het verwijderen van het artikel",
+      "cartClear": "Fout bij het legen van de winkelmand",
+      "checkout": "Fout bij het voorbereiden van de bestelling",
+      "groupOrder": "Fout bij groepsbestelling"
+    },
+    "a11y": {
+      "itemImage": "Afbeelding van {{name}}",
+      "itemRow": "{{name}}, aantal {{count}}, prijs {{price}}",
+      "removeItem": "Artikel verwijderen",
+      "decrease": "Aantal verlagen",
+      "increase": "Aantal verhogen",
+      "currentQuantity": "Huidig aantal: {{count}}",
+      "checkoutHint": "Tik om door te gaan naar betalen",
+      "formulaLockHint": "Vul je menu aan om te bestellen",
+      "checkoutLabel": "Bestellen voor een totaal van {{amount}}"
+    }
   },
   "order": {
     "title": "Bestelling",
@@ -134,7 +192,48 @@
     "viewDetails": "Details bekijken",
     "track": "Bestelling volgen",
     "rate": "Bestelling beoordelen",
-    "reorder": "Opnieuw bestellen"
+    "reorder": "Opnieuw bestellen",
+    "count_one": "{{count}} bestelling",
+    "count_other": "{{count}} bestellingen",
+    "unpaidTitle_one": "Je hebt een onbetaalde bestelling",
+    "unpaidTitle_other": "Je hebt {{count}} onbetaalde bestellingen",
+    "unpaidSubtitle": "Reken je bestellingen af om opnieuw te kunnen bestellen",
+    "myOrders": "Mijn bestellingen",
+    "tabs": {
+      "active": "Lopend",
+      "history": "Geschiedenis"
+    },
+    "fallbackRestaurant": "Restaurant",
+    "todayAt": "Vandaag om {{time}}",
+    "dineIn": "Ter plaatse",
+    "takeaway": "Afhalen",
+    "paid": "Betaald",
+    "paymentPending": "Betaling in afwachting",
+    "waitingTime": "Geschatte wachttijd: {{minutes}} min",
+    "noActiveOrders": "Geen lopende bestellingen",
+    "noHistoryOrders": "Geen eerdere bestellingen",
+    "scanPrompt": "Scan de QR-code van je tafel om je eerste bestelling te plaatsen",
+    "orderNow": "Nu bestellen",
+    "scanDescription": "Open het menu door de QR-code van je tafel te scannen",
+    "scanQR": "QR scannen",
+    "enterCode": "Code invoeren",
+    "clientOnly": "Alleen voor klanten",
+    "loadingOrders": "Bestellingen laden…",
+    "realtimeUnavailable": "Realtime-meldingen niet beschikbaar. Trek omlaag om te vernieuwen.",
+    "realtime": {
+      "on": "Realtime aan",
+      "connecting": "Verbinden…",
+      "error": "Verbindingsfout",
+      "offline": "Offline"
+    },
+    "statusLabels": {
+      "pending": "In afwachting",
+      "confirmed": "Bevestigd",
+      "preparing": "In voorbereiding",
+      "ready": "Klaar",
+      "served": "Geserveerd",
+      "cancelled": "Geannuleerd"
+    }
   },
   "payment": {
     "title": "Betaling",
@@ -164,7 +263,124 @@
     "yourName": "Jouw naam",
     "leaveSession": "Sessie verlaten",
     "sessionEnded": "Sessie beëindigd",
-    "waitingForOthers": "Wachten op andere gasten…"
+    "waitingForOthers": "Wachten op andere gasten…",
+    "tableLabel": "{{name}} · Tafel {{table}}",
+    "bannerCta": "Tik om door te gaan",
+    "foundLabel": "Sessie gevonden",
+    "foundCta": "Tik om te joinen",
+    "inactivityWarning": "⚠️ Inactieve sessie — automatisch sluiten over {{time}}",
+    "status": {
+      "active": "Actief",
+      "locked": "Vergrendeld",
+      "payment": "Betaling in afwachting"
+    },
+    "errors": {
+      "emptyCode": "Voer een sessiecode in.",
+      "notFound": "Geen sessie gevonden met deze code.",
+      "inactive": "Deze sessie is niet meer actief.",
+      "invalidCode": "Geen actieve sessie met deze code. Controleer en probeer opnieuw.",
+      "joinFailed": "Kan niet deelnemen aan deze sessie.",
+      "maybeGone": "De sessie is mogelijk niet meer beschikbaar.",
+      "rejected": "De host heeft je verzoek geweigerd.",
+      "joinTitle": "Kan niet deelnemen"
+    },
+    "exit": {
+      "titleHost": "Sessie beëindigen?",
+      "titleMember": "Sessie verlaten?",
+      "messageHost": "Als host sluit dit de sessie voor alle deelnemers.",
+      "messageMember": "Je staat op het punt deze gezamenlijke sessie te verlaten.",
+      "ctaHost": "Beëindigen",
+      "ctaMember": "Verlaten"
+    },
+    "completed": {
+      "title": "Sessie beëindigd",
+      "participantsLabel": "Deelnemers ({{count}})",
+      "totalLabel": "Totaal: {{amount}}",
+      "close": "Sluiten"
+    },
+    "codeModal": {
+      "title": "Sessie joinen",
+      "description": "Voer de code in die door de tafelhost is gedeeld om aan de huidige sessie deel te nemen.",
+      "placeholder": "BV.: ABC123",
+      "cta": "Sessie joinen"
+    },
+    "pending": {
+      "title": "Wachten op goedkeuring",
+      "description": "De host moet je verzoek goedkeuren.\nJe wordt automatisch doorgestuurd zodra je bent geaccepteerd.",
+      "codeLabel": "Sessiecode"
+    },
+    "archive": {
+      "archived": "Deze sessie is gearchiveerd",
+      "archivingIn": "Archiveren over {{time}}",
+      "archivingSoonUrgent": "⚠️ Archiveren over {{time}}"
+    },
+    "joinModal": {
+      "chooseTitle": "Bestellen aan deze tafel",
+      "chooseSubtitle": "Kies hoe je wilt bestellen",
+      "rejoinExisting": {
+        "title": "Huidige sessie hervatten",
+        "subtitle": "Code: {{code}} · {{count}} deelnemer(s)"
+      },
+      "createGroup": {
+        "title": "Een groepssessie maken",
+        "description": "Bestel met vrienden en deel de rekening makkelijk"
+      },
+      "joinGroup": {
+        "title": "Sessie joinen",
+        "description": "Voer de code in die door je groep is gedeeld"
+      },
+      "orderAlone": "Alleen bestellen",
+      "createTitle": "Een groepssessie maken",
+      "hostNameLabel": "Je naam",
+      "hostNamePlaceholder": "Bijv. Jan",
+      "sessionTypeLabel": "Sessietype",
+      "sessionType": {
+        "collaborative": {
+          "title": "Gezamenlijk",
+          "desc": "Iedereen ziet de bestellingen"
+        },
+        "individual": {
+          "title": "Individueel",
+          "desc": "Iedereen bestelt apart"
+        }
+      },
+      "maxParticipantsLabel": "Maximaal aantal deelnemers",
+      "requireApprovalLabel": "Nieuwe deelnemers handmatig goedkeuren",
+      "back": "Terug",
+      "createCta": "Sessie aanmaken",
+      "joinTitle": "Sessie joinen",
+      "codeLabel": "Sessiecode",
+      "codePlaceholder": "ABC123",
+      "verifyCta": "Verifiëren",
+      "previewTitle": "Sessie-informatie",
+      "previewHost": "Host:",
+      "previewParticipants": "Deelnemers:",
+      "sessionFullOrLocked": "⚠️ Deze sessie is vol of vergrendeld",
+      "guestNameLabel": "Je naam",
+      "guestNamePlaceholder": "Bijv. Marie",
+      "joinCta": "Joinen",
+      "pendingDescription": "De host van de sessie moet je verzoek goedkeuren.\nJe wordt automatisch doorgestuurd zodra je bent geaccepteerd.",
+      "feedback": {
+        "soloError": "Kan solobestelling niet starten.",
+        "fieldRequired": "Verplicht veld",
+        "nameRequiredHost": "Voer je naam in om de sessie te maken.",
+        "nameRequiredGuest": "Voer je naam in om de sessie te joinen.",
+        "invalidCode": "Ongeldige code",
+        "invalidCodeDesc": "De code moet precies 6 tekens bevatten.",
+        "codeNotFound": "Code niet gevonden",
+        "codeNotFoundDesc": "Geen actieve sessie komt overeen met deze code.",
+        "sessionCreated": "Sessie aangemaakt!",
+        "sessionCreatedDesc": "Deel code {{code}} met je vrienden.",
+        "sessionCreateError": "Kan sessie niet aanmaken.",
+        "welcome": "Welkom!",
+        "welcomeDesc": "Je bent succesvol toegetreden tot de sessie.",
+        "joinError": "Kan niet deelnemen aan de sessie.",
+        "approved": "✅ Geaccepteerd!",
+        "approvedDesc": "De host heeft je geaccepteerd in de sessie.",
+        "rejected": "❌ Geweigerd",
+        "rejectedDesc": "De host heeft je verzoek geweigerd."
+      }
+    }
   },
   "profile": {
     "title": "Profiel",
@@ -181,7 +397,16 @@
     "terms": "Gebruiksvoorwaarden",
     "privacy": "Privacybeleid",
     "version": "Versie {{version}}",
-    "deleteAccount": "Mijn account verwijderen"
+    "deleteAccount": "Mijn account verwijderen",
+    "signInPrompt": "Log in om je profiel te bekijken",
+    "defaultName": "Gebruiker",
+    "verified": "Geverifieerd",
+    "logoutConfirm": "Weet je zeker dat je wilt uitloggen?",
+    "myActions": "Mijn acties",
+    "information": "Informatie",
+    "helpFaq": "Help & FAQ",
+    "contactUs": "Contact",
+    "personalData": "Persoonlijke gegevens"
   },
   "theme": {
     "title": "Thema",
@@ -242,5 +467,125 @@
     "today": "Vandaag",
     "yesterday": "Gisteren",
     "tomorrow": "Morgen"
+  },
+  "legal": {
+    "copyright": "© {{year}} EatQuicker. Alle rechten voorbehouden.",
+    "termsShort": "Voorwaarden",
+    "privacyShort": "Privacy",
+    "noticeShort": "Juridisch",
+    "downloadMyData": {
+      "cta": "Mijn gegevens downloaden",
+      "download": "Downloaden",
+      "gdprNotice": "AVG-conforme export (Artikel 20)",
+      "confirmTitle": "Gegevens exporteren",
+      "confirmMessage": "Wil je al je persoonlijke gegevens downloaden?\n\nDit omvat: profiel, bestellingen, voorkeuren en geschiedenis.",
+      "shareDialogTitle": "Mijn EatQuickeR-gegevens downloaden",
+      "options": {
+        "title": "Gegevens exporteren",
+        "message": "Hoe wil je je gegevens ontvangen?",
+        "direct": "Directe download",
+        "email": "Per e-mail (binnen 48u)"
+      },
+      "progress": {
+        "fetching": "Gegevens ophalen…",
+        "preparing": "Bestand voorbereiden…",
+        "preparingShort": "Voorbereiden…",
+        "done": "Export voltooid!",
+        "sending": "Verzoek verzenden…"
+      },
+      "success": {
+        "title": "Export geslaagd",
+        "message": "Je gegevens ({{size}} KB) zijn geëxporteerd.\n\nJe kunt ze nu opslaan of delen.",
+        "messageFallback": "Je gegevens zijn geëxporteerd naar:\n{{filename}}\n\nGrootte: {{size}} KB"
+      },
+      "email": {
+        "title": "E-mailexport",
+        "confirmMessage": "Je ontvangt binnen 48u een e-mail met een veilige downloadlink.\n\nDoorgaan?",
+        "successTitle": "Verzoek geregistreerd",
+        "successMessage": "Een e-mail wordt binnen 48u naar {{email}} verzonden met je gegevens."
+      },
+      "errors": {
+        "notLoggedIn": "Je moet ingelogd zijn om je gegevens te exporteren",
+        "rateLimit": "Je hebt de dagelijkse exportlimiet bereikt. Probeer het morgen opnieuw.",
+        "sessionExpired": "Je sessie is verlopen. Meld je opnieuw aan.",
+        "forbidden": "Je hebt geen toestemming om deze gegevens te exporteren.",
+        "serverError": "Serverfout. Probeer het over enkele ogenblikken opnieuw.",
+        "serviceUnavailable": "De exportservice is tijdelijk niet beschikbaar. Probeer het over enkele minuten.",
+        "generic": "Kan je gegevens niet downloaden. Probeer het opnieuw.",
+        "connection": "Verbindingsfout. Controleer je internetverbinding.",
+        "emailRequestFailed": "Kan je verzoek niet registreren. Probeer het opnieuw.",
+        "emailPending": "Je hebt al een exportverzoek in behandeling. Even geduld."
+      },
+      "a11y": {
+        "label": "Mijn persoonlijke gegevens downloaden",
+        "hint": "Alle gegevens exporteren conform AVG"
+      }
+    }
+  },
+  "home": {
+    "subtitle": "Bestel met gemak",
+    "welcome": "Hallo {{name}}! 👋",
+    "welcomeSubtext": "Klaar om vandaag te bestellen?",
+    "quickActions": "Snelle acties",
+    "actions": {
+      "myOrders": {
+        "title": "Mijn bestellingen",
+        "subtitle": "Volg je bestellingen"
+      },
+      "myCart": {
+        "title": "Mijn winkelmand",
+        "subtitle": "Rond je aankoop af"
+      },
+      "joinSession": {
+        "title": "Sessie joinen",
+        "subtitle": "Voer een deelcode in"
+      }
+    }
+  },
+  "qrAccess": {
+    "title": "Scan de QR-code van je tafel",
+    "description": "Of voer de code handmatig in",
+    "scanButton": "QR scannen",
+    "codeButton": "Code invoeren",
+    "emptyCode": "Voer een geldige code in.",
+    "invalidCodeTitle": "Ongeldige code",
+    "errors": {
+      "notFound": "Deze code komt niet overeen met een restaurant of tafel. Controleer de code of scan de QR.",
+      "restaurantNotFound": "Deze code komt niet overeen met een geregistreerd restaurant. Controleer de QR.",
+      "serverUnavailable": "Restaurant kan niet worden geverifieerd. Controleer je verbinding en probeer opnieuw."
+    },
+    "modal": {
+      "title": "Voer een code in",
+      "description": "Tafelcode (bijv. R12T005) of gedeelde sessiecode (6 tekens).",
+      "placeholder": "Bijv. R12T005 of ABC123",
+      "confirm": "Bevestigen",
+      "verifying": "Controleren…"
+    },
+    "account": {
+      "title": "Wil je een account gebruiken?",
+      "hint": "Met een account vind je je bestellingen en bonnen terug. Je kunt ook direct naar het menu.",
+      "login": {
+        "title": "Inloggen",
+        "desc": "Ik heb al een EatQuickeR-account"
+      },
+      "register": {
+        "title": "Account aanmaken",
+        "desc": "Snelle registratie om bestellingen te volgen"
+      },
+      "or": "of",
+      "guestCta": "Doorgaan zonder account",
+      "guestHint": "Je gaat direct naar het menu. Bij het afrekenen worden naam en telefoonnummer gevraagd."
+    }
+  },
+  "qrScanner": {
+    "invalidTitle": "Ongeldige QR-code",
+    "invalidMessage": "Deze QR-code komt niet overeen met een EatQuickeR-restaurant\n\nGescande waarde: {{value}}",
+    "retry": "Opnieuw proberen",
+    "instruction": "Richt de camera op de QR-code van het restaurant",
+    "permission": {
+      "title": "Cameratoegang vereist",
+      "description": "Om QR-codes te scannen hebben we toegang tot je camera nodig.",
+      "allow": "Toestaan"
+    }
   }
 }

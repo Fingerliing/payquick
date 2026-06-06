@@ -10,6 +10,8 @@ import {
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
+
 import { useAuth } from '@/contexts/AuthContext';
 import { useClientOrders } from '@/hooks/client/useClientOrders';
 import { Header } from '@/components/ui/Header';
@@ -18,15 +20,20 @@ import { Button } from '@/components/ui/Button';
 import { LegalFooter } from '@/components/legal/LegalFooter';
 import { DownloadMyDataButton } from '@/components/legal/DownloadMyDataButton';
 import { AlertWithAction } from '@/components/ui/Alert';
+import { ThemeSwitcher } from '@/components/common/ThemeSwitcher';
+import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
 import {
-  COLORS,
+  useAppTheme,
+  makeShadows,
   SPACING,
   BORDER_RADIUS,
   TYPOGRAPHY,
-  SHADOWS,
   useScreenType,
   getResponsiveValue,
+  type AppColors,
 } from '@/utils/designSystem';
+
+type ScreenType = 'mobile' | 'tablet' | 'desktop';
 
 // =============================================================================
 // ACTION ITEM — structure plate, 0 View intermédiaire
@@ -53,8 +60,11 @@ function ActionItem({
   isLast?: boolean;
   badge?: string;
   comingSoon?: boolean;
-  screenType: 'mobile' | 'tablet' | 'desktop';
+  screenType: ScreenType;
 }) {
+  const { t } = useTranslation();
+  const { colors } = useAppTheme();
+
   return (
     <Pressable
       style={({ pressed }) => ({
@@ -63,13 +73,13 @@ function ActionItem({
         paddingVertical: getResponsiveValue(SPACING.md, screenType),
         paddingHorizontal: getResponsiveValue(SPACING.sm, screenType),
         borderBottomWidth: isLast ? 0 : 1,
-        borderBottomColor: COLORS.border.light,
+        borderBottomColor: colors.border.light,
         minHeight: getResponsiveValue(
           { mobile: 48, tablet: 52, desktop: 56 },
           screenType
         ),
         opacity: comingSoon ? 0.45 : pressed ? 0.7 : 1,
-        backgroundColor: pressed && !comingSoon ? COLORS.border.light + '30' : 'transparent',
+        backgroundColor: pressed && !comingSoon ? colors.border.light + '30' : 'transparent',
       })}
       onPress={comingSoon ? undefined : onPress}
       disabled={comingSoon}
@@ -78,7 +88,7 @@ function ActionItem({
       <Ionicons
         name={icon}
         size={getResponsiveValue({ mobile: 20, tablet: 22, desktop: 24 }, screenType)}
-        color={COLORS.primary}
+        color={colors.primary}
         style={{ marginRight: 6 }}
       />
 
@@ -87,7 +97,7 @@ function ActionItem({
         style={{
           flex: 1,
           fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
-          color: COLORS.text.primary,
+          color: colors.text.primary,
           fontWeight: TYPOGRAPHY.fontWeight.medium,
           marginRight: 4,
         }}
@@ -99,7 +109,7 @@ function ActionItem({
       {badge != null && (
         <View
           style={{
-            backgroundColor: COLORS.secondary,
+            backgroundColor: colors.secondary,
             paddingHorizontal: 5,
             paddingVertical: 2,
             borderRadius: BORDER_RADIUS.full,
@@ -110,7 +120,7 @@ function ActionItem({
             style={{
               fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
               fontWeight: TYPOGRAPHY.fontWeight.bold,
-              color: COLORS.primary,
+              color: colors.primary,
             }}
           >
             {badge}
@@ -122,7 +132,7 @@ function ActionItem({
       {comingSoon && (
         <View
           style={{
-            backgroundColor: COLORS.border.light,
+            backgroundColor: colors.border.light,
             paddingHorizontal: 5,
             paddingVertical: 2,
             borderRadius: BORDER_RADIUS.full,
@@ -133,10 +143,10 @@ function ActionItem({
             style={{
               fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
               fontWeight: TYPOGRAPHY.fontWeight.semibold,
-              color: COLORS.text.secondary,
+              color: colors.text.secondary,
             }}
           >
-            Bientôt
+            {t('common.comingSoon')}
           </Text>
         </View>
       )}
@@ -145,7 +155,7 @@ function ActionItem({
       <Ionicons
         name="chevron-forward"
         size={getResponsiveValue({ mobile: 14, tablet: 16, desktop: 18 }, screenType)}
-        color={COLORS.text.light}
+        color={colors.text.light}
       />
     </Pressable>
   );
@@ -160,14 +170,17 @@ function SectionTitle({
   screenType,
 }: {
   title: string;
-  screenType: 'mobile' | 'tablet' | 'desktop';
+  screenType: ScreenType;
 }) {
+  const { colors, isDark } = useAppTheme();
   return (
     <Text
       style={{
         fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
         fontWeight: TYPOGRAPHY.fontWeight.bold,
-        color: COLORS.text.primary,
+        // En dark, on passe en or chaud pour rappeler l'identité du logo
+        // sur des éléments importants (titres de section, accents).
+        color: isDark ? colors.text.golden : colors.text.primary,
         marginBottom: getResponsiveValue(SPACING.md, screenType),
         paddingHorizontal: getResponsiveValue(SPACING.sm, screenType),
         letterSpacing: -0.3,
@@ -197,7 +210,7 @@ function PillBadge({
   bgOpacity?: string;
   borderOpacity?: string;
   children: React.ReactNode;
-  screenType: 'mobile' | 'tablet' | 'desktop';
+  screenType: ScreenType;
 }) {
   return (
     <View
@@ -238,6 +251,8 @@ function PillBadge({
 // =============================================================================
 
 export default function ClientProfileScreen() {
+  const { t } = useTranslation();
+  const { colors, isDark } = useAppTheme();
   const { user, logout, isClient } = useAuth();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -247,6 +262,8 @@ export default function ClientProfileScreen() {
   const { isLoading: ordersLoading, pagination } = useClientOrders();
 
   const [showLogoutAlert, setShowLogoutAlert] = useState(false);
+
+  const shadows = useMemo(() => makeShadows(colors), [colors]);
 
   // ── Layout config ─────────────────────────────────────────────────────────
   const layoutConfig = useMemo(() => {
@@ -270,8 +287,14 @@ export default function ClientProfileScreen() {
   // ── Unauthenticated ───────────────────────────────────────────────────────
   if (!isClient || !user) {
     return (
-      <View style={{ flex: 1, backgroundColor: COLORS.background }}>
-        <Header title="Profil" leftIcon="arrow-back" onLeftPress={() => router.back()} />
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <Header
+          title={t('profile.title')}
+          leftIcon="arrow-back"
+          onLeftPress={() => router.back()}
+          showLanguageSwitcher
+          showThemeSwitcher
+        />
         <View
           style={{
             flex: 1,
@@ -283,23 +306,23 @@ export default function ClientProfileScreen() {
           <Ionicons
             name="person-circle-outline"
             size={getResponsiveValue({ mobile: 72, tablet: 96, desktop: 120 }, screenType)}
-            color={COLORS.text.light}
+            color={colors.text.light}
             style={{ marginBottom: getResponsiveValue(SPACING.xl, screenType) }}
           />
           <Text
             style={{
               fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
-              color: COLORS.text.secondary,
+              color: colors.text.secondary,
               textAlign: 'center',
               marginBottom: getResponsiveValue(SPACING['2xl'], screenType),
               lineHeight: getResponsiveValue({ mobile: 22, tablet: 26, desktop: 28 }, screenType),
               maxWidth: 360,
             }}
           >
-            Connectez-vous pour accéder à votre profil
+            {t('profile.signInPrompt')}
           </Text>
           <Button
-            title="Se connecter"
+            title={t('auth.signIn')}
             onPress={() => router.replace('/(auth)/login')}
             variant="primary"
             fullWidth
@@ -311,16 +334,19 @@ export default function ClientProfileScreen() {
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
-  const totalOrders = ordersLoading ? '…' : pagination.total;
-  const ordersLabel = `${totalOrders} commande${pagination.total !== 1 ? 's' : ''}`;
+  const ordersLabel = ordersLoading
+    ? '…'
+    : t('order.count', { count: pagination.total });
 
   // ── Authenticated ─────────────────────────────────────────────────────────
   return (
-    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <Header
-        title="Profil"
+        title={t('profile.title')}
         leftIcon="arrow-back"
         onLeftPress={() => router.back()}
+        showLanguageSwitcher
+        showThemeSwitcher
       />
 
       <ScrollView
@@ -358,19 +384,19 @@ export default function ClientProfileScreen() {
                 width: layoutConfig.avatarSize,
                 height: layoutConfig.avatarSize,
                 borderRadius: layoutConfig.avatarSize / 2,
-                backgroundColor: COLORS.primary,
+                backgroundColor: colors.primary,
                 justifyContent: 'center',
                 alignItems: 'center',
                 borderWidth: 3,
-                borderColor: COLORS.secondary,
+                borderColor: colors.secondary,
                 flexShrink: 0,
-                ...SHADOWS.goldenGlow,
+                ...shadows.goldenGlow,
               }}
             >
               <Text
                 style={{
                   fontSize: getResponsiveValue({ mobile: 28, tablet: 36, desktop: 44 }, screenType),
-                  color: COLORS.text.inverse,
+                  color: colors.text.inverse,
                   fontWeight: TYPOGRAPHY.fontWeight.bold,
                 }}
               >
@@ -392,19 +418,19 @@ export default function ClientProfileScreen() {
                 style={{
                   fontSize: getResponsiveValue({ mobile: 22, tablet: 26, desktop: 30 }, screenType),
                   fontWeight: TYPOGRAPHY.fontWeight.bold,
-                  color: COLORS.text.primary,
+                  color: colors.text.primary,
                   marginBottom: 2,
                   textAlign: layoutConfig.isTabletOrLarger ? 'left' : 'center',
                 }}
               >
-                {user.first_name || 'Utilisateur'}
+                {user.first_name || t('profile.defaultName')}
               </Text>
 
               {/* Email */}
               <Text
                 style={{
                   fontSize: getResponsiveValue({ mobile: 14, tablet: 15, desktop: 17 }, screenType),
-                  color: COLORS.text.secondary,
+                  color: colors.text.secondary,
                   marginBottom: getResponsiveValue(SPACING.sm, screenType),
                   textAlign: layoutConfig.isTabletOrLarger ? 'left' : 'center',
                 }}
@@ -426,16 +452,16 @@ export default function ClientProfileScreen() {
                 <PillBadge
                   icon="checkmark-circle"
                   iconSize={14}
-                  color={COLORS.success}
+                  color={colors.success}
                   screenType={screenType}
                 >
-                  Vérifié
+                  {t('profile.verified')}
                 </PillBadge>
 
                 <PillBadge
                   icon="receipt"
                   iconSize={13}
-                  color={COLORS.primary}
+                  color={isDark ? colors.secondary : colors.primary}
                   bgOpacity="10"
                   borderOpacity="20"
                   screenType={screenType}
@@ -461,30 +487,30 @@ export default function ClientProfileScreen() {
             {/* Colonne gauche */}
             <View style={{ flex: layoutConfig.useTwoColumns ? 1 : undefined }}>
               <Card padding="card" style={{ marginBottom: layoutConfig.cardSpacing }}>
-                <SectionTitle title="Mes actions" screenType={screenType} />
+                <SectionTitle title={t('profile.myActions')} screenType={screenType} />
                 <ActionItem
                   icon="receipt-outline"
-                  title="Mes commandes"
+                  title={t('nav.orders')}
                   onPress={() => router.push('/(client)/orders')}
                   badge={pagination.total > 0 ? pagination.total.toString() : undefined}
                   screenType={screenType}
                 />
                 <ActionItem
                   icon="notifications-outline"
-                  title="Notifications"
+                  title={t('profile.notifications')}
                   onPress={() => router.push('/notifications/NotificationPreferences')}
                   screenType={screenType}
                 />
                 <ActionItem
                   icon="card-outline"
-                  title="Paiement"
+                  title={t('profile.paymentMethods')}
                   onPress={() => {}}
                   comingSoon
                   screenType={screenType}
                 />
                 <ActionItem
                   icon="settings-outline"
-                  title="Paramètres"
+                  title={t('nav.settings')}
                   onPress={() => {}}
                   isLast
                   comingSoon
@@ -492,17 +518,64 @@ export default function ClientProfileScreen() {
                 />
               </Card>
 
+              {/* ────────────────────────────────────────────────────────────
+                  PRÉFÉRENCES — Thème et Langue
+                  Section ajoutée lors de la phase i18n + dark mode.
+              ──────────────────────────────────────────────────────────── */}
               <Card padding="card" style={{ marginBottom: layoutConfig.cardSpacing }}>
-                <SectionTitle title="Informations" screenType={screenType} />
+                <SectionTitle title={t('profile.preferences')} screenType={screenType} />
+
+                {/* Apparence (thème) */}
+                <View
+                  style={{
+                    paddingHorizontal: getResponsiveValue(SPACING.sm, screenType),
+                    paddingBottom: getResponsiveValue(SPACING.md, screenType),
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+                      fontWeight: TYPOGRAPHY.fontWeight.medium,
+                      color: colors.text.secondary,
+                      marginBottom: getResponsiveValue(SPACING.xs, screenType),
+                    }}
+                  >
+                    {t('profile.appearance')}
+                  </Text>
+                  <ThemeSwitcher variant="segmented" />
+                </View>
+
+                {/* Séparateur */}
+                <View
+                  style={{
+                    height: 1,
+                    backgroundColor: colors.border.light,
+                    marginVertical: getResponsiveValue(SPACING.xs, screenType),
+                  }}
+                />
+
+                {/* Langue */}
+                <View
+                  style={{
+                    paddingHorizontal: getResponsiveValue(SPACING.sm, screenType),
+                    paddingTop: getResponsiveValue(SPACING.md, screenType),
+                  }}
+                >
+                  <LanguageSwitcher variant="row" />
+                </View>
+              </Card>
+
+              <Card padding="card" style={{ marginBottom: layoutConfig.cardSpacing }}>
+                <SectionTitle title={t('profile.information')} screenType={screenType} />
                 <ActionItem
                   icon="document-text-outline"
-                  title="Conditions d'utilisation"
+                  title={t('profile.terms')}
                   onPress={() => router.push('/(legal)/terms')}
                   screenType={screenType}
                 />
                 <ActionItem
                   icon="shield-outline"
-                  title="Politique de confidentialité"
+                  title={t('profile.privacy')}
                   onPress={() => router.push('/(legal)/privacy')}
                   isLast
                   screenType={screenType}
@@ -518,17 +591,17 @@ export default function ClientProfileScreen() {
               }}
             >
               <Card padding="card" style={{ marginBottom: layoutConfig.cardSpacing }}>
-                <SectionTitle title="Support" screenType={screenType} />
+                <SectionTitle title={t('profile.support')} screenType={screenType} />
                 <ActionItem
                   icon="help-circle-outline"
-                  title="Aide et FAQ"
+                  title={t('profile.helpFaq')}
                   onPress={() => {}}
                   comingSoon
                   screenType={screenType}
                 />
                 <ActionItem
                   icon="mail-outline"
-                  title="Nous contacter"
+                  title={t('profile.contactUs')}
                   onPress={() => {}}
                   isLast
                   comingSoon
@@ -537,14 +610,14 @@ export default function ClientProfileScreen() {
               </Card>
 
               <Card padding="card" style={{ marginBottom: layoutConfig.cardSpacing }}>
-                <SectionTitle title="Données personnelles" screenType={screenType} />
+                <SectionTitle title={t('profile.personalData')} screenType={screenType} />
                 <View style={{ paddingHorizontal: getResponsiveValue(SPACING.sm, screenType) }}>
                   <DownloadMyDataButton />
                 </View>
               </Card>
 
               <Button
-                title="Se déconnecter"
+                title={t('auth.signOut')}
                 onPress={() => setShowLogoutAlert(true)}
                 variant="destructive"
                 fullWidth
@@ -571,7 +644,7 @@ export default function ClientProfileScreen() {
         <View
           style={{
             flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
+            backgroundColor: colors.overlay,
             justifyContent: 'center',
             alignItems: 'center',
             paddingHorizontal: getResponsiveValue(SPACING.xl, screenType),
@@ -588,12 +661,12 @@ export default function ClientProfileScreen() {
           >
             <AlertWithAction
               variant="warning"
-              title="Déconnexion"
-              message="Êtes-vous sûr de vouloir vous déconnecter ?"
+              title={t('auth.signOut')}
+              message={t('profile.logoutConfirm')}
               onDismiss={() => setShowLogoutAlert(false)}
               autoDismiss={false}
               primaryButton={{
-                text: 'Déconnexion',
+                text: t('auth.signOut'),
                 onPress: () => {
                   logout();
                   setShowLogoutAlert(false);
@@ -601,7 +674,7 @@ export default function ClientProfileScreen() {
                 variant: 'danger',
               }}
               secondaryButton={{
-                text: 'Annuler',
+                text: t('common.cancel'),
                 onPress: () => setShowLogoutAlert(false),
               }}
             />

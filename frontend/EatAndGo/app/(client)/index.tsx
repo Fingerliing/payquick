@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,19 +18,22 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
+import { useTranslation } from 'react-i18next';
+
 import { useAuth } from '@/contexts/AuthContext';
 import { useSession } from '@/contexts/SessionContext';
 import { collaborativeSessionService } from '@/services/collaborativeSessionService';
 import { QRAccessButtons } from '@/components/qrCode/QRAccessButton';
 import { NotificationBadge } from '@/components/common/NotificationBadge';
+import { HeaderActionsBar } from '@/components/common/HeaderActions';
 import { Alert, AlertWithAction } from '@/components/ui/Alert';
 import {
+  useAppTheme,
+  makeShadows,
   useScreenType,
   getResponsiveValue,
-  COLORS,
   SPACING,
   BORDER_RADIUS,
-  SHADOWS,
 } from '@/utils/designSystem';
 import type { CollaborativeSession } from '@/contexts/SessionContext';
 import { useSessionWebSocket } from '@/hooks/session/useSessionWebSocket';
@@ -39,10 +42,22 @@ import { SessionArchiveWarning } from '@/components/session/SessionArchiveWarnin
 import { QRSessionUtils } from '@/utils/qrSessionUtils';
 
 // =============================================================================
-// COMPOSANT : POLLING D'APPROBATION
-//
-// WebSocket (primaire) → réaction instantanée dès que l'hôte approuve
-// Polling HTTP (fallback, 10s) → si le WS se déconnecte ou manque un event
+// CONSTANTES DESIGN
+// =============================================================================
+// Indigo "rejoindre session" — stable dans les 2 modes, joue un rôle d'accent
+// neutre qui ne se confond ni avec le primary (navy/indigo selon thème) ni
+// avec le secondary (or). Identifie visuellement les actions de socialisation.
+const SESSION_INDIGO = '#6366F1';
+
+// Vert très sombre du bandeau "session active" — bien lisible en light comme
+// en dark, c'est notre indicateur visuel "vous êtes dans une session vivante".
+const SESSION_ACTIVE_BG = '#0F4C2A';
+
+// Format de prix simple — peut évoluer vers Intl.NumberFormat localisé
+const formatPrice = (amount: number): string => `${Number(amount).toFixed(2)} €`;
+
+// =============================================================================
+// POLLER D'APPROBATION (inchangé sur le fond)
 // =============================================================================
 
 const PendingApprovalPoller: React.FC<{
@@ -51,24 +66,13 @@ const PendingApprovalPoller: React.FC<{
   onApproved: (session: CollaborativeSession) => void;
   onRejected: () => void;
 }> = ({ sessionId, participantId, onApproved, onRejected }) => {
-  // Verrou : évite de déclencher approved/rejected deux fois
-  // si WS et polling se chevauchent
   const handledRef = useRef(false);
-
   const { on: onWsEvent } = useSessionWebSocket(sessionId);
 
-  // ── WebSocket (primaire) ──────────────────────────────────────────────
   useEffect(() => {
     handledRef.current = false;
-    console.log('[PENDING-POLLER] 🔌 WS listener enregistré pour session:', sessionId, '| participantId:', participantId);
 
     const unsubApproved = onWsEvent('participant_approved', async (participant: any) => {
-      console.log('[PENDING-POLLER] ✅ participant_approved reçu:', participant?.id, '(attendu:', participantId, ')');
-
-      // Si participantId est connu → vérifier que c'est bien le nôtre.
-      // Si participantId est undefined (conversion snake→camel ratée côté service),
-      // on accepte tout événement participant_approved sur cette session :
-      // le poller est monté uniquement pendant l'attente d'approbation de CE participant.
       if (participantId && participant?.id !== participantId) return;
       if (handledRef.current) return;
       handledRef.current = true;
@@ -77,15 +81,12 @@ const PendingApprovalPoller: React.FC<{
         const session = await collaborativeSessionService.getSession(sessionId);
         onApproved(session);
       } catch {
-        // Fetch échoué juste après l'approbation WS — le polling fallback reprend dans max 10s
         handledRef.current = false;
       }
     });
 
-    // Rejet via session_update (participant_removed)
     const unsubUpdate = onWsEvent('session_update', (data: any) => {
       if (data?.event !== 'participant_removed') return;
-      // Même logique : si participantId connu → vérifier, sinon accepter
       if (participantId && data?.data?.participant?.id !== participantId) return;
       if (handledRef.current) return;
       handledRef.current = true;
@@ -98,7 +99,6 @@ const PendingApprovalPoller: React.FC<{
     };
   }, [sessionId, participantId, onWsEvent, onApproved, onRejected]);
 
-  // ── Polling HTTP (fallback) ───────────────────────────────────────────
   useEffect(() => {
     const interval = setInterval(async () => {
       if (handledRef.current) {
@@ -107,11 +107,11 @@ const PendingApprovalPoller: React.FC<{
       }
       try {
         const session = await collaborativeSessionService.getSession(sessionId);
-        // Si participantId connu → chercher ce participant précis.
-        // Sinon → chercher le premier participant qui vient d'être approuvé (active + non-hôte).
         const me = participantId
           ? session.participants?.find((p: any) => p.id === participantId)
-          : session.participants?.find((p: any) => !p.is_host && (p.status === 'active' || p.status === 'removed'));
+          : session.participants?.find(
+              (p: any) => !p.is_host && (p.status === 'active' || p.status === 'removed'),
+            );
 
         if (me?.status === 'active') {
           if (handledRef.current) return;
@@ -125,9 +125,9 @@ const PendingApprovalPoller: React.FC<{
           onRejected();
         }
       } catch {
-        // Ignorer les erreurs réseau temporaires
+        /* ignore */
       }
-    }, 10000); // 10s : le WS prend le relai en temps réel
+    }, 10000);
     return () => clearInterval(interval);
   }, [sessionId, participantId, onApproved, onRejected]);
 
@@ -139,31 +139,41 @@ const PendingApprovalPoller: React.FC<{
 // =============================================================================
 
 export default function ClientHome() {
+  const { t } = useTranslation();
+  const { colors, isDark } = useAppTheme();
+  const shadows = useMemo(() => makeShadows(colors), [colors]);
+
   const { user } = useAuth();
-  const { session, participantId, isHost, isSessionInitialized, leaveSession, clearSession, refreshSession, joinSession, activatePendingSession } = useSession();
+  const {
+    session,
+    participantId,
+    isHost,
+    isSessionInitialized,
+    leaveSession,
+    clearSession,
+    refreshSession,
+    joinSession,
+    activatePendingSession,
+  } = useSession();
   const screenType = useScreenType();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
 
   const [isExiting, setIsExiting] = useState(false);
 
-  // ── Session retrouvée côté serveur (mais absente du cache local) ──
   const [serverSession, setServerSession] = useState<CollaborativeSession | null>(null);
   const [isCheckingServer, setIsCheckingServer] = useState(false);
   const [isRejoining, setIsRejoining] = useState(false);
 
-  // ── Alertes déclaratives ──
   const [exitAlertVisible, setExitAlertVisible] = useState(false);
   const [rejoinError, setRejoinError] = useState<string | null>(null);
 
-  // ── Modal "Rejoindre par code" ──
   const [codeModalVisible, setCodeModalVisible] = useState(false);
   const [shareCode, setShareCode] = useState('');
   const [codeError, setCodeError] = useState<string | null>(null);
   const [isJoiningByCode, setIsJoiningByCode] = useState(false);
   const codeInputRef = useRef<TextInput>(null);
 
-  // ── Modal "En attente d'approbation" ──
   const [pendingApproval, setPendingApproval] = useState<{
     sessionId: string;
     participantId: string;
@@ -177,110 +187,72 @@ export default function ClientHome() {
     ['active', 'locked'].includes(session.status);
 
   const hasCompletedSession =
-    isSessionInitialized &&
-    session !== null &&
-    session.status === 'completed';
+    isSessionInitialized && session !== null && session.status === 'completed';
 
-  // ── Auto-clear : session terminée/annulée → pas de bandeau fantôme ──────
-  // Couvre le cas où refreshSession() re-sauvegarde une session completed
-  // (race condition navigation), ou quand le status change via WS/polling.
+  // ─ Auto-clear sessions terminées
   useEffect(() => {
     if (session && ['completed', 'cancelled', 'payment'].includes(session.status)) {
       clearSession();
     }
   }, [session?.status, clearSession]);
 
-  // ── Surveillance expiration / archivage de la session locale (WS) ──
-  const { isArchived: isSessionArchived, timeUntilArchive } = useSessionArchiveCountdown(session?.id ?? null);
+  const { isArchived: isSessionArchived, timeUntilArchive } = useSessionArchiveCountdown(
+    session?.id ?? null,
+  );
 
-  // ── Écoute WS directe : réagir IMMÉDIATEMENT à session_completed/archived ──
   const { on: onSessionWs } = useSessionWebSocket(session?.id ?? null);
 
   useEffect(() => {
     if (!session?.id) return;
-
-    const unsubCompleted = onSessionWs('session_completed', () => {
-      clearSession();
-    });
-
-    const unsubArchived = onSessionWs('session_archived', () => {
-      clearSession();
-    });
-
+    const unsubCompleted = onSessionWs('session_completed', () => clearSession());
+    const unsubArchived = onSessionWs('session_archived', () => clearSession());
     return () => {
       unsubCompleted();
       unsubArchived();
     };
   }, [session?.id, onSessionWs, clearSession]);
 
-  // ── Avertissement d'inactivité (session active/locked) ──
   const { showInactivityWarning, inactivityFormattedTime } = useInactivityWarning(
-    hasActiveSession ? session?.id ?? null : null
+    hasActiveSession ? session?.id ?? null : null,
   );
 
-  // ── Fallback : auto-clear via countdown (si WS manqué) ──
   useEffect(() => {
-    if (isSessionArchived) {
-      clearSession();
-    }
+    if (isSessionArchived) clearSession();
   }, [isSessionArchived, clearSession]);
 
   useEffect(() => {
-    if (timeUntilArchive !== null && timeUntilArchive <= 0) {
-      clearSession();
-    }
+    if (timeUntilArchive !== null && timeUntilArchive <= 0) clearSession();
   }, [timeUntilArchive, clearSession]);
 
-  // ── Rafraîchir et chercher une session côté serveur à chaque focus ──
-  // Deps primitives uniquement (id, bool) — pas les objets session/user :
-  // chaque setSession() crée un nouvel objet → invalide le useCallback →
-  // useFocusEffect re-déclenche → boucle infinie de requêtes.
   const refreshSessionRef = useRef(refreshSession);
   refreshSessionRef.current = refreshSession;
-
   const clearSessionRef = useRef(clearSession);
   clearSessionRef.current = clearSession;
 
   useFocusEffect(
     React.useCallback(() => {
-      // ── Si une session est en cache local, vérifier qu'elle est toujours active ──
-      // On NE fait PAS refreshSession() aveuglément car il re-sauvegarde les sessions
-      // completed dans le contexte → le bandeau fantôme persiste.
       if (isSessionInitialized && session) {
-        collaborativeSessionService.getSession(session.id)
+        collaborativeSessionService
+          .getSession(session.id)
           .then((serverSession) => {
             if (['completed', 'cancelled', 'payment'].includes(serverSession.status)) {
-              // Session terminée côté serveur → nettoyer le cache local
               clearSessionRef.current();
             } else {
-              // Session encore active → rafraîchir les données (participants, montants…)
               refreshSessionRef.current().catch(() => {});
             }
           })
           .catch((error: any) => {
             const status = error?.status ?? error?.response?.status;
-            if (status === 404) {
-              // Session archivée / supprimée → nettoyer
-              clearSessionRef.current();
-            }
+            if (status === 404) clearSessionRef.current();
           });
       }
 
-      // ── Pas de session locale → chercher si le serveur en connaît une ──
       if (isSessionInitialized && !session && user) {
         checkServerForActiveSession();
       }
-    }, [isSessionInitialized, session?.id ?? null, user?.id ?? null])
+    }, [isSessionInitialized, session?.id ?? null, user?.id ?? null]),
   );
 
-  /**
-   * Interroge l'API pour trouver une session active à laquelle l'utilisateur
-   * participait — utile après un changement de device ou un clear de cache.
-   *
-   * Ignore les sessions dont updated_at > 15 min (sur le point d'être
-   * auto-complétées par Celery) pour éviter le bandeau "Session retrouvée"
-   * fantôme quand le client a déjà été redirigé pour inactivité.
-   */
   const checkServerForActiveSession = async () => {
     setIsCheckingServer(true);
     try {
@@ -290,7 +262,6 @@ export default function ClientHome() {
 
       const active = sessions?.find((s: CollaborativeSession) => {
         if (!['active', 'locked'].includes(s.status)) return false;
-        // Exclure les sessions inactives (bientôt auto-complétées par Celery)
         const lastActivity = s.updated_at ?? s.created_at;
         if (lastActivity) {
           const age = now - new Date(lastActivity).getTime();
@@ -306,7 +277,6 @@ export default function ClientHome() {
     }
   };
 
-  // ── Reprendre la session locale ──
   const handleResumeSession = () => {
     if (!session) return;
     router.push({
@@ -320,7 +290,6 @@ export default function ClientHome() {
     });
   };
 
-  // ── Rejoindre la session retrouvée sur le serveur ──
   const handleRejoinServerSession = async () => {
     if (!serverSession) return;
     setRejoinError(null);
@@ -349,9 +318,8 @@ export default function ClientHome() {
         },
       });
     } catch (error: any) {
-      // Session n'existe plus → supprimer le bandeau
       setServerSession(null);
-      setRejoinError(error?.message ?? "La session n'est peut-être plus disponible.");
+      setRejoinError(error?.message ?? t('session.errors.maybeGone'));
     } finally {
       setIsRejoining(false);
     }
@@ -380,7 +348,6 @@ export default function ClientHome() {
     }
   };
 
-  // ── Quitter / terminer la session locale ──
   const handleExitSession = () => {
     if (!session) return;
     setExitAlertVisible(true);
@@ -405,7 +372,6 @@ export default function ClientHome() {
     }
   };
 
-  // ── Rejoindre par code ──
   const handleOpenCodeModal = () => {
     setShareCode('');
     setCodeError(null);
@@ -423,7 +389,7 @@ export default function ClientHome() {
   const handleJoinByCode = async () => {
     const trimmed = shareCode.trim().toUpperCase();
     if (!trimmed) {
-      setCodeError('Veuillez saisir un code de session.');
+      setCodeError(t('session.errors.emptyCode'));
       return;
     }
     setCodeError(null);
@@ -431,11 +397,11 @@ export default function ClientHome() {
     try {
       const found = await collaborativeSessionService.getSessionByCode(trimmed);
       if (!found) {
-        setCodeError('Aucune session trouvée avec ce code.');
+        setCodeError(t('session.errors.notFound'));
         return;
       }
       if (!['active', 'locked'].includes(found.status)) {
-        setCodeError('Cette session n\'est plus active.');
+        setCodeError(t('session.errors.inactive'));
         return;
       }
 
@@ -445,8 +411,6 @@ export default function ClientHome() {
       if (result.requires_approval) {
         setPendingApproval({
           sessionId: result.session.id,
-          // Le service peut retourner participant_id (snake) ou participantId (camel)
-          // selon que l'intercepteur axios fait la conversion ou non
           participantId: result.participant_id ?? (result as any).participantId,
           session: result.session,
         });
@@ -475,58 +439,69 @@ export default function ClientHome() {
       const details = error?.response?.data?.details?.share_code?.[0];
       const detail = error?.response?.data?.detail;
       const msg = details ?? detail ?? error?.message;
-      // "Code invalide" de l'API = session introuvable (archivée ou jamais créée)
-      const isNotFound = msg?.toLowerCase().includes('invalide') || msg?.toLowerCase().includes('invalid');
+      const isNotFound =
+        msg?.toLowerCase().includes('invalide') || msg?.toLowerCase().includes('invalid');
       setCodeError(
         isNotFound
-          ? 'Aucune session active avec ce code. Vérifiez le code et réessayez.'
-          : (msg ?? 'Impossible de rejoindre cette session.')
+          ? t('session.errors.invalidCode')
+          : msg ?? t('session.errors.joinFailed'),
       );
     } finally {
       setIsJoiningByCode(false);
     }
   };
 
-  // ── Callbacks approbation ──
-  const handleApproved = useCallback((approvedSession: CollaborativeSession) => {
-    setPendingModalVisible(false);
-    const pending = pendingApproval;
-    setPendingApproval(null);
-    if (!pending) return;
+  const handleApproved = useCallback(
+    (approvedSession: CollaborativeSession) => {
+      setPendingModalVisible(false);
+      const pending = pendingApproval;
+      setPendingApproval(null);
+      if (!pending) return;
 
-    // Sauvegarder maintenant que le participant est actif
-    activatePendingSession(approvedSession, pending.participantId);
+      activatePendingSession(approvedSession, pending.participantId);
 
-    router.push({
-      pathname: `/menu/client/${approvedSession.restaurant}` as any,
-      params: {
-        restaurantId: approvedSession.restaurant.toString(),
-        tableNumber: approvedSession.table_number,
-        sessionId: approvedSession.id,
-        code: approvedSession.share_code,
-      },
-    });
-  }, [pendingApproval, activatePendingSession]);
+      router.push({
+        pathname: `/menu/client/${approvedSession.restaurant}` as any,
+        params: {
+          restaurantId: approvedSession.restaurant.toString(),
+          tableNumber: approvedSession.table_number,
+          sessionId: approvedSession.id,
+          code: approvedSession.share_code,
+        },
+      });
+    },
+    [pendingApproval, activatePendingSession],
+  );
 
   const handleRejected = useCallback(() => {
     setPendingModalVisible(false);
     setPendingApproval(null);
-    // Afficher une alerte discrète
-    setRejoinError("L'hôte a refusé votre demande d'accès.");
-  }, []);
+    setRejoinError(t('session.errors.rejected'));
+  }, [t]);
 
   // ═══════════════════════════════════════════════════════════════════════
   // STYLES
   // ═══════════════════════════════════════════════════════════════════════
 
-  const layoutConfig = {
-    containerPadding: getResponsiveValue(SPACING.container, screenType),
-    contentMaxWidth: screenType === 'desktop' ? 700 : screenType === 'tablet' ? 600 : undefined,
-    shouldUseGrid: (screenType === 'tablet' && width > 900) || screenType === 'desktop',
-  };
+  const layoutConfig = useMemo(
+    () => ({
+      containerPadding: getResponsiveValue(SPACING.container, screenType),
+      contentMaxWidth:
+        screenType === 'desktop' ? 700 : screenType === 'tablet' ? 600 : undefined,
+      shouldUseGrid: (screenType === 'tablet' && width > 900) || screenType === 'desktop',
+    }),
+    [screenType, width],
+  );
 
-  const viewStyles = {
-    container: { flex: 1, backgroundColor: COLORS.background },
+  // ═══════════════════════════════════════════════════════════════════════
+  // STYLES — mémoizés avec deps explicites sur [colors, isDark, ...]
+  // pour que React détecte le changement de thème et propage aux enfants.
+  // Sans useMemo, les Pressable avec callback style={({ pressed }) => ...}
+  // peuvent garder leur ancien rendu (optimisation interne RN).
+  // ═══════════════════════════════════════════════════════════════════════
+
+  const viewStyles = useMemo(() => ({
+    container: { flex: 1, backgroundColor: colors.background },
 
     scrollContainer: {
       flexGrow: 1,
@@ -545,12 +520,12 @@ export default function ClientHome() {
     headerPlaceholder: { width: 44 },
 
     notificationBadgeContainer: {
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderRadius: BORDER_RADIUS.full,
       padding: getResponsiveValue(SPACING.xs, screenType),
-      ...SHADOWS.sm,
+      ...shadows.sm,
       borderWidth: 1,
-      borderColor: COLORS.border.light,
+      borderColor: colors.border.light,
     },
 
     header: {
@@ -570,8 +545,8 @@ export default function ClientHome() {
       width: getResponsiveValue({ mobile: 60, tablet: 70, desktop: 80 }, screenType),
       height: getResponsiveValue({ mobile: 60, tablet: 70, desktop: 80 }, screenType),
       borderRadius: 999,
-      backgroundColor: COLORS.variants.secondary[50],
-      opacity: 0.4,
+      backgroundColor: colors.variants.secondary[50],
+      opacity: isDark ? 0.25 : 0.4,
     },
 
     titleContainer: {
@@ -580,7 +555,7 @@ export default function ClientHome() {
       marginBottom: getResponsiveValue(SPACING.md, screenType),
     },
 
-    // ── BANDEAU SESSION LOCALE ──────────────────────────────────────────
+    // ── BANDEAU SESSION LOCALE (vert vif — identitaire, stable) ─────────
     sessionBannerWrapper: {
       paddingHorizontal: layoutConfig.containerPadding,
       paddingBottom: getResponsiveValue(SPACING.md, screenType),
@@ -592,21 +567,21 @@ export default function ClientHome() {
     sessionBanner: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
-      backgroundColor: '#0F4C2A',
+      backgroundColor: SESSION_ACTIVE_BG,
       borderRadius: BORDER_RADIUS.xl,
       paddingVertical: getResponsiveValue({ mobile: 12, tablet: 14, desktop: 16 }, screenType),
       paddingLeft: getResponsiveValue(SPACING.lg, screenType),
       paddingRight: 8,
       borderWidth: 1.5,
-      borderColor: COLORS.success + '60',
-      ...SHADOWS.md,
+      borderColor: colors.success + '60',
+      ...shadows.md,
       overflow: 'hidden' as const,
     },
 
     sessionBannerPulse: {
       position: 'absolute' as const,
       top: 0, left: 0, right: 0, bottom: 0,
-      backgroundColor: COLORS.success,
+      backgroundColor: colors.success,
       opacity: 0.06,
       borderRadius: BORDER_RADIUS.xl,
     },
@@ -615,12 +590,12 @@ export default function ClientHome() {
       width: getResponsiveValue({ mobile: 40, tablet: 46, desktop: 52 }, screenType),
       height: getResponsiveValue({ mobile: 40, tablet: 46, desktop: 52 }, screenType),
       borderRadius: 99,
-      backgroundColor: COLORS.success + '25',
+      backgroundColor: colors.success + '25',
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
       marginRight: getResponsiveValue(SPACING.md, screenType),
       borderWidth: 1,
-      borderColor: COLORS.success + '40',
+      borderColor: colors.success + '40',
       flexShrink: 0,
     },
 
@@ -638,7 +613,7 @@ export default function ClientHome() {
       width: 34,
       height: 34,
       borderRadius: 17,
-      backgroundColor: COLORS.success + '30',
+      backgroundColor: colors.success + '30',
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
     },
@@ -652,11 +627,10 @@ export default function ClientHome() {
       justifyContent: 'center' as const,
     },
 
-    // Skeleton pendant le chargement initial
     sessionBannerSkeleton: {
       height: getResponsiveValue({ mobile: 68, tablet: 78, desktop: 86 }, screenType),
       borderRadius: BORDER_RADIUS.xl,
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       marginHorizontal: layoutConfig.containerPadding,
       marginBottom: getResponsiveValue(SPACING.md, screenType),
       maxWidth: layoutConfig.contentMaxWidth,
@@ -665,28 +639,30 @@ export default function ClientHome() {
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
       borderWidth: 1,
-      borderColor: COLORS.border.light,
+      borderColor: colors.border.light,
     },
 
-    // ── BANDEAU SESSION RETROUVÉE (serveur) ─────────────────────────────
+    // ── BANDEAU SESSION RETROUVÉE (navy + or — identitaire, theme-aware) ─
     serverSessionBanner: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
-      backgroundColor: '#1A2E4A',
+      // En light, on garde le navy profond du logo pour le contraste premium.
+      // En dark, on s'aligne sur le surface du thème (navy quasi-noir).
+      backgroundColor: isDark ? colors.surface : '#1A2E4A',
       borderRadius: BORDER_RADIUS.xl,
       paddingVertical: getResponsiveValue({ mobile: 12, tablet: 14, desktop: 16 }, screenType),
       paddingLeft: getResponsiveValue(SPACING.lg, screenType),
       paddingRight: 8,
       borderWidth: 1.5,
-      borderColor: COLORS.secondary + '60',
-      ...SHADOWS.md,
+      borderColor: colors.secondary + '60',
+      ...shadows.md,
       overflow: 'hidden' as const,
     },
 
     serverSessionPulse: {
       position: 'absolute' as const,
       top: 0, left: 0, right: 0, bottom: 0,
-      backgroundColor: COLORS.secondary,
+      backgroundColor: colors.secondary,
       opacity: 0.05,
       borderRadius: BORDER_RADIUS.xl,
     },
@@ -695,12 +671,12 @@ export default function ClientHome() {
       width: getResponsiveValue({ mobile: 40, tablet: 46, desktop: 52 }, screenType),
       height: getResponsiveValue({ mobile: 40, tablet: 46, desktop: 52 }, screenType),
       borderRadius: 99,
-      backgroundColor: COLORS.secondary + '25',
+      backgroundColor: colors.secondary + '25',
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
       marginRight: getResponsiveValue(SPACING.md, screenType),
       borderWidth: 1,
-      borderColor: COLORS.secondary + '40',
+      borderColor: colors.secondary + '40',
       flexShrink: 0,
     },
 
@@ -708,7 +684,7 @@ export default function ClientHome() {
       width: 34,
       height: 34,
       borderRadius: 17,
-      backgroundColor: COLORS.secondary + '30',
+      backgroundColor: colors.secondary + '30',
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
     },
@@ -725,25 +701,25 @@ export default function ClientHome() {
     // ── MODAL REJOINDRE PAR CODE ─────────────────────────────────────────
     modalOverlay: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.55)',
+      backgroundColor: colors.overlay,
       justifyContent: 'flex-end' as const,
     },
 
     modalSheet: {
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
       paddingTop: 12,
       paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
       paddingBottom: Math.max(insets.bottom + 16, 32),
-      ...SHADOWS.lg,
+      ...shadows.lg,
     },
 
     modalHandle: {
       width: 40,
       height: 4,
       borderRadius: 2,
-      backgroundColor: COLORS.border.light,
+      backgroundColor: colors.border.default,
       alignSelf: 'center' as const,
       marginBottom: 20,
     },
@@ -751,13 +727,13 @@ export default function ClientHome() {
     modalTitle: {
       fontSize: getResponsiveValue({ mobile: 18, tablet: 20, desktop: 22 }, screenType),
       fontWeight: '700' as const,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       marginBottom: 6,
     },
 
     modalSubtitle: {
       fontSize: getResponsiveValue({ mobile: 13, tablet: 14, desktop: 15 }, screenType),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       marginBottom: 24,
       lineHeight: 20,
     },
@@ -765,16 +741,16 @@ export default function ClientHome() {
     codeInputWrapper: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
-      backgroundColor: COLORS.background,
+      backgroundColor: colors.background,
       borderRadius: BORDER_RADIUS.lg,
       borderWidth: 1.5,
-      borderColor: COLORS.border.light,
+      borderColor: colors.border.light,
       paddingHorizontal: 16,
       marginBottom: 8,
     },
 
     codeInputWrapperFocused: {
-      borderColor: COLORS.primary,
+      borderColor: colors.primary,
     },
 
     codeInput: {
@@ -782,57 +758,52 @@ export default function ClientHome() {
       height: 52,
       fontSize: getResponsiveValue({ mobile: 18, tablet: 20, desktop: 22 }, screenType),
       fontWeight: '700' as const,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       letterSpacing: 3,
       paddingLeft: 8,
     },
 
     codeError: {
       fontSize: 13,
-      color: '#FF6B6B',
+      color: colors.error,
       marginBottom: 16,
       marginLeft: 4,
     },
 
     joinButton: {
-      backgroundColor: COLORS.primary,
+      backgroundColor: colors.primary,
       borderRadius: BORDER_RADIUS.lg,
       height: 52,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
       marginTop: 8,
-      ...SHADOWS.sm,
+      ...shadows.sm,
     },
 
-    joinButtonDisabled: {
-      opacity: 0.6,
-    },
+    joinButtonDisabled: { opacity: 0.6 },
 
-    // ── MODAL EN ATTENTE D'APPROBATION ───────────────────────────────────
     pendingModalSheet: {
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
       paddingTop: 12,
       paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
       paddingBottom: Math.max(insets.bottom + 16, 32),
       alignItems: 'center' as const,
-      ...SHADOWS.lg,
+      ...shadows.lg,
     },
 
     pendingCodeBox: {
-      backgroundColor: COLORS.background,
+      backgroundColor: colors.background,
       borderRadius: BORDER_RADIUS.lg,
       paddingVertical: 12,
       paddingHorizontal: 24,
       borderWidth: 1.5,
-      borderColor: COLORS.border.light,
+      borderColor: colors.border.light,
       alignItems: 'center' as const,
       marginTop: 24,
       marginBottom: 8,
     },
-
-    // ─────────────────────────────────────────────────────────────────────
 
     content: {
       paddingHorizontal: layoutConfig.containerPadding,
@@ -845,7 +816,7 @@ export default function ClientHome() {
     qrSection: {
       marginBottom: getResponsiveValue(
         { mobile: SPACING['2xl'].mobile, tablet: SPACING.xl.tablet, desktop: SPACING['2xl'].desktop },
-        screenType
+        screenType,
       ),
     },
 
@@ -860,23 +831,23 @@ export default function ClientHome() {
     sectionTitleLine: {
       flex: 1,
       height: 2,
-      backgroundColor: COLORS.border.golden,
+      backgroundColor: colors.border.golden,
       marginLeft: getResponsiveValue(SPACING.sm, screenType),
-      opacity: 0.3,
+      opacity: isDark ? 0.5 : 0.3,
     },
 
     quickActionButton: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
       justifyContent: 'space-between' as const,
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       padding: getResponsiveValue(SPACING.lg, screenType),
       borderRadius: BORDER_RADIUS.xl,
       marginBottom: getResponsiveValue(SPACING.md, screenType),
       minHeight: getResponsiveValue({ mobile: 70, tablet: 84, desktop: 96 }, screenType),
       borderWidth: 1.5,
-      borderColor: COLORS.border.light,
-      ...SHADOWS.md,
+      borderColor: colors.border.light,
+      ...shadows.md,
       overflow: 'hidden' as const,
     },
 
@@ -909,7 +880,7 @@ export default function ClientHome() {
       width: getResponsiveValue({ mobile: 28, tablet: 32, desktop: 36 }, screenType),
       height: getResponsiveValue({ mobile: 28, tablet: 32, desktop: 36 }, screenType),
       borderRadius: getResponsiveValue({ mobile: 14, tablet: 16, desktop: 18 }, screenType),
-      backgroundColor: COLORS.background,
+      backgroundColor: colors.background,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
     },
@@ -929,29 +900,29 @@ export default function ClientHome() {
     },
 
     welcomeCard: {
-      backgroundColor: COLORS.goldenSurface,
+      backgroundColor: colors.goldenSurface,
       borderRadius: BORDER_RADIUS.xl,
       padding: getResponsiveValue(SPACING.lg, screenType),
       borderWidth: 1,
-      borderColor: COLORS.border.golden,
+      borderColor: colors.border.golden,
       marginBottom: getResponsiveValue(
         { mobile: SPACING.lg.mobile, tablet: SPACING.xl.tablet, desktop: SPACING.xl.desktop },
-        screenType
+        screenType,
       ),
-      ...SHADOWS.sm,
+      ...shadows.sm,
       maxWidth: screenType === 'tablet' ? 500 : undefined,
       alignSelf: 'center' as const,
       width: screenType === 'tablet' ? '100%' as const : undefined,
     },
 
-    // ── Session terminée ──────────────────────────────────────────────────
+    // ── Session terminée (vert clair en light, vert sombre teinté en dark) ─
     completedSessionCard: {
-      backgroundColor: '#F1F8E9',
+      backgroundColor: isDark ? 'rgba(46, 125, 50, 0.12)' : '#F1F8E9',
       borderRadius: BORDER_RADIUS.xl,
       borderWidth: 1,
-      borderColor: '#A5D6A7',
+      borderColor: isDark ? 'rgba(46, 125, 50, 0.35)' : '#A5D6A7',
       padding: getResponsiveValue(SPACING.lg, screenType),
-      ...SHADOWS.sm,
+      ...shadows.sm,
     },
     completedSessionHeader: {
       flexDirection: 'row' as const,
@@ -971,28 +942,31 @@ export default function ClientHome() {
       marginTop: 12,
       paddingTop: 10,
       borderTopWidth: 1,
-      borderTopColor: '#C8E6C9',
+      borderTopColor: isDark ? 'rgba(46, 125, 50, 0.25)' : '#C8E6C9',
     },
     completedSessionCloseBtn: {
       paddingHorizontal: 14,
       paddingVertical: 6,
-      backgroundColor: COLORS.primary,
+      backgroundColor: colors.primary,
       borderRadius: BORDER_RADIUS.md,
     },
-  };
+  }), [colors, isDark, layoutConfig, shadows, insets.top, insets.bottom, screenType]);
 
-  const textStyles = {
+  // Couleur du titre "Session terminée" — vert qui ressort dans les 2 modes
+  const SESSION_COMPLETED_GREEN = isDark ? '#81C784' : '#2E7D32';
+
+  const textStyles = useMemo(() => ({
     logo: {
       fontSize: getResponsiveValue({ mobile: 32, tablet: 40, desktop: 48 }, screenType),
-      color: COLORS.primary,
+      color: colors.primary,
       fontWeight: '800' as const,
       letterSpacing: -0.5,
       textAlign: 'center' as const,
     },
-    logoAccent: { color: COLORS.secondary },
+    logoAccent: { color: colors.secondary },
     subtitle: {
       fontSize: getResponsiveValue({ mobile: 14, tablet: 16, desktop: 18 }, screenType),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       marginTop: getResponsiveValue(SPACING.xs, screenType),
       textAlign: 'center' as const,
       fontWeight: '400' as const,
@@ -1001,33 +975,33 @@ export default function ClientHome() {
     },
     welcome: {
       fontSize: getResponsiveValue({ mobile: 15, tablet: 17, desktop: 19 }, screenType),
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       textAlign: 'center' as const,
       fontWeight: '600' as const,
     },
     welcomeSubtext: {
       fontSize: getResponsiveValue({ mobile: 13, tablet: 14, desktop: 15 }, screenType),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       textAlign: 'center' as const,
       marginTop: 4,
     },
     quickActionsTitle: {
       fontSize: getResponsiveValue({ mobile: 18, tablet: 22, desktop: 26 }, screenType),
       fontWeight: '700' as const,
-      color: COLORS.text.primary,
+      // Titre de section en or chaud en dark (consistent avec profile.tsx)
+      color: isDark ? colors.text.golden : colors.text.primary,
     },
     quickActionButtonText: {
       fontSize: getResponsiveValue({ mobile: 16, tablet: 18, desktop: 20 }, screenType),
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       fontWeight: '600' as const,
       marginBottom: 2,
     },
     quickActionSubtext: {
       fontSize: getResponsiveValue({ mobile: 12, tablet: 13, desktop: 14 }, screenType),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       fontWeight: '400' as const,
     },
-    // ── Session banners ──
     sessionBannerTitle: {
       fontSize: getResponsiveValue({ mobile: 14, tablet: 15, desktop: 16 }, screenType),
       fontWeight: '700' as const,
@@ -1036,7 +1010,7 @@ export default function ClientHome() {
     },
     sessionBannerMeta: {
       fontSize: getResponsiveValue({ mobile: 12, tablet: 12, desktop: 13 }, screenType),
-      color: COLORS.success,
+      color: colors.success,
       fontWeight: '500' as const,
     },
     sessionBannerCta: {
@@ -1046,7 +1020,7 @@ export default function ClientHome() {
     },
     serverBannerMeta: {
       fontSize: getResponsiveValue({ mobile: 12, tablet: 12, desktop: 13 }, screenType),
-      color: COLORS.secondary,
+      color: colors.secondary,
       fontWeight: '500' as const,
     },
     serverBannerCta: {
@@ -1057,92 +1031,95 @@ export default function ClientHome() {
     completedSessionTitle: {
       fontSize: getResponsiveValue({ mobile: 15, tablet: 16, desktop: 17 }, screenType),
       fontWeight: '700' as const,
-      color: '#2E7D32',
+      color: SESSION_COMPLETED_GREEN,
       flex: 1,
     },
     completedSessionTable: {
       fontSize: getResponsiveValue({ mobile: 12, tablet: 13, desktop: 13 }, screenType),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
     },
     completedSessionSubtitle: {
       fontSize: getResponsiveValue({ mobile: 12, tablet: 13, desktop: 13 }, screenType),
       fontWeight: '600' as const,
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       marginBottom: 8,
     },
     completedParticipantName: {
       fontSize: getResponsiveValue({ mobile: 14, tablet: 15, desktop: 15 }, screenType),
-      color: COLORS.text.primary,
+      color: colors.text.primary,
     },
     completedParticipantAmount: {
       fontSize: getResponsiveValue({ mobile: 14, tablet: 15, desktop: 15 }, screenType),
       fontWeight: '600' as const,
-      color: COLORS.primary,
+      color: colors.primary,
     },
     completedSessionTotal: {
       fontSize: getResponsiveValue({ mobile: 15, tablet: 16, desktop: 16 }, screenType),
       fontWeight: '700' as const,
-      color: COLORS.primary,
+      color: colors.primary,
     },
     completedSessionCloseBtnText: {
-      color: '#FFFFFF',
+      color: colors.text.inverse,
       fontSize: getResponsiveValue({ mobile: 13, tablet: 14, desktop: 14 }, screenType),
       fontWeight: '600' as const,
     },
     modalJoinBtn: {
       fontSize: getResponsiveValue({ mobile: 15, tablet: 16, desktop: 17 }, screenType),
       fontWeight: '700' as const,
-      color: '#FFFFFF',
+      color: colors.text.inverse,
     },
-  };
+  }), [colors, isDark, screenType, SESSION_COMPLETED_GREEN]);
 
   const iconSize = getResponsiveValue({ mobile: 26, tablet: 30, desktop: 34 }, screenType);
   const chevronSize = getResponsiveValue({ mobile: 18, tablet: 20, desktop: 22 }, screenType);
   const notificationIconSize = getResponsiveValue({ mobile: 24, tablet: 26, desktop: 28 }, screenType);
   const sessionIconSize = getResponsiveValue({ mobile: 20, tablet: 24, desktop: 26 }, screenType);
 
+  // Labels de statut de session (i18n)
   const statusLabel: Record<string, string> = {
-    active: 'En cours',
-    locked: 'Verrouillée',
-    payment: 'Paiement en attente',
+    active: t('session.status.active'),
+    locked: t('session.status.locked'),
+    payment: t('session.status.payment'),
   };
 
-  // Actions rapides — on ajoute "Rejoindre une session" si pas de session active
-  const quickActions = [
+  // En dark, on adapte les iconBg des actions rapides : les pastels clairs
+  // (#ECFDF5, etc.) deviennent des fonds sombres teintés de la couleur de
+  // l'accent pour rester cohérents avec le thème.
+  // Mémoizé pour propager les changements de thème aux Pressable enfants.
+  const quickActions = useMemo(() => [
     {
       id: 'orders',
       icon: 'receipt-outline',
-      title: 'Mes commandes',
-      subtitle: 'Suivez vos commandes',
+      title: t('home.actions.myOrders.title'),
+      subtitle: t('home.actions.myOrders.subtitle'),
       route: '/(client)/orders',
-      iconBg: COLORS.variants.secondary[50],
-      iconColor: COLORS.secondary,
+      iconBg: isDark ? 'rgba(212, 175, 55, 0.15)' : colors.variants.secondary[50],
+      iconColor: colors.secondary,
       onPress: () => router.push('/(client)/orders' as any),
     },
     {
       id: 'cart',
       icon: 'bag-outline',
-      title: 'Mon panier',
-      subtitle: 'Finalisez votre achat',
+      title: t('home.actions.myCart.title'),
+      subtitle: t('home.actions.myCart.subtitle'),
       route: '/(client)/cart',
-      iconBg: '#ECFDF5',
-      iconColor: COLORS.success,
+      iconBg: isDark ? 'rgba(16, 185, 129, 0.15)' : '#ECFDF5',
+      iconColor: colors.success,
       onPress: () => router.push('/(client)/cart' as any),
     },
-    // Raccourci rejoindre une session — visible uniquement si pas de session active/en cours
     ...(!hasActiveSession && !hasCompletedSession && !serverSession
       ? [{
           id: 'join-session',
           icon: 'people-outline',
-          title: 'Rejoindre une session',
-          subtitle: 'Entrez un code de partage',
+          title: t('home.actions.joinSession.title'),
+          subtitle: t('home.actions.joinSession.subtitle'),
           route: null,
-          iconBg: '#EEF2FF',
-          iconColor: '#6366F1',
+          iconBg: isDark ? 'rgba(99, 102, 241, 0.18)' : '#EEF2FF',
+          iconColor: SESSION_INDIGO,
           onPress: handleOpenCodeModal,
         }]
       : []),
-  ];
+  ], [colors, isDark, t, hasActiveSession, hasCompletedSession, serverSession]);
 
   // ═══════════════════════════════════════════════════════════════════════
   // RENDU
@@ -1150,7 +1127,11 @@ export default function ClientHome() {
 
   return (
     <View style={viewStyles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} translucent={false} />
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={colors.background}
+        translucent={false}
+      />
 
       <ScrollView
         style={{ flex: 1 }}
@@ -1158,12 +1139,15 @@ export default function ClientHome() {
         showsVerticalScrollIndicator={false}
         bounces={true}
       >
-        {/* ── Notifications ── */}
+        {/* Header actions : langue + thème + notifications */}
         <View style={viewStyles.headerRow}>
           <View style={viewStyles.headerPlaceholder} />
           <View style={{ flex: 1 }} />
-          <View style={viewStyles.notificationBadgeContainer}>
-            <NotificationBadge size={notificationIconSize} color={COLORS.primary} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <HeaderActionsBar />
+            <View style={viewStyles.notificationBadgeContainer}>
+              <NotificationBadge size={notificationIconSize} color={colors.primary} />
+            </View>
           </View>
         </View>
 
@@ -1173,43 +1157,40 @@ export default function ClientHome() {
             <Text style={textStyles.logo}>
               Eat<Text style={textStyles.logoAccent}></Text>QuickeR
             </Text>
-            <Text style={textStyles.subtitle}>Commandez facilement</Text>
+            <Text style={textStyles.subtitle}>{t('home.subtitle')}</Text>
           </View>
 
           {user && (
             <View style={viewStyles.welcomeCard}>
               <Text style={textStyles.welcome}>
-                Bonjour {user.first_name || user.username} ! 👋
+                {t('home.welcome', { name: user.first_name || user.username })}
               </Text>
               <Text style={textStyles.welcomeSubtext}>
-                Prêt(e) à commander aujourd'hui ?
+                {t('home.welcomeSubtext')}
               </Text>
             </View>
           )}
         </View>
 
-        {/* ══════════════════════════════════════════════════════════════
-            BANDEAUX SESSION
-        ══════════════════════════════════════════════════════════════ */}
-
         {/* Skeleton pendant init */}
         {!isSessionInitialized && (
           <View style={viewStyles.sessionBannerSkeleton}>
-            <ActivityIndicator size="small" color={COLORS.border.light} />
+            <ActivityIndicator size="small" color={colors.text.light} />
           </View>
         )}
 
-        {/* 1️⃣  Session locale active → reprendre ou quitter */}
+        {/* 1️⃣  Session locale active */}
         {hasActiveSession && session && (
           <View style={viewStyles.sessionBannerWrapper}>
             <View style={viewStyles.sessionBanner}>
               <View style={viewStyles.sessionBannerPulse} />
 
               <View style={viewStyles.sessionBannerIconContainer}>
-                {isExiting
-                  ? <ActivityIndicator size="small" color={COLORS.success} />
-                  : <Ionicons name="people" size={sessionIconSize} color={COLORS.success} />
-                }
+                {isExiting ? (
+                  <ActivityIndicator size="small" color={colors.success} />
+                ) : (
+                  <Ionicons name="people" size={sessionIconSize} color={colors.success} />
+                )}
               </View>
 
               <Pressable
@@ -1218,14 +1199,17 @@ export default function ClientHome() {
                 disabled={isExiting}
               >
                 <Text style={textStyles.sessionBannerTitle} numberOfLines={1}>
-                  {session.restaurant_name} · Table {session.table_number}
+                  {t('session.tableLabel', {
+                    name: session.restaurant_name,
+                    table: session.table_number,
+                  })}
                 </Text>
                 <Text style={textStyles.sessionBannerMeta}>
                   ● {statusLabel[session.status] ?? session.status}
                   {'  '}·{'  '}
-                  {session.participant_count} participant{session.participant_count > 1 ? 's' : ''}
+                  {t('session.participants', { count: session.participant_count })}
                 </Text>
-                <Text style={textStyles.sessionBannerCta}>Appuyer pour reprendre</Text>
+                <Text style={textStyles.sessionBannerCta}>{t('session.bannerCta')}</Text>
               </Pressable>
 
               <View style={viewStyles.sessionBannerActions}>
@@ -1234,7 +1218,7 @@ export default function ClientHome() {
                   onPress={handleResumeSession}
                   disabled={isExiting}
                 >
-                  <Ionicons name="arrow-forward" size={16} color={COLORS.success} />
+                  <Ionicons name="arrow-forward" size={16} color={colors.success} />
                 </Pressable>
                 <Pressable
                   style={viewStyles.sessionBannerExitBtn}
@@ -1252,38 +1236,41 @@ export default function ClientHome() {
           </View>
         )}
 
-        {/* 1️⃣bis  Avertissement inactivité (5 min avant auto-completion) */}
+        {/* Avertissement inactivité */}
         {hasActiveSession && showInactivityWarning && inactivityFormattedTime && (
           <View style={viewStyles.sessionBannerWrapper}>
-            <View style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: '#FF9800',
-              borderRadius: BORDER_RADIUS.lg,
-              paddingVertical: 10,
-              paddingHorizontal: 16,
-              gap: 8,
-            }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: '#FF9800',
+                borderRadius: BORDER_RADIUS.lg,
+                paddingVertical: 10,
+                paddingHorizontal: 16,
+                gap: 8,
+              }}
+            >
               <Ionicons name="time-outline" size={18} color="#FFF" />
               <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '600' }}>
-                ⚠️ Session inactive — fermeture auto dans {inactivityFormattedTime}
+                {t('session.inactivityWarning', { time: inactivityFormattedTime })}
               </Text>
             </View>
           </View>
         )}
 
-        {/* 2️⃣  Session retrouvée côté serveur (pas de cache local) → rejoindre */}
+        {/* 2️⃣  Session retrouvée serveur */}
         {!hasActiveSession && serverSession && (
           <View style={viewStyles.sessionBannerWrapper}>
             <View style={viewStyles.serverSessionBanner}>
               <View style={viewStyles.serverSessionPulse} />
 
               <View style={viewStyles.serverSessionIconContainer}>
-                {isRejoining
-                  ? <ActivityIndicator size="small" color={COLORS.secondary} />
-                  : <Ionicons name="refresh-circle-outline" size={sessionIconSize} color={COLORS.secondary} />
-                }
+                {isRejoining ? (
+                  <ActivityIndicator size="small" color={colors.secondary} />
+                ) : (
+                  <Ionicons name="refresh-circle-outline" size={sessionIconSize} color={colors.secondary} />
+                )}
               </View>
 
               <Pressable
@@ -1292,14 +1279,17 @@ export default function ClientHome() {
                 disabled={isRejoining}
               >
                 <Text style={textStyles.sessionBannerTitle} numberOfLines={1}>
-                  {serverSession.restaurant_name} · Table {serverSession.table_number}
+                  {t('session.tableLabel', {
+                    name: serverSession.restaurant_name,
+                    table: serverSession.table_number,
+                  })}
                 </Text>
                 <Text style={textStyles.serverBannerMeta}>
-                  ● Session retrouvée
+                  ● {t('session.foundLabel')}
                   {'  '}·{'  '}
-                  {serverSession.participant_count} participant{serverSession.participant_count > 1 ? 's' : ''}
+                  {t('session.participants', { count: serverSession.participant_count })}
                 </Text>
-                <Text style={textStyles.serverBannerCta}>Appuyer pour rejoindre</Text>
+                <Text style={textStyles.serverBannerCta}>{t('session.foundCta')}</Text>
               </Pressable>
 
               <View style={viewStyles.sessionBannerActions}>
@@ -1308,31 +1298,30 @@ export default function ClientHome() {
                   onPress={handleRejoinServerSession}
                   disabled={isRejoining}
                 >
-                  <Ionicons name="arrow-forward" size={16} color={COLORS.secondary} />
+                  <Ionicons name="arrow-forward" size={16} color={colors.secondary} />
                 </Pressable>
                 <Pressable
                   style={viewStyles.serverSessionDismissBtn}
                   onPress={handleDismissServerSession}
                   disabled={isRejoining}
                 >
-                  {isRejoining
-                    ? <ActivityIndicator size="small" color="rgba(255,255,255,0.5)" />
-                    : <Ionicons name="close" size={16} color="rgba(255,255,255,0.5)" />
-                  }
+                  {isRejoining ? (
+                    <ActivityIndicator size="small" color="rgba(255,255,255,0.5)" />
+                  ) : (
+                    <Ionicons name="close" size={16} color="rgba(255,255,255,0.5)" />
+                  )}
                 </Pressable>
               </View>
             </View>
           </View>
         )}
 
-        {/* ══════════════════════════════════════════════════════════════ */}
-
-        {/* 3️⃣  Alerte erreur rejoindre session serveur */}
+        {/* 3️⃣  Alerte erreur rejoindre */}
         {rejoinError && (
           <View style={viewStyles.sessionBannerWrapper}>
             <Alert
               variant="error"
-              title="Impossible de rejoindre"
+              title={t('session.errors.joinTitle')}
               message={rejoinError}
               autoDismiss
               autoDismissDuration={5000}
@@ -1341,75 +1330,73 @@ export default function ClientHome() {
           </View>
         )}
 
-        {/* 4️⃣  Confirmation quitter / terminer la session */}
+        {/* 4️⃣  Confirmation quitter / terminer */}
         {exitAlertVisible && session && (
           <View style={viewStyles.sessionBannerWrapper}>
             <AlertWithAction
               variant={isHost ? 'warning' : 'info'}
-              title={isHost ? 'Terminer la session ?' : 'Quitter la session ?'}
-              message={
-                isHost
-                  ? "En tant qu'hôte, cela fermera la session pour tous les participants."
-                  : 'Vous allez quitter cette session collaborative.'
-              }
+              title={isHost ? t('session.exit.titleHost') : t('session.exit.titleMember')}
+              message={isHost ? t('session.exit.messageHost') : t('session.exit.messageMember')}
               autoDismiss={false}
               primaryButton={{
-                text: isHost ? 'Terminer' : 'Quitter',
+                text: isHost ? t('session.exit.ctaHost') : t('session.exit.ctaMember'),
                 variant: 'danger',
                 onPress: handleConfirmExit,
               }}
               secondaryButton={{
-                text: 'Annuler',
+                text: t('common.cancel'),
                 onPress: () => setExitAlertVisible(false),
               }}
             />
           </View>
         )}
 
-        {/* 5️⃣  Session terminée → récap participants */}
+        {/* 5️⃣  Session terminée */}
         {hasCompletedSession && session && (
           <View style={viewStyles.sessionBannerWrapper}>
             <View style={viewStyles.completedSessionCard}>
-              {/* Bandeau d'archivage (orange/rouge selon urgence) */}
               <SessionArchiveWarning sessionId={session.id} />
 
-              {/* En-tête */}
               <View style={viewStyles.completedSessionHeader}>
-                <Ionicons name="checkmark-circle" size={20} color="#2E7D32" />
-                <Text style={textStyles.completedSessionTitle}>Session terminée</Text>
+                <Ionicons name="checkmark-circle" size={20} color={SESSION_COMPLETED_GREEN} />
+                <Text style={textStyles.completedSessionTitle}>{t('session.completed.title')}</Text>
                 <Text style={textStyles.completedSessionTable}>
-                  {session.restaurant_name} · Table {session.table_number}
+                  {t('session.tableLabel', {
+                    name: session.restaurant_name,
+                    table: session.table_number,
+                  })}
                 </Text>
               </View>
 
-              {/* Liste participants */}
               <Text style={textStyles.completedSessionSubtitle}>
-                Participants ({session.participants?.filter(p => p.status === 'active').length ?? 0})
+                {t('session.completed.participantsLabel', {
+                  count: session.participants?.filter((p) => p.status === 'active').length ?? 0,
+                })}
               </Text>
               {session.participants
-                ?.filter(p => p.status === 'active')
-                .map(p => (
+                ?.filter((p) => p.status === 'active')
+                .map((p) => (
                   <View key={p.id} style={viewStyles.completedParticipantRow}>
                     <Text style={textStyles.completedParticipantName}>
-                      {p.is_host ? '👑 ' : ''}{p.display_name}
+                      {p.is_host ? '👑 ' : ''}
+                      {p.display_name}
                     </Text>
                     <Text style={textStyles.completedParticipantAmount}>
-                      {Number(p.total_spent).toFixed(2)} €
+                      {formatPrice(Number(p.total_spent))}
                     </Text>
                   </View>
-                ))
-              }
+                ))}
 
-              {/* Pied de carte */}
               <View style={viewStyles.completedSessionFooter}>
                 <Text style={textStyles.completedSessionTotal}>
-                  Total : {Number(session.total_amount).toFixed(2)} €
+                  {t('session.completed.totalLabel', {
+                    amount: formatPrice(Number(session.total_amount)),
+                  })}
                 </Text>
-                <TouchableOpacity
-                  style={viewStyles.completedSessionCloseBtn}
-                  onPress={clearSession}
-                >
-                  <Text style={textStyles.completedSessionCloseBtnText}>Fermer</Text>
+                <TouchableOpacity style={viewStyles.completedSessionCloseBtn} onPress={clearSession}>
+                  <Text style={textStyles.completedSessionCloseBtnText}>
+                    {t('session.completed.close')}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1418,35 +1405,41 @@ export default function ClientHome() {
 
         <View style={viewStyles.content}>
           <View style={layoutConfig.shouldUseGrid ? viewStyles.gridLayout : undefined}>
-            <View style={[
-              viewStyles.qrSection,
-              layoutConfig.shouldUseGrid ? viewStyles.gridColumn : undefined,
-            ]}>
+            <View
+              style={[
+                viewStyles.qrSection,
+                layoutConfig.shouldUseGrid ? viewStyles.gridColumn : undefined,
+              ]}
+            >
               <QRAccessButtons />
             </View>
 
-            <View style={[
-              viewStyles.quickActions,
-              layoutConfig.shouldUseGrid ? viewStyles.gridColumn : undefined,
-            ]}>
+            <View
+              style={[
+                viewStyles.quickActions,
+                layoutConfig.shouldUseGrid ? viewStyles.gridColumn : undefined,
+              ]}
+            >
               <View style={viewStyles.sectionTitle}>
-                <Text style={textStyles.quickActionsTitle}>Actions rapides</Text>
+                <Text style={textStyles.quickActionsTitle}>{t('home.quickActions')}</Text>
                 <View style={viewStyles.sectionTitleLine} />
               </View>
 
               {quickActions.map((action) => (
                 <Pressable
-                  key={action.id}
-                  style={({ pressed }) => [
-                    viewStyles.quickActionButton,
-                    { transform: [{ scale: pressed ? 0.98 : 1 }], opacity: pressed ? 0.9 : 1 },
-                  ]}
+                  key={`${action.id}-${isDark ? 'd' : 'l'}`}
+                  style={viewStyles.quickActionButton}
                   onPress={action.onPress}
-                  android_ripple={{ color: COLORS.primary + '15', borderless: false }}
+                  android_ripple={{ color: colors.primary + '15', borderless: false }}
                 >
                   <View style={[viewStyles.quickActionGradient, { backgroundColor: action.iconColor }]} />
                   <View style={viewStyles.quickActionContent}>
-                    <View style={[viewStyles.quickActionIconContainer, { backgroundColor: action.iconBg }]}>
+                    <View
+                      style={[
+                        viewStyles.quickActionIconContainer,
+                        { backgroundColor: action.iconBg },
+                      ]}
+                    >
                       <Ionicons name={action.icon as any} size={iconSize} color={action.iconColor} />
                     </View>
                     <View style={viewStyles.quickActionTextContainer}>
@@ -1455,7 +1448,7 @@ export default function ClientHome() {
                     </View>
                   </View>
                   <View style={viewStyles.chevronContainer}>
-                    <Ionicons name="chevron-forward" size={chevronSize} color={COLORS.text.secondary} />
+                    <Ionicons name="chevron-forward" size={chevronSize} color={colors.text.secondary} />
                   </View>
                 </Pressable>
               ))}
@@ -1464,9 +1457,7 @@ export default function ClientHome() {
         </View>
       </ScrollView>
 
-      {/* ══════════════════════════════════════════════════════════════
-          MODAL : REJOINDRE PAR CODE
-      ══════════════════════════════════════════════════════════════ */}
+      {/* MODAL : REJOINDRE PAR CODE */}
       <Modal
         visible={codeModalVisible}
         transparent
@@ -1475,30 +1466,26 @@ export default function ClientHome() {
       >
         <TouchableWithoutFeedback onPress={handleCloseCodeModal}>
           <View style={viewStyles.modalOverlay}>
-            <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            >
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
               <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                 <View style={viewStyles.modalSheet}>
                   <View style={viewStyles.modalHandle} />
 
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                    <Ionicons name="people" size={22} color="#6366F1" style={{ marginRight: 8 }} />
-                    <Text style={viewStyles.modalTitle}>Rejoindre une session</Text>
+                    <Ionicons name="people" size={22} color={SESSION_INDIGO} style={{ marginRight: 8 }} />
+                    <Text style={viewStyles.modalTitle}>{t('session.codeModal.title')}</Text>
                   </View>
                   <Text style={viewStyles.modalSubtitle}>
-                    Saisissez le code partagé par l'hôte de la table pour rejoindre la session en cours.
+                    {t('session.codeModal.description')}
                   </Text>
 
-                  <View style={[
-                    viewStyles.codeInputWrapper,
-                  ]}>
-                    <Ionicons name="keypad-outline" size={20} color={COLORS.text.secondary} />
+                  <View style={[viewStyles.codeInputWrapper]}>
+                    <Ionicons name="keypad-outline" size={20} color={colors.text.secondary} />
                     <TextInput
                       ref={codeInputRef}
                       style={viewStyles.codeInput}
-                      placeholder="EX : ABC123"
-                      placeholderTextColor={COLORS.text.secondary + '80'}
+                      placeholder={t('session.codeModal.placeholder')}
+                      placeholderTextColor={colors.text.secondary + '80'}
                       value={shareCode}
                       onChangeText={(t) => {
                         setShareCode(t.toUpperCase());
@@ -1512,14 +1499,12 @@ export default function ClientHome() {
                     />
                     {shareCode.length > 0 && (
                       <Pressable onPress={() => setShareCode('')} hitSlop={8}>
-                        <Ionicons name="close-circle" size={18} color={COLORS.text.secondary} />
+                        <Ionicons name="close-circle" size={18} color={colors.text.secondary} />
                       </Pressable>
                     )}
                   </View>
 
-                  {codeError && (
-                    <Text style={viewStyles.codeError}>{codeError}</Text>
-                  )}
+                  {codeError && <Text style={viewStyles.codeError}>{codeError}</Text>}
 
                   <Pressable
                     style={[
@@ -1529,10 +1514,11 @@ export default function ClientHome() {
                     onPress={handleJoinByCode}
                     disabled={isJoiningByCode || !shareCode.trim()}
                   >
-                    {isJoiningByCode
-                      ? <ActivityIndicator size="small" color="#FFFFFF" />
-                      : <Text style={textStyles.modalJoinBtn}>Rejoindre la session</Text>
-                    }
+                    {isJoiningByCode ? (
+                      <ActivityIndicator size="small" color={colors.text.inverse} />
+                    ) : (
+                      <Text style={textStyles.modalJoinBtn}>{t('session.codeModal.cta')}</Text>
+                    )}
                   </Pressable>
                 </View>
               </TouchableWithoutFeedback>
@@ -1541,9 +1527,7 @@ export default function ClientHome() {
         </TouchableWithoutFeedback>
       </Modal>
 
-      {/* ══════════════════════════════════════════════════════════════
-          MODAL : EN ATTENTE D'APPROBATION
-      ══════════════════════════════════════════════════════════════ */}
+      {/* MODAL : EN ATTENTE D'APPROBATION */}
       <Modal
         visible={pendingModalVisible}
         transparent
@@ -1554,30 +1538,31 @@ export default function ClientHome() {
           <View style={viewStyles.pendingModalSheet}>
             <View style={viewStyles.modalHandle} />
 
-            <ActivityIndicator size="large" color="#6366F1" style={{ marginBottom: 16 }} />
+            <ActivityIndicator size="large" color={SESSION_INDIGO} style={{ marginBottom: 16 }} />
 
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-              <Ionicons name="time-outline" size={22} color="#6366F1" style={{ marginRight: 8 }} />
-              <Text style={viewStyles.modalTitle}>En attente d'approbation</Text>
+              <Ionicons name="time-outline" size={22} color={SESSION_INDIGO} style={{ marginRight: 8 }} />
+              <Text style={viewStyles.modalTitle}>{t('session.pending.title')}</Text>
             </View>
 
             <Text style={[viewStyles.modalSubtitle, { textAlign: 'center' }]}>
-              L'hôte doit valider votre demande.{'\n'}
-              Vous serez redirigé automatiquement une fois accepté.
+              {t('session.pending.description')}
             </Text>
 
             {pendingApproval && (
               <>
                 <View style={viewStyles.pendingCodeBox}>
-                  <Text style={{ fontSize: 11, color: COLORS.text.secondary, marginBottom: 4 }}>
-                    Code de session
+                  <Text style={{ fontSize: 11, color: colors.text.secondary, marginBottom: 4 }}>
+                    {t('session.pending.codeLabel')}
                   </Text>
-                  <Text style={{
-                    fontSize: 24,
-                    fontWeight: '800',
-                    color: COLORS.primary,
-                    letterSpacing: 4,
-                  }}>
+                  <Text
+                    style={{
+                      fontSize: 24,
+                      fontWeight: '800',
+                      color: colors.primary,
+                      letterSpacing: 4,
+                    }}
+                  >
                     {pendingApproval.session.share_code}
                   </Text>
                 </View>
@@ -1598,8 +1583,8 @@ export default function ClientHome() {
                 setPendingApproval(null);
               }}
             >
-              <Text style={{ color: COLORS.text.secondary, textAlign: 'center', fontSize: 14 }}>
-                Annuler
+              <Text style={{ color: colors.text.secondary, textAlign: 'center', fontSize: 14 }}>
+                {t('common.cancel')}
               </Text>
             </TouchableOpacity>
           </View>

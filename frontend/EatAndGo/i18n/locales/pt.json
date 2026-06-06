@@ -38,7 +38,9 @@
     "optional": "Opcional",
     "required": "Obrigatório",
     "available": "Disponível",
-    "unavailable": "Indisponível"
+    "unavailable": "Indisponível",
+    "comingSoon": "Em breve",
+    "error": "Erro"
   },
   "nav": {
     "home": "Início",
@@ -51,7 +53,8 @@
     "dashboard": "Painel",
     "history": "Histórico",
     "help": "Ajuda",
-    "logout": "Terminar sessão"
+    "logout": "Terminar sessão",
+    "scanner": "Digitalizar"
   },
   "auth": {
     "signIn": "Iniciar sessão",
@@ -114,7 +117,62 @@
     "specialInstructions": "Instruções especiais",
     "specialInstructionsPlaceholder": "Alergias, cozedura, sem cebola…",
     "table": "Mesa",
-    "tableNumber": "Mesa n.º {{number}}"
+    "tableNumber": "Mesa n.º {{number}}",
+    "titleWithCount": "Carrinho ({{count}})",
+    "serviceFee": "Taxa de serviço",
+    "collaborativeSession": "Sessão colaborativa",
+    "scanToOrder": "Digitalizar para pedir",
+    "scanToOrderDescription": "Digitalize um código QR para aceder ao menu",
+    "checkoutForGroup": "Pedir para o grupo",
+    "processing": "A processar…",
+    "hostOnlyCheckout": "Apenas o anfitrião pode fazer a encomenda do grupo.",
+    "formula": {
+      "incomplete": "Menu incompleto",
+      "completeAction": "Complete o seu menu para fazer a encomenda."
+    },
+    "clearConfirm": {
+      "title": "Esvaziar carrinho",
+      "message": "Tem a certeza que deseja esvaziar o carrinho? Esta ação é irreversível.",
+      "cta": "Esvaziar carrinho"
+    },
+    "removeConfirm": {
+      "title": "Remover artigo",
+      "message": "Deseja remover este artigo do carrinho?",
+      "cta": "Remover"
+    },
+    "splitConfirm": {
+      "title": "Pedir para o grupo",
+      "message": "Deseja dividir a conta entre os participantes? Cada um poderá pagar a sua parte pelo telemóvel.",
+      "split": "Dividir a conta",
+      "payAll": "Pago tudo"
+    },
+    "feedback": {
+      "quantityUpdated": "Quantidade atualizada",
+      "itemRemoved": "Artigo removido",
+      "cleared": "Carrinho esvaziado",
+      "emptyOnCheckout": "O seu carrinho está vazio. Adicione artigos para continuar.",
+      "restaurantNotFound": "Restaurante não encontrado. Digitalize o código QR novamente.",
+      "orderPlaced": "Encomenda realizada com sucesso!",
+      "orderPlacedSplit": "Encomenda realizada! A dividir a conta…"
+    },
+    "errors": {
+      "quantityUpdate": "Erro ao atualizar a quantidade",
+      "itemRemove": "Erro ao remover o artigo",
+      "cartClear": "Erro ao esvaziar o carrinho",
+      "checkout": "Erro ao preparar a encomenda",
+      "groupOrder": "Erro na encomenda do grupo"
+    },
+    "a11y": {
+      "itemImage": "Imagem de {{name}}",
+      "itemRow": "{{name}}, quantidade {{count}}, preço {{price}}",
+      "removeItem": "Remover artigo",
+      "decrease": "Diminuir quantidade",
+      "increase": "Aumentar quantidade",
+      "currentQuantity": "Quantidade atual: {{count}}",
+      "checkoutHint": "Toque para prosseguir para o pagamento",
+      "formulaLockHint": "Complete o seu menu para fazer a encomenda",
+      "checkoutLabel": "Encomendar por um total de {{amount}}"
+    }
   },
   "order": {
     "title": "Encomenda",
@@ -134,7 +192,48 @@
     "viewDetails": "Ver detalhes",
     "track": "Acompanhar encomenda",
     "rate": "Avaliar encomenda",
-    "reorder": "Encomendar novamente"
+    "reorder": "Encomendar novamente",
+    "count_one": "{{count}} encomenda",
+    "count_other": "{{count}} encomendas",
+    "unpaidTitle_one": "Tem uma encomenda por pagar",
+    "unpaidTitle_other": "Tem {{count}} encomendas por pagar",
+    "unpaidSubtitle": "Liquide as suas encomendas para fazer uma nova",
+    "myOrders": "As minhas encomendas",
+    "tabs": {
+      "active": "Em curso",
+      "history": "Histórico"
+    },
+    "fallbackRestaurant": "Restaurante",
+    "todayAt": "Hoje às {{time}}",
+    "dineIn": "No local",
+    "takeaway": "Para levar",
+    "paid": "Pago",
+    "paymentPending": "Pagamento pendente",
+    "waitingTime": "Tempo de espera estimado: {{minutes}} min",
+    "noActiveOrders": "Sem encomendas em curso",
+    "noHistoryOrders": "Sem encomendas anteriores",
+    "scanPrompt": "Digitalize o código QR da sua mesa para fazer a primeira encomenda",
+    "orderNow": "Encomendar agora",
+    "scanDescription": "Aceda ao menu digitalizando o código QR da mesa",
+    "scanQR": "Digitalizar QR",
+    "enterCode": "Introduzir código",
+    "clientOnly": "Acesso reservado a clientes",
+    "loadingOrders": "A carregar encomendas…",
+    "realtimeUnavailable": "Notificações em tempo real indisponíveis. Puxe para atualizar.",
+    "realtime": {
+      "on": "Tempo real ativo",
+      "connecting": "A ligar…",
+      "error": "Erro de ligação",
+      "offline": "Offline"
+    },
+    "statusLabels": {
+      "pending": "Pendente",
+      "confirmed": "Confirmado",
+      "preparing": "Em preparação",
+      "ready": "Pronto",
+      "served": "Servido",
+      "cancelled": "Cancelado"
+    }
   },
   "payment": {
     "title": "Pagamento",
@@ -164,7 +263,124 @@
     "yourName": "O seu nome",
     "leaveSession": "Sair da sessão",
     "sessionEnded": "Sessão terminada",
-    "waitingForOthers": "A aguardar pelos outros…"
+    "waitingForOthers": "A aguardar pelos outros…",
+    "tableLabel": "{{name}} · Mesa {{table}}",
+    "bannerCta": "Toque para retomar",
+    "foundLabel": "Sessão encontrada",
+    "foundCta": "Toque para entrar",
+    "inactivityWarning": "⚠️ Sessão inativa — fechamento automático em {{time}}",
+    "status": {
+      "active": "Ativa",
+      "locked": "Bloqueada",
+      "payment": "Pagamento pendente"
+    },
+    "errors": {
+      "emptyCode": "Por favor, insira um código de sessão.",
+      "notFound": "Nenhuma sessão encontrada com este código.",
+      "inactive": "Esta sessão já não está ativa.",
+      "invalidCode": "Nenhuma sessão ativa com este código. Verifique e tente novamente.",
+      "joinFailed": "Não foi possível entrar nesta sessão.",
+      "maybeGone": "A sessão pode já não estar disponível.",
+      "rejected": "O anfitrião recusou o seu pedido.",
+      "joinTitle": "Não foi possível entrar"
+    },
+    "exit": {
+      "titleHost": "Terminar a sessão?",
+      "titleMember": "Sair da sessão?",
+      "messageHost": "Como anfitrião, isto fechará a sessão para todos os participantes.",
+      "messageMember": "Vai sair desta sessão colaborativa.",
+      "ctaHost": "Terminar",
+      "ctaMember": "Sair"
+    },
+    "completed": {
+      "title": "Sessão terminada",
+      "participantsLabel": "Participantes ({{count}})",
+      "totalLabel": "Total: {{amount}}",
+      "close": "Fechar"
+    },
+    "codeModal": {
+      "title": "Entrar numa sessão",
+      "description": "Insira o código partilhado pelo anfitrião da mesa para entrar na sessão atual.",
+      "placeholder": "EX.: ABC123",
+      "cta": "Entrar na sessão"
+    },
+    "pending": {
+      "title": "A aguardar aprovação",
+      "description": "O anfitrião precisa de validar o seu pedido.\nSerá redirecionado automaticamente após aceitação.",
+      "codeLabel": "Código de sessão"
+    },
+    "archive": {
+      "archived": "Esta sessão foi arquivada",
+      "archivingIn": "Arquivamento em {{time}}",
+      "archivingSoonUrgent": "⚠️ Arquivamento em {{time}}"
+    },
+    "joinModal": {
+      "chooseTitle": "Encomendar nesta mesa",
+      "chooseSubtitle": "Escolha como deseja encomendar",
+      "rejoinExisting": {
+        "title": "Retomar a sessão em curso",
+        "subtitle": "Código: {{code}} · {{count}} participante(s)"
+      },
+      "createGroup": {
+        "title": "Criar uma sessão de grupo",
+        "description": "Encomende com amigos e divida a conta facilmente"
+      },
+      "joinGroup": {
+        "title": "Entrar numa sessão",
+        "description": "Introduza o código partilhado pelo seu grupo"
+      },
+      "orderAlone": "Encomendar sozinho(a)",
+      "createTitle": "Criar uma sessão de grupo",
+      "hostNameLabel": "O seu nome",
+      "hostNamePlaceholder": "Ex.: João",
+      "sessionTypeLabel": "Tipo de sessão",
+      "sessionType": {
+        "collaborative": {
+          "title": "Colaborativa",
+          "desc": "Todos veem as encomendas"
+        },
+        "individual": {
+          "title": "Individual",
+          "desc": "Cada um encomenda separadamente"
+        }
+      },
+      "maxParticipantsLabel": "Número máximo de participantes",
+      "requireApprovalLabel": "Aprovar manualmente novos participantes",
+      "back": "Voltar",
+      "createCta": "Criar sessão",
+      "joinTitle": "Entrar numa sessão",
+      "codeLabel": "Código da sessão",
+      "codePlaceholder": "ABC123",
+      "verifyCta": "Verificar",
+      "previewTitle": "Informações da sessão",
+      "previewHost": "Anfitrião:",
+      "previewParticipants": "Participantes:",
+      "sessionFullOrLocked": "⚠️ Esta sessão está cheia ou bloqueada",
+      "guestNameLabel": "O seu nome",
+      "guestNamePlaceholder": "Ex.: Maria",
+      "joinCta": "Entrar",
+      "pendingDescription": "O anfitrião da sessão precisa de aprovar o seu pedido.\nSerá redirecionado automaticamente após aceitação.",
+      "feedback": {
+        "soloError": "Não foi possível iniciar a encomenda individual.",
+        "fieldRequired": "Campo obrigatório",
+        "nameRequiredHost": "Introduza o seu nome para criar a sessão.",
+        "nameRequiredGuest": "Introduza o seu nome para entrar na sessão.",
+        "invalidCode": "Código inválido",
+        "invalidCodeDesc": "O código deve conter exatamente 6 caracteres.",
+        "codeNotFound": "Código não encontrado",
+        "codeNotFoundDesc": "Nenhuma sessão ativa corresponde a este código.",
+        "sessionCreated": "Sessão criada!",
+        "sessionCreatedDesc": "Partilhe o código {{code}} com os seus amigos.",
+        "sessionCreateError": "Não foi possível criar a sessão.",
+        "welcome": "Bem-vindo!",
+        "welcomeDesc": "Entrou na sessão com sucesso.",
+        "joinError": "Não foi possível entrar na sessão.",
+        "approved": "✅ Aceite!",
+        "approvedDesc": "O anfitrião aceitou-o na sessão.",
+        "rejected": "❌ Recusado",
+        "rejectedDesc": "O anfitrião recusou o seu pedido."
+      }
+    }
   },
   "profile": {
     "title": "Perfil",
@@ -181,7 +397,16 @@
     "terms": "Termos de utilização",
     "privacy": "Política de privacidade",
     "version": "Versão {{version}}",
-    "deleteAccount": "Eliminar a minha conta"
+    "deleteAccount": "Eliminar a minha conta",
+    "signInPrompt": "Inicie sessão para aceder ao seu perfil",
+    "defaultName": "Utilizador",
+    "verified": "Verificado",
+    "logoutConfirm": "Tem a certeza que deseja terminar sessão?",
+    "myActions": "As minhas ações",
+    "information": "Informações",
+    "helpFaq": "Ajuda e FAQ",
+    "contactUs": "Contacte-nos",
+    "personalData": "Dados pessoais"
   },
   "theme": {
     "title": "Tema",
@@ -242,5 +467,125 @@
     "today": "Hoje",
     "yesterday": "Ontem",
     "tomorrow": "Amanhã"
+  },
+  "legal": {
+    "copyright": "© {{year}} EatQuicker. Todos os direitos reservados.",
+    "termsShort": "Termos",
+    "privacyShort": "Privacidade",
+    "noticeShort": "Aviso legal",
+    "downloadMyData": {
+      "cta": "Descarregar os meus dados",
+      "download": "Descarregar",
+      "gdprNotice": "Exportação conforme RGPD (Artigo 20)",
+      "confirmTitle": "Exportação de dados",
+      "confirmMessage": "Deseja descarregar todos os seus dados pessoais?\n\nInclui: perfil, encomendas, preferências e histórico.",
+      "shareDialogTitle": "Descarregar os meus dados EatQuickeR",
+      "options": {
+        "title": "Exportação de dados",
+        "message": "Como deseja receber os seus dados?",
+        "direct": "Descarregamento direto",
+        "email": "Por email (em 48h)"
+      },
+      "progress": {
+        "fetching": "A obter dados…",
+        "preparing": "A preparar ficheiro…",
+        "preparingShort": "A preparar…",
+        "done": "Exportação concluída!",
+        "sending": "A enviar pedido…"
+      },
+      "success": {
+        "title": "Exportação bem-sucedida",
+        "message": "Os seus dados ({{size}} KB) foram exportados.\n\nPode agora guardá-los ou partilhá-los.",
+        "messageFallback": "Os seus dados foram exportados para:\n{{filename}}\n\nTamanho: {{size}} KB"
+      },
+      "email": {
+        "title": "Exportação por email",
+        "confirmMessage": "Receberá um email com um link de descarregamento seguro em 48h.\n\nContinuar?",
+        "successTitle": "Pedido registado",
+        "successMessage": "Um email será enviado para {{email}} em 48h com os seus dados."
+      },
+      "errors": {
+        "notLoggedIn": "Tem de iniciar sessão para exportar os seus dados",
+        "rateLimit": "Atingiu o limite diário de exportações. Tente amanhã.",
+        "sessionExpired": "A sua sessão expirou. Inicie sessão novamente.",
+        "forbidden": "Não tem permissão para exportar estes dados.",
+        "serverError": "Erro do servidor. Tente novamente em breve.",
+        "serviceUnavailable": "O serviço de exportação está temporariamente indisponível. Tente em alguns minutos.",
+        "generic": "Não foi possível descarregar os seus dados. Tente novamente.",
+        "connection": "Erro de ligação. Verifique a sua ligação à internet.",
+        "emailRequestFailed": "Não foi possível registar o seu pedido. Tente novamente.",
+        "emailPending": "Já tem um pedido de exportação em curso. Aguarde, por favor."
+      },
+      "a11y": {
+        "label": "Descarregar os meus dados pessoais",
+        "hint": "Exportar todos os seus dados conforme o RGPD"
+      }
+    }
+  },
+  "home": {
+    "subtitle": "Encomende com facilidade",
+    "welcome": "Olá {{name}}! 👋",
+    "welcomeSubtext": "Pronto para encomendar hoje?",
+    "quickActions": "Ações rápidas",
+    "actions": {
+      "myOrders": {
+        "title": "As minhas encomendas",
+        "subtitle": "Acompanhe as suas encomendas"
+      },
+      "myCart": {
+        "title": "O meu carrinho",
+        "subtitle": "Finalize a sua compra"
+      },
+      "joinSession": {
+        "title": "Entrar numa sessão",
+        "subtitle": "Insira um código de partilha"
+      }
+    }
+  },
+  "qrAccess": {
+    "title": "Digitalize o QR da sua mesa",
+    "description": "Ou introduza o código manualmente",
+    "scanButton": "Digitalizar QR",
+    "codeButton": "Inserir código",
+    "emptyCode": "Introduza um código válido.",
+    "invalidCodeTitle": "Código inválido",
+    "errors": {
+      "notFound": "Este código não corresponde a nenhum restaurante ou mesa. Verifique o código ou digitalize o QR.",
+      "restaurantNotFound": "Este código não corresponde a nenhum restaurante registado. Verifique o QR.",
+      "serverUnavailable": "Não foi possível verificar este restaurante. Verifique a ligação e tente novamente."
+    },
+    "modal": {
+      "title": "Inserir um código",
+      "description": "Código de mesa (ex.: R12T005) ou código de sessão partilhado (6 caracteres).",
+      "placeholder": "Ex.: R12T005 ou ABC123",
+      "confirm": "Validar",
+      "verifying": "A verificar…"
+    },
+    "account": {
+      "title": "Quer usar uma conta?",
+      "hint": "Uma conta permite-lhe encontrar as suas encomendas e faturas. Também pode aceder ao menu diretamente.",
+      "login": {
+        "title": "Iniciar sessão",
+        "desc": "Já tenho uma conta EatQuickeR"
+      },
+      "register": {
+        "title": "Criar uma conta",
+        "desc": "Registo rápido para seguir as encomendas"
+      },
+      "or": "ou",
+      "guestCta": "Continuar sem conta",
+      "guestHint": "Acede ao menu de imediato. Serão pedidos um nome e um número de telefone ao pagar."
+    }
+  },
+  "qrScanner": {
+    "invalidTitle": "QR code inválido",
+    "invalidMessage": "Este QR code não corresponde a um restaurante EatQuickeR\n\nValor digitalizado: {{value}}",
+    "retry": "Tentar novamente",
+    "instruction": "Aponte a câmara para o QR code do restaurante",
+    "permission": {
+      "title": "Acesso à câmara necessário",
+      "description": "Para digitalizar QR codes, precisamos de aceder à sua câmara.",
+      "allow": "Permitir"
+    }
   }
 }

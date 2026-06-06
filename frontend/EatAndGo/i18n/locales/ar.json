@@ -39,7 +39,9 @@
     "optional": "اختياري",
     "required": "مطلوب",
     "available": "متوفر",
-    "unavailable": "غير متوفر"
+    "unavailable": "غير متوفر",
+    "comingSoon": "قريبًا",
+    "error": "خطأ"
   },
   "nav": {
     "home": "الرئيسية",
@@ -52,7 +54,8 @@
     "dashboard": "لوحة التحكم",
     "history": "السجل",
     "help": "مساعدة",
-    "logout": "تسجيل الخروج"
+    "logout": "تسجيل الخروج",
+    "scanner": "مسح"
   },
   "auth": {
     "signIn": "تسجيل الدخول",
@@ -115,7 +118,62 @@
     "specialInstructions": "تعليمات خاصة",
     "specialInstructionsPlaceholder": "حساسية، درجة الطهي، بدون بصل…",
     "table": "الطاولة",
-    "tableNumber": "طاولة رقم {{number}}"
+    "tableNumber": "طاولة رقم {{number}}",
+    "titleWithCount": "السلة ({{count}})",
+    "serviceFee": "رسوم الخدمة",
+    "collaborativeSession": "جلسة تعاونية",
+    "scanToOrder": "امسح للطلب",
+    "scanToOrderDescription": "امسح رمز QR للوصول إلى القائمة",
+    "checkoutForGroup": "الطلب للمجموعة",
+    "processing": "جارٍ المعالجة…",
+    "hostOnlyCheckout": "يمكن للمضيف فقط تنفيذ طلب المجموعة.",
+    "formula": {
+      "incomplete": "القائمة غير مكتملة",
+      "completeAction": "أكمل قائمتك لتنفيذ الطلب."
+    },
+    "clearConfirm": {
+      "title": "إفراغ السلة",
+      "message": "هل أنت متأكد من إفراغ السلة؟ لا يمكن التراجع عن هذا الإجراء.",
+      "cta": "إفراغ السلة"
+    },
+    "removeConfirm": {
+      "title": "إزالة المنتج",
+      "message": "هل تريد إزالة هذا المنتج من السلة؟",
+      "cta": "إزالة"
+    },
+    "splitConfirm": {
+      "title": "الطلب للمجموعة",
+      "message": "هل تريد تقسيم الفاتورة بين المشاركين؟ يمكن لكل شخص دفع حصته من هاتفه.",
+      "split": "تقسيم الفاتورة",
+      "payAll": "سأدفع الكل"
+    },
+    "feedback": {
+      "quantityUpdated": "تم تحديث الكمية",
+      "itemRemoved": "تمت إزالة المنتج",
+      "cleared": "تم إفراغ السلة",
+      "emptyOnCheckout": "سلتك فارغة. أضف منتجات للمتابعة.",
+      "restaurantNotFound": "لم يتم العثور على المطعم. يرجى مسح رمز QR مجددًا.",
+      "orderPlaced": "تم تنفيذ الطلب بنجاح!",
+      "orderPlacedSplit": "تم تنفيذ الطلب! جارٍ تقسيم الفاتورة…"
+    },
+    "errors": {
+      "quantityUpdate": "خطأ في تحديث الكمية",
+      "itemRemove": "خطأ في إزالة المنتج",
+      "cartClear": "خطأ في إفراغ السلة",
+      "checkout": "خطأ في تحضير الطلب",
+      "groupOrder": "خطأ في طلب المجموعة"
+    },
+    "a11y": {
+      "itemImage": "صورة {{name}}",
+      "itemRow": "{{name}}، الكمية {{count}}، السعر {{price}}",
+      "removeItem": "إزالة المنتج",
+      "decrease": "تقليل الكمية",
+      "increase": "زيادة الكمية",
+      "currentQuantity": "الكمية الحالية: {{count}}",
+      "checkoutHint": "انقر للانتقال إلى الدفع",
+      "formulaLockHint": "أكمل قائمتك لتنفيذ الطلب",
+      "checkoutLabel": "اطلب بإجمالي {{amount}}"
+    }
   },
   "order": {
     "title": "الطلب",
@@ -135,7 +193,48 @@
     "viewDetails": "عرض التفاصيل",
     "track": "تتبع الطلب",
     "rate": "تقييم الطلب",
-    "reorder": "إعادة الطلب"
+    "reorder": "إعادة الطلب",
+    "count_one": "{{count}} طلب",
+    "count_other": "{{count}} طلبات",
+    "unpaidTitle_one": "لديك طلب غير مدفوع",
+    "unpaidTitle_other": "لديك {{count}} طلبات غير مدفوعة",
+    "unpaidSubtitle": "يرجى تسوية طلباتك للتمكن من الطلب مجددًا",
+    "myOrders": "طلباتي",
+    "tabs": {
+      "active": "نشطة",
+      "history": "السجل"
+    },
+    "fallbackRestaurant": "مطعم",
+    "todayAt": "اليوم في {{time}}",
+    "dineIn": "في المكان",
+    "takeaway": "سفري",
+    "paid": "مدفوع",
+    "paymentPending": "الدفع معلّق",
+    "waitingTime": "وقت الانتظار المقدّر: {{minutes}} دقيقة",
+    "noActiveOrders": "لا توجد طلبات نشطة",
+    "noHistoryOrders": "لا توجد طلبات سابقة",
+    "scanPrompt": "امسح رمز QR الخاص بطاولتك لإجراء طلبك الأول",
+    "orderNow": "اطلب الآن",
+    "scanDescription": "ادخل إلى القائمة عبر مسح رمز QR الخاص بالطاولة",
+    "scanQR": "مسح رمز QR",
+    "enterCode": "إدخال الرمز",
+    "clientOnly": "مخصص للزبائن فقط",
+    "loadingOrders": "جارٍ تحميل طلباتك…",
+    "realtimeUnavailable": "إشعارات الوقت الحقيقي غير متاحة. اسحب للتحديث.",
+    "realtime": {
+      "on": "الوقت الحقيقي مفعّل",
+      "connecting": "جارٍ الاتصال…",
+      "error": "خطأ في الاتصال",
+      "offline": "غير متصل"
+    },
+    "statusLabels": {
+      "pending": "قيد الانتظار",
+      "confirmed": "مؤكد",
+      "preparing": "قيد التحضير",
+      "ready": "جاهز",
+      "served": "تم التقديم",
+      "cancelled": "ملغى"
+    }
   },
   "payment": {
     "title": "الدفع",
@@ -165,7 +264,124 @@
     "yourName": "اسمك",
     "leaveSession": "مغادرة الجلسة",
     "sessionEnded": "انتهت الجلسة",
-    "waitingForOthers": "في انتظار باقي الضيوف…"
+    "waitingForOthers": "في انتظار باقي الضيوف…",
+    "tableLabel": "{{name}} · طاولة {{table}}",
+    "bannerCta": "انقر للاستئناف",
+    "foundLabel": "تم العثور على الجلسة",
+    "foundCta": "انقر للانضمام",
+    "inactivityWarning": "⚠️ جلسة غير نشطة — إغلاق تلقائي خلال {{time}}",
+    "status": {
+      "active": "نشطة",
+      "locked": "مقفلة",
+      "payment": "الدفع معلّق"
+    },
+    "errors": {
+      "emptyCode": "يرجى إدخال رمز الجلسة.",
+      "notFound": "لم يتم العثور على جلسة بهذا الرمز.",
+      "inactive": "هذه الجلسة لم تعد نشطة.",
+      "invalidCode": "لا توجد جلسة نشطة بهذا الرمز. تحقق وحاول مرة أخرى.",
+      "joinFailed": "تعذّر الانضمام إلى هذه الجلسة.",
+      "maybeGone": "قد لا تكون الجلسة متاحة بعد الآن.",
+      "rejected": "رفض المضيف طلبك.",
+      "joinTitle": "تعذّر الانضمام"
+    },
+    "exit": {
+      "titleHost": "إنهاء الجلسة؟",
+      "titleMember": "مغادرة الجلسة؟",
+      "messageHost": "بصفتك المضيف، سيؤدي ذلك إلى إغلاق الجلسة لجميع المشاركين.",
+      "messageMember": "أنت على وشك مغادرة هذه الجلسة التعاونية.",
+      "ctaHost": "إنهاء",
+      "ctaMember": "مغادرة"
+    },
+    "completed": {
+      "title": "انتهت الجلسة",
+      "participantsLabel": "المشاركون ({{count}})",
+      "totalLabel": "المجموع: {{amount}}",
+      "close": "إغلاق"
+    },
+    "codeModal": {
+      "title": "الانضمام إلى جلسة",
+      "description": "أدخل الرمز الذي شاركه مضيف الطاولة للانضمام إلى الجلسة الحالية.",
+      "placeholder": "مثال: ABC123",
+      "cta": "الانضمام إلى الجلسة"
+    },
+    "pending": {
+      "title": "في انتظار الموافقة",
+      "description": "يجب على المضيف التحقق من طلبك.\nسيتم توجيهك تلقائيًا بمجرد القبول.",
+      "codeLabel": "رمز الجلسة"
+    },
+    "archive": {
+      "archived": "تم أرشفة هذه الجلسة",
+      "archivingIn": "الأرشفة خلال {{time}}",
+      "archivingSoonUrgent": "⚠️ الأرشفة خلال {{time}}"
+    },
+    "joinModal": {
+      "chooseTitle": "الطلب على هذه الطاولة",
+      "chooseSubtitle": "اختر طريقة الطلب",
+      "rejoinExisting": {
+        "title": "استئناف الجلسة الحالية",
+        "subtitle": "الرمز: {{code}} · {{count}} مشارك"
+      },
+      "createGroup": {
+        "title": "إنشاء جلسة جماعية",
+        "description": "اطلب مع الأصدقاء وقسّم الفاتورة بسهولة"
+      },
+      "joinGroup": {
+        "title": "الانضمام إلى جلسة",
+        "description": "أدخل الرمز الذي شاركته مجموعتك"
+      },
+      "orderAlone": "الطلب بمفردي",
+      "createTitle": "إنشاء جلسة جماعية",
+      "hostNameLabel": "اسمك",
+      "hostNamePlaceholder": "مثال: أحمد",
+      "sessionTypeLabel": "نوع الجلسة",
+      "sessionType": {
+        "collaborative": {
+          "title": "تعاونية",
+          "desc": "الجميع يرى الطلبات"
+        },
+        "individual": {
+          "title": "فردية",
+          "desc": "كل شخص يطلب بشكل منفصل"
+        }
+      },
+      "maxParticipantsLabel": "الحد الأقصى لعدد المشاركين",
+      "requireApprovalLabel": "الموافقة يدويًا على المشاركين الجدد",
+      "back": "رجوع",
+      "createCta": "إنشاء جلسة",
+      "joinTitle": "الانضمام إلى جلسة",
+      "codeLabel": "رمز الجلسة",
+      "codePlaceholder": "ABC123",
+      "verifyCta": "تحقق",
+      "previewTitle": "معلومات الجلسة",
+      "previewHost": "المضيف:",
+      "previewParticipants": "المشاركون:",
+      "sessionFullOrLocked": "⚠️ هذه الجلسة ممتلئة أو مقفلة",
+      "guestNameLabel": "اسمك",
+      "guestNamePlaceholder": "مثال: فاطمة",
+      "joinCta": "انضمام",
+      "pendingDescription": "يجب على مضيف الجلسة الموافقة على طلبك.\nسيتم توجيهك تلقائيًا بعد القبول.",
+      "feedback": {
+        "soloError": "تعذّر بدء الطلب الفردي.",
+        "fieldRequired": "حقل مطلوب",
+        "nameRequiredHost": "يرجى إدخال اسمك لإنشاء الجلسة.",
+        "nameRequiredGuest": "يرجى إدخال اسمك للانضمام إلى الجلسة.",
+        "invalidCode": "رمز غير صالح",
+        "invalidCodeDesc": "يجب أن يتكون الرمز من 6 أحرف بالضبط.",
+        "codeNotFound": "الرمز غير موجود",
+        "codeNotFoundDesc": "لا توجد جلسة نشطة تطابق هذا الرمز.",
+        "sessionCreated": "تم إنشاء الجلسة!",
+        "sessionCreatedDesc": "شارك الرمز {{code}} مع أصدقائك.",
+        "sessionCreateError": "تعذّر إنشاء الجلسة.",
+        "welcome": "مرحبًا!",
+        "welcomeDesc": "تم الانضمام إلى الجلسة بنجاح.",
+        "joinError": "تعذّر الانضمام إلى الجلسة.",
+        "approved": "✅ تم القبول!",
+        "approvedDesc": "قبلك المضيف في الجلسة.",
+        "rejected": "❌ مرفوض",
+        "rejectedDesc": "رفض المضيف طلبك."
+      }
+    }
   },
   "profile": {
     "title": "الملف الشخصي",
@@ -182,7 +398,16 @@
     "terms": "شروط الاستخدام",
     "privacy": "سياسة الخصوصية",
     "version": "الإصدار {{version}}",
-    "deleteAccount": "حذف حسابي"
+    "deleteAccount": "حذف حسابي",
+    "signInPrompt": "سجّل الدخول للوصول إلى ملفك الشخصي",
+    "defaultName": "مستخدم",
+    "verified": "موثّق",
+    "logoutConfirm": "هل أنت متأكد من تسجيل الخروج؟",
+    "myActions": "إجراءاتي",
+    "information": "معلومات",
+    "helpFaq": "المساعدة والأسئلة الشائعة",
+    "contactUs": "اتصل بنا",
+    "personalData": "البيانات الشخصية"
   },
   "theme": {
     "title": "السمة",
@@ -243,5 +468,125 @@
     "today": "اليوم",
     "yesterday": "أمس",
     "tomorrow": "غدًا"
+  },
+  "legal": {
+    "copyright": "© {{year}} EatQuicker. جميع الحقوق محفوظة.",
+    "termsShort": "الشروط",
+    "privacyShort": "الخصوصية",
+    "noticeShort": "إشعار قانوني",
+    "downloadMyData": {
+      "cta": "تنزيل بياناتي",
+      "download": "تنزيل",
+      "gdprNotice": "تصدير متوافق مع GDPR (المادة 20)",
+      "confirmTitle": "تصدير البيانات",
+      "confirmMessage": "هل تريد تنزيل جميع بياناتك الشخصية؟\n\nيتضمن: الملف الشخصي، الطلبات، التفضيلات، والسجل.",
+      "shareDialogTitle": "تنزيل بيانات EatQuickeR الخاصة بي",
+      "options": {
+        "title": "تصدير البيانات",
+        "message": "كيف تريد استلام بياناتك؟",
+        "direct": "تنزيل مباشر",
+        "email": "عبر البريد الإلكتروني (خلال 48 ساعة)"
+      },
+      "progress": {
+        "fetching": "جارٍ جلب البيانات…",
+        "preparing": "جارٍ تحضير الملف…",
+        "preparingShort": "جارٍ التحضير…",
+        "done": "اكتمل التصدير!",
+        "sending": "جارٍ إرسال الطلب…"
+      },
+      "success": {
+        "title": "نجح التصدير",
+        "message": "تم تصدير بياناتك ({{size}} كيلوبايت).\n\nيمكنك الآن حفظها أو مشاركتها.",
+        "messageFallback": "تم تصدير بياناتك إلى:\n{{filename}}\n\nالحجم: {{size}} كيلوبايت"
+      },
+      "email": {
+        "title": "تصدير عبر البريد الإلكتروني",
+        "confirmMessage": "ستتلقى بريدًا إلكترونيًا برابط تنزيل آمن خلال 48 ساعة.\n\nالمتابعة؟",
+        "successTitle": "تم تسجيل الطلب",
+        "successMessage": "سيتم إرسال بريد إلكتروني إلى {{email}} خلال 48 ساعة يحتوي على بياناتك."
+      },
+      "errors": {
+        "notLoggedIn": "يجب تسجيل الدخول لتصدير بياناتك",
+        "rateLimit": "لقد وصلت إلى الحد اليومي للتصدير. حاول غدًا.",
+        "sessionExpired": "انتهت صلاحية جلستك. يرجى تسجيل الدخول مرة أخرى.",
+        "forbidden": "ليس لديك إذن لتصدير هذه البيانات.",
+        "serverError": "خطأ في الخادم. حاول مرة أخرى بعد قليل.",
+        "serviceUnavailable": "خدمة التصدير غير متوفرة مؤقتًا. حاول بعد بضع دقائق.",
+        "generic": "تعذّر تنزيل بياناتك. حاول مرة أخرى.",
+        "connection": "خطأ في الاتصال. تحقق من اتصالك بالإنترنت.",
+        "emailRequestFailed": "تعذّر تسجيل طلبك. حاول مرة أخرى.",
+        "emailPending": "لديك طلب تصدير قيد المعالجة بالفعل. يرجى الانتظار."
+      },
+      "a11y": {
+        "label": "تنزيل بياناتي الشخصية",
+        "hint": "تصدير جميع بياناتك وفقًا لـ GDPR"
+      }
+    }
+  },
+  "home": {
+    "subtitle": "اطلب بسهولة",
+    "welcome": "مرحبًا {{name}}! 👋",
+    "welcomeSubtext": "هل أنت مستعد للطلب اليوم؟",
+    "quickActions": "إجراءات سريعة",
+    "actions": {
+      "myOrders": {
+        "title": "طلباتي",
+        "subtitle": "تابع طلباتك"
+      },
+      "myCart": {
+        "title": "سلتي",
+        "subtitle": "أكمل عملية الشراء"
+      },
+      "joinSession": {
+        "title": "الانضمام إلى جلسة",
+        "subtitle": "أدخل رمز المشاركة"
+      }
+    }
+  },
+  "qrAccess": {
+    "title": "امسح رمز QR الخاص بطاولتك",
+    "description": "أو أدخل الرمز يدويًا",
+    "scanButton": "مسح QR",
+    "codeButton": "إدخال الرمز",
+    "emptyCode": "يرجى إدخال رمز صالح.",
+    "invalidCodeTitle": "رمز غير صالح",
+    "errors": {
+      "notFound": "هذا الرمز لا يتطابق مع أي مطعم أو طاولة. تحقق من الرمز أو امسح رمز QR.",
+      "restaurantNotFound": "هذا الرمز لا يتطابق مع أي مطعم مسجل. تحقق من رمز QR.",
+      "serverUnavailable": "تعذّر التحقق من هذا المطعم. تحقق من اتصالك وحاول مجددًا."
+    },
+    "modal": {
+      "title": "إدخال رمز",
+      "description": "رمز الطاولة (مثل R12T005) أو رمز جلسة مشترك من 6 أحرف.",
+      "placeholder": "مثل R12T005 أو ABC123",
+      "confirm": "تأكيد",
+      "verifying": "جارٍ التحقق…"
+    },
+    "account": {
+      "title": "هل تريد استخدام حساب؟",
+      "hint": "يتيح لك الحساب العثور على طلباتك وفواتيرك. يمكنك أيضًا الوصول إلى القائمة مباشرة.",
+      "login": {
+        "title": "تسجيل الدخول",
+        "desc": "لدي حساب EatQuickeR بالفعل"
+      },
+      "register": {
+        "title": "إنشاء حساب",
+        "desc": "تسجيل سريع لمتابعة طلباتك"
+      },
+      "or": "أو",
+      "guestCta": "المتابعة بدون حساب",
+      "guestHint": "تصل فورًا إلى القائمة. سيُطلب منك الاسم ورقم الهاتف عند الطلب."
+    }
+  },
+  "qrScanner": {
+    "invalidTitle": "رمز QR غير صالح",
+    "invalidMessage": "لا يتطابق رمز QR هذا مع أي مطعم EatQuickeR\n\nالقيمة الممسوحة: {{value}}",
+    "retry": "إعادة المحاولة",
+    "instruction": "وجّه الكاميرا نحو رمز QR الخاص بالمطعم",
+    "permission": {
+      "title": "مطلوب الوصول إلى الكاميرا",
+      "description": "لمسح رموز QR، نحتاج إلى الوصول إلى الكاميرا.",
+      "allow": "السماح"
+    }
   }
 }

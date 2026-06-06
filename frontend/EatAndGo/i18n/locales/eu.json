@@ -1,7 +1,7 @@
 {
   "_comment": "REVIEW: traductions à valider par un locuteur natif (euskara batua).",
   "common": {
-    "ok": "Ados",
+    "ok": "OK",
     "cancel": "Utzi",
     "save": "Gorde",
     "delete": "Ezabatu",
@@ -39,7 +39,9 @@
     "optional": "Aukerakoa",
     "required": "Beharrezkoa",
     "available": "Eskuragarri",
-    "unavailable": "Eskuraezina"
+    "unavailable": "Eskuraezina",
+    "comingSoon": "Laster",
+    "error": "Errorea"
   },
   "nav": {
     "home": "Hasiera",
@@ -52,7 +54,8 @@
     "dashboard": "Panela",
     "history": "Historia",
     "help": "Laguntza",
-    "logout": "Saioa itxi"
+    "logout": "Saioa itxi",
+    "scanner": "Eskaneatu"
   },
   "auth": {
     "signIn": "Saioa hasi",
@@ -115,7 +118,62 @@
     "specialInstructions": "Argibide bereziak",
     "specialInstructionsPlaceholder": "Alergiak, prestaketa, tipulik gabe…",
     "table": "Mahaia",
-    "tableNumber": "Mahai {{number}}"
+    "tableNumber": "Mahai {{number}}",
+    "titleWithCount": "Saskia ({{count}})",
+    "serviceFee": "Zerbitzu-gastua",
+    "collaborativeSession": "Saio elkarlanekoa",
+    "scanToOrder": "Eskaneatu eskatzeko",
+    "scanToOrderDescription": "Eskaneatu QR kode bat menua atzitzeko",
+    "checkoutForGroup": "Eskatu taldearentzat",
+    "processing": "Prozesatzen…",
+    "hostOnlyCheckout": "Antolatzaileak baino ezin du taldearen eskaera egin.",
+    "formula": {
+      "incomplete": "Formula osatu gabe",
+      "completeAction": "Osatu zure formula eskaera egiteko."
+    },
+    "clearConfirm": {
+      "title": "Saskia hustu",
+      "message": "Ziur zaude saskia hustu nahi duzula? Ekintza hau ezin da desegin.",
+      "cta": "Saskia hustu"
+    },
+    "removeConfirm": {
+      "title": "Artikulua kendu",
+      "message": "Artikulu hau saskitik kendu nahi duzu?",
+      "cta": "Kendu"
+    },
+    "splitConfirm": {
+      "title": "Eskatu taldearentzat",
+      "message": "Kontua parte-hartzaileen artean banatu nahi duzu? Bakoitzak bere zatia ordainduko du.",
+      "split": "Kontua banatu",
+      "payAll": "Dena nik ordainduko dut"
+    },
+    "feedback": {
+      "quantityUpdated": "Kopurua eguneratuta",
+      "itemRemoved": "Artikulua kendu da",
+      "cleared": "Saskia hustu da",
+      "emptyOnCheckout": "Zure saskia hutsik dago. Gehitu artikuluak jarraitzeko.",
+      "restaurantNotFound": "Ez da jatetxea aurkitu. Eskaneatu berriro QR kodea.",
+      "orderPlaced": "Eskaera egin da!",
+      "orderPlacedSplit": "Eskaera egin da! Kontua banatzen…"
+    },
+    "errors": {
+      "quantityUpdate": "Errorea kopurua eguneratzean",
+      "itemRemove": "Errorea artikulua kentzean",
+      "cartClear": "Errorea saskia husten",
+      "checkout": "Errorea eskaera prestatzean",
+      "groupOrder": "Errorea taldearen eskaeran"
+    },
+    "a11y": {
+      "itemImage": "{{name}} irudia",
+      "itemRow": "{{name}}, kopurua {{count}}, prezioa {{price}}",
+      "removeItem": "Artikulua kendu",
+      "decrease": "Kopurua jaitsi",
+      "increase": "Kopurua igo",
+      "currentQuantity": "Egungo kopurua: {{count}}",
+      "checkoutHint": "Sakatu ordaintzeko",
+      "formulaLockHint": "Osatu zure formula eskaera egiteko",
+      "checkoutLabel": "{{amount}} guztira eskatu"
+    }
   },
   "order": {
     "title": "Eskaera",
@@ -135,7 +193,48 @@
     "viewDetails": "Xehetasunak ikusi",
     "track": "Eskaera jarraitu",
     "rate": "Eskaera baloratu",
-    "reorder": "Berriro eskatu"
+    "reorder": "Berriro eskatu",
+    "count_one": "{{count}} eskaera",
+    "count_other": "{{count}} eskaera",
+    "unpaidTitle_one": "Ordaindu gabeko eskaera bat duzu",
+    "unpaidTitle_other": "Ordaindu gabeko {{count}} eskaera dituzu",
+    "unpaidSubtitle": "Ordaindu eskaerak berriz eskatzeko",
+    "myOrders": "Nire eskaerak",
+    "tabs": {
+      "active": "Aktiboak",
+      "history": "Historia"
+    },
+    "fallbackRestaurant": "Jatetxea",
+    "todayAt": "Gaur {{time}}",
+    "dineIn": "Bertan",
+    "takeaway": "Eramateko",
+    "paid": "Ordainduta",
+    "paymentPending": "Ordainketa zain",
+    "waitingTime": "Itxaron-denbora: {{minutes}} min",
+    "noActiveOrders": "Ez dago eskaera aktiborik",
+    "noHistoryOrders": "Ez dago eskaera zaharrik",
+    "scanPrompt": "Eskaneatu mahaiko QR kodea zure lehen eskaera egiteko",
+    "orderNow": "Eskatu orain",
+    "scanDescription": "Sartu menuan mahaiko QR kodea eskaneatuz",
+    "scanQR": "QR eskaneatu",
+    "enterCode": "Sartu kodea",
+    "clientOnly": "Bezeroentzat soilik",
+    "loadingOrders": "Eskaerak kargatzen…",
+    "realtimeUnavailable": "Denbora errealeko jakinarazpenak ez daude eskuragarri. Tira eguneratzeko.",
+    "realtime": {
+      "on": "Denbora erreala aktibo",
+      "connecting": "Konektatzen…",
+      "error": "Konexio-errorea",
+      "offline": "Lineaz kanpo"
+    },
+    "statusLabels": {
+      "pending": "Zain",
+      "confirmed": "Berretsia",
+      "preparing": "Prestatzen",
+      "ready": "Prest",
+      "served": "Zerbitzatua",
+      "cancelled": "Bertan behera"
+    }
   },
   "payment": {
     "title": "Ordainketa",
@@ -165,7 +264,124 @@
     "yourName": "Zure izena",
     "leaveSession": "Saiotik atera",
     "sessionEnded": "Saioa amaitu da",
-    "waitingForOthers": "Beste gonbidatuen zain…"
+    "waitingForOthers": "Beste gonbidatuen zain…",
+    "tableLabel": "{{name}} · Mahaia {{table}}",
+    "bannerCta": "Sakatu jarraitzeko",
+    "foundLabel": "Saioa aurkitu da",
+    "foundCta": "Sakatu batzeko",
+    "inactivityWarning": "⚠️ Saio inaktiboa — automatikoki itxiko da {{time}} barru",
+    "status": {
+      "active": "Aktiboa",
+      "locked": "Blokeatua",
+      "payment": "Ordainketa zain"
+    },
+    "errors": {
+      "emptyCode": "Mesedez, sartu saio-kode bat.",
+      "notFound": "Ez da saiorik aurkitu kode honekin.",
+      "inactive": "Saio hau ez dago jada aktibo.",
+      "invalidCode": "Ez dago saio aktiborik kode honekin. Egiaztatu eta saiatu berriro.",
+      "joinFailed": "Ezin izan da saio honetara batu.",
+      "maybeGone": "Saioa baliteke eskuragarri ez egotea.",
+      "rejected": "Antolatzaileak zure eskaera ukatu du.",
+      "joinTitle": "Ezin izan da batu"
+    },
+    "exit": {
+      "titleHost": "Saioa amaitu?",
+      "titleMember": "Saiotik atera?",
+      "messageHost": "Antolatzaile gisa, honek saioa itxiko du parte-hartzaile guztientzat.",
+      "messageMember": "Saio elkarlanekotik aterako zara.",
+      "ctaHost": "Amaitu",
+      "ctaMember": "Atera"
+    },
+    "completed": {
+      "title": "Saioa amaitu da",
+      "participantsLabel": "Parte-hartzaileak ({{count}})",
+      "totalLabel": "Guztira: {{amount}}",
+      "close": "Itxi"
+    },
+    "codeModal": {
+      "title": "Saio batera batu",
+      "description": "Sartu mahaiaren antolatzaileak partekatu duen kodea uneko saiora batzeko.",
+      "placeholder": "ADIB.: ABC123",
+      "cta": "Saiora batu"
+    },
+    "pending": {
+      "title": "Onarpenaren zain",
+      "description": "Antolatzaileak zure eskaera onartu behar du.\nOnartu ondoren automatikoki bideratuko zaitugu.",
+      "codeLabel": "Saio-kodea"
+    },
+    "archive": {
+      "archived": "Saio hau artxibatu da",
+      "archivingIn": "Artxibatuko da {{time}} barru",
+      "archivingSoonUrgent": "⚠️ Artxibatuko da {{time}} barru"
+    },
+    "joinModal": {
+      "chooseTitle": "Eskatu mahai honetan",
+      "chooseSubtitle": "Aukeratu nola eskatu nahi duzun",
+      "rejoinExisting": {
+        "title": "Uneko saioara itzuli",
+        "subtitle": "Kodea: {{code}} · {{count}} parte-hartzaile"
+      },
+      "createGroup": {
+        "title": "Talde-saioa sortu",
+        "description": "Eskatu lagunekin eta banatu kontua erraz"
+      },
+      "joinGroup": {
+        "title": "Saio batera batu",
+        "description": "Sartu zure taldeak partekatutako kodea"
+      },
+      "orderAlone": "Bakarrik eskatu",
+      "createTitle": "Talde-saioa sortu",
+      "hostNameLabel": "Zure izena",
+      "hostNamePlaceholder": "Adib.: Jon",
+      "sessionTypeLabel": "Saio mota",
+      "sessionType": {
+        "collaborative": {
+          "title": "Elkarlanekoa",
+          "desc": "Denek ikusten dituzte eskaerak"
+        },
+        "individual": {
+          "title": "Banakakoa",
+          "desc": "Bakoitzak bere aldetik eskatzen du"
+        }
+      },
+      "maxParticipantsLabel": "Gehienezko parte-hartzaile kopurua",
+      "requireApprovalLabel": "Eskuz onartu parte-hartzaile berriak",
+      "back": "Atzera",
+      "createCta": "Saioa sortu",
+      "joinTitle": "Saio batera batu",
+      "codeLabel": "Saio-kodea",
+      "codePlaceholder": "ABC123",
+      "verifyCta": "Egiaztatu",
+      "previewTitle": "Saioaren informazioa",
+      "previewHost": "Antolatzailea:",
+      "previewParticipants": "Parte-hartzaileak:",
+      "sessionFullOrLocked": "⚠️ Saio hau beteta edo blokeatuta dago",
+      "guestNameLabel": "Zure izena",
+      "guestNamePlaceholder": "Adib.: Maria",
+      "joinCta": "Batu",
+      "pendingDescription": "Antolatzaileak zure eskaera onartu behar du.\nOnartu ondoren automatikoki bideratuko zaitugu.",
+      "feedback": {
+        "soloError": "Ezin izan da bakarkako eskaera hasi.",
+        "fieldRequired": "Eremu beharrezkoa",
+        "nameRequiredHost": "Sartu zure izena saioa sortzeko.",
+        "nameRequiredGuest": "Sartu zure izena saiora batzeko.",
+        "invalidCode": "Kode baliogabea",
+        "invalidCodeDesc": "Kodeak 6 karaktere izan behar ditu.",
+        "codeNotFound": "Kodea ez da aurkitu",
+        "codeNotFoundDesc": "Ez dago saio aktiborik kode honekin.",
+        "sessionCreated": "Saioa sortu da!",
+        "sessionCreatedDesc": "Partekatu {{code}} kodea zure lagunekin.",
+        "sessionCreateError": "Ezin izan da saioa sortu.",
+        "welcome": "Ongi etorri!",
+        "welcomeDesc": "Saiora batu zara.",
+        "joinError": "Ezin izan da saiora batu.",
+        "approved": "✅ Onartua!",
+        "approvedDesc": "Antolatzaileak saioan onartu zaitu.",
+        "rejected": "❌ Ukatua",
+        "rejectedDesc": "Antolatzaileak zure eskaera ukatu du."
+      }
+    }
   },
   "profile": {
     "title": "Profila",
@@ -182,7 +398,16 @@
     "terms": "Erabilera-baldintzak",
     "privacy": "Pribatutasun-politika",
     "version": "{{version}} bertsioa",
-    "deleteAccount": "Kontua ezabatu"
+    "deleteAccount": "Kontua ezabatu",
+    "signInPrompt": "Hasi saioa zure profilera sartzeko",
+    "defaultName": "Erabiltzailea",
+    "verified": "Egiaztatua",
+    "logoutConfirm": "Ziur saioa amaitu nahi duzula?",
+    "myActions": "Nire ekintzak",
+    "information": "Informazioa",
+    "helpFaq": "Laguntza eta FAQ",
+    "contactUs": "Jarri gurekin harremanetan",
+    "personalData": "Datu pertsonalak"
   },
   "theme": {
     "title": "Itxura",
@@ -243,5 +468,125 @@
     "today": "Gaur",
     "yesterday": "Atzo",
     "tomorrow": "Bihar"
+  },
+  "legal": {
+    "copyright": "© {{year}} EatQuicker. Eskubide guztiak erreserbatuak.",
+    "termsShort": "Baldintzak",
+    "privacyShort": "Pribatutasuna",
+    "noticeShort": "Lege oharra",
+    "downloadMyData": {
+      "cta": "Datuak deskargatu",
+      "download": "Deskargatu",
+      "gdprNotice": "GDPRrekin bat datorren esportazioa (20. artikulua)",
+      "confirmTitle": "Datuen esportazioa",
+      "confirmMessage": "Zure datu pertsonal guztiak deskargatu nahi dituzu?\n\nHau biltzen du: profila, eskaerak, hobespenak eta historia.",
+      "shareDialogTitle": "Nire EatQuickeR datuak deskargatu",
+      "options": {
+        "title": "Datuen esportazioa",
+        "message": "Nola jaso nahi dituzu zure datuak?",
+        "direct": "Zuzeneko deskarga",
+        "email": "Posta elektronikoz (48 ord)"
+      },
+      "progress": {
+        "fetching": "Datuak eskuratzen…",
+        "preparing": "Fitxategia prestatzen…",
+        "preparingShort": "Prestatzen…",
+        "done": "Esportazioa amaitua!",
+        "sending": "Eskaera bidaltzen…"
+      },
+      "success": {
+        "title": "Esportazio arrakastatsua",
+        "message": "Zure datuak ({{size}} KB) esportatu dira.\n\nGorde edo partekatu ditzakezu.",
+        "messageFallback": "Zure datuak hemen esportatu dira:\n{{filename}}\n\nTamaina: {{size}} KB"
+      },
+      "email": {
+        "title": "Posta elektronikoz esportatu",
+        "confirmMessage": "Posta elektroniko bat jasoko duzu deskarga-esteka seguruarekin 48 orduren barruan.\n\nJarraitu?",
+        "successTitle": "Eskaera erregistratuta",
+        "successMessage": "Posta elektronikoa bidaliko zaio {{email}}-ra 48 orduren barruan zure datuekin."
+      },
+      "errors": {
+        "notLoggedIn": "Saioa hasi behar duzu datuak esportatzeko",
+        "rateLimit": "Eguneko esportazio-muga gainditu duzu. Saiatu bihar.",
+        "sessionExpired": "Zure saioa iraungi da. Saiatu berriro.",
+        "forbidden": "Ez duzu datu hauek esportatzeko baimenik.",
+        "serverError": "Zerbitzariaren errorea. Saiatu berriro une batzuk barru.",
+        "serviceUnavailable": "Esportazio-zerbitzua aldi baterako ez dago erabilgarri. Saiatu minutu batzuk barru.",
+        "generic": "Ezin dira zure datuak deskargatu. Saiatu berriro.",
+        "connection": "Konexio-errorea. Egiaztatu zure interneterako konexioa.",
+        "emailRequestFailed": "Ezin da zure eskaera erregistratu. Saiatu berriro.",
+        "emailPending": "Esportazio-eskaera bat duzu jada. Itxaron, mesedez."
+      },
+      "a11y": {
+        "label": "Datu pertsonalak deskargatu",
+        "hint": "GDPRri jarraituz zure datu guztiak esportatu"
+      }
+    }
+  },
+  "home": {
+    "subtitle": "Erraz eskatu",
+    "welcome": "Kaixo {{name}}! 👋",
+    "welcomeSubtext": "Prest gaur eskatzeko?",
+    "quickActions": "Ekintza azkarrak",
+    "actions": {
+      "myOrders": {
+        "title": "Nire eskaerak",
+        "subtitle": "Jarraitu zure eskaerak"
+      },
+      "myCart": {
+        "title": "Nire saskia",
+        "subtitle": "Bukatu zure erosketa"
+      },
+      "joinSession": {
+        "title": "Saio batera batu",
+        "subtitle": "Sartu partekatze kodea"
+      }
+    }
+  },
+  "qrAccess": {
+    "title": "Eskaneatu mahaiko QR kodea",
+    "description": "Edo sartu kodea eskuz",
+    "scanButton": "QR eskaneatu",
+    "codeButton": "Sartu kodea",
+    "emptyCode": "Mesedez, sartu kode baliodun bat.",
+    "invalidCodeTitle": "Kode baliogabea",
+    "errors": {
+      "notFound": "Kode honek ez du jatetxerik edo mahairik ezagutzen. Egiaztatu kodea edo eskaneatu QR kodea.",
+      "restaurantNotFound": "Kode honek ez du erregistratutako jatetxerik ezagutzen. Egiaztatu QR kodea.",
+      "serverUnavailable": "Ezin da jatetxea egiaztatu. Egiaztatu konexioa eta saiatu berriro."
+    },
+    "modal": {
+      "title": "Sartu kode bat",
+      "description": "Mahai-kodea (adib. R12T005) edo partekatutako saio-kodea (6 karaktere).",
+      "placeholder": "Adib. R12T005 edo ABC123",
+      "confirm": "Balioztatu",
+      "verifying": "Egiaztatzen…"
+    },
+    "account": {
+      "title": "Konturik erabili nahi duzu?",
+      "hint": "Kontuak zure eskaerak eta fakturak gordetzen ditu. Zuzenean ere sar zaitezke menura.",
+      "login": {
+        "title": "Saioa hasi",
+        "desc": "Lehendik dut EatQuickeR kontu bat"
+      },
+      "register": {
+        "title": "Kontua sortu",
+        "desc": "Erregistro azkarra eskaerak jarraitzeko"
+      },
+      "or": "edo",
+      "guestCta": "Konturik gabe jarraitu",
+      "guestHint": "Berehala sartzen zara menuan. Eskatu zaizu izena eta telefonoa ordainketan."
+    }
+  },
+  "qrScanner": {
+    "invalidTitle": "QR kode baliogabea",
+    "invalidMessage": "QR kode hau ez dator bat EatQuickeR jatetxe batekin\n\nEskaneatutako balioa: {{value}}",
+    "retry": "Saiatu berriro",
+    "instruction": "Zuzendu kamera jatetxeko QR kodera",
+    "permission": {
+      "title": "Kamera-baimena behar da",
+      "description": "QR kodeak eskaneatzeko, kamerara sartzeko baimena behar dugu.",
+      "allow": "Baimendu"
+    }
   }
 }

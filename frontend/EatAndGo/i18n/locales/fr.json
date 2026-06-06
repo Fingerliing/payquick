@@ -38,7 +38,9 @@
     "optional": "Optionnel",
     "required": "Obligatoire",
     "available": "Disponible",
-    "unavailable": "Indisponible"
+    "unavailable": "Indisponible",
+    "comingSoon": "Bientôt",
+    "error": "Erreur"
   },
   "nav": {
     "home": "Accueil",
@@ -51,7 +53,8 @@
     "dashboard": "Tableau de bord",
     "history": "Historique",
     "help": "Aide",
-    "logout": "Déconnexion"
+    "logout": "Déconnexion",
+    "scanner": "Scanner"
   },
   "auth": {
     "signIn": "Se connecter",
@@ -114,7 +117,62 @@
     "specialInstructions": "Instructions spéciales",
     "specialInstructionsPlaceholder": "Allergies, cuisson, sans oignon…",
     "table": "Table",
-    "tableNumber": "Table n° {{number}}"
+    "tableNumber": "Table n° {{number}}",
+    "titleWithCount": "Panier ({{count}})",
+    "serviceFee": "Frais de service",
+    "collaborativeSession": "Session collaborative",
+    "scanToOrder": "Scanner pour commander",
+    "scanToOrderDescription": "Scannez un QR code pour accéder au menu",
+    "checkoutForGroup": "Commander pour le groupe",
+    "processing": "Traitement en cours…",
+    "hostOnlyCheckout": "Seul l'hôte peut passer la commande du groupe.",
+    "formula": {
+      "incomplete": "Formule incomplète",
+      "completeAction": "Complétez votre formule pour passer commande."
+    },
+    "clearConfirm": {
+      "title": "Vider le panier",
+      "message": "Êtes-vous sûr de vouloir vider votre panier ? Cette action est irréversible.",
+      "cta": "Vider le panier"
+    },
+    "removeConfirm": {
+      "title": "Retirer l'article",
+      "message": "Voulez-vous retirer cet article de votre panier ?",
+      "cta": "Retirer"
+    },
+    "splitConfirm": {
+      "title": "Commander pour le groupe",
+      "message": "Souhaitez-vous diviser la note entre les participants ? Chacun pourra payer sa part depuis son téléphone.",
+      "split": "Diviser la note",
+      "payAll": "Je paie tout"
+    },
+    "feedback": {
+      "quantityUpdated": "Quantité mise à jour",
+      "itemRemoved": "Article retiré du panier",
+      "cleared": "Panier vidé",
+      "emptyOnCheckout": "Votre panier est vide. Ajoutez des articles pour continuer.",
+      "restaurantNotFound": "Restaurant non trouvé. Veuillez scanner à nouveau le QR code.",
+      "orderPlaced": "Commande passée avec succès !",
+      "orderPlacedSplit": "Commande passée ! Division de la note en cours…"
+    },
+    "errors": {
+      "quantityUpdate": "Erreur lors de la mise à jour de la quantité",
+      "itemRemove": "Erreur lors du retrait de l'article",
+      "cartClear": "Erreur lors de la suppression du panier",
+      "checkout": "Erreur lors de la préparation de la commande",
+      "groupOrder": "Erreur lors de la commande groupée"
+    },
+    "a11y": {
+      "itemImage": "Image de {{name}}",
+      "itemRow": "{{name}}, quantité {{count}}, prix {{price}}",
+      "removeItem": "Retirer l'article",
+      "decrease": "Diminuer la quantité",
+      "increase": "Augmenter la quantité",
+      "currentQuantity": "Quantité actuelle : {{count}}",
+      "checkoutHint": "Appuyez pour procéder au paiement",
+      "formulaLockHint": "Complétez votre formule pour passer commande",
+      "checkoutLabel": "Commander pour un total de {{amount}}"
+    }
   },
   "order": {
     "title": "Commande",
@@ -134,7 +192,48 @@
     "viewDetails": "Voir les détails",
     "track": "Suivre la commande",
     "rate": "Noter la commande",
-    "reorder": "Commander à nouveau"
+    "reorder": "Commander à nouveau",
+    "count_one": "{{count}} commande",
+    "count_other": "{{count}} commandes",
+    "unpaidTitle_one": "Vous avez une commande impayée",
+    "unpaidTitle_other": "Vous avez {{count}} commandes impayées",
+    "unpaidSubtitle": "Réglez vos commandes pour pouvoir commander à nouveau",
+    "myOrders": "Mes commandes",
+    "tabs": {
+      "active": "En cours",
+      "history": "Historique"
+    },
+    "fallbackRestaurant": "Restaurant",
+    "todayAt": "Aujourd'hui à {{time}}",
+    "dineIn": "Sur place",
+    "takeaway": "À emporter",
+    "paid": "Payé",
+    "paymentPending": "Paiement en attente",
+    "waitingTime": "Temps d'attente estimé : {{minutes}} min",
+    "noActiveOrders": "Aucune commande en cours",
+    "noHistoryOrders": "Aucune commande passée",
+    "scanPrompt": "Scannez le QR code de votre table pour passer votre première commande",
+    "orderNow": "Commander maintenant",
+    "scanDescription": "Accédez au menu en scannant le QR code de votre table",
+    "scanQR": "Scanner QR Code",
+    "enterCode": "Entrer le code",
+    "clientOnly": "Accès réservé aux clients",
+    "loadingOrders": "Chargement de vos commandes…",
+    "realtimeUnavailable": "Notifications temps réel indisponibles. Tirez pour actualiser.",
+    "realtime": {
+      "on": "Temps réel activé",
+      "connecting": "Connexion…",
+      "error": "Erreur connexion",
+      "offline": "Hors ligne"
+    },
+    "statusLabels": {
+      "pending": "En attente",
+      "confirmed": "Confirmée",
+      "preparing": "En préparation",
+      "ready": "Prête",
+      "served": "Servie",
+      "cancelled": "Annulée"
+    }
   },
   "payment": {
     "title": "Paiement",
@@ -164,7 +263,124 @@
     "yourName": "Votre prénom",
     "leaveSession": "Quitter la session",
     "sessionEnded": "Session terminée",
-    "waitingForOthers": "En attente des autres convives…"
+    "waitingForOthers": "En attente des autres convives…",
+    "tableLabel": "{{name}} · Table {{table}}",
+    "bannerCta": "Appuyer pour reprendre",
+    "foundLabel": "Session retrouvée",
+    "foundCta": "Appuyer pour rejoindre",
+    "inactivityWarning": "⚠️ Session inactive — fermeture auto dans {{time}}",
+    "status": {
+      "active": "En cours",
+      "locked": "Verrouillée",
+      "payment": "Paiement en attente"
+    },
+    "errors": {
+      "emptyCode": "Veuillez saisir un code de session.",
+      "notFound": "Aucune session trouvée avec ce code.",
+      "inactive": "Cette session n'est plus active.",
+      "invalidCode": "Aucune session active avec ce code. Vérifiez le code et réessayez.",
+      "joinFailed": "Impossible de rejoindre cette session.",
+      "maybeGone": "La session n'est peut-être plus disponible.",
+      "rejected": "L'hôte a refusé votre demande d'accès.",
+      "joinTitle": "Impossible de rejoindre"
+    },
+    "exit": {
+      "titleHost": "Terminer la session ?",
+      "titleMember": "Quitter la session ?",
+      "messageHost": "En tant qu'hôte, cela fermera la session pour tous les participants.",
+      "messageMember": "Vous allez quitter cette session collaborative.",
+      "ctaHost": "Terminer",
+      "ctaMember": "Quitter"
+    },
+    "completed": {
+      "title": "Session terminée",
+      "participantsLabel": "Participants ({{count}})",
+      "totalLabel": "Total : {{amount}}",
+      "close": "Fermer"
+    },
+    "codeModal": {
+      "title": "Rejoindre une session",
+      "description": "Saisissez le code partagé par l'hôte de la table pour rejoindre la session en cours.",
+      "placeholder": "EX : ABC123",
+      "cta": "Rejoindre la session"
+    },
+    "pending": {
+      "title": "En attente d'approbation",
+      "description": "L'hôte doit valider votre demande.\nVous serez redirigé automatiquement une fois accepté.",
+      "codeLabel": "Code de session"
+    },
+    "archive": {
+      "archived": "Cette session a été archivée",
+      "archivingIn": "Archivage dans {{time}}",
+      "archivingSoonUrgent": "⚠️ Archivage dans {{time}}"
+    },
+    "joinModal": {
+      "chooseTitle": "Commander sur cette table",
+      "chooseSubtitle": "Choisissez comment vous souhaitez commander",
+      "rejoinExisting": {
+        "title": "Rejoindre la session en cours",
+        "subtitle": "Code : {{code}} · {{count}} participant(s)"
+      },
+      "createGroup": {
+        "title": "Créer une session de groupe",
+        "description": "Commandez avec vos amis et divisez l'addition facilement"
+      },
+      "joinGroup": {
+        "title": "Rejoindre une session",
+        "description": "Entrez le code partagé par votre groupe"
+      },
+      "orderAlone": "Commander seul(e)",
+      "createTitle": "Créer une session de groupe",
+      "hostNameLabel": "Votre nom",
+      "hostNamePlaceholder": "Ex : Jean",
+      "sessionTypeLabel": "Type de session",
+      "sessionType": {
+        "collaborative": {
+          "title": "Collaborative",
+          "desc": "Tout le monde voit les commandes"
+        },
+        "individual": {
+          "title": "Individuelle",
+          "desc": "Chacun commande séparément"
+        }
+      },
+      "maxParticipantsLabel": "Nombre maximum de participants",
+      "requireApprovalLabel": "Approuver manuellement les nouveaux participants",
+      "back": "Retour",
+      "createCta": "Créer la session",
+      "joinTitle": "Rejoindre une session",
+      "codeLabel": "Code de session",
+      "codePlaceholder": "ABC123",
+      "verifyCta": "Vérifier",
+      "previewTitle": "Informations de la session",
+      "previewHost": "Hôte :",
+      "previewParticipants": "Participants :",
+      "sessionFullOrLocked": "⚠️ Cette session est pleine ou verrouillée",
+      "guestNameLabel": "Votre nom",
+      "guestNamePlaceholder": "Ex : Marie",
+      "joinCta": "Rejoindre",
+      "pendingDescription": "L'hôte de la session doit valider votre demande.\nVous serez automatiquement redirigé une fois accepté.",
+      "feedback": {
+        "soloError": "Impossible de démarrer la commande solo.",
+        "fieldRequired": "Champ requis",
+        "nameRequiredHost": "Veuillez entrer votre nom pour créer la session.",
+        "nameRequiredGuest": "Veuillez entrer votre nom pour rejoindre la session.",
+        "invalidCode": "Code invalide",
+        "invalidCodeDesc": "Le code doit contenir exactement 6 caractères.",
+        "codeNotFound": "Code introuvable",
+        "codeNotFoundDesc": "Aucune session active ne correspond à ce code.",
+        "sessionCreated": "Session créée !",
+        "sessionCreatedDesc": "Partagez le code {{code}} avec vos amis.",
+        "sessionCreateError": "Impossible de créer la session.",
+        "welcome": "Bienvenue !",
+        "welcomeDesc": "Vous avez rejoint la session avec succès.",
+        "joinError": "Impossible de rejoindre la session.",
+        "approved": "✅ Accepté !",
+        "approvedDesc": "L'hôte vous a accepté dans la session.",
+        "rejected": "❌ Refusé",
+        "rejectedDesc": "L'hôte a refusé votre demande."
+      }
+    }
   },
   "profile": {
     "title": "Profil",
@@ -181,7 +397,16 @@
     "terms": "Conditions d'utilisation",
     "privacy": "Politique de confidentialité",
     "version": "Version {{version}}",
-    "deleteAccount": "Supprimer mon compte"
+    "deleteAccount": "Supprimer mon compte",
+    "signInPrompt": "Connectez-vous pour accéder à votre profil",
+    "defaultName": "Utilisateur",
+    "verified": "Vérifié",
+    "logoutConfirm": "Êtes-vous sûr de vouloir vous déconnecter ?",
+    "myActions": "Mes actions",
+    "information": "Informations",
+    "helpFaq": "Aide et FAQ",
+    "contactUs": "Nous contacter",
+    "personalData": "Données personnelles"
   },
   "theme": {
     "title": "Thème",
@@ -242,5 +467,125 @@
     "today": "Aujourd'hui",
     "yesterday": "Hier",
     "tomorrow": "Demain"
+  },
+  "legal": {
+    "copyright": "© {{year}} EatQuicker. Tous droits réservés.",
+    "termsShort": "CGU",
+    "privacyShort": "Confidentialité",
+    "noticeShort": "Mentions légales",
+    "downloadMyData": {
+      "cta": "Télécharger mes données",
+      "download": "Télécharger",
+      "gdprNotice": "Export conforme RGPD (Article 20)",
+      "confirmTitle": "Export de données",
+      "confirmMessage": "Souhaitez-vous télécharger toutes vos données personnelles ?\n\nCela inclut : profil, commandes, préférences, et historique.",
+      "shareDialogTitle": "Télécharger mes données EatQuickeR",
+      "options": {
+        "title": "Export de données",
+        "message": "Comment souhaitez-vous recevoir vos données ?",
+        "direct": "Téléchargement direct",
+        "email": "Par email (sous 48h)"
+      },
+      "progress": {
+        "fetching": "Récupération des données…",
+        "preparing": "Préparation du fichier…",
+        "preparingShort": "Préparation…",
+        "done": "Export terminé !",
+        "sending": "Envoi de la demande…"
+      },
+      "success": {
+        "title": "Export réussi",
+        "message": "Vos données ({{size}} KB) ont été exportées.\n\nVous pouvez maintenant les sauvegarder ou les partager.",
+        "messageFallback": "Vos données ont été exportées dans :\n{{filename}}\n\nTaille : {{size}} KB"
+      },
+      "email": {
+        "title": "Export par email",
+        "confirmMessage": "Vous recevrez un email avec un lien de téléchargement sécurisé sous 48h.\n\nContinuer ?",
+        "successTitle": "Demande enregistrée",
+        "successMessage": "Un email sera envoyé à {{email}} sous 48h avec vos données."
+      },
+      "errors": {
+        "notLoggedIn": "Vous devez être connecté pour exporter vos données",
+        "rateLimit": "Vous avez atteint la limite d'exports quotidiens. Veuillez réessayer demain.",
+        "sessionExpired": "Votre session a expiré. Veuillez vous reconnecter.",
+        "forbidden": "Vous n'avez pas la permission d'exporter ces données.",
+        "serverError": "Erreur serveur. Veuillez réessayer dans quelques instants.",
+        "serviceUnavailable": "Le service d'export est temporairement indisponible. Réessayez dans quelques minutes.",
+        "generic": "Impossible de télécharger vos données. Veuillez réessayer.",
+        "connection": "Erreur de connexion. Vérifiez votre connexion internet.",
+        "emailRequestFailed": "Impossible d'enregistrer votre demande. Veuillez réessayer.",
+        "emailPending": "Vous avez déjà une demande d'export en cours. Veuillez patienter."
+      },
+      "a11y": {
+        "label": "Télécharger mes données personnelles",
+        "hint": "Exporter toutes vos données conformément au RGPD"
+      }
+    }
+  },
+  "home": {
+    "subtitle": "Commandez facilement",
+    "welcome": "Bonjour {{name}} ! 👋",
+    "welcomeSubtext": "Prêt(e) à commander aujourd'hui ?",
+    "quickActions": "Actions rapides",
+    "actions": {
+      "myOrders": {
+        "title": "Mes commandes",
+        "subtitle": "Suivez vos commandes"
+      },
+      "myCart": {
+        "title": "Mon panier",
+        "subtitle": "Finalisez votre achat"
+      },
+      "joinSession": {
+        "title": "Rejoindre une session",
+        "subtitle": "Entrez un code de partage"
+      }
+    }
+  },
+  "qrAccess": {
+    "title": "Scanner le QR code de votre table",
+    "description": "Ou entrez le code manuellement",
+    "scanButton": "Scanner QR code",
+    "codeButton": "Saisir le code",
+    "emptyCode": "Veuillez entrer un code valide.",
+    "invalidCodeTitle": "Code invalide",
+    "errors": {
+      "notFound": "Ce code ne correspond à aucun restaurant ni table. Vérifiez le code ou scannez le QR code.",
+      "restaurantNotFound": "Ce code ne correspond à aucun restaurant enregistré. Vérifiez le QR code.",
+      "serverUnavailable": "Impossible de vérifier ce restaurant. Vérifiez votre connexion et réessayez."
+    },
+    "modal": {
+      "title": "Entrer un code",
+      "description": "Code de table (Ex : R12T005) ou code de session partagé (6 caractères).",
+      "placeholder": "Ex : R12T005 ou ABC123",
+      "confirm": "Valider",
+      "verifying": "Vérification…"
+    },
+    "account": {
+      "title": "Souhaitez-vous utiliser un compte ?",
+      "hint": "Un compte permet de retrouver vos commandes et factures. Vous pouvez aussi accéder au menu directement.",
+      "login": {
+        "title": "Se connecter",
+        "desc": "J'ai déjà un compte EatQuickeR"
+      },
+      "register": {
+        "title": "Créer un compte",
+        "desc": "Inscription rapide pour suivre mes commandes"
+      },
+      "or": "ou",
+      "guestCta": "Continuer sans compte",
+      "guestHint": "Vous accédez immédiatement au menu. Un nom et un numéro de téléphone vous seront demandés au moment de commander."
+    }
+  },
+  "qrScanner": {
+    "invalidTitle": "QR Code invalide",
+    "invalidMessage": "Ce QR code ne correspond pas à un restaurant EatQuickeR\n\nValeur scannée : {{value}}",
+    "retry": "Réessayer",
+    "instruction": "Pointez la caméra vers le QR code du restaurant",
+    "permission": {
+      "title": "Accès caméra requis",
+      "description": "Pour scanner les QR codes, nous avons besoin d'accéder à votre caméra.",
+      "allow": "Autoriser"
+    }
   }
 }
