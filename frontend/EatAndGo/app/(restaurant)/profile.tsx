@@ -1,26 +1,27 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
   ScrollView,
   useWindowDimensions,
-  TouchableOpacity,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
+
 import { useAuth } from '@/contexts/AuthContext';
 import { Header } from '@/components/ui/Header';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import StripeAccountStatus from '@/components/stripe/StripeAccountStatus';
 import { Alert as InlineAlert, AlertWithAction } from '@/components/ui/Alert';
-import { 
-  useScreenType, 
-  getResponsiveValue, 
-  COLORS, 
-  SPACING, 
-  BORDER_RADIUS 
+import {
+  useAppTheme,
+  useScreenType,
+  getResponsiveValue,
+  SPACING,
+  BORDER_RADIUS,
+  type AppColors,
 } from '@/utils/designSystem';
 
 type ScreenType = 'mobile' | 'tablet' | 'desktop';
@@ -51,27 +52,30 @@ const useAlerts = () => {
   return { alerts, pushAlert, dismissAlert };
 };
 
+const APP_VERSION = '1.0.0';
+
 export default function ProfileScreen() {
+  const { t } = useTranslation();
+  const { colors, isDark } = useAppTheme();
   const { user, logout, isRestaurateur } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  // 🧰 composant d'alerte
   const { alerts, pushAlert, dismissAlert } = useAlerts();
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
-  
+
   const screenType = useScreenType();
   const { width } = useWindowDimensions();
 
   // Configuration responsive
-  const layoutConfig = {
+  const layoutConfig = useMemo(() => ({
     containerPadding: getResponsiveValue(SPACING.container, screenType),
     maxContentWidth: screenType === 'desktop' ? 600 : undefined,
     avatarSize: getResponsiveValue(
       { mobile: 80, tablet: 100, desktop: 120 },
-      screenType
+      screenType,
     ),
     isTabletLandscape: screenType === 'tablet' && width > 1000,
-  };
+  }), [screenType, width]);
 
   const performLogout = useCallback(async () => {
     setIsLoggingOut(true);
@@ -79,16 +83,14 @@ export default function ProfileScreen() {
       await logout();
       router.replace('/(auth)/login');
     } catch (error) {
-      // ❌ ancienne Alert.alert remplacée par une bannière
-      pushAlert('error', 'Erreur', 'Impossible de se déconnecter');
+      pushAlert('error', t('common.error'), t('restaurantProfile.feedback.logoutFailed'));
     } finally {
       setIsLoggingOut(false);
       setLogoutConfirmOpen(false);
     }
-  }, [logout, pushAlert]);
+  }, [logout, pushAlert, t]);
 
   const handleLogout = useCallback(() => {
-    // ❓ confirmation via AlertWithAction
     setLogoutConfirmOpen(true);
   }, []);
 
@@ -118,225 +120,26 @@ export default function ProfileScreen() {
     return null;
   };
 
-  const styles = {
-    container: {
-      flex: 1,
-      backgroundColor: COLORS.background,
-    },
-
-    content: {
-      maxWidth: layoutConfig.maxContentWidth,
-      alignSelf: 'center' as const,
-      width: '100%' as const,
-    },
-
-    scrollContent: {
-      padding: layoutConfig.containerPadding,
-      paddingBottom: getResponsiveValue(SPACING['2xl'], screenType),
-    },
-
-    // Carte profil principal
-    profileCard: {
-      marginBottom: getResponsiveValue(SPACING.lg, screenType),
-      padding: getResponsiveValue(SPACING.xl, screenType),
-      backgroundColor: COLORS.surface,
-      borderRadius: BORDER_RADIUS.lg,
-      alignItems: 'center' as const,
-      shadowColor: COLORS.shadow.default,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
-      borderWidth: 1,
-      borderColor: COLORS.border.light,
-    },
-
-    avatar: {
-      width: layoutConfig.avatarSize,
-      height: layoutConfig.avatarSize,
-      borderRadius: layoutConfig.avatarSize / 2,
-      backgroundColor: COLORS.primary,
-      justifyContent: 'center' as const,
-      alignItems: 'center' as const,
-      marginBottom: getResponsiveValue(SPACING.md, screenType),
-      borderWidth: 3,
-      borderColor: COLORS.secondary,
-      shadowColor: COLORS.primary,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 8,
-      elevation: 6,
-    },
-
-    avatarText: {
-      fontSize: getResponsiveValue(
-        { mobile: 28, tablet: 36, desktop: 42 },
-        screenType
-      ),
-      fontWeight: '700' as const,
-      color: COLORS.surface,
-    },
-
-    userName: {
-      fontSize: getResponsiveValue(
-        { mobile: 24, tablet: 28, desktop: 32 },
-        screenType
-      ),
-      fontWeight: '700' as const,
-      color: COLORS.text.primary,
-      marginBottom: getResponsiveValue(SPACING.xs, screenType),
-      textAlign: 'center' as const,
-    },
-
-    userEmail: {
-      fontSize: getResponsiveValue(
-        { mobile: 16, tablet: 18, desktop: 20 },
-        screenType
-      ),
-      color: COLORS.text.secondary,
-      marginBottom: getResponsiveValue(SPACING.sm, screenType),
-      textAlign: 'center' as const,
-    },
-
-    roleBadge: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      backgroundColor: COLORS.secondary + '20',
-      paddingHorizontal: getResponsiveValue(SPACING.sm, screenType),
-      paddingVertical: getResponsiveValue(SPACING.xs, screenType),
-      borderRadius: BORDER_RADIUS.lg,
-      borderWidth: 1,
-      borderColor: COLORS.secondary + '40',
-      gap: getResponsiveValue(SPACING.xs, screenType) / 2,
-    },
-
-    roleBadgeText: {
-      fontSize: getResponsiveValue(
-        { mobile: 14, tablet: 15, desktop: 16 },
-        screenType
-      ),
-      color: COLORS.secondary,
-      fontWeight: '600' as const,
-    },
-
-    // Section Stripe
-    stripeSection: {
-      marginBottom: getResponsiveValue(SPACING.lg, screenType),
-    },
-
-    // Carte informations détaillées
-    infoCard: {
-      marginBottom: getResponsiveValue(SPACING.lg, screenType),
-      padding: getResponsiveValue(SPACING.lg, screenType),
-      backgroundColor: COLORS.surface,
-      borderRadius: BORDER_RADIUS.lg,
-      shadowColor: COLORS.shadow.default,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
-      borderWidth: 1,
-      borderColor: COLORS.border.light,
-    },
-
-    sectionTitle: {
-      fontSize: getResponsiveValue(
-        { mobile: 18, tablet: 20, desktop: 22 },
-        screenType
-      ),
-      fontWeight: '600' as const,
-      color: COLORS.text.primary,
-      marginBottom: getResponsiveValue(SPACING.md, screenType),
-    },
-
-    infoRow: {
-      flexDirection: 'row' as const,
-      justifyContent: 'space-between' as const,
-      alignItems: 'center' as const,
-      paddingVertical: getResponsiveValue(SPACING.sm, screenType),
-      borderBottomWidth: 1,
-      borderBottomColor: COLORS.border.light,
-    },
-
-    infoRowLast: {
-      borderBottomWidth: 0,
-    },
-
-    infoLabel: {
-      fontSize: getResponsiveValue(
-        { mobile: 14, tablet: 15, desktop: 16 },
-        screenType
-      ),
-      color: COLORS.text.secondary,
-      flex: 1,
-    },
-
-    infoValue: {
-      fontSize: getResponsiveValue(
-        { mobile: 14, tablet: 15, desktop: 16 },
-        screenType
-      ),
-      color: COLORS.text.primary,
-      fontWeight: '500' as const,
-      flex: 2,
-      textAlign: 'right' as const,
-    },
-
-    statusValue: {
-      fontSize: getResponsiveValue(
-        { mobile: 14, tablet: 15, desktop: 16 },
-        screenType
-      ),
-      fontWeight: '500' as const,
-      flex: 2,
-      textAlign: 'right' as const,
-    },
-
-    // Actions
-    actionsSection: {
-      gap: getResponsiveValue(SPACING.sm, screenType),
-      marginBottom: getResponsiveValue(SPACING.lg, screenType),
-    },
-
-    logoutButton: {
-      backgroundColor: COLORS.error,
-      borderColor: COLORS.error,
-    },
-
-    logoutButtonText: {
-      color: COLORS.surface,
-    },
-
-    // Footer
-    footer: {
-      alignItems: 'center' as const,
-    },
-
-    version: {
-      fontSize: getResponsiveValue(
-        { mobile: 12, tablet: 13, desktop: 14 },
-        screenType
-      ),
-      color: COLORS.text.light,
-      textAlign: 'center' as const,
-    },
-
-    alertsContainer: {
-      paddingHorizontal: layoutConfig.containerPadding,
-      paddingTop: getResponsiveValue(SPACING.sm, screenType),
-    },
-  };
+  // Styles theme-aware mémoizés
+  const styles = useMemo(
+    () => makeStyles(colors, isDark, screenType, layoutConfig),
+    [colors, isDark, screenType, layoutConfig],
+  );
 
   const iconSize = getResponsiveValue(
     { mobile: 16, tablet: 18, desktop: 20 },
-    screenType
+    screenType,
   );
 
   return (
     <View style={styles.container}>
-      <Header title="Profil" />
+      <Header
+        title={t('restaurantNav.profile')}
+        showLanguageSwitcher
+        showThemeSwitcher
+      />
 
-      {/* Bannières d’alertes (success / error / info / warning) */}
+      {/* Bannières d'alertes (success / error / info / warning) */}
       {alerts.length > 0 && (
         <View style={styles.alertsContainer}>
           {alerts.map(a => (
@@ -350,40 +153,38 @@ export default function ProfileScreen() {
           ))}
         </View>
       )}
-      
+
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.content}>
           <View style={styles.scrollContent}>
-            
+
             {/* Carte profil principal */}
             <Card style={styles.profileCard}>
-              {/* Avatar */}
               <View style={styles.avatar}>
                 <Text style={styles.avatarText}>
                   {getInitials(user?.first_name || 'U')}
                 </Text>
               </View>
-              
-              {/* Nom */}
+
               <Text style={styles.userName}>
-                {user?.first_name || 'Utilisateur'}
+                {user?.first_name || t('restaurantProfile.fallbackUserName')}
               </Text>
-              
-              {/* Email */}
+
               <Text style={styles.userEmail}>
                 {user?.email}
               </Text>
 
-              {/* Badge rôle */}
               {user?.role && (
                 <View style={styles.roleBadge}>
-                  <Ionicons 
-                    name={user.role === 'restaurateur' ? 'restaurant' : 'person'} 
-                    size={iconSize} 
-                    color={COLORS.secondary} 
+                  <Ionicons
+                    name={user.role === 'restaurateur' ? 'restaurant' : 'person'}
+                    size={iconSize}
+                    color={colors.secondary}
                   />
                   <Text style={styles.roleBadgeText}>
-                    {user.role === 'restaurateur' ? 'Restaurateur' : 'Client'}
+                    {user.role === 'restaurateur'
+                      ? t('restaurantProfile.role.restaurateur')
+                      : t('restaurantProfile.role.client')}
                   </Text>
                 </View>
               )}
@@ -399,70 +200,67 @@ export default function ProfileScreen() {
             {/* Informations détaillées */}
             <Card style={styles.infoCard}>
               <Text style={styles.sectionTitle}>
-                Informations du compte
+                {t('restaurantProfile.accountInfo')}
               </Text>
 
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Email</Text>
-                <Text style={styles.infoValue}>
-                  {user?.email}
-                </Text>
+                <Text style={styles.infoLabel}>{t('restaurantProfile.email')}</Text>
+                <Text style={styles.infoValue}>{user?.email}</Text>
               </View>
 
               {getPhone() && (
                 <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Téléphone</Text>
-                  <Text style={styles.infoValue}>
-                    {getPhone()}
-                  </Text>
+                  <Text style={styles.infoLabel}>{t('restaurantProfile.phone')}</Text>
+                  <Text style={styles.infoValue}>{getPhone()}</Text>
                 </View>
               )}
 
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Type de compte</Text>
+                <Text style={styles.infoLabel}>{t('restaurantProfile.accountType')}</Text>
                 <Text style={styles.infoValue}>
-                  {user?.role === 'restaurateur' ? 'Restaurateur' : 'Client'}
+                  {user?.role === 'restaurateur'
+                    ? t('restaurantProfile.role.restaurateur')
+                    : t('restaurantProfile.role.client')}
                 </Text>
               </View>
 
               {getSiret() && (
                 <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>SIRET</Text>
-                  <Text style={styles.infoValue}>
-                    {getSiret()}
-                  </Text>
+                  <Text style={styles.infoLabel}>{t('restaurantProfile.siret')}</Text>
+                  <Text style={styles.infoValue}>{getSiret()}</Text>
                 </View>
               )}
 
               {isRestaurateur && (
                 <View style={[styles.infoRow, styles.infoRowLast]}>
-                  <Text style={styles.infoLabel}>Statut Stripe</Text>
-                  <Text style={[
-                    styles.statusValue,
-                    { color: user?.roles?.has_validated_profile ? COLORS.success : COLORS.warning }
-                  ]}>
-                    {user?.roles?.has_validated_profile ? 'Validé' : 'En attente'}
+                  <Text style={styles.infoLabel}>{t('restaurantProfile.stripeStatus')}</Text>
+                  <Text
+                    style={[
+                      styles.statusValue,
+                      {
+                        color: user?.roles?.has_validated_profile
+                          ? colors.success
+                          : colors.warning,
+                      },
+                    ]}
+                  >
+                    {user?.roles?.has_validated_profile
+                      ? t('restaurantProfile.stripeValidated')
+                      : t('restaurantProfile.stripePending')}
                   </Text>
                 </View>
               )}
             </Card>
 
-            {/* Actions */}
-            {/* <TouchableOpacity onPress={() => router.push('/(comptabilite)/index' as any)}>
-              <View style={styles.actionsSection}>
-                <Ionicons name="calculator-outline" size={24} />
-                <Text>Comptabilité</Text>
-                <Ionicons name="chevron-forward" size={20} />
-              </View>
-            </TouchableOpacity> */}
-
             <View style={styles.actionsSection}>
               <Button
-                title="Déconnexion"
+                title={t('restaurantProfile.logout')}
                 onPress={handleLogout}
                 loading={isLoggingOut}
                 fullWidth
-                leftIcon={<Ionicons name="log-out-outline" size={20} color={COLORS.surface} />}
+                leftIcon={
+                  <Ionicons name="log-out-outline" size={20} color={colors.text.inverse} />
+                }
                 style={styles.logoutButton}
                 textStyle={styles.logoutButtonText}
               />
@@ -471,27 +269,27 @@ export default function ProfileScreen() {
             {/* Footer */}
             <View style={styles.footer}>
               <Text style={styles.version}>
-                EatQuickeR v1.0.0
+                EatQuickeR v{APP_VERSION}
               </Text>
             </View>
-            
+
           </View>
         </View>
-      </ScrollView> 
+      </ScrollView>
 
-      {/* Confirmation de déconnexion via ton composant */}
+      {/* Confirmation de déconnexion */}
       {logoutConfirmOpen && (
-        <View style={{ paddingHorizontal: layoutConfig.containerPadding, paddingTop: getResponsiveValue(SPACING.sm, screenType) }}>
+        <View style={styles.confirmContainer}>
           <AlertWithAction
             variant="warning"
-            title="Déconnexion"
-            message="Êtes-vous sûr de vouloir vous déconnecter ?"
+            title={t('restaurantProfile.logoutConfirmTitle')}
+            message={t('restaurantProfile.logoutConfirmMessage')}
             secondaryButton={{
-              text: 'Annuler',
+              text: t('common.cancel'),
               onPress: () => setLogoutConfirmOpen(false),
             }}
             primaryButton={{
-              text: 'Déconnexion',
+              text: t('restaurantProfile.logout'),
               onPress: performLogout,
               variant: 'danger',
             }}
@@ -501,3 +299,224 @@ export default function ProfileScreen() {
     </View>
   );
 }
+
+// ============================================================================
+// STYLES (fabrique theme-aware)
+// ============================================================================
+const makeStyles = (
+  colors: AppColors,
+  isDark: boolean,
+  screenType: ScreenType,
+  layoutConfig: { containerPadding: number; maxContentWidth?: number; avatarSize: number },
+) => {
+  return {
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+
+    content: {
+      maxWidth: layoutConfig.maxContentWidth,
+      alignSelf: 'center' as const,
+      width: '100%' as const,
+    },
+
+    scrollContent: {
+      padding: layoutConfig.containerPadding,
+      paddingBottom: getResponsiveValue(SPACING['2xl'], screenType),
+    },
+
+    profileCard: {
+      marginBottom: getResponsiveValue(SPACING.lg, screenType),
+      padding: getResponsiveValue(SPACING.xl, screenType),
+      backgroundColor: colors.surface,
+      borderRadius: BORDER_RADIUS.lg,
+      alignItems: 'center' as const,
+      shadowColor: colors.shadow.default,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: isDark ? 0.4 : 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+      borderWidth: 1,
+      borderColor: colors.border.light,
+    },
+
+    avatar: {
+      width: layoutConfig.avatarSize,
+      height: layoutConfig.avatarSize,
+      borderRadius: layoutConfig.avatarSize / 2,
+      backgroundColor: colors.primary,
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+      marginBottom: getResponsiveValue(SPACING.md, screenType),
+      borderWidth: 3,
+      borderColor: colors.secondary,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 6,
+    },
+
+    avatarText: {
+      fontSize: getResponsiveValue(
+        { mobile: 28, tablet: 36, desktop: 42 },
+        screenType,
+      ),
+      fontWeight: '700' as const,
+      color: colors.text.inverse,
+    },
+
+    userName: {
+      fontSize: getResponsiveValue(
+        { mobile: 24, tablet: 28, desktop: 32 },
+        screenType,
+      ),
+      fontWeight: '700' as const,
+      // En dark, titre du nom en or chaud pour l'effet "premium" cohérent
+      color: isDark ? colors.text.golden : colors.text.primary,
+      marginBottom: getResponsiveValue(SPACING.xs, screenType),
+      textAlign: 'center' as const,
+    },
+
+    userEmail: {
+      fontSize: getResponsiveValue(
+        { mobile: 16, tablet: 18, desktop: 20 },
+        screenType,
+      ),
+      color: colors.text.secondary,
+      marginBottom: getResponsiveValue(SPACING.sm, screenType),
+      textAlign: 'center' as const,
+    },
+
+    roleBadge: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      backgroundColor: colors.secondary + '20',
+      paddingHorizontal: getResponsiveValue(SPACING.sm, screenType),
+      paddingVertical: getResponsiveValue(SPACING.xs, screenType),
+      borderRadius: BORDER_RADIUS.lg,
+      borderWidth: 1,
+      borderColor: colors.secondary + '40',
+      gap: getResponsiveValue(SPACING.xs, screenType) / 2,
+    },
+
+    roleBadgeText: {
+      fontSize: getResponsiveValue(
+        { mobile: 14, tablet: 15, desktop: 16 },
+        screenType,
+      ),
+      color: colors.secondary,
+      fontWeight: '600' as const,
+    },
+
+    stripeSection: {
+      marginBottom: getResponsiveValue(SPACING.lg, screenType),
+    },
+
+    infoCard: {
+      marginBottom: getResponsiveValue(SPACING.lg, screenType),
+      padding: getResponsiveValue(SPACING.lg, screenType),
+      backgroundColor: colors.surface,
+      borderRadius: BORDER_RADIUS.lg,
+      shadowColor: colors.shadow.default,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: isDark ? 0.4 : 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+      borderWidth: 1,
+      borderColor: colors.border.light,
+    },
+
+    sectionTitle: {
+      fontSize: getResponsiveValue(
+        { mobile: 18, tablet: 20, desktop: 22 },
+        screenType,
+      ),
+      fontWeight: '600' as const,
+      // Titres de section en or chaud en dark (continuité de la migration client)
+      color: isDark ? colors.text.golden : colors.text.primary,
+      marginBottom: getResponsiveValue(SPACING.md, screenType),
+    },
+
+    infoRow: {
+      flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
+      alignItems: 'center' as const,
+      paddingVertical: getResponsiveValue(SPACING.sm, screenType),
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border.light,
+    },
+
+    infoRowLast: {
+      borderBottomWidth: 0,
+    },
+
+    infoLabel: {
+      fontSize: getResponsiveValue(
+        { mobile: 14, tablet: 15, desktop: 16 },
+        screenType,
+      ),
+      color: colors.text.secondary,
+      flex: 1,
+    },
+
+    infoValue: {
+      fontSize: getResponsiveValue(
+        { mobile: 14, tablet: 15, desktop: 16 },
+        screenType,
+      ),
+      color: colors.text.primary,
+      fontWeight: '500' as const,
+      flex: 2,
+      textAlign: 'right' as const,
+    },
+
+    statusValue: {
+      fontSize: getResponsiveValue(
+        { mobile: 14, tablet: 15, desktop: 16 },
+        screenType,
+      ),
+      fontWeight: '500' as const,
+      flex: 2,
+      textAlign: 'right' as const,
+    },
+
+    actionsSection: {
+      gap: getResponsiveValue(SPACING.sm, screenType),
+      marginBottom: getResponsiveValue(SPACING.lg, screenType),
+    },
+
+    logoutButton: {
+      backgroundColor: colors.error,
+      borderColor: colors.error,
+    },
+
+    logoutButtonText: {
+      color: colors.text.inverse,
+    },
+
+    footer: {
+      alignItems: 'center' as const,
+    },
+
+    version: {
+      fontSize: getResponsiveValue(
+        { mobile: 12, tablet: 13, desktop: 14 },
+        screenType,
+      ),
+      color: colors.text.light,
+      textAlign: 'center' as const,
+    },
+
+    alertsContainer: {
+      paddingHorizontal: layoutConfig.containerPadding,
+      paddingTop: getResponsiveValue(SPACING.sm, screenType),
+    },
+
+    confirmContainer: {
+      paddingHorizontal: layoutConfig.containerPadding,
+      paddingTop: getResponsiveValue(SPACING.sm, screenType),
+    },
+  };
+};

@@ -587,5 +587,520 @@
       "description": "Om QR-codes te scannen hebben we toegang tot je camera nodig.",
       "allow": "Toestaan"
     }
+  },
+  "restaurantNav": {
+    "home": "Home",
+    "restaurants": "Restaurants",
+    "orders": "Bestellingen",
+    "menus": "Menu’s",
+    "dailyMenu": "Dagmenu",
+    "dailyMenuShort": "Dag",
+    "statistics": "Statistieken",
+    "statisticsShort": "Stat.",
+    "qrcodes": "QR-codes",
+    "profile": "Profiel",
+    "accounting": "Boekhouding"
+  },
+  "restaurantProfile": {
+    "fallbackUserName": "Gebruiker",
+    "accountInfo": "Accountinformatie",
+    "email": "E-mail",
+    "phone": "Telefoon",
+    "accountType": "Accounttype",
+    "siret": "SIRET",
+    "stripeStatus": "Stripe-status",
+    "stripeValidated": "Gevalideerd",
+    "stripePending": "In afwachting",
+    "logout": "Uitloggen",
+    "logoutConfirmTitle": "Uitloggen",
+    "logoutConfirmMessage": "Weet je zeker dat je wilt uitloggen?",
+    "role": {
+      "restaurateur": "Restauranthouder",
+      "client": "Klant"
+    },
+    "feedback": {
+      "logoutFailed": "Uitloggen mislukt"
+    }
+  },
+  "restaurantsList": {
+    "subtitle_one": "{{count}} vestiging",
+    "subtitle_other": "{{count}} vestigingen",
+    "overview": "Overzicht",
+    "searchPlaceholder": "Zoek een restaurant…",
+    "loading": "Laden…",
+    "loadingFull": "Restaurants laden…",
+    "pagination": "Pagina {{current}} van {{total}}",
+    "activeFilters_one": "{{count}} actief filter",
+    "activeFilters_other": "{{count}} actieve filters",
+    "clearFilters": "Wissen",
+    "viewMode": {
+      "list": "Lijst",
+      "grid": "Raster"
+    },
+    "stats": {
+      "totalLabel_one": "Restaurant",
+      "totalLabel_other": "Restaurants",
+      "openLabel_one": "Open",
+      "openLabel_other": "Open",
+      "closedLabel_one": "Gesloten",
+      "closedLabel_other": "Gesloten"
+    },
+    "empty": {
+      "noResultTitle": "Geen resultaat",
+      "noResultDescription": "Probeer je zoekopdracht aan te passen of filters bij te stellen",
+      "noRestaurantTitle": "Geen restaurant",
+      "noRestaurantDescription": "Begin met het toevoegen van je eerste restaurant om bestellingen te beheren",
+      "addCta": "Restaurant toevoegen",
+      "howItWorks": "Hoe werkt het?"
+    },
+    "errors": {
+      "searchFailed": "Restaurants kunnen niet worden doorzocht",
+      "reloadFailed": "Restaurants kunnen niet opnieuw worden geladen",
+      "refreshFailed": "Lijst kan niet worden vernieuwd",
+      "loadMoreFailed": "Meer restaurants kunnen niet worden geladen"
+    }
+  },
+  "restaurantOrders": {
+    "noRestaurantFound": "Geen restaurant gevonden",
+    "selectRestaurant": "Selecteer een restaurant",
+    "chooseRestaurant": "Kies een restaurant",
+    "orderTitle": "Bestelling {{number}}",
+    "todayAt": "Vandaag om {{time}}",
+    "anonymousCustomer": "Anonieme klant",
+    "tableLabel": "Tafel {{number}}",
+    "estimatedTime": "Geschatte tijd: {{minutes}} min",
+    "viewDetails": "Details bekijken",
+    "forbiddenMessage": "Alleen voor restauranthouders",
+    "itemsCount_one": "{{count}} artikel",
+    "itemsCount_other": "{{count}} artikelen",
+    "orderType": {
+      "dineIn": "Ter plaatse",
+      "takeaway": "Afhalen"
+    },
+    "paymentStatus": {
+      "paid": "Betaald",
+      "unpaid": "Niet betaald",
+      "unpaidShort": "Onbetaald"
+    },
+    "actions": {
+      "confirm": "Bevestigen",
+      "preparing": "In voorbereiding",
+      "ready": "Klaar",
+      "serve": "Serveren",
+      "collect": "Innen",
+      "archive": "Archiveren",
+      "unarchive": "Uit archief"
+    },
+    "filters": {
+      "all": "Alle",
+      "served": "Geserveerd",
+      "cancelled": "Geannuleerd",
+      "archived": "Archief"
+    },
+    "kanban": {
+      "emptyColumn": "Niets hier",
+      "columns": {
+        "new": {
+          "title": "Nieuw",
+          "chip": "Nieuw",
+          "action": "Starten"
+        },
+        "preparing": {
+          "title": "In voorbereiding",
+          "chip": "In voorbereiding",
+          "action": "Klaar markeren"
+        },
+        "ready": {
+          "title": "Klaar",
+          "chip": "Klaar",
+          "action": "Geserveerd"
+        }
+      }
+    },
+    "banner": {
+      "title": "Service bezig",
+      "titleWithName": "{{name}} — Service bezig",
+      "pending": "In afwachting",
+      "tonight": "Vanavond",
+      "history": "Geschiedenis",
+      "refresh": "Vernieuwen"
+    },
+    "history": {
+      "title": "Bestelgeschiedenis",
+      "bulkArchive_one": "{{count}} afgeronde bestelling archiveren",
+      "bulkArchive_other": "{{count}} afgeronde bestellingen archiveren",
+      "emptyTitle": "Geen bestellingen",
+      "emptyArchived": "Geen gearchiveerde bestellingen",
+      "emptyCompleted": "Nog geen afgeronde bestellingen"
+    },
+    "cancelConfirm": {
+      "title": "Bestelling annuleren",
+      "message": "Bestelling {{number}} echt annuleren?",
+      "keep": "Nee, behouden",
+      "confirm": "Ja, annuleren"
+    },
+    "paymentPrompt": {
+      "title": "Markeren als betaald",
+      "message": "Welke betaalmethode?",
+      "cash": "Contant",
+      "card": "Kaart"
+    },
+    "archiveConfirm": {
+      "title": "Afgeronde bestellingen archiveren",
+      "message": "Alle geserveerde en geannuleerde bestellingen archiveren?"
+    },
+    "loading": {
+      "restaurants": "Restaurants laden…",
+      "orders": "Bestellingen laden…"
+    },
+    "feedback": {
+      "refreshFailed": "Kan bestellingen niet vernieuwen",
+      "statusUpdateFailed": "Kan bestelstatus niet bijwerken",
+      "paidTitle": "Geïnd",
+      "paidMessage": "Bestelling gemarkeerd als betaald",
+      "markPaidFailed": "Kan bestelling niet als betaald markeren",
+      "archivedTitle": "Succes",
+      "archivedMessage_one": "{{count}} bestelling gearchiveerd",
+      "archivedMessage_other": "{{count}} bestellingen gearchiveerd",
+      "noneToArchiveTitle": "Informatie",
+      "noneToArchiveMessage": "Geen bestellingen om te archiveren",
+      "archiveFailed": "Kan bestellingen niet archiveren"
+    }
+  },
+  "restaurantDailyMenu": {
+    "today": "Vandaag",
+    "close": "Sluiten",
+    "noRestaurantMessage": "Geen restaurant om menu’s te beheren",
+    "createRestaurant": "Mijn restaurant aanmaken",
+    "legend": {
+      "withMenu": "Met menu",
+      "inactiveMenu": "Inactief menu"
+    }
+  },
+  "restaurantMenus": {
+    "title": "Mijn menu’s",
+    "stats": {
+      "activeMenus_one": "Actief menu",
+      "activeMenus_other": "Actieve menu’s",
+      "inactive_one": "{{count}} inactief",
+      "inactive_other": "{{count}} inactief",
+      "multiActive": "MULTI-ACTIEF"
+    },
+    "info": {
+      "title": "💡 Slechts één actief menu tegelijk",
+      "description": "Wanneer je een menu activeert, worden alle andere menu’s automatisch gedeactiveerd. Alleen het actieve menu is zichtbaar voor je klanten."
+    },
+    "help": {
+      "title": "Aan de slag met EatQuickeR",
+      "description": "Maak je eerste menu om je gerechten te presenteren en online bestellingen te ontvangen.",
+      "createFirstMenu": "Mijn eerste menu maken",
+      "userGuide": "Gebruikershandleiding"
+    },
+    "switcher": {
+      "title": "Van restaurant wisselen"
+    },
+    "duplicate": {
+      "barButton": "Menu’s ophalen",
+      "pickSourceTitle": "Bronrestaurant kiezen",
+      "pickMenusTitle": "Menu’s selecteren",
+      "emptySource": "Geen menu in dit restaurant",
+      "statusActive": "Actief",
+      "statusInactive": "Inactief",
+      "itemSummary_one": "{{count}} gerecht · {{status}}",
+      "itemSummary_other": "{{count}} gerechten · {{status}}",
+      "duplicating": "Dupliceren…",
+      "confirmSimple": "Dupliceren",
+      "confirmWithCount": "Dupliceren ({{count}})",
+      "doneTitle": "Duplicatie voltooid",
+      "doneSuccess_one": "{{count}} menu succesvol gedupliceerd",
+      "doneSuccess_other": "{{count}} menu’s succesvol gedupliceerd",
+      "donePartial": "{{succeeded}} gelukt, {{failed}} mislukt",
+      "errorGeneric": "Fout tijdens duplicatie"
+    },
+    "delete": {
+      "title": "Verwijdering bevestigen",
+      "message": "Weet je zeker dat je het menu \"{{name}}\" wilt verwijderen?\n\nDeze actie is onomkeerbaar.",
+      "confirm": "Verwijderen"
+    },
+    "feedback": {
+      "successTitle": "Succes",
+      "loadFailed": "Kan menu’s niet laden",
+      "loadSourceFailed": "Kan bronmenu’s niet laden",
+      "menuEnabled": "Menu geactiveerd (andere menu’s gedeactiveerd)",
+      "menuDisabled": "Menu gedeactiveerd",
+      "toggleFailed": "Kan menu niet wijzigen",
+      "toggleForbidden": "Je hebt geen toestemming om dit menu te wijzigen",
+      "menuNotFound": "Menu niet gevonden",
+      "menuDeleted": "Menu verwijderd",
+      "deleteFailed": "Kan menu niet verwijderen"
+    }
+  },
+  "restaurantStats": {
+    "title": "Statistieken — {{period}}",
+    "pickerTitle": "Analyseperiode",
+    "chooseRestaurant": "Kies een restaurant",
+    "noRestaurantMessage": "Je hebt nog geen restaurant",
+    "createFirstRestaurant": "Mijn eerste restaurant aanmaken",
+    "salesCount_one": "{{formatted}} verkoop",
+    "salesCount_other": "{{formatted}} verkopen",
+    "periods": {
+      "thisWeek": "Deze week",
+      "thisMonth": "Deze maand",
+      "last3Months": "Laatste 3 maanden",
+      "last6Months": "Laatste 6 maanden",
+      "thisYear": "Dit jaar"
+    },
+    "deltas": {
+      "vsPrevWeek": "vs vorige week",
+      "vsPrevMonth": "vs vorige maand",
+      "vsPrev3Months": "vs vorige 3 maanden",
+      "vsPrev6Months": "vs vorige 6 maanden",
+      "vsPrevYear": "vs vorig jaar"
+    },
+    "kpi": {
+      "totalRevenue": "Totale omzet",
+      "servedOrders": "Geserveerde bestellingen",
+      "avgOrder": "Gem. bestelling"
+    },
+    "charts": {
+      "revenueByDay": "Omzet per dag",
+      "topDishes": "Top gerechten"
+    },
+    "daysShort": {
+      "monday": "Ma",
+      "tuesday": "Di",
+      "wednesday": "Wo",
+      "thursday": "Do",
+      "friday": "Vr",
+      "saturday": "Za",
+      "sunday": "Zo"
+    },
+    "empty": {
+      "noData": "Geen gegevens beschikbaar",
+      "description": "Statistieken verschijnen hier zodra je bestellingen hebt in deze periode."
+    },
+    "errors": {
+      "loadFailed": "Fout bij het laden van statistieken."
+    }
+  },
+  "restaurantHome": {
+    "greeting": {
+      "morning": "Goedemorgen",
+      "afternoon": "Goedemiddag",
+      "evening": "Goedenavond"
+    },
+    "subtitle": {
+      "restaurateur": "Beheer je restaurants en optimaliseer je prestaties",
+      "client": "Ontdek de beste restaurants bij jou in de buurt"
+    },
+    "restaurantFallback": "Restaurant",
+    "unknownDate": "Onbekende datum",
+    "loadingDashboard": "Dashboard laden…",
+    "loadingOrders": "Bestellingen laden…",
+    "viewAll": "Alles bekijken",
+    "stripeAlert": {
+      "validationRequired": {
+        "title": "Accountvalidatie vereist",
+        "message": "Tik hier om je Stripe-account in te stellen en betalingen te activeren."
+      },
+      "finalizeConnect": {
+        "title": "Stripe-configuratie afronden",
+        "allInactive": "Geen van je restaurants ontvangt online betalingen. Stel Stripe in om te beginnen met innen.",
+        "partial_one": "{{count}} restaurant zonder online betaling geactiveerd.",
+        "partial_other": "{{count}} restaurants zonder online betaling geactiveerd."
+      }
+    },
+    "help": {
+      "title": "Aan de slag met EatQuickeR",
+      "description": "Maak je eerste restaurant om online bestellingen te ontvangen en je bedrijf te laten groeien.",
+      "createFirstRestaurant": "Mijn eerste restaurant aanmaken"
+    },
+    "sections": {
+      "overview": "Overzicht",
+      "yourRestaurants": "Jouw restaurants",
+      "recommendedRestaurants": "Aanbevolen restaurants",
+      "receivedOrders": "Ontvangen bestellingen",
+      "yourOrders": "Jouw bestellingen",
+      "quickActions": "Snelle acties"
+    },
+    "stats": {
+      "restaurantCount_one": "Restaurant",
+      "restaurantCount_other": "Restaurants",
+      "orderCount_one": "Bestelling",
+      "orderCount_other": "Bestellingen",
+      "activeCount_one": "Actief",
+      "activeCount_other": "Actief"
+    },
+    "empty": {
+      "loading": "Laden…",
+      "loadingDescription": "Restaurants laden…",
+      "errorPrefix": "Fout: {{error}}",
+      "createFirstTitle": "Maak je eerste restaurant",
+      "validationRequiredTitle": "Validatie vereist",
+      "noRestaurantTitle": "Geen restaurant",
+      "startNowDescription": "Begin nu met online bestellingen ontvangen.",
+      "validateStripeDescription": "Valideer je Stripe-account om restaurants aan te maken.",
+      "noRestaurantDescription": "Geen restaurant beschikbaar op dit moment.",
+      "noOrderTitle": "Geen bestellingen",
+      "noOrderRestaurateur": "Nog geen bestellingen ontvangen",
+      "noOrderClient": "Je hebt nog geen bestelling geplaatst"
+    },
+    "orderStatus": {
+      "pending": "In afwachting",
+      "confirmed": "Bevestigd",
+      "preparing": "In voorbereiding",
+      "ready": "Klaar",
+      "served": "Geserveerd",
+      "delivered": "Geleverd",
+      "completed": "Voltooid",
+      "cancelled": "Geannuleerd"
+    },
+    "actions": {
+      "dailyMenu": {
+        "title": "Dagmenu",
+        "description": "Menu van vandaag beheren"
+      },
+      "createRestaurant": {
+        "title": "Restaurant aanmaken",
+        "description": "Nieuwe vestiging"
+      },
+      "qrCodes": {
+        "title": "Tafel-QR-codes",
+        "description": "Genereren en beheren"
+      },
+      "manageMenus": {
+        "title": "Menu's beheren",
+        "description": "Gerechten en prijzen"
+      },
+      "viewOrders": {
+        "title": "Bestellingen bekijken",
+        "description": "Beheer en tracking"
+      },
+      "statistics": {
+        "title": "Statistieken",
+        "description": "Prestaties"
+      }
+    }
+  },
+  "restaurantQrCodes": {
+    "sizes": {
+      "small": "Klein ({{count}}/pagina)",
+      "medium": "Middel ({{count}}/pagina)",
+      "large": "Groot ({{count}}/pagina)"
+    },
+    "generator": {
+      "sectionTitle": "QR-code generator",
+      "description": "Maak QR-codes voor je tafels en laat klanten scannen of een handmatige code invoeren om het menu te openen.",
+      "restaurantLabel": "Restaurant",
+      "selectPlaceholder": "Selecteer een restaurant"
+    },
+    "controls": {
+      "qrSize": "QR-code grootte",
+      "tablesCount": "Aantal tafels",
+      "tablesToAdd": "Aantal tafels toe te voegen",
+      "startNumber": "Startnummer"
+    },
+    "warnings": {
+      "existingTables_one": "{{count}} tafel bestaat al voor dit restaurant",
+      "existingTables_other": "{{count}} tafels bestaan al voor dit restaurant"
+    },
+    "actions": {
+      "generate": "QR-codes genereren",
+      "generating": "Genereren…",
+      "addTables_one": "{{count}} tafel toevoegen",
+      "addTables_other": "{{count}} tafels toevoegen",
+      "replace": "Vervangen",
+      "replaceAll": "Alle tafels vervangen",
+      "print": "Afdrukken",
+      "printing": "Afdrukken…",
+      "printAll": "Alles afdrukken",
+      "downloadPdf": "PDF downloaden",
+      "downloading": "Downloaden…",
+      "preview": "Voorbeeld",
+      "share": "Delen",
+      "download": "Downloaden"
+    },
+    "card": {
+      "tableTitle": "Tafel {{number}}",
+      "manualCodeLabel": "Handmatige code",
+      "instruction": "Scan de QR-code of voer de handmatige code in"
+    },
+    "list": {
+      "title_one": "{{count}} QR-code gegenereerd",
+      "title_other": "{{count}} QR-codes gegenereerd"
+    },
+    "empty": {
+      "title": "Geen QR-code gegenereerd",
+      "message": "Selecteer een restaurant en geef het aantal tafels op om te beginnen"
+    },
+    "help": {
+      "title": "Hoe werkt het?",
+      "steps": "• Kies je restaurant\n• Selecteer de QR-code grootte\n• Geef het aantal tafels op\n• Genereer de QR-codes\n• Druk af of download als PDF\n• Je klanten kunnen scannen of de handmatige code invoeren"
+    },
+    "restaurantPicker": {
+      "title": "Een restaurant kiezen"
+    },
+    "conflicts": {
+      "replaceTitle": "Vervanging bevestigen",
+      "replaceMessage": "Wil je echt de bestaande tafels vervangen?\n\nDeze actie zal:\n• Alle bestaande tafels verwijderen\n• {{count}} nieuwe tafels aanmaken (1 tot {{count}})\n\nDeze actie is onomkeerbaar.",
+      "conflictTitle": "Conflict gedetecteerd",
+      "conflictMessage": "Sommige tafels bestaan al met deze nummers. Wat wil je doen?",
+      "moreOptions": "Meer opties",
+      "optionsTitle": "Beschikbare opties",
+      "optionsMessage": "Je kunt de bestaande tafels laden of een ander startnummer kiezen.",
+      "otherNumber": "Ander nummer",
+      "loadExisting": "Bestaande laden"
+    },
+    "suggest": {
+      "title": "Voorgesteld nummer",
+      "message_one": "Er is al {{count}} tafel (tot nummer {{max}}).\n\nBeginnen bij nummer {{suggested}}?",
+      "message_other": "Er zijn al {{count}} tafels (tot nummer {{max}}).\n\nBeginnen bij nummer {{suggested}}?",
+      "choose": "Andere kiezen",
+      "accept": "Accepteren"
+    },
+    "feedback": {
+      "infoTitle": "Info",
+      "tablesAddedTitle": "Tafels toegevoegd",
+      "tablesAddedMessage_one": "{{count}} tafel succesvol toegevoegd!",
+      "tablesAddedMessage_other": "{{count}} tafels succesvol toegevoegd!",
+      "tablesCreatedTitle": "Tafels aangemaakt",
+      "tablesCreatedMessage_one": "{{count}} tafel succesvol aangemaakt!",
+      "tablesCreatedMessage_other": "{{count}} tafels succesvol aangemaakt!",
+      "replaceSuccessTitle": "Vervanging gelukt",
+      "replaceSuccessMessage": "{{deleted}} tafel(s) verwijderd en {{created}} nieuwe tafel(s) aangemaakt!",
+      "replaceCreatedMessage_one": "{{count}} tafel aangemaakt!",
+      "replaceCreatedMessage_other": "{{count}} tafels aangemaakt!",
+      "tablesLoadedTitle": "Tafels geladen",
+      "tablesLoadedMessage_one": "{{count}} bestaande tafel geladen.",
+      "tablesLoadedMessage_other": "{{count}} bestaande tafels geladen.",
+      "noTableTitle": "Geen tafels",
+      "noTableForRestaurant": "Geen tafels gevonden voor dit restaurant.",
+      "noExistingStartsAt1": "Geen bestaande tafels gevonden. Startnummer blijft op 1.",
+      "noExistingCanStartAt1": "Geen bestaande tafels gevonden. Je kunt beginnen bij nummer 1.",
+      "chooseNumberTitle": "Een nummer kiezen",
+      "chooseNumberMessage": "Gebruik de +/- knoppen om het startnummer aan te passen en genereer dan opnieuw.",
+      "numberUpdatedTitle": "Nummer bijgewerkt",
+      "numberUpdatedMessage": "Het startnummer is gewijzigd naar {{number}}."
+    },
+    "errors": {
+      "selectRestaurant": "Selecteer een restaurant",
+      "generationFailed": "Fout bij genereren van QR-codes",
+      "replaceFailed": "Fout bij vervangen van tafels",
+      "loadFailed": "Kan bestaande tafels niet laden.",
+      "checkFailed": "Kan bestaande tafels niet controleren.",
+      "shareFailed": "Kan deze QR-code niet delen.",
+      "printAllFailed": "Kan QR-codes niet afdrukken",
+      "printOneFailed": "Kan QR-code niet afdrukken",
+      "pdfFailed": "Kan PDF niet genereren",
+      "refreshFailed": "Vernieuwen mislukt."
+    },
+    "share": {
+      "title": "QR-code - Tafel {{number}}",
+      "message": "Tafel {{number}} - {{restaurant}}\n\nHandmatige code: {{code}}\nOf scan deze QR-code om het menu te openen!\n\n{{url}}"
+    },
+    "pdf": {
+      "tableLabel": "Tafel",
+      "scanOrEnter": "Scan of invoer"
+    }
   }
 }

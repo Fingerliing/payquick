@@ -588,5 +588,520 @@
       "description": "QRコードをスキャンするため、カメラへのアクセスが必要です。",
       "allow": "許可"
     }
+  },
+  "restaurantNav": {
+    "home": "ホーム",
+    "restaurants": "レストラン",
+    "orders": "注文",
+    "menus": "メニュー",
+    "dailyMenu": "本日のメニュー",
+    "dailyMenuShort": "本日",
+    "statistics": "統計",
+    "statisticsShort": "統計",
+    "qrcodes": "QRコード",
+    "profile": "プロフィール",
+    "accounting": "会計"
+  },
+  "restaurantProfile": {
+    "fallbackUserName": "ユーザー",
+    "accountInfo": "アカウント情報",
+    "email": "メール",
+    "phone": "電話番号",
+    "accountType": "アカウントタイプ",
+    "siret": "SIRET",
+    "stripeStatus": "Stripe ステータス",
+    "stripeValidated": "検証済み",
+    "stripePending": "保留中",
+    "logout": "ログアウト",
+    "logoutConfirmTitle": "ログアウト",
+    "logoutConfirmMessage": "本当にログアウトしますか？",
+    "role": {
+      "restaurateur": "レストラン経営者",
+      "client": "お客様"
+    },
+    "feedback": {
+      "logoutFailed": "ログアウトできませんでした"
+    }
+  },
+  "restaurantsList": {
+    "subtitle_one": "{{count}} 件の店舗",
+    "subtitle_other": "{{count}} 件の店舗",
+    "overview": "概要",
+    "searchPlaceholder": "レストランを検索…",
+    "loading": "読み込み中…",
+    "loadingFull": "レストランを読み込み中…",
+    "pagination": "{{current}} / {{total}} ページ",
+    "activeFilters_one": "フィルター {{count}} 件適用中",
+    "activeFilters_other": "フィルター {{count}} 件適用中",
+    "clearFilters": "クリア",
+    "viewMode": {
+      "list": "リスト",
+      "grid": "グリッド"
+    },
+    "stats": {
+      "totalLabel_one": "レストラン",
+      "totalLabel_other": "レストラン",
+      "openLabel_one": "営業中",
+      "openLabel_other": "営業中",
+      "closedLabel_one": "休業中",
+      "closedLabel_other": "休業中"
+    },
+    "empty": {
+      "noResultTitle": "結果なし",
+      "noResultDescription": "検索条件を変更するか、フィルターを調整してください",
+      "noRestaurantTitle": "レストランがありません",
+      "noRestaurantDescription": "最初のレストランを追加して注文管理を始めましょう",
+      "addCta": "レストランを追加",
+      "howItWorks": "使い方は？"
+    },
+    "errors": {
+      "searchFailed": "レストランを検索できません",
+      "reloadFailed": "レストランを再読み込みできません",
+      "refreshFailed": "リストを更新できません",
+      "loadMoreFailed": "これ以上レストランを読み込めません"
+    }
+  },
+  "restaurantOrders": {
+    "noRestaurantFound": "レストランが見つかりません",
+    "selectRestaurant": "レストランを選択",
+    "chooseRestaurant": "レストランを選ぶ",
+    "orderTitle": "注文 {{number}}",
+    "todayAt": "本日 {{time}}",
+    "anonymousCustomer": "匿名のお客様",
+    "tableLabel": "テーブル {{number}}",
+    "estimatedTime": "予想時間: {{minutes}} 分",
+    "viewDetails": "詳細を見る",
+    "forbiddenMessage": "レストラン経営者専用",
+    "itemsCount_one": "{{count}} 点",
+    "itemsCount_other": "{{count}} 点",
+    "orderType": {
+      "dineIn": "店内",
+      "takeaway": "テイクアウト"
+    },
+    "paymentStatus": {
+      "paid": "支払い済み",
+      "unpaid": "未払い",
+      "unpaidShort": "未払い"
+    },
+    "actions": {
+      "confirm": "確認",
+      "preparing": "準備中",
+      "ready": "準備完了",
+      "serve": "提供",
+      "collect": "会計",
+      "archive": "アーカイブ",
+      "unarchive": "アーカイブ解除"
+    },
+    "filters": {
+      "all": "すべて",
+      "served": "提供済み",
+      "cancelled": "キャンセル",
+      "archived": "アーカイブ"
+    },
+    "kanban": {
+      "emptyColumn": "何もありません",
+      "columns": {
+        "new": {
+          "title": "新規",
+          "chip": "新規",
+          "action": "開始"
+        },
+        "preparing": {
+          "title": "準備中",
+          "chip": "準備中",
+          "action": "完了に"
+        },
+        "ready": {
+          "title": "準備完了",
+          "chip": "完了",
+          "action": "提供済み"
+        }
+      }
+    },
+    "banner": {
+      "title": "サービス進行中",
+      "titleWithName": "{{name}} — サービス進行中",
+      "pending": "保留中",
+      "tonight": "今夜",
+      "history": "履歴",
+      "refresh": "更新"
+    },
+    "history": {
+      "title": "注文履歴",
+      "bulkArchive_one": "{{count}} 件の完了済み注文をアーカイブ",
+      "bulkArchive_other": "{{count}} 件の完了済み注文をアーカイブ",
+      "emptyTitle": "注文なし",
+      "emptyArchived": "アーカイブされた注文はありません",
+      "emptyCompleted": "完了した注文がまだありません"
+    },
+    "cancelConfirm": {
+      "title": "注文をキャンセル",
+      "message": "注文 {{number}} を本当にキャンセルしますか？",
+      "keep": "いいえ、保持",
+      "confirm": "はい、キャンセル"
+    },
+    "paymentPrompt": {
+      "title": "支払い済みにする",
+      "message": "支払い方法は？",
+      "cash": "現金",
+      "card": "カード"
+    },
+    "archiveConfirm": {
+      "title": "完了済み注文をアーカイブ",
+      "message": "すべての提供済みおよびキャンセル済み注文をアーカイブしますか？"
+    },
+    "loading": {
+      "restaurants": "レストランを読み込み中…",
+      "orders": "注文を読み込み中…"
+    },
+    "feedback": {
+      "refreshFailed": "注文を更新できません",
+      "statusUpdateFailed": "注文ステータスを更新できません",
+      "paidTitle": "会計完了",
+      "paidMessage": "注文を支払い済みにマークしました",
+      "markPaidFailed": "注文を支払い済みにマークできません",
+      "archivedTitle": "成功",
+      "archivedMessage_one": "{{count}} 件の注文をアーカイブしました",
+      "archivedMessage_other": "{{count}} 件の注文をアーカイブしました",
+      "noneToArchiveTitle": "情報",
+      "noneToArchiveMessage": "アーカイブする注文がありません",
+      "archiveFailed": "注文をアーカイブできません"
+    }
+  },
+  "restaurantDailyMenu": {
+    "today": "今日",
+    "close": "閉じる",
+    "noRestaurantMessage": "メニューを管理するレストランがありません",
+    "createRestaurant": "レストランを作成",
+    "legend": {
+      "withMenu": "メニューあり",
+      "inactiveMenu": "非アクティブなメニュー"
+    }
+  },
+  "restaurantMenus": {
+    "title": "マイメニュー",
+    "stats": {
+      "activeMenus_one": "アクティブメニュー",
+      "activeMenus_other": "アクティブメニュー",
+      "inactive_one": "非アクティブ {{count}} 件",
+      "inactive_other": "非アクティブ {{count}} 件",
+      "multiActive": "複数アクティブ"
+    },
+    "info": {
+      "title": "💡 同時にアクティブにできるメニューは1つ",
+      "description": "メニューを有効にすると、他のメニューは自動的に無効になります。アクティブなメニューだけがお客様に表示されます。"
+    },
+    "help": {
+      "title": "EatQuickeR を始める",
+      "description": "最初のメニューを作成して料理を紹介し、オンライン注文の受付を開始しましょう。",
+      "createFirstMenu": "最初のメニューを作成",
+      "userGuide": "使い方ガイド"
+    },
+    "switcher": {
+      "title": "レストランを切り替える"
+    },
+    "duplicate": {
+      "barButton": "メニューを取得",
+      "pickSourceTitle": "コピー元のレストランを選択",
+      "pickMenusTitle": "メニューを選択",
+      "emptySource": "このレストランにはメニューがありません",
+      "statusActive": "アクティブ",
+      "statusInactive": "非アクティブ",
+      "itemSummary_one": "{{count}} 品 · {{status}}",
+      "itemSummary_other": "{{count}} 品 · {{status}}",
+      "duplicating": "複製中…",
+      "confirmSimple": "複製",
+      "confirmWithCount": "複製 ({{count}})",
+      "doneTitle": "複製完了",
+      "doneSuccess_one": "{{count}} 件のメニューを複製しました",
+      "doneSuccess_other": "{{count}} 件のメニューを複製しました",
+      "donePartial": "成功 {{succeeded}} 件、失敗 {{failed}} 件",
+      "errorGeneric": "複製中にエラーが発生しました"
+    },
+    "delete": {
+      "title": "削除の確認",
+      "message": "メニュー「{{name}}」を本当に削除しますか?\n\nこの操作は取り消せません。",
+      "confirm": "削除"
+    },
+    "feedback": {
+      "successTitle": "成功",
+      "loadFailed": "メニューを読み込めません",
+      "loadSourceFailed": "コピー元のメニューを読み込めません",
+      "menuEnabled": "メニューを有効にしました (他のメニューは無効になりました)",
+      "menuDisabled": "メニューを無効にしました",
+      "toggleFailed": "メニューを変更できません",
+      "toggleForbidden": "このメニューを変更する権限がありません",
+      "menuNotFound": "メニューが見つかりません",
+      "menuDeleted": "メニューを削除しました",
+      "deleteFailed": "メニューを削除できません"
+    }
+  },
+  "restaurantStats": {
+    "title": "統計 — {{period}}",
+    "pickerTitle": "分析期間",
+    "chooseRestaurant": "レストランを選択",
+    "noRestaurantMessage": "まだレストランがありません",
+    "createFirstRestaurant": "最初のレストランを作成",
+    "salesCount_one": "{{formatted}} 件の販売",
+    "salesCount_other": "{{formatted}} 件の販売",
+    "periods": {
+      "thisWeek": "今週",
+      "thisMonth": "今月",
+      "last3Months": "過去 3 ヶ月",
+      "last6Months": "過去 6 ヶ月",
+      "thisYear": "今年"
+    },
+    "deltas": {
+      "vsPrevWeek": "先週比",
+      "vsPrevMonth": "先月比",
+      "vsPrev3Months": "前 3 ヶ月比",
+      "vsPrev6Months": "前 6 ヶ月比",
+      "vsPrevYear": "前年比"
+    },
+    "kpi": {
+      "totalRevenue": "総売上",
+      "servedOrders": "提供済み注文",
+      "avgOrder": "客単価"
+    },
+    "charts": {
+      "revenueByDay": "日別売上",
+      "topDishes": "人気メニュー"
+    },
+    "daysShort": {
+      "monday": "月",
+      "tuesday": "火",
+      "wednesday": "水",
+      "thursday": "木",
+      "friday": "金",
+      "saturday": "土",
+      "sunday": "日"
+    },
+    "empty": {
+      "noData": "データなし",
+      "description": "この期間に注文があると、ここに統計が表示されます。"
+    },
+    "errors": {
+      "loadFailed": "統計の読み込み中にエラーが発生しました。"
+    }
+  },
+  "restaurantHome": {
+    "greeting": {
+      "morning": "おはようございます",
+      "afternoon": "こんにちは",
+      "evening": "こんばんは"
+    },
+    "subtitle": {
+      "restaurateur": "レストランを管理してパフォーマンスを最適化しましょう",
+      "client": "お近くの最高のレストランを発見しましょう"
+    },
+    "restaurantFallback": "レストラン",
+    "unknownDate": "日付不明",
+    "loadingDashboard": "ダッシュボードを読み込み中…",
+    "loadingOrders": "注文を読み込み中…",
+    "viewAll": "すべて表示",
+    "stripeAlert": {
+      "validationRequired": {
+        "title": "アカウント検証が必要",
+        "message": "タップして Stripe アカウントを設定し、支払いを有効にしてください。"
+      },
+      "finalizeConnect": {
+        "title": "Stripe 設定を完了",
+        "allInactive": "どのレストランもオンライン決済を受け付けていません。Stripe を設定して受け取りを開始してください。",
+        "partial_one": "オンライン決済が未有効の店舗 {{count}} 件。",
+        "partial_other": "オンライン決済が未有効の店舗 {{count}} 件。"
+      }
+    },
+    "help": {
+      "title": "EatQuickeR を始める",
+      "description": "最初のレストランを作成し、オンライン注文を受けてビジネスを成長させましょう。",
+      "createFirstRestaurant": "最初のレストランを作成"
+    },
+    "sections": {
+      "overview": "概要",
+      "yourRestaurants": "あなたのレストラン",
+      "recommendedRestaurants": "おすすめレストラン",
+      "receivedOrders": "受信した注文",
+      "yourOrders": "あなたの注文",
+      "quickActions": "クイックアクション"
+    },
+    "stats": {
+      "restaurantCount_one": "レストラン",
+      "restaurantCount_other": "レストラン",
+      "orderCount_one": "注文",
+      "orderCount_other": "注文",
+      "activeCount_one": "稼働中",
+      "activeCount_other": "稼働中"
+    },
+    "empty": {
+      "loading": "読み込み中…",
+      "loadingDescription": "レストランを読み込み中…",
+      "errorPrefix": "エラー: {{error}}",
+      "createFirstTitle": "最初のレストランを作成",
+      "validationRequiredTitle": "検証が必要",
+      "noRestaurantTitle": "レストランなし",
+      "startNowDescription": "今すぐオンライン注文を受け始めましょう。",
+      "validateStripeDescription": "Stripe アカウントを検証してレストランを作成しましょう。",
+      "noRestaurantDescription": "現在利用可能なレストランはありません。",
+      "noOrderTitle": "注文なし",
+      "noOrderRestaurateur": "まだ注文を受けていません",
+      "noOrderClient": "まだ注文をしていません"
+    },
+    "orderStatus": {
+      "pending": "保留中",
+      "confirmed": "確認済み",
+      "preparing": "準備中",
+      "ready": "準備完了",
+      "served": "提供済み",
+      "delivered": "配達済み",
+      "completed": "完了",
+      "cancelled": "キャンセル"
+    },
+    "actions": {
+      "dailyMenu": {
+        "title": "本日のメニュー",
+        "description": "今日のメニューを管理"
+      },
+      "createRestaurant": {
+        "title": "レストランを作成",
+        "description": "新規店舗"
+      },
+      "qrCodes": {
+        "title": "テーブル QR コード",
+        "description": "生成と管理"
+      },
+      "manageMenus": {
+        "title": "メニュー管理",
+        "description": "料理と価格"
+      },
+      "viewOrders": {
+        "title": "注文を表示",
+        "description": "管理と追跡"
+      },
+      "statistics": {
+        "title": "統計",
+        "description": "パフォーマンス"
+      }
+    }
+  },
+  "restaurantQrCodes": {
+    "sizes": {
+      "small": "小 ({{count}}/ページ)",
+      "medium": "中 ({{count}}/ページ)",
+      "large": "大 ({{count}}/ページ)"
+    },
+    "generator": {
+      "sectionTitle": "QR コードジェネレーター",
+      "description": "テーブル用の QR コードを作成し、お客様がスキャンまたは手動コードを入力してメニューにアクセスできるようにします。",
+      "restaurantLabel": "レストラン",
+      "selectPlaceholder": "レストランを選択"
+    },
+    "controls": {
+      "qrSize": "QR コードのサイズ",
+      "tablesCount": "テーブル数",
+      "tablesToAdd": "追加するテーブル数",
+      "startNumber": "開始番号"
+    },
+    "warnings": {
+      "existingTables_one": "このレストランには既に {{count}} 件のテーブルがあります",
+      "existingTables_other": "このレストランには既に {{count}} 件のテーブルがあります"
+    },
+    "actions": {
+      "generate": "QR コードを生成",
+      "generating": "生成中…",
+      "addTables_one": "{{count}} 件のテーブルを追加",
+      "addTables_other": "{{count}} 件のテーブルを追加",
+      "replace": "置き換え",
+      "replaceAll": "すべてのテーブルを置き換え",
+      "print": "印刷",
+      "printing": "印刷中…",
+      "printAll": "すべて印刷",
+      "downloadPdf": "PDF をダウンロード",
+      "downloading": "ダウンロード中…",
+      "preview": "プレビュー",
+      "share": "共有",
+      "download": "ダウンロード"
+    },
+    "card": {
+      "tableTitle": "テーブル {{number}}",
+      "manualCodeLabel": "手動コード",
+      "instruction": "QR コードをスキャンするか、手動コードを入力してください"
+    },
+    "list": {
+      "title_one": "{{count}} 件の QR コードを生成",
+      "title_other": "{{count}} 件の QR コードを生成"
+    },
+    "empty": {
+      "title": "QR コードは生成されていません",
+      "message": "開始するにはレストランを選択し、テーブル数を指定してください"
+    },
+    "help": {
+      "title": "使い方は?",
+      "steps": "• レストランを選択\n• QR コードのサイズを選択\n• テーブル数を指定\n• QR コードを生成\n• 印刷または PDF をダウンロード\n• お客様はスキャンまたは手動コードを入力できます"
+    },
+    "restaurantPicker": {
+      "title": "レストランを選択"
+    },
+    "conflicts": {
+      "replaceTitle": "置き換えを確認",
+      "replaceMessage": "本当に既存のテーブルを置き換えますか?\n\nこの操作は:\n• 既存のテーブルをすべて削除します\n• {{count}} 件の新しいテーブルを作成します (1 から {{count}})\n\nこの操作は取り消せません。",
+      "conflictTitle": "競合が検出されました",
+      "conflictMessage": "これらの番号で一部のテーブルが既に存在します。どうしますか?",
+      "moreOptions": "その他のオプション",
+      "optionsTitle": "利用可能なオプション",
+      "optionsMessage": "既存のテーブルを読み込むか、別の開始番号を選択できます。",
+      "otherNumber": "別の番号",
+      "loadExisting": "既存を読み込む"
+    },
+    "suggest": {
+      "title": "推奨番号",
+      "message_one": "既に {{count}} 件のテーブルがあります (番号 {{max}} まで)。\n\n番号 {{suggested}} から開始しますか?",
+      "message_other": "既に {{count}} 件のテーブルがあります (番号 {{max}} まで)。\n\n番号 {{suggested}} から開始しますか?",
+      "choose": "別のを選ぶ",
+      "accept": "承認"
+    },
+    "feedback": {
+      "infoTitle": "情報",
+      "tablesAddedTitle": "テーブルが追加されました",
+      "tablesAddedMessage_one": "{{count}} 件のテーブルが正常に追加されました!",
+      "tablesAddedMessage_other": "{{count}} 件のテーブルが正常に追加されました!",
+      "tablesCreatedTitle": "テーブルが作成されました",
+      "tablesCreatedMessage_one": "{{count}} 件のテーブルが正常に作成されました!",
+      "tablesCreatedMessage_other": "{{count}} 件のテーブルが正常に作成されました!",
+      "replaceSuccessTitle": "置き換え成功",
+      "replaceSuccessMessage": "{{deleted}} 件のテーブルを削除し、{{created}} 件の新しいテーブルを作成しました!",
+      "replaceCreatedMessage_one": "{{count}} 件のテーブルを作成しました!",
+      "replaceCreatedMessage_other": "{{count}} 件のテーブルを作成しました!",
+      "tablesLoadedTitle": "テーブルを読み込みました",
+      "tablesLoadedMessage_one": "{{count}} 件の既存テーブルを読み込みました。",
+      "tablesLoadedMessage_other": "{{count}} 件の既存テーブルを読み込みました。",
+      "noTableTitle": "テーブルなし",
+      "noTableForRestaurant": "このレストランのテーブルが見つかりませんでした。",
+      "noExistingStartsAt1": "既存のテーブルが見つかりませんでした。開始番号は 1 のままです。",
+      "noExistingCanStartAt1": "既存のテーブルが見つかりませんでした。番号 1 から開始できます。",
+      "chooseNumberTitle": "番号を選択",
+      "chooseNumberMessage": "+/- ボタンを使用して開始番号を調整し、再度生成してください。",
+      "numberUpdatedTitle": "番号を更新しました",
+      "numberUpdatedMessage": "開始番号が {{number}} に変更されました。"
+    },
+    "errors": {
+      "selectRestaurant": "レストランを選択してください",
+      "generationFailed": "QR コードの生成中にエラーが発生しました",
+      "replaceFailed": "テーブルの置き換え中にエラーが発生しました",
+      "loadFailed": "既存のテーブルを読み込めません。",
+      "checkFailed": "既存のテーブルを確認できません。",
+      "shareFailed": "この QR コードを共有できません。",
+      "printAllFailed": "QR コードを印刷できません",
+      "printOneFailed": "QR コードを印刷できません",
+      "pdfFailed": "PDF を生成できません",
+      "refreshFailed": "更新に失敗しました。"
+    },
+    "share": {
+      "title": "QR コード - テーブル {{number}}",
+      "message": "テーブル {{number}} - {{restaurant}}\n\n手動コード: {{code}}\nまたはこの QR コードをスキャンしてメニューにアクセスしてください!\n\n{{url}}"
+    },
+    "pdf": {
+      "tableLabel": "テーブル",
+      "scanOrEnter": "スキャンまたは入力"
+    }
   }
 }

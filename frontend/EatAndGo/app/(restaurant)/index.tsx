@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -6,9 +6,13 @@ import {
   RefreshControl,
   TouchableOpacity,
   StyleSheet,
-  Dimensions,
   Image,
+  useWindowDimensions,
 } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
+
 import { useAuth } from '@/contexts/AuthContext';
 import { useRestaurant } from '@/contexts/RestaurantContext';
 import { useOrder } from '@/contexts/OrderContext';
@@ -17,55 +21,33 @@ import { Button } from '@/components/ui/Button';
 import { Loading } from '@/components/ui/Loading';
 import { RestaurantCard } from '@/components/restaurant/RestaurantCard';
 import { ValidationPending } from '@/components/restaurant/ValidationPending';
-import { router, useFocusEffect } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+
 import { OrderList, OrderDetail } from '@/types/order';
 import { RecentOrder } from '@/types/user';
+import {
+  useAppTheme,
+  makeShadows,
+  type AppColors,
+} from '@/utils/designSystem';
 
-// Configuration responsive simplifiée
-const { width: screenWidth } = Dimensions.get('window');
-const isMobile = screenWidth < 768;
-const isTablet = screenWidth >= 768 && screenWidth < 1024;
-const isDesktop = screenWidth >= 1024;
+// ════════════════════════════════════════════════════════════════════════════
+// Responsive helpers (sizes statiques)
+// ════════════════════════════════════════════════════════════════════════════
 
-// Couleurs fixes
-const COLORS = {
-  primary: '#1E2A78',
-  secondary: '#D4AF37',
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444',
-  background: '#F9FAFB',
-  surface: '#FFFFFF',
-  goldenSurface: '#FFFCF0',
-  text: {
-    primary: '#111827',
-    secondary: '#6B7280',
-    light: '#9CA3AF',
-    inverse: '#FFFFFF',
-    golden: '#B8941F',
-  },
-  border: {
-    light: '#F3F4F6',
-    default: '#E5E7EB',
-    golden: '#E6D08A',
-  },
-  variants: {
-    primary: {
-      100: '#E0E7FF',
-    },
-    secondary: {
-      50: '#FFFEF7',
-      100: '#FFFBEB',
-      500: '#D4AF37',
-      700: '#A16207',
-      800: '#854D0E',
-    },
-  },
+const useResponsiveSize = () => {
+  const { width } = useWindowDimensions();
+  const isMobile = width < 768;
+  const isTablet = width >= 768 && width < 1024;
+  const isDesktop = width >= 1024;
+
+  return useMemo(() => ({ isMobile, isTablet, isDesktop }), [isMobile, isTablet, isDesktop]);
 };
 
-// Espacements fixes
-const getSpacing = (size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl') => {
+const getSpacing = (
+  size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl',
+  r: { isMobile: boolean; isTablet: boolean },
+) => {
+  const { isMobile, isTablet } = r;
   const spacings = {
     xs: isMobile ? 4 : isTablet ? 6 : 8,
     sm: isMobile ? 8 : isTablet ? 10 : 12,
@@ -78,8 +60,11 @@ const getSpacing = (size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl') => {
   return spacings[size];
 };
 
-// Tailles de police fixes et lisibles
-const getFontSize = (size: 'sm' | 'base' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl') => {
+const getFontSize = (
+  size: 'sm' | 'base' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl',
+  r: { isMobile: boolean; isTablet: boolean },
+) => {
+  const { isMobile, isTablet } = r;
   const sizes = {
     sm: isMobile ? 14 : isTablet ? 15 : 16,
     base: isMobile ? 16 : isTablet ? 17 : 18,
@@ -92,28 +77,32 @@ const getFontSize = (size: 'sm' | 'base' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl') 
   return sizes[size];
 };
 
-// Type guards (inchangés)
+// ════════════════════════════════════════════════════════════════════════════
+// Type guards
+// ════════════════════════════════════════════════════════════════════════════
+
 function isRecentOrder(order: any): order is RecentOrder {
   return 'restaurant_name' in order && !('restaurant' in order);
 }
-
 function isOrderList(order: any): order is OrderList {
   return 'order_number' in order && 'restaurant' in order;
 }
-
 function isOrderDetail(order: any): order is OrderDetail {
   return 'items' in order && 'restaurant' in order;
 }
 
-// Helper functions
-function getRestaurantName(order: OrderList | OrderDetail | RecentOrder): string {
-  if (isRecentOrder(order)) {
-    return order.restaurant_name || 'Restaurant';
-  }
-  if (isOrderList(order) || isOrderDetail(order)) {
-    return order.restaurant_name || 'Restaurant';
-  }
-  return 'Restaurant';
+// ════════════════════════════════════════════════════════════════════════════
+// Order helpers — désormais avec t pour traduction des libellés
+// ════════════════════════════════════════════════════════════════════════════
+
+function getRestaurantName(
+  order: OrderList | OrderDetail | RecentOrder,
+  fallback: string,
+): string {
+  if (isRecentOrder(order)) return order.restaurant_name || fallback;
+  if (isOrderList(order) || isOrderDetail(order))
+    return order.restaurant_name || fallback;
+  return fallback;
 }
 
 function getOrderTotal(order: OrderList | OrderDetail | RecentOrder): string {
@@ -121,7 +110,6 @@ function getOrderTotal(order: OrderList | OrderDetail | RecentOrder): string {
     const amount = parseFloat(order.total_amount);
     return isNaN(amount) ? '0.00' : amount.toFixed(2);
   }
-  
   if (isRecentOrder(order)) {
     if ('total_amount' in order && typeof order.total_amount === 'string') {
       const amount = parseFloat(order.total_amount);
@@ -131,21 +119,24 @@ function getOrderTotal(order: OrderList | OrderDetail | RecentOrder): string {
       return order.total.toFixed(2);
     }
   }
-  
   return '0.00';
 }
 
-function getOrderDate(order: OrderList | OrderDetail | RecentOrder): string {
-  if (!order?.created_at) return 'Date inconnue';
+function getOrderDate(
+  order: OrderList | OrderDetail | RecentOrder,
+  lang: string,
+  fallback: string,
+): string {
+  if (!order?.created_at) return fallback;
   try {
-    return new Date(order.created_at).toLocaleDateString('fr-FR', {
+    return new Date(order.created_at).toLocaleDateString(lang, {
       day: 'numeric',
       month: 'short',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     });
   } catch {
-    return 'Date inconnue';
+    return fallback;
   }
 }
 
@@ -153,66 +144,66 @@ function getOrderNumber(order: OrderList | OrderDetail | RecentOrder): string {
   if (isOrderList(order) || isOrderDetail(order)) {
     return order.order_number || `#${order.id}`;
   }
-  if ('id' in order) {
-    return `#${order.id}`;
-  }
+  if ('id' in order) return `#${order.id}`;
   return 'N/A';
 }
 
-
-function getStatusColor(status?: string): string {
+function getStatusColor(status: string | undefined, colors: AppColors): string {
   switch (status?.toLowerCase()) {
     case 'pending':
     case 'en_attente':
-      return COLORS.warning;
+      return colors.warning;
     case 'confirmed':
     case 'confirmé':
-      return COLORS.primary;
+      return colors.primary;
     case 'preparing':
     case 'preparation':
-      return COLORS.secondary;
+      return colors.secondary;
     case 'ready':
     case 'pret':
-      return COLORS.success;
     case 'served':
     case 'delivered':
     case 'completed':
     case 'servi':
     case 'livré':
     case 'terminé':
-      return COLORS.success;
+      return colors.success;
     case 'cancelled':
     case 'annulé':
-      return COLORS.error;
+      return colors.error;
     default:
-      return COLORS.text.light;
+      return colors.text.light;
   }
 }
 
-function translateOrderStatus(status?: string): string {
-  switch (status?.toLowerCase()) {
-    case 'pending':
-      return 'En attente';
-    case 'confirmed':
-      return 'Confirmée';
-    case 'preparing':
-      return 'En préparation';
-    case 'ready':
-      return 'Prête';
-    case 'served':
-      return 'Servie';
-    case 'delivered':
-      return 'Livrée';
-    case 'completed':
-      return 'Terminée';
-    case 'cancelled':
-      return 'Annulée';
-    default:
-      return status || 'En attente';
-  }
-}
+const STATUS_TO_KEY: Record<string, string> = {
+  pending: 'pending',
+  en_attente: 'pending',
+  confirmed: 'confirmed',
+  confirmé: 'confirmed',
+  preparing: 'preparing',
+  preparation: 'preparing',
+  ready: 'ready',
+  pret: 'ready',
+  served: 'served',
+  servi: 'served',
+  delivered: 'delivered',
+  livré: 'delivered',
+  completed: 'completed',
+  terminé: 'completed',
+  cancelled: 'cancelled',
+  annulé: 'cancelled',
+};
+
+// ════════════════════════════════════════════════════════════════════════════
+// ÉCRAN PRINCIPAL
+// ════════════════════════════════════════════════════════════════════════════
 
 export default function DashboardScreen() {
+  const { t, i18n } = useTranslation();
+  const { colors, isDark } = useAppTheme();
+  const responsive = useResponsiveSize();
+
   const { user, isRestaurateur, refreshUser } = useAuth();
   const {
     restaurants,
@@ -237,456 +228,30 @@ export default function DashboardScreen() {
 
   const displayOrders = safeUserOrders.length > 0 ? safeUserOrders : safeOrders;
 
-  // Styles avec des valeurs fixes et lisibles
-  const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: COLORS.background,
-    },
-    
-    scrollContainer: {
-      flex: 1,
-    },
-    
-    contentContainer: {
-      paddingHorizontal: getSpacing('lg'),
-      paddingVertical: getSpacing('xl'),
-      maxWidth: isDesktop ? 1200 : undefined,
-      alignSelf: 'center',
-      width: '100%',
-    },
-    
-    // Header section avec design premium
-    headerSection: {
-      marginBottom: getSpacing('2xl'),
-    },
-    
-    welcomeCard: {
-      backgroundColor: COLORS.goldenSurface,
-      borderRadius: 16,
-      padding: getSpacing('xl'),
-      borderWidth: 1,
-      borderColor: COLORS.border.golden,
-      shadowColor: COLORS.variants.secondary[500],
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.1,
-      shadowRadius: 8,
-      elevation: 4,
-    },
-    
-    greeting: {
-      fontSize: getFontSize('4xl'),
-      fontWeight: '800',
-      color: COLORS.text.primary,
-      marginBottom: getSpacing('sm'),
-      lineHeight: getFontSize('4xl') * 1.2,
-    },
-    
-    subtitle: {
-      fontSize: getFontSize('lg'),
-      color: COLORS.text.golden,
-      lineHeight: getFontSize('lg') * 1.4,
-      fontWeight: '500',
-    },
-    
-    // Stats section
-    statsSection: {
-      marginBottom: getSpacing('3xl'),
-    },
-    
-    sectionHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: getSpacing('xl'),
-    },
-    
-    sectionTitle: {
-      fontSize: getFontSize('2xl'),
-      fontWeight: '700',
-      color: COLORS.text.primary,
-      lineHeight: getFontSize('2xl') * 1.2,
-    },
-    
-    sectionSubtitle: {
-      fontSize: getFontSize('base'),
-      color: COLORS.text.secondary,
-      fontWeight: '500',
-      lineHeight: getFontSize('base') * 1.4,
-    },
-    
-    statsContainer: {
-      flexDirection: isMobile ? 'column' : 'row',
-      gap: getSpacing('lg'),
-    },
-    
-    statCard: {
-      flex: 1,
-      backgroundColor: COLORS.surface,
-      borderRadius: 16,
-      padding: getSpacing('xl'),
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: COLORS.border.light,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 8,
-      elevation: 3,
-      minHeight: 120,
-    },
-    
-    statCardPremium: {
-      backgroundColor: COLORS.variants.secondary[50],
-      borderColor: COLORS.border.golden,
-      borderWidth: 2,
-      shadowColor: COLORS.variants.secondary[500],
-      shadowOpacity: 0.15,
-    },
-    
-    statIcon: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      backgroundColor: COLORS.variants.primary[100],
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: getSpacing('md'),
-    },
-    
-    statValue: {
-      fontSize: getFontSize('4xl'),
-      fontWeight: '800',
-      color: COLORS.primary,
-      marginBottom: getSpacing('xs'),
-      lineHeight: getFontSize('4xl') * 1.1,
-    },
-    
-    statLabel: {
-      fontSize: getFontSize('base'),
-      color: COLORS.text.secondary,
-      textAlign: 'center',
-      fontWeight: '600',
-      lineHeight: getFontSize('base') * 1.3,
-    },
-    
-    // Sections
-    sectionContainer: {
-      marginBottom: getSpacing('3xl'),
-    },
-    
-    // Alertes
-    alertCard: {
-      flexDirection: 'row',
-      backgroundColor: COLORS.variants.secondary[50],
-      borderRadius: 16,
-      padding: getSpacing('lg'),
-      borderLeftWidth: 4,
-      borderLeftColor: COLORS.warning,
-      marginBottom: getSpacing('xl'),
-      alignItems: 'center',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
-      shadowRadius: 4,
-      elevation: 2,
-    },
-    
-    alertIconContainer: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      backgroundColor: COLORS.warning + '20',
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginRight: getSpacing('md'),
-    },
-    
-    alertContent: {
-      flex: 1,
-    },
-    
-    alertTitle: {
-      fontSize: getFontSize('lg'),
-      fontWeight: '600',
-      color: COLORS.variants.secondary[800],
-      marginBottom: getSpacing('xs'),
-      lineHeight: getFontSize('lg') * 1.3,
-    },
-    
-    alertText: {
-      fontSize: getFontSize('base'),
-      color: COLORS.variants.secondary[700],
-      lineHeight: getFontSize('base') * 1.4,
-    },
-    
-    // Restaurants grid
-    restaurantsGrid: {
-      gap: getSpacing('lg'),
-    },
-    
-    restaurantCardContainer: {
-      flex: isMobile ? 1 : 1 / (isDesktop ? 3 : 2),
-      minWidth: isMobile ? '100%' : 280,
-      maxWidth: isMobile ? '100%' : 400,
-      alignSelf: 'center',
-    },
-    
-    emptyStateCard: {
-      backgroundColor: COLORS.surface,
-      borderRadius: 16,
-      padding: getSpacing('2xl'),
-      alignItems: 'center',
-      borderWidth: 2,
-      borderColor: COLORS.border.light,
-      borderStyle: 'dashed',
-    },
-    
-    emptyStateIcon: {
-      width: 64,
-      height: 64,
-      borderRadius: 32,
-      backgroundColor: COLORS.variants.primary[100],
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: getSpacing('lg'),
-    },
-    
-    emptyStateTitle: {
-      fontSize: getFontSize('xl'),
-      fontWeight: '700',
-      color: COLORS.text.primary,
-      marginBottom: getSpacing('sm'),
-      textAlign: 'center',
-      lineHeight: getFontSize('xl') * 1.3,
-    },
-    
-    emptyStateText: {
-      fontSize: getFontSize('base'),
-      color: COLORS.text.secondary,
-      textAlign: 'center',
-      lineHeight: getFontSize('base') * 1.5,
-      marginBottom: getSpacing('lg'),
-    },
-    
-    // Orders section
-    ordersCard: {
-      backgroundColor: COLORS.surface,
-      borderRadius: 16,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 8,
-      elevation: 3,
-    },
-    
-    orderItem: {
-      flexDirection: 'row',
-      padding: getSpacing('lg'),
-      borderBottomWidth: 1,
-      borderBottomColor: COLORS.border.light,
-      alignItems: 'flex-start',
-      minHeight: 80,
-    },
-    
-    orderItemContent: {
-      flex: 1,
-      marginRight: getSpacing('md'),
-    },
-    
-    orderRestaurant: {
-      fontSize: getFontSize('lg'),
-      fontWeight: '600',
-      color: COLORS.text.primary,
-      marginBottom: getSpacing('xs'),
-      lineHeight: getFontSize('lg') * 1.3,
-    },
-    
-    orderItemMeta: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: getSpacing('xs'),
-    },
-    
-    orderNumber: {
-      fontSize: getFontSize('sm'),
-      color: COLORS.text.secondary,
-      fontWeight: '500',
-      lineHeight: getFontSize('sm') * 1.3,
-    },
-    
-    orderDate: {
-      fontSize: getFontSize('sm'),
-      color: COLORS.text.light,
-      marginLeft: getSpacing('sm'),
-      lineHeight: getFontSize('sm') * 1.3,
-    },
-    
-    orderSummary: {
-      alignItems: 'flex-end',
-    },
-    
-    orderAmount: {
-      fontSize: getFontSize('xl'),
-      fontWeight: '700',
-      color: COLORS.text.primary,
-      marginBottom: getSpacing('xs'),
-      lineHeight: getFontSize('xl') * 1.2,
-    },
-    
-    orderStatusContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    
-    orderStatusDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      marginRight: getSpacing('xs'),
-    },
-    
-    orderStatus: {
-      fontSize: getFontSize('sm'),
-      fontWeight: '600',
-      textTransform: 'capitalize',
-      lineHeight: getFontSize('sm') * 1.2,
-    },
-    
-    // Actions rapides
-    quickActionsSection: {
-      marginBottom: getSpacing('3xl'),
-    },
-    
-    quickActionsGrid: {
-      flexDirection: isMobile ? 'column' : 'row',
-      gap: getSpacing('lg'),
-    },
-    
-    actionCard: {
-      flex: 1,
-      backgroundColor: COLORS.surface,
-      borderRadius: 16,
-      padding: getSpacing('lg'),
-      alignItems: 'center',
-      borderWidth: 2,
-      borderColor: COLORS.border.light,
-      paddingVertical: getSpacing('xl'),
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
-      shadowRadius: 4,
-      elevation: 2,
-    },
-    
-    actionCardPremium: {
-      backgroundColor: COLORS.goldenSurface,
-      borderColor: COLORS.border.golden,
-      shadowColor: COLORS.variants.secondary[500],
-      shadowOpacity: 0.1,
-    },
-    
-    actionIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: COLORS.variants.primary[100],
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: getSpacing('sm'),
-    },
-    
-    actionTitle: {
-      fontSize: getFontSize('base'),
-      fontWeight: '600',
-      color: COLORS.text.primary,
-      textAlign: 'center',
-      marginBottom: getSpacing('xs'),
-      lineHeight: getFontSize('base') * 1.3,
-    },
-    
-    actionDescription: {
-      fontSize: getFontSize('sm'),
-      color: COLORS.text.secondary,
-      textAlign: 'center',
-      lineHeight: getFontSize('sm') * 1.4,
-    },
-    
-    // Help section
-    helpCard: {
-      backgroundColor: COLORS.variants.primary[100],
-      borderRadius: 16,
-      padding: getSpacing('xl'),
-      borderWidth: 1,
-      borderColor: COLORS.primary + '30',
-    },
-    
-    helpIcon: {
-      width: 56,
-      height: 56,
-      borderRadius: 28,
-      backgroundColor: COLORS.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: getSpacing('lg'),
-    },
-    
-    helpTitle: {
-      fontSize: getFontSize('xl'),
-      fontWeight: '700',
-      color: COLORS.text.primary,
-      marginBottom: getSpacing('sm'),
-      lineHeight: getFontSize('xl') * 1.3,
-    },
-    
-    helpText: {
-      fontSize: getFontSize('base'),
-      color: COLORS.text.secondary,
-      lineHeight: getFontSize('base') * 1.5,
-      marginBottom: getSpacing('lg'),
-    },
-    
-    helpActions: {
-      flexDirection: isMobile ? 'column' : 'row',
-      gap: getSpacing('md'),
-    },
-  });
+  const styles = useMemo(
+    () => makeStyles(colors, isDark, responsive),
+    [colors, isDark, responsive],
+  );
 
-  // Chargement initial (au montage uniquement)
+  // Chargement initial
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const promises = [
-          loadRestaurants(),
-          refreshUser(),
-        ];
-
+        const promises = [loadRestaurants(), refreshUser()];
         if (fetchOrders && typeof fetchOrders === 'function') {
-          promises.push(
-            fetchOrders({
-              page: 1,
-              limit: 5,
-              filters: {}
-            })
-          );
+          promises.push(fetchOrders({ page: 1, limit: 5, filters: {} }));
         }
-
         await Promise.all(promises);
       } catch (error) {
         console.error('Dashboard: Initial load error:', error);
       }
     };
-
     fetchData();
   }, []);
 
-  // Rafraîchir à chaque fois que l'écran reprend le focus (ex: retour depuis Stripe onboarding)
-  // Permet de sortir automatiquement de l'état ValidationPending une fois le compte validé.
   useFocusEffect(
     useCallback(() => {
       if (!isRestaurateur) return;
-
       const stillNeedsValidation =
         validationStatus?.needsValidation === true ||
         user?.roles?.has_validated_profile === false;
@@ -699,11 +264,9 @@ export default function DashboardScreen() {
       isRestaurateur,
       validationStatus?.needsValidation,
       user?.roles?.has_validated_profile,
-    ])
+    ]),
   );
 
-  // Si le backend a confirmé la validation mais que le flag local est resté collé,
-  // on le nettoie ici pour éviter la boucle infinie vers /(auth)/stripe.
   useEffect(() => {
     if (
       user?.roles?.has_validated_profile === true &&
@@ -714,9 +277,6 @@ export default function DashboardScreen() {
     }
   }, [user?.roles?.has_validated_profile, validationStatus?.needsValidation]);
 
-  // Affichage ValidationPending : UNIQUEMENT si le user n'est pas encore validé côté backend.
-  // Sans cette double garde, un flag `validationStatus` resté collé créait une boucle
-  // dashboard → (auth)/stripe → dashboard.
   if (
     isRestaurateur &&
     validationStatus?.needsValidation &&
@@ -728,21 +288,10 @@ export default function DashboardScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      const promises = [
-        loadRestaurants(),
-        refreshUser(),
-      ];
-
+      const promises = [loadRestaurants(), refreshUser()];
       if (fetchOrders && typeof fetchOrders === 'function') {
-        promises.push(
-          fetchOrders({
-            page: 1,
-            limit: 5,
-            filters: {}
-          })
-        );
+        promises.push(fetchOrders({ page: 1, limit: 5, filters: {} }));
       }
-
       await Promise.all(promises);
     } catch (error) {
       console.error('Dashboard: Refresh error:', error);
@@ -753,9 +302,9 @@ export default function DashboardScreen() {
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Bonjour';
-    if (hour < 18) return 'Bon après-midi';
-    return 'Bonsoir';
+    if (hour < 12) return t('restaurantHome.greeting.morning');
+    if (hour < 18) return t('restaurantHome.greeting.afternoon');
+    return t('restaurantHome.greeting.evening');
   };
 
   const isInitialLoading = restaurantsLoading || ordersLoading;
@@ -764,11 +313,16 @@ export default function DashboardScreen() {
   if (isInitialLoading && !hasData) {
     return (
       <View style={styles.container}>
-        <Header title="EatQuickeR" />
-        <Loading fullScreen text="Chargement du tableau de bord..." />
+        <Header title="EatQuickeR" showLanguageSwitcher showThemeSwitcher />
+        <Loading fullScreen text={t('restaurantHome.loadingDashboard')} />
       </View>
     );
   }
+
+  const inactiveStripeCount = safeRestaurants.filter((r: any) => !r.isStripeActive).length;
+  const allInactiveStripe = inactiveStripeCount === safeRestaurants.length;
+
+  const restaurantFallback = t('restaurantHome.restaurantFallback');
 
   return (
     <View style={styles.container}>
@@ -778,31 +332,39 @@ export default function DashboardScreen() {
         logoutPosition="left"
         rightIcon="notifications-outline"
         onRightPress={() => {}}
+        showLanguageSwitcher
+        showThemeSwitcher
       />
 
       <ScrollView
         style={styles.scrollContainer}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
         }
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.contentContainer}>
-          {/* Header avec design premium */}
+          {/* Header welcome card or */}
           <View style={styles.headerSection}>
             <View style={styles.welcomeCard}>
               <Text style={styles.greeting}>
-                {getGreeting()}, {user?.first_name || 'Utilisateur'} !
+                {getGreeting()},{' '}
+                {user?.first_name || t('restaurantProfile.fallbackUserName')} !
               </Text>
               <Text style={styles.subtitle}>
                 {isRestaurateur
-                  ? 'Gérez vos restaurants et optimisez vos performances'
-                  : 'Découvrez les meilleurs restaurants près de chez vous'}
+                  ? t('restaurantHome.subtitle.restaurateur')
+                  : t('restaurantHome.subtitle.client')}
               </Text>
             </View>
           </View>
 
-          {/* Alerte Stripe */}
+          {/* Alerte Stripe (validation requise) */}
           {isRestaurateur && !user?.roles?.has_validated_profile && (
             <TouchableOpacity
               style={styles.alertCard}
@@ -810,134 +372,142 @@ export default function DashboardScreen() {
               activeOpacity={0.7}
             >
               <View style={styles.alertIconContainer}>
-                <Ionicons name="warning" size={24} color={COLORS.warning} />
+                <Ionicons name="warning" size={24} color={colors.warning} />
               </View>
               <View style={styles.alertContent}>
                 <Text style={styles.alertTitle}>
-                  Validation de compte requise
+                  {t('restaurantHome.stripeAlert.validationRequired.title')}
                 </Text>
                 <Text style={styles.alertText}>
-                  Appuyez ici pour configurer votre compte Stripe et activer les paiements.
+                  {t('restaurantHome.stripeAlert.validationRequired.message')}
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color={COLORS.warning} />
+              <Ionicons name="chevron-forward" size={20} color={colors.warning} />
             </TouchableOpacity>
           )}
 
           {/* Rappel Stripe Connect — restaurants existants mais Stripe inactif */}
-          {isRestaurateur && user?.roles?.has_validated_profile
-            && safeRestaurants.length > 0
-            && safeRestaurants.some((r: any) => !r.isStripeActive) && (
-            <TouchableOpacity
-              style={[styles.alertCard, { borderLeftWidth: 4, borderLeftColor: COLORS.warning }]}
-              onPress={() => router.push('/stripe/onboarding' as any)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.alertIconContainer}>
-                <Ionicons name="card-outline" size={24} color={COLORS.warning} />
-              </View>
-              <View style={styles.alertContent}>
-                <Text style={styles.alertTitle}>
-                  Finalisez votre configuration Stripe
-                </Text>
-                <Text style={styles.alertText}>
-                  {safeRestaurants.filter((r: any) => !r.isStripeActive).length === safeRestaurants.length
-                    ? 'Aucun de vos restaurants ne reçoit de paiements en ligne. Configurez Stripe pour commencer à encaisser.'
-                    : `${safeRestaurants.filter((r: any) => !r.isStripeActive).length} restaurant(s) sans paiement en ligne activé.`}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={COLORS.text.secondary} />
-            </TouchableOpacity>
-          )}
-
-            {/* Section d'aide pour les nouveaux utilisateurs */}
-            {isRestaurateur && safeRestaurants.length === 0 && user?.roles?.has_validated_profile && (
-            <View style={styles.sectionContainer}>
-              <View style={styles.helpCard}>
-                <View style={styles.helpIcon}>
-                  <Image
-                    source={require('@/assets/images/logo.png')}
-                    style={{ width: 28, height: 28 }}
-                    resizeMode="contain"
-                  />
+          {isRestaurateur &&
+            user?.roles?.has_validated_profile &&
+            safeRestaurants.length > 0 &&
+            safeRestaurants.some((r: any) => !r.isStripeActive) && (
+              <TouchableOpacity
+                style={[
+                  styles.alertCard,
+                  { borderLeftWidth: 4, borderLeftColor: colors.warning },
+                ]}
+                onPress={() => router.push('/stripe/onboarding' as any)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.alertIconContainer}>
+                  <Ionicons name="card-outline" size={24} color={colors.warning} />
                 </View>
-                <Text style={styles.helpTitle}>
-                  Commencer avec EatQuickeR
-                </Text>
-                <Text style={styles.helpText}>
-                  Créez votre premier restaurant pour commencer à recevoir des commandes en ligne et développer votre activité.
-                </Text>
-                <View style={styles.helpActions}>
-                  <Button
-                    title="Créer mon premier restaurant"
-                    onPress={() => router.push('/restaurant/add')}
-                    variant="primary"
-                    leftIcon={<Ionicons name="add-circle-outline" size={20} color={COLORS.text.inverse} />}
-                    fullWidth={isMobile}
-                  />
-                  <Button
-                    title="Guide d'utilisation"
-                    onPress={() => router.push('/help/help' as any)}
-                    variant="outline"
-                    fullWidth={isMobile}
-                  />
+                <View style={styles.alertContent}>
+                  <Text style={styles.alertTitle}>
+                    {t('restaurantHome.stripeAlert.finalizeConnect.title')}
+                  </Text>
+                  <Text style={styles.alertText}>
+                    {allInactiveStripe
+                      ? t('restaurantHome.stripeAlert.finalizeConnect.allInactive')
+                      : t('restaurantHome.stripeAlert.finalizeConnect.partial', {
+                          count: inactiveStripeCount,
+                        })}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.text.secondary} />
+              </TouchableOpacity>
+            )}
+
+          {/* Section d'aide pour les nouveaux utilisateurs */}
+          {isRestaurateur &&
+            safeRestaurants.length === 0 &&
+            user?.roles?.has_validated_profile && (
+              <View style={styles.sectionContainer}>
+                <View style={styles.helpCard}>
+                  <View style={styles.helpIcon}>
+                    <Image
+                      source={require('@/assets/images/logo.png')}
+                      style={{ width: 28, height: 28 }}
+                      resizeMode="contain"
+                    />
+                  </View>
+                  <Text style={styles.helpTitle}>
+                    {t('restaurantHome.help.title')}
+                  </Text>
+                  <Text style={styles.helpText}>
+                    {t('restaurantHome.help.description')}
+                  </Text>
+                  <View style={styles.helpActions}>
+                    <Button
+                      title={t('restaurantHome.help.createFirstRestaurant')}
+                      onPress={() => router.push('/restaurant/add')}
+                      variant="primary"
+                      leftIcon={
+                        <Ionicons
+                          name="add-circle-outline"
+                          size={20}
+                          color={colors.text.inverse}
+                        />
+                      }
+                      fullWidth={responsive.isMobile}
+                    />
+                    <Button
+                      title={t('restaurantMenus.help.userGuide')}
+                      onPress={() => router.push('/help/help' as any)}
+                      variant="outline"
+                      fullWidth={responsive.isMobile}
+                    />
+                  </View>
                 </View>
               </View>
-            </View>
-          )}
+            )}
 
-          {/* Statistiques */}
+          {/* Statistiques rapides */}
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Aperçu</Text>
+              <Text style={styles.sectionTitle}>
+                {t('restaurantHome.sections.overview')}
+              </Text>
             </View>
-            
+
             <View style={styles.statsContainer}>
-              <View style={[
-                styles.statCard, 
-                safeRestaurants.length > 0 && styles.statCardPremium
-              ]}>
+              <View
+                style={[
+                  styles.statCard,
+                  safeRestaurants.length > 0 && styles.statCardPremium,
+                ]}
+              >
                 <View style={styles.statIcon}>
-                  <Ionicons 
-                    name="restaurant" 
-                    size={24} 
-                    color={COLORS.primary} 
-                  />
+                  <Ionicons name="restaurant" size={24} color={colors.primary} />
                 </View>
-                <Text style={styles.statValue}>
-                  {safeRestaurants.length}
-                </Text>
+                <Text style={styles.statValue}>{safeRestaurants.length}</Text>
                 <Text style={styles.statLabel}>
-                  Restaurant{safeRestaurants.length > 1 ? 's' : ''}
+                  {t('restaurantHome.stats.restaurantCount', {
+                    count: safeRestaurants.length,
+                  })}
                 </Text>
               </View>
-              
-              <View style={[
-                styles.statCard,
-                displayOrders.length > 0 && styles.statCardPremium
-              ]}>
+
+              <View
+                style={[
+                  styles.statCard,
+                  displayOrders.length > 0 && styles.statCardPremium,
+                ]}
+              >
                 <View style={styles.statIcon}>
-                  <Ionicons 
-                    name="receipt" 
-                    size={24} 
-                    color={COLORS.primary} 
-                  />
+                  <Ionicons name="receipt" size={24} color={colors.primary} />
                 </View>
-                <Text style={styles.statValue}>
-                  {displayOrders.length}
-                </Text>
+                <Text style={styles.statValue}>{displayOrders.length}</Text>
                 <Text style={styles.statLabel}>
-                  Commande{displayOrders.length > 1 ? 's' : ''}
+                  {t('restaurantHome.stats.orderCount', {
+                    count: displayOrders.length,
+                  })}
                 </Text>
               </View>
-              
+
               <View style={styles.statCard}>
                 <View style={styles.statIcon}>
-                  <Ionicons 
-                    name="checkmark-circle" 
-                    size={24} 
-                    color={COLORS.success} 
-                  />
+                  <Ionicons name="checkmark-circle" size={24} color={colors.success} />
                 </View>
                 <Text style={styles.statValue}>
                   {isRestaurateur
@@ -945,7 +515,11 @@ export default function DashboardScreen() {
                     : safeRestaurants.filter((r) => r?.isActive).length}
                 </Text>
                 <Text style={styles.statLabel}>
-                  Actif{isRestaurateur || safeRestaurants.filter((r) => r?.isActive).length > 1 ? 's' : ''}
+                  {t('restaurantHome.stats.activeCount', {
+                    count: isRestaurateur
+                      ? (user?.stats as any)?.active_restaurants || 0
+                      : safeRestaurants.filter((r) => r?.isActive).length,
+                  })}
                 </Text>
               </View>
             </View>
@@ -955,57 +529,69 @@ export default function DashboardScreen() {
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>
-                {isRestaurateur ? 'Vos restaurants' : 'Restaurants recommandés'}
+                {isRestaurateur
+                  ? t('restaurantHome.sections.yourRestaurants')
+                  : t('restaurantHome.sections.recommendedRestaurants')}
               </Text>
-              {safeRestaurants.length > (isDesktop ? 6 : isTablet ? 4 : 3) && (
+              {safeRestaurants.length >
+                (responsive.isDesktop ? 6 : responsive.isTablet ? 4 : 3) && (
                 <TouchableOpacity onPress={() => router.push('/restaurants')}>
-                  <Text style={styles.sectionSubtitle}>Voir tout</Text>
+                  <Text style={styles.sectionSubtitle}>
+                    {t('restaurantHome.viewAll')}
+                  </Text>
                 </TouchableOpacity>
               )}
             </View>
 
             <View style={styles.restaurantsGrid}>
               {safeRestaurants.length > 0 ? (
-                safeRestaurants.slice(0, isDesktop ? 6 : isTablet ? 4 : 3).map((restaurant, index) => (
-                  <View key={restaurant.id ?? `restaurant-${index}`} style={styles.restaurantCardContainer}>
-                    <RestaurantCard
-                      restaurant={restaurant}
-                      onPress={() => router.push(`/restaurant/${restaurant.id}`)}
-                    />
-                  </View>
-                ))
+                safeRestaurants
+                  .slice(0, responsive.isDesktop ? 6 : responsive.isTablet ? 4 : 3)
+                  .map((restaurant, index) => (
+                    <View
+                      key={restaurant.id ?? `restaurant-${index}`}
+                      style={styles.restaurantCardContainer}
+                    >
+                      <RestaurantCard
+                        restaurant={restaurant}
+                        onPress={() => router.push(`/restaurant/${restaurant.id}`)}
+                      />
+                    </View>
+                  ))
               ) : (
                 <View style={styles.emptyStateCard}>
                   <View style={styles.emptyStateIcon}>
-                    <Ionicons 
-                      name={restaurantsLoading ? "sync" : "restaurant-outline"} 
-                      size={32} 
-                      color={COLORS.primary} 
+                    <Ionicons
+                      name={restaurantsLoading ? 'sync' : 'restaurant-outline'}
+                      size={32}
+                      color={colors.primary}
                     />
                   </View>
                   <Text style={styles.emptyStateTitle}>
                     {restaurantsLoading
-                      ? 'Chargement...'
+                      ? t('restaurantHome.empty.loading')
                       : isRestaurateur
-                      ? user?.roles?.has_validated_profile
-                        ? 'Créez votre premier restaurant'
-                        : 'Validation requise'
-                      : 'Aucun restaurant'}
+                        ? user?.roles?.has_validated_profile
+                          ? t('restaurantHome.empty.createFirstTitle')
+                          : t('restaurantHome.empty.validationRequiredTitle')
+                        : t('restaurantHome.empty.noRestaurantTitle')}
                   </Text>
                   <Text style={styles.emptyStateText}>
                     {restaurantsLoading
-                      ? 'Chargement des restaurants en cours...'
+                      ? t('restaurantHome.empty.loadingDescription')
                       : restaurantsError
-                      ? `Erreur: ${restaurantsError}`
-                      : isRestaurateur
-                      ? user?.roles?.has_validated_profile
-                        ? 'Commencez dès maintenant à recevoir des commandes en ligne.'
-                        : 'Validez votre compte Stripe pour créer vos restaurants.'
-                      : 'Aucun restaurant disponible pour le moment.'}
+                        ? t('restaurantHome.empty.errorPrefix', {
+                            error: restaurantsError,
+                          })
+                        : isRestaurateur
+                          ? user?.roles?.has_validated_profile
+                            ? t('restaurantHome.empty.startNowDescription')
+                            : t('restaurantHome.empty.validateStripeDescription')
+                          : t('restaurantHome.empty.noRestaurantDescription')}
                   </Text>
                   {isRestaurateur && user?.roles?.has_validated_profile && (
                     <Button
-                      title="Créer un restaurant"
+                      title={t('restaurantHome.actions.createRestaurant.title')}
                       onPress={() => router.push('/restaurant/add')}
                       variant="primary"
                       size="sm"
@@ -1020,84 +606,110 @@ export default function DashboardScreen() {
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>
-                {isRestaurateur ? 'Commandes reçues' : 'Vos commandes'}
+                {isRestaurateur
+                  ? t('restaurantHome.sections.receivedOrders')
+                  : t('restaurantHome.sections.yourOrders')}
               </Text>
-              {displayOrders.length > (isDesktop ? 8 : isTablet ? 6 : 5) && (
+              {displayOrders.length >
+                (responsive.isDesktop ? 8 : responsive.isTablet ? 6 : 5) && (
                 <TouchableOpacity onPress={() => router.push('/orders')}>
-                  <Text style={styles.sectionSubtitle}>Voir tout</Text>
+                  <Text style={styles.sectionSubtitle}>
+                    {t('restaurantHome.viewAll')}
+                  </Text>
                 </TouchableOpacity>
               )}
             </View>
 
             <View style={styles.ordersCard}>
               {ordersLoading && displayOrders.length === 0 ? (
-                <View style={{ padding: getSpacing('xl') }}>
-                  <Loading text="Chargement des commandes..." />
+                <View style={{ padding: getSpacing('xl', responsive) }}>
+                  <Loading text={t('restaurantHome.loadingOrders')} />
                 </View>
               ) : displayOrders.length > 0 ? (
-                displayOrders.slice(0, isDesktop ? 8 : isTablet ? 6 : 5).map((order, index) => (
-                  <TouchableOpacity
-                    key={order.id ?? `order-${index}`}
-                    onPress={() => router.push(`/order/${order.id}`)}
-                    style={[
-                      styles.orderItem,
-                      { 
-                        borderBottomWidth: index < Math.min(displayOrders.length, isDesktop ? 8 : isTablet ? 6 : 5) - 1 ? 1 : 0 
-                      }
-                    ]}
-                  >
-                    <View style={styles.orderItemContent}>
-                      <Text style={styles.orderRestaurant}>
-                        {getRestaurantName(order)}
-                      </Text>
-                      <View style={styles.orderItemMeta}>
-                        <Text style={styles.orderNumber}>
-                          {getOrderNumber(order)}
-                        </Text>
-                        <Text style={styles.orderDate}>
-                          {getOrderDate(order)}
-                        </Text>
-                      </View>
-                    </View>
-                    <View style={styles.orderSummary}>
-                      <Text style={styles.orderAmount}>
-                        {getOrderTotal(order)} €
-                      </Text>
-                      <View style={styles.orderStatusContainer}>
-                        <View 
-                          style={[
-                            styles.orderStatusDot,
-                            { backgroundColor: getStatusColor(order.status) }
-                          ]}
-                        />
-                        <Text style={[
-                          styles.orderStatus,
-                          { color: getStatusColor(order.status) }
-                        ]}>
-                          {translateOrderStatus(order.status)}
-                        </Text>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                ))
+                displayOrders
+                  .slice(0, responsive.isDesktop ? 8 : responsive.isTablet ? 6 : 5)
+                  .map((order, index) => {
+                    const statusKey = STATUS_TO_KEY[order.status?.toLowerCase() ?? ''] || 'pending';
+                    return (
+                      <TouchableOpacity
+                        key={order.id ?? `order-${index}`}
+                        onPress={() => router.push(`/order/${order.id}`)}
+                        style={[
+                          styles.orderItem,
+                          {
+                            borderBottomWidth:
+                              index <
+                              Math.min(
+                                displayOrders.length,
+                                responsive.isDesktop ? 8 : responsive.isTablet ? 6 : 5,
+                              ) -
+                                1
+                                ? 1
+                                : 0,
+                          },
+                        ]}
+                      >
+                        <View style={styles.orderItemContent}>
+                          <Text style={styles.orderRestaurant}>
+                            {getRestaurantName(order, restaurantFallback)}
+                          </Text>
+                          <View style={styles.orderItemMeta}>
+                            <Text style={styles.orderNumber}>
+                              {getOrderNumber(order)}
+                            </Text>
+                            <Text style={styles.orderDate}>
+                              {getOrderDate(
+                                order,
+                                i18n.language,
+                                t('restaurantHome.unknownDate'),
+                              )}
+                            </Text>
+                          </View>
+                        </View>
+                        <View style={styles.orderSummary}>
+                          <Text style={styles.orderAmount}>
+                            {getOrderTotal(order)} €
+                          </Text>
+                          <View style={styles.orderStatusContainer}>
+                            <View
+                              style={[
+                                styles.orderStatusDot,
+                                {
+                                  backgroundColor: getStatusColor(order.status, colors),
+                                },
+                              ]}
+                            />
+                            <Text
+                              style={[
+                                styles.orderStatus,
+                                { color: getStatusColor(order.status, colors) },
+                              ]}
+                            >
+                              {t(`restaurantHome.orderStatus.${statusKey}`)}
+                            </Text>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })
               ) : (
                 <View style={styles.emptyStateCard}>
                   <View style={styles.emptyStateIcon}>
-                    <Ionicons 
-                      name="receipt-outline" 
-                      size={32} 
-                      color={COLORS.text.light} 
+                    <Ionicons
+                      name="receipt-outline"
+                      size={32}
+                      color={colors.text.light}
                     />
                   </View>
                   <Text style={styles.emptyStateTitle}>
-                    Aucune commande
+                    {t('restaurantHome.empty.noOrderTitle')}
                   </Text>
                   <Text style={styles.emptyStateText}>
                     {ordersError
-                      ? `Erreur: ${ordersError}`
+                      ? t('restaurantHome.empty.errorPrefix', { error: ordersError })
                       : isRestaurateur
-                      ? 'Aucune commande reçue pour le moment'
-                      : 'Vous n\'avez pas encore passé de commande'}
+                        ? t('restaurantHome.empty.noOrderRestaurateur')
+                        : t('restaurantHome.empty.noOrderClient')}
                   </Text>
                 </View>
               )}
@@ -1109,45 +721,69 @@ export default function DashboardScreen() {
             <View style={styles.sectionContainer}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>
-                  Actions rapides
+                  {t('restaurantHome.sections.quickActions')}
                 </Text>
               </View>
-              
+
               <View style={styles.quickActionsGrid}>
-                {/* Menu du Jour - Action premium en premier */}
+                {/* Menu du Jour — premium en premier */}
                 <TouchableOpacity
                   style={[styles.actionCard, styles.actionCardPremium]}
                   onPress={() => router.push('/(restaurant)/daily-menu')}
                 >
-                  <View style={[styles.actionIcon, { backgroundColor: COLORS.variants.secondary[100] }]}>
-                    <Ionicons name="today" size={20} color={COLORS.secondary} />
+                  <View
+                    style={[
+                      styles.actionIcon,
+                      {
+                        backgroundColor: isDark
+                          ? 'rgba(212, 175, 55, 0.18)'
+                          : colors.variants.secondary[100],
+                      },
+                    ]}
+                  >
+                    <Ionicons name="today" size={20} color={colors.secondary} />
                   </View>
-                  <Text style={styles.actionTitle}>Menu du Jour</Text>
-                  <Text style={styles.actionDescription}>Gérer le menu d'aujourd'hui</Text>
+                  <Text style={styles.actionTitle}>
+                    {t('restaurantHome.actions.dailyMenu.title')}
+                  </Text>
+                  <Text style={styles.actionDescription}>
+                    {t('restaurantHome.actions.dailyMenu.description')}
+                  </Text>
                 </TouchableOpacity>
-                
+
                 {/* Créer un restaurant */}
                 <TouchableOpacity
-                  style={[styles.actionCard, safeRestaurants.length === 0 && styles.actionCardPremium]}
+                  style={[
+                    styles.actionCard,
+                    safeRestaurants.length === 0 && styles.actionCardPremium,
+                  ]}
                   onPress={() => router.push('/restaurant/add')}
                 >
                   <View style={styles.actionIcon}>
-                    <Ionicons name="add-circle" size={20} color={COLORS.primary} />
+                    <Ionicons name="add-circle" size={20} color={colors.primary} />
                   </View>
-                  <Text style={styles.actionTitle}>Créer un restaurant</Text>
-                  <Text style={styles.actionDescription}>Nouvel établissement</Text>
+                  <Text style={styles.actionTitle}>
+                    {t('restaurantHome.actions.createRestaurant.title')}
+                  </Text>
+                  <Text style={styles.actionDescription}>
+                    {t('restaurantHome.actions.createRestaurant.description')}
+                  </Text>
                 </TouchableOpacity>
-                
+
                 {/* QR Codes */}
                 <TouchableOpacity
                   style={styles.actionCard}
                   onPress={() => router.navigate('/(restaurant)/qrcodes')}
                 >
                   <View style={styles.actionIcon}>
-                    <Ionicons name="qr-code" size={20} color={COLORS.primary} />
+                    <Ionicons name="qr-code" size={20} color={colors.primary} />
                   </View>
-                  <Text style={styles.actionTitle}>QR Codes Tables</Text>
-                  <Text style={styles.actionDescription}>Générer et gérer</Text>
+                  <Text style={styles.actionTitle}>
+                    {t('restaurantHome.actions.qrCodes.title')}
+                  </Text>
+                  <Text style={styles.actionDescription}>
+                    {t('restaurantHome.actions.qrCodes.description')}
+                  </Text>
                 </TouchableOpacity>
 
                 {/* Gérer les menus */}
@@ -1156,34 +792,46 @@ export default function DashboardScreen() {
                   onPress={() => router.navigate('/(restaurant)/menu')}
                 >
                   <View style={styles.actionIcon}>
-                    <Ionicons name="menu" size={20} color={COLORS.primary} />
+                    <Ionicons name="menu" size={20} color={colors.primary} />
                   </View>
-                  <Text style={styles.actionTitle}>Gérer les menus</Text>
-                  <Text style={styles.actionDescription}>Plats et prix</Text>
+                  <Text style={styles.actionTitle}>
+                    {t('restaurantHome.actions.manageMenus.title')}
+                  </Text>
+                  <Text style={styles.actionDescription}>
+                    {t('restaurantHome.actions.manageMenus.description')}
+                  </Text>
                 </TouchableOpacity>
-                
+
                 {/* Voir les commandes */}
                 <TouchableOpacity
                   style={styles.actionCard}
                   onPress={() => router.navigate('/(restaurant)/orders')}
                 >
                   <View style={styles.actionIcon}>
-                    <Ionicons name="receipt" size={20} color={COLORS.primary} />
+                    <Ionicons name="receipt" size={20} color={colors.primary} />
                   </View>
-                  <Text style={styles.actionTitle}>Voir les commandes</Text>
-                  <Text style={styles.actionDescription}>Gestion et suivi</Text>
+                  <Text style={styles.actionTitle}>
+                    {t('restaurantHome.actions.viewOrders.title')}
+                  </Text>
+                  <Text style={styles.actionDescription}>
+                    {t('restaurantHome.actions.viewOrders.description')}
+                  </Text>
                 </TouchableOpacity>
-                
-                {/* Statistiques - Nouvelle action */}
+
+                {/* Statistiques */}
                 <TouchableOpacity
                   style={styles.actionCard}
                   onPress={() => router.navigate('/(restaurant)/statistics' as any)}
                 >
                   <View style={styles.actionIcon}>
-                    <Ionicons name="stats-chart" size={20} color={COLORS.primary} />
+                    <Ionicons name="stats-chart" size={20} color={colors.primary} />
                   </View>
-                  <Text style={styles.actionTitle}>Statistiques</Text>
-                  <Text style={styles.actionDescription}>Performances</Text>
+                  <Text style={styles.actionTitle}>
+                    {t('restaurantHome.actions.statistics.title')}
+                  </Text>
+                  <Text style={styles.actionDescription}>
+                    {t('restaurantHome.actions.statistics.description')}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1193,3 +841,361 @@ export default function DashboardScreen() {
     </View>
   );
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// STYLES (fabrique theme-aware)
+// ════════════════════════════════════════════════════════════════════════════
+const makeStyles = (
+  colors: AppColors,
+  isDark: boolean,
+  r: { isMobile: boolean; isTablet: boolean; isDesktop: boolean },
+) => {
+  const shadows = makeShadows(colors);
+
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    scrollContainer: { flex: 1 },
+    contentContainer: {
+      paddingHorizontal: getSpacing('lg', r),
+      paddingVertical: getSpacing('xl', r),
+      maxWidth: r.isDesktop ? 1200 : undefined,
+      alignSelf: 'center',
+      width: '100%',
+    },
+
+    // Welcome card or
+    headerSection: { marginBottom: getSpacing('2xl', r) },
+    welcomeCard: {
+      backgroundColor: colors.goldenSurface,
+      borderRadius: 16,
+      padding: getSpacing('xl', r),
+      borderWidth: 1,
+      borderColor: colors.border.golden,
+      shadowColor: colors.secondary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: isDark ? 0.35 : 0.1,
+      shadowRadius: 8,
+      elevation: 4,
+    },
+    greeting: {
+      fontSize: getFontSize('4xl', r),
+      fontWeight: '800',
+      // Salutation en or chaud dans les 2 modes — c'est la signature visuelle
+      // du dashboard
+      color: isDark ? colors.text.golden : colors.text.primary,
+      marginBottom: getSpacing('sm', r),
+      lineHeight: getFontSize('4xl', r) * 1.2,
+    },
+    subtitle: {
+      fontSize: getFontSize('lg', r),
+      color: colors.text.golden,
+      lineHeight: getFontSize('lg', r) * 1.4,
+      fontWeight: '500',
+    },
+
+    // Stats
+    statsSection: { marginBottom: getSpacing('3xl', r) },
+    sectionHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: getSpacing('xl', r),
+    },
+    sectionTitle: {
+      fontSize: getFontSize('2xl', r),
+      fontWeight: '700',
+      color: isDark ? colors.text.golden : colors.text.primary,
+      lineHeight: getFontSize('2xl', r) * 1.2,
+    },
+    sectionSubtitle: {
+      fontSize: getFontSize('base', r),
+      color: colors.text.secondary,
+      fontWeight: '500',
+      lineHeight: getFontSize('base', r) * 1.4,
+    },
+
+    statsContainer: {
+      flexDirection: r.isMobile ? 'column' : 'row',
+      gap: getSpacing('lg', r),
+    },
+    statCard: {
+      flex: 1,
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      padding: getSpacing('xl', r),
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: colors.border.light,
+      minHeight: 120,
+      ...shadows.sm,
+    },
+    statCardPremium: {
+      backgroundColor: isDark
+        ? 'rgba(212, 175, 55, 0.10)'
+        : colors.variants.secondary[50],
+      borderColor: colors.border.golden,
+      borderWidth: 2,
+      shadowColor: colors.secondary,
+      shadowOpacity: isDark ? 0.4 : 0.15,
+    },
+    statIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: isDark
+        ? 'rgba(99, 102, 241, 0.18)'
+        : colors.variants.primary[100],
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: getSpacing('md', r),
+    },
+    statValue: {
+      fontSize: getFontSize('4xl', r),
+      fontWeight: '800',
+      color: isDark ? colors.text.golden : colors.primary,
+      marginBottom: getSpacing('xs', r),
+      lineHeight: getFontSize('4xl', r) * 1.1,
+    },
+    statLabel: {
+      fontSize: getFontSize('base', r),
+      color: colors.text.secondary,
+      textAlign: 'center',
+      fontWeight: '600',
+      lineHeight: getFontSize('base', r) * 1.3,
+    },
+
+    sectionContainer: { marginBottom: getSpacing('3xl', r) },
+
+    // Alertes Stripe
+    alertCard: {
+      flexDirection: 'row',
+      backgroundColor: isDark
+        ? 'rgba(245, 158, 11, 0.12)'
+        : colors.variants.secondary[50],
+      borderRadius: 16,
+      padding: getSpacing('lg', r),
+      borderLeftWidth: 4,
+      borderLeftColor: colors.warning,
+      marginBottom: getSpacing('xl', r),
+      alignItems: 'center',
+      ...shadows.sm,
+    },
+    alertIconContainer: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: colors.warning + '20',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: getSpacing('md', r),
+    },
+    alertContent: { flex: 1 },
+    alertTitle: {
+      fontSize: getFontSize('lg', r),
+      fontWeight: '600',
+      color: isDark ? colors.text.golden : colors.variants.secondary[800],
+      marginBottom: getSpacing('xs', r),
+      lineHeight: getFontSize('lg', r) * 1.3,
+    },
+    alertText: {
+      fontSize: getFontSize('base', r),
+      color: isDark ? colors.text.secondary : colors.variants.secondary[700],
+      lineHeight: getFontSize('base', r) * 1.4,
+    },
+
+    // Restaurants grid
+    restaurantsGrid: { gap: getSpacing('lg', r) },
+    restaurantCardContainer: {
+      flex: r.isMobile ? 1 : 1 / (r.isDesktop ? 3 : 2),
+      minWidth: r.isMobile ? '100%' : 280,
+      maxWidth: r.isMobile ? '100%' : 400,
+      alignSelf: 'center',
+    },
+
+    // Empty state
+    emptyStateCard: {
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      padding: getSpacing('2xl', r),
+      alignItems: 'center',
+      borderWidth: 2,
+      borderColor: colors.border.light,
+      borderStyle: 'dashed',
+    },
+    emptyStateIcon: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      backgroundColor: isDark
+        ? 'rgba(99, 102, 241, 0.18)'
+        : colors.variants.primary[100],
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: getSpacing('lg', r),
+    },
+    emptyStateTitle: {
+      fontSize: getFontSize('xl', r),
+      fontWeight: '700',
+      color: colors.text.primary,
+      marginBottom: getSpacing('sm', r),
+      textAlign: 'center',
+      lineHeight: getFontSize('xl', r) * 1.3,
+    },
+    emptyStateText: {
+      fontSize: getFontSize('base', r),
+      color: colors.text.secondary,
+      textAlign: 'center',
+      lineHeight: getFontSize('base', r) * 1.5,
+      marginBottom: getSpacing('lg', r),
+    },
+
+    // Orders
+    ordersCard: {
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      ...shadows.sm,
+    },
+    orderItem: {
+      flexDirection: 'row',
+      padding: getSpacing('lg', r),
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border.light,
+      alignItems: 'flex-start',
+      minHeight: 80,
+    },
+    orderItemContent: { flex: 1, marginRight: getSpacing('md', r) },
+    orderRestaurant: {
+      fontSize: getFontSize('lg', r),
+      fontWeight: '600',
+      color: colors.text.primary,
+      marginBottom: getSpacing('xs', r),
+      lineHeight: getFontSize('lg', r) * 1.3,
+    },
+    orderItemMeta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: getSpacing('xs', r),
+    },
+    orderNumber: {
+      fontSize: getFontSize('sm', r),
+      color: colors.text.secondary,
+      fontWeight: '500',
+      lineHeight: getFontSize('sm', r) * 1.3,
+    },
+    orderDate: {
+      fontSize: getFontSize('sm', r),
+      color: colors.text.light,
+      marginLeft: getSpacing('sm', r),
+      lineHeight: getFontSize('sm', r) * 1.3,
+    },
+    orderSummary: { alignItems: 'flex-end' },
+    orderAmount: {
+      fontSize: getFontSize('xl', r),
+      fontWeight: '700',
+      color: colors.text.primary,
+      marginBottom: getSpacing('xs', r),
+      lineHeight: getFontSize('xl', r) * 1.2,
+    },
+    orderStatusContainer: { flexDirection: 'row', alignItems: 'center' },
+    orderStatusDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      marginRight: getSpacing('xs', r),
+    },
+    orderStatus: {
+      fontSize: getFontSize('sm', r),
+      fontWeight: '600',
+      lineHeight: getFontSize('sm', r) * 1.2,
+    },
+
+    // Quick actions
+    quickActionsSection: { marginBottom: getSpacing('3xl', r) },
+    quickActionsGrid: {
+      flexDirection: r.isMobile ? 'column' : 'row',
+      gap: getSpacing('lg', r),
+      flexWrap: 'wrap',
+    },
+    actionCard: {
+      flex: r.isMobile ? undefined : 1,
+      minWidth: r.isMobile ? '100%' : 200,
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      padding: getSpacing('lg', r),
+      alignItems: 'center',
+      borderWidth: 2,
+      borderColor: colors.border.light,
+      paddingVertical: getSpacing('xl', r),
+      ...shadows.sm,
+    },
+    actionCardPremium: {
+      backgroundColor: colors.goldenSurface,
+      borderColor: colors.border.golden,
+      shadowColor: colors.secondary,
+      shadowOpacity: isDark ? 0.4 : 0.1,
+    },
+    actionIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: isDark
+        ? 'rgba(99, 102, 241, 0.18)'
+        : colors.variants.primary[100],
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: getSpacing('sm', r),
+    },
+    actionTitle: {
+      fontSize: getFontSize('base', r),
+      fontWeight: '600',
+      color: colors.text.primary,
+      textAlign: 'center',
+      marginBottom: getSpacing('xs', r),
+      lineHeight: getFontSize('base', r) * 1.3,
+    },
+    actionDescription: {
+      fontSize: getFontSize('sm', r),
+      color: colors.text.secondary,
+      textAlign: 'center',
+      lineHeight: getFontSize('sm', r) * 1.4,
+    },
+
+    // Help card
+    helpCard: {
+      backgroundColor: isDark
+        ? 'rgba(99, 102, 241, 0.12)'
+        : colors.variants.primary[100],
+      borderRadius: 16,
+      padding: getSpacing('xl', r),
+      borderWidth: 1,
+      borderColor: colors.primary + (isDark ? '50' : '30'),
+    },
+    helpIcon: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: getSpacing('lg', r),
+    },
+    helpTitle: {
+      fontSize: getFontSize('xl', r),
+      fontWeight: '700',
+      color: isDark ? colors.text.golden : colors.text.primary,
+      marginBottom: getSpacing('sm', r),
+      lineHeight: getFontSize('xl', r) * 1.3,
+    },
+    helpText: {
+      fontSize: getFontSize('base', r),
+      color: colors.text.secondary,
+      lineHeight: getFontSize('base', r) * 1.5,
+      marginBottom: getSpacing('lg', r),
+    },
+    helpActions: {
+      flexDirection: r.isMobile ? 'column' : 'row',
+      gap: getSpacing('md', r),
+    },
+  });
+};

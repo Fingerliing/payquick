@@ -587,5 +587,520 @@
       "description": "Um QR-Codes zu scannen, benötigen wir Zugriff auf deine Kamera.",
       "allow": "Erlauben"
     }
+  },
+  "restaurantNav": {
+    "home": "Startseite",
+    "restaurants": "Restaurants",
+    "orders": "Bestellungen",
+    "menus": "Menüs",
+    "dailyMenu": "Tagesmenü",
+    "dailyMenuShort": "Tag",
+    "statistics": "Statistiken",
+    "statisticsShort": "Stat.",
+    "qrcodes": "QR-Codes",
+    "profile": "Profil",
+    "accounting": "Buchhaltung"
+  },
+  "restaurantProfile": {
+    "fallbackUserName": "Benutzer",
+    "accountInfo": "Konto-Informationen",
+    "email": "E-Mail",
+    "phone": "Telefon",
+    "accountType": "Kontotyp",
+    "siret": "SIRET",
+    "stripeStatus": "Stripe-Status",
+    "stripeValidated": "Bestätigt",
+    "stripePending": "Ausstehend",
+    "logout": "Abmelden",
+    "logoutConfirmTitle": "Abmelden",
+    "logoutConfirmMessage": "Möchtest du dich wirklich abmelden?",
+    "role": {
+      "restaurateur": "Restaurantbetreiber",
+      "client": "Kunde"
+    },
+    "feedback": {
+      "logoutFailed": "Abmeldung fehlgeschlagen"
+    }
+  },
+  "restaurantsList": {
+    "subtitle_one": "{{count}} Standort",
+    "subtitle_other": "{{count}} Standorte",
+    "overview": "Übersicht",
+    "searchPlaceholder": "Restaurant suchen…",
+    "loading": "Lädt…",
+    "loadingFull": "Restaurants werden geladen…",
+    "pagination": "Seite {{current}} von {{total}}",
+    "activeFilters_one": "{{count}} aktiver Filter",
+    "activeFilters_other": "{{count}} aktive Filter",
+    "clearFilters": "Löschen",
+    "viewMode": {
+      "list": "Liste",
+      "grid": "Raster"
+    },
+    "stats": {
+      "totalLabel_one": "Restaurant",
+      "totalLabel_other": "Restaurants",
+      "openLabel_one": "Geöffnet",
+      "openLabel_other": "Geöffnet",
+      "closedLabel_one": "Geschlossen",
+      "closedLabel_other": "Geschlossen"
+    },
+    "empty": {
+      "noResultTitle": "Kein Ergebnis",
+      "noResultDescription": "Versuche, deine Suche zu ändern oder die Filter anzupassen",
+      "noRestaurantTitle": "Kein Restaurant",
+      "noRestaurantDescription": "Füge zuerst dein erstes Restaurant hinzu, um Bestellungen zu verwalten",
+      "addCta": "Restaurant hinzufügen",
+      "howItWorks": "Wie funktioniert es?"
+    },
+    "errors": {
+      "searchFailed": "Restaurants können nicht durchsucht werden",
+      "reloadFailed": "Restaurants können nicht neu geladen werden",
+      "refreshFailed": "Liste kann nicht aktualisiert werden",
+      "loadMoreFailed": "Weitere Restaurants können nicht geladen werden"
+    }
+  },
+  "restaurantOrders": {
+    "noRestaurantFound": "Kein Restaurant gefunden",
+    "selectRestaurant": "Restaurant auswählen",
+    "chooseRestaurant": "Restaurant wählen",
+    "orderTitle": "Bestellung {{number}}",
+    "todayAt": "Heute um {{time}}",
+    "anonymousCustomer": "Anonymer Kunde",
+    "tableLabel": "Tisch {{number}}",
+    "estimatedTime": "Geschätzte Zeit: {{minutes}} Min.",
+    "viewDetails": "Details ansehen",
+    "forbiddenMessage": "Nur für Restaurantbetreiber",
+    "itemsCount_one": "{{count}} Artikel",
+    "itemsCount_other": "{{count}} Artikel",
+    "orderType": {
+      "dineIn": "Vor Ort",
+      "takeaway": "Zum Mitnehmen"
+    },
+    "paymentStatus": {
+      "paid": "Bezahlt",
+      "unpaid": "Unbezahlt",
+      "unpaidShort": "Unbezahlt"
+    },
+    "actions": {
+      "confirm": "Bestätigen",
+      "preparing": "In Vorbereitung",
+      "ready": "Bereit",
+      "serve": "Servieren",
+      "collect": "Kassieren",
+      "archive": "Archivieren",
+      "unarchive": "Aus Archiv"
+    },
+    "filters": {
+      "all": "Alle",
+      "served": "Serviert",
+      "cancelled": "Storniert",
+      "archived": "Archiv"
+    },
+    "kanban": {
+      "emptyColumn": "Nichts hier",
+      "columns": {
+        "new": {
+          "title": "Neu",
+          "chip": "Neu",
+          "action": "Starten"
+        },
+        "preparing": {
+          "title": "In Vorbereitung",
+          "chip": "In Vorbereitung",
+          "action": "Bereit markieren"
+        },
+        "ready": {
+          "title": "Bereit",
+          "chip": "Bereit",
+          "action": "Serviert"
+        }
+      }
+    },
+    "banner": {
+      "title": "Service läuft",
+      "titleWithName": "{{name}} — Service läuft",
+      "pending": "Ausstehend",
+      "tonight": "Heute Abend",
+      "history": "Verlauf",
+      "refresh": "Aktualisieren"
+    },
+    "history": {
+      "title": "Bestellverlauf",
+      "bulkArchive_one": "{{count}} abgeschlossene Bestellung archivieren",
+      "bulkArchive_other": "{{count}} abgeschlossene Bestellungen archivieren",
+      "emptyTitle": "Keine Bestellungen",
+      "emptyArchived": "Keine archivierten Bestellungen",
+      "emptyCompleted": "Noch keine abgeschlossenen Bestellungen"
+    },
+    "cancelConfirm": {
+      "title": "Bestellung stornieren",
+      "message": "Bestellung {{number}} wirklich stornieren?",
+      "keep": "Nein, behalten",
+      "confirm": "Ja, stornieren"
+    },
+    "paymentPrompt": {
+      "title": "Als bezahlt markieren",
+      "message": "Welche Zahlungsart?",
+      "cash": "Bar",
+      "card": "Karte"
+    },
+    "archiveConfirm": {
+      "title": "Abgeschlossene Bestellungen archivieren",
+      "message": "Alle servierten und stornierten Bestellungen archivieren?"
+    },
+    "loading": {
+      "restaurants": "Restaurants werden geladen…",
+      "orders": "Bestellungen werden geladen…"
+    },
+    "feedback": {
+      "refreshFailed": "Bestellungen können nicht aktualisiert werden",
+      "statusUpdateFailed": "Bestellstatus kann nicht aktualisiert werden",
+      "paidTitle": "Kassiert",
+      "paidMessage": "Bestellung als bezahlt markiert",
+      "markPaidFailed": "Bestellung kann nicht als bezahlt markiert werden",
+      "archivedTitle": "Erfolg",
+      "archivedMessage_one": "{{count}} Bestellung archiviert",
+      "archivedMessage_other": "{{count}} Bestellungen archiviert",
+      "noneToArchiveTitle": "Information",
+      "noneToArchiveMessage": "Keine Bestellungen zum Archivieren",
+      "archiveFailed": "Bestellungen können nicht archiviert werden"
+    }
+  },
+  "restaurantDailyMenu": {
+    "today": "Heute",
+    "close": "Schließen",
+    "noRestaurantMessage": "Kein Restaurant zur Menüverwaltung",
+    "createRestaurant": "Mein Restaurant erstellen",
+    "legend": {
+      "withMenu": "Mit Menü",
+      "inactiveMenu": "Inaktives Menü"
+    }
+  },
+  "restaurantMenus": {
+    "title": "Meine Menüs",
+    "stats": {
+      "activeMenus_one": "Aktives Menü",
+      "activeMenus_other": "Aktive Menüs",
+      "inactive_one": "{{count}} inaktiv",
+      "inactive_other": "{{count}} inaktiv",
+      "multiActive": "MEHRFACH-AKTIV"
+    },
+    "info": {
+      "title": "💡 Nur ein aktives Menü gleichzeitig",
+      "description": "Wenn du ein Menü aktivierst, werden alle anderen Menüs automatisch deaktiviert. Nur das aktive Menü ist für deine Kunden sichtbar."
+    },
+    "help": {
+      "title": "Mit EatQuickeR starten",
+      "description": "Erstelle dein erstes Menü, um deine Gerichte zu präsentieren und Online-Bestellungen entgegenzunehmen.",
+      "createFirstMenu": "Mein erstes Menü erstellen",
+      "userGuide": "Benutzerhandbuch"
+    },
+    "switcher": {
+      "title": "Restaurant wechseln"
+    },
+    "duplicate": {
+      "barButton": "Menüs holen",
+      "pickSourceTitle": "Quellrestaurant wählen",
+      "pickMenusTitle": "Menüs auswählen",
+      "emptySource": "Kein Menü in diesem Restaurant",
+      "statusActive": "Aktiv",
+      "statusInactive": "Inaktiv",
+      "itemSummary_one": "{{count}} Gericht · {{status}}",
+      "itemSummary_other": "{{count}} Gerichte · {{status}}",
+      "duplicating": "Dupliziere…",
+      "confirmSimple": "Duplizieren",
+      "confirmWithCount": "Duplizieren ({{count}})",
+      "doneTitle": "Duplizierung abgeschlossen",
+      "doneSuccess_one": "{{count}} Menü erfolgreich dupliziert",
+      "doneSuccess_other": "{{count}} Menüs erfolgreich dupliziert",
+      "donePartial": "{{succeeded}} erfolgreich, {{failed}} fehlgeschlagen",
+      "errorGeneric": "Fehler beim Duplizieren"
+    },
+    "delete": {
+      "title": "Löschen bestätigen",
+      "message": "Möchtest du das Menü \"{{name}}\" wirklich löschen?\n\nDiese Aktion ist unwiderruflich.",
+      "confirm": "Löschen"
+    },
+    "feedback": {
+      "successTitle": "Erfolg",
+      "loadFailed": "Menüs können nicht geladen werden",
+      "loadSourceFailed": "Quellmenüs können nicht geladen werden",
+      "menuEnabled": "Menü erfolgreich aktiviert (andere Menüs wurden deaktiviert)",
+      "menuDisabled": "Menü erfolgreich deaktiviert",
+      "toggleFailed": "Menü kann nicht geändert werden",
+      "toggleForbidden": "Du hast keine Berechtigung, dieses Menü zu ändern",
+      "menuNotFound": "Menü nicht gefunden",
+      "menuDeleted": "Menü erfolgreich gelöscht",
+      "deleteFailed": "Menü kann nicht gelöscht werden"
+    }
+  },
+  "restaurantStats": {
+    "title": "Statistiken — {{period}}",
+    "pickerTitle": "Analysezeitraum",
+    "chooseRestaurant": "Restaurant wählen",
+    "noRestaurantMessage": "Du hast noch kein Restaurant",
+    "createFirstRestaurant": "Mein erstes Restaurant erstellen",
+    "salesCount_one": "{{formatted}} Verkauf",
+    "salesCount_other": "{{formatted}} Verkäufe",
+    "periods": {
+      "thisWeek": "Diese Woche",
+      "thisMonth": "Dieser Monat",
+      "last3Months": "Letzte 3 Monate",
+      "last6Months": "Letzte 6 Monate",
+      "thisYear": "Dieses Jahr"
+    },
+    "deltas": {
+      "vsPrevWeek": "vs Vorwoche",
+      "vsPrevMonth": "vs Vormonat",
+      "vsPrev3Months": "vs vorherige 3 Monate",
+      "vsPrev6Months": "vs vorherige 6 Monate",
+      "vsPrevYear": "vs Vorjahr"
+    },
+    "kpi": {
+      "totalRevenue": "Gesamtumsatz",
+      "servedOrders": "Servierte Bestellungen",
+      "avgOrder": "Ø Bestellung"
+    },
+    "charts": {
+      "revenueByDay": "Umsatz pro Tag",
+      "topDishes": "Top-Gerichte"
+    },
+    "daysShort": {
+      "monday": "Mo",
+      "tuesday": "Di",
+      "wednesday": "Mi",
+      "thursday": "Do",
+      "friday": "Fr",
+      "saturday": "Sa",
+      "sunday": "So"
+    },
+    "empty": {
+      "noData": "Keine Daten verfügbar",
+      "description": "Statistiken erscheinen hier, sobald du Bestellungen in diesem Zeitraum hast."
+    },
+    "errors": {
+      "loadFailed": "Fehler beim Laden der Statistiken."
+    }
+  },
+  "restaurantHome": {
+    "greeting": {
+      "morning": "Guten Morgen",
+      "afternoon": "Guten Tag",
+      "evening": "Guten Abend"
+    },
+    "subtitle": {
+      "restaurateur": "Verwalte deine Restaurants und optimiere deine Leistung",
+      "client": "Entdecke die besten Restaurants in deiner Nähe"
+    },
+    "restaurantFallback": "Restaurant",
+    "unknownDate": "Unbekanntes Datum",
+    "loadingDashboard": "Dashboard wird geladen…",
+    "loadingOrders": "Bestellungen werden geladen…",
+    "viewAll": "Alle ansehen",
+    "stripeAlert": {
+      "validationRequired": {
+        "title": "Kontovalidierung erforderlich",
+        "message": "Tippe hier, um dein Stripe-Konto einzurichten und Zahlungen zu aktivieren."
+      },
+      "finalizeConnect": {
+        "title": "Stripe-Einrichtung abschließen",
+        "allInactive": "Keines deiner Restaurants akzeptiert Online-Zahlungen. Richte Stripe ein, um Einzahlungen zu erhalten.",
+        "partial_one": "{{count}} Restaurant ohne aktivierte Online-Zahlung.",
+        "partial_other": "{{count}} Restaurants ohne aktivierte Online-Zahlung."
+      }
+    },
+    "help": {
+      "title": "Mit EatQuickeR starten",
+      "description": "Erstelle dein erstes Restaurant, um Online-Bestellungen zu erhalten und dein Geschäft auszubauen.",
+      "createFirstRestaurant": "Mein erstes Restaurant erstellen"
+    },
+    "sections": {
+      "overview": "Übersicht",
+      "yourRestaurants": "Deine Restaurants",
+      "recommendedRestaurants": "Empfohlene Restaurants",
+      "receivedOrders": "Erhaltene Bestellungen",
+      "yourOrders": "Deine Bestellungen",
+      "quickActions": "Schnellaktionen"
+    },
+    "stats": {
+      "restaurantCount_one": "Restaurant",
+      "restaurantCount_other": "Restaurants",
+      "orderCount_one": "Bestellung",
+      "orderCount_other": "Bestellungen",
+      "activeCount_one": "Aktiv",
+      "activeCount_other": "Aktiv"
+    },
+    "empty": {
+      "loading": "Lädt…",
+      "loadingDescription": "Restaurants werden geladen…",
+      "errorPrefix": "Fehler: {{error}}",
+      "createFirstTitle": "Erstelle dein erstes Restaurant",
+      "validationRequiredTitle": "Validierung erforderlich",
+      "noRestaurantTitle": "Kein Restaurant",
+      "startNowDescription": "Beginne jetzt damit, Online-Bestellungen zu erhalten.",
+      "validateStripeDescription": "Validiere dein Stripe-Konto, um deine Restaurants zu erstellen.",
+      "noRestaurantDescription": "Derzeit kein Restaurant verfügbar.",
+      "noOrderTitle": "Keine Bestellungen",
+      "noOrderRestaurateur": "Noch keine Bestellungen erhalten",
+      "noOrderClient": "Du hast noch keine Bestellung aufgegeben"
+    },
+    "orderStatus": {
+      "pending": "Ausstehend",
+      "confirmed": "Bestätigt",
+      "preparing": "In Vorbereitung",
+      "ready": "Bereit",
+      "served": "Serviert",
+      "delivered": "Geliefert",
+      "completed": "Abgeschlossen",
+      "cancelled": "Storniert"
+    },
+    "actions": {
+      "dailyMenu": {
+        "title": "Tagesmenü",
+        "description": "Heutiges Menü verwalten"
+      },
+      "createRestaurant": {
+        "title": "Restaurant erstellen",
+        "description": "Neuer Standort"
+      },
+      "qrCodes": {
+        "title": "Tisch-QR-Codes",
+        "description": "Generieren & verwalten"
+      },
+      "manageMenus": {
+        "title": "Menüs verwalten",
+        "description": "Gerichte & Preise"
+      },
+      "viewOrders": {
+        "title": "Bestellungen anzeigen",
+        "description": "Verwaltung & Tracking"
+      },
+      "statistics": {
+        "title": "Statistiken",
+        "description": "Leistung"
+      }
+    }
+  },
+  "restaurantQrCodes": {
+    "sizes": {
+      "small": "Klein ({{count}}/Seite)",
+      "medium": "Mittel ({{count}}/Seite)",
+      "large": "Groß ({{count}}/Seite)"
+    },
+    "generator": {
+      "sectionTitle": "QR-Code-Generator",
+      "description": "Erstelle QR-Codes für deine Tische, damit Kunden scannen oder einen manuellen Code eingeben können, um die Speisekarte aufzurufen.",
+      "restaurantLabel": "Restaurant",
+      "selectPlaceholder": "Restaurant wählen"
+    },
+    "controls": {
+      "qrSize": "QR-Code-Größe",
+      "tablesCount": "Anzahl der Tische",
+      "tablesToAdd": "Anzahl der hinzuzufügenden Tische",
+      "startNumber": "Startnummer"
+    },
+    "warnings": {
+      "existingTables_one": "{{count}} Tisch existiert bereits für dieses Restaurant",
+      "existingTables_other": "{{count}} Tische existieren bereits für dieses Restaurant"
+    },
+    "actions": {
+      "generate": "QR-Codes generieren",
+      "generating": "Generiere…",
+      "addTables_one": "{{count}} Tisch hinzufügen",
+      "addTables_other": "{{count}} Tische hinzufügen",
+      "replace": "Ersetzen",
+      "replaceAll": "Alle Tische ersetzen",
+      "print": "Drucken",
+      "printing": "Drucke…",
+      "printAll": "Alle drucken",
+      "downloadPdf": "PDF herunterladen",
+      "downloading": "Lade herunter…",
+      "preview": "Vorschau",
+      "share": "Teilen",
+      "download": "Herunterladen"
+    },
+    "card": {
+      "tableTitle": "Tisch {{number}}",
+      "manualCodeLabel": "Manueller Code",
+      "instruction": "Scanne den QR-Code oder gib den manuellen Code ein"
+    },
+    "list": {
+      "title_one": "{{count}} QR-Code generiert",
+      "title_other": "{{count}} QR-Codes generiert"
+    },
+    "empty": {
+      "title": "Kein QR-Code generiert",
+      "message": "Wähle ein Restaurant und gib die Anzahl der Tische an, um zu starten"
+    },
+    "help": {
+      "title": "Wie funktioniert es?",
+      "steps": "• Wähle dein Restaurant\n• Wähle die QR-Code-Größe\n• Gib die Anzahl der Tische an\n• Generiere die QR-Codes\n• Drucke oder lade als PDF herunter\n• Deine Kunden können scannen oder den manuellen Code eingeben"
+    },
+    "restaurantPicker": {
+      "title": "Restaurant auswählen"
+    },
+    "conflicts": {
+      "replaceTitle": "Ersetzen bestätigen",
+      "replaceMessage": "Möchtest du wirklich die existierenden Tische ersetzen?\n\nDiese Aktion wird:\n• Alle existierenden Tische löschen\n• {{count}} neue Tische erstellen (1 bis {{count}})\n\nDiese Aktion ist unwiderruflich.",
+      "conflictTitle": "Konflikt erkannt",
+      "conflictMessage": "Einige Tische existieren bereits mit diesen Nummern. Was möchtest du tun?",
+      "moreOptions": "Weitere Optionen",
+      "optionsTitle": "Verfügbare Optionen",
+      "optionsMessage": "Du kannst die existierenden Tische laden oder eine andere Startnummer wählen.",
+      "otherNumber": "Andere Nummer",
+      "loadExisting": "Existierende laden"
+    },
+    "suggest": {
+      "title": "Vorgeschlagene Nummer",
+      "message_one": "Es gibt bereits {{count}} Tisch (bis Nummer {{max}}).\n\nBei Nummer {{suggested}} starten?",
+      "message_other": "Es gibt bereits {{count}} Tische (bis Nummer {{max}}).\n\nBei Nummer {{suggested}} starten?",
+      "choose": "Andere wählen",
+      "accept": "Akzeptieren"
+    },
+    "feedback": {
+      "infoTitle": "Info",
+      "tablesAddedTitle": "Tische hinzugefügt",
+      "tablesAddedMessage_one": "{{count}} Tisch erfolgreich hinzugefügt!",
+      "tablesAddedMessage_other": "{{count}} Tische erfolgreich hinzugefügt!",
+      "tablesCreatedTitle": "Tische erstellt",
+      "tablesCreatedMessage_one": "{{count}} Tisch erfolgreich erstellt!",
+      "tablesCreatedMessage_other": "{{count}} Tische erfolgreich erstellt!",
+      "replaceSuccessTitle": "Ersetzen erfolgreich",
+      "replaceSuccessMessage": "{{deleted}} Tisch(e) gelöscht und {{created}} neue Tisch(e) erstellt!",
+      "replaceCreatedMessage_one": "{{count}} Tisch erstellt!",
+      "replaceCreatedMessage_other": "{{count}} Tische erstellt!",
+      "tablesLoadedTitle": "Tische geladen",
+      "tablesLoadedMessage_one": "{{count}} existierender Tisch geladen.",
+      "tablesLoadedMessage_other": "{{count}} existierende Tische geladen.",
+      "noTableTitle": "Keine Tische",
+      "noTableForRestaurant": "Keine Tische für dieses Restaurant gefunden.",
+      "noExistingStartsAt1": "Keine existierenden Tische gefunden. Startnummer bleibt bei 1.",
+      "noExistingCanStartAt1": "Keine existierenden Tische gefunden. Du kannst bei Nummer 1 starten.",
+      "chooseNumberTitle": "Nummer wählen",
+      "chooseNumberMessage": "Verwende die +/- Schaltflächen, um die Startnummer anzupassen, und generiere dann erneut.",
+      "numberUpdatedTitle": "Nummer aktualisiert",
+      "numberUpdatedMessage": "Die Startnummer wurde auf {{number}} geändert."
+    },
+    "errors": {
+      "selectRestaurant": "Bitte wähle ein Restaurant",
+      "generationFailed": "Fehler beim Generieren der QR-Codes",
+      "replaceFailed": "Fehler beim Ersetzen der Tische",
+      "loadFailed": "Existierende Tische können nicht geladen werden.",
+      "checkFailed": "Existierende Tische können nicht überprüft werden.",
+      "shareFailed": "Dieser QR-Code kann nicht geteilt werden.",
+      "printAllFailed": "QR-Codes können nicht gedruckt werden",
+      "printOneFailed": "QR-Code kann nicht gedruckt werden",
+      "pdfFailed": "PDF kann nicht generiert werden",
+      "refreshFailed": "Aktualisierung fehlgeschlagen."
+    },
+    "share": {
+      "title": "QR-Code - Tisch {{number}}",
+      "message": "Tisch {{number}} - {{restaurant}}\n\nManueller Code: {{code}}\nOder scanne diesen QR-Code, um die Speisekarte aufzurufen!\n\n{{url}}"
+    },
+    "pdf": {
+      "tableLabel": "Tisch",
+      "scanOrEnter": "Scannen oder eingeben"
+    }
   }
 }

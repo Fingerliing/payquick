@@ -1,38 +1,88 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { 
-  View, 
-  StyleSheet, 
-  Modal, 
-  Text, 
+import {
+  View,
+  StyleSheet,
+  Modal,
+  Text,
   TouchableOpacity,
   ActivityIndicator,
   Animated,
   Pressable,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useTranslation } from 'react-i18next';
+
+import {
+  format,
+  addDays,
+  subDays,
+  startOfWeek,
+  endOfWeek,
+  isSameDay,
+  isToday,
+  startOfMonth,
+  endOfMonth,
+  type Locale,
+} from 'date-fns';
+import {
+  fr,
+  enUS,
+  es,
+  eu,
+  de,
+  it,
+  pt,
+  nl,
+  zhCN,
+  ja,
+  ar,
+} from 'date-fns/locale';
+
 import { Header } from '@/components/ui/Header';
 import { DailyMenuManager } from '@/components/menu/DailyMenuManager';
 import { useRestaurant } from '@/contexts/RestaurantContext';
 import { RestaurantAutoSelector } from '@/components/restaurant/RestaurantAutoSelector';
-import { Ionicons } from '@expo/vector-icons';
-import { format, addDays, subDays, startOfWeek, endOfWeek, isSameDay, isToday, startOfMonth, endOfMonth } from 'date-fns';
-import { fr } from 'date-fns/locale';
-import { LinearGradient } from 'expo-linear-gradient';
-import { 
-  COLORS,
-  TYPOGRAPHY,
-  SPACING,
-  BORDER_RADIUS,
-  SHADOWS,
+import {
+  useAppTheme,
+  makeShadows,
   useScreenType,
   getResponsiveValue,
-  createResponsiveStyles,
+  SPACING,
+  TYPOGRAPHY,
+  BORDER_RADIUS,
   ANIMATIONS,
+  type AppColors,
 } from '@/utils/designSystem';
 import { useResponsive } from '@/utils/responsive';
 import { dailyMenuService, DailyMenu } from '@/services/dailyMenuService';
 
+type ScreenType = 'mobile' | 'tablet' | 'desktop';
+
+// ============================================================================
+// date-fns locales mapping — pour format() dynamique par langue
+// ============================================================================
+const DATE_FNS_LOCALES: Record<string, Locale> = {
+  fr,
+  en: enUS,
+  es,
+  eu,
+  de,
+  it,
+  pt,
+  nl,
+  zh: zhCN,
+  ja,
+  ar,
+};
+
+const getDateFnsLocale = (lang: string): Locale =>
+  DATE_FNS_LOCALES[lang] || DATE_FNS_LOCALES[lang.split('-')[0]] || fr;
+
+// ============================================================================
 // Types pour le cache et les indicateurs
+// ============================================================================
 interface MenuCacheEntry {
   menu: DailyMenu | null;
   timestamp: number;
@@ -49,95 +99,94 @@ interface MonthlyMenuIndicators {
   };
 }
 
-// Configuration du cache
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-const PRELOAD_DAYS = 3; // Nombre de jours à précharger avant et après
+const CACHE_DURATION = 5 * 60 * 1000;
+const PRELOAD_DAYS = 3;
 
-// Composant interne qui contient toute la logique
-function DailyMenuScreenContent({ restaurant }: { restaurant: NonNullable<ReturnType<typeof useRestaurant>['currentRestaurant']> }) {
+// ============================================================================
+// COMPOSANT INTERNE — toute la logique
+// ============================================================================
+function DailyMenuScreenContent({
+  restaurant,
+}: {
+  restaurant: NonNullable<ReturnType<typeof useRestaurant>['currentRestaurant']>;
+}) {
+  const { t, i18n } = useTranslation();
+  const { colors, isDark } = useAppTheme();
   const screenType = useScreenType();
   const responsive = useResponsive();
-  const styles = createStyles(screenType, responsive);
-  
+
+  const styles = useMemo(
+    () => makeStyles(colors, isDark, screenType, responsive),
+    [colors, isDark, screenType, responsive],
+  );
+
+  // Locale date-fns dynamique
+  const dateLocale = useMemo(() => getDateFnsLocale(i18n.language), [i18n.language]);
+
   // États principaux
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showCalendar, setShowCalendar] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
-
-  // Compteur de rafraîchissement : incrémenté à chaque retour sur l'écran
-  // (useFocusEffect) ou après une mutation côté enfant. Passé au
-  // DailyMenuManager qui l'inclut dans ses deps pour forcer un reload.
   const [refreshKey, setRefreshKey] = useState(0);
-  
+
   // Cache et optimisations
   const menuCache = useRef<Map<string, MenuCacheEntry>>(new Map());
   const [monthlyIndicators, setMonthlyIndicators] = useState<MonthlyMenuIndicators>({});
   const isLoadingIndicatorsRef = useRef(false);
   const preloadQueue = useRef<Set<string>>(new Set());
   const fadeAnim = useRef(new Animated.Value(1)).current;
-  
+
   // ==================== GESTION DU CACHE ====================
-  
-  /**
-   * Récupère un menu depuis le cache ou l'API
-   */
-  const getMenuFromCacheOrFetch = useCallback(async (date: Date): Promise<DailyMenu | null> => {
-    const dateKey = format(date, 'yyyy-MM-dd');
-    const cached = menuCache.current.get(dateKey);
-    
-    // Vérifier si le cache est valide
-    if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
-      return cached.menu;
-    }
-    
-    // Si déjà en cours de chargement, attendre
-    if (cached?.isLoading) {
-      return new Promise((resolve) => {
-        const checkInterval = setInterval(() => {
-          const updatedCache = menuCache.current.get(dateKey);
-          if (!updatedCache?.isLoading) {
-            clearInterval(checkInterval);
-            resolve(updatedCache?.menu || null);
-          }
-        }, 100);
-      });
-    }
-    
-    // Marquer comme en cours de chargement
-    menuCache.current.set(dateKey, {
-      menu: null,
-      timestamp: Date.now(),
-      isLoading: true
-    });
-    
-    try {
-      const menu = await dailyMenuService.getMenuByDate(
-        Number(restaurant.id),
-        dateKey
-      );
-      
-      // Mettre à jour le cache
-      menuCache.current.set(dateKey, {
-        menu,
-        timestamp: Date.now(),
-        isLoading: false
-      });
-      
-      return menu;
-    } catch (error) {
-      // Même en cas d'erreur, on cache le résultat null
+  const getMenuFromCacheOrFetch = useCallback(
+    async (date: Date): Promise<DailyMenu | null> => {
+      const dateKey = format(date, 'yyyy-MM-dd');
+      const cached = menuCache.current.get(dateKey);
+
+      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+        return cached.menu;
+      }
+
+      if (cached?.isLoading) {
+        return new Promise((resolve) => {
+          const checkInterval = setInterval(() => {
+            const updatedCache = menuCache.current.get(dateKey);
+            if (!updatedCache?.isLoading) {
+              clearInterval(checkInterval);
+              resolve(updatedCache?.menu || null);
+            }
+          }, 100);
+        });
+      }
+
       menuCache.current.set(dateKey, {
         menu: null,
         timestamp: Date.now(),
-        isLoading: false
+        isLoading: true,
       });
-      return null;
-    }
-  }, [restaurant.id]);
 
-  /**
-   * Invalide le cache pour une date spécifique
-   */
+      try {
+        const menu = await dailyMenuService.getMenuByDate(
+          Number(restaurant.id),
+          dateKey,
+        );
+        menuCache.current.set(dateKey, {
+          menu,
+          timestamp: Date.now(),
+          isLoading: false,
+        });
+        return menu;
+      } catch {
+        menuCache.current.set(dateKey, {
+          menu: null,
+          timestamp: Date.now(),
+          isLoading: false,
+        });
+        return null;
+      }
+    },
+    [restaurant.id],
+  );
+
   const invalidateCache = useCallback((date?: Date) => {
     if (date) {
       const dateKey = format(date, 'yyyy-MM-dd');
@@ -148,97 +197,80 @@ function DailyMenuScreenContent({ restaurant }: { restaurant: NonNullable<Return
   }, []);
 
   // ==================== PRÉCHARGEMENT INTELLIGENT ====================
-  
-  /**
-   * Précharge les menus des jours adjacents
-   */
-  const preloadAdjacentMenus = useCallback(async (centerDate: Date) => {
-    const datesToPreload: Date[] = [];
-    
-    // Générer les dates à précharger (avant et après)
-    for (let i = 1; i <= PRELOAD_DAYS; i++) {
-      datesToPreload.push(subDays(centerDate, i));
-      datesToPreload.push(addDays(centerDate, i));
-    }
-    
-    // Précharger en arrière-plan
-    datesToPreload.forEach(async (date) => {
-      const dateKey = format(date, 'yyyy-MM-dd');
-      
-      // Éviter les doublons
-      if (preloadQueue.current.has(dateKey)) return;
-      preloadQueue.current.add(dateKey);
-      
-      // Vérifier si pas déjà en cache
-      const cached = menuCache.current.get(dateKey);
-      if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
-        preloadQueue.current.delete(dateKey);
-        return;
+  const preloadAdjacentMenus = useCallback(
+    async (centerDate: Date) => {
+      const datesToPreload: Date[] = [];
+      for (let i = 1; i <= PRELOAD_DAYS; i++) {
+        datesToPreload.push(subDays(centerDate, i));
+        datesToPreload.push(addDays(centerDate, i));
       }
-      
-      try {
-        await getMenuFromCacheOrFetch(date);
-      } catch {
-        // Préchargement best-effort : on ignore les erreurs.
-      } finally {
-        preloadQueue.current.delete(dateKey);
-      }
-    });
-  }, [getMenuFromCacheOrFetch]);
+
+      datesToPreload.forEach(async (date) => {
+        const dateKey = format(date, 'yyyy-MM-dd');
+        if (preloadQueue.current.has(dateKey)) return;
+        preloadQueue.current.add(dateKey);
+
+        const cached = menuCache.current.get(dateKey);
+        if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+          preloadQueue.current.delete(dateKey);
+          return;
+        }
+
+        try {
+          await getMenuFromCacheOrFetch(date);
+        } catch {
+          // Préchargement best-effort
+        } finally {
+          preloadQueue.current.delete(dateKey);
+        }
+      });
+    },
+    [getMenuFromCacheOrFetch],
+  );
 
   // ==================== INDICATEURS VISUELS ====================
-  
-  /**
-   * Charge les indicateurs de menus pour le mois en cours
-   */
-  const loadMonthlyIndicators = useCallback(async (month: Date) => {
-    if (isLoadingIndicatorsRef.current) return;
-    
-    isLoadingIndicatorsRef.current = true;
-    try {
-      const response = await dailyMenuService.getMonthlyCalendar(
-        Number(restaurant.id),
-        month.getFullYear(),
-        month.getMonth() + 1 // L'API attend un mois de 1 à 12
-      );
-      
-      // Transformer la réponse en map d'indicateurs
-      const indicators: MonthlyMenuIndicators = {};
-      
-      response.menu_summaries.forEach(summary => {
-        indicators[summary.date] = {
-          hasMenu: true,
-          menuId: summary.menu_id,
-          title: summary.title,
-          itemsCount: summary.items_count,
-          isActive: summary.is_active
-        };
-      });
-      
-      setMonthlyIndicators(prev => ({
-        ...prev,
-        ...indicators
-      }));
-    } catch {
-      // Indicateurs non critiques : on laisse l'état précédent et on enchaîne.
-    } finally {
-      isLoadingIndicatorsRef.current = false;
-    }
-  }, [restaurant.id]);
+  const loadMonthlyIndicators = useCallback(
+    async (month: Date) => {
+      if (isLoadingIndicatorsRef.current) return;
+
+      isLoadingIndicatorsRef.current = true;
+      try {
+        const response = await dailyMenuService.getMonthlyCalendar(
+          Number(restaurant.id),
+          month.getFullYear(),
+          month.getMonth() + 1,
+        );
+
+        const indicators: MonthlyMenuIndicators = {};
+        response.menu_summaries.forEach((summary) => {
+          indicators[summary.date] = {
+            hasMenu: true,
+            menuId: summary.menu_id,
+            title: summary.title,
+            itemsCount: summary.items_count,
+            isActive: summary.is_active,
+          };
+        });
+
+        setMonthlyIndicators((prev) => ({ ...prev, ...indicators }));
+      } catch {
+        // Indicateurs non critiques
+      } finally {
+        isLoadingIndicatorsRef.current = false;
+      }
+    },
+    [restaurant.id],
+  );
 
   // ==================== EFFETS ====================
-  
-  // Charger les indicateurs quand le mois change
   useEffect(() => {
     loadMonthlyIndicators(currentMonth);
   }, [currentMonth, loadMonthlyIndicators]);
-  
-  // Précharger les menus adjacents quand la date change
+
   useEffect(() => {
     preloadAdjacentMenus(selectedDate);
   }, [selectedDate, preloadAdjacentMenus]);
-  
-  // Animation de transition lors du changement de date
+
   useEffect(() => {
     Animated.sequence([
       Animated.timing(fadeAnim, {
@@ -254,13 +286,6 @@ function DailyMenuScreenContent({ restaurant }: { restaurant: NonNullable<Return
     ]).start();
   }, [selectedDate]);
 
-  // Rafraîchissement automatique au retour sur l'écran.
-  // Quand on revient depuis l'écran d'édition (ou de création) d'un menu du jour,
-  // on invalide le cache pour la date sélectionnée, on recharge les indicateurs
-  // mensuels (icônes du calendrier) et on incrémente refreshKey pour forcer
-  // le DailyMenuManager à recharger ses données sans qu'on ait à scroll/reload.
-  // Le useRef garantit qu'on ne déclenche pas au tout premier mount (déjà couvert
-  // par les useEffect ci-dessus).
   const hasFocusedOnceRef = useRef(false);
   useFocusEffect(
     useCallback(() => {
@@ -270,18 +295,17 @@ function DailyMenuScreenContent({ restaurant }: { restaurant: NonNullable<Return
       }
       invalidateCache(selectedDate);
       loadMonthlyIndicators(currentMonth);
-      setRefreshKey(k => k + 1);
-    }, [selectedDate, currentMonth, invalidateCache, loadMonthlyIndicators])
+      setRefreshKey((k) => k + 1);
+    }, [selectedDate, currentMonth, invalidateCache, loadMonthlyIndicators]),
   );
 
   // ==================== NAVIGATION DE DATE ====================
-
   const handlePreviousDay = useCallback(() => {
-    setSelectedDate(prev => subDays(prev, 1));
+    setSelectedDate((prev) => subDays(prev, 1));
   }, []);
 
   const handleNextDay = useCallback(() => {
-    setSelectedDate(prev => addDays(prev, 1));
+    setSelectedDate((prev) => addDays(prev, 1));
   }, []);
 
   const handleToday = useCallback(() => {
@@ -295,9 +319,8 @@ function DailyMenuScreenContent({ restaurant }: { restaurant: NonNullable<Return
   }, []);
 
   // ==================== CALENDRIER ====================
-
   const handlePreviousMonth = useCallback(() => {
-    setCurrentMonth(prev => {
+    setCurrentMonth((prev) => {
       const newMonth = new Date(prev);
       newMonth.setMonth(prev.getMonth() - 1);
       return newMonth;
@@ -305,46 +328,61 @@ function DailyMenuScreenContent({ restaurant }: { restaurant: NonNullable<Return
   }, []);
 
   const handleNextMonth = useCallback(() => {
-    setCurrentMonth(prev => {
+    setCurrentMonth((prev) => {
       const newMonth = new Date(prev);
       newMonth.setMonth(prev.getMonth() + 1);
       return newMonth;
     });
   }, []);
 
-  // Générer les jours du calendrier
+  // Génère les jours du calendrier dans la locale courante (semaine
+  // commençant lundi en FR, dimanche en EN, etc. — date-fns gère ça)
   const calendarDays = useMemo(() => {
-    const start = startOfWeek(startOfMonth(currentMonth), { locale: fr });
-    const end = endOfWeek(endOfMonth(currentMonth), { locale: fr });
+    const start = startOfWeek(startOfMonth(currentMonth), { locale: dateLocale });
+    const end = endOfWeek(endOfMonth(currentMonth), { locale: dateLocale });
     const days: Date[] = [];
-    
     let current = start;
     while (current <= end) {
       days.push(current);
       current = addDays(current, 1);
     }
-    
     return days;
-  }, [currentMonth]);
+  }, [currentMonth, dateLocale]);
 
-  // Vérifier si une date a un menu
-  const hasMenuOnDate = useCallback((date: Date): boolean => {
-    const dateKey = format(date, 'yyyy-MM-dd');
-    return monthlyIndicators[dateKey]?.hasMenu || false;
-  }, [monthlyIndicators]);
+  // Génère les initiales des jours de la semaine via Intl.DateTimeFormat
+  // (respecte la locale et le firstDayOfWeek défini par date-fns)
+  const weekdayLabels = useMemo(() => {
+    try {
+      const formatter = new Intl.DateTimeFormat(i18n.language, { weekday: 'narrow' });
+      // start of week pour la locale courante
+      const weekStart = startOfWeek(new Date(2024, 0, 1), { locale: dateLocale });
+      return Array.from({ length: 7 }, (_, i) => formatter.format(addDays(weekStart, i)));
+    } catch {
+      return ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+    }
+  }, [i18n.language, dateLocale]);
 
-  // Obtenir les infos du menu pour une date
-  const getMenuInfo = useCallback((date: Date) => {
-    const dateKey = format(date, 'yyyy-MM-dd');
-    return monthlyIndicators[dateKey];
-  }, [monthlyIndicators]);
+  const hasMenuOnDate = useCallback(
+    (date: Date): boolean => {
+      const dateKey = format(date, 'yyyy-MM-dd');
+      return monthlyIndicators[dateKey]?.hasMenu || false;
+    },
+    [monthlyIndicators],
+  );
+
+  const getMenuInfo = useCallback(
+    (date: Date) => {
+      const dateKey = format(date, 'yyyy-MM-dd');
+      return monthlyIndicators[dateKey];
+    },
+    [monthlyIndicators],
+  );
 
   // ==================== RENDER ====================
-
   return (
     <View style={styles.container}>
       <Header
-        title="Menu du Jour"
+        title={t('restaurantNav.dailyMenu')}
         subtitle={restaurant.name}
         rightIcon="swap-vertical"
         onRightPress={() =>
@@ -353,15 +391,14 @@ function DailyMenuScreenContent({ restaurant }: { restaurant: NonNullable<Return
             params: { restaurantId: String(restaurant.id) },
           } as any)
         }
+        showLanguageSwitcher
+        showThemeSwitcher
       />
 
       {/* Sélecteur de date */}
       <View style={styles.dateSelector}>
-        <TouchableOpacity 
-          onPress={handlePreviousDay}
-          style={styles.dateArrow}
-        >
-          <Ionicons name="chevron-back" size={24} color={COLORS.primary} />
+        <TouchableOpacity onPress={handlePreviousDay} style={styles.dateArrow}>
+          <Ionicons name="chevron-back" size={24} color={colors.primary} />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -369,34 +406,30 @@ function DailyMenuScreenContent({ restaurant }: { restaurant: NonNullable<Return
           onPress={() => setShowCalendar(true)}
         >
           <View style={styles.dateDisplayContent}>
-            <Ionicons name="calendar-outline" size={20} color={COLORS.text.golden} />
+            <Ionicons name="calendar-outline" size={20} color={colors.text.golden} />
             <Text style={styles.dateText}>
-              {format(selectedDate, 'EEEE d MMMM yyyy', { locale: fr })}
+              {format(selectedDate, 'EEEE d MMMM yyyy', { locale: dateLocale })}
             </Text>
             {hasMenuOnDate(selectedDate) && (
               <View style={styles.menuIndicatorBadge}>
-                <Ionicons name="checkmark" size={12} color={COLORS.surface} />
+                <Ionicons name="checkmark" size={12} color={colors.text.inverse} />
               </View>
             )}
           </View>
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          onPress={handleNextDay}
-          style={styles.dateArrow}
-        >
-          <Ionicons name="chevron-forward" size={24} color={COLORS.primary} />
+        <TouchableOpacity onPress={handleNextDay} style={styles.dateArrow}>
+          <Ionicons name="chevron-forward" size={24} color={colors.primary} />
         </TouchableOpacity>
       </View>
 
       {/* Bouton aujourd'hui */}
       {!isToday(selectedDate) && (
         <View style={styles.todayButtonContainer}>
-          <TouchableOpacity 
-            style={styles.todayButton}
-            onPress={handleToday}
-          >
-            <Text style={styles.todayButtonText}>Aujourd'hui</Text>
+          <TouchableOpacity style={styles.todayButton} onPress={handleToday}>
+            <Text style={styles.todayButtonText}>
+              {t('restaurantDailyMenu.today')}
+            </Text>
           </TouchableOpacity>
         </View>
       )}
@@ -407,18 +440,22 @@ function DailyMenuScreenContent({ restaurant }: { restaurant: NonNullable<Return
           restaurantId={restaurant.id}
           selectedDate={selectedDate}
           refreshKey={refreshKey}
-          onNavigateToCreate={(selectedDate) => router.push({
-            pathname: '/menu/daily-menu/create',
-            params: {
-              restaurantId: restaurant.id,
-              selectedDate: selectedDate.toISOString()
-            }
-          })}
-          onNavigateToEdit={(menuId) => router.push(`/menu/daily-menu/edit/${menuId}`)}
+          onNavigateToCreate={(selectedDate) =>
+            router.push({
+              pathname: '/menu/daily-menu/create',
+              params: {
+                restaurantId: restaurant.id,
+                selectedDate: selectedDate.toISOString(),
+              },
+            })
+          }
+          onNavigateToEdit={(menuId) =>
+            router.push(`/menu/daily-menu/edit/${menuId}`)
+          }
           onMenuUpdated={() => {
             invalidateCache(selectedDate);
             loadMonthlyIndicators(currentMonth);
-            setRefreshKey(k => k + 1);
+            setRefreshKey((k) => k + 1);
           }}
         />
       </Animated.View>
@@ -429,44 +466,47 @@ function DailyMenuScreenContent({ restaurant }: { restaurant: NonNullable<Return
         transparent
         animationType="fade"
         onRequestClose={() => setShowCalendar(false)}
+        statusBarTranslucent
       >
-        <Pressable 
+        <Pressable
           style={styles.modalOverlay}
           onPress={() => setShowCalendar(false)}
         >
-          <Pressable style={styles.calendarContainer} onPress={(e) => e.stopPropagation()}>
-            {/* Header du calendrier */}
+          <Pressable
+            style={styles.calendarContainer}
+            onPress={(e) => e.stopPropagation()}
+          >
             <View style={styles.calendarHeader}>
               <TouchableOpacity onPress={handlePreviousMonth} style={styles.monthNavButton}>
-                <Ionicons name="chevron-back" size={24} color={COLORS.primary} />
+                <Ionicons name="chevron-back" size={24} color={colors.primary} />
               </TouchableOpacity>
-              
+
               <View style={styles.monthTitleContainer}>
                 <Text style={styles.monthTitle}>
-                  {format(currentMonth, 'MMMM yyyy', { locale: fr })}
+                  {format(currentMonth, 'MMMM yyyy', { locale: dateLocale })}
                 </Text>
                 {isLoadingIndicatorsRef.current && (
-                  <ActivityIndicator 
-                    size="small" 
-                    color={COLORS.primary}
+                  <ActivityIndicator
+                    size="small"
+                    color={colors.primary}
                     style={styles.monthLoader}
                   />
                 )}
               </View>
-              
+
               <TouchableOpacity onPress={handleNextMonth} style={styles.monthNavButton}>
-                <Ionicons name="chevron-forward" size={24} color={COLORS.primary} />
+                <Ionicons name="chevron-forward" size={24} color={colors.primary} />
               </TouchableOpacity>
             </View>
 
-            {/* Jours de la semaine */}
             <View style={styles.weekDaysRow}>
-              {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((day, index) => (
-                <Text key={index} style={styles.weekDayText}>{day}</Text>
+              {weekdayLabels.map((day, index) => (
+                <Text key={index} style={styles.weekDayText}>
+                  {day}
+                </Text>
               ))}
             </View>
 
-            {/* Grille des jours */}
             <View style={styles.daysGrid}>
               {calendarDays.map((day, index) => {
                 const isSelected = isSameDay(day, selectedDate);
@@ -496,15 +536,15 @@ function DailyMenuScreenContent({ restaurant }: { restaurant: NonNullable<Return
                     >
                       {day.getDate()}
                     </Text>
-                    
+
                     {hasMenu && (
                       <View style={styles.dayIndicatorContainer}>
-                        <View 
+                        <View
                           style={[
                             styles.dayMenuIndicator,
                             !menuInfo.isActive && styles.dayMenuIndicatorInactive,
                             isSelected && styles.dayMenuIndicatorSelected,
-                          ]} 
+                          ]}
                         />
                       </View>
                     )}
@@ -513,40 +553,50 @@ function DailyMenuScreenContent({ restaurant }: { restaurant: NonNullable<Return
               })}
             </View>
 
-            {/* Légende */}
             <View style={styles.calendarLegend}>
               <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: COLORS.variants.secondary[500] }]} />
-                <Text style={styles.legendText}>Avec menu</Text>
+                <View
+                  style={[
+                    styles.legendDot,
+                    { backgroundColor: colors.variants.secondary[500] },
+                  ]}
+                />
+                <Text style={styles.legendText}>
+                  {t('restaurantDailyMenu.legend.withMenu')}
+                </Text>
               </View>
               <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: COLORS.text.light }]} />
-                <Text style={styles.legendText}>Menu inactif</Text>
+                <View
+                  style={[styles.legendDot, { backgroundColor: colors.text.light }]}
+                />
+                <Text style={styles.legendText}>
+                  {t('restaurantDailyMenu.legend.inactiveMenu')}
+                </Text>
               </View>
             </View>
 
-            {/* Footer */}
             <View style={styles.calendarFooter}>
-              <TouchableOpacity 
-                style={styles.todayFooterButton}
-                onPress={handleToday}
-              >
+              <TouchableOpacity style={styles.todayFooterButton} onPress={handleToday}>
                 <LinearGradient
-                  colors={[COLORS.secondary, COLORS.variants.secondary[700]]}
+                  colors={[colors.secondary, colors.variants.secondary[700]]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.todayGradient}
                 >
-                  <Ionicons name="today" size={18} color={COLORS.surface} />
-                  <Text style={styles.todayFooterText}>Aujourd'hui</Text>
+                  <Ionicons name="today" size={18} color={colors.text.inverse} />
+                  <Text style={styles.todayFooterText}>
+                    {t('restaurantDailyMenu.today')}
+                  </Text>
                 </LinearGradient>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={styles.closeButton}
                 onPress={() => setShowCalendar(false)}
               >
-                <Text style={styles.closeButtonText}>Fermer</Text>
+                <Text style={styles.closeButtonText}>
+                  {t('restaurantDailyMenu.close')}
+                </Text>
               </TouchableOpacity>
             </View>
           </Pressable>
@@ -556,15 +606,19 @@ function DailyMenuScreenContent({ restaurant }: { restaurant: NonNullable<Return
   );
 }
 
-// Composant wrapper avec gestion automatique de la sélection du restaurant
+// ============================================================================
+// WRAPPER avec gestion automatique de la sélection du restaurant
+// ============================================================================
 export default function DailyMenuScreen() {
+  const { t } = useTranslation();
   const { currentRestaurant } = useRestaurant();
-  
+
   return (
     <RestaurantAutoSelector
-      noRestaurantMessage="Aucun restaurant pour gérer les menus"
-      createButtonText="Créer mon restaurant"
-      onRestaurantSelected={(restaurantId) => {
+      noRestaurantMessage={t('restaurantDailyMenu.noRestaurantMessage')}
+      createButtonText={t('restaurantDailyMenu.createRestaurant')}
+      onRestaurantSelected={(_restaurantId) => {
+        /* noop */
       }}
     >
       {currentRestaurant && <DailyMenuScreenContent restaurant={currentRestaurant} />}
@@ -572,31 +626,38 @@ export default function DailyMenuScreen() {
   );
 }
 
-// Styles (identiques à votre version originale)
-function createStyles(screenType: any, responsive: any) {
+// ============================================================================
+// STYLES (fabrique theme-aware)
+// ============================================================================
+const makeStyles = (
+  colors: AppColors,
+  isDark: boolean,
+  screenType: ScreenType,
+  responsive: any,
+) => {
+  const shadows = makeShadows(colors);
+
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: COLORS.background,
+      backgroundColor: colors.background,
     },
-    content: {
-      flex: 1,
-    },
+    content: { flex: 1 },
     todayButtonContainer: {
       alignItems: 'center',
       paddingVertical: getResponsiveValue(SPACING.sm, screenType),
     },
-    
-    // Date Selector
+
+    // Date Selector — bandeau or qui ressort dans les 2 modes
     dateSelector: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      backgroundColor: COLORS.goldenSurface,
+      backgroundColor: colors.goldenSurface,
       paddingHorizontal: getResponsiveValue(SPACING.md, screenType),
       paddingVertical: getResponsiveValue(SPACING.sm, screenType),
       borderBottomWidth: 2,
-      borderBottomColor: COLORS.border.golden,
+      borderBottomColor: colors.border.golden,
     },
     dateArrow: {
       padding: getResponsiveValue(SPACING.sm, screenType),
@@ -604,11 +665,11 @@ function createStyles(screenType: any, responsive: any) {
     dateDisplay: {
       flex: 1,
       marginHorizontal: getResponsiveValue(SPACING.sm, screenType),
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderRadius: BORDER_RADIUS.lg,
       borderWidth: 1,
-      borderColor: COLORS.border.golden,
-      ...SHADOWS.sm,
+      borderColor: colors.border.golden,
+      ...shadows.sm,
     },
     dateDisplayContent: {
       flexDirection: 'row',
@@ -620,7 +681,7 @@ function createStyles(screenType: any, responsive: any) {
     dateText: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      color: COLORS.text.golden,
+      color: colors.text.golden,
       marginHorizontal: getResponsiveValue(SPACING.xs, screenType),
       textTransform: 'capitalize',
     },
@@ -628,39 +689,48 @@ function createStyles(screenType: any, responsive: any) {
       width: 20,
       height: 20,
       borderRadius: BORDER_RADIUS.full,
-      backgroundColor: COLORS.variants.secondary[500],
+      backgroundColor: colors.variants.secondary[500],
       alignItems: 'center',
       justifyContent: 'center',
       marginLeft: getResponsiveValue(SPACING.xs, screenType),
     },
+
+    // Bouton "Aujourd'hui" pill or pâle
     todayButton: {
-      backgroundColor: COLORS.variants.secondary[100],
+      backgroundColor: isDark
+        ? 'rgba(212, 175, 55, 0.18)'
+        : colors.variants.secondary[100],
       paddingVertical: getResponsiveValue(SPACING.xs, screenType),
       paddingHorizontal: getResponsiveValue(SPACING.md, screenType),
       borderRadius: BORDER_RADIUS.full,
       borderWidth: 1,
-      borderColor: COLORS.variants.secondary[300],
+      borderColor: isDark
+        ? 'rgba(212, 175, 55, 0.4)'
+        : colors.variants.secondary[300],
     },
     todayButtonText: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      color: COLORS.variants.secondary[700],
+      color: colors.variants.secondary[700],
     },
-    
-    // Calendar Modal
+
+    // Modal Calendrier
     modalOverlay: {
       flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      backgroundColor: colors.overlay,
       justifyContent: 'center',
       alignItems: 'center',
       padding: getResponsiveValue(SPACING.xl, screenType),
     },
     calendarContainer: {
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderRadius: BORDER_RADIUS.xl,
       width: responsive.isMobile ? '100%' : Math.min(450, responsive.width * 0.9),
       maxWidth: 450,
-      ...SHADOWS.xl,
+      // En dark, hairline or 12% comme les autres modales
+      borderWidth: isDark ? 1 : 0,
+      borderColor: isDark ? 'rgba(212, 175, 55, 0.12)' : 'transparent',
+      ...shadows.xl,
     },
     calendarHeader: {
       flexDirection: 'row',
@@ -668,7 +738,7 @@ function createStyles(screenType: any, responsive: any) {
       justifyContent: 'space-between',
       padding: getResponsiveValue(SPACING.lg, screenType),
       borderBottomWidth: 1,
-      borderBottomColor: COLORS.border.light,
+      borderBottomColor: colors.border.light,
     },
     monthNavButton: {
       padding: getResponsiveValue(SPACING.sm, screenType),
@@ -680,24 +750,27 @@ function createStyles(screenType: any, responsive: any) {
     monthTitle: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
       fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: COLORS.primary,
+      // En dark, titre du mois en or chaud — cohérent avec la migration
+      color: isDark ? colors.text.golden : colors.primary,
       textTransform: 'capitalize',
     },
     monthLoader: {
       marginLeft: getResponsiveValue(SPACING.sm, screenType),
     },
+
+    // Bandeau des jours de la semaine — fond or léger
     weekDaysRow: {
       flexDirection: 'row',
       paddingHorizontal: getResponsiveValue(SPACING.md, screenType),
       paddingVertical: getResponsiveValue(SPACING.sm, screenType),
-      backgroundColor: COLORS.goldenSurface,
+      backgroundColor: colors.goldenSurface,
     },
     weekDayText: {
       flex: 1,
       textAlign: 'center',
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      color: COLORS.text.golden,
+      color: colors.text.golden,
     },
     daysGrid: {
       flexDirection: 'row',
@@ -716,30 +789,30 @@ function createStyles(screenType: any, responsive: any) {
       opacity: 0.3,
     },
     dayButtonSelected: {
-      backgroundColor: COLORS.variants.secondary[500],
+      backgroundColor: colors.variants.secondary[500],
       borderRadius: BORDER_RADIUS.full,
     },
     dayButtonToday: {
       borderWidth: 2,
-      borderColor: COLORS.variants.secondary[400],
+      borderColor: colors.variants.secondary[400],
       borderRadius: BORDER_RADIUS.full,
     },
     dayText: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
-      color: COLORS.text.primary,
+      color: colors.text.primary,
     },
     dayTextOtherMonth: {
-      color: COLORS.text.light,
+      color: colors.text.light,
     },
     dayTextSelected: {
-      color: COLORS.surface,
+      color: colors.text.inverse,
       fontWeight: TYPOGRAPHY.fontWeight.bold,
     },
     dayTextToday: {
-      color: COLORS.variants.secondary[600],
+      color: colors.variants.secondary[600],
       fontWeight: TYPOGRAPHY.fontWeight.bold,
     },
-    
+
     // Indicateurs de menu dans le calendrier
     dayIndicatorContainer: {
       position: 'absolute',
@@ -750,22 +823,22 @@ function createStyles(screenType: any, responsive: any) {
       width: 6,
       height: 6,
       borderRadius: 3,
-      backgroundColor: COLORS.variants.secondary[500],
+      backgroundColor: colors.variants.secondary[500],
     },
     dayMenuIndicatorInactive: {
-      backgroundColor: COLORS.text.light,
+      backgroundColor: colors.text.light,
     },
     dayMenuIndicatorSelected: {
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.text.inverse,
     },
-    
+
     // Légende du calendrier
     calendarLegend: {
       flexDirection: 'row',
       justifyContent: 'center',
       paddingVertical: getResponsiveValue(SPACING.sm, screenType),
       borderTopWidth: 1,
-      borderTopColor: COLORS.border.light,
+      borderTopColor: colors.border.light,
     },
     legendItem: {
       flexDirection: 'row',
@@ -780,16 +853,16 @@ function createStyles(screenType: any, responsive: any) {
     },
     legendText: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
     },
-    
+
     // Footer du calendrier
     calendarFooter: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       padding: getResponsiveValue(SPACING.lg, screenType),
       borderTopWidth: 1,
-      borderTopColor: COLORS.border.light,
+      borderTopColor: colors.border.light,
     },
     todayFooterButton: {
       flex: 1,
@@ -807,20 +880,20 @@ function createStyles(screenType: any, responsive: any) {
       marginLeft: getResponsiveValue(SPACING.xs, screenType),
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      color: COLORS.surface,
+      color: colors.text.inverse,
     },
     closeButton: {
       paddingVertical: getResponsiveValue(SPACING.sm, screenType),
       paddingHorizontal: getResponsiveValue(SPACING.lg, screenType),
-      backgroundColor: COLORS.background,
+      backgroundColor: colors.background,
       borderRadius: BORDER_RADIUS.lg,
       borderWidth: 1,
-      borderColor: COLORS.border.default,
+      borderColor: colors.border.default,
     },
     closeButtonText: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
       fontWeight: TYPOGRAPHY.fontWeight.medium,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
     },
   });
-}
+};
