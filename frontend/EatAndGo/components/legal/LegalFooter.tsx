@@ -29,7 +29,7 @@ export function LegalFooter() {
         </TouchableOpacity>
       </View>
       
-      <Text style={styles.version}>Version 1.0.0</Text>
+      <Text style={styles.version}>Version 1.1.2</Text>
     </View>
   );
 }

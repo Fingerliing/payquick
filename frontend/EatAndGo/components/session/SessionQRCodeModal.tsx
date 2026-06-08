@@ -12,7 +12,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import ViewShot from 'react-native-view-shot';
-import * as MediaLibrary from 'expo-media-library';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Clipboard from 'expo-clipboard';
 
 // Logo intégré au centre des QR codes pour cohérence de marque
@@ -51,7 +52,7 @@ export const SessionQRCodeModal: React.FC<SessionQRCodeModalProps> = ({
 
   const qrUrl = getQRUrl();
 
-  // Partager le code
+  // Partager le code (texte + QR)
   const handleShare = async () => {
     try {
       const message = `🍽️ Rejoins notre table au restaurant !\n\nRestaurant: ${restaurantName}\nTable: ${tableNumber}\n\nCode de session: ${shareCode}\n\nOu scanne ce QR code !`;
@@ -77,7 +78,7 @@ export const SessionQRCodeModal: React.FC<SessionQRCodeModalProps> = ({
     }
   };
 
-  // Télécharger le QR code
+  // Partager / sauvegarder le QR code en image
   const handleDownload = async () => {
     if (!viewShotRef.current) {
       Alert.alert('Erreur', 'Impossible de capturer le QR code');
@@ -90,18 +91,6 @@ export const SessionQRCodeModal: React.FC<SessionQRCodeModalProps> = ({
 
     try {
       setIsCapturing(true);
-
-      // Demander la permission sur mobile
-      if (Platform.OS !== 'web') {
-        const { status } = await MediaLibrary.requestPermissionsAsync();
-        if (status !== 'granted') {
-          Alert.alert(
-            'Permission refusée',
-            'Veuillez autoriser l\'accès à la galerie pour sauvegarder le QR code'
-          );
-          return;
-        }
-      }
 
       // Capturer l'image
       const uri = await viewShotRef.current.capture?.();
@@ -120,13 +109,40 @@ export const SessionQRCodeModal: React.FC<SessionQRCodeModalProps> = ({
         document.body.removeChild(link);
         Alert.alert('✅', 'QR code téléchargé !');
       } else {
-        // Pour mobile, sauvegarder dans la galerie
-        await MediaLibrary.saveToLibraryAsync(uri);
-        Alert.alert('✅', 'QR code sauvegardé dans la galerie !');
+        // Pour mobile : copier la capture vers un fichier nommé proprement
+        // avant de la partager, pour que le nom apparaisse joliment dans
+        // l'application réceptrice (WhatsApp, Mail, etc.).
+        const fileName = `EatQuickeR-session-${shareCode}.png`;
+        const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
+
+        try {
+          // Si un fichier précédent existe, on le supprime silencieusement
+          await FileSystem.deleteAsync(fileUri, { idempotent: true });
+        } catch {
+          // Aucune importance si la suppression échoue
+        }
+
+        await FileSystem.copyAsync({ from: uri, to: fileUri });
+
+        // Vérifier que le partage natif est disponible
+        const isAvailable = await Sharing.isAvailableAsync();
+        if (!isAvailable) {
+          Alert.alert(
+            'Partage indisponible',
+            'Le partage de fichiers n\'est pas disponible sur cet appareil.'
+          );
+          return;
+        }
+
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'image/png',
+          dialogTitle: 'Partager le QR code de session',
+          UTI: 'public.png', // iOS uniquement
+        });
       }
     } catch (error) {
-      console.error('Error downloading QR code:', error);
-      Alert.alert('Erreur', 'Erreur lors de la sauvegarde du QR code');
+      console.error('Error sharing QR code:', error);
+      Alert.alert('Erreur', 'Erreur lors du partage du QR code');
     } finally {
       setIsCapturing(false);
     }
@@ -220,9 +236,9 @@ export const SessionQRCodeModal: React.FC<SessionQRCodeModalProps> = ({
               onPress={handleDownload}
               disabled={isCapturing}
             >
-              <Ionicons name="download-outline" size={24} color="#1E2A78" />
+              <Ionicons name="image-outline" size={24} color="#1E2A78" />
               <Text style={styles.actionText}>
-                {isCapturing ? '...' : 'Télécharger'}
+                {isCapturing ? '...' : 'Image'}
               </Text>
             </TouchableOpacity>
           </View>

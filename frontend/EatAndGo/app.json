@@ -2,7 +2,7 @@
   "expo": {
     "name": "EatQuickeR",
     "slug": "EatQuickeR",
-    "version": "1.1.1",
+    "version": "1.1.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "light",
@@ -21,9 +21,16 @@
         "applinks:api.eatquicker.fr",
         "applinks:eatquicker.fr"
       ],
-      "googleServicesFile": "./GoogleService-Info.plist"
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "EatQuickeR utilise l'appareil photo pour scanner les QR codes de table et accéder au menu du restaurant.",
+        "NSPhotoLibraryUsageDescription": "EatQuickeR a besoin d'accéder à vos photos pour personnaliser votre profil ou ajouter une image à un plat (restaurateurs uniquement).",
+        "NSPhotoLibraryAddUsageDescription": "EatQuickeR peut enregistrer le QR code de votre session dans votre galerie pour faciliter le partage."
+      }
     },
     "android": {
+      "versionCode": 11,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#1E3A5F"
@@ -71,7 +78,21 @@
       [
         "@react-native-google-signin/google-signin",
         {
-          "iosUrlScheme": "com.googleusercontent.apps.REPLACE_WITH_IOS_CLIENT_ID_REVERSED"
+          "iosUrlScheme": "com.googleusercontent.apps.161444086922-0e30dfkvqiba6o9vhce8ap5432ptkqrt"
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "EatQuickeR utilise l'appareil photo pour scanner les QR codes de table.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "EatQuickeR a besoin d'accéder à vos photos pour personnaliser votre profil ou ajouter une image à un plat.",
+          "cameraPermission": "EatQuickeR utilise l'appareil photo pour prendre une photo de profil ou d'un plat."
         }
       ]
     ],
