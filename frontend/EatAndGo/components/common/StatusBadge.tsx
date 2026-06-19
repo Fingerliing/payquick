@@ -1,45 +1,86 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text } from 'react-native';
-import { COLORS, COMPONENT_STYLES, useScreenType, getResponsiveValue, TYPOGRAPHY } from '@/utils/designSystem';
+import { useTranslation } from 'react-i18next';
+import {
+  useAppTheme,
+  makeComponentStyles,
+  useScreenType,
+  getResponsiveValue,
+  TYPOGRAPHY,
+} from '@/utils/designSystem';
+
+// ──────────────────────────────────────────────────────────────────────────
+// StatusBadge — badge de statut commande
+//
+// Conventions :
+//  - Les couleurs de fond/bordure viennent de `makeComponentStyles(colors)`
+//    (theme-aware via le designSystem).
+//  - Les couleurs de texte sont *stables* dans les deux modes pour préserver
+//    l'identité sémantique des badges (cf. KANBAN_RED/AMBER/GREEN). En dark
+//    mode, les badges restent volontairement clairs (variantes 100/200 du
+//    designSystem) → on garde un texte foncé qui reste lisible.
+//  - Les libellés viennent de `order.statusLabels.*` (déjà présent en 11
+//    langues, parité 594 clés).
+// ──────────────────────────────────────────────────────────────────────────
+
+type OrderStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'preparing'
+  | 'ready'
+  | 'served'
+  | 'cancelled';
+
+const KNOWN_STATUSES: readonly OrderStatus[] = [
+  'pending',
+  'confirmed',
+  'preparing',
+  'ready',
+  'served',
+  'cancelled',
+] as const;
+
+// Couleurs de texte stables (lisibilité forte sur fond clair du badge)
+const STATUS_TEXT_COLOR: Record<OrderStatus, string> = {
+  pending:   '#B45309', // amber-700
+  confirmed: '#1E40AF', // blue-800
+  preparing: '#92400E', // amber-900
+  ready:     '#065F46', // emerald-800
+  served:    '#065F46',
+  cancelled: '#991B1B', // red-800
+};
 
 interface StatusBadgeProps {
   status: string;
 }
 
 export const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
+  const { t } = useTranslation();
+  const { colors } = useAppTheme();
   const screenType = useScreenType();
-  
-  const statusConfig: Record<string, { label: string; style: keyof typeof COMPONENT_STYLES.statusBadge }> = {
-    pending: { label: 'En attente', style: 'pending' },
-    confirmed: { label: 'Confirmée', style: 'confirmed' },
-    preparing: { label: 'En préparation', style: 'preparing' },
-    ready: { label: 'Prête', style: 'ready' },
-    served: { label: 'Servie', style: 'served' },
-    cancelled: { label: 'Annulée', style: 'cancelled' },
-  };
-  
-  const config = statusConfig[status] || statusConfig.pending;
-  
-  const textColorMap: Record<string, string> = {
-    pending: COLORS.variants.secondary[700],
-    confirmed: COLORS.variants.primary[700],
-    preparing: '#92400E',
-    ready: '#065F46',
-    served: '#065F46',
-    cancelled: '#991B1B',
-  };
-  
+  const componentStyles = useMemo(() => makeComponentStyles(colors), [colors]);
+
+  const normalized: OrderStatus = KNOWN_STATUSES.includes(status as OrderStatus)
+    ? (status as OrderStatus)
+    : 'pending';
+
+  const label = t(`order.statusLabels.${normalized}`, { defaultValue: status });
+
   return (
-    <View style={[
-      COMPONENT_STYLES.statusBadge.base,
-      COMPONENT_STYLES.statusBadge[config.style],
-    ]}>
-      <Text style={{
-        fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
-        color: textColorMap[status] || textColorMap.pending,
-      }}>
-        {config.label}
+    <View
+      style={[
+        componentStyles.statusBadge.base,
+        componentStyles.statusBadge[normalized],
+      ]}
+    >
+      <Text
+        style={{
+          fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
+          fontWeight: TYPOGRAPHY.fontWeight.semibold,
+          color: STATUS_TEXT_COLOR[normalized],
+        }}
+      >
+        {label}
       </Text>
     </View>
   );

@@ -24,6 +24,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#1E3A5F"
       },
+      "edgeToEdgeEnabled": true,
       "package": "fr.fingerliing.EatQuickeR",
       "googleServicesFile": "./google-services.json"
     },
@@ -34,6 +35,12 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
+      [
+        "expo-navigation-bar",
+        {
+          "enforceContrast": false
+        }
+      ],
       [
         "expo-notifications",
         {

@@ -41,7 +41,8 @@
     "available": "利用可能",
     "unavailable": "利用不可",
     "comingSoon": "近日公開",
-    "error": "エラー"
+    "error": "エラー",
+    "success": "成功"
   },
   "nav": {
     "home": "ホーム",
@@ -776,6 +777,51 @@
     "legend": {
       "withMenu": "メニューあり",
       "inactiveMenu": "非アクティブなメニュー"
+    },
+    "manager": {
+      "duplicate": "複製",
+      "applied_one": "1 日にメニューを適用しました",
+      "applied_other": "{{count}} 日にメニューを適用しました",
+      "errors": {
+        "toggleItem": "料理の提供状況を変更できません",
+        "applyAllFailedTitle": "失敗",
+        "applyAllFailed": "選択した日付にメニューを適用できません",
+        "applyGeneric": "メニューの適用中にエラーが発生しました"
+      },
+      "partialApply": {
+        "title": "部分的に適用",
+        "message": "成功 {{succeeded}} 件、失敗 {{failed}} 件"
+      },
+      "replaceDialog": {
+        "title": "既存のメニューを置き換えますか？",
+        "message_one": "選択した日付のうち 1 件に既にデイリーメニューが存在します。置き換えますか？",
+        "message_other": "選択した日付のうち {{count}} 件に既にデイリーメニューが存在します。置き換えますか？",
+        "confirm": "置き換え"
+      },
+      "empty": {
+        "title": "この日付のメニューはありません",
+        "subtitleToday": "始めるにはデイリーメニューを作成してください",
+        "subtitleDate": "{{date}} のメニューを作成",
+        "cta": "メニューを作成"
+      },
+      "stats": {
+        "dishes_one": "{{count}} 品",
+        "dishes_other": "{{count}} 品",
+        "available_one": "{{count}} 品利用可能",
+        "available_other": "{{count}} 品利用可能",
+        "formulaPrice": "{{price}} / コース"
+      },
+      "applyModal": {
+        "title": "他の日付に適用",
+        "source": "ソース：{{date}}",
+        "selectAll": "すべて選択",
+        "unselectAll": "選択をすべて解除",
+        "selectedCount_one": "{{count}} 件選択中",
+        "selectedCount_other": "{{count}} 件選択中",
+        "existingMenu": "既存のメニュー",
+        "apply": "適用",
+        "applyWithCount": "適用（{{count}}）"
+      }
     }
   },
   "restaurantMenus": {
@@ -834,6 +880,20 @@
       "menuNotFound": "メニューが見つかりません",
       "menuDeleted": "メニューを削除しました",
       "deleteFailed": "メニューを削除できません"
+    },
+    "card": {
+      "items_one": "{{count}} 品",
+      "items_other": "{{count}} 品",
+      "available_one": "{{count}} 品利用可能",
+      "available_other": "{{count}} 品利用可能",
+      "active": "有効",
+      "inactive": "無効",
+      "updating": "更新中…",
+      "createdOn": "作成日",
+      "updatedOn": "更新日",
+      "enable": "有効化",
+      "disable": "無効化",
+      "inProgress": "処理中"
     }
   },
   "restaurantStats": {
@@ -1102,6 +1162,268 @@
     "pdf": {
       "tableLabel": "テーブル",
       "scanOrEnter": "スキャンまたは入力"
+    }
+  },
+  "restaurantCard": {
+    "distanceKm": "{{distance}} km",
+    "walkingMinutes": "{{minutes}} 分"
+  },
+  "validationPending": {
+    "title": "プロフィールを検証中",
+    "stripeCompleted": "Stripe 設定が完了しました",
+    "stripePending": "Stripe 設定を進行中",
+    "profileActivated": "プロフィールが有効化されました",
+    "profilePending": "プロフィールの有効化を待機中",
+    "setupStripe": "Stripe を設定",
+    "contactSupport": "サポートに連絡",
+    "infoDelay": "Stripe 設定の完了後、プロフィールの検証には 1〜3 営業日かかる場合があります。",
+    "supportEmailSubject": "レストラン経営者プロフィール検証のヘルプ"
+  },
+  "restaurantSelector": {
+    "noRestaurantTitle": "まだレストランがありません",
+    "noRestaurantSubtitle": "最初のレストランを作成して、メニューと注文の管理を始めましょう。",
+    "createFirst": "最初のレストランを作成",
+    "chooseTitle": "レストランを選択",
+    "chooseHint": "管理したいレストランを選択してください。",
+    "selecting": "選択中…"
+  },
+  "stripeCommission": {
+    "compact": {
+      "title": "プラットフォーム手数料",
+      "description": "カード決済ごとに {{percent}}% の手数料が差し引かれます。"
+    },
+    "title": "決済料金",
+    "subtitle": "カード決済に適用される条件",
+    "platform": {
+      "title": "EatQuickeR 手数料",
+      "description": "アプリ経由で支払われたすべての注文について、EatQuickeR は総額の {{percent}}% を手数料として受け取ります。この手数料には接続料、プラットフォーム運営、テクニカルサポートが含まれます。"
+    },
+    "stripe": {
+      "title": "Stripe 処理手数料",
+      "description": "Stripe の銀行手数料は標準料金表に基づいて適用されます。これらの手数料はお客様が使用するカードの種類により異なる場合があります。"
+    },
+    "example": {
+      "title": "{{amount}} の注文例",
+      "orderAmount": "注文金額",
+      "platformFee": "EatQuickeR 手数料（{{percent}}%）",
+      "stripeFee": "Stripe 手数料（推定）",
+      "netAmount": "受領純額"
+    },
+    "bullets": {
+      "autoDeduct": "手数料は決済時に自動的に差し引かれます",
+      "cashNoFee": "現金決済には手数料はかかりません",
+      "directPayout": "資金は直接銀行口座に振り込まれます"
+    },
+    "acceptTerms": "料金条件を読み、同意します"
+  },
+  "stripeAccount": {
+    "title": "Stripe アカウント",
+    "checking": "ステータスを確認中…",
+    "errors": {
+      "fetch": "ステータスの取得中にエラーが発生しました",
+      "setup": "Stripe アカウントの設定中にエラーが発生しました"
+    },
+    "validated": {
+      "title": "アカウント検証済み",
+      "description": "Stripe アカウントが検証され、支払いを受け取る準備が整いました。",
+      "successMessage": "レストランを有効化して注文の受付を開始できます。"
+    },
+    "inProgress": {
+      "title": "設定進行中",
+      "description": "Stripe アカウントは存在しますが、完了する必要があります。",
+      "action": "設定を続行"
+    },
+    "notStarted": {
+      "title": "設定が必要です",
+      "description": "支払いを受け取るには Stripe アカウントを設定する必要があります。",
+      "action": "Stripe を設定"
+    },
+    "redirectDialog": {
+      "title": "Stripe へのリダイレクト",
+      "message": "支払いアカウントを設定するため Stripe にリダイレクトされます。"
+    },
+    "continueDialog": {
+      "title": "設定を続行",
+      "message": "設定を完了するため Stripe にリダイレクトされます。"
+    },
+    "requirements": {
+      "title": "必要な書類：",
+      "othersCount_one": "他 {{count}} 件…",
+      "othersCount_other": "他 {{count}} 件…"
+    },
+    "infoDelay": "すべての必要書類を提出した後、アカウント検証には 1〜3 営業日かかる場合があります。"
+  },
+  "revenueCard": {
+    "title": "収益",
+    "defaultPeriod": "今月",
+    "details": "詳細",
+    "netRevenue": "純収益",
+    "netRevenueEstimated": "純収益（推定）",
+    "ordersCount_one": "{{count}} 件の注文",
+    "ordersCount_other": "{{count}} 件の注文",
+    "grossRevenueTitle": "総売上",
+    "cardPayments": "カード決済",
+    "cashPayments": "現金決済",
+    "grossTotal": "総合計",
+    "feesTitle": "手数料と費用",
+    "stripeFeesNote": "カード決済のみに適用されます。Stripe 手数料は別途差し引かれます。",
+    "platformCommissionLine": "EatQuickeR 手数料：{{amount}}",
+    "legendGross": "総売上：{{amount}}",
+    "legendCommission": "手数料：{{amount}}"
+  },
+  "openingHours": {
+    "title": "営業時間",
+    "subtitle": "曜日ごとのサービス時間を設定してください",
+    "quickPresets": "クイックテンプレート",
+    "open": "営業中",
+    "closed": "休業",
+    "start": "開始",
+    "end": "終了",
+    "apply": "適用",
+    "addPeriod": "時間帯を追加",
+    "serviceNamePlaceholder": "サービス名（例：ランチ）",
+    "tip1": "時間をタップしてサービス時間を簡単に選択できます",
+    "tip2": "おすすめ時間を使うかカスタム時間を設定できます",
+    "timePicker": {
+      "title": "時間を選択",
+      "ok": "OK",
+      "suggestedTimes": "おすすめ時間",
+      "customTime": "カスタム時間",
+      "hours": "時",
+      "minutes": "分"
+    },
+    "presets": {
+      "continuous": {
+        "name": "通し営業"
+      },
+      "lunchDinner": {
+        "name": "ランチ + ディナー"
+      },
+      "complete": {
+        "name": "フル"
+      }
+    },
+    "periodNames": {
+      "lunch": "ランチ",
+      "dinner": "ディナー",
+      "breakfast": "朝食",
+      "service": "サービス"
+    },
+    "confirmApplyPreset": {
+      "title": "テンプレートを適用",
+      "message": "「{{name}}」を 1 週間のすべての曜日に適用しますか？"
+    },
+    "confirmCopyHours": {
+      "title": "時間をコピー",
+      "message": "{{day}} の時間をすべての平日（月–金）に適用しますか？"
+    }
+  },
+  "statistics": {
+    "kpis": {
+      "title": "主要業績指標",
+      "cancellationRate": "キャンセル率",
+      "paymentRate": "支払率",
+      "availabilityRate": "料理の提供率",
+      "avgOrderValue": "平均客単価",
+      "perOrder": "1 注文あたり",
+      "serviceTime": "提供時間",
+      "avgTime": "平均時間",
+      "tableUsage": "テーブル稼働率"
+    },
+    "qualifiers": {
+      "excellent": "優秀",
+      "toImprove": "改善が必要",
+      "veryGood": "良好",
+      "toWatch": "要注視",
+      "optimal": "最適",
+      "critical": "深刻",
+      "toOptimize": "最適化推奨"
+    },
+    "priorities": {
+      "high": "緊急",
+      "medium": "重要",
+      "low": "情報"
+    },
+    "recommendations": {
+      "title": "パーソナライズされた推奨事項"
+    },
+    "topDishes": {
+      "title": "人気メニュー Top 5",
+      "dishStats": "{{orders}} 件 ・ {{revenue}} の売上"
+    },
+    "underperforming": {
+      "title": "改善が必要なメニュー",
+      "neverOrdered_one": "{{count}} 品が一度も注文されていません。削除または販促をご検討ください。",
+      "neverOrdered_other": "{{count}} 品が一度も注文されていません。削除または販促をご検討ください。",
+      "lowOrders": "注文の少ないメニュー（直近 30 日）",
+      "onlyOrders_one": "{{count}} 件のみ",
+      "onlyOrders_other": "{{count}} 件のみ"
+    },
+    "revenue": {
+      "title": "収益分析",
+      "currentPeriod": "今期",
+      "previousPeriod": "前期",
+      "evolution": "推移",
+      "avgOrderValue": "平均客単価",
+      "perOrder": "1 注文あたり",
+      "ordersCount_one": "{{count}} 件の注文",
+      "ordersCount_other": "{{count}} 件の注文"
+    },
+    "peakHours": {
+      "title": "時間帯別注文分布",
+      "peakSlots": "ピーク時間帯",
+      "ordersCount_one": "{{count}} 件の注文",
+      "ordersCount_other": "{{count}} 件の注文"
+    },
+    "dailyPerformance": {
+      "title": "曜日別パフォーマンス",
+      "bestDay": "最高の曜日",
+      "worstDay": "最も低調な曜日"
+    }
+  },
+  "dailyMenuDisplay": {
+    "loading": "メニューを読み込み中…",
+    "completeFormula": "コース",
+    "formulaHint": "カテゴリーごとに 1 品 • {{price}} / 品",
+    "dishesCount_one": "{{count}} 品",
+    "dishesCount_other": "{{count}} 品",
+    "categoriesCount_one": "{{count}} カテゴリー",
+    "categoriesCount_other": "{{count}} カテゴリー"
+  },
+  "menuItem": {
+    "add": "追加",
+    "unavailable": "利用不可",
+    "unavailableShort": "なし"
+  },
+  "menuGrid": {
+    "otherCategory": "その他",
+    "defaultRestaurantName": "レストラン",
+    "groupToggle": "グループ化",
+    "filters": "フィルター",
+    "viewModes": {
+      "list": "リスト",
+      "grid": "グリッド",
+      "masonry": "モザイク",
+      "table": "テーブル"
+    },
+    "table": {
+      "photo": "写真",
+      "name": "名前",
+      "description": "説明",
+      "price": "価格",
+      "action": "操作"
+    },
+    "stats": {
+      "availableShort_one": "{{count}} 提供可",
+      "availableShort_other": "{{count}} 提供可",
+      "availableLong_one": "{{count}} 品提供可能",
+      "availableLong_other": "{{count}} 品提供可能",
+      "photos_one": "{{count}} 枚の写真",
+      "photos_other": "{{count}} 枚の写真"
+    },
+    "accordion": {
+      "expandAll": "すべて展開",
+      "collapseAll": "すべて折りたたむ"
     }
   }
 }

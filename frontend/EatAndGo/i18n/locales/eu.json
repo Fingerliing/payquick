@@ -41,7 +41,8 @@
     "available": "Eskuragarri",
     "unavailable": "Eskuraezina",
     "comingSoon": "Laster",
-    "error": "Errorea"
+    "error": "Errorea",
+    "success": "Arrakasta"
   },
   "nav": {
     "home": "Hasiera",
@@ -776,6 +777,51 @@
     "legend": {
       "withMenu": "Menuarekin",
       "inactiveMenu": "Menu inaktiboa"
+    },
+    "manager": {
+      "duplicate": "Bikoiztu",
+      "applied_one": "Menua egun 1ari aplikatuta",
+      "applied_other": "Menua {{count}} egunari aplikatuta",
+      "errors": {
+        "toggleItem": "Ezin da platerraren erabilgarritasuna aldatu",
+        "applyAllFailedTitle": "Errorea",
+        "applyAllFailed": "Ezin da menua aukeratutako datetan aplikatu",
+        "applyGeneric": "Errorea gertatu da menua aplikatzean"
+      },
+      "partialApply": {
+        "title": "Aplikazio partziala",
+        "message": "{{succeeded}} arrakastatsu, {{failed}} hutsegite"
+      },
+      "replaceDialog": {
+        "title": "Lehendik dauden menuak ordeztu?",
+        "message_one": "Aukeratutako 1 datatan dagoeneko eguneko menua dago. Ordeztu nahi duzu?",
+        "message_other": "Aukeratutako {{count}} datatan dagoeneko eguneko menuak daude. Ordeztu nahi dituzu?",
+        "confirm": "Ordeztu"
+      },
+      "empty": {
+        "title": "Ez dago menurik data honetarako",
+        "subtitleToday": "Sortu eguneko menua hasteko",
+        "subtitleDate": "Sortu menu bat {{date}}-rako",
+        "cta": "Sortu menua"
+      },
+      "stats": {
+        "dishes_one": "{{count}} plater",
+        "dishes_other": "{{count}} plater",
+        "available_one": "{{count}} eskuragarri",
+        "available_other": "{{count}} eskuragarri",
+        "formulaPrice": "{{price}} / menua"
+      },
+      "applyModal": {
+        "title": "Beste egun batzuetan aplikatu",
+        "source": "Iturria: {{date}}",
+        "selectAll": "Hautatu guztia",
+        "unselectAll": "Desautatu guztia",
+        "selectedCount_one": "{{count}} hautatua",
+        "selectedCount_other": "{{count}} hautatuak",
+        "existingMenu": "Lehendik dagoen menua",
+        "apply": "Aplikatu",
+        "applyWithCount": "Aplikatu ({{count}})"
+      }
     }
   },
   "restaurantMenus": {
@@ -834,6 +880,20 @@
       "menuNotFound": "Menua ez da aurkitu",
       "menuDeleted": "Menua ezabatu da",
       "deleteFailed": "Ezin da menua ezabatu"
+    },
+    "card": {
+      "items_one": "{{count}} plater",
+      "items_other": "{{count}} plater",
+      "available_one": "{{count}} eskuragarri",
+      "available_other": "{{count}} eskuragarri",
+      "active": "Aktibo",
+      "inactive": "Ez-aktibo",
+      "updating": "Eguneratzen…",
+      "createdOn": "Sortua",
+      "updatedOn": "Aldatua",
+      "enable": "Aktibatu",
+      "disable": "Desaktibatu",
+      "inProgress": "Abian"
     }
   },
   "restaurantStats": {
@@ -1102,6 +1162,268 @@
     "pdf": {
       "tableLabel": "Mahaia",
       "scanOrEnter": "Eskaneatu edo sartu"
+    }
+  },
+  "restaurantCard": {
+    "distanceKm": "{{distance}} km",
+    "walkingMinutes": "{{minutes}} min"
+  },
+  "validationPending": {
+    "title": "Profila baliozkotzen",
+    "stripeCompleted": "Stripe konfigurazioa burututa",
+    "stripePending": "Stripe konfigurazioa abian",
+    "profileActivated": "Profila aktibatuta",
+    "profilePending": "Profila aktibatzeko zain",
+    "setupStripe": "Konfiguratu Stripe",
+    "contactSupport": "Jarri harremanetan sostenguarekin",
+    "infoDelay": "Zure profilaren baliozkotzeak 1 eta 3 lanegun bitarte iraun dezake Stripe konfigurazioa amaitu ondoren.",
+    "supportEmailSubject": "Jatetxe-jabearen profila baliozkotzeko laguntza"
+  },
+  "restaurantSelector": {
+    "noRestaurantTitle": "Oraindik ez duzu jatetxerik",
+    "noRestaurantSubtitle": "Sortu zure lehen jatetxea menuak eta eskaerak kudeatzen hasteko.",
+    "createFirst": "Sortu nire lehen jatetxea",
+    "chooseTitle": "Aukeratu jatetxe bat",
+    "chooseHint": "Hautatu kudeatu nahi duzun jatetxea.",
+    "selecting": "Hautatzen…"
+  },
+  "stripeCommission": {
+    "compact": {
+      "title": "Plataformaren komisioa",
+      "description": "Txartelaren bidezko ordainketa bakoitzean %{{percent}}eko komisioa kobratzen da."
+    },
+    "title": "Ordainketen tarifak",
+    "subtitle": "Txartelaren bidezko ordainketei aplikatzen zaizkien baldintzak",
+    "platform": {
+      "title": "EatQuickeR komisioa",
+      "description": "Aplikazioaren bidez ordaindutako eskaera bakoitzean, EatQuickeR-ek %{{percent}}eko komisioa hartzen du zenbateko osoaren gainean. Komisio honek lotura-gastuak, plataformaren kudeaketa eta laguntza teknikoa estaltzen ditu."
+    },
+    "stripe": {
+      "title": "Stripe prozesatze-gastuak",
+      "description": "Stripe banku-gastuak haien tarifa estandarraren arabera aplikatzen dira. Gastu hauek aldatu egin daitezke bezeroak erabilitako txartel-motaren arabera."
+    },
+    "example": {
+      "title": "Adibidea {{amount}}-ko eskaera baterako",
+      "orderAmount": "Eskaeraren zenbatekoa",
+      "platformFee": "EatQuickeR komisioa (%{{percent}})",
+      "stripeFee": "Stripe gastuak (estimatuak)",
+      "netAmount": "Jasotako zenbateko garbia"
+    },
+    "bullets": {
+      "autoDeduct": "Komisioa automatikoki kentzen da ordainketan",
+      "cashNoFee": "Eskudirutako ordainketek ez dute komisiorik",
+      "directPayout": "Funtsak zuzenean jasotzen dituzu zure banku-kontuan"
+    },
+    "acceptTerms": "Irakurri eta tarifa-baldintzak onartzen ditut"
+  },
+  "stripeAccount": {
+    "title": "Stripe kontua",
+    "checking": "Egoera egiaztatzen…",
+    "errors": {
+      "fetch": "Errorea egoera berreskuratzean",
+      "setup": "Errorea Stripe kontua konfiguratzean"
+    },
+    "validated": {
+      "title": "Kontua baliozkotuta",
+      "description": "Zure Stripe kontua baliozkotuta dago eta ordainketak jasotzeko prest.",
+      "successMessage": "Orain zure jatetxeak aktibatu ditzakezu eta eskaerak jasotzen hasi."
+    },
+    "inProgress": {
+      "title": "Konfigurazioa abian",
+      "description": "Zure Stripe kontua badago, baina amaitu egin behar da.",
+      "action": "Konfigurazioa jarraitu"
+    },
+    "notStarted": {
+      "title": "Konfigurazioa beharrezkoa",
+      "description": "Stripe kontua konfiguratu behar duzu ordainketak jasotzeko.",
+      "action": "Stripe konfiguratu"
+    },
+    "redirectDialog": {
+      "title": "Stripe-ra birbideratzen",
+      "message": "Stripe-ra birbideratuko zaitugu zure ordainketa-kontua konfiguratzeko."
+    },
+    "continueDialog": {
+      "title": "Konfigurazioa jarraitu",
+      "message": "Stripe-ra birbideratuko zaitugu zure konfigurazioa amaitzeko."
+    },
+    "requirements": {
+      "title": "Beharrezko dokumentuak:",
+      "othersCount_one": "Eta {{count}} gehiago…",
+      "othersCount_other": "Eta {{count}} gehiago…"
+    },
+    "infoDelay": "Zure kontuaren baliozkotzeak 1 eta 3 lanegun bitarte iraun dezake beharrezko dokumentu guztiak bidali ondoren."
+  },
+  "revenueCard": {
+    "title": "Diru-sarrerak",
+    "defaultPeriod": "Hilabete honetan",
+    "details": "Xehetasunak",
+    "netRevenue": "Diru-sarrera garbia",
+    "netRevenueEstimated": "Estimatutako diru-sarrera garbia",
+    "ordersCount_one": "{{count}} eskaera",
+    "ordersCount_other": "{{count}} eskaera",
+    "grossRevenueTitle": "Negozio-bolumen gordina",
+    "cardPayments": "Txartelaren bidezko ordainketak",
+    "cashPayments": "Eskudirutako ordainketak",
+    "grossTotal": "Gordina guztira",
+    "feesTitle": "Komisioak eta gastuak",
+    "stripeFeesNote": "Txartelaren bidezko ordainketei soilik aplikatzen zaie. Stripe gastuak bereizita kentzen dira.",
+    "platformCommissionLine": "EatQuickeR komisioa: {{amount}}",
+    "legendGross": "Bolumen gordina: {{amount}}",
+    "legendCommission": "Komisioa: {{amount}}"
+  },
+  "openingHours": {
+    "title": "Irekiera orduak",
+    "subtitle": "Ezarri zerbitzu-orduak asteko egun bakoitzerako",
+    "quickPresets": "Eredu azkarrak",
+    "open": "Irekita",
+    "closed": "Itxita",
+    "start": "Hasiera",
+    "end": "Amaiera",
+    "apply": "Aplikatu",
+    "addPeriod": "Gehitu ordu-tarte bat",
+    "serviceNamePlaceholder": "Zerbitzuaren izena (adib.: Bazkaria)",
+    "tip1": "Sakatu orduak zure zerbitzu-orduak erraz hautatzeko",
+    "tip2": "Erabili iradokitako orduak edo ezarri ordu pertsonalizatuak",
+    "timePicker": {
+      "title": "Aukeratu ordua",
+      "ok": "OK",
+      "suggestedTimes": "Iradokitako orduak",
+      "customTime": "Ordu pertsonalizatua",
+      "hours": "Orduak",
+      "minutes": "Minutuak"
+    },
+    "presets": {
+      "continuous": {
+        "name": "Zerbitzu jarraitua"
+      },
+      "lunchDinner": {
+        "name": "Bazkaria + Afaria"
+      },
+      "complete": {
+        "name": "Osoa"
+      }
+    },
+    "periodNames": {
+      "lunch": "Bazkaria",
+      "dinner": "Afaria",
+      "breakfast": "Gosaria",
+      "service": "Zerbitzua"
+    },
+    "confirmApplyPreset": {
+      "title": "Aplikatu eredua",
+      "message": "«{{name}}» asteko egun guztietan aplikatu?"
+    },
+    "confirmCopyHours": {
+      "title": "Kopiatu orduak",
+      "message": "{{day}}-(r)en orduak laneguneko egun guztietan aplikatu (astelehena–ostirala)?"
+    }
+  },
+  "statistics": {
+    "kpis": {
+      "title": "Errendimenduaren adierazle gakoak",
+      "cancellationRate": "Bertan behera uzteko tasa",
+      "paymentRate": "Ordainketa-tasa",
+      "availabilityRate": "Platerren eskuragarritasuna",
+      "avgOrderValue": "Batez besteko tiketa",
+      "perOrder": "Eskaeraka",
+      "serviceTime": "Zerbitzu-denbora",
+      "avgTime": "Batez besteko denbora",
+      "tableUsage": "Mahaien erabilera"
+    },
+    "qualifiers": {
+      "excellent": "Bikaina",
+      "toImprove": "Hobetzeko",
+      "veryGood": "Oso ondo",
+      "toWatch": "Adi egon",
+      "optimal": "Optimoa",
+      "critical": "Kritikoa",
+      "toOptimize": "Optimizatzeko"
+    },
+    "priorities": {
+      "high": "PRESAZKOA",
+      "medium": "Garrantzitsua",
+      "low": "Info"
+    },
+    "recommendations": {
+      "title": "Gomendio pertsonalizatuak"
+    },
+    "topDishes": {
+      "title": "Eskatuenen Top 5 platerak",
+      "dishStats": "{{orders}} eskaera • {{revenue}} fakturazioa"
+    },
+    "underperforming": {
+      "title": "Optimizatu beharreko platerak",
+      "neverOrdered_one": "{{count}} plater ez da inoiz eskatu. Kendu edo sustatzea aztertu.",
+      "neverOrdered_other": "{{count}} plater ez dira inoiz eskatu. Kendu edo sustatzea aztertu.",
+      "lowOrders": "Gutxi eskatutako platerak (azken 30 egun)",
+      "onlyOrders_one": "Eskaera {{count}} besterik ez",
+      "onlyOrders_other": "{{count}} eskaera besterik ez"
+    },
+    "revenue": {
+      "title": "Diru-sarreren analisia",
+      "currentPeriod": "Egungo aldia",
+      "previousPeriod": "Aurreko aldia",
+      "evolution": "Bilakaera",
+      "avgOrderValue": "Batez besteko tiketa",
+      "perOrder": "eskaeraka",
+      "ordersCount_one": "{{count}} eskaera",
+      "ordersCount_other": "{{count}} eskaera"
+    },
+    "peakHours": {
+      "title": "Eskaeren orduen banaketa",
+      "peakSlots": "Punta-orduak",
+      "ordersCount_one": "{{count}} eskaera",
+      "ordersCount_other": "{{count}} eskaera"
+    },
+    "dailyPerformance": {
+      "title": "Errendimendua asteko egunaren arabera",
+      "bestDay": "Egunik onena",
+      "worstDay": "Egunik ahulena"
+    }
+  },
+  "dailyMenuDisplay": {
+    "loading": "Menua kargatzen…",
+    "completeFormula": "Menu osoa",
+    "formulaHint": "Kategoria bakoitzeko plater 1 • {{price}} / platerra",
+    "dishesCount_one": "{{count}} plater",
+    "dishesCount_other": "{{count}} plater",
+    "categoriesCount_one": "{{count}} kategoria",
+    "categoriesCount_other": "{{count}} kategoria"
+  },
+  "menuItem": {
+    "add": "Gehitu",
+    "unavailable": "Ez dago eskuragarri",
+    "unavailableShort": "Ez dago"
+  },
+  "menuGrid": {
+    "otherCategory": "Bestelakoak",
+    "defaultRestaurantName": "Jatetxea",
+    "groupToggle": "Multzokatu",
+    "filters": "Iragazkiak",
+    "viewModes": {
+      "list": "Zerrenda",
+      "grid": "Sareta",
+      "masonry": "Mosaikoa",
+      "table": "Taula"
+    },
+    "table": {
+      "photo": "Argazkia",
+      "name": "Izena",
+      "description": "Deskribapena",
+      "price": "Prezioa",
+      "action": "Ekintza"
+    },
+    "stats": {
+      "availableShort_one": "{{count}} esk.",
+      "availableShort_other": "{{count}} esk.",
+      "availableLong_one": "{{count}} plater eskuragarri",
+      "availableLong_other": "{{count}} plater eskuragarri",
+      "photos_one": "{{count}} argazki",
+      "photos_other": "{{count}} argazki"
+    },
+    "accordion": {
+      "expandAll": "Dena zabaldu",
+      "collapseAll": "Dena tolestu"
     }
   }
 }

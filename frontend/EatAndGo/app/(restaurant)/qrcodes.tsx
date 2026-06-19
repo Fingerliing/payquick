@@ -995,7 +995,7 @@ export default function QRCodesScreen() {
     return (
       <View style={styles.container}>
         <Header
-          title={t('restaurantNav.qrCodes')}
+          title={t('restaurantNav.qrcodes')}
           showLanguageSwitcher
           showThemeSwitcher
         />
@@ -1010,7 +1010,7 @@ export default function QRCodesScreen() {
   return (
     <View style={styles.container}>
       <Header
-        title={t('restaurantNav.qrCodes')}
+        title={t('restaurantNav.qrcodes')}
         rightIcon="settings-outline"
         onRightPress={() => setShowSettings(!showSettings)}
         showLanguageSwitcher

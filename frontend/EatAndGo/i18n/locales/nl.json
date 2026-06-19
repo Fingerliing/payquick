@@ -40,7 +40,8 @@
     "available": "Beschikbaar",
     "unavailable": "Niet beschikbaar",
     "comingSoon": "Binnenkort",
-    "error": "Fout"
+    "error": "Fout",
+    "success": "Gelukt"
   },
   "nav": {
     "home": "Home",
@@ -775,6 +776,51 @@
     "legend": {
       "withMenu": "Met menu",
       "inactiveMenu": "Inactief menu"
+    },
+    "manager": {
+      "duplicate": "Dupliceren",
+      "applied_one": "Menu toegepast op 1 dag",
+      "applied_other": "Menu toegepast op {{count}} dagen",
+      "errors": {
+        "toggleItem": "Kan de beschikbaarheid van het gerecht niet wijzigen",
+        "applyAllFailedTitle": "Mislukt",
+        "applyAllFailed": "Kan het menu niet toepassen op de geselecteerde data",
+        "applyGeneric": "Er is een fout opgetreden bij het toepassen van het menu"
+      },
+      "partialApply": {
+        "title": "Gedeeltelijk toegepast",
+        "message": "{{succeeded}} geslaagd, {{failed}} mislukt"
+      },
+      "replaceDialog": {
+        "title": "Bestaande menu's vervangen?",
+        "message_one": "Er bestaat al een dagmenu voor 1 van de geselecteerde data. Wilt u het vervangen?",
+        "message_other": "Er bestaat al een dagmenu voor {{count}} van de geselecteerde data. Wilt u ze vervangen?",
+        "confirm": "Vervangen"
+      },
+      "empty": {
+        "title": "Geen menu voor deze datum",
+        "subtitleToday": "Maak het dagmenu aan om te beginnen",
+        "subtitleDate": "Maak een menu voor {{date}}",
+        "cta": "Menu aanmaken"
+      },
+      "stats": {
+        "dishes_one": "{{count}} gerecht",
+        "dishes_other": "{{count}} gerechten",
+        "available_one": "{{count}} beschikbaar",
+        "available_other": "{{count}} beschikbaar",
+        "formulaPrice": "{{price}} / menu"
+      },
+      "applyModal": {
+        "title": "Toepassen op andere dagen",
+        "source": "Bron: {{date}}",
+        "selectAll": "Alles selecteren",
+        "unselectAll": "Selectie wissen",
+        "selectedCount_one": "{{count}} geselecteerd",
+        "selectedCount_other": "{{count}} geselecteerd",
+        "existingMenu": "Bestaand menu",
+        "apply": "Toepassen",
+        "applyWithCount": "Toepassen ({{count}})"
+      }
     }
   },
   "restaurantMenus": {
@@ -833,6 +879,20 @@
       "menuNotFound": "Menu niet gevonden",
       "menuDeleted": "Menu verwijderd",
       "deleteFailed": "Kan menu niet verwijderen"
+    },
+    "card": {
+      "items_one": "{{count}} gerecht",
+      "items_other": "{{count}} gerechten",
+      "available_one": "{{count}} beschikbaar",
+      "available_other": "{{count}} beschikbaar",
+      "active": "Actief",
+      "inactive": "Inactief",
+      "updating": "Bijwerken…",
+      "createdOn": "Aangemaakt op",
+      "updatedOn": "Gewijzigd op",
+      "enable": "Activeren",
+      "disable": "Deactiveren",
+      "inProgress": "Bezig"
     }
   },
   "restaurantStats": {
@@ -1101,6 +1161,268 @@
     "pdf": {
       "tableLabel": "Tafel",
       "scanOrEnter": "Scan of invoer"
+    }
+  },
+  "restaurantCard": {
+    "distanceKm": "{{distance}} km",
+    "walkingMinutes": "{{minutes}} min"
+  },
+  "validationPending": {
+    "title": "Profiel wordt gevalideerd",
+    "stripeCompleted": "Stripe-instelling voltooid",
+    "stripePending": "Stripe-instelling bezig",
+    "profileActivated": "Profiel geactiveerd",
+    "profilePending": "Profiel wacht op activatie",
+    "setupStripe": "Stripe instellen",
+    "contactSupport": "Contact opnemen met ondersteuning",
+    "infoDelay": "De validatie van uw profiel kan 1 tot 3 werkdagen duren nadat u uw Stripe-instelling hebt afgerond.",
+    "supportEmailSubject": "Hulp bij validatie restauranthouder-profiel"
+  },
+  "restaurantSelector": {
+    "noRestaurantTitle": "U heeft nog geen restaurant",
+    "noRestaurantSubtitle": "Maak uw eerste restaurant aan om menu's en bestellingen te beheren.",
+    "createFirst": "Mijn eerste restaurant aanmaken",
+    "chooseTitle": "Restaurant kiezen",
+    "chooseHint": "Selecteer het restaurant dat u wilt beheren.",
+    "selecting": "Selecteren…"
+  },
+  "stripeCommission": {
+    "compact": {
+      "title": "Platformcommissie",
+      "description": "Bij elke kaartbetaling wordt {{percent}}% commissie ingehouden."
+    },
+    "title": "Betalingsprijzen",
+    "subtitle": "Voorwaarden van toepassing op kaartbetalingen",
+    "platform": {
+      "title": "EatQuickeR-commissie",
+      "description": "Voor elke bestelling die via de app wordt betaald, neemt EatQuickeR een commissie van {{percent}}% over het totaalbedrag. Deze commissie dekt de bemiddelingskosten, het beheer van het platform en de technische ondersteuning."
+    },
+    "stripe": {
+      "title": "Stripe-verwerkingskosten",
+      "description": "De Stripe-bankkosten worden toegepast volgens hun standaardtarief. Deze kosten kunnen variëren afhankelijk van het type kaart dat de klant gebruikt."
+    },
+    "example": {
+      "title": "Voorbeeld voor een bestelling van {{amount}}",
+      "orderAmount": "Bestelbedrag",
+      "platformFee": "EatQuickeR-commissie ({{percent}}%)",
+      "stripeFee": "Stripe-kosten (geschat)",
+      "netAmount": "Netto-bedrag ontvangen"
+    },
+    "bullets": {
+      "autoDeduct": "De commissie wordt automatisch ingehouden bij de betaling",
+      "cashNoFee": "Contante betalingen zijn niet onderhevig aan commissie",
+      "directPayout": "U ontvangt uw geld rechtstreeks op uw bankrekening"
+    },
+    "acceptTerms": "Ik heb de tariefvoorwaarden gelezen en aanvaard"
+  },
+  "stripeAccount": {
+    "title": "Stripe-account",
+    "checking": "Status controleren…",
+    "errors": {
+      "fetch": "Fout bij het ophalen van de status",
+      "setup": "Fout bij het instellen van de Stripe-account"
+    },
+    "validated": {
+      "title": "Account gevalideerd",
+      "description": "Uw Stripe-account is gevalideerd en klaar om betalingen te ontvangen.",
+      "successMessage": "U kunt nu uw restaurants activeren en bestellingen ontvangen."
+    },
+    "inProgress": {
+      "title": "Instelling bezig",
+      "description": "Uw Stripe-account bestaat maar moet worden afgerond.",
+      "action": "Instelling voortzetten"
+    },
+    "notStarted": {
+      "title": "Instelling vereist",
+      "description": "U moet uw Stripe-account instellen om betalingen te ontvangen.",
+      "action": "Stripe instellen"
+    },
+    "redirectDialog": {
+      "title": "Doorverwijzen naar Stripe",
+      "message": "U wordt doorverwezen naar Stripe om uw betaalaccount in te stellen."
+    },
+    "continueDialog": {
+      "title": "Instelling voortzetten",
+      "message": "U wordt doorverwezen naar Stripe om uw instelling af te ronden."
+    },
+    "requirements": {
+      "title": "Vereiste documenten:",
+      "othersCount_one": "En {{count}} ander…",
+      "othersCount_other": "En {{count}} andere…"
+    },
+    "infoDelay": "De validatie van uw account kan 1 tot 3 werkdagen duren nadat alle vereiste documenten zijn ingediend."
+  },
+  "revenueCard": {
+    "title": "Inkomsten",
+    "defaultPeriod": "Deze maand",
+    "details": "Details",
+    "netRevenue": "Netto-inkomsten",
+    "netRevenueEstimated": "Geschatte netto-inkomsten",
+    "ordersCount_one": "{{count}} bestelling",
+    "ordersCount_other": "{{count}} bestellingen",
+    "grossRevenueTitle": "Bruto-omzet",
+    "cardPayments": "Kaartbetalingen",
+    "cashPayments": "Contante betalingen",
+    "grossTotal": "Bruto totaal",
+    "feesTitle": "Kosten en commissies",
+    "stripeFeesNote": "Alleen van toepassing op kaartbetalingen. Stripe-kosten worden apart ingehouden.",
+    "platformCommissionLine": "EatQuickeR-commissie: {{amount}}",
+    "legendGross": "Bruto-omzet: {{amount}}",
+    "legendCommission": "Commissie: {{amount}}"
+  },
+  "openingHours": {
+    "title": "Openingstijden",
+    "subtitle": "Stel uw service-uren in voor elke dag van de week",
+    "quickPresets": "Snelle sjablonen",
+    "open": "Open",
+    "closed": "Gesloten",
+    "start": "Begin",
+    "end": "Einde",
+    "apply": "Toepassen",
+    "addPeriod": "Tijdsblok toevoegen",
+    "serviceNamePlaceholder": "Naam van de service (bv. Lunch)",
+    "tip1": "Tik op de uren om uw service-uren gemakkelijk te kiezen",
+    "tip2": "Gebruik de voorgestelde uren of stel aangepaste uren in",
+    "timePicker": {
+      "title": "Tijd kiezen",
+      "ok": "OK",
+      "suggestedTimes": "Voorgestelde tijden",
+      "customTime": "Aangepaste tijd",
+      "hours": "Uren",
+      "minutes": "Minuten"
+    },
+    "presets": {
+      "continuous": {
+        "name": "Doorlopende service"
+      },
+      "lunchDinner": {
+        "name": "Lunch + Diner"
+      },
+      "complete": {
+        "name": "Volledig"
+      }
+    },
+    "periodNames": {
+      "lunch": "Lunch",
+      "dinner": "Diner",
+      "breakfast": "Ontbijt",
+      "service": "Service"
+    },
+    "confirmApplyPreset": {
+      "title": "Sjabloon toepassen",
+      "message": "„{{name}}\" op alle dagen van de week toepassen?"
+    },
+    "confirmCopyHours": {
+      "title": "Uren kopiëren",
+      "message": "De uren van {{day}} op alle werkdagen toepassen (maandag–vrijdag)?"
+    }
+  },
+  "statistics": {
+    "kpis": {
+      "title": "Belangrijke prestatie-indicatoren",
+      "cancellationRate": "Annuleringspercentage",
+      "paymentRate": "Betalingspercentage",
+      "availabilityRate": "Beschikbaarheid van gerechten",
+      "avgOrderValue": "Gemiddelde rekening",
+      "perOrder": "Per bestelling",
+      "serviceTime": "Servicetijd",
+      "avgTime": "Gemiddelde tijd",
+      "tableUsage": "Tafelbezetting"
+    },
+    "qualifiers": {
+      "excellent": "Uitstekend",
+      "toImprove": "Te verbeteren",
+      "veryGood": "Zeer goed",
+      "toWatch": "In de gaten houden",
+      "optimal": "Optimaal",
+      "critical": "Kritiek",
+      "toOptimize": "Te optimaliseren"
+    },
+    "priorities": {
+      "high": "DRINGEND",
+      "medium": "Belangrijk",
+      "low": "Info"
+    },
+    "recommendations": {
+      "title": "Persoonlijke aanbevelingen"
+    },
+    "topDishes": {
+      "title": "Top 5 meest bestelde gerechten",
+      "dishStats": "{{orders}} bestellingen • {{revenue}} omzet"
+    },
+    "underperforming": {
+      "title": "Te optimaliseren gerechten",
+      "neverOrdered_one": "{{count}} gerecht is nog nooit besteld. Overweeg het te verwijderen of te promoten.",
+      "neverOrdered_other": "{{count}} gerechten zijn nog nooit besteld. Overweeg ze te verwijderen of te promoten.",
+      "lowOrders": "Weinig bestelde gerechten (laatste 30 dagen)",
+      "onlyOrders_one": "Slechts {{count}} bestelling",
+      "onlyOrders_other": "Slechts {{count}} bestellingen"
+    },
+    "revenue": {
+      "title": "Omzetanalyse",
+      "currentPeriod": "Huidige periode",
+      "previousPeriod": "Vorige periode",
+      "evolution": "Evolutie",
+      "avgOrderValue": "Gemiddelde rekening",
+      "perOrder": "per bestelling",
+      "ordersCount_one": "{{count}} bestelling",
+      "ordersCount_other": "{{count}} bestellingen"
+    },
+    "peakHours": {
+      "title": "Uurlijkse verdeling van bestellingen",
+      "peakSlots": "Piekuren",
+      "ordersCount_one": "{{count}} bestelling",
+      "ordersCount_other": "{{count}} bestellingen"
+    },
+    "dailyPerformance": {
+      "title": "Prestaties per dag van de week",
+      "bestDay": "Beste dag",
+      "worstDay": "Zwakste dag"
+    }
+  },
+  "dailyMenuDisplay": {
+    "loading": "Menu laden…",
+    "completeFormula": "Volledig menu",
+    "formulaHint": "1 gerecht per categorie • {{price}} / gerecht",
+    "dishesCount_one": "{{count}} gerecht",
+    "dishesCount_other": "{{count}} gerechten",
+    "categoriesCount_one": "{{count}} categorie",
+    "categoriesCount_other": "{{count}} categorieën"
+  },
+  "menuItem": {
+    "add": "Toevoegen",
+    "unavailable": "Niet beschikbaar",
+    "unavailableShort": "N.b."
+  },
+  "menuGrid": {
+    "otherCategory": "Overige",
+    "defaultRestaurantName": "Restaurant",
+    "groupToggle": "Groeperen",
+    "filters": "Filters",
+    "viewModes": {
+      "list": "Lijst",
+      "grid": "Raster",
+      "masonry": "Mozaïek",
+      "table": "Tabel"
+    },
+    "table": {
+      "photo": "Foto",
+      "name": "Naam",
+      "description": "Beschrijving",
+      "price": "Prijs",
+      "action": "Actie"
+    },
+    "stats": {
+      "availableShort_one": "{{count}} besch.",
+      "availableShort_other": "{{count}} besch.",
+      "availableLong_one": "{{count}} gerecht beschikbaar",
+      "availableLong_other": "{{count}} gerechten beschikbaar",
+      "photos_one": "{{count}} foto",
+      "photos_other": "{{count}} foto's"
+    },
+    "accordion": {
+      "expandAll": "Alles uitklappen",
+      "collapseAll": "Alles inklappen"
     }
   }
 }

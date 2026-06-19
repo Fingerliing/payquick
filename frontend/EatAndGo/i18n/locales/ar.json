@@ -41,7 +41,8 @@
     "available": "متوفر",
     "unavailable": "غير متوفر",
     "comingSoon": "قريبًا",
-    "error": "خطأ"
+    "error": "خطأ",
+    "success": "نجاح"
   },
   "nav": {
     "home": "الرئيسية",
@@ -776,6 +777,51 @@
     "legend": {
       "withMenu": "مع قائمة",
       "inactiveMenu": "قائمة غير نشطة"
+    },
+    "manager": {
+      "duplicate": "تكرار",
+      "applied_one": "تم تطبيق القائمة على يوم واحد",
+      "applied_other": "تم تطبيق القائمة على {{count}} أيام",
+      "errors": {
+        "toggleItem": "تعذر تعديل توفر الطبق",
+        "applyAllFailedTitle": "فشل",
+        "applyAllFailed": "تعذر تطبيق القائمة على التواريخ المحددة",
+        "applyGeneric": "حدث خطأ أثناء تطبيق القائمة"
+      },
+      "partialApply": {
+        "title": "تطبيق جزئي",
+        "message": "{{succeeded}} ناجحة، {{failed}} فاشلة"
+      },
+      "replaceDialog": {
+        "title": "هل تريد استبدال القوائم الموجودة؟",
+        "message_one": "توجد بالفعل قائمة يوم لتاريخ واحد من التواريخ المحددة. هل تريد استبدالها؟",
+        "message_other": "توجد بالفعل قوائم يوم لـ {{count}} من التواريخ المحددة. هل تريد استبدالها؟",
+        "confirm": "استبدال"
+      },
+      "empty": {
+        "title": "لا توجد قائمة لهذا التاريخ",
+        "subtitleToday": "أنشئ قائمة اليوم للبدء",
+        "subtitleDate": "أنشئ قائمة لـ {{date}}",
+        "cta": "إنشاء القائمة"
+      },
+      "stats": {
+        "dishes_one": "{{count}} طبق",
+        "dishes_other": "{{count}} أطباق",
+        "available_one": "{{count}} متاح",
+        "available_other": "{{count}} متاحة",
+        "formulaPrice": "{{price}} / قائمة"
+      },
+      "applyModal": {
+        "title": "تطبيق على أيام أخرى",
+        "source": "المصدر: {{date}}",
+        "selectAll": "تحديد الكل",
+        "unselectAll": "إلغاء تحديد الكل",
+        "selectedCount_one": "{{count}} محدد",
+        "selectedCount_other": "{{count}} محددة",
+        "existingMenu": "قائمة موجودة",
+        "apply": "تطبيق",
+        "applyWithCount": "تطبيق ({{count}})"
+      }
     }
   },
   "restaurantMenus": {
@@ -834,6 +880,20 @@
       "menuNotFound": "لم يتم العثور على القائمة",
       "menuDeleted": "تم حذف القائمة بنجاح",
       "deleteFailed": "تعذّر حذف القائمة"
+    },
+    "card": {
+      "items_one": "{{count}} طبق",
+      "items_other": "{{count}} أطباق",
+      "available_one": "{{count}} متاح",
+      "available_other": "{{count}} متاحة",
+      "active": "نشط",
+      "inactive": "غير نشط",
+      "updating": "جارٍ التحديث…",
+      "createdOn": "تم الإنشاء في",
+      "updatedOn": "تم التعديل في",
+      "enable": "تفعيل",
+      "disable": "تعطيل",
+      "inProgress": "قيد التنفيذ"
     }
   },
   "restaurantStats": {
@@ -1102,6 +1162,268 @@
     "pdf": {
       "tableLabel": "الطاولة",
       "scanOrEnter": "امسح أو أدخل"
+    }
+  },
+  "restaurantCard": {
+    "distanceKm": "{{distance}} كم",
+    "walkingMinutes": "{{minutes}} د"
+  },
+  "validationPending": {
+    "title": "الملف الشخصي قيد التحقق",
+    "stripeCompleted": "تم إكمال إعداد Stripe",
+    "stripePending": "إعداد Stripe قيد التنفيذ",
+    "profileActivated": "تم تفعيل الملف الشخصي",
+    "profilePending": "الملف الشخصي في انتظار التفعيل",
+    "setupStripe": "إعداد Stripe",
+    "contactSupport": "اتصل بالدعم",
+    "infoDelay": "قد يستغرق التحقق من ملفك الشخصي من 1 إلى 3 أيام عمل بعد إكمال إعداد Stripe.",
+    "supportEmailSubject": "مساعدة في التحقق من ملف صاحب المطعم"
+  },
+  "restaurantSelector": {
+    "noRestaurantTitle": "ليس لديك أي مطعم بعد",
+    "noRestaurantSubtitle": "أنشئ مطعمك الأول لبدء إدارة القوائم والطلبات.",
+    "createFirst": "إنشاء مطعمي الأول",
+    "chooseTitle": "اختر مطعمًا",
+    "chooseHint": "اختر المطعم الذي تريد إدارته.",
+    "selecting": "جارٍ التحديد…"
+  },
+  "stripeCommission": {
+    "compact": {
+      "title": "عمولة المنصة",
+      "description": "تُخصم عمولة قدرها {{percent}}% من كل عملية دفع بالبطاقة."
+    },
+    "title": "تسعير المدفوعات",
+    "subtitle": "الشروط المطبقة على المدفوعات بالبطاقة",
+    "platform": {
+      "title": "عمولة EatQuickeR",
+      "description": "لكل طلب يتم دفعه عبر التطبيق، تأخذ EatQuickeR عمولة قدرها {{percent}}% من المبلغ الإجمالي. تغطي هذه العمولة رسوم الربط وإدارة المنصة والدعم التقني."
+    },
+    "stripe": {
+      "title": "رسوم معالجة Stripe",
+      "description": "تُطبَّق رسوم Stripe البنكية وفقًا لجدول أسعارها القياسي. قد تختلف هذه الرسوم حسب نوع البطاقة التي يستخدمها العميل."
+    },
+    "example": {
+      "title": "مثال لطلب بقيمة {{amount}}",
+      "orderAmount": "مبلغ الطلب",
+      "platformFee": "عمولة EatQuickeR ({{percent}}%)",
+      "stripeFee": "رسوم Stripe (تقديرية)",
+      "netAmount": "صافي المبلغ المستلم"
+    },
+    "bullets": {
+      "autoDeduct": "تُخصم العمولة تلقائيًا عند الدفع",
+      "cashNoFee": "المدفوعات النقدية غير خاضعة للعمولة",
+      "directPayout": "تستلم أموالك مباشرة على حسابك البنكي"
+    },
+    "acceptTerms": "لقد قرأت وأقبل شروط التسعير"
+  },
+  "stripeAccount": {
+    "title": "حساب Stripe",
+    "checking": "جارٍ التحقق من الحالة…",
+    "errors": {
+      "fetch": "خطأ أثناء جلب الحالة",
+      "setup": "خطأ أثناء إعداد حساب Stripe"
+    },
+    "validated": {
+      "title": "تم التحقق من الحساب",
+      "description": "تم التحقق من حساب Stripe الخاص بك وهو جاهز لاستلام المدفوعات.",
+      "successMessage": "يمكنك الآن تفعيل مطاعمك والبدء في استلام الطلبات."
+    },
+    "inProgress": {
+      "title": "الإعداد قيد التنفيذ",
+      "description": "حساب Stripe الخاص بك موجود لكنه يحتاج إلى الإنهاء.",
+      "action": "متابعة الإعداد"
+    },
+    "notStarted": {
+      "title": "الإعداد مطلوب",
+      "description": "يجب عليك إعداد حساب Stripe لاستلام المدفوعات.",
+      "action": "إعداد Stripe"
+    },
+    "redirectDialog": {
+      "title": "إعادة التوجيه إلى Stripe",
+      "message": "ستتم إعادة توجيهك إلى Stripe لإعداد حساب الدفع الخاص بك."
+    },
+    "continueDialog": {
+      "title": "متابعة الإعداد",
+      "message": "ستتم إعادة توجيهك إلى Stripe لإتمام إعدادك."
+    },
+    "requirements": {
+      "title": "المستندات المطلوبة:",
+      "othersCount_one": "و {{count}} آخر…",
+      "othersCount_other": "و {{count}} آخرون…"
+    },
+    "infoDelay": "قد تستغرق عملية التحقق من حسابك من يوم إلى ٣ أيام عمل بعد تقديم جميع المستندات المطلوبة."
+  },
+  "revenueCard": {
+    "title": "الإيرادات",
+    "defaultPeriod": "هذا الشهر",
+    "details": "التفاصيل",
+    "netRevenue": "الإيراد الصافي",
+    "netRevenueEstimated": "الإيراد الصافي المقدر",
+    "ordersCount_one": "{{count}} طلب",
+    "ordersCount_other": "{{count}} طلبات",
+    "grossRevenueTitle": "الإيرادات الإجمالية",
+    "cardPayments": "المدفوعات بالبطاقة",
+    "cashPayments": "المدفوعات النقدية",
+    "grossTotal": "الإجمالي الكلي",
+    "feesTitle": "الرسوم والعمولات",
+    "stripeFeesNote": "ينطبق فقط على المدفوعات بالبطاقة. تُخصم رسوم Stripe بشكل منفصل.",
+    "platformCommissionLine": "عمولة EatQuickeR: {{amount}}",
+    "legendGross": "الإيرادات الإجمالية: {{amount}}",
+    "legendCommission": "العمولة: {{amount}}"
+  },
+  "openingHours": {
+    "title": "ساعات العمل",
+    "subtitle": "حدّد ساعات الخدمة لكل يوم من أيام الأسبوع",
+    "quickPresets": "قوالب سريعة",
+    "open": "مفتوح",
+    "closed": "مغلق",
+    "start": "البداية",
+    "end": "النهاية",
+    "apply": "تطبيق",
+    "addPeriod": "إضافة نطاق زمني",
+    "serviceNamePlaceholder": "اسم الخدمة (مثل: الغداء)",
+    "tip1": "اضغط على الساعات لاختيار ساعات الخدمة بسهولة",
+    "tip2": "استخدم الساعات المقترحة أو حدّد ساعات مخصصة",
+    "timePicker": {
+      "title": "اختر الوقت",
+      "ok": "موافق",
+      "suggestedTimes": "أوقات مقترحة",
+      "customTime": "وقت مخصص",
+      "hours": "ساعات",
+      "minutes": "دقائق"
+    },
+    "presets": {
+      "continuous": {
+        "name": "خدمة متواصلة"
+      },
+      "lunchDinner": {
+        "name": "الغداء + العشاء"
+      },
+      "complete": {
+        "name": "كامل"
+      }
+    },
+    "periodNames": {
+      "lunch": "الغداء",
+      "dinner": "العشاء",
+      "breakfast": "الإفطار",
+      "service": "الخدمة"
+    },
+    "confirmApplyPreset": {
+      "title": "تطبيق القالب",
+      "message": "تطبيق «{{name}}» على جميع أيام الأسبوع؟"
+    },
+    "confirmCopyHours": {
+      "title": "نسخ الساعات",
+      "message": "تطبيق ساعات {{day}} على جميع أيام العمل (الإثنين–الجمعة)؟"
+    }
+  },
+  "statistics": {
+    "kpis": {
+      "title": "مؤشرات الأداء الرئيسية",
+      "cancellationRate": "معدل الإلغاء",
+      "paymentRate": "معدل الدفع",
+      "availabilityRate": "توفر الأطباق",
+      "avgOrderValue": "متوسط قيمة الطلب",
+      "perOrder": "لكل طلب",
+      "serviceTime": "وقت الخدمة",
+      "avgTime": "متوسط الوقت",
+      "tableUsage": "استخدام الطاولات"
+    },
+    "qualifiers": {
+      "excellent": "ممتاز",
+      "toImprove": "بحاجة للتحسين",
+      "veryGood": "جيد جدًا",
+      "toWatch": "بحاجة للمراقبة",
+      "optimal": "مثالي",
+      "critical": "حرج",
+      "toOptimize": "بحاجة للتحسين"
+    },
+    "priorities": {
+      "high": "عاجل",
+      "medium": "مهم",
+      "low": "معلومة"
+    },
+    "recommendations": {
+      "title": "توصيات مخصصة"
+    },
+    "topDishes": {
+      "title": "أكثر 5 أطباق طلبًا",
+      "dishStats": "{{orders}} طلب • {{revenue}} إيرادات"
+    },
+    "underperforming": {
+      "title": "أطباق تحتاج إلى تحسين",
+      "neverOrdered_one": "{{count}} طبق لم يُطلب أبدًا. فكّر في إزالته أو الترويج له.",
+      "neverOrdered_other": "{{count}} أطباق لم تُطلب أبدًا. فكّر في إزالتها أو الترويج لها.",
+      "lowOrders": "أطباق قليلة الطلب (آخر 30 يومًا)",
+      "onlyOrders_one": "طلب واحد فقط",
+      "onlyOrders_other": "{{count}} طلبات فقط"
+    },
+    "revenue": {
+      "title": "تحليل الإيرادات",
+      "currentPeriod": "الفترة الحالية",
+      "previousPeriod": "الفترة السابقة",
+      "evolution": "التطور",
+      "avgOrderValue": "متوسط قيمة الطلب",
+      "perOrder": "لكل طلب",
+      "ordersCount_one": "{{count}} طلب",
+      "ordersCount_other": "{{count}} طلبات"
+    },
+    "peakHours": {
+      "title": "توزيع الطلبات حسب الساعة",
+      "peakSlots": "أوقات الذروة",
+      "ordersCount_one": "{{count}} طلب",
+      "ordersCount_other": "{{count}} طلبات"
+    },
+    "dailyPerformance": {
+      "title": "الأداء حسب يوم الأسبوع",
+      "bestDay": "أفضل يوم",
+      "worstDay": "أضعف يوم"
+    }
+  },
+  "dailyMenuDisplay": {
+    "loading": "جارٍ تحميل القائمة…",
+    "completeFormula": "قائمة كاملة",
+    "formulaHint": "طبق واحد لكل فئة • {{price}} / طبق",
+    "dishesCount_one": "{{count}} طبق",
+    "dishesCount_other": "{{count}} أطباق",
+    "categoriesCount_one": "{{count}} فئة",
+    "categoriesCount_other": "{{count}} فئات"
+  },
+  "menuItem": {
+    "add": "إضافة",
+    "unavailable": "غير متاح",
+    "unavailableShort": "غير متاح"
+  },
+  "menuGrid": {
+    "otherCategory": "أخرى",
+    "defaultRestaurantName": "المطعم",
+    "groupToggle": "تجميع",
+    "filters": "تصفية",
+    "viewModes": {
+      "list": "قائمة",
+      "grid": "شبكة",
+      "masonry": "فسيفساء",
+      "table": "جدول"
+    },
+    "table": {
+      "photo": "صورة",
+      "name": "الاسم",
+      "description": "الوصف",
+      "price": "السعر",
+      "action": "إجراء"
+    },
+    "stats": {
+      "availableShort_one": "{{count}} متاح",
+      "availableShort_other": "{{count}} متاحة",
+      "availableLong_one": "{{count}} طبق متاح",
+      "availableLong_other": "{{count}} أطباق متاحة",
+      "photos_one": "صورة واحدة",
+      "photos_other": "{{count}} صور"
+    },
+    "accordion": {
+      "expandAll": "توسيع الكل",
+      "collapseAll": "طي الكل"
     }
   }
 }

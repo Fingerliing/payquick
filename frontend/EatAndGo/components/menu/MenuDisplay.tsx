@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,16 +7,26 @@ import {
   StyleSheet,
   Dimensions,
   Platform,
-  Switch
+  Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
+
 import { MenuItem } from '@/types/menu';
-import { MenuItemsGrid, MenuItemsMasonry, MenuItemsTable } from './MenuItemGrid';
-import { COLORS, BORDER_RADIUS, SHADOWS } from '@/utils/designSystem';
+import {
+  MenuItemsGrid,
+  MenuItemsMasonry,
+  MenuItemsTable,
+} from './MenuItemGrid';
+import {
+  useAppTheme,
+  makeShadows,
+  BORDER_RADIUS,
+  type AppColors,
+} from '@/utils/designSystem';
 
 const { width: screenWidth } = Dimensions.get('window');
 
-// Types pour les différents modes d'affichage
 type ViewMode = 'compact' | 'grid' | 'masonry' | 'table';
 
 interface MenuDisplayProps {
@@ -26,38 +36,42 @@ interface MenuDisplayProps {
   menuTitle?: string;
 }
 
+// ============================================================================
+// OptimizedMenuDisplay
+// ============================================================================
+
 export const OptimizedMenuDisplay: React.FC<MenuDisplayProps> = ({
   items,
   onAddToCart,
-  restaurantName = 'Restaurant',
-  menuTitle = 'Menu du jour'
+  restaurantName,
+  menuTitle,
 }) => {
+  const { t } = useTranslation();
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
+
   const [viewMode, setViewMode] = React.useState<ViewMode>('compact');
-  const [showImages, setShowImages] = React.useState(true);
   const [groupByCategory, setGroupByCategory] = React.useState(true);
-  
-  // Filtrer les items avec/sans images selon le toggle
-  const displayItems = React.useMemo(() => {
-    if (showImages) return items;
-    // Pour le mode sans images, on utilise toujours le mode compact
-    return items;
-  }, [items, showImages]);
-  
+
+  // Fallbacks i18n pour les props optionnelles
+  const effectiveMenuTitle = menuTitle ?? t('menu.dailyMenu');
+  const effectiveRestaurantName = restaurantName ?? t('menuGrid.defaultRestaurantName');
+
+  const displayItems = items;
+
   // Stats rapides
-  const stats = React.useMemo(() => {
-    const available = items.filter(item => item.is_available);
-    const withImages = items.filter(item => item.image_url);
-    const categories = [...new Set(items.map(item => item.category_name))];
-    
+  const stats = useMemo(() => {
+    const available = items.filter((item) => item.is_available);
+    const withImages = items.filter((item) => item.image_url);
+    const categories = [...new Set(items.map((item) => item.category_name))];
     return {
       total: items.length,
       available: available.length,
       withImages: withImages.length,
-      categories: categories.length
+      categories: categories.length,
     };
   }, [items]);
-  
-  // Composant de bouton pour les modes d'affichage
+
   const ViewModeButton: React.FC<{
     mode: ViewMode;
     icon: string;
@@ -68,98 +82,113 @@ export const OptimizedMenuDisplay: React.FC<MenuDisplayProps> = ({
       style={[styles.viewModeButton, isActive && styles.viewModeButtonActive]}
       onPress={() => setViewMode(mode)}
     >
-      <Ionicons 
-        name={icon as any} 
-        size={20} 
-        color={isActive ? COLORS.primary : COLORS.text.secondary} 
+      <Ionicons
+        name={icon as any}
+        size={20}
+        color={isActive ? colors.primary : colors.text.secondary}
       />
-      <Text style={[styles.viewModeLabel, isActive && styles.viewModeLabelActive]}>
+      <Text
+        style={[styles.viewModeLabel, isActive && styles.viewModeLabelActive]}
+      >
         {label}
       </Text>
     </TouchableOpacity>
   );
-  
+
   return (
     <View style={styles.container}>
-      {/* Header avec titre et stats */}
+      {/* Header */}
       <View style={styles.header}>
         <View style={styles.titleSection}>
-          <Text style={styles.restaurantName}>{restaurantName}</Text>
-          <Text style={styles.menuTitle}>{menuTitle}</Text>
+          <Text style={styles.restaurantName}>{effectiveRestaurantName}</Text>
+          <Text style={styles.menuTitle}>{effectiveMenuTitle}</Text>
         </View>
-        
-        {/* Stats rapides */}
+
+        {/* Stats */}
         <View style={styles.statsContainer}>
           <View style={styles.statItem}>
-            <Ionicons name="restaurant" size={16} color={COLORS.primary} />
-            <Text style={styles.statText}>{stats.total} plats</Text>
+            <Ionicons name="restaurant" size={16} color={colors.primary} />
+            <Text style={styles.statText}>
+              {t('dailyMenuDisplay.dishesCount', { count: stats.total })}
+            </Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Ionicons name="checkmark-circle" size={16} color={COLORS.success} />
-            <Text style={styles.statText}>{stats.available} dispo</Text>
+            <Ionicons
+              name="checkmark-circle"
+              size={16}
+              color={colors.success}
+            />
+            <Text style={styles.statText}>
+              {t('menuGrid.stats.availableShort', { count: stats.available })}
+            </Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Ionicons name="camera" size={16} color={COLORS.secondary} />
-            <Text style={styles.statText}>{stats.withImages} photos</Text>
+            <Ionicons name="camera" size={16} color={colors.secondary} />
+            <Text style={styles.statText}>
+              {t('menuGrid.stats.photos', { count: stats.withImages })}
+            </Text>
           </View>
         </View>
       </View>
-      
-      {/* Contrôles d'affichage */}
+
+      {/* Contrôles */}
       <View style={styles.controls}>
-        {/* Sélecteur de vue */}
-        <ScrollView 
-          horizontal 
+        <ScrollView
+          horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.viewModeSelector}
         >
-          <ViewModeButton 
-            mode="compact" 
-            icon="list" 
-            label="Liste" 
-            isActive={viewMode === 'compact'} 
+          <ViewModeButton
+            mode="compact"
+            icon="list"
+            label={t('menuGrid.viewModes.list')}
+            isActive={viewMode === 'compact'}
           />
-          <ViewModeButton 
-            mode="grid" 
-            icon="grid" 
-            label="Grille" 
-            isActive={viewMode === 'grid'} 
+          <ViewModeButton
+            mode="grid"
+            icon="grid"
+            label={t('menuGrid.viewModes.grid')}
+            isActive={viewMode === 'grid'}
           />
           {screenWidth >= 768 && (
             <>
-              <ViewModeButton 
-                mode="masonry" 
-                icon="apps" 
-                label="Mosaïque" 
-                isActive={viewMode === 'masonry'} 
+              <ViewModeButton
+                mode="masonry"
+                icon="apps"
+                label={t('menuGrid.viewModes.masonry')}
+                isActive={viewMode === 'masonry'}
               />
-              <ViewModeButton 
-                mode="table" 
-                icon="reorder-four" 
-                label="Tableau" 
-                isActive={viewMode === 'table'} 
+              <ViewModeButton
+                mode="table"
+                icon="reorder-four"
+                label={t('menuGrid.viewModes.table')}
+                isActive={viewMode === 'table'}
               />
             </>
           )}
         </ScrollView>
-        
-        {/* Toggles d'options */}
+
         <View style={styles.toggles}>
           <View style={styles.toggleItem}>
-            <Text style={styles.toggleLabel}>Grouper</Text>
+            <Text style={styles.toggleLabel}>
+              {t('menuGrid.groupToggle')}
+            </Text>
             <Switch
               value={groupByCategory}
               onValueChange={setGroupByCategory}
-              trackColor={{ false: COLORS.border.default, true: COLORS.primary }}
-              thumbColor={Platform.OS === 'ios' ? undefined : 'white'}
+              trackColor={{
+                false: colors.border.default,
+                true: colors.primary,
+              }}
+              thumbColor={Platform.OS === 'ios' ? undefined : '#FFFFFF'}
             />
           </View>
         </View>
       </View>
-      
-      {/* Zone d'affichage principale */}
+
+      {/* Zone d'affichage */}
       <View style={styles.content}>
         {viewMode === 'compact' && (
           <MenuItemsGrid
@@ -169,7 +198,7 @@ export const OptimizedMenuDisplay: React.FC<MenuDisplayProps> = ({
             showCategoryHeaders={groupByCategory}
           />
         )}
-        
+
         {viewMode === 'grid' && (
           <MenuItemsGrid
             items={displayItems}
@@ -178,31 +207,30 @@ export const OptimizedMenuDisplay: React.FC<MenuDisplayProps> = ({
             showCategoryHeaders={groupByCategory}
           />
         )}
-        
+
         {viewMode === 'masonry' && screenWidth >= 768 && (
           <MenuItemsMasonry
             items={displayItems}
             onAddToCart={onAddToCart}
           />
         )}
-        
+
         {viewMode === 'table' && screenWidth >= 768 && (
-          <MenuItemsTable
-            items={displayItems}
-            onAddToCart={onAddToCart}
-          />
+          <MenuItemsTable items={displayItems} onAddToCart={onAddToCart} />
         )}
       </View>
-      
-      {/* Barre d'info flottante pour mobile */}
+
+      {/* Barre flottante mobile */}
       {screenWidth < 768 && (
         <View style={styles.floatingInfo}>
           <Text style={styles.floatingText}>
-            {stats.available} plats disponibles
+            {t('menuGrid.stats.availableLong', { count: stats.available })}
           </Text>
           <TouchableOpacity style={styles.filterButton}>
-            <Ionicons name="filter" size={18} color={COLORS.primary} />
-            <Text style={styles.filterButtonText}>Filtres</Text>
+            <Ionicons name="filter" size={18} color={colors.primary} />
+            <Text style={styles.filterButtonText}>
+              {t('menuGrid.filters')}
+            </Text>
           </TouchableOpacity>
         </View>
       )}
@@ -210,26 +238,34 @@ export const OptimizedMenuDisplay: React.FC<MenuDisplayProps> = ({
   );
 };
 
-// Composant alternatif : Affichage par catégories avec accordéon
+// ============================================================================
+// CategoryAccordionDisplay
+// ============================================================================
+
 export const CategoryAccordionDisplay: React.FC<MenuDisplayProps> = ({
   items,
-  onAddToCart
+  onAddToCart,
 }) => {
-  const [expandedCategories, setExpandedCategories] = React.useState<Set<string>>(new Set());
-  
-  // Grouper par catégorie
-  const categories = React.useMemo(() => {
+  const { t } = useTranslation();
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
+
+  const [expandedCategories, setExpandedCategories] = React.useState<
+    Set<string>
+  >(new Set());
+
+  const categories = useMemo(() => {
     const groups: { [key: string]: MenuItem[] } = {};
-    items.forEach(item => {
-      const category = item.category_name || 'Autres';
+    items.forEach((item) => {
+      const category = item.category_name || t('menuGrid.otherCategory');
       if (!groups[category]) groups[category] = [];
       groups[category].push(item);
     });
     return groups;
-  }, [items]);
-  
+  }, [items, t]);
+
   const toggleCategory = (category: string) => {
-    setExpandedCategories(prev => {
+    setExpandedCategories((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(category)) {
         newSet.delete(category);
@@ -239,46 +275,52 @@ export const CategoryAccordionDisplay: React.FC<MenuDisplayProps> = ({
       return newSet;
     });
   };
-  
+
   const expandAll = () => {
     setExpandedCategories(new Set(Object.keys(categories)));
   };
-  
+
   const collapseAll = () => {
     setExpandedCategories(new Set());
   };
-  
+
   return (
     <View style={styles.accordionContainer}>
       {/* Contrôles globaux */}
       <View style={styles.accordionControls}>
         <TouchableOpacity onPress={expandAll} style={styles.controlButton}>
-          <Ionicons name="expand" size={16} color={COLORS.primary} />
-          <Text style={styles.controlButtonText}>Tout ouvrir</Text>
+          <Ionicons name="expand" size={16} color={colors.primary} />
+          <Text style={styles.controlButtonText}>
+            {t('menuGrid.accordion.expandAll')}
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={collapseAll} style={styles.controlButton}>
-          <Ionicons name="contract" size={16} color={COLORS.primary} />
-          <Text style={styles.controlButtonText}>Tout fermer</Text>
+          <Ionicons name="contract" size={16} color={colors.primary} />
+          <Text style={styles.controlButtonText}>
+            {t('menuGrid.accordion.collapseAll')}
+          </Text>
         </TouchableOpacity>
       </View>
-      
+
       {/* Catégories accordéon */}
       <ScrollView showsVerticalScrollIndicator={false}>
         {Object.entries(categories).map(([category, categoryItems]) => {
           const isExpanded = expandedCategories.has(category);
-          const availableCount = categoryItems.filter(item => item.is_available).length;
-          
+          const availableCount = categoryItems.filter(
+            (item) => item.is_available,
+          ).length;
+
           return (
             <View key={category} style={styles.accordionSection}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.accordionHeader}
                 onPress={() => toggleCategory(category)}
               >
                 <View style={styles.accordionHeaderLeft}>
-                  <Ionicons 
-                    name={isExpanded ? "chevron-down" : "chevron-forward"} 
-                    size={20} 
-                    color={COLORS.primary} 
+                  <Ionicons
+                    name={isExpanded ? 'chevron-down' : 'chevron-forward'}
+                    size={20}
+                    color={colors.primary}
                   />
                   <Text style={styles.accordionTitle}>{category}</Text>
                 </View>
@@ -290,7 +332,7 @@ export const CategoryAccordionDisplay: React.FC<MenuDisplayProps> = ({
                   </View>
                 </View>
               </TouchableOpacity>
-              
+
               {isExpanded && (
                 <View style={styles.accordionContent}>
                   <MenuItemsGrid
@@ -309,241 +351,227 @@ export const CategoryAccordionDisplay: React.FC<MenuDisplayProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  
-  header: {
-    backgroundColor: COLORS.surface,
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border.light,
-    ...SHADOWS.sm,
-  },
-  
-  titleSection: {
-    marginBottom: 12,
-  },
-  
-  restaurantName: {
-    fontSize: 14,
-    color: COLORS.text.secondary,
-    marginBottom: 4,
-  },
-  
-  menuTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: COLORS.text.primary,
-  },
-  
-  statsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  
-  statItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  
-  statText: {
-    fontSize: 14,
-    color: COLORS.text.secondary,
-    fontWeight: '500',
-  },
-  
-  statDivider: {
-    width: 1,
-    height: 16,
-    backgroundColor: COLORS.border.light,
-    marginHorizontal: 12,
-  },
-  
-  controls: {
-    backgroundColor: COLORS.surface,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border.light,
-  },
-  
-  viewModeSelector: {
-    flexDirection: 'row',
-    maxHeight: 36,
-  },
-  
-  viewModeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginRight: 8,
-    borderRadius: BORDER_RADIUS.lg,
-    backgroundColor: COLORS.background,
-    gap: 6,
-  },
-  
-  viewModeButtonActive: {
-    backgroundColor: COLORS.variants.primary[100],
-  },
-  
-  viewModeLabel: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: COLORS.text.secondary,
-  },
-  
-  viewModeLabelActive: {
-    color: COLORS.primary,
-  },
-  
-  toggles: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  
-  toggleItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  
-  toggleLabel: {
-    fontSize: 13,
-    color: COLORS.text.secondary,
-  },
-  
-  content: {
-    flex: 1,
-    paddingTop: 12,
-  },
-  
-  floatingInfo: {
-    position: 'absolute',
-    bottom: 20,
-    left: 20,
-    right: 20,
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.xl,
-    padding: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    ...SHADOWS.lg,
-  },
-  
-  floatingText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.text.primary,
-  },
-  
-  filterButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.background,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: BORDER_RADIUS.lg,
-    gap: 6,
-  },
-  
-  filterButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: COLORS.primary,
-  },
-  
-  // Accordion styles
-  accordionContainer: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  
-  accordionControls: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    padding: 12,
-    gap: 12,
-    backgroundColor: COLORS.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border.light,
-  },
-  
-  controlButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: BORDER_RADIUS.md,
-    backgroundColor: COLORS.background,
-  },
-  
-  controlButtonText: {
-    fontSize: 12,
-    color: COLORS.primary,
-    fontWeight: '500',
-  },
-  
-  accordionSection: {
-    marginBottom: 4,
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.lg,
-    marginHorizontal: 8,
-    marginTop: 8,
-    ...SHADOWS.sm,
-  },
-  
-  accordionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-  },
-  
-  accordionHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  
-  accordionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text.primary,
-  },
-  
-  accordionHeaderRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  
-  badge: {
-    backgroundColor: COLORS.variants.primary[100],
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: BORDER_RADIUS.full,
-  },
-  
-  badgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.primary,
-  },
-  
-  accordionContent: {
-    paddingHorizontal: 8,
-    paddingBottom: 8,
-  },
-});
+// ──────────────────────────────────────────────────────────────────────────
+// STYLES (factory theme-aware)
+// ──────────────────────────────────────────────────────────────────────────
+
+const makeStyles = (colors: AppColors, isDark: boolean) => {
+  const shadows = makeShadows(colors);
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+
+    // Header
+    header: {
+      backgroundColor: colors.surface,
+      paddingHorizontal: 16,
+      paddingVertical: 20,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border.light,
+      ...shadows.sm,
+    },
+    titleSection: { marginBottom: 12 },
+    restaurantName: {
+      fontSize: 14,
+      color: colors.text.secondary,
+      marginBottom: 4,
+    },
+    menuTitle: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: colors.text.primary,
+    },
+    statsContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    statItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    statText: {
+      fontSize: 14,
+      color: colors.text.secondary,
+      fontWeight: '500',
+    },
+    statDivider: {
+      width: 1,
+      height: 16,
+      backgroundColor: colors.border.light,
+      marginHorizontal: 12,
+    },
+
+    // Contrôles
+    controls: {
+      backgroundColor: colors.surface,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border.light,
+    },
+    viewModeSelector: {
+      flexDirection: 'row',
+      maxHeight: 36,
+    },
+    viewModeButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      marginRight: 8,
+      borderRadius: BORDER_RADIUS.lg,
+      backgroundColor: colors.background,
+      gap: 6,
+    },
+    viewModeButtonActive: {
+      backgroundColor: isDark
+        ? 'rgba(30, 42, 120, 0.28)'
+        : colors.variants.primary[100],
+    },
+    viewModeLabel: {
+      fontSize: 13,
+      fontWeight: '500',
+      color: colors.text.secondary,
+    },
+    viewModeLabelActive: {
+      color: colors.primary,
+    },
+    toggles: {
+      flexDirection: 'row',
+      gap: 16,
+    },
+    toggleItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    toggleLabel: {
+      fontSize: 13,
+      color: colors.text.secondary,
+    },
+    content: {
+      flex: 1,
+      paddingTop: 12,
+    },
+
+    // Barre flottante mobile
+    floatingInfo: {
+      position: 'absolute',
+      bottom: 20,
+      left: 20,
+      right: 20,
+      backgroundColor: colors.surface,
+      borderRadius: BORDER_RADIUS.xl,
+      padding: 12,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      borderWidth: isDark ? StyleSheet.hairlineWidth : 0,
+      borderColor: isDark ? 'rgba(212, 175, 55, 0.12)' : 'transparent',
+      ...shadows.lg,
+    },
+    floatingText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text.primary,
+    },
+    filterButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.background,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: BORDER_RADIUS.lg,
+      gap: 6,
+    },
+    filterButtonText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+
+    // Accordéon
+    accordionContainer: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    accordionControls: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      padding: 12,
+      gap: 12,
+      backgroundColor: colors.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border.light,
+    },
+    controlButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: BORDER_RADIUS.md,
+      backgroundColor: colors.background,
+    },
+    controlButtonText: {
+      fontSize: 12,
+      color: colors.primary,
+      fontWeight: '500',
+    },
+    accordionSection: {
+      marginBottom: 4,
+      backgroundColor: colors.surface,
+      borderRadius: BORDER_RADIUS.lg,
+      marginHorizontal: 8,
+      marginTop: 8,
+      borderWidth: isDark ? StyleSheet.hairlineWidth : 0,
+      borderColor: isDark ? 'rgba(212, 175, 55, 0.12)' : 'transparent',
+      ...shadows.sm,
+    },
+    accordionHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: 16,
+    },
+    accordionHeaderLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    accordionTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text.primary,
+    },
+    accordionHeaderRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    badge: {
+      backgroundColor: isDark
+        ? 'rgba(30, 42, 120, 0.28)'
+        : colors.variants.primary[100],
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: BORDER_RADIUS.full,
+    },
+    badgeText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    accordionContent: {
+      paddingHorizontal: 8,
+      paddingBottom: 8,
+    },
+  });
+};
 
 export default OptimizedMenuDisplay;

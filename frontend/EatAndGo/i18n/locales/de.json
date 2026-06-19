@@ -40,7 +40,8 @@
     "available": "Verfügbar",
     "unavailable": "Nicht verfügbar",
     "comingSoon": "Bald",
-    "error": "Fehler"
+    "error": "Fehler",
+    "success": "Erfolg"
   },
   "nav": {
     "home": "Startseite",
@@ -775,6 +776,51 @@
     "legend": {
       "withMenu": "Mit Menü",
       "inactiveMenu": "Inaktives Menü"
+    },
+    "manager": {
+      "duplicate": "Duplizieren",
+      "applied_one": "Menü auf 1 Tag angewendet",
+      "applied_other": "Menü auf {{count}} Tage angewendet",
+      "errors": {
+        "toggleItem": "Die Verfügbarkeit des Gerichts konnte nicht geändert werden",
+        "applyAllFailedTitle": "Fehlgeschlagen",
+        "applyAllFailed": "Das Menü konnte nicht auf die ausgewählten Daten angewendet werden",
+        "applyGeneric": "Beim Anwenden des Menüs ist ein Fehler aufgetreten"
+      },
+      "partialApply": {
+        "title": "Teilweise angewendet",
+        "message": "{{succeeded}} erfolgreich, {{failed}} fehlgeschlagen"
+      },
+      "replaceDialog": {
+        "title": "Bestehende Menüs ersetzen?",
+        "message_one": "Für 1 der ausgewählten Daten existiert bereits ein Tagesmenü. Ersetzen?",
+        "message_other": "Für {{count}} der ausgewählten Daten existieren bereits Tagesmenüs. Ersetzen?",
+        "confirm": "Ersetzen"
+      },
+      "empty": {
+        "title": "Kein Menü für dieses Datum",
+        "subtitleToday": "Erstellen Sie das Tagesmenü, um zu beginnen",
+        "subtitleDate": "Erstellen Sie ein Menü für den {{date}}",
+        "cta": "Menü erstellen"
+      },
+      "stats": {
+        "dishes_one": "{{count}} Gericht",
+        "dishes_other": "{{count}} Gerichte",
+        "available_one": "{{count}} verfügbar",
+        "available_other": "{{count}} verfügbar",
+        "formulaPrice": "{{price}} / Menü"
+      },
+      "applyModal": {
+        "title": "Auf andere Tage anwenden",
+        "source": "Quelle: {{date}}",
+        "selectAll": "Alle auswählen",
+        "unselectAll": "Auswahl aufheben",
+        "selectedCount_one": "{{count}} ausgewählt",
+        "selectedCount_other": "{{count}} ausgewählt",
+        "existingMenu": "Bestehendes Menü",
+        "apply": "Anwenden",
+        "applyWithCount": "Anwenden ({{count}})"
+      }
     }
   },
   "restaurantMenus": {
@@ -833,6 +879,20 @@
       "menuNotFound": "Menü nicht gefunden",
       "menuDeleted": "Menü erfolgreich gelöscht",
       "deleteFailed": "Menü kann nicht gelöscht werden"
+    },
+    "card": {
+      "items_one": "{{count}} Gericht",
+      "items_other": "{{count}} Gerichte",
+      "available_one": "{{count}} verfügbar",
+      "available_other": "{{count}} verfügbar",
+      "active": "Aktiv",
+      "inactive": "Inaktiv",
+      "updating": "Wird aktualisiert…",
+      "createdOn": "Erstellt am",
+      "updatedOn": "Geändert am",
+      "enable": "Aktivieren",
+      "disable": "Deaktivieren",
+      "inProgress": "Läuft"
     }
   },
   "restaurantStats": {
@@ -1101,6 +1161,268 @@
     "pdf": {
       "tableLabel": "Tisch",
       "scanOrEnter": "Scannen oder eingeben"
+    }
+  },
+  "restaurantCard": {
+    "distanceKm": "{{distance}} km",
+    "walkingMinutes": "{{minutes}} Min."
+  },
+  "validationPending": {
+    "title": "Profil wird überprüft",
+    "stripeCompleted": "Stripe-Einrichtung abgeschlossen",
+    "stripePending": "Stripe-Einrichtung läuft",
+    "profileActivated": "Profil aktiviert",
+    "profilePending": "Profil wartet auf Aktivierung",
+    "setupStripe": "Stripe einrichten",
+    "contactSupport": "Support kontaktieren",
+    "infoDelay": "Die Validierung Ihres Profils kann nach Abschluss der Stripe-Einrichtung 1 bis 3 Werktage dauern.",
+    "supportEmailSubject": "Hilfe bei der Validierung des Gastronomieprofils"
+  },
+  "restaurantSelector": {
+    "noRestaurantTitle": "Sie haben noch kein Restaurant",
+    "noRestaurantSubtitle": "Erstellen Sie Ihr erstes Restaurant, um Menüs und Bestellungen zu verwalten.",
+    "createFirst": "Mein erstes Restaurant erstellen",
+    "chooseTitle": "Restaurant auswählen",
+    "chooseHint": "Wählen Sie das Restaurant, das Sie verwalten möchten.",
+    "selecting": "Auswahl läuft…"
+  },
+  "stripeCommission": {
+    "compact": {
+      "title": "Plattformprovision",
+      "description": "Bei jeder Kartenzahlung wird eine Provision von {{percent}}% erhoben."
+    },
+    "title": "Zahlungspreise",
+    "subtitle": "Für Kartenzahlungen geltende Bedingungen",
+    "platform": {
+      "title": "EatQuickeR-Provision",
+      "description": "Für jede über die App bezahlte Bestellung erhebt EatQuickeR eine Provision von {{percent}}% auf den Bruttobetrag. Diese Provision deckt Vermittlungsgebühren, Plattformverwaltung und technischen Support ab."
+    },
+    "stripe": {
+      "title": "Stripe-Bearbeitungsgebühren",
+      "description": "Die Stripe-Bankgebühren werden gemäß ihrer Standardtarifliste angewendet. Diese Gebühren können je nach Kartentyp des Kunden variieren."
+    },
+    "example": {
+      "title": "Beispiel für eine Bestellung über {{amount}}",
+      "orderAmount": "Bestellbetrag",
+      "platformFee": "EatQuickeR-Provision ({{percent}}%)",
+      "stripeFee": "Stripe-Gebühren (geschätzt)",
+      "netAmount": "Nettobetrag erhalten"
+    },
+    "bullets": {
+      "autoDeduct": "Die Provision wird bei der Zahlung automatisch abgezogen",
+      "cashNoFee": "Bei Barzahlungen wird keine Provision erhoben",
+      "directPayout": "Sie erhalten Ihr Geld direkt auf Ihr Bankkonto"
+    },
+    "acceptTerms": "Ich habe die Tarifbedingungen gelesen und akzeptiere sie"
+  },
+  "stripeAccount": {
+    "title": "Stripe-Konto",
+    "checking": "Status wird überprüft…",
+    "errors": {
+      "fetch": "Fehler beim Abrufen des Status",
+      "setup": "Fehler bei der Einrichtung des Stripe-Kontos"
+    },
+    "validated": {
+      "title": "Konto validiert",
+      "description": "Ihr Stripe-Konto ist validiert und bereit, Zahlungen zu empfangen.",
+      "successMessage": "Sie können nun Ihre Restaurants aktivieren und Bestellungen entgegennehmen."
+    },
+    "inProgress": {
+      "title": "Einrichtung läuft",
+      "description": "Ihr Stripe-Konto existiert, muss aber abgeschlossen werden.",
+      "action": "Einrichtung fortsetzen"
+    },
+    "notStarted": {
+      "title": "Einrichtung erforderlich",
+      "description": "Sie müssen Ihr Stripe-Konto einrichten, um Zahlungen zu empfangen.",
+      "action": "Stripe einrichten"
+    },
+    "redirectDialog": {
+      "title": "Weiterleitung zu Stripe",
+      "message": "Sie werden zu Stripe weitergeleitet, um Ihr Zahlungskonto einzurichten."
+    },
+    "continueDialog": {
+      "title": "Einrichtung fortsetzen",
+      "message": "Sie werden zu Stripe weitergeleitet, um Ihre Einrichtung abzuschließen."
+    },
+    "requirements": {
+      "title": "Erforderliche Dokumente:",
+      "othersCount_one": "Und {{count}} weiteres…",
+      "othersCount_other": "Und {{count}} weitere…"
+    },
+    "infoDelay": "Die Validierung Ihres Kontos kann nach Einreichung aller erforderlichen Dokumente 1 bis 3 Werktage dauern."
+  },
+  "revenueCard": {
+    "title": "Einnahmen",
+    "defaultPeriod": "Dieser Monat",
+    "details": "Details",
+    "netRevenue": "Nettoeinnahmen",
+    "netRevenueEstimated": "Geschätzte Nettoeinnahmen",
+    "ordersCount_one": "{{count}} Bestellung",
+    "ordersCount_other": "{{count}} Bestellungen",
+    "grossRevenueTitle": "Bruttoumsatz",
+    "cardPayments": "Kartenzahlungen",
+    "cashPayments": "Barzahlungen",
+    "grossTotal": "Brutto gesamt",
+    "feesTitle": "Gebühren und Provisionen",
+    "stripeFeesNote": "Gilt nur für Kartenzahlungen. Stripe-Gebühren werden separat abgezogen.",
+    "platformCommissionLine": "EatQuickeR-Provision: {{amount}}",
+    "legendGross": "Bruttoumsatz: {{amount}}",
+    "legendCommission": "Provision: {{amount}}"
+  },
+  "openingHours": {
+    "title": "Öffnungszeiten",
+    "subtitle": "Legen Sie Ihre Servicezeiten für jeden Wochentag fest",
+    "quickPresets": "Schnellvorlagen",
+    "open": "Geöffnet",
+    "closed": "Geschlossen",
+    "start": "Beginn",
+    "end": "Ende",
+    "apply": "Anwenden",
+    "addPeriod": "Zeitfenster hinzufügen",
+    "serviceNamePlaceholder": "Servicename (z. B. Mittagessen)",
+    "tip1": "Tippen Sie auf die Uhrzeiten, um Ihre Servicezeiten einfach auszuwählen",
+    "tip2": "Nutzen Sie die vorgeschlagenen Zeiten oder legen Sie eigene fest",
+    "timePicker": {
+      "title": "Uhrzeit wählen",
+      "ok": "OK",
+      "suggestedTimes": "Vorgeschlagene Zeiten",
+      "customTime": "Benutzerdefinierte Zeit",
+      "hours": "Stunden",
+      "minutes": "Minuten"
+    },
+    "presets": {
+      "continuous": {
+        "name": "Durchgehender Service"
+      },
+      "lunchDinner": {
+        "name": "Mittag + Abend"
+      },
+      "complete": {
+        "name": "Komplett"
+      }
+    },
+    "periodNames": {
+      "lunch": "Mittagessen",
+      "dinner": "Abendessen",
+      "breakfast": "Frühstück",
+      "service": "Service"
+    },
+    "confirmApplyPreset": {
+      "title": "Vorlage anwenden",
+      "message": "„{{name}}“ auf alle Wochentage anwenden?"
+    },
+    "confirmCopyHours": {
+      "title": "Zeiten kopieren",
+      "message": "Die Zeiten von {{day}} auf alle Werktage (Mo.–Fr.) anwenden?"
+    }
+  },
+  "statistics": {
+    "kpis": {
+      "title": "Schlüsselleistungsindikatoren",
+      "cancellationRate": "Stornierungsrate",
+      "paymentRate": "Zahlungsquote",
+      "availabilityRate": "Gericht-Verfügbarkeit",
+      "avgOrderValue": "Durchschnittsbon",
+      "perOrder": "Pro Bestellung",
+      "serviceTime": "Servicezeit",
+      "avgTime": "Durchschnittszeit",
+      "tableUsage": "Tischauslastung"
+    },
+    "qualifiers": {
+      "excellent": "Hervorragend",
+      "toImprove": "Verbessern",
+      "veryGood": "Sehr gut",
+      "toWatch": "Beobachten",
+      "optimal": "Optimal",
+      "critical": "Kritisch",
+      "toOptimize": "Optimieren"
+    },
+    "priorities": {
+      "high": "DRINGEND",
+      "medium": "Wichtig",
+      "low": "Info"
+    },
+    "recommendations": {
+      "title": "Personalisierte Empfehlungen"
+    },
+    "topDishes": {
+      "title": "Top 5 der meistbestellten Gerichte",
+      "dishStats": "{{orders}} Bestellungen • {{revenue}} Umsatz"
+    },
+    "underperforming": {
+      "title": "Zu optimierende Gerichte",
+      "neverOrdered_one": "{{count}} Gericht wurde noch nie bestellt. Entfernen oder bewerben?",
+      "neverOrdered_other": "{{count}} Gerichte wurden noch nie bestellt. Entfernen oder bewerben?",
+      "lowOrders": "Selten bestellte Gerichte (letzte 30 Tage)",
+      "onlyOrders_one": "Nur {{count}} Bestellung",
+      "onlyOrders_other": "Nur {{count}} Bestellungen"
+    },
+    "revenue": {
+      "title": "Umsatzanalyse",
+      "currentPeriod": "Aktueller Zeitraum",
+      "previousPeriod": "Vorheriger Zeitraum",
+      "evolution": "Entwicklung",
+      "avgOrderValue": "Durchschnittsbon",
+      "perOrder": "pro Bestellung",
+      "ordersCount_one": "{{count}} Bestellung",
+      "ordersCount_other": "{{count}} Bestellungen"
+    },
+    "peakHours": {
+      "title": "Stündliche Bestellverteilung",
+      "peakSlots": "Stoßzeiten",
+      "ordersCount_one": "{{count}} Bestellung",
+      "ordersCount_other": "{{count}} Bestellungen"
+    },
+    "dailyPerformance": {
+      "title": "Leistung nach Wochentag",
+      "bestDay": "Bester Tag",
+      "worstDay": "Schwächster Tag"
+    }
+  },
+  "dailyMenuDisplay": {
+    "loading": "Menü wird geladen…",
+    "completeFormula": "Komplettmenü",
+    "formulaHint": "1 Gericht pro Kategorie • {{price}} / Gericht",
+    "dishesCount_one": "{{count}} Gericht",
+    "dishesCount_other": "{{count}} Gerichte",
+    "categoriesCount_one": "{{count}} Kategorie",
+    "categoriesCount_other": "{{count}} Kategorien"
+  },
+  "menuItem": {
+    "add": "Hinzufügen",
+    "unavailable": "Nicht verfügbar",
+    "unavailableShort": "n. v."
+  },
+  "menuGrid": {
+    "otherCategory": "Sonstige",
+    "defaultRestaurantName": "Restaurant",
+    "groupToggle": "Gruppieren",
+    "filters": "Filter",
+    "viewModes": {
+      "list": "Liste",
+      "grid": "Raster",
+      "masonry": "Mosaik",
+      "table": "Tabelle"
+    },
+    "table": {
+      "photo": "Foto",
+      "name": "Name",
+      "description": "Beschreibung",
+      "price": "Preis",
+      "action": "Aktion"
+    },
+    "stats": {
+      "availableShort_one": "{{count}} verf.",
+      "availableShort_other": "{{count}} verf.",
+      "availableLong_one": "{{count}} Gericht verfügbar",
+      "availableLong_other": "{{count}} Gerichte verfügbar",
+      "photos_one": "{{count}} Foto",
+      "photos_other": "{{count}} Fotos"
+    },
+    "accordion": {
+      "expandAll": "Alle ausklappen",
+      "collapseAll": "Alle einklappen"
     }
   }
 }

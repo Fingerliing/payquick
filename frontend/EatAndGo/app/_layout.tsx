@@ -5,8 +5,11 @@ import 'intl-pluralrules';
 import '@/i18n';
 
 import React, { useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 import { router, SplashScreen, Stack } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import * as NavigationBar from 'expo-navigation-bar';
+import * as SystemUI from 'expo-system-ui';
 
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { LanguageProvider } from '@/contexts/LanguageContext';
@@ -21,10 +24,33 @@ import { NotificationProvider as SessionNotificationProvider } from '@/component
 import { NotificationProvider as PushNotificationProvider } from '@/contexts/NotificationContext';
 import { SessionProvider } from '@/contexts/SessionContext';
 import { configureGoogleSignIn } from '@/services/googleAuthService';
+import { useAppTheme } from '@/utils/designSystem';
 
 try {
   SplashScreen.preventAutoHideAsync();
 } catch {
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Pilote la barre de navigation Android (boutons) + le fond de fenêtre
+// derrière les barres système, en fonction du thème courant.
+// Doit être monté SOUS ThemeProvider pour pouvoir lire useAppTheme().
+// ────────────────────────────────────────────────────────────────────────────
+function SystemBarsManager() {
+  const { colors, isDark } = useAppTheme();
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+
+    // Fond de fenêtre derrière les barres système (edge-to-edge) :
+    // c'est lui qui rend la zone de la barre de nav "bleu nuit" en dark.
+    SystemUI.setBackgroundColorAsync(colors.background);
+
+    // Icônes des boutons : clairs sur fond navy, sombres en mode clair.
+    NavigationBar.setButtonStyleAsync(isDark ? 'light' : 'dark');
+  }, [isDark, colors.background]);
+
+  return null;
 }
 
 function SplashScreenManager({ children }: { children: React.ReactNode }) {
@@ -70,6 +96,8 @@ export default function RootLayout() {
         et les traductions via useTranslation().
       */}
       <ThemeProvider>
+        {/* Synchronise la barre de nav Android avec le thème (Android uniquement) */}
+        <SystemBarsManager />
         <LanguageProvider>
           <LegalAcceptanceProvider>
             <AuthProvider>

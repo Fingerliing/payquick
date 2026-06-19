@@ -41,7 +41,8 @@
     "available": "可用",
     "unavailable": "不可用",
     "comingSoon": "即将推出",
-    "error": "错误"
+    "error": "错误",
+    "success": "成功"
   },
   "nav": {
     "home": "首页",
@@ -776,6 +777,51 @@
     "legend": {
       "withMenu": "有菜单",
       "inactiveMenu": "菜单未激活"
+    },
+    "manager": {
+      "duplicate": "复制",
+      "applied_one": "菜单已应用至 1 天",
+      "applied_other": "菜单已应用至 {{count}} 天",
+      "errors": {
+        "toggleItem": "无法修改菜品的可用状态",
+        "applyAllFailedTitle": "失败",
+        "applyAllFailed": "无法将菜单应用至所选日期",
+        "applyGeneric": "应用菜单时发生错误"
+      },
+      "partialApply": {
+        "title": "部分应用",
+        "message": "成功 {{succeeded}}，失败 {{failed}}"
+      },
+      "replaceDialog": {
+        "title": "替换现有菜单？",
+        "message_one": "所选 1 个日期已存在每日菜单。是否替换？",
+        "message_other": "所选 {{count}} 个日期已存在每日菜单。是否替换？",
+        "confirm": "替换"
+      },
+      "empty": {
+        "title": "此日期暂无菜单",
+        "subtitleToday": "创建每日菜单开始使用",
+        "subtitleDate": "为 {{date}} 创建菜单",
+        "cta": "创建菜单"
+      },
+      "stats": {
+        "dishes_one": "{{count}} 道菜",
+        "dishes_other": "{{count}} 道菜",
+        "available_one": "{{count}} 道可用",
+        "available_other": "{{count}} 道可用",
+        "formulaPrice": "{{price}} / 套餐"
+      },
+      "applyModal": {
+        "title": "应用至其他日期",
+        "source": "来源：{{date}}",
+        "selectAll": "全选",
+        "unselectAll": "取消全选",
+        "selectedCount_one": "已选 {{count}} 项",
+        "selectedCount_other": "已选 {{count}} 项",
+        "existingMenu": "已有菜单",
+        "apply": "应用",
+        "applyWithCount": "应用（{{count}}）"
+      }
     }
   },
   "restaurantMenus": {
@@ -834,6 +880,20 @@
       "menuNotFound": "未找到菜单",
       "menuDeleted": "菜单已删除",
       "deleteFailed": "无法删除菜单"
+    },
+    "card": {
+      "items_one": "{{count}} 道菜",
+      "items_other": "{{count}} 道菜",
+      "available_one": "{{count}} 道可用",
+      "available_other": "{{count}} 道可用",
+      "active": "已启用",
+      "inactive": "已停用",
+      "updating": "更新中…",
+      "createdOn": "创建于",
+      "updatedOn": "更新于",
+      "enable": "启用",
+      "disable": "停用",
+      "inProgress": "进行中"
     }
   },
   "restaurantStats": {
@@ -1102,6 +1162,268 @@
     "pdf": {
       "tableLabel": "桌台",
       "scanOrEnter": "扫描或输入"
+    }
+  },
+  "restaurantCard": {
+    "distanceKm": "{{distance}} 公里",
+    "walkingMinutes": "{{minutes}} 分钟"
+  },
+  "validationPending": {
+    "title": "资料正在审核中",
+    "stripeCompleted": "Stripe 设置已完成",
+    "stripePending": "Stripe 设置进行中",
+    "profileActivated": "资料已激活",
+    "profilePending": "资料等待激活",
+    "setupStripe": "设置 Stripe",
+    "contactSupport": "联系客服",
+    "infoDelay": "完成 Stripe 设置后，资料审核可能需要 1 至 3 个工作日。",
+    "supportEmailSubject": "餐厅老板资料审核帮助"
+  },
+  "restaurantSelector": {
+    "noRestaurantTitle": "您还没有任何餐厅",
+    "noRestaurantSubtitle": "创建您的第一家餐厅，开始管理菜单和订单。",
+    "createFirst": "创建我的第一家餐厅",
+    "chooseTitle": "选择一家餐厅",
+    "chooseHint": "请选择您要管理的餐厅。",
+    "selecting": "正在选择…"
+  },
+  "stripeCommission": {
+    "compact": {
+      "title": "平台佣金",
+      "description": "每笔银行卡支付将收取 {{percent}}% 的佣金。"
+    },
+    "title": "支付收费",
+    "subtitle": "适用于银行卡支付的条件",
+    "platform": {
+      "title": "EatQuickeR 佣金",
+      "description": "对于通过应用支付的每一笔订单，EatQuickeR 将按订单总额收取 {{percent}}% 的佣金。该佣金涵盖对接费用、平台运营以及技术支持。"
+    },
+    "stripe": {
+      "title": "Stripe 处理费用",
+      "description": "Stripe 银行费用按其标准费率应用。该费用会因客户所使用的银行卡类型而异。"
+    },
+    "example": {
+      "title": "{{amount}} 订单示例",
+      "orderAmount": "订单金额",
+      "platformFee": "EatQuickeR 佣金（{{percent}}%）",
+      "stripeFee": "Stripe 费用（估算）",
+      "netAmount": "实际到账金额"
+    },
+    "bullets": {
+      "autoDeduct": "佣金在支付时自动扣除",
+      "cashNoFee": "现金支付不收取佣金",
+      "directPayout": "您直接在银行账户中收到资金"
+    },
+    "acceptTerms": "我已阅读并接受收费条件"
+  },
+  "stripeAccount": {
+    "title": "Stripe 账户",
+    "checking": "正在检查状态…",
+    "errors": {
+      "fetch": "获取状态时出错",
+      "setup": "配置 Stripe 账户时出错"
+    },
+    "validated": {
+      "title": "账户已验证",
+      "description": "您的 Stripe 账户已验证，可以接收付款。",
+      "successMessage": "您现在可以激活餐厅并开始接收订单。"
+    },
+    "inProgress": {
+      "title": "配置进行中",
+      "description": "您的 Stripe 账户已存在，但需要完成配置。",
+      "action": "继续配置"
+    },
+    "notStarted": {
+      "title": "需要配置",
+      "description": "您需要配置 Stripe 账户才能接收付款。",
+      "action": "配置 Stripe"
+    },
+    "redirectDialog": {
+      "title": "跳转至 Stripe",
+      "message": "您将被跳转至 Stripe 以配置您的支付账户。"
+    },
+    "continueDialog": {
+      "title": "继续配置",
+      "message": "您将被跳转至 Stripe 以完成配置。"
+    },
+    "requirements": {
+      "title": "所需文件：",
+      "othersCount_one": "还有 {{count}} 项…",
+      "othersCount_other": "还有 {{count}} 项…"
+    },
+    "infoDelay": "提交全部所需文件后，账户验证可能需要 1 至 3 个工作日。"
+  },
+  "revenueCard": {
+    "title": "收入",
+    "defaultPeriod": "本月",
+    "details": "详情",
+    "netRevenue": "净收入",
+    "netRevenueEstimated": "预估净收入",
+    "ordersCount_one": "{{count}} 个订单",
+    "ordersCount_other": "{{count}} 个订单",
+    "grossRevenueTitle": "营业额（毛）",
+    "cardPayments": "银行卡支付",
+    "cashPayments": "现金支付",
+    "grossTotal": "毛总额",
+    "feesTitle": "费用与佣金",
+    "stripeFeesNote": "仅适用于银行卡支付。Stripe 费用将单独扣除。",
+    "platformCommissionLine": "EatQuickeR 佣金：{{amount}}",
+    "legendGross": "毛营业额：{{amount}}",
+    "legendCommission": "佣金：{{amount}}"
+  },
+  "openingHours": {
+    "title": "营业时间",
+    "subtitle": "为每周每天设置您的服务时间",
+    "quickPresets": "快速模板",
+    "open": "营业中",
+    "closed": "已关闭",
+    "start": "开始",
+    "end": "结束",
+    "apply": "应用",
+    "addPeriod": "添加时间段",
+    "serviceNamePlaceholder": "服务名称（例如：午餐）",
+    "tip1": "点击时间即可快速选择您的服务时间",
+    "tip2": "使用建议时间或自定义时间",
+    "timePicker": {
+      "title": "选择时间",
+      "ok": "确定",
+      "suggestedTimes": "建议时间",
+      "customTime": "自定义时间",
+      "hours": "小时",
+      "minutes": "分钟"
+    },
+    "presets": {
+      "continuous": {
+        "name": "全天服务"
+      },
+      "lunchDinner": {
+        "name": "午餐 + 晚餐"
+      },
+      "complete": {
+        "name": "完整"
+      }
+    },
+    "periodNames": {
+      "lunch": "午餐",
+      "dinner": "晚餐",
+      "breakfast": "早餐",
+      "service": "服务"
+    },
+    "confirmApplyPreset": {
+      "title": "应用模板",
+      "message": "将「{{name}}」应用于一周中的所有日子？"
+    },
+    "confirmCopyHours": {
+      "title": "复制时间",
+      "message": "将 {{day}} 的时间应用于所有工作日（周一至周五）？"
+    }
+  },
+  "statistics": {
+    "kpis": {
+      "title": "关键绩效指标",
+      "cancellationRate": "取消率",
+      "paymentRate": "支付率",
+      "availabilityRate": "菜品可用率",
+      "avgOrderValue": "客单价",
+      "perOrder": "每笔订单",
+      "serviceTime": "服务时长",
+      "avgTime": "平均时长",
+      "tableUsage": "餐桌利用率"
+    },
+    "qualifiers": {
+      "excellent": "优秀",
+      "toImprove": "需改进",
+      "veryGood": "非常好",
+      "toWatch": "需关注",
+      "optimal": "最佳",
+      "critical": "严重",
+      "toOptimize": "需优化"
+    },
+    "priorities": {
+      "high": "紧急",
+      "medium": "重要",
+      "low": "信息"
+    },
+    "recommendations": {
+      "title": "个性化建议"
+    },
+    "topDishes": {
+      "title": "最受欢迎的 5 道菜",
+      "dishStats": "{{orders}} 个订单 · {{revenue}} 营业额"
+    },
+    "underperforming": {
+      "title": "需优化的菜品",
+      "neverOrdered_one": "{{count}} 道菜从未被点过。可考虑下架或推广。",
+      "neverOrdered_other": "{{count}} 道菜从未被点过。可考虑下架或推广。",
+      "lowOrders": "点单量较低的菜品（最近 30 天）",
+      "onlyOrders_one": "仅 {{count}} 个订单",
+      "onlyOrders_other": "仅 {{count}} 个订单"
+    },
+    "revenue": {
+      "title": "收入分析",
+      "currentPeriod": "当前周期",
+      "previousPeriod": "上一周期",
+      "evolution": "变化",
+      "avgOrderValue": "客单价",
+      "perOrder": "每笔订单",
+      "ordersCount_one": "{{count}} 个订单",
+      "ordersCount_other": "{{count}} 个订单"
+    },
+    "peakHours": {
+      "title": "订单时段分布",
+      "peakSlots": "高峰时段",
+      "ordersCount_one": "{{count}} 个订单",
+      "ordersCount_other": "{{count}} 个订单"
+    },
+    "dailyPerformance": {
+      "title": "按星期统计的表现",
+      "bestDay": "最佳日",
+      "worstDay": "最差日"
+    }
+  },
+  "dailyMenuDisplay": {
+    "loading": "正在加载菜单…",
+    "completeFormula": "套餐",
+    "formulaHint": "每个分类 1 道菜 • {{price}} / 道",
+    "dishesCount_one": "{{count}} 道菜",
+    "dishesCount_other": "{{count}} 道菜",
+    "categoriesCount_one": "{{count}} 个分类",
+    "categoriesCount_other": "{{count}} 个分类"
+  },
+  "menuItem": {
+    "add": "添加",
+    "unavailable": "不可用",
+    "unavailableShort": "缺货"
+  },
+  "menuGrid": {
+    "otherCategory": "其他",
+    "defaultRestaurantName": "餐厅",
+    "groupToggle": "分组",
+    "filters": "筛选",
+    "viewModes": {
+      "list": "列表",
+      "grid": "网格",
+      "masonry": "瀑布流",
+      "table": "表格"
+    },
+    "table": {
+      "photo": "图片",
+      "name": "名称",
+      "description": "描述",
+      "price": "价格",
+      "action": "操作"
+    },
+    "stats": {
+      "availableShort_one": "{{count}} 可用",
+      "availableShort_other": "{{count}} 可用",
+      "availableLong_one": "{{count}} 道菜可用",
+      "availableLong_other": "{{count}} 道菜可用",
+      "photos_one": "{{count}} 张照片",
+      "photos_other": "{{count}} 张照片"
+    },
+    "accordion": {
+      "expandAll": "全部展开",
+      "collapseAll": "全部收起"
     }
   }
 }

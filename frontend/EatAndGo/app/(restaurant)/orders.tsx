@@ -1136,7 +1136,6 @@ const KanbanBanner: React.FC<KanbanBannerProps> = ({
 }) => {
   const { t, i18n } = useTranslation();
   const { colors, isDark } = useAppTheme();
-  const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeKanbanStyles(colors, isDark), [colors, isDark]);
 
   // Le bandeau est intrinsèquement sombre (navy primary stable) — on garde
@@ -1159,13 +1158,11 @@ const KanbanBanner: React.FC<KanbanBannerProps> = ({
   }, [todayRevenue, i18n.language]);
 
   return (
-    <View style={[styles.banner, { paddingTop: insets.top + 12 }]}>
+    <View style={styles.banner}>
       <View style={styles.bannerRow}>
         <View style={styles.bannerLeft}>
           <Text style={styles.bannerTitle} numberOfLines={1}>
-            {restaurantName
-              ? t('restaurantOrders.banner.titleWithName', { name: restaurantName })
-              : t('restaurantOrders.banner.title')}
+            {restaurantName ?? t('menuGrid.defaultRestaurantName')}
           </Text>
           <Text style={styles.bannerSubtitle}>{dateLabel}</Text>
         </View>
@@ -1555,6 +1552,13 @@ export default function RestaurantOrdersScreen() {
 
   return (
     <View style={styles.container}>
+      <Header
+        title={t('restaurantOrders.banner.title')}
+        showLanguageSwitcher
+        showThemeSwitcher
+        includeSafeArea
+      />
+
       <KanbanBanner
         restaurantName={selectedRestaurant?.name}
         pendingCount={pendingCount}

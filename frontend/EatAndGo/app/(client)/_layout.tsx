@@ -101,6 +101,13 @@ function UnpaidOrderBanner({
 // =============================================================================
 
 export default function ClientLayout() {
+  // ──────────────────────────────────────────────────────────────────────────
+  // ⚠️ RULES OF HOOKS : TOUS les hooks DOIVENT être appelés inconditionnellement,
+  // avant tout `return`. Un early return placé au milieu de la liste de hooks
+  // (ex. le <Redirect> ci-dessous) change le nombre de hooks exécutés entre deux
+  // rendus dès que `user` se met à jour (cache → restaurateur), ce qui déclenche
+  // "Rendered fewer hooks than expected" et fait planter le root navigator.
+  // ──────────────────────────────────────────────────────────────────────────
   const { user, isClient } = useAuth();
   const { t } = useTranslation();
   const { colors } = useAppTheme();
@@ -108,11 +115,6 @@ export default function ClientLayout() {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { hasUnpaid, unpaidCount } = useUnpaidOrderGuard();
-
-  // Rediriger vers l'interface restaurant si pas client
-  if (user && !isClient) {
-    return <Redirect href="/(restaurant)" />;
-  }
 
   // Configuration responsive pour les tabs — theme-aware
   const tabBarConfig = useMemo(
@@ -156,6 +158,14 @@ export default function ClientLayout() {
 
   // Pour tablette en paysage, utiliser un layout différent si nécessaire
   const isTabletLandscape = screenType === 'tablet' && width > 1000;
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Garde-fous APRÈS tous les hooks (sûr vis-à-vis des Rules of Hooks).
+  // Rediriger vers l'interface restaurant si l'utilisateur n'est pas client.
+  // ──────────────────────────────────────────────────────────────────────────
+  if (user && !isClient) {
+    return <Redirect href="/(restaurant)" />;
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>

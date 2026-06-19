@@ -40,7 +40,8 @@
     "available": "Available",
     "unavailable": "Unavailable",
     "comingSoon": "Soon",
-    "error": "Error"
+    "error": "Error",
+    "success": "Success"
   },
   "nav": {
     "home": "Home",
@@ -775,6 +776,51 @@
     "legend": {
       "withMenu": "With menu",
       "inactiveMenu": "Inactive menu"
+    },
+    "manager": {
+      "duplicate": "Duplicate",
+      "applied_one": "Menu applied to 1 day",
+      "applied_other": "Menu applied to {{count}} days",
+      "errors": {
+        "toggleItem": "Unable to change the dish availability",
+        "applyAllFailedTitle": "Failed",
+        "applyAllFailed": "Unable to apply the menu to the selected dates",
+        "applyGeneric": "An error occurred while applying the menu"
+      },
+      "partialApply": {
+        "title": "Partial apply",
+        "message": "{{succeeded}} succeeded, {{failed}} failed"
+      },
+      "replaceDialog": {
+        "title": "Replace existing menus?",
+        "message_one": "A daily menu already exists for 1 of the selected dates. Replace it?",
+        "message_other": "A daily menu already exists for {{count}} of the selected dates. Replace them?",
+        "confirm": "Replace"
+      },
+      "empty": {
+        "title": "No menu for this date",
+        "subtitleToday": "Create the daily menu to get started",
+        "subtitleDate": "Create a menu for {{date}}",
+        "cta": "Create the menu"
+      },
+      "stats": {
+        "dishes_one": "{{count}} dish",
+        "dishes_other": "{{count}} dishes",
+        "available_one": "{{count}} available",
+        "available_other": "{{count}} available",
+        "formulaPrice": "{{price}} / set menu"
+      },
+      "applyModal": {
+        "title": "Apply to other days",
+        "source": "Source: {{date}}",
+        "selectAll": "Select all",
+        "unselectAll": "Unselect all",
+        "selectedCount_one": "{{count}} selected",
+        "selectedCount_other": "{{count}} selected",
+        "existingMenu": "Existing menu",
+        "apply": "Apply",
+        "applyWithCount": "Apply ({{count}})"
+      }
     }
   },
   "restaurantMenus": {
@@ -833,6 +879,20 @@
       "menuNotFound": "Menu not found",
       "menuDeleted": "Menu deleted successfully",
       "deleteFailed": "Unable to delete the menu"
+    },
+    "card": {
+      "items_one": "{{count}} item",
+      "items_other": "{{count}} items",
+      "available_one": "{{count}} available",
+      "available_other": "{{count}} available",
+      "active": "Active",
+      "inactive": "Inactive",
+      "updating": "Updating…",
+      "createdOn": "Created on",
+      "updatedOn": "Updated on",
+      "enable": "Enable",
+      "disable": "Disable",
+      "inProgress": "In progress"
     }
   },
   "restaurantStats": {
@@ -1101,6 +1161,268 @@
     "pdf": {
       "tableLabel": "Table",
       "scanOrEnter": "Scan or enter"
+    }
+  },
+  "restaurantCard": {
+    "distanceKm": "{{distance}} km",
+    "walkingMinutes": "{{minutes}} min"
+  },
+  "validationPending": {
+    "title": "Profile under review",
+    "stripeCompleted": "Stripe setup completed",
+    "stripePending": "Stripe setup in progress",
+    "profileActivated": "Profile activated",
+    "profilePending": "Profile awaiting activation",
+    "setupStripe": "Set up Stripe",
+    "contactSupport": "Contact support",
+    "infoDelay": "Validating your profile may take 1 to 3 business days after you finalize your Stripe setup.",
+    "supportEmailSubject": "Help validating restaurateur profile"
+  },
+  "restaurantSelector": {
+    "noRestaurantTitle": "You don't have a restaurant yet",
+    "noRestaurantSubtitle": "Create your first restaurant to start managing your menus and orders.",
+    "createFirst": "Create my first restaurant",
+    "chooseTitle": "Choose a restaurant",
+    "chooseHint": "Select the restaurant you'd like to manage.",
+    "selecting": "Selecting…"
+  },
+  "stripeCommission": {
+    "compact": {
+      "title": "Platform commission",
+      "description": "A {{percent}}% commission is deducted from each card payment."
+    },
+    "title": "Payment pricing",
+    "subtitle": "Terms applicable to card payments",
+    "platform": {
+      "title": "EatQuickeR commission",
+      "description": "For every order paid through the app, EatQuickeR takes a {{percent}}% commission on the total amount. This commission covers connection fees, platform management, and technical support."
+    },
+    "stripe": {
+      "title": "Stripe processing fees",
+      "description": "Stripe bank fees are applied according to their standard rate card. These fees may vary depending on the type of card used by the customer."
+    },
+    "example": {
+      "title": "Example for an order of {{amount}}",
+      "orderAmount": "Order amount",
+      "platformFee": "EatQuickeR commission ({{percent}}%)",
+      "stripeFee": "Stripe fees (estimated)",
+      "netAmount": "Net amount received"
+    },
+    "bullets": {
+      "autoDeduct": "The commission is deducted automatically at payment",
+      "cashNoFee": "Cash payments are not subject to commission",
+      "directPayout": "You receive your funds directly into your bank account"
+    },
+    "acceptTerms": "I have read and accept the pricing terms"
+  },
+  "stripeAccount": {
+    "title": "Stripe account",
+    "checking": "Checking status…",
+    "errors": {
+      "fetch": "Error retrieving status",
+      "setup": "Error setting up the Stripe account"
+    },
+    "validated": {
+      "title": "Account validated",
+      "description": "Your Stripe account is validated and ready to receive payments.",
+      "successMessage": "You can now activate your restaurants and start receiving orders."
+    },
+    "inProgress": {
+      "title": "Setup in progress",
+      "description": "Your Stripe account exists but needs to be finalized.",
+      "action": "Continue setup"
+    },
+    "notStarted": {
+      "title": "Setup required",
+      "description": "You need to set up your Stripe account to receive payments.",
+      "action": "Set up Stripe"
+    },
+    "redirectDialog": {
+      "title": "Redirecting to Stripe",
+      "message": "You will be redirected to Stripe to set up your payment account."
+    },
+    "continueDialog": {
+      "title": "Continue setup",
+      "message": "You will be redirected to Stripe to finalize your setup."
+    },
+    "requirements": {
+      "title": "Required documents:",
+      "othersCount_one": "And {{count}} other…",
+      "othersCount_other": "And {{count}} others…"
+    },
+    "infoDelay": "Validating your account may take 1 to 3 business days after submitting all required documents."
+  },
+  "revenueCard": {
+    "title": "Revenue",
+    "defaultPeriod": "This month",
+    "details": "Details",
+    "netRevenue": "Net revenue",
+    "netRevenueEstimated": "Estimated net revenue",
+    "ordersCount_one": "{{count}} order",
+    "ordersCount_other": "{{count}} orders",
+    "grossRevenueTitle": "Gross revenue",
+    "cardPayments": "Card payments",
+    "cashPayments": "Cash payments",
+    "grossTotal": "Gross total",
+    "feesTitle": "Fees and commissions",
+    "stripeFeesNote": "Applies to card payments only. Stripe fees are deducted separately.",
+    "platformCommissionLine": "EatQuickeR commission: {{amount}}",
+    "legendGross": "Gross revenue: {{amount}}",
+    "legendCommission": "Commission: {{amount}}"
+  },
+  "openingHours": {
+    "title": "Opening hours",
+    "subtitle": "Set your service hours for each day of the week",
+    "quickPresets": "Quick presets",
+    "open": "Open",
+    "closed": "Closed",
+    "start": "Start",
+    "end": "End",
+    "apply": "Apply",
+    "addPeriod": "Add a time slot",
+    "serviceNamePlaceholder": "Service name (e.g. Lunch)",
+    "tip1": "Tap on the hours to quickly pick your service times",
+    "tip2": "Use the suggested times or set custom hours",
+    "timePicker": {
+      "title": "Choose a time",
+      "ok": "OK",
+      "suggestedTimes": "Suggested times",
+      "customTime": "Custom time",
+      "hours": "Hours",
+      "minutes": "Minutes"
+    },
+    "presets": {
+      "continuous": {
+        "name": "All-day service"
+      },
+      "lunchDinner": {
+        "name": "Lunch + Dinner"
+      },
+      "complete": {
+        "name": "Full"
+      }
+    },
+    "periodNames": {
+      "lunch": "Lunch",
+      "dinner": "Dinner",
+      "breakfast": "Breakfast",
+      "service": "Service"
+    },
+    "confirmApplyPreset": {
+      "title": "Apply preset",
+      "message": "Apply “{{name}}” to every day of the week?"
+    },
+    "confirmCopyHours": {
+      "title": "Copy hours",
+      "message": "Apply {{day}}'s hours to every weekday (Monday–Friday)?"
+    }
+  },
+  "statistics": {
+    "kpis": {
+      "title": "Key performance indicators",
+      "cancellationRate": "Cancellation rate",
+      "paymentRate": "Payment rate",
+      "availabilityRate": "Dish availability",
+      "avgOrderValue": "Average ticket",
+      "perOrder": "Per order",
+      "serviceTime": "Service time",
+      "avgTime": "Average time",
+      "tableUsage": "Table usage"
+    },
+    "qualifiers": {
+      "excellent": "Excellent",
+      "toImprove": "To improve",
+      "veryGood": "Very good",
+      "toWatch": "Watch closely",
+      "optimal": "Optimal",
+      "critical": "Critical",
+      "toOptimize": "To optimize"
+    },
+    "priorities": {
+      "high": "URGENT",
+      "medium": "Important",
+      "low": "Info"
+    },
+    "recommendations": {
+      "title": "Personalized recommendations"
+    },
+    "topDishes": {
+      "title": "Top 5 most ordered dishes",
+      "dishStats": "{{orders}} orders • {{revenue}} revenue"
+    },
+    "underperforming": {
+      "title": "Dishes to optimize",
+      "neverOrdered_one": "{{count}} dish has never been ordered. Consider removing or promoting it.",
+      "neverOrdered_other": "{{count}} dishes have never been ordered. Consider removing or promoting them.",
+      "lowOrders": "Rarely ordered dishes (last 30 days)",
+      "onlyOrders_one": "Only {{count}} order",
+      "onlyOrders_other": "Only {{count}} orders"
+    },
+    "revenue": {
+      "title": "Revenue analysis",
+      "currentPeriod": "Current period",
+      "previousPeriod": "Previous period",
+      "evolution": "Change",
+      "avgOrderValue": "Average ticket",
+      "perOrder": "per order",
+      "ordersCount_one": "{{count}} order",
+      "ordersCount_other": "{{count}} orders"
+    },
+    "peakHours": {
+      "title": "Hourly order distribution",
+      "peakSlots": "Peak hours",
+      "ordersCount_one": "{{count}} order",
+      "ordersCount_other": "{{count}} orders"
+    },
+    "dailyPerformance": {
+      "title": "Performance by day of week",
+      "bestDay": "Best day",
+      "worstDay": "Weakest day"
+    }
+  },
+  "dailyMenuDisplay": {
+    "loading": "Loading menu…",
+    "completeFormula": "Set menu",
+    "formulaHint": "1 dish per category • {{price}} / dish",
+    "dishesCount_one": "{{count}} dish",
+    "dishesCount_other": "{{count}} dishes",
+    "categoriesCount_one": "{{count}} category",
+    "categoriesCount_other": "{{count}} categories"
+  },
+  "menuItem": {
+    "add": "Add",
+    "unavailable": "Unavailable",
+    "unavailableShort": "N/A"
+  },
+  "menuGrid": {
+    "otherCategory": "Other",
+    "defaultRestaurantName": "Restaurant",
+    "groupToggle": "Group",
+    "filters": "Filters",
+    "viewModes": {
+      "list": "List",
+      "grid": "Grid",
+      "masonry": "Masonry",
+      "table": "Table"
+    },
+    "table": {
+      "photo": "Photo",
+      "name": "Name",
+      "description": "Description",
+      "price": "Price",
+      "action": "Action"
+    },
+    "stats": {
+      "availableShort_one": "{{count}} avail.",
+      "availableShort_other": "{{count}} avail.",
+      "availableLong_one": "{{count}} dish available",
+      "availableLong_other": "{{count}} dishes available",
+      "photos_one": "{{count}} photo",
+      "photos_other": "{{count}} photos"
+    },
+    "accordion": {
+      "expandAll": "Expand all",
+      "collapseAll": "Collapse all"
     }
   }
 }

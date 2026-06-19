@@ -1,17 +1,29 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
-import { useAuth } from '@/contexts/AuthContext';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
+
+import { useAuth } from '@/contexts/AuthContext';
 import { RestaurateurProfile } from '@/types/user';
 import { stripeService } from '@/services/stripeService';
 import { StripeCommissionInfo } from './StripeCommissionInfo';
+import { Alert as InlineAlert, AlertWithAction } from '@/components/ui/Alert';
+import {
+  useAppTheme,
+  makeShadows,
+  useScreenType,
+  getResponsiveValue,
+  SPACING,
+  TYPOGRAPHY,
+  BORDER_RADIUS,
+  type AppColors,
+} from '@/utils/designSystem';
 
 interface StripeAccountStatusProps {
   onStatusChange?: (isValidated: boolean) => void;
@@ -31,20 +43,47 @@ interface StripeAccountData {
   };
 }
 
-export default function StripeAccountStatus({ 
-  onStatusChange, 
-  showActions = true, 
-  compact = false 
+type StatusKind = 'validated' | 'inProgress' | 'notStarted';
+
+interface StatusInfo {
+  kind: StatusKind;
+  color: string;
+  backgroundColor: string;
+  borderColor: string;
+  icon: 'check-circle' | 'schedule' | 'error-outline';
+  title: string;
+  description: string;
+  actionText: string | null;
+}
+
+interface ConfirmDialogState {
+  title: string;
+  message: string;
+  onConfirm: () => void;
+}
+
+export default function StripeAccountStatus({
+  onStatusChange,
+  showActions = true,
+  compact = false,
 }: StripeAccountStatusProps) {
-  const { 
-    user, 
-    createStripeAccount, 
-    getStripeAccountStatus, 
+  const { t } = useTranslation();
+  const { colors, isDark } = useAppTheme();
+  const screenType = useScreenType();
+  const styles = useMemo(
+    () => makeStyles(colors, isDark, screenType),
+    [colors, isDark, screenType],
+  );
+
+  const {
+    user,
+    createStripeAccount,
+    getStripeAccountStatus,
     createStripeOnboardingLink,
     refreshUser,
-    isRestaurateur 
+    isRestaurateur,
   } = useAuth();
-  
+
   const [account, setAccount] = useState<StripeAccountData | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -52,7 +91,10 @@ export default function StripeAccountStatus({
   const [commissionAccepted, setCommissionAccepted] = useState(false);
   const [showCommissionInfo, setShowCommissionInfo] = useState(false);
 
-  // Helper pour accéder au profil restaurateur de manière sécurisée
+  // Remplace Alert.alert natif → AlertWithAction inline (convention projet)
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
+
+  // ── Helpers ──────────────────────────────────────────────────────────
   const getRestaurateurProfile = (): RestaurateurProfile | null => {
     if (!user || !isRestaurateur) return null;
     if (user.profile?.type === 'restaurateur') {
@@ -67,26 +109,30 @@ export default function StripeAccountStatus({
     } else {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRestaurateur]);
 
   const fetchAccountStatus = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const accountStatus = await getStripeAccountStatus();
       setAccount(accountStatus);
       onStatusChange?.(accountStatus.has_validated_profile);
-    } catch (error: any) {
-      console.error('Erreur récupération statut Stripe:', error);
-      setError(error.message || 'Erreur lors de la récupération du statut');
-      
-      // Fallback basé sur les données utilisateur
+    } catch (err: any) {
+      console.error('Erreur récupération statut Stripe:', err);
+      setError(err?.message || t('stripeAccount.errors.fetch'));
+
+      // Fallback basé sur le profil utilisateur
       const restaurateurProfile = getRestaurateurProfile();
       if (restaurateurProfile) {
         const fallbackStatus: StripeAccountData = {
           status: restaurateurProfile.stripe_account_id ? 'account_exists' : 'no_account',
-          has_validated_profile: restaurateurProfile.stripe_verified || user?.roles?.has_validated_profile || false,
+          has_validated_profile:
+            restaurateurProfile.stripe_verified ||
+            user?.roles?.has_validated_profile ||
+            false,
         };
         setAccount(fallbackStatus);
         onStatusChange?.(fallbackStatus.has_validated_profile);
@@ -102,77 +148,62 @@ export default function StripeAccountStatus({
 
     if (!commissionAccepted) {
       setShowCommissionInfo(true);
+      setActionLoading(false);
       return;
     }
-    
+
     try {
       if (!account || account.status === 'no_account') {
         // Créer un nouveau compte Stripe
         const stripeAccount = await createStripeAccount();
-        
+
         if (stripeAccount.onboarding_url) {
-          Alert.alert(
-            'Redirection vers Stripe',
-            'Vous allez être redirigé vers Stripe pour configurer votre compte de paiement.',
-            [
-              { text: 'Annuler', style: 'cancel' },
-              { 
-                text: 'Continuer', 
-                onPress: () => {
-                  stripeService.openStripeOnboarding(stripeAccount.onboarding_url);
-                  // Mettre à jour le statut local
-                  setAccount(prev => ({
-                    ...prev,
-                    status: 'account_exists',
-                    has_validated_profile: false
-                  } as StripeAccountData));
-                }
-              }
-            ]
-          );
+          setConfirmDialog({
+            title: t('stripeAccount.redirectDialog.title'),
+            message: t('stripeAccount.redirectDialog.message'),
+            onConfirm: () => {
+              stripeService.openStripeOnboarding(stripeAccount.onboarding_url);
+              setAccount((prev) => ({
+                ...prev,
+                status: 'account_exists',
+                has_validated_profile: false,
+              } as StripeAccountData));
+              setConfirmDialog(null);
+            },
+          });
         }
       } else {
-        // Créer un nouveau lien d'onboarding pour un compte existant
+        // Nouveau lien d'onboarding pour compte existant
         const response = await createStripeOnboardingLink();
-        
+
         if (response.onboarding_url) {
-          Alert.alert(
-            'Continuer la configuration',
-            'Vous allez être redirigé vers Stripe pour finaliser votre configuration.',
-            [
-              { text: 'Annuler', style: 'cancel' },
-              { 
-                text: 'Continuer', 
-                onPress: () => {
-                  console.log('Onboarding URL:', response.onboarding_url);
-                }
-              }
-            ]
-          );
+          setConfirmDialog({
+            title: t('stripeAccount.continueDialog.title'),
+            message: t('stripeAccount.continueDialog.message'),
+            onConfirm: () => {
+              stripeService.openStripeOnboarding(response.onboarding_url);
+              setConfirmDialog(null);
+            },
+          });
         }
       }
-      
-      // Rafraîchir les données utilisateur après l'action
+
+      // Rafraîchir après l'action
       await refreshUser();
       await fetchAccountStatus();
-      
-    } catch (error: any) {
-      console.error('Erreur configuration Stripe:', error);
-      setError(error.message || 'Erreur lors de la configuration du compte Stripe');
-      Alert.alert('Erreur', error.message || 'Erreur lors de la configuration');
+    } catch (err: any) {
+      console.error('Erreur configuration Stripe:', err);
+      setError(err?.message || t('stripeAccount.errors.setup'));
     } finally {
       setActionLoading(false);
     }
   };
 
   const refreshStatus = async () => {
-    await Promise.all([
-      refreshUser(),
-      fetchAccountStatus()
-    ]);
+    await Promise.all([refreshUser(), fetchAccountStatus()]);
   };
 
-  // Ne pas afficher le composant si l'utilisateur n'est pas restaurateur
+  // Ne pas rendre si non-restaurateur
   if (!isRestaurateur) {
     return null;
   }
@@ -181,55 +212,81 @@ export default function StripeAccountStatus({
     return (
       <View style={[styles.container, compact && styles.containerCompact]}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color="#3B82F6" />
-          <Text style={styles.loadingText}>Vérification du statut...</Text>
+          <ActivityIndicator size="small" color={colors.info} />
+          <Text style={styles.loadingText}>{t('stripeAccount.checking')}</Text>
         </View>
       </View>
     );
   }
 
-  const getStatusInfo = () => {
+  // ── Status info (theme-aware, palette stable cross-thème) ────────────
+  const getStatusInfo = (): StatusInfo => {
     const restaurateurProfile = getRestaurateurProfile();
-    const isValidated = account?.has_validated_profile || user?.roles?.has_validated_profile || restaurateurProfile?.stripe_verified;
-    
+    const isValidated =
+      account?.has_validated_profile ||
+      user?.roles?.has_validated_profile ||
+      restaurateurProfile?.stripe_verified;
+
     if (isValidated) {
       return {
-        color: '#10B981',
-        backgroundColor: '#D1FAE5',
-        borderColor: '#10B981',
-        icon: 'check-circle' as const,
-        title: 'Compte validé',
-        description: 'Votre compte Stripe est validé et prêt à recevoir des paiements.',
+        kind: 'validated',
+        color: colors.success,
+        // Pastel adapté au thème (dark : teinté sombre)
+        backgroundColor: isDark
+          ? 'rgba(16, 185, 129, 0.12)'
+          : '#D1FAE5',
+        borderColor: colors.success,
+        icon: 'check-circle',
+        title: t('stripeAccount.validated.title'),
+        description: t('stripeAccount.validated.description'),
         actionText: null,
       };
-    } else if (account?.status === 'account_exists' || restaurateurProfile?.stripe_account_id) {
+    }
+
+    if (
+      account?.status === 'account_exists' ||
+      restaurateurProfile?.stripe_account_id
+    ) {
       return {
-        color: '#F59E0B',
-        backgroundColor: '#FEF3C7',
-        borderColor: '#F59E0B',
-        icon: 'schedule' as const,
-        title: 'Configuration en cours',
-        description: 'Votre compte Stripe existe mais nécessite une finalisation.',
-        actionText: 'Continuer la configuration',
-      };
-    } else {
-      return {
-        color: '#EF4444',
-        backgroundColor: '#FEE2E2',
-        borderColor: '#EF4444',
-        icon: 'error-outline' as const,
-        title: 'Configuration requise',
-        description: 'Vous devez configurer votre compte Stripe pour recevoir des paiements.',
-        actionText: 'Configurer Stripe',
+        kind: 'inProgress',
+        color: colors.warning,
+        backgroundColor: isDark
+          ? 'rgba(245, 158, 11, 0.12)'
+          : '#FEF3C7',
+        borderColor: colors.warning,
+        icon: 'schedule',
+        title: t('stripeAccount.inProgress.title'),
+        description: t('stripeAccount.inProgress.description'),
+        actionText: t('stripeAccount.inProgress.action'),
       };
     }
+
+    return {
+      kind: 'notStarted',
+      color: colors.error,
+      backgroundColor: isDark
+        ? 'rgba(239, 68, 68, 0.12)'
+        : '#FEE2E2',
+      borderColor: colors.error,
+      icon: 'error-outline',
+      title: t('stripeAccount.notStarted.title'),
+      description: t('stripeAccount.notStarted.description'),
+      actionText: t('stripeAccount.notStarted.action'),
+    };
   };
 
   const statusInfo = getStatusInfo();
 
+  // ── Format requirement Stripe (locale-agnostic) ──────────────────────
+  const formatRequirement = (req: string): string =>
+    req.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
+
+  // ── Mode compact ─────────────────────────────────────────────────────
   if (compact) {
     return (
-      <View style={[styles.compactContainer, { borderLeftColor: statusInfo.borderColor }]}>
+      <View
+        style={[styles.compactContainer, { borderLeftColor: statusInfo.borderColor }]}
+      >
         <View style={styles.compactContent}>
           <MaterialIcons name={statusInfo.icon} size={20} color={statusInfo.color} />
           <Text style={[styles.compactTitle, { color: statusInfo.color }]}>
@@ -237,15 +294,15 @@ export default function StripeAccountStatus({
           </Text>
         </View>
         {showActions && statusInfo.actionText && (
-          <TouchableOpacity 
-            onPress={handleSetupAccount} 
+          <TouchableOpacity
+            onPress={handleSetupAccount}
             style={styles.compactButton}
             disabled={actionLoading}
           >
             {actionLoading ? (
-              <ActivityIndicator size="small" color="#3B82F6" />
+              <ActivityIndicator size="small" color={colors.info} />
             ) : (
-              <MaterialIcons name="arrow-forward" size={16} color="#3B82F6" />
+              <MaterialIcons name="arrow-forward" size={16} color={colors.info} />
             )}
           </TouchableOpacity>
         )}
@@ -253,22 +310,48 @@ export default function StripeAccountStatus({
     );
   }
 
+  // ── Mode complet ─────────────────────────────────────────────────────
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Compte Stripe</Text>
-        <TouchableOpacity onPress={refreshStatus} style={styles.refreshButton}>
-          <MaterialIcons name="refresh" size={20} color="#6B7280" />
-        </TouchableOpacity>
-      </View>
-
-      {error && (
-        <View style={styles.errorContainer}>
-          <MaterialIcons name="warning" size={16} color="#EF4444" />
-          <Text style={styles.errorText}>{error}</Text>
+      {/* Confirmation dialog inline (remplace Alert.alert) */}
+      {confirmDialog && (
+        <View style={styles.dialogWrapper}>
+          <AlertWithAction
+            variant="info"
+            title={confirmDialog.title}
+            message={confirmDialog.message}
+            primaryButton={{
+              text: t('common.continue'),
+              onPress: confirmDialog.onConfirm,
+            }}
+            secondaryButton={{
+              text: t('common.cancel'),
+              onPress: () => setConfirmDialog(null),
+            }}
+          />
         </View>
       )}
 
+      {/* En-tête */}
+      <View style={styles.header}>
+        <Text style={styles.title}>{t('stripeAccount.title')}</Text>
+        <TouchableOpacity onPress={refreshStatus} style={styles.refreshButton}>
+          <MaterialIcons name="refresh" size={20} color={colors.text.secondary} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Erreur inline */}
+      {error && (
+        <View style={styles.errorWrapper}>
+          <InlineAlert
+            variant="error"
+            message={error}
+            onDismiss={() => setError(null)}
+          />
+        </View>
+      )}
+
+      {/* Carte de statut */}
       <View style={[styles.statusCard, { backgroundColor: statusInfo.backgroundColor }]}>
         <View style={styles.statusHeader}>
           <MaterialIcons name={statusInfo.icon} size={24} color={statusInfo.color} />
@@ -276,249 +359,294 @@ export default function StripeAccountStatus({
             {statusInfo.title}
           </Text>
         </View>
-        
+
         <Text style={[styles.statusDescription, { color: statusInfo.color }]}>
           {statusInfo.description}
         </Text>
 
         {account?.has_validated_profile ? (
           <View style={styles.successInfo}>
-            <MaterialIcons name="celebration" size={16} color="#059669" style={{ marginRight: 4 }} />
+            <MaterialIcons
+              name="celebration"
+              size={16}
+              color={colors.success}
+              style={{ marginRight: 4 }}
+            />
             <Text style={styles.successText}>
-              Vous pouvez maintenant activer vos restaurants et commencer à recevoir des commandes.
+              {t('stripeAccount.validated.successMessage')}
             </Text>
           </View>
-        ) : showActions && statusInfo.actionText && (
-          <View style={styles.actionContainer}>
-            {showCommissionInfo ? (
-              // Afficher les conditions tarifaires
-              <StripeCommissionInfo
-                showAcceptButton
-                isAccepted={commissionAccepted}
-                onAccept={() => {
-                  setCommissionAccepted(true);
-                  setShowCommissionInfo(false);
-                  // Lancer l'onboarding après acceptation
-                  handleSetupAccount();
-                }}
-              />
-            ) : (
-              // Afficher le bouton de configuration
-              <TouchableOpacity
-                style={[styles.actionButton, actionLoading && styles.actionButtonDisabled]}
-                onPress={handleSetupAccount}
-                disabled={actionLoading}
-              >
-                {actionLoading ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <>
-                    <MaterialIcons name="launch" size={16} color="#fff" style={{ marginRight: 8 }} />
-                    <Text style={styles.actionButtonText}>
-                      {statusInfo.actionText}
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            )}
+        ) : (
+          showActions && statusInfo.actionText && (
+            <View style={styles.actionContainer}>
+              {showCommissionInfo ? (
+                <StripeCommissionInfo
+                  showAcceptButton
+                  isAccepted={commissionAccepted}
+                  onAccept={() => {
+                    setCommissionAccepted(true);
+                    setShowCommissionInfo(false);
+                    // Relancer l'onboarding après acceptation
+                    handleSetupAccount();
+                  }}
+                />
+              ) : (
+                <TouchableOpacity
+                  style={[
+                    styles.actionButton,
+                    actionLoading && styles.actionButtonDisabled,
+                  ]}
+                  onPress={handleSetupAccount}
+                  disabled={actionLoading}
+                >
+                  {actionLoading ? (
+                    <ActivityIndicator size="small" color={colors.text.inverse} />
+                  ) : (
+                    <>
+                      <MaterialIcons
+                        name="launch"
+                        size={16}
+                        color={colors.text.inverse}
+                        style={{ marginRight: 8 }}
+                      />
+                      <Text style={styles.actionButtonText}>
+                        {statusInfo.actionText}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
 
-            {account?.requirements?.currently_due && account.requirements.currently_due.length > 0 && (
-              <View style={styles.requirementsContainer}>
-                <Text style={styles.requirementsTitle}>Documents requis :</Text>
-                {account.requirements.currently_due.slice(0, 3).map((req: string, index: number) => (
-                  <Text key={index} style={styles.requirementItem}>
-                    • {req.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                  </Text>
-                ))}
-                {account.requirements.currently_due.length > 3 && (
-                  <Text style={styles.requirementItem}>
-                    • Et {account.requirements.currently_due.length - 3} autre(s)...
-                  </Text>
+              {account?.requirements?.currently_due &&
+                account.requirements.currently_due.length > 0 && (
+                  <View style={styles.requirementsContainer}>
+                    <Text style={styles.requirementsTitle}>
+                      {t('stripeAccount.requirements.title')}
+                    </Text>
+                    {account.requirements.currently_due
+                      .slice(0, 3)
+                      .map((req, index) => (
+                        <Text key={index} style={styles.requirementItem}>
+                          • {formatRequirement(req)}
+                        </Text>
+                      ))}
+                    {account.requirements.currently_due.length > 3 && (
+                      <Text style={styles.requirementItem}>
+                        •{' '}
+                        {t('stripeAccount.requirements.othersCount', {
+                          count: account.requirements.currently_due.length - 3,
+                        })}
+                      </Text>
+                    )}
+                  </View>
                 )}
-              </View>
-            )}
-          </View>
+            </View>
+          )
         )}
       </View>
 
-      {/* Informations complémentaires */}
+      {/* Info complémentaire — délai de validation */}
       {account?.status === 'account_exists' && !account.has_validated_profile && (
         <View style={styles.infoContainer}>
-          <MaterialIcons name="info-outline" size={16} color="#6B7280" />
-          <Text style={styles.infoText}>
-            La validation de votre compte peut prendre 1 à 3 jours ouvrés après soumission de tous les documents requis.
-          </Text>
+          <MaterialIcons
+            name="info-outline"
+            size={16}
+            color={colors.text.secondary}
+          />
+          <Text style={styles.infoText}>{t('stripeAccount.infoDelay')}</Text>
         </View>
       )}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginVertical: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  containerCompact: {
-    padding: 12,
-    marginVertical: 2,
-  },
-  compactContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 12,
-    marginVertical: 4,
-    borderLeftWidth: 4,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  compactContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  compactTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  compactButton: {
-    padding: 8,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  refreshButton: {
-    padding: 8,
-  },
-  errorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEE2E2',
-    padding: 8,
-    borderRadius: 6,
-    marginBottom: 12,
-  },
-  errorText: {
-    marginLeft: 8,
-    color: '#DC2626',
-    fontSize: 14,
-    flex: 1,
-  },
-  loadingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 20,
-  },
-  loadingText: {
-    marginLeft: 8,
-    color: '#6B7280',
-  },
-  statusCard: {
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 12,
-  },
-  statusHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  statusTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  statusDescription: {
-    fontSize: 14,
-    marginBottom: 12,
-    lineHeight: 20,
-  },
-  successInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-    padding: 8,
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-    borderRadius: 6,
-  },
-  successText: {
-    fontSize: 14,
-    color: '#059669',
-    flex: 1,
-  },
-  actionContainer: {
-    marginTop: 8,
-  },
-  actionButton: {
-    backgroundColor: '#3B82F6',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  actionButtonDisabled: {
-    backgroundColor: '#9CA3AF',
-  },
-  actionButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  requirementsContainer: {
-    marginTop: 12,
-    padding: 12,
-    backgroundColor: 'rgba(251, 191, 36, 0.1)',
-    borderRadius: 8,
-  },
-  requirementsTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#92400E',
-    marginBottom: 4,
-  },
-  requirementItem: {
-    fontSize: 12,
-    color: '#92400E',
-    marginLeft: 8,
-    marginBottom: 2,
-  },
-  infoContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#EFF6FF',
-    padding: 12,
-    borderRadius: 8,
-  },
-  infoText: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginLeft: 8,
-    flex: 1,
-    lineHeight: 16,
-  },
-});
+// ============================================================================
+// STYLES (fabrique theme-aware)
+// ============================================================================
+
+const makeStyles = (
+  colors: AppColors,
+  isDark: boolean,
+  screenType: ReturnType<typeof useScreenType>,
+) => {
+  const shadows = makeShadows(colors);
+
+  return StyleSheet.create({
+    container: {
+      backgroundColor: colors.surface,
+      borderRadius: BORDER_RADIUS.lg,
+      padding: getResponsiveValue(SPACING.md, screenType),
+      marginVertical: 4,
+      borderWidth: isDark ? StyleSheet.hairlineWidth : 0,
+      borderColor: isDark ? 'rgba(212, 175, 55, 0.12)' : 'transparent',
+      ...shadows.card,
+    },
+    containerCompact: {
+      padding: 12,
+      marginVertical: 2,
+    },
+
+    // Mode compact
+    compactContainer: {
+      backgroundColor: colors.surface,
+      borderRadius: BORDER_RADIUS.md,
+      padding: 12,
+      marginVertical: 4,
+      borderLeftWidth: 4,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      ...shadows.sm,
+    },
+    compactContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    compactTitle: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      marginLeft: 8,
+    },
+    compactButton: {
+      padding: 8,
+    },
+
+    // Header
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    title: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      color: colors.text.primary,
+    },
+    refreshButton: {
+      padding: 8,
+    },
+
+    // Wrappers pour alertes inline
+    dialogWrapper: {
+      marginBottom: 12,
+    },
+    errorWrapper: {
+      marginBottom: 12,
+    },
+
+    // Loading
+    loadingContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 20,
+    },
+    loadingText: {
+      marginLeft: 8,
+      color: colors.text.secondary,
+    },
+
+    // Status card
+    statusCard: {
+      padding: getResponsiveValue(SPACING.md, screenType),
+      borderRadius: BORDER_RADIUS.md,
+      marginBottom: 12,
+    },
+    statusHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    statusTitle: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      marginLeft: 8,
+    },
+    statusDescription: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+      marginBottom: 12,
+      lineHeight: 20,
+    },
+
+    // Success
+    successInfo: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 8,
+      padding: 8,
+      backgroundColor: isDark
+        ? 'rgba(16, 185, 129, 0.18)'
+        : 'rgba(16, 185, 129, 0.10)',
+      borderRadius: 6,
+    },
+    successText: {
+      flex: 1,
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+      color: isDark ? '#A7F3D0' : '#059669',
+    },
+
+    // Actions
+    actionContainer: {
+      marginTop: 8,
+    },
+    actionButton: {
+      backgroundColor: colors.info,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: BORDER_RADIUS.md,
+      alignItems: 'center',
+      flexDirection: 'row',
+      justifyContent: 'center',
+    },
+    actionButtonDisabled: {
+      backgroundColor: colors.text.light,
+    },
+    actionButtonText: {
+      color: colors.text.inverse,
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    },
+
+    // Requirements
+    requirementsContainer: {
+      marginTop: 12,
+      padding: 12,
+      backgroundColor: isDark
+        ? 'rgba(251, 191, 36, 0.12)'
+        : 'rgba(251, 191, 36, 0.10)',
+      borderRadius: BORDER_RADIUS.md,
+    },
+    requirementsTitle: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      color: isDark ? '#FBBF24' : '#92400E',
+      marginBottom: 4,
+    },
+    requirementItem: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
+      color: isDark ? '#FBBF24' : '#92400E',
+      marginLeft: 8,
+      marginBottom: 2,
+    },
+
+    // Info bas de carte
+    infoContainer: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      backgroundColor: isDark
+        ? 'rgba(59, 130, 246, 0.12)'
+        : 'rgba(59, 130, 246, 0.08)',
+      padding: 12,
+      borderRadius: BORDER_RADIUS.md,
+    },
+    infoText: {
+      flex: 1,
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
+      color: colors.text.secondary,
+      marginLeft: 8,
+      lineHeight: 16,
+    },
+  });
+};

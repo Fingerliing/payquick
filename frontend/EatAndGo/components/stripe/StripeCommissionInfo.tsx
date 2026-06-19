@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,62 +6,49 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
+import {
+  useAppTheme,
+  makeShadows,
+  useScreenType,
+  getResponsiveValue,
+  SPACING,
+  TYPOGRAPHY,
+  BORDER_RADIUS,
+  type AppColors,
+} from '@/utils/designSystem';
 
 // ============================================================================
-// CONSTANTES - Commission plateforme
+// CONSTANTES — Commission plateforme (exportées car réutilisées ailleurs)
 // ============================================================================
 
 export const PLATFORM_COMMISSION_RATE = 0.02; // 2%
 export const PLATFORM_COMMISSION_PERCENT = 2;
 
-// Estimation frais Stripe (variable selon le pays et le type de carte)
+// Estimation frais Stripe (variable selon pays et type de carte)
 export const STRIPE_FEE_PERCENT = 1.4;
 export const STRIPE_FEE_FIXED = 0.25; // €
-
-// ============================================================================
-// DESIGN SYSTEM
-// ============================================================================
-
-const COLORS = {
-  primary: '#1E2A78',
-  secondary: '#FFC845',
-  success: '#10B981',
-  warning: '#F59E0B',
-  info: '#3B82F6',
-  background: '#F8FAFC',
-  surface: '#FFFFFF',
-  text: {
-    primary: '#0F172A',
-    secondary: '#475569',
-    light: '#64748B',
-    inverse: '#FFFFFF',
-  },
-  border: {
-    light: '#E2E8F0',
-    medium: '#CBD5E1',
-  },
-};
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
 interface StripeCommissionInfoProps {
-  /** Afficher en mode compact (moins de détails) */
+  /** Mode compact (moins de détails). */
   compact?: boolean;
-  /** Afficher l'exemple de calcul */
+  /** Afficher le bloc d'exemple de calcul. */
   showExample?: boolean;
-  /** Montant exemple pour le calcul (défaut: 50€) */
+  /** Montant exemple pour le calcul (défaut : 50€). */
   exampleAmount?: number;
-  /** Callback quand l'utilisateur accepte les conditions */
+  /** Callback à l'acceptation des conditions. */
   onAccept?: () => void;
-  /** Afficher le bouton d'acceptation */
+  /** Afficher la case d'acceptation. */
   showAcceptButton?: boolean;
-  /** État d'acceptation */
+  /** État d'acceptation. */
   isAccepted?: boolean;
 }
 
-interface CommissionCalculation {
+export interface CommissionCalculation {
   grossAmount: number;
   platformFee: number;
   stripeFee: number;
@@ -69,12 +56,9 @@ interface CommissionCalculation {
 }
 
 // ============================================================================
-// HELPERS
+// HELPERS (exportés)
 // ============================================================================
 
-/**
- * Calcule la répartition des frais pour un montant donné
- */
 export const calculateCommission = (grossAmount: number): CommissionCalculation => {
   const platformFee = grossAmount * PLATFORM_COMMISSION_RATE;
   const stripeFee = (grossAmount * STRIPE_FEE_PERCENT / 100) + STRIPE_FEE_FIXED;
@@ -86,13 +70,6 @@ export const calculateCommission = (grossAmount: number): CommissionCalculation 
     stripeFee: Math.round(stripeFee * 100) / 100,
     netAmount: Math.round(netAmount * 100) / 100,
   };
-};
-
-/**
- * Formate un montant en euros
- */
-const formatCurrency = (amount: number): string => {
-  return `${amount.toFixed(2).replace('.', ',')} €`;
 };
 
 // ============================================================================
@@ -107,55 +84,89 @@ export const StripeCommissionInfo: React.FC<StripeCommissionInfoProps> = ({
   showAcceptButton = false,
   isAccepted = false,
 }) => {
+  const { t, i18n } = useTranslation();
+  const { colors, isDark } = useAppTheme();
+  const screenType = useScreenType();
+  const styles = useMemo(
+    () => makeStyles(colors, isDark, screenType),
+    [colors, isDark, screenType],
+  );
+
   const calculation = calculateCommission(exampleAmount);
 
+  // Formatage devise localisé
+  const currencyFormatter = useMemo(() => {
+    try {
+      return new Intl.NumberFormat(i18n.language, {
+        style: 'currency',
+        currency: 'EUR',
+      });
+    } catch {
+      return null;
+    }
+  }, [i18n.language]);
+
+  const formatCurrency = (amount: number): string => {
+    if (currencyFormatter) return currencyFormatter.format(amount);
+    return `${amount.toFixed(2)} €`;
+  };
+
+  // ── Mode compact ─────────────────────────────────────────────────────
   if (compact) {
     return (
       <View style={styles.compactContainer}>
         <View style={styles.compactHeader}>
-          <Ionicons name="information-circle" size={20} color={COLORS.info} />
-          <Text style={styles.compactTitle}>Commission plateforme</Text>
+          <Ionicons name="information-circle" size={20} color={colors.info} />
+          <Text style={styles.compactTitle}>
+            {t('stripeCommission.compact.title')}
+          </Text>
         </View>
         <Text style={styles.compactText}>
-          Une commission de <Text style={styles.highlight}>{PLATFORM_COMMISSION_PERCENT}%</Text> est 
-          prélevée sur chaque paiement par carte bancaire.
+          {t('stripeCommission.compact.description', {
+            percent: PLATFORM_COMMISSION_PERCENT,
+          })}
         </Text>
       </View>
     );
   }
 
+  // ── Mode complet ─────────────────────────────────────────────────────
   return (
     <View style={styles.container}>
       {/* En-tête */}
       <View style={styles.header}>
         <View style={styles.iconContainer}>
-          <Ionicons name="card-outline" size={24} color={COLORS.primary} />
+          <Ionicons name="card-outline" size={24} color={colors.primary} />
         </View>
         <View style={styles.headerText}>
-          <Text style={styles.title}>Tarification des paiements</Text>
-          <Text style={styles.subtitle}>Conditions applicables aux paiements par carte</Text>
+          <Text style={styles.title}>{t('stripeCommission.title')}</Text>
+          <Text style={styles.subtitle}>{t('stripeCommission.subtitle')}</Text>
         </View>
       </View>
 
       {/* Commission EatQuickeR */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Commission EatQuickeR</Text>
+          <Text style={styles.sectionTitle}>
+            {t('stripeCommission.platform.title')}
+          </Text>
           <View style={styles.badge}>
             <Text style={styles.badgeText}>{PLATFORM_COMMISSION_PERCENT}%</Text>
           </View>
         </View>
         <Text style={styles.sectionDescription}>
-          Pour chaque commande payée via l'application, EatQuickeR prélève une commission 
-          de {PLATFORM_COMMISSION_PERCENT}% sur le montant TTC. Cette commission couvre les frais 
-          de mise en relation, de gestion de la plateforme et du support technique.
+          {t('stripeCommission.platform.description', {
+            percent: PLATFORM_COMMISSION_PERCENT,
+          })}
         </Text>
       </View>
 
       {/* Frais Stripe */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Frais de traitement Stripe</Text>
+          <Text style={styles.sectionTitle}>
+            {t('stripeCommission.stripe.title')}
+          </Text>
           <View style={[styles.badge, styles.badgeSecondary]}>
             <Text style={[styles.badgeText, styles.badgeTextSecondary]}>
               ~{STRIPE_FEE_PERCENT}% + {formatCurrency(STRIPE_FEE_FIXED)}
@@ -163,8 +174,7 @@ export const StripeCommissionInfo: React.FC<StripeCommissionInfoProps> = ({
           </View>
         </View>
         <Text style={styles.sectionDescription}>
-          Les frais bancaires Stripe sont appliqués selon leur grille tarifaire standard. 
-          Ces frais peuvent varier selon le type de carte utilisée par le client.
+          {t('stripeCommission.stripe.description')}
         </Text>
       </View>
 
@@ -172,34 +182,44 @@ export const StripeCommissionInfo: React.FC<StripeCommissionInfoProps> = ({
       {showExample && (
         <View style={styles.exampleContainer}>
           <Text style={styles.exampleTitle}>
-            Exemple pour une commande de {formatCurrency(exampleAmount)}
+            {t('stripeCommission.example.title', {
+              amount: formatCurrency(exampleAmount),
+            })}
           </Text>
-          
-          <View style={styles.calculationRow}>
-            <Text style={styles.calculationLabel}>Montant de la commande</Text>
-            <Text style={styles.calculationValue}>{formatCurrency(calculation.grossAmount)}</Text>
-          </View>
-          
+
           <View style={styles.calculationRow}>
             <Text style={styles.calculationLabel}>
-              Commission EatQuickeR ({PLATFORM_COMMISSION_PERCENT}%)
+              {t('stripeCommission.example.orderAmount')}
             </Text>
-            <Text style={styles.calculationValueNegative}>
-              - {formatCurrency(calculation.platformFee)}
+            <Text style={styles.calculationValue}>
+              {formatCurrency(calculation.grossAmount)}
             </Text>
           </View>
-          
+
           <View style={styles.calculationRow}>
             <Text style={styles.calculationLabel}>
-              Frais Stripe (estimés)
+              {t('stripeCommission.example.platformFee', {
+                percent: PLATFORM_COMMISSION_PERCENT,
+              })}
             </Text>
             <Text style={styles.calculationValueNegative}>
-              - {formatCurrency(calculation.stripeFee)}
+              − {formatCurrency(calculation.platformFee)}
             </Text>
           </View>
-          
+
+          <View style={styles.calculationRow}>
+            <Text style={styles.calculationLabel}>
+              {t('stripeCommission.example.stripeFee')}
+            </Text>
+            <Text style={styles.calculationValueNegative}>
+              − {formatCurrency(calculation.stripeFee)}
+            </Text>
+          </View>
+
           <View style={[styles.calculationRow, styles.calculationTotal]}>
-            <Text style={styles.calculationTotalLabel}>Montant net reçu</Text>
+            <Text style={styles.calculationTotalLabel}>
+              {t('stripeCommission.example.netAmount')}
+            </Text>
             <Text style={styles.calculationTotalValue}>
               {formatCurrency(calculation.netAmount)}
             </Text>
@@ -207,14 +227,18 @@ export const StripeCommissionInfo: React.FC<StripeCommissionInfoProps> = ({
         </View>
       )}
 
-      {/* Points importants */}
+      {/* Bullet points info */}
       <View style={styles.infoBox}>
-        <Ionicons name="information-circle-outline" size={20} color={COLORS.info} />
+        <Ionicons
+          name="information-circle-outline"
+          size={20}
+          color={colors.info}
+        />
         <View style={styles.infoContent}>
           <Text style={styles.infoText}>
-            • La commission est prélevée automatiquement lors du paiement{'\n'}
-            • Les paiements en espèces ne sont pas soumis à commission{'\n'}
-            • Vous recevez vos fonds directement sur votre compte bancaire
+            {`• ${t('stripeCommission.bullets.autoDeduct')}\n• ${t(
+              'stripeCommission.bullets.cashNoFee',
+            )}\n• ${t('stripeCommission.bullets.directPayout')}`}
           </Text>
         </View>
       </View>
@@ -224,18 +248,23 @@ export const StripeCommissionInfo: React.FC<StripeCommissionInfoProps> = ({
         <TouchableOpacity
           style={[
             styles.acceptButton,
-            isAccepted && styles.acceptButtonAccepted
+            isAccepted && styles.acceptButtonAccepted,
           ]}
           onPress={onAccept}
           activeOpacity={0.8}
         >
-          <View style={[styles.checkbox, isAccepted && styles.checkboxChecked]}>
+          <View
+            style={[
+              styles.checkbox,
+              isAccepted && styles.checkboxChecked,
+            ]}
+          >
             {isAccepted && (
-              <Ionicons name="checkmark" size={16} color={COLORS.text.inverse} />
+              <Ionicons name="checkmark" size={16} color={colors.text.inverse} />
             )}
           </View>
           <Text style={styles.acceptButtonText}>
-            J'ai lu et j'accepte les conditions tarifaires
+            {t('stripeCommission.acceptTerms')}
           </Text>
         </TouchableOpacity>
       )}
@@ -244,227 +273,243 @@ export const StripeCommissionInfo: React.FC<StripeCommissionInfoProps> = ({
 };
 
 // ============================================================================
-// STYLES
+// STYLES (fabrique theme-aware)
 // ============================================================================
 
-const styles = StyleSheet.create({
-  // Container principal
-  container: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 16,
-    padding: 20,
-    marginVertical: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
+const makeStyles = (
+  colors: AppColors,
+  isDark: boolean,
+  screenType: ReturnType<typeof useScreenType>,
+) => {
+  const shadows = makeShadows(colors);
 
-  // En-tête
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border.light,
-  },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: `${COLORS.primary}10`,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  headerText: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.text.primary,
-    marginBottom: 2,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: COLORS.text.secondary,
-  },
+  return StyleSheet.create({
+    // Container principal
+    container: {
+      backgroundColor: colors.surface,
+      borderRadius: BORDER_RADIUS.xl,
+      padding: getResponsiveValue(SPACING.lg, screenType),
+      marginVertical: getResponsiveValue(SPACING.sm, screenType),
+      borderWidth: isDark ? StyleSheet.hairlineWidth : 0,
+      borderColor: isDark ? 'rgba(212, 175, 55, 0.12)' : 'transparent',
+      ...shadows.card,
+    },
 
-  // Sections
-  section: {
-    marginBottom: 16,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: COLORS.text.primary,
-  },
-  sectionDescription: {
-    fontSize: 14,
-    color: COLORS.text.secondary,
-    lineHeight: 20,
-  },
+    // En-tête
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: getResponsiveValue(SPACING.lg, screenType),
+      paddingBottom: getResponsiveValue(SPACING.md, screenType),
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border.light,
+    },
+    iconContainer: {
+      width: 48,
+      height: 48,
+      borderRadius: BORDER_RADIUS.xl,
+      backgroundColor: isDark
+        ? 'rgba(30, 42, 120, 0.18)'
+        : colors.variants.primary[50],
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 12,
+    },
+    headerText: {
+      flex: 1,
+    },
+    title: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.bold,
+      color: colors.text.primary,
+      marginBottom: 2,
+    },
+    subtitle: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+      color: colors.text.secondary,
+    },
 
-  // Badge
-  badge: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  badgeText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: COLORS.text.inverse,
-  },
-  badgeSecondary: {
-    backgroundColor: COLORS.border.light,
-  },
-  badgeTextSecondary: {
-    color: COLORS.text.secondary,
-  },
+    // Sections
+    section: {
+      marginBottom: getResponsiveValue(SPACING.md, screenType),
+    },
+    sectionHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    sectionTitle: {
+      fontSize: 15,
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      color: colors.text.primary,
+      flex: 1,
+      marginRight: 8,
+    },
+    sectionDescription: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+      color: colors.text.secondary,
+      lineHeight: 20,
+    },
 
-  // Exemple de calcul
-  exampleContainer: {
-    backgroundColor: COLORS.background,
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 8,
-    marginBottom: 16,
-  },
-  exampleTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.text.primary,
-    marginBottom: 12,
-  },
-  calculationRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 6,
-  },
-  calculationLabel: {
-    fontSize: 14,
-    color: COLORS.text.secondary,
-  },
-  calculationValue: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: COLORS.text.primary,
-  },
-  calculationValueNegative: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: COLORS.warning,
-  },
-  calculationTotal: {
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border.medium,
-    marginTop: 8,
-    paddingTop: 12,
-  },
-  calculationTotalLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: COLORS.text.primary,
-  },
-  calculationTotalValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.success,
-  },
+    // Badge
+    badge: {
+      backgroundColor: colors.primary,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: BORDER_RADIUS.lg,
+    },
+    badgeText: {
+      fontSize: 13,
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      color: colors.text.inverse,
+    },
+    badgeSecondary: {
+      backgroundColor: isDark
+        ? 'rgba(255, 255, 255, 0.08)'
+        : colors.border.light,
+    },
+    badgeTextSecondary: {
+      color: colors.text.secondary,
+    },
 
-  // Info box
-  infoBox: {
-    flexDirection: 'row',
-    backgroundColor: `${COLORS.info}10`,
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 16,
-  },
-  infoContent: {
-    flex: 1,
-    marginLeft: 10,
-  },
-  infoText: {
-    fontSize: 13,
-    color: COLORS.text.secondary,
-    lineHeight: 20,
-  },
+    // Exemple
+    exampleContainer: {
+      backgroundColor: colors.background,
+      borderRadius: BORDER_RADIUS.lg,
+      padding: getResponsiveValue(SPACING.md, screenType),
+      marginTop: 8,
+      marginBottom: getResponsiveValue(SPACING.md, screenType),
+    },
+    exampleTitle: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      color: colors.text.primary,
+      marginBottom: 12,
+    },
+    calculationRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 6,
+    },
+    calculationLabel: {
+      flex: 1,
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+      color: colors.text.secondary,
+      marginRight: 8,
+    },
+    calculationValue: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.medium,
+      color: colors.text.primary,
+    },
+    calculationValueNegative: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.medium,
+      color: colors.warning,
+    },
+    calculationTotal: {
+      borderTopWidth: 1,
+      borderTopColor: colors.border.default,
+      marginTop: 8,
+      paddingTop: 12,
+    },
+    calculationTotalLabel: {
+      fontSize: 15,
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      color: colors.text.primary,
+    },
+    calculationTotalValue: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.md, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.bold,
+      color: colors.success,
+    },
 
-  // Bouton d'acceptation
-  acceptButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.background,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: COLORS.border.light,
-  },
-  acceptButtonAccepted: {
-    backgroundColor: `${COLORS.success}10`,
-    borderColor: COLORS.success,
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: COLORS.border.medium,
-    marginRight: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  checkboxChecked: {
-    backgroundColor: COLORS.success,
-    borderColor: COLORS.success,
-  },
-  acceptButtonText: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '500',
-    color: COLORS.text.primary,
-  },
+    // Info box
+    infoBox: {
+      flexDirection: 'row',
+      backgroundColor: isDark
+        ? 'rgba(59, 130, 246, 0.10)'
+        : 'rgba(59, 130, 246, 0.08)',
+      borderRadius: BORDER_RADIUS.md,
+      padding: 12,
+      marginBottom: getResponsiveValue(SPACING.md, screenType),
+    },
+    infoContent: {
+      flex: 1,
+      marginLeft: 10,
+    },
+    infoText: {
+      fontSize: 13,
+      color: colors.text.secondary,
+      lineHeight: 20,
+    },
 
-  // Compact mode
-  compactContainer: {
-    backgroundColor: `${COLORS.info}08`,
-    borderRadius: 10,
-    padding: 12,
-    borderLeftWidth: 3,
-    borderLeftColor: COLORS.info,
-  },
-  compactHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  compactTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.text.primary,
-    marginLeft: 8,
-  },
-  compactText: {
-    fontSize: 13,
-    color: COLORS.text.secondary,
-    lineHeight: 18,
-  },
-  highlight: {
-    fontWeight: '700',
-    color: COLORS.primary,
-  },
-});
+    // Bouton d'acceptation
+    acceptButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.background,
+      borderRadius: BORDER_RADIUS.lg,
+      padding: getResponsiveValue(SPACING.md, screenType),
+      borderWidth: 1,
+      borderColor: colors.border.default,
+    },
+    acceptButtonAccepted: {
+      backgroundColor: isDark
+        ? 'rgba(16, 185, 129, 0.10)'
+        : 'rgba(16, 185, 129, 0.10)',
+      borderColor: colors.success,
+    },
+    checkbox: {
+      width: 24,
+      height: 24,
+      borderRadius: BORDER_RADIUS.md,
+      borderWidth: 2,
+      borderColor: colors.border.default,
+      marginRight: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    checkboxChecked: {
+      backgroundColor: colors.success,
+      borderColor: colors.success,
+    },
+    acceptButtonText: {
+      flex: 1,
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.medium,
+      color: colors.text.primary,
+    },
+
+    // Mode compact
+    compactContainer: {
+      backgroundColor: isDark
+        ? 'rgba(59, 130, 246, 0.10)'
+        : 'rgba(59, 130, 246, 0.08)',
+      borderRadius: BORDER_RADIUS.md,
+      padding: 12,
+      borderLeftWidth: 3,
+      borderLeftColor: colors.info,
+    },
+    compactHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 6,
+    },
+    compactTitle: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      color: colors.text.primary,
+      marginLeft: 8,
+    },
+    compactText: {
+      fontSize: 13,
+      color: colors.text.secondary,
+      lineHeight: 18,
+    },
+  });
+};
 
 export default StripeCommissionInfo;

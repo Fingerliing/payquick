@@ -2,12 +2,12 @@ import Constants from 'expo-constants';
 
 // Configuration de l'API
 export const API_BASE_URL = __DEV__ 
-  ? process.env.EXPO_PUBLIC_API_BASE_URL || 'http://192.168.1.163:8000'
+  ? process.env.EXPO_PUBLIC_API_BASE_URL!
   : Constants.expoConfig?.extra?.apiUrl || 'https://api.eatquicker.fr';
 
 // URL WebSocket
 export const WS_BASE_URL = __DEV__
-  ? process.env.EXPO_PUBLIC_WS_BASE_URL || 'ws://192.168.1.163:8000'
+  ? process.env.EXPO_PUBLIC_WS_BASE_URL!
   : 'wss://ws.eatquicker.fr';
 
 if (!API_BASE_URL) {
