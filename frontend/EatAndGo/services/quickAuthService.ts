@@ -1,5 +1,18 @@
-import * as LocalAuthentication from 'expo-local-authentication';
 import secureStorage from '@/utils/secureStorage';
+
+let LocalAuthentication: typeof import('expo-local-authentication') | null = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  LocalAuthentication = require('expo-local-authentication');
+} catch {
+  LocalAuthentication = null;
+  if (__DEV__) {
+    console.warn(
+      '[quickAuth] Module natif expo-local-authentication absent — ' +
+        'reconnexion biométrique désactivée. Rebuild natif requis (eas build).',
+    );
+  }
+}
 
 // Stockés dans le Keychain/Keystore via expo-secure-store, jamais AsyncStorage.
 const KEYS = {
@@ -14,6 +27,11 @@ export interface SavedCredentials {
 }
 
 class QuickAuthService {
+  /** Le module natif de biométrie est-il chargé dans ce build ? */
+  private get isNativeAvailable(): boolean {
+    return LocalAuthentication !== null;
+  }
+
   /** Enregistre les identifiants (appelé après un login réussi si "Se souvenir de moi"). */
   async saveCredentials(email: string, password: string): Promise<void> {
     await secureStorage.setItem(KEYS.EMAIL, email);
@@ -28,8 +46,13 @@ class QuickAuthService {
     await secureStorage.removeItem(KEYS.ENABLED);
   }
 
-  /** Y a-t-il des identifiants mémorisés ? (pour afficher le bouton 1-clic) */
+  /**
+   * Y a-t-il une reconnexion 1-clic disponible ?
+   * Faux si le module natif n'est pas dispo (le bouton ne s'affiche pas) OU
+   * si aucun identifiant n'est mémorisé.
+   */
   async isEnabled(): Promise<boolean> {
+    if (!this.isNativeAvailable) return false;
     const enabled = await secureStorage.getItem(KEYS.ENABLED);
     const email = await secureStorage.getItem(KEYS.EMAIL);
     return enabled === '1' && !!email;
@@ -42,6 +65,7 @@ class QuickAuthService {
 
   /** La biométrie est-elle disponible ET configurée sur l'appareil ? */
   async isBiometricAvailable(): Promise<boolean> {
+    if (!LocalAuthentication) return false;
     const hasHardware = await LocalAuthentication.hasHardwareAsync();
     const isEnrolled = await LocalAuthentication.isEnrolledAsync();
     return hasHardware && isEnrolled;
@@ -49,9 +73,10 @@ class QuickAuthService {
 
   /**
    * Reconnexion 1-clic : prompt biométrique → si OK, retourne les identifiants.
-   * Retourne null si annulé / échec biométrique / aucun identifiant mémorisé.
+   * Retourne null si module natif absent / annulé / échec / aucun identifiant.
    */
   async quickReconnect(): Promise<SavedCredentials | null> {
+    if (!LocalAuthentication) return null;
     if (!(await this.isEnabled())) return null;
 
     // Si la biométrie est dispo, on l'exige. Sinon on retombe sur le code

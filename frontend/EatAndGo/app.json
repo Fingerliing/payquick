@@ -2,7 +2,7 @@
   "expo": {
     "name": "EatQuickeR",
     "slug": "EatQuickeR",
-    "version": "1.0.0",
+    "version": "1.1.3",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "light",
@@ -35,6 +35,10 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
+      [
+        "expo-local-authentication",
+        { "faceIDPermission": "Autorisez $(PRODUCT_NAME) à utiliser Face ID pour vous reconnecter." }
+      ],
       [
         "expo-navigation-bar",
         {
