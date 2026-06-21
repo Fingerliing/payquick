@@ -16,6 +16,8 @@ import { stripeService } from '@/services/stripeService';
 import { AlertWithAction } from '@/components/ui/Alert';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRestaurant } from '@/contexts/RestaurantContext';
+import { useTranslation } from 'react-i18next';
+import { useAppTheme } from '@/utils/designSystem';
 
 // -----------------------
 // Types
@@ -48,9 +50,9 @@ function extractErrorMessage(err: any, fallback: string): string {
 // -----------------------
 // Hook mutualisé
 // -----------------------
-function useStripeAccountStatus(initialDelayMs = 800, pollMs = 5000) {
+function useStripeAccountStatus(t: (k: string) => string, initialDelayMs = 800, pollMs = 5000) {
   const [status, setStatus] = useState<Status>('checking');
-  const [message, setMessage] = useState<string>('Préparation de votre configuration Stripe...');
+  const [message, setMessage] = useState<string>(t('auth.stripe.prepStatus'));
   const [lastAccount, setLastAccount] = useState<AccountStatus | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
 
@@ -69,19 +71,19 @@ function useStripeAccountStatus(initialDelayMs = 800, pollMs = 5000) {
 
         if (a?.has_validated_profile) {
           setStatus('success');
-          setMessage('Votre compte Stripe a été validé avec succès !');
+          setMessage(t('auth.stripe.validated'));
           if (interval) clearInterval(interval);
         } else {
           setStatus('waiting');
-          setMessage('Configuration en cours. Cela peut prendre quelques minutes...');
+          setMessage(t('auth.stripe.inProgress'));
         }
       } catch (e: any) {
         if (!isMounted) return;
-        const msg = extractErrorMessage(e, 'Erreur lors de la vérification du statut.');
+        const msg = extractErrorMessage(e, t('auth.stripe.statusCheckError'));
         console.error('[Stripe] getAccountStatus failed:', msg, e?.response?.data);
         setLastError(msg);
         setStatus('error');
-        setMessage('Impossible de récupérer le statut de votre compte.');
+        setMessage(t('auth.stripe.statusFetchFail'));
         if (interval) clearInterval(interval);
       }
     };
@@ -105,17 +107,17 @@ function useStripeAccountStatus(initialDelayMs = 800, pollMs = 5000) {
       setLastError(null);
       if (a?.has_validated_profile) {
         setStatus('success');
-        setMessage('Votre compte Stripe a été validé avec succès !');
+        setMessage(t('auth.stripe.validated'));
       } else {
         setStatus('waiting');
-        setMessage('Toujours en cours de vérification...');
+        setMessage(t('auth.stripe.stillChecking'));
       }
     } catch (e: any) {
-      const msg = extractErrorMessage(e, 'Impossible de rafraîchir le statut. Réessayez.');
+      const msg = extractErrorMessage(e, t('auth.stripe.refreshFail'));
       console.error('[Stripe] refresh failed:', msg, e?.response?.data);
       setLastError(msg);
       setStatus('error');
-      setMessage('Impossible de rafraîchir le statut.');
+      setMessage(t('auth.stripe.refreshFailShort'));
     }
   };
 
@@ -125,7 +127,7 @@ function useStripeAccountStatus(initialDelayMs = 800, pollMs = 5000) {
 // -----------------------
 // UI helpers
 // -----------------------
-function StatusEmoji({ status }: { status: Status }) {
+function StatusEmoji({ status, styles }: { status: Status; styles: any }) {
   const emoji = status === 'success' ? '✅' : status === 'error' ? '❌' : '⏳';
   return (
     <Text style={styles.emoji} accessibilityRole="image" accessibilityLabel={`Statut: ${status}`}>
@@ -140,9 +142,12 @@ function StatusEmoji({ status }: { status: Status }) {
 export default function StripeScreen() {
   const { width } = useWindowDimensions();
   const responsive = useMemo(() => makeResponsiveStyles(width), [width]);
+  const { colors } = useAppTheme();
+  const { t } = useTranslation();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const { status, message, refresh, lastAccount, lastError, setLastError } =
-    useStripeAccountStatus(800, 5000);
+    useStripeAccountStatus(t, 800, 5000);
 
   const [opening, setOpening] = useState(false);
   // Mutex partagé entre l'auto-open et le clic bouton pour éviter les doubles ouvertures
@@ -213,7 +218,7 @@ export default function StripeScreen() {
       }
 
       if (!onboardingUrl) {
-        throw new Error("Aucune URL d'onboarding renvoyée par le serveur.");
+        throw new Error(t('auth.stripe.noUrl'));
       }
 
       console.log('[Stripe] Opening onboarding URL:', onboardingUrl);
@@ -223,25 +228,23 @@ export default function StripeScreen() {
         // window.open est le seul moyen fiable d'ouvrir un onglet sur Web depuis un click
         const opened = window.open(onboardingUrl, '_blank', 'noopener,noreferrer');
         if (!opened) {
-          throw new Error(
-            "Le navigateur a bloqué l'ouverture de l'onglet. Autorisez les pop-ups pour eatquicker.fr.",
-          );
+          throw new Error(t('auth.stripe.popupBlocked'));
         }
       } else {
         // Sur natif, on utilise le service qui gère Linking + WebBrowser fallback
         const ok = await stripeService.openStripeOnboarding(onboardingUrl);
         if (!ok) {
-          throw new Error("Impossible d'ouvrir le navigateur Stripe.");
+          throw new Error(t('auth.stripe.cannotOpenBrowser'));
         }
       }
     } catch (e: any) {
       const msg = extractErrorMessage(
         e,
-        "Impossible d'ouvrir la page Stripe. Vérifiez votre connexion et réessayez.",
+        t('auth.stripe.cannotOpenPage'),
       );
       console.error('[Stripe] openOnboarding failed:', msg, e);
       setLastError(msg);
-      Alert.alert('Configuration Stripe', msg, [{ text: 'OK' }]);
+      Alert.alert(t('auth.stripe.title'), msg, [{ text: t('common.ok') }]);
     } finally {
       openingRef.current = false;
       setOpening(false);
@@ -297,54 +300,57 @@ export default function StripeScreen() {
   return (
     <View style={[styles.container, responsive.container]}>
       <View style={[styles.card, responsive.card, webShadow]}>
-        <StatusEmoji status={status} />
+        <StatusEmoji status={status} styles={styles} />
         <Text style={[styles.title, responsive.title]} accessibilityRole="header">
-          Configuration Stripe
+          {t('auth.stripe.title')}
         </Text>
 
         <Text style={[styles.message, responsive.message]} accessible accessibilityLabel={message}>
           {message}
         </Text>
 
-        {status === 'checking' && <ActivityIndicator size="large" style={styles.loader} />}
+        {status === 'checking' && <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />}
 
         {status === 'success' && (
           <Text style={styles.redirectNote}>
-            Redirection automatique vers le tableau de bord...
+            {t('auth.stripe.redirectNote')}
           </Text>
         )}
 
         {!!lastError && status !== 'success' && (
           <View style={styles.errorBox}>
-            <Text style={styles.errorTitle}>Détail de l'erreur</Text>
+            <Text style={styles.errorTitle}>{t('auth.stripe.errorDetail')}</Text>
             <Text style={styles.errorMsg}>{lastError}</Text>
           </View>
         )}
 
         <View style={styles.actions}>
           <PrimaryButton
-            label={status === 'success' ? 'Accéder au tableau de bord' : 'Rafraîchir le statut'}
+            label={status === 'success' ? t('auth.stripe.goToDashboard') : t('auth.stripe.refreshStatus')}
             onPress={handlePrimary}
             disabled={status === 'checking'}
             loading={status === 'checking'}
+            styles={styles}
           />
 
           {showSecondaryButton && (
             <SecondaryButton
-              label={opening ? 'Ouverture...' : 'Configurer mon compte Stripe'}
+              label={opening ? t('auth.stripe.opening') : t('auth.stripe.configureAccount')}
               onPress={handleSecondary}
               disabled={opening}
               loading={opening}
+              styles={styles}
             />
           )}
 
           {status === 'waiting' && (
             <>
               <View style={styles.divider} />
-              <SecondaryButton label="Continuer sans Stripe" onPress={goToDashboard} />
-              <Text style={styles.note} accessibilityLabel="Information importante">
-                Les paiements resteront <Text style={styles.bold}>désactivés</Text> tant que la
-                validation Stripe n'est pas terminée.
+              <SecondaryButton label={t('auth.stripe.continueWithout')} onPress={goToDashboard} styles={styles} />
+              <Text style={styles.note} accessibilityLabel="Information">
+                {t('auth.stripe.paymentsDisabledPrefix')}{' '}
+                <Text style={styles.bold}>{t('auth.stripe.paymentsDisabledWord')}</Text>{' '}
+                {t('auth.stripe.paymentsDisabledSuffix')}
               </Text>
             </>
           )}
@@ -353,11 +359,11 @@ export default function StripeScreen() {
         <View style={styles.alertContainer}>
           <AlertWithAction
             variant="info"
-            title="Besoin d'aide ?"
-            message="Si vous rencontrez des difficultés lors de la configuration de votre compte Stripe, n'hésitez pas à nous contacter."
+            title={t('auth.stripe.helpTitle')}
+            message={t('auth.stripe.helpMessage')}
             autoDismiss={false}
             primaryButton={{
-              text: 'Nous contacter',
+              text: t('auth.stripe.contactUs'),
               onPress: handleContact,
             }}
           />
@@ -375,11 +381,13 @@ function PrimaryButton({
   onPress,
   disabled,
   loading,
+  styles,
 }: {
   label: string;
   onPress: () => void | Promise<void>;
   disabled?: boolean;
   loading?: boolean;
+  styles: any;
 }) {
   return (
     <TouchableOpacity
@@ -400,11 +408,13 @@ function SecondaryButton({
   onPress,
   disabled,
   loading,
+  styles,
 }: {
   label: string;
   onPress: () => void | Promise<void>;
   disabled?: boolean;
   loading?: boolean;
+  styles: any;
 }) {
   return (
     <TouchableOpacity
@@ -430,18 +440,19 @@ const webShadow = Platform.select({
   default: {},
 });
 
-const styles = StyleSheet.create({
+function createStyles(c: any) {
+  return StyleSheet.create({
   container: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16,
-    backgroundColor: '#F7F7FA',
+    backgroundColor: c.background,
   },
   card: {
     width: '100%',
     maxWidth: 560,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: c.surface,
     borderRadius: 16,
     padding: 20,
     shadowColor: '#000',
@@ -460,11 +471,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
     marginBottom: 6,
+    color: c.text.primary,
   },
   message: {
     fontSize: 16,
     textAlign: 'center',
-    color: '#444',
+    color: c.text.secondary,
     marginBottom: 16,
   },
   loader: {
@@ -473,26 +485,26 @@ const styles = StyleSheet.create({
   redirectNote: {
     fontSize: 14,
     textAlign: 'center',
-    color: '#10B981',
+    color: c.success,
     fontWeight: '500',
     marginBottom: 8,
   },
   errorBox: {
-    backgroundColor: '#FEE2E2',
-    borderColor: '#FCA5A5',
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    borderColor: c.error,
     borderWidth: 1,
     borderRadius: 10,
     padding: 12,
     marginBottom: 12,
   },
   errorTitle: {
-    color: '#991B1B',
+    color: c.error,
     fontWeight: '700',
     fontSize: 14,
     marginBottom: 4,
   },
   errorMsg: {
-    color: '#991B1B',
+    color: c.error,
     fontSize: 13,
     lineHeight: 18,
   },
@@ -508,7 +520,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   btnPrimary: {
-    backgroundColor: '#1E2A78',
+    backgroundColor: c.primary,
   },
   btnPrimaryText: {
     color: '#FFFFFF',
@@ -516,10 +528,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   btnSecondary: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: c.background,
+    borderWidth: 1,
+    borderColor: c.border.default,
   },
   btnSecondaryText: {
-    color: '#111827',
+    color: c.text.primary,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -528,12 +542,12 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: '#EEE',
+    backgroundColor: c.border.light,
     marginVertical: 4,
   },
   note: {
     fontSize: 13,
-    color: '#6B7280',
+    color: c.text.secondary,
     textAlign: 'center',
   },
   bold: {
@@ -542,7 +556,8 @@ const styles = StyleSheet.create({
   alertContainer: {
     marginTop: 16,
   },
-});
+  });
+}
 
 function makeResponsiveStyles(width: number) {
   const isTablet = width >= 768;

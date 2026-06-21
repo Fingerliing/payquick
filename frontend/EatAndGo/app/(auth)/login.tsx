@@ -22,6 +22,9 @@ import { Card } from '@/components/ui/Card';
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS } from '@/styles/tokens';
 import { useResponsive } from '@/utils/responsive';
 import { Alert as CustomAlert } from '@/components/ui/Alert';
+import { useTranslation } from 'react-i18next';
+import { useAppTheme } from '@/utils/designSystem';
+import { HeaderActionsBar } from '@/components/common/HeaderActions';
 
 const APP_LOGO = require('@/assets/images/logo.png');
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -48,6 +51,8 @@ export default function LoginScreen() {
   } | null>(null);
   
   const { login, googleLogin } = useAuth();
+  const { t } = useTranslation();
+  const { colors } = useAppTheme();
   const { isMobile, isTablet, isSmallScreen, getSpacing, getFontSize, getResponsiveValue } = useResponsive();
   const insets = useSafeAreaInsets();
 
@@ -296,19 +301,19 @@ export default function LoginScreen() {
   const styles = {
     container: {
       flex: 1,
-      backgroundColor: '#F9FAFB',
+      backgroundColor: colors.background,
     },
     
     contentContainer: {
       flex: 1,
-      backgroundColor: '#F9FAFB',
+      backgroundColor: colors.background,
     },
     
     header: {
       height: insets.top + getSpacing(
-        Math.min(screenHeight * 0.20, 160),
         Math.min(screenHeight * 0.22, 180),
-        Math.min(screenHeight * 0.22, 180)
+        Math.min(screenHeight * 0.24, 200),
+        Math.min(screenHeight * 0.24, 200)
       ),
       position: 'relative' as const,
       overflow: 'hidden' as const,
@@ -362,6 +367,14 @@ export default function LoginScreen() {
       paddingTop: insets.top + getSpacing(SPACING.md, SPACING.lg),
       zIndex: 1,
     },
+
+    // Boutons thème + langue, ancrés en haut à droite du header (au-dessus du dégradé)
+    headerActions: {
+      position: 'absolute' as const,
+      top: insets.top + getSpacing(SPACING.sm, SPACING.md),
+      right: getSpacing(SPACING.lg, SPACING.xl),
+      zIndex: 10,
+    },
     
     logoImageContainer: {
       width: getResponsiveValue(64, 72, 80),
@@ -409,6 +422,19 @@ export default function LoginScreen() {
       textAlign: 'center' as const,
       paddingHorizontal: getSpacing(SPACING.sm, SPACING.md),
     },
+
+    headerSlogan: {
+      fontSize: getFontSize(12, 13, 14),
+      fontStyle: 'italic' as const,
+      fontWeight: TYPOGRAPHY.fontWeight.medium,
+      color: COLORS.secondary,
+      textAlign: 'center' as const,
+      marginTop: getSpacing(SPACING.sm, SPACING.md),
+      letterSpacing: 0.3,
+      textShadowColor: 'rgba(0, 0, 0, 0.3)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 2,
+    },
     
     scrollViewContainer: {
       flexGrow: 1,
@@ -426,7 +452,7 @@ export default function LoginScreen() {
     formTitle: {
       fontSize: getFontSize(22, 26, 30),
       fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: '#1E2A78',
+      color: colors.text.primary,
       textAlign: 'center' as const,
       marginBottom: getSpacing(SPACING.lg, SPACING.xl),
     },
@@ -437,14 +463,8 @@ export default function LoginScreen() {
     },
     
     socialButton: {
-      backgroundColor: '#FFFFFF',
-      borderWidth: 1.5,
-      borderColor: '#E5E7EB',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.05,
-      shadowRadius: 4,
-      elevation: 2,
+      // Couleurs gérées par le variant "outline" du Button (theme-aware).
+      // On ne force plus le fond/bordure ici pour suivre light/dark.
     },
     
     divider: {
@@ -456,15 +476,15 @@ export default function LoginScreen() {
     dividerLine: {
       flex: 1,
       height: 1,
-      backgroundColor: '#E5E7EB',
+      backgroundColor: colors.border.default,
     },
     
     dividerText: {
       fontSize: TYPOGRAPHY.fontSize.sm,
-      color: '#6B7280',
+      color: colors.text.secondary,
       paddingHorizontal: SPACING.md,
       fontWeight: TYPOGRAPHY.fontWeight.medium,
-      backgroundColor: '#F9FAFB',
+      backgroundColor: 'transparent',
     },
     
     inputContainer: {
@@ -480,20 +500,15 @@ export default function LoginScreen() {
     },
     
     submitButton: {
+      // Fond/ombre gérés par le variant "primary" du Button (theme-aware).
       marginTop: getSpacing(SPACING.lg, SPACING.xl),
-      backgroundColor: '#1E2A78',
-      shadowColor: '#1E2A78',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 8,
-      elevation: 6,
     },
     
     footer: {
       paddingVertical: getSpacing(SPACING.lg, SPACING.xl),
       paddingBottom: Math.max(insets.bottom, getSpacing(SPACING.lg, SPACING.xl)),
       alignItems: 'center' as const,
-      backgroundColor: '#F9FAFB',
+      backgroundColor: colors.background,
     },
     
     registerLink: {
@@ -533,7 +548,7 @@ export default function LoginScreen() {
     returnToBannerText: {
       flex: 1,
       fontSize: 13,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       lineHeight: 18,
     },
   } as const;
@@ -572,6 +587,11 @@ export default function LoginScreen() {
         <View style={styles.headerPattern} />
         <View style={styles.headerPattern2} />
 
+        {/* Switch thème + langue, comme sur les espaces client / restaurant */}
+        <View style={styles.headerActions}>
+          <HeaderActionsBar />
+        </View>
+
         {/* Contenu centré */}
         <View style={styles.headerContent}>
           <View style={styles.logoImageContainer}>
@@ -583,6 +603,7 @@ export default function LoginScreen() {
           </View>
           <Text style={styles.headerTitle}>Ravis de vous voir</Text>
           <Text style={styles.headerSubtitle}>Connectez-vous pour continuer</Text>
+          <Text style={styles.headerSlogan}>« Un serveur au service des serveurs »</Text>
         </View>
       </View>
 
@@ -615,7 +636,7 @@ export default function LoginScreen() {
               {/* SOCIAL LOGIN SECTION */}
               <View style={styles.socialSection}>
                 <Button
-                  title="Continuer avec Google"
+                  title={t('auth.continueWithGoogle')}
                   variant="outline"
                   leftIcon={
                     <Ionicons name="logo-google" size={20} color="#EA4335" />
@@ -642,14 +663,14 @@ export default function LoginScreen() {
               {/* DIVIDER */}
               <View style={styles.divider}>
                 <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>ou</Text>
+                <Text style={styles.dividerText}>{t('common.or')}</Text>
                 <View style={styles.dividerLine} />
               </View>
 
               {/* FORMULAIRE */}
               <View style={styles.inputContainer}>
                 <Input
-                  label="Email"
+                  label={t('auth.email')}
                   placeholder="votre@email.com"
                   value={formData.email}
                   onChangeText={(text) => {
@@ -667,7 +688,7 @@ export default function LoginScreen() {
                 />
 
                 <Input
-                  label="Mot de passe"
+                  label={t('auth.password')}
                   placeholder="••••••••"
                   value={formData.password}
                   onChangeText={(text) => {
@@ -691,13 +712,13 @@ export default function LoginScreen() {
                 activeOpacity={0.7}
               >
                 <Text style={styles.forgotPassword}>
-                  Mot de passe oublié ?
+                  {t('auth.forgotPassword')}
                 </Text>
               </TouchableOpacity>
 
               {/* BOUTON DE CONNEXION */}
               <Button
-                title="Se connecter"
+                title={t('auth.signIn')}
                 onPress={handleSubmit}
                 loading={loading}
                 disabled={loading || !formData.email.trim() || !formData.password}
@@ -722,7 +743,7 @@ export default function LoginScreen() {
               activeOpacity={0.7}
             >
               <Text style={styles.registerLink}>
-                Pas encore de compte ? S'inscrire
+                {`${t('auth.noAccount')} ${t('auth.signUp')}`}
               </Text>
             </TouchableOpacity>
           </View>

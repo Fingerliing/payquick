@@ -20,6 +20,7 @@ import { Alert as CustomAlert } from '@/components/ui/Alert';
 import secureStorage from '@/utils/secureStorage';
 import { legalService } from '@/services/legalService';
 import { API_BASE_URL } from '@/constants/config';
+import { useTranslation } from 'react-i18next';
 import {
   COLORS,
   TYPOGRAPHY,
@@ -28,6 +29,7 @@ import {
   SHADOWS,
   useScreenType,
   getResponsiveValue,
+  useAppTheme,
 } from '@/utils/designSystem';
 
 const CODE_LENGTH = 6;
@@ -75,6 +77,13 @@ export default function VerifyEmailScreen() {
   const insets = useSafeAreaInsets();
   const { refreshUser } = useAuth();
   const screenType = useScreenType();
+  const { colors, isDark } = useAppTheme();
+  const { t } = useTranslation();
+
+  // Dégradé : navy de marque en clair, bleu nuit profond en dark.
+  const gradientColors = (isDark
+    ? ['#070B18', '#0F1528', '#161D33']
+    : GRADIENT) as [string, string, string];
 
   // Raccourci pour valeur responsive numérique
   const sp = (token: { mobile: number; tablet: number; desktop: number }): number =>
@@ -122,8 +131,8 @@ export default function VerifyEmailScreen() {
     if (!registration_id) {
       setCustomAlert({
         variant: 'error',
-        title: 'Erreur',
-        message: 'Session invalide. Veuillez recommencer l\'inscription.',
+        title: t('common.error'),
+        message: t('auth.verify.sessionInvalid'),
       });
       return;
     }
@@ -140,8 +149,8 @@ export default function VerifyEmailScreen() {
       if (!response.ok) {
         setCustomAlert({
           variant: 'error',
-          title: 'Code invalide',
-          message: data.error || data.message || data.detail || 'Code incorrect. Veuillez réessayer.',
+          title: t('auth.verify.invalidCodeTitle'),
+          message: data.error || data.message || data.detail || t('auth.verify.invalidCodeMsg'),
         });
         setCode(Array(CODE_LENGTH).fill(''));
         inputRefs.current[0]?.focus();
@@ -162,7 +171,7 @@ export default function VerifyEmailScreen() {
         }
         await refreshUser();
       }
-      setCustomAlert({ variant: 'success', title: 'Compte créé !', message: 'Bienvenue sur EatQuickeR 🎉' });
+      setCustomAlert({ variant: 'success', title: t('auth.verify.accountCreatedTitle'), message: t('auth.verify.accountCreatedMsg') });
 
       // ── Redirection post-vérification ─────────────────────────────────────
       // Si l'utilisateur arrive d'un AuthGate (returnTo défini), on le ramène
@@ -185,7 +194,7 @@ export default function VerifyEmailScreen() {
         }
       }, 1000);
     } catch {
-      setCustomAlert({ variant: 'error', title: 'Erreur réseau', message: 'Une erreur est survenue. Veuillez réessayer.' });
+      setCustomAlert({ variant: 'error', title: t('auth.verify.networkErrorTitle'), message: t('auth.verify.networkErrorMsg') });
     } finally {
       setLoading(false);
     }
@@ -204,7 +213,7 @@ export default function VerifyEmailScreen() {
       });
       const data = await response.json();
       if (!response.ok) {
-        setCustomAlert({ variant: 'error', title: 'Erreur', message: data.error || 'Impossible de renvoyer le code.' });
+        setCustomAlert({ variant: 'error', title: t('common.error'), message: data.error || t('auth.verify.resendError') });
         return;
       }
       setCanResend(false);
@@ -213,11 +222,11 @@ export default function VerifyEmailScreen() {
       inputRefs.current[0]?.focus();
       setCustomAlert({
         variant: 'success',
-        title: 'Code renvoyé',
-        message: `Nouveau code envoyé à ${email_masked}.`,
+        title: t('auth.verify.codeResentTitle'),
+        message: t('auth.verify.codeResentMsg', { email: email_masked }),
       });
     } catch {
-      setCustomAlert({ variant: 'error', title: 'Erreur', message: 'Une erreur est survenue.' });
+      setCustomAlert({ variant: 'error', title: t('common.error'), message: t('errors.generic') });
     } finally {
       setResendLoading(false);
     }
@@ -277,7 +286,7 @@ export default function VerifyEmailScreen() {
 
     // ── Card ───────────────────────────────────────────────────────────────
     card: {
-      backgroundColor: COLORS.surface,       // '#FFFFFF'
+      backgroundColor: colors.surface,
       borderRadius: BORDER_RADIUS['3xl'],     // 20
       padding: sp(SPACING.xl),
       ...SHADOWS.card,
@@ -285,7 +294,7 @@ export default function VerifyEmailScreen() {
     // Liseré doré sous le bord haut de la card
     goldenAccent: {
       height: 3,
-      backgroundColor: COLORS.secondary,
+      backgroundColor: colors.secondary,
       borderRadius: BORDER_RADIUS.full,
       marginBottom: sp(SPACING.lg),
       opacity: 0.40,
@@ -309,14 +318,14 @@ export default function VerifyEmailScreen() {
     returnToBannerText: {
       flex: 1,
       fontSize: sp(TYPOGRAPHY.fontSize.xs),
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       lineHeight: sp(TYPOGRAPHY.fontSize.xs) * TYPOGRAPHY.lineHeight.relaxed,
     },
 
     cardLabel: {
       fontSize: sp(TYPOGRAPHY.fontSize.base),
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      color: COLORS.text.primary,            // '#111827'
+      color: colors.text.primary,
       textAlign: 'center',
       marginBottom: sp(SPACING.lg),
     },
@@ -331,28 +340,28 @@ export default function VerifyEmailScreen() {
     codeInput: {
       width: 46,
       height: 56,
-      borderRadius: BORDER_RADIUS.xl,        // 12
+      borderRadius: BORDER_RADIUS.xl,
       borderWidth: 1.5,
-      borderColor: COLORS.border.default,    // '#E5E7EB'
+      borderColor: colors.border.default,
       textAlign: 'center',
       fontSize: sp(TYPOGRAPHY.fontSize.xl),
       fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: COLORS.text.primary,
-      backgroundColor: COLORS.background,    // '#F9FAFB'
+      color: colors.text.primary,
+      backgroundColor: colors.background,
     },
     codeInputFilled: {
-      borderColor: COLORS.primary,                     // '#1E2A78'
-      backgroundColor: COLORS.variants.primary[50],    // '#F0F3FF'
-      color: COLORS.primary,
+      borderColor: colors.primary,
+      backgroundColor: colors.variants.primary[50],
+      color: colors.primary,
     },
     codeInputActive: {
-      borderColor: COLORS.primary,
+      borderColor: colors.primary,
       borderWidth: 2,
     },
 
     expiryText: {
       fontSize: sp(TYPOGRAPHY.fontSize.xs),
-      color: COLORS.text.light,             // '#9CA3AF'
+      color: colors.text.light,
       textAlign: 'center',
       marginBottom: sp(SPACING.lg),
     },
@@ -369,31 +378,31 @@ export default function VerifyEmailScreen() {
     },
     resendText: {
       fontSize: sp(TYPOGRAPHY.fontSize.sm),
-      color: COLORS.text.secondary,         // '#6B7280'
+      color: colors.text.secondary,
     },
     resendLink: {
       fontSize: sp(TYPOGRAPHY.fontSize.sm),
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      color: COLORS.primary,
+      color: colors.primary,
       textDecorationLine: 'underline',
     },
     resendCountdown: {
       fontSize: sp(TYPOGRAPHY.fontSize.sm),
-      color: COLORS.text.light,             // '#9CA3AF'
+      color: colors.text.light,
     },
 
     // ── Lien retour ────────────────────────────────────────────────────────
     backLink:     { alignItems: 'center', paddingTop: sp(SPACING.xs) },
     backLinkText: {
       fontSize: sp(TYPOGRAPHY.fontSize.sm),
-      color: COLORS.text.light,
+      color: colors.text.light,
     },
   });
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <LinearGradient
-      colors={GRADIENT}
+      colors={gradientColors}
       style={styles.gradient}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
@@ -416,9 +425,9 @@ export default function VerifyEmailScreen() {
             <View style={styles.iconCircle}>
               <Ionicons name="mail-outline" size={34} color={COLORS.secondary} />
             </View>
-            <Text style={styles.title}>Vérification email</Text>
+            <Text style={styles.title}>{t('auth.verify.title')}</Text>
             <Text style={styles.subtitle}>
-              Code envoyé à{'\n'}
+              {t('auth.verify.sentTo')}{'\n'}
               <Text style={styles.phoneHighlight}>{email_masked || '···@···'}</Text>
             </Text>
           </View>
@@ -434,7 +443,7 @@ export default function VerifyEmailScreen() {
               <View style={styles.returnToBanner}>
                 <Ionicons name="information-circle" size={16} color={COLORS.secondary} />
                 <Text style={styles.returnToBannerText}>
-                  Validez votre email pour reprendre votre commande.
+                  {t('auth.verify.returnToBanner')}
                 </Text>
               </View>
             )}
@@ -452,7 +461,7 @@ export default function VerifyEmailScreen() {
               />
             )}
 
-            <Text style={styles.cardLabel}>Entrez le code à 6 chiffres</Text>
+            <Text style={styles.cardLabel}>{t('auth.verify.enterCode')}</Text>
 
             {/* OTP inputs */}
             <View style={styles.codeContainer}>
@@ -479,13 +488,13 @@ export default function VerifyEmailScreen() {
             {/* Expiration */}
             {expires_in && (
               <Text style={styles.expiryText}>
-                Ce code expire dans {Math.round(Number(expires_in) / 60)} minutes
+                {t('auth.verify.expiresIn', { minutes: Math.round(Number(expires_in) / 60) })}
               </Text>
             )}
 
             {/* Confirmer */}
             <Button
-              title="Confirmer l'email"
+              title={t('auth.verify.confirm')}
               onPress={handleVerify}
               disabled={!isComplete || loading}
               loading={loading}
@@ -494,22 +503,22 @@ export default function VerifyEmailScreen() {
 
             {/* Renvoi */}
             <View style={styles.resendContainer}>
-              <Text style={styles.resendText}>Vous n'avez pas reçu le code ?</Text>
+              <Text style={styles.resendText}>{t('auth.verify.noCode')}</Text>
               {canResend ? (
                 <TouchableOpacity onPress={handleResend} disabled={resendLoading}>
                   {resendLoading
-                    ? <ActivityIndicator size="small" color={COLORS.primary} />
-                    : <Text style={styles.resendLink}>Renvoyer le code</Text>
+                    ? <ActivityIndicator size="small" color={colors.primary} />
+                    : <Text style={styles.resendLink}>{t('auth.verify.resend')}</Text>
                   }
                 </TouchableOpacity>
               ) : (
-                <Text style={styles.resendCountdown}>Renvoyer dans {resendCountdown}s</Text>
+                <Text style={styles.resendCountdown}>{t('auth.verify.resendIn', { seconds: resendCountdown })}</Text>
               )}
             </View>
 
             {/* Modifier le numéro */}
             <TouchableOpacity style={styles.backLink} onPress={() => router.back()}>
-              <Text style={styles.backLinkText}>← Modifier mon email</Text>
+              <Text style={styles.backLinkText}>{t('auth.verify.editEmail')}</Text>
             </TouchableOpacity>
 
           </View>

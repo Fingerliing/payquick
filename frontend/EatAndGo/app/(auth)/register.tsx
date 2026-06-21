@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Alert as CustomAlert } from '@/components/ui/Alert';
 import { API_BASE_URL } from '@/constants/config';
+import { useTranslation } from 'react-i18next';
 import {
   COLORS,
   TYPOGRAPHY,
@@ -29,6 +30,7 @@ import {
   SHADOWS,
   useScreenType,
   getResponsiveValue,
+  useAppTheme,
 } from '@/utils/designSystem';
 
 const APP_LOGO = require('@/assets/images/logo.png');
@@ -79,6 +81,13 @@ export default function RegisterScreen() {
   const insets     = useSafeAreaInsets();
   const screenType = useScreenType();
   const scrollViewRef = useRef<ScrollView>(null);
+  const { colors, isDark } = useAppTheme();
+  const { t } = useTranslation();
+
+  // Dégradé : navy de marque en clair, bleu nuit profond en dark.
+  const gradientColors = (isDark
+    ? ['#070B18', '#0F1528', '#161D33']
+    : GRADIENT) as [string, string, string];
 
   // ── Paramètre `returnTo` ───────────────────────────────────────────────────
   // Si l'utilisateur arrive depuis un AuthGateModal (parcours QR → menu →
@@ -102,38 +111,38 @@ export default function RegisterScreen() {
 
     const email = formData.username.trim();
     if (!email) {
-      newErrors.username = 'Email requis';
+      newErrors.username = t('auth.register.errors.emailRequired');
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      newErrors.username = 'Format d\'email invalide';
+      newErrors.username = t('errors.invalidEmail');
     }
 
     if (!formData.password) {
-      newErrors.password = 'Mot de passe requis';
+      newErrors.password = t('auth.register.errors.passwordRequired');
     } else if (formData.password.length < 8) {
-      newErrors.password = 'Minimum 8 caractères';
+      newErrors.password = t('auth.register.errors.passwordMin');
     }
 
     if (!formData.nom.trim()) {
-      newErrors.nom = 'Nom requis';
+      newErrors.nom = t('auth.register.errors.nameRequired');
     }
 
     if (formData.role === 'client') {
       if (!formData.telephone.trim()) {
-        newErrors.telephone = 'Numéro de téléphone requis';
+        newErrors.telephone = t('auth.register.errors.phoneRequired');
       } else if (!/^(\+33|0)[1-9](\d{8})$/.test(formData.telephone.replace(/\s/g, ''))) {
-        newErrors.telephone = 'Format invalide (ex: +33612345678)';
+        newErrors.telephone = t('auth.register.errors.phoneInvalid');
       }
     } else {
       if (!formData.siret.trim()) {
-        newErrors.siret = 'SIRET requis';
+        newErrors.siret = t('auth.register.errors.siretRequired');
       } else if (!/^\d{14}$/.test(formData.siret.replace(/\s/g, ''))) {
-        newErrors.siret = 'Le SIRET doit contenir 14 chiffres';
+        newErrors.siret = t('auth.register.errors.siretInvalid');
       }
     }
 
     if (!acceptedTerms) {
       hasTermsError = true;
-      setTermsError('Vous devez accepter les conditions générales');
+      setTermsError(t('auth.register.errors.acceptTerms'));
     } else {
       setTermsError(undefined);
     }
@@ -152,12 +161,12 @@ export default function RegisterScreen() {
       if (backendErrors.telephone) newErrors.telephone = [backendErrors.telephone].flat()[0];
       setErrors(newErrors);
       const msg = backendErrors.error || backendErrors.non_field_errors?.[0] || backendErrors.detail;
-      if (msg) setCustomAlert({ variant: 'error', title: 'Erreur', message: String(msg) });
+      if (msg) setCustomAlert({ variant: 'error', title: t('common.error'), message: String(msg) });
     } else {
       setCustomAlert({
         variant: 'error',
-        title: 'Erreur',
-        message: error?.message || 'Une erreur est survenue lors de l\'inscription',
+        title: t('common.error'),
+        message: error?.message || t('auth.register.errors.generic'),
       });
     }
   };
@@ -294,15 +303,15 @@ export default function RegisterScreen() {
 
     // Card formulaire
     formCard: {
-      backgroundColor: COLORS.surface,           // '#FFFFFF'
-      borderRadius:    BORDER_RADIUS['3xl'],      // 20
+      backgroundColor: colors.surface,
+      borderRadius:    BORDER_RADIUS['3xl'],
       padding:         sp(SPACING.xl),
       ...SHADOWS.card,
     },
     formTitle: {
-      fontSize:     sp(TYPOGRAPHY.fontSize.xl),   // 20/22/24
+      fontSize:     sp(TYPOGRAPHY.fontSize.xl),
       fontWeight:   TYPOGRAPHY.fontWeight.bold,
-      color:        COLORS.text.primary,          // '#111827'
+      color:        colors.text.primary,
       marginBottom: sp(SPACING.lg),
       textAlign:    'center',
     },
@@ -317,7 +326,7 @@ export default function RegisterScreen() {
       gap: 8,
       backgroundColor: 'rgba(212, 175, 55, 0.12)',
       borderLeftWidth: 3,
-      borderLeftColor: COLORS.secondary,
+      borderLeftColor: colors.secondary,
       padding: sp(SPACING.sm),
       borderRadius: BORDER_RADIUS.md,
       marginBottom: sp(SPACING.md),
@@ -325,7 +334,7 @@ export default function RegisterScreen() {
     returnToBannerText: {
       flex: 1,
       fontSize: sp(TYPOGRAPHY.fontSize.xs),
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       lineHeight: sp(TYPOGRAPHY.fontSize.xs) * TYPOGRAPHY.lineHeight.relaxed,
     },
 
@@ -336,7 +345,7 @@ export default function RegisterScreen() {
     roleSelectorLabel: {
       fontSize:     sp(TYPOGRAPHY.fontSize.sm),
       fontWeight:   TYPOGRAPHY.fontWeight.medium,
-      color:        COLORS.text.secondary,        // '#6B7280'
+      color:        colors.text.secondary,
       marginBottom: sp(SPACING.sm),
     },
     roleButtons: {
@@ -346,24 +355,24 @@ export default function RegisterScreen() {
     roleButton: {
       flex:            1,
       paddingVertical: sp(SPACING.sm),
-      borderRadius:    BORDER_RADIUS.xl,          // 12
+      borderRadius:    BORDER_RADIUS.xl,
       borderWidth:     1.5,
-      borderColor:     COLORS.border.default,     // '#E5E7EB'
+      borderColor:     colors.border.default,
       alignItems:      'center',
-      backgroundColor: COLORS.background,         // '#F9FAFB'
+      backgroundColor: colors.background,
     },
     roleButtonActive: {
-      borderColor:     COLORS.primary,
-      backgroundColor: COLORS.variants.primary[50], // '#F0F3FF'
+      borderColor:     colors.primary,
+      backgroundColor: colors.variants.primary[50],
     },
     roleButtonText: {
       fontSize:   sp(TYPOGRAPHY.fontSize.sm),
       fontWeight: TYPOGRAPHY.fontWeight.medium,
-      color:      COLORS.text.light,              // '#9CA3AF'
+      color:      colors.text.light,
     },
     roleButtonTextActive: {
       fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color:      COLORS.primary,                 // '#1E2A78'
+      color:      colors.primary,
     },
 
     // Inputs
@@ -390,7 +399,7 @@ export default function RegisterScreen() {
     passwordHintText: {
       flex:       1,
       fontSize:   sp(TYPOGRAPHY.fontSize.xs),
-      color:      COLORS.text.light,
+      color:      colors.text.light,
       lineHeight: sp(TYPOGRAPHY.fontSize.xs) * TYPOGRAPHY.lineHeight.relaxed,
     },
 
@@ -404,31 +413,31 @@ export default function RegisterScreen() {
     checkbox: {
       width:           20,
       height:          20,
-      borderRadius:    BORDER_RADIUS.sm,          // 4
+      borderRadius:    BORDER_RADIUS.sm,
       borderWidth:     1.5,
-      borderColor:     COLORS.border.dark,        // '#D1D5DB'
+      borderColor:     colors.border.dark,
       alignItems:      'center',
       justifyContent:  'center',
       marginTop:       1,
       flexShrink:      0,
     },
     checkboxChecked: {
-      backgroundColor: COLORS.primary,
-      borderColor:     COLORS.primary,
+      backgroundColor: colors.primary,
+      borderColor:     colors.primary,
     },
     termsText: {
       flex:       1,
       fontSize:   sp(TYPOGRAPHY.fontSize.sm),
-      color:      COLORS.text.secondary,
+      color:      colors.text.secondary,
       lineHeight: sp(TYPOGRAPHY.fontSize.sm) * TYPOGRAPHY.lineHeight.relaxed,
     },
     termsLink: {
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      color:      COLORS.primary,
+      color:      colors.primary,
     },
     termsError: {
       fontSize:    sp(TYPOGRAPHY.fontSize.xs),
-      color:       COLORS.error,                 // '#EF4444'
+      color:       colors.error,
       marginBottom: sp(SPACING.sm),
       marginLeft:  30,
     },
@@ -437,19 +446,19 @@ export default function RegisterScreen() {
     smsInfoBanner: {
       flexDirection:   'row',
       alignItems:      'center',
-      backgroundColor: COLORS.variants.primary[50],  // '#F0F3FF'
-      borderRadius:    BORDER_RADIUS.xl,             // 12
+      backgroundColor: colors.variants.primary[50],
+      borderRadius:    BORDER_RADIUS.xl,
       padding:         sp(SPACING.md),
       gap:             sp(SPACING.sm),
       marginTop:       sp(SPACING.md),
       marginBottom:    sp(SPACING.lg),
       borderLeftWidth: 3,
-      borderLeftColor: COLORS.secondary,             // or '#D4AF37'
+      borderLeftColor: colors.secondary,
     },
     smsInfoText: {
       flex:       1,
       fontSize:   sp(TYPOGRAPHY.fontSize.sm),
-      color:      COLORS.text.secondary,
+      color:      colors.text.secondary,
       lineHeight: sp(TYPOGRAPHY.fontSize.sm) * TYPOGRAPHY.lineHeight.relaxed,
     },
 
@@ -462,18 +471,18 @@ export default function RegisterScreen() {
     },
     loginLinkText: {
       fontSize: sp(TYPOGRAPHY.fontSize.sm),
-      color:    COLORS.text.light,
+      color:    colors.text.light,
     },
     loginLinkBold: {
       fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color:      COLORS.primary,
+      color:      colors.primary,
     },
   });
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <LinearGradient
-      colors={GRADIENT}
+      colors={gradientColors}
       style={styles.gradient}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
@@ -502,19 +511,19 @@ export default function RegisterScreen() {
                 </View>
               </View>
               {/* Tagline */}
-              <Text style={styles.logoTagline}>Commandez à table</Text>
+              <Text style={styles.logoTagline}>{t('auth.register.tagline')}</Text>
             </View>
 
             {/* Card */}
             <View style={styles.formCard}>
-              <Text style={styles.formTitle}>Créer un compte</Text>
+              <Text style={styles.formTitle}>{t('auth.register.title')}</Text>
 
               {/* Bandeau d'info si on vient d'un AuthGate (returnTo défini) */}
               {returnTo && (
                 <View style={styles.returnToBanner}>
-                  <Ionicons name="information-circle" size={16} color={COLORS.secondary} />
+                  <Ionicons name="information-circle" size={16} color={colors.secondary} />
                   <Text style={styles.returnToBannerText}>
-                    Créez votre compte pour reprendre votre commande après vérification.
+                    {t('auth.register.returnToBanner')}
                   </Text>
                 </View>
               )}
@@ -531,7 +540,7 @@ export default function RegisterScreen() {
 
               {/* Sélecteur de rôle */}
               <View style={styles.roleSelector}>
-                <Text style={styles.roleSelectorLabel}>Je suis :</Text>
+                <Text style={styles.roleSelectorLabel}>{t('auth.register.iAm')}</Text>
                 <View style={styles.roleButtons}>
                   {(['client', 'restaurateur'] as const).map(role => (
                     <Pressable
@@ -540,7 +549,7 @@ export default function RegisterScreen() {
                       onPress={() => handleRoleChange(role)}
                     >
                       <Text style={[styles.roleButtonText, formData.role === role && styles.roleButtonTextActive]}>
-                        {role === 'client' ? 'Client' : 'Restaurateur'}
+                        {role === 'client' ? t('auth.register.roleClient') : t('auth.register.roleRestaurateur')}
                       </Text>
                     </Pressable>
                   ))}
@@ -550,7 +559,7 @@ export default function RegisterScreen() {
               {/* Champs */}
               <View style={styles.inputContainer}>
                 <Input
-                  label="Email"
+                  label={t('auth.email')}
                   placeholder="votre@email.com"
                   value={formData.username}
                   onChangeText={updateFormData('username')}
@@ -562,7 +571,7 @@ export default function RegisterScreen() {
                 />
 
                 <Input
-                  label="Nom complet"
+                  label={t('auth.register.fullName')}
                   placeholder="Dupont Jean"
                   value={formData.nom}
                   onChangeText={updateFormData('nom')}
@@ -572,7 +581,7 @@ export default function RegisterScreen() {
 
                 <View style={styles.passwordContainer}>
                   <Input
-                    label="Mot de passe"
+                    label={t('auth.password')}
                     placeholder="••••••••"
                     value={formData.password}
                     onChangeText={updateFormData('password')}
@@ -587,14 +596,14 @@ export default function RegisterScreen() {
                     <Ionicons
                       name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                       size={20}
-                      color={COLORS.text.light}
+                      color={colors.text.light}
                     />
                   </TouchableOpacity>
                   {!errors.password && (
                     <View style={styles.passwordHintRow}>
-                      <Ionicons name="information-circle-outline" size={13} color={COLORS.text.light} />
+                      <Ionicons name="information-circle-outline" size={13} color={colors.text.light} />
                       <Text style={styles.passwordHintText}>
-                        Au moins 8 caractères, avec une majuscule, un chiffre et un caractère spécial
+                        {t('auth.passwordHint')}
                       </Text>
                     </View>
                   )}
@@ -602,7 +611,7 @@ export default function RegisterScreen() {
 
                 {formData.role === 'client' && (
                   <Input
-                    label="Numéro de téléphone"
+                    label={t('auth.phone')}
                     placeholder="+33 6 12 34 56 78"
                     value={formData.telephone}
                     onChangeText={updateFormData('telephone')}
@@ -614,7 +623,7 @@ export default function RegisterScreen() {
 
                 {formData.role === 'restaurateur' && (
                   <Input
-                    label="Numéro SIRET"
+                    label={t('auth.register.siret')}
                     placeholder="12345678901234"
                     value={formData.siret}
                     onChangeText={updateFormData('siret')}
@@ -635,24 +644,24 @@ export default function RegisterScreen() {
                 >
                   <View style={[styles.checkbox, acceptedTerms && styles.checkboxChecked]}>
                     {acceptedTerms && (
-                      <Ionicons name="checkmark" size={14} color={COLORS.text.inverse} />
+                      <Ionicons name="checkmark" size={14} color={colors.text.inverse} />
                     )}
                   </View>
                 </TouchableOpacity>
                 <Text style={styles.termsText}>
-                  J'accepte les{' '}
+                  {t('auth.register.termsPrefix')}{' '}
                   <Text
                     style={styles.termsLink}
                     onPress={() => router.push('/(legal)/terms')}
                   >
-                    conditions générales d'utilisation
+                    {t('auth.register.termsCgu')}
                   </Text>
-                  {' '}et la{' '}
+                  {' '}{t('auth.register.termsAnd')}{' '}
                   <Text
                     style={styles.termsLink}
                     onPress={() => router.push('/(legal)/privacy')}
                   >
-                    politique de confidentialité
+                    {t('auth.register.termsPrivacy')}
                   </Text>
                 </Text>
               </View>
@@ -663,16 +672,16 @@ export default function RegisterScreen() {
                 <Ionicons
                   name="mail-outline"
                   size={18}
-                  color={COLORS.secondary}
+                  color={colors.secondary}
                 />
                 <Text style={styles.smsInfoText}>
-                  Un code de vérification sera envoyé à votre adresse email.
+                  {t('auth.register.emailCodeInfo')}
                 </Text>
               </View>
 
               {/* Soumettre */}
               <Button
-                title="Continuer →"
+                title={`${t('common.continue')} →`}
                 onPress={handleSubmit}
                 disabled={loading}
                 loading={loading}
@@ -690,8 +699,8 @@ export default function RegisterScreen() {
                 })}
               >
                 <Text style={styles.loginLinkText}>
-                  Déjà un compte ?{' '}
-                  <Text style={styles.loginLinkBold}>Se connecter</Text>
+                  {t('auth.alreadyHaveAccount')}{' '}
+                  <Text style={styles.loginLinkBold}>{t('auth.signIn')}</Text>
                 </Text>
               </TouchableOpacity>
             </View>

@@ -26,6 +26,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Alert as CustomAlert } from '@/components/ui/Alert';
@@ -38,6 +39,7 @@ import {
   SHADOWS,
   useScreenType,
   getResponsiveValue,
+  useAppTheme,
 } from '@/utils/designSystem';
 
 const API_URL = `${API_BASE_URL}/api/v1`;
@@ -53,6 +55,13 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export default function ForgotPasswordScreen() {
   const insets = useSafeAreaInsets();
   const screenType = useScreenType();
+  const { colors, isDark } = useAppTheme();
+  const { t } = useTranslation();
+
+  // Dégradé : navy de marque en clair, bleu nuit profond en dark.
+  const gradientColors = (isDark
+    ? ['#070B18', '#0F1528', '#161D33']
+    : GRADIENT) as [string, string, string];
 
   const sp = (token: { mobile: number; tablet: number; desktop: number }): number =>
     getResponsiveValue(token, screenType);
@@ -70,11 +79,11 @@ export default function ForgotPasswordScreen() {
   const validate = useCallback((): boolean => {
     const trimmed = email.trim();
     if (!trimmed) {
-      setEmailError("L'email est obligatoire.");
+      setEmailError(t('errors.requiredField'));
       return false;
     }
     if (!EMAIL_REGEX.test(trimmed)) {
-      setEmailError("Format d'email invalide.");
+      setEmailError(t('errors.invalidEmail'));
       return false;
     }
     setEmailError(undefined);
@@ -99,8 +108,8 @@ export default function ForgotPasswordScreen() {
       if (response.status === 429) {
         setCustomAlert({
           variant: 'warning',
-          title: 'Trop de tentatives',
-          message: 'Veuillez patienter quelques instants avant de réessayer.',
+          title: t('auth.forgot.rateLimitTitle'),
+          message: t('auth.forgot.rateLimitMsg'),
         });
         return;
       }
@@ -108,11 +117,11 @@ export default function ForgotPasswordScreen() {
       if (!response.ok) {
         setCustomAlert({
           variant: 'error',
-          title: 'Erreur',
+          title: t('common.error'),
           message:
             data?.error ||
             data?.detail ||
-            "Impossible d'envoyer le code. Veuillez réessayer.",
+            t('auth.forgot.sendError'),
         });
         return;
       }
@@ -134,8 +143,8 @@ export default function ForgotPasswordScreen() {
     } catch (e) {
       setCustomAlert({
         variant: 'error',
-        title: 'Erreur réseau',
-        message: 'Vérifiez votre connexion et réessayez.',
+        title: t('auth.forgot.networkErrorTitle'),
+        message: t('auth.forgot.networkErrorMsg'),
       });
     } finally {
       setLoading(false);
@@ -190,14 +199,14 @@ export default function ForgotPasswordScreen() {
     },
 
     card: {
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderRadius: BORDER_RADIUS['3xl'],
       padding: sp(SPACING.xl),
       ...SHADOWS.card,
     },
     goldenAccent: {
       height: 3,
-      backgroundColor: COLORS.secondary,
+      backgroundColor: colors.secondary,
       borderRadius: BORDER_RADIUS.full,
       marginBottom: sp(SPACING.lg),
       opacity: 0.4,
@@ -207,13 +216,13 @@ export default function ForgotPasswordScreen() {
     cardLabel: {
       fontSize: sp(TYPOGRAPHY.fontSize.base),
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       textAlign: 'center',
       marginBottom: sp(SPACING.sm),
     },
     cardSubtitle: {
       fontSize: sp(TYPOGRAPHY.fontSize.sm),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       textAlign: 'center',
       lineHeight:
         sp(TYPOGRAPHY.fontSize.sm) * TYPOGRAPHY.lineHeight.relaxed,
@@ -225,17 +234,17 @@ export default function ForgotPasswordScreen() {
     backLink: { alignItems: 'center', paddingTop: sp(SPACING.xs) },
     backLinkText: {
       fontSize: sp(TYPOGRAPHY.fontSize.sm),
-      color: COLORS.text.light,
+      color: colors.text.light,
     },
     backLinkBold: {
-      color: COLORS.primary,
+      color: colors.primary,
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
     },
   });
 
   return (
     <LinearGradient
-      colors={GRADIENT}
+      colors={gradientColors}
       style={styles.gradient}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
@@ -269,10 +278,9 @@ export default function ForgotPasswordScreen() {
                 color={COLORS.secondary}
               />
             </View>
-            <Text style={styles.title}>Mot de passe oublié</Text>
+            <Text style={styles.title}>{t('auth.forgot.title')}</Text>
             <Text style={styles.subtitle}>
-              Entrez l'adresse email associée à votre compte. Nous vous
-              enverrons un code pour réinitialiser votre mot de passe.
+              {t('auth.forgot.subtitle')}
             </Text>
           </View>
 
@@ -290,13 +298,13 @@ export default function ForgotPasswordScreen() {
               />
             )}
 
-            <Text style={styles.cardLabel}>Récupération du compte</Text>
+            <Text style={styles.cardLabel}>{t('auth.forgot.cardLabel')}</Text>
             <Text style={styles.cardSubtitle}>
-              Saisissez l'email de votre compte EatQuickeR.
+              {t('auth.forgot.cardSubtitle')}
             </Text>
 
             <Input
-              label="Email"
+              label={t('auth.email')}
               placeholder="votre@email.com"
               value={email}
               onChangeText={(v: string) => {
@@ -314,7 +322,7 @@ export default function ForgotPasswordScreen() {
             />
 
             <Button
-              title="Envoyer le code"
+              title={t('auth.forgot.sendCode')}
               onPress={handleSubmit}
               loading={loading}
               disabled={loading || !email.trim()}
@@ -329,8 +337,8 @@ export default function ForgotPasswordScreen() {
               activeOpacity={0.7}
             >
               <Text style={styles.backLinkText}>
-                Retour à{' '}
-                <Text style={styles.backLinkBold}>la connexion</Text>
+                {t('auth.forgot.backToPrefix')}{' '}
+                <Text style={styles.backLinkBold}>{t('auth.forgot.backToLogin')}</Text>
               </Text>
             </TouchableOpacity>
           </View>

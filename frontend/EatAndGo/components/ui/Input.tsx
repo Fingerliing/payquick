@@ -56,7 +56,7 @@ export const Input = forwardRef<TextInput, InputProps>(({
 }, ref) => {
   const [isFocused, setIsFocused] = useState(false);
   const screenType = useScreenType();
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const internalRef = useRef<TextInput>(null);
   const containerRef = useRef<View>(null);
 
@@ -94,6 +94,12 @@ export const Input = forwardRef<TextInput, InputProps>(({
     onBlur?.(e);
   };
 
+  // Bordure au repos : dorée en mode dark, neutre en mode clair.
+  // Pour ajuster le ton d'or, remplacer colors.secondary par :
+  //   - colors.border.golden            → or vieilli, plus discret (#8B6F1F)
+  //   - 'rgba(212, 175, 55, 0.45)'      → or signature adouci (entre-deux)
+  const restingBorderColor = isDark ? colors.secondary : colors.border.light;
+
   const containerStyle: ViewStyle = {
     width: fullWidth ? '100%' : undefined,
     marginBottom: getResponsiveValue(SPACING.md, screenType),
@@ -116,7 +122,7 @@ export const Input = forwardRef<TextInput, InputProps>(({
       ? colors.error
       : isFocused
         ? colors.primary
-        : colors.border.light,
+        : restingBorderColor,
     paddingHorizontal: getResponsiveValue(SPACING.md, screenType),
     paddingVertical: getResponsiveValue(SPACING.sm, screenType),
     minHeight: getResponsiveValue({ mobile: 48, tablet: 52, desktop: 56 }, screenType),
