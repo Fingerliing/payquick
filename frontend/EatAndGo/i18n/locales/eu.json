@@ -1,4 +1,64 @@
 {
+    "dashboard": {
+      "greeting": "Kaixo, sukaldari!",
+      "open": "Irekita",
+      "closed": "Itxita",
+      "quickActions": "Ekintza azkarrak",
+      "recentOrders": "Azken eskaerak",
+      "seeAll": "Ikusi dena",
+      "new": "Berria",
+      "noOrders": "Eskaerarik ez",
+      "noOrdersDesc": "Azken eskaerak hemen agertuko dira",
+      "table": "{{number}}. mahaia",
+      "itemsCount_one": "{{count}} elementu",
+      "itemsCount_other": "{{count}} elementu",
+      "stats": {
+        "todayOrders": "Gaurko eskaerak",
+        "revenue": "Fakturazioa",
+        "pending": "Zain",
+        "avgOrder": "Batez besteko eskaera",
+        "vsYesterday": "atzokoarekin alderatuta",
+        "toProcess": "Prozesatzeko"
+      },
+      "actions": {
+        "orders": {
+          "title": "Eskaerak",
+          "subtitle": "Kudeatu eskaerak"
+        },
+        "menu": {
+          "title": "Menua",
+          "subtitle": "Editatu karta"
+        },
+        "tables": {
+          "title": "Mahaiak",
+          "subtitle": "QR kodeak"
+        },
+        "statistics": {
+          "title": "Estatistikak",
+          "subtitle": "Analitika"
+        },
+        "profile": {
+          "title": "Profila",
+          "subtitle": "Ezarpenak"
+        },
+        "support": {
+          "title": "Laguntza",
+          "subtitle": "Laguntza eta kontaktua"
+        }
+      },
+      "toggle": {
+        "title": "Aldatu egoera",
+        "confirmOpen": "Zure jatetxea ireki nahi duzu?",
+        "confirmClose": "Zure jatetxea itxi nahi duzu?",
+        "nowOpen": "Zure jatetxea irekita dago orain.",
+        "nowClosed": "Zure jatetxea itxita dago orain.",
+        "error": "Ezin izan da egoera aldatu"
+      },
+      "refresh": {
+        "success": "Datuak ongi eguneratu dira",
+        "error": "Ezin izan dira datuak eguneratu"
+      }
+    },
   "_comment": "REVIEW: traductions à valider par un locuteur natif (euskara batua).",
   "common": {
     "ok": "OK",

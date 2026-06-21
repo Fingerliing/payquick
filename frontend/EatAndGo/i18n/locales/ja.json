@@ -1,4 +1,64 @@
 {
+    "dashboard": {
+      "greeting": "こんにちは、シェフ！",
+      "open": "営業中",
+      "closed": "休業中",
+      "quickActions": "クイック操作",
+      "recentOrders": "最近の注文",
+      "seeAll": "すべて表示",
+      "new": "新着",
+      "noOrders": "注文はありません",
+      "noOrdersDesc": "最近の注文がここに表示されます",
+      "table": "テーブル {{number}}",
+      "itemsCount_one": "{{count}} 点",
+      "itemsCount_other": "{{count}} 点",
+      "stats": {
+        "todayOrders": "本日の注文",
+        "revenue": "売上",
+        "pending": "保留中",
+        "avgOrder": "平均注文額",
+        "vsYesterday": "前日比",
+        "toProcess": "要対応"
+      },
+      "actions": {
+        "orders": {
+          "title": "注文",
+          "subtitle": "注文を管理"
+        },
+        "menu": {
+          "title": "メニュー",
+          "subtitle": "メニューを編集"
+        },
+        "tables": {
+          "title": "テーブル",
+          "subtitle": "QR コード"
+        },
+        "statistics": {
+          "title": "統計",
+          "subtitle": "分析"
+        },
+        "profile": {
+          "title": "プロフィール",
+          "subtitle": "設定"
+        },
+        "support": {
+          "title": "サポート",
+          "subtitle": "ヘルプとお問い合わせ"
+        }
+      },
+      "toggle": {
+        "title": "ステータスを変更",
+        "confirmOpen": "レストランを開店しますか？",
+        "confirmClose": "レストランを閉店しますか？",
+        "nowOpen": "レストランは現在開店中です。",
+        "nowClosed": "レストランは現在閉店中です。",
+        "error": "ステータスを変更できませんでした"
+      },
+      "refresh": {
+        "success": "データを更新しました",
+        "error": "データを更新できませんでした"
+      }
+    },
   "_comment": "REVIEW: traductions à valider par un locuteur natif (日本語).",
   "common": {
     "ok": "OK",

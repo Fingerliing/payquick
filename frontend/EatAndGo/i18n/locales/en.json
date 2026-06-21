@@ -1,4 +1,64 @@
 {
+    "dashboard": {
+      "greeting": "Hello, Chef!",
+      "open": "Open",
+      "closed": "Closed",
+      "quickActions": "Quick actions",
+      "recentOrders": "Recent orders",
+      "seeAll": "See all",
+      "new": "New",
+      "noOrders": "No orders",
+      "noOrdersDesc": "Recent orders will appear here",
+      "table": "Table {{number}}",
+      "itemsCount_one": "{{count}} item",
+      "itemsCount_other": "{{count}} items",
+      "stats": {
+        "todayOrders": "Today's orders",
+        "revenue": "Revenue",
+        "pending": "Pending",
+        "avgOrder": "Average order",
+        "vsYesterday": "vs yesterday",
+        "toProcess": "To process"
+      },
+      "actions": {
+        "orders": {
+          "title": "Orders",
+          "subtitle": "Manage orders"
+        },
+        "menu": {
+          "title": "Menu",
+          "subtitle": "Edit the menu"
+        },
+        "tables": {
+          "title": "Tables",
+          "subtitle": "QR codes"
+        },
+        "statistics": {
+          "title": "Statistics",
+          "subtitle": "Analytics"
+        },
+        "profile": {
+          "title": "Profile",
+          "subtitle": "Settings"
+        },
+        "support": {
+          "title": "Support",
+          "subtitle": "Help & contact"
+        }
+      },
+      "toggle": {
+        "title": "Change status",
+        "confirmOpen": "Do you want to open your restaurant?",
+        "confirmClose": "Do you want to close your restaurant?",
+        "nowOpen": "Your restaurant is now open.",
+        "nowClosed": "Your restaurant is now closed.",
+        "error": "Unable to change the status"
+      },
+      "refresh": {
+        "success": "Data refreshed successfully",
+        "error": "Unable to refresh the data"
+      }
+    },
   "common": {
     "ok": "OK",
     "cancel": "Cancel",

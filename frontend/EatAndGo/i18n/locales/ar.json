@@ -1,4 +1,64 @@
 {
+    "dashboard": {
+      "greeting": "مرحبًا، أيها الطاهي!",
+      "open": "مفتوح",
+      "closed": "مغلق",
+      "quickActions": "إجراءات سريعة",
+      "recentOrders": "الطلبات الأخيرة",
+      "seeAll": "عرض الكل",
+      "new": "جديد",
+      "noOrders": "لا توجد طلبات",
+      "noOrdersDesc": "ستظهر الطلبات الأخيرة هنا",
+      "table": "طاولة {{number}}",
+      "itemsCount_one": "{{count}} عنصر",
+      "itemsCount_other": "{{count}} عناصر",
+      "stats": {
+        "todayOrders": "طلبات اليوم",
+        "revenue": "الإيرادات",
+        "pending": "قيد الانتظار",
+        "avgOrder": "متوسط الطلب",
+        "vsYesterday": "مقارنةً بالأمس",
+        "toProcess": "بانتظار المعالجة"
+      },
+      "actions": {
+        "orders": {
+          "title": "الطلبات",
+          "subtitle": "إدارة الطلبات"
+        },
+        "menu": {
+          "title": "القائمة",
+          "subtitle": "تعديل القائمة"
+        },
+        "tables": {
+          "title": "الطاولات",
+          "subtitle": "رموز QR"
+        },
+        "statistics": {
+          "title": "الإحصائيات",
+          "subtitle": "التحليلات"
+        },
+        "profile": {
+          "title": "الملف الشخصي",
+          "subtitle": "الإعدادات"
+        },
+        "support": {
+          "title": "الدعم",
+          "subtitle": "المساعدة والتواصل"
+        }
+      },
+      "toggle": {
+        "title": "تغيير الحالة",
+        "confirmOpen": "هل تريد فتح مطعمك؟",
+        "confirmClose": "هل تريد إغلاق مطعمك؟",
+        "nowOpen": "مطعمك الآن مفتوح.",
+        "nowClosed": "مطعمك الآن مغلق.",
+        "error": "تعذّر تغيير الحالة"
+      },
+      "refresh": {
+        "success": "تم تحديث البيانات بنجاح",
+        "error": "تعذّر تحديث البيانات"
+      }
+    },
   "_comment": "REVIEW: traduction arabe à valider par un locuteur natif (registre MSA - arabe standard moderne). Direction RTL gérée automatiquement.",
   "common": {
     "ok": "موافق",

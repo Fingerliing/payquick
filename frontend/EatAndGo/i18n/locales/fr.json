@@ -1,4 +1,64 @@
 {
+    "dashboard": {
+      "greeting": "Bonjour, Chef !",
+      "open": "Ouvert",
+      "closed": "Fermé",
+      "quickActions": "Actions rapides",
+      "recentOrders": "Commandes récentes",
+      "seeAll": "Voir tout",
+      "new": "Nouveau",
+      "noOrders": "Aucune commande",
+      "noOrdersDesc": "Les commandes récentes apparaîtront ici",
+      "table": "Table {{number}}",
+      "itemsCount_one": "{{count}} article",
+      "itemsCount_other": "{{count}} articles",
+      "stats": {
+        "todayOrders": "Commandes aujourd'hui",
+        "revenue": "Chiffre d'affaires",
+        "pending": "En attente",
+        "avgOrder": "Panier moyen",
+        "vsYesterday": "vs hier",
+        "toProcess": "À traiter"
+      },
+      "actions": {
+        "orders": {
+          "title": "Commandes",
+          "subtitle": "Gérer les commandes"
+        },
+        "menu": {
+          "title": "Menu",
+          "subtitle": "Modifier la carte"
+        },
+        "tables": {
+          "title": "Tables",
+          "subtitle": "QR codes"
+        },
+        "statistics": {
+          "title": "Statistiques",
+          "subtitle": "Analytics"
+        },
+        "profile": {
+          "title": "Profil",
+          "subtitle": "Paramètres"
+        },
+        "support": {
+          "title": "Support",
+          "subtitle": "Aide & contact"
+        }
+      },
+      "toggle": {
+        "title": "Changer le statut",
+        "confirmOpen": "Voulez-vous ouvrir votre restaurant ?",
+        "confirmClose": "Voulez-vous fermer votre restaurant ?",
+        "nowOpen": "Votre restaurant est maintenant ouvert.",
+        "nowClosed": "Votre restaurant est maintenant fermé.",
+        "error": "Impossible de modifier le statut"
+      },
+      "refresh": {
+        "success": "Données rafraîchies avec succès",
+        "error": "Impossible de rafraîchir les données"
+      }
+    },
   "common": {
     "ok": "OK",
     "cancel": "Annuler",

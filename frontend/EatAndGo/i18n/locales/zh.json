@@ -1,4 +1,64 @@
 {
+    "dashboard": {
+      "greeting": "您好，主厨！",
+      "open": "营业中",
+      "closed": "已打烊",
+      "quickActions": "快捷操作",
+      "recentOrders": "最近订单",
+      "seeAll": "查看全部",
+      "new": "新",
+      "noOrders": "暂无订单",
+      "noOrdersDesc": "最近的订单将显示在此处",
+      "table": "{{number}} 号桌",
+      "itemsCount_one": "{{count}} 件",
+      "itemsCount_other": "{{count}} 件",
+      "stats": {
+        "todayOrders": "今日订单",
+        "revenue": "营业额",
+        "pending": "待处理",
+        "avgOrder": "平均客单价",
+        "vsYesterday": "较昨日",
+        "toProcess": "待处理"
+      },
+      "actions": {
+        "orders": {
+          "title": "订单",
+          "subtitle": "管理订单"
+        },
+        "menu": {
+          "title": "菜单",
+          "subtitle": "编辑菜单"
+        },
+        "tables": {
+          "title": "餐桌",
+          "subtitle": "二维码"
+        },
+        "statistics": {
+          "title": "统计",
+          "subtitle": "分析"
+        },
+        "profile": {
+          "title": "个人资料",
+          "subtitle": "设置"
+        },
+        "support": {
+          "title": "支持",
+          "subtitle": "帮助与联系"
+        }
+      },
+      "toggle": {
+        "title": "更改状态",
+        "confirmOpen": "要营业您的餐厅吗？",
+        "confirmClose": "要打烊您的餐厅吗？",
+        "nowOpen": "您的餐厅现已营业。",
+        "nowClosed": "您的餐厅现已打烊。",
+        "error": "无法更改状态"
+      },
+      "refresh": {
+        "success": "数据刷新成功",
+        "error": "无法刷新数据"
+      }
+    },
   "_comment": "REVIEW: traductions à valider par un locuteur natif (chinois simplifié).",
   "common": {
     "ok": "确定",

@@ -12,9 +12,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { COLORS, TYPOGRAPHY, SPACING, RADIUS, SHADOWS } from '@/styles/tokens';
+import { TYPOGRAPHY, SPACING, RADIUS } from '@/styles/tokens';
 import { useResponsive } from '@/utils/responsive';
 import { Alert as InlineAlert, AlertWithAction } from '@/components/ui/Alert';
+import { useTranslation } from 'react-i18next';
+import { useAppTheme, makeShadows } from '@/utils/designSystem';
 
 // TYPES
 interface DashboardStats {
@@ -138,57 +140,64 @@ export default function DashboardScreen() {
   }>({ visible: false, nextStatus: null, title: '', message: '' });
 
   const { isMobile, isTablet, getSpacing, getFontSize } = useResponsive();
+  const { t } = useTranslation();
+  const { colors, isDark } = useAppTheme();
+  const shadows = React.useMemo(() => makeShadows(colors), [colors]);
+  // Dégradé header : navy de marque en clair, bleu nuit en dark.
+  const headerGradient = (isDark ? ['#070B18', '#0F1528'] : ['#1E2A78', '#3B4695']) as [string, string];
+  const statusBarBg = isDark ? '#070B18' : '#1E2A78';
+  const FAB_ICON = '#1E2A78'; // icône foncée stable sur le FAB doré
 
   // QUICK ACTIONS ADAPTATIVES
   const quickActions: QuickAction[] = [
     {
       id: '1',
-      title: 'Commandes',
-      subtitle: 'Gérer les commandes',
+      title: t('dashboard.actions.orders.title'),
+      subtitle: t('dashboard.actions.orders.subtitle'),
       icon: 'receipt-outline',
-      color: COLORS.primary,
+      color: colors.primary,
       route: '/orders',
       badge: stats.pendingOrders,
     },
     {
       id: '2',
-      title: 'Menu',
-      subtitle: 'Modifier la carte',
+      title: t('dashboard.actions.menu.title'),
+      subtitle: t('dashboard.actions.menu.subtitle'),
       icon: 'restaurant-outline',
-      color: COLORS.secondary_dark,
+      color: colors.variants.secondary[700],
       route: '/menu',
     },
     {
       id: '3',
-      title: 'Tables',
-      subtitle: 'QR codes',
+      title: t('dashboard.actions.tables.title'),
+      subtitle: t('dashboard.actions.tables.subtitle'),
       icon: 'qr-code-outline',
-      color: COLORS.success,
+      color: colors.success,
       route: '/tables',
     },
     {
       id: '4',
-      title: 'Statistiques',
-      subtitle: 'Analytics',
+      title: t('dashboard.actions.statistics.title'),
+      subtitle: t('dashboard.actions.statistics.subtitle'),
       icon: 'stats-chart-outline',
-      color: COLORS.info,
+      color: colors.info,
       route: '/analytics',
       isNew: true,
     },
     {
       id: '5',
-      title: 'Profil',
-      subtitle: 'Paramètres',
+      title: t('dashboard.actions.profile.title'),
+      subtitle: t('dashboard.actions.profile.subtitle'),
       icon: 'settings-outline',
-      color: COLORS.neutral[600],
+      color: colors.text.secondary,
       route: '/profile',
     },
     {
       id: '6',
-      title: 'Support',
-      subtitle: 'Aide & contact',
+      title: t('dashboard.actions.support.title'),
+      subtitle: t('dashboard.actions.support.subtitle'),
       icon: 'help-circle-outline',
-      color: COLORS.warning,
+      color: colors.warning,
       route: '/support',
     },
   ];
@@ -211,8 +220,8 @@ export default function DashboardScreen() {
     setConfirm({
       visible: true,
       nextStatus: next,
-      title: 'Changer le statut',
-      message: `Voulez-vous ${next === 'open' ? 'ouvrir' : 'fermer'} votre restaurant ?`,
+      title: t('dashboard.toggle.title'),
+      message: next === 'open' ? t('dashboard.toggle.confirmOpen') : t('dashboard.toggle.confirmClose'),
     });
   }, [stats.restaurantStatus]);
 
@@ -232,9 +241,9 @@ export default function DashboardScreen() {
         isOpen: next === 'open',
       }));
 
-      showToast('success', `Votre restaurant est maintenant ${next === 'open' ? 'ouvert' : 'fermé'}.`);
+      showToast('success', next === 'open' ? t('dashboard.toggle.nowOpen') : t('dashboard.toggle.nowClosed'));
     } catch (error) {
-      showToast('error', 'Impossible de modifier le statut');
+      showToast('error', t('dashboard.toggle.error'));
     } finally {
       setLoading(false);
       setConfirm({ visible: false, nextStatus: null, title: '', message: '' });
@@ -254,9 +263,9 @@ export default function DashboardScreen() {
         pendingOrders: Math.floor(Math.random() * 5),
       }));
       
-      showToast('success', 'Données rafraîchies avec succès');
+      showToast('success', t('dashboard.refresh.success'));
     } catch (error) {
-      showToast('error', 'Impossible de rafraîchir les données');
+      showToast('error', t('dashboard.refresh.error'));
     } finally {
       setRefreshing(false);
     }
@@ -296,7 +305,7 @@ export default function DashboardScreen() {
   const styles = {
     container: {
       flex: 1,
-      backgroundColor: COLORS.secondary,
+      backgroundColor: colors.background,
     },
     
     // Header moderne avec gradient
@@ -327,20 +336,20 @@ export default function DashboardScreen() {
     
     welcomeText: {
       fontSize: getFontSize(16, 18, 20),
-      color: COLORS.text.white,
+      color: '#FFFFFF',
       opacity: 0.9,
     },
     
     restaurantName: {
       fontSize: getFontSize(22, 26, 30),
       fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: COLORS.text.white,
+      color: '#FFFFFF',
       marginTop: SPACING.xs,
     },
     
     restaurantDesc: {
       fontSize: getFontSize(14, 15, 16),
-      color: COLORS.text.white,
+      color: '#FFFFFF',
       opacity: 0.8,
       marginTop: SPACING.xs,
     },
@@ -360,7 +369,7 @@ export default function DashboardScreen() {
     },
     
     statusText: {
-      color: COLORS.text.white,
+      color: '#FFFFFF',
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
       marginLeft: SPACING.sm,
       fontSize: getFontSize(14, 15, 16),
@@ -393,7 +402,7 @@ export default function DashboardScreen() {
     
     statLabel: {
       fontSize: getFontSize(12, 14, 16),
-      color: COLORS.text.tertiary,
+      color: colors.text.light,
       fontWeight: TYPOGRAPHY.fontWeight.medium,
       flex: 1,
     },
@@ -409,13 +418,13 @@ export default function DashboardScreen() {
     statValue: {
       fontSize: getFontSize(20, 24, 28),
       fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       marginBottom: SPACING.xs,
     },
     
     statSubtext: {
       fontSize: getFontSize(12, 13, 14),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
     },
     
     statTrend: {
@@ -439,12 +448,12 @@ export default function DashboardScreen() {
     sectionTitle: {
       fontSize: getFontSize(18, 20, 24),
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
     },
     
     seeAllButton: {
       fontSize: getFontSize(14, 15, 16),
-      color: COLORS.primary,
+      color: colors.primary,
       fontWeight: TYPOGRAPHY.fontWeight.medium,
     },
     
@@ -478,14 +487,14 @@ export default function DashboardScreen() {
     actionTitle: {
       fontSize: getFontSize(14, 16, 18),
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       textAlign: 'center' as const,
       marginBottom: SPACING.xs,
     },
     
     actionSubtitle: {
       fontSize: getFontSize(12, 13, 14),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       textAlign: 'center' as const,
     },
     
@@ -512,7 +521,7 @@ export default function DashboardScreen() {
       paddingVertical: getSpacing(SPACING.md, SPACING.lg),
       paddingHorizontal: getSpacing(SPACING.lg, SPACING.xl),
       borderBottomWidth: 1,
-      borderBottomColor: COLORS.border.light,
+      borderBottomColor: colors.border.light,
     },
     
     orderItemLast: {
@@ -534,17 +543,17 @@ export default function DashboardScreen() {
     orderTable: {
       fontSize: getFontSize(16, 17, 18),
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
     },
     
     orderTime: {
       fontSize: getFontSize(12, 13, 14),
-      color: COLORS.text.tertiary,
+      color: colors.text.light,
     },
     
     orderCustomer: {
       fontSize: getFontSize(13, 14, 15),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       marginBottom: SPACING.xs,
     },
     
@@ -556,13 +565,13 @@ export default function DashboardScreen() {
     
     orderItems: {
       fontSize: getFontSize(14, 15, 16),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
     },
     
     orderTotal: {
       fontSize: getFontSize(16, 17, 18),
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
     },
     
     // Floating action button
@@ -573,10 +582,10 @@ export default function DashboardScreen() {
       width: 56,
       height: 56,
       borderRadius: 28,
-      backgroundColor: COLORS.secondary,
+      backgroundColor: colors.secondary,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
-      ...SHADOWS.lg,
+      ...shadows.lg,
     },
 
     emptyOrders: {
@@ -591,13 +600,13 @@ export default function DashboardScreen() {
     emptyTitle: {
       fontSize: getFontSize(16, 18, 20),
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       marginBottom: SPACING.sm,
     },
 
     emptyText: {
       fontSize: getFontSize(14, 15, 16),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       textAlign: 'center' as const,
     },
 
@@ -638,7 +647,7 @@ export default function DashboardScreen() {
         {trend !== undefined && (
           <Text style={[
             styles.statTrend,
-            { color: trend > 0 ? COLORS.success : trend < 0 ? COLORS.error : COLORS.text.secondary }
+            { color: trend > 0 ? colors.success : trend < 0 ? colors.error : colors.text.secondary }
           ]}>
             {trend > 0 ? '+' : ''}{trend}%
           </Text>
@@ -680,7 +689,7 @@ export default function DashboardScreen() {
       {action.isNew && (
         <View style={styles.newBadge}>
           <Badge 
-            text="Nouveau" 
+            text={t('dashboard.new')} 
             variant="success" 
             size="sm" 
           />
@@ -693,22 +702,22 @@ export default function DashboardScreen() {
   const OrderItem = ({ order, isLast }: { order: RecentOrder; isLast: boolean }) => {
     const getStatusColor = (status: string) => {
       switch (status) {
-        case 'pending': return COLORS.warning;
-        case 'confirmed': return COLORS.info;
-        case 'preparing': return COLORS.primary;
-        case 'ready': return COLORS.success;
-        case 'served': return COLORS.neutral[500];
-        default: return COLORS.neutral[500];
+        case 'pending': return colors.warning;
+        case 'confirmed': return colors.info;
+        case 'preparing': return colors.primary;
+        case 'ready': return colors.success;
+        case 'served': return colors.text.light;
+        default: return colors.text.light;
       }
     };
 
     const getStatusText = (status: string) => {
       switch (status) {
-        case 'pending': return 'En attente';
-        case 'confirmed': return 'Confirmée';
-        case 'preparing': return 'En préparation';
-        case 'ready': return 'Prête';
-        case 'served': return 'Servie';
+        case 'pending': return t('restaurantHome.orderStatus.pending');
+        case 'confirmed': return t('restaurantHome.orderStatus.confirmed');
+        case 'preparing': return t('restaurantHome.orderStatus.preparing');
+        case 'ready': return t('restaurantHome.orderStatus.ready');
+        case 'served': return t('restaurantHome.orderStatus.served');
         default: return status;
       }
     };
@@ -741,7 +750,7 @@ export default function DashboardScreen() {
         
         <View style={styles.orderInfo}>
           <View style={styles.orderHeader}>
-            <Text style={styles.orderTable}>Table {order.tableNumber}</Text>
+            <Text style={styles.orderTable}>{t('dashboard.table', { number: order.tableNumber })}</Text>
             <Text style={styles.orderTime}>{order.time}</Text>
           </View>
           
@@ -751,7 +760,7 @@ export default function DashboardScreen() {
           
           <View style={styles.orderDetails}>
             <Text style={styles.orderItems}>
-              {order.items} article{order.items > 1 ? 's' : ''}
+              {t('dashboard.itemsCount', { count: order.items })}
             </Text>
             <Text style={styles.orderTotal}>{order.total.toFixed(2)}€</Text>
           </View>
@@ -768,12 +777,12 @@ export default function DashboardScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+      <StatusBar barStyle="light-content" backgroundColor={statusBarBg} />
       
       {/* HEADER AVEC GRADIENT */}
       <View style={styles.header}>
         <LinearGradient
-          colors={[COLORS.primary, COLORS.primary_light]}
+          colors={headerGradient}
           style={styles.headerGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -781,7 +790,7 @@ export default function DashboardScreen() {
         
         <View style={styles.headerTop}>
           <View style={styles.welcomeSection}>
-            <Text style={styles.welcomeText}>Bonjour, Chef !</Text>
+            <Text style={styles.welcomeText}>{t('dashboard.greeting')}</Text>
             <Text style={styles.restaurantName}>{restaurant.name}</Text>
             {restaurant.description && (
               <Text style={styles.restaurantDesc}>{restaurant.description}</Text>
@@ -798,10 +807,10 @@ export default function DashboardScreen() {
               <Ionicons 
                 name={stats.restaurantStatus === 'open' ? "checkmark-circle" : "close-circle"} 
                 size={20} 
-                color={stats.restaurantStatus === 'open' ? COLORS.success : COLORS.error} 
+                color={stats.restaurantStatus === 'open' ? colors.success : colors.error} 
               />
               <Text style={styles.statusText}>
-                {stats.restaurantStatus === 'open' ? 'Ouvert' : 'Fermé'}
+                {stats.restaurantStatus === 'open' ? t('dashboard.open') : t('dashboard.closed')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -828,12 +837,12 @@ export default function DashboardScreen() {
             autoDismiss={false}
             onDismiss={() => setConfirm({ visible: false, nextStatus: null, title: '', message: '' })}
             primaryButton={{
-              text: 'Confirmer',
+              text: t('common.confirm'),
               onPress: () => performToggleRestaurantStatus(confirm.nextStatus!),
               variant: confirm.nextStatus === 'closed' ? 'danger' : 'primary',
             }}
             secondaryButton={{
-              text: 'Annuler',
+              text: t('common.cancel'),
               onPress: () => setConfirm({ visible: false, nextStatus: null, title: '', message: '' }),
             }}
           />
@@ -846,8 +855,8 @@ export default function DashboardScreen() {
           <RefreshControl 
             refreshing={refreshing} 
             onRefresh={onRefresh}
-            tintColor={COLORS.primary}
-            colors={[COLORS.primary]}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
           />
         }
       >
@@ -855,38 +864,38 @@ export default function DashboardScreen() {
         <View style={styles.statsSection}>
           <View style={styles.statsGrid}>
             <StatCard
-              label="Commandes aujourd'hui"
+              label={t('dashboard.stats.todayOrders')}
               value={stats.todayOrders.toString()}
-              subtext="vs hier"
+              subtext={t('dashboard.stats.vsYesterday')}
               trend={stats.weekComparison.orders}
               icon="receipt-outline"
-              color={COLORS.primary}
+              color={colors.primary}
             />
             
             <StatCard
-              label="Chiffre d'affaires"
+              label={t('dashboard.stats.revenue')}
               value={`${stats.todayRevenue.toFixed(0)}€`}
-              subtext="vs hier"
+              subtext={t('dashboard.stats.vsYesterday')}
               trend={stats.weekComparison.revenue}
               icon="trending-up-outline"
-              color={COLORS.success}
+              color={colors.success}
             />
             
             <StatCard
-              label="En attente"
+              label={t('dashboard.stats.pending')}
               value={stats.pendingOrders.toString()}
-              subtext="À traiter"
+              subtext={t('dashboard.stats.toProcess')}
               icon="time-outline"
-              color={COLORS.warning}
+              color={colors.warning}
             />
             
             <StatCard
-              label="Panier moyen"
+              label={t('dashboard.stats.avgOrder')}
               value={`${stats.averageOrderValue.toFixed(2)}€`}
-              subtext="vs hier"
+              subtext={t('dashboard.stats.vsYesterday')}
               trend={stats.weekComparison.avgOrder}
               icon="calculator-outline"
-              color={COLORS.info}
+              color={colors.info}
             />
           </View>
         </View>
@@ -894,7 +903,7 @@ export default function DashboardScreen() {
         {/* QUICK ACTIONS */}
         <View style={styles.contentSection}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Actions rapides</Text>
+            <Text style={styles.sectionTitle}>{t('dashboard.quickActions')}</Text>
           </View>
           
           <View style={styles.actionsGrid}>
@@ -907,12 +916,12 @@ export default function DashboardScreen() {
         {/* RECENT ORDERS */}
         <View style={styles.contentSection}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Commandes récentes</Text>
+            <Text style={styles.sectionTitle}>{t('dashboard.recentOrders')}</Text>
             <TouchableOpacity 
               onPress={() => router.push('/orders' as any)}
               activeOpacity={0.7}
             >
-              <Text style={styles.seeAllButton}>Voir tout</Text>
+              <Text style={styles.seeAllButton}>{t('dashboard.seeAll')}</Text>
             </TouchableOpacity>
           </View>
           
@@ -920,11 +929,11 @@ export default function DashboardScreen() {
             {recentOrders.length === 0 ? (
               <View style={styles.emptyOrders}>
                 <View style={styles.emptyIcon}>
-                  <Ionicons name="receipt-outline" size={48} color={COLORS.neutral[400]} />
+                  <Ionicons name="receipt-outline" size={48} color={colors.text.light} />
                 </View>
-                <Text style={styles.emptyTitle}>Aucune commande</Text>
+                <Text style={styles.emptyTitle}>{t('dashboard.noOrders')}</Text>
                 <Text style={styles.emptyText}>
-                  Les commandes récentes apparaîtront ici
+                  {t('dashboard.noOrdersDesc')}
                 </Text>
               </View>
             ) : (
@@ -949,7 +958,7 @@ export default function DashboardScreen() {
         onPress={() => router.push('/order/new' as any)}
         activeOpacity={0.8}
       >
-        <Ionicons name="add" size={28} color={COLORS.text.primary} />
+        <Ionicons name="add" size={28} color={FAB_ICON} />
       </TouchableOpacity>
     </View>
   );

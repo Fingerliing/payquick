@@ -1,4 +1,64 @@
 {
+    "dashboard": {
+      "greeting": "Olá, Chef!",
+      "open": "Aberto",
+      "closed": "Fechado",
+      "quickActions": "Ações rápidas",
+      "recentOrders": "Pedidos recentes",
+      "seeAll": "Ver tudo",
+      "new": "Novo",
+      "noOrders": "Sem pedidos",
+      "noOrdersDesc": "Os pedidos recentes aparecerão aqui",
+      "table": "Mesa {{number}}",
+      "itemsCount_one": "{{count}} artigo",
+      "itemsCount_other": "{{count}} artigos",
+      "stats": {
+        "todayOrders": "Pedidos de hoje",
+        "revenue": "Faturação",
+        "pending": "Pendentes",
+        "avgOrder": "Pedido médio",
+        "vsYesterday": "vs ontem",
+        "toProcess": "Por processar"
+      },
+      "actions": {
+        "orders": {
+          "title": "Pedidos",
+          "subtitle": "Gerir pedidos"
+        },
+        "menu": {
+          "title": "Menu",
+          "subtitle": "Editar o menu"
+        },
+        "tables": {
+          "title": "Mesas",
+          "subtitle": "Códigos QR"
+        },
+        "statistics": {
+          "title": "Estatísticas",
+          "subtitle": "Análises"
+        },
+        "profile": {
+          "title": "Perfil",
+          "subtitle": "Definições"
+        },
+        "support": {
+          "title": "Suporte",
+          "subtitle": "Ajuda e contacto"
+        }
+      },
+      "toggle": {
+        "title": "Alterar estado",
+        "confirmOpen": "Deseja abrir o seu restaurante?",
+        "confirmClose": "Deseja fechar o seu restaurante?",
+        "nowOpen": "O seu restaurante está agora aberto.",
+        "nowClosed": "O seu restaurante está agora fechado.",
+        "error": "Não foi possível alterar o estado"
+      },
+      "refresh": {
+        "success": "Dados atualizados com sucesso",
+        "error": "Não foi possível atualizar os dados"
+      }
+    },
   "common": {
     "ok": "OK",
     "cancel": "Cancelar",

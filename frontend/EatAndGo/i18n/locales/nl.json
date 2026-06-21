@@ -1,4 +1,64 @@
 {
+    "dashboard": {
+      "greeting": "Hallo, Chef!",
+      "open": "Open",
+      "closed": "Gesloten",
+      "quickActions": "Snelle acties",
+      "recentOrders": "Recente bestellingen",
+      "seeAll": "Alles bekijken",
+      "new": "Nieuw",
+      "noOrders": "Geen bestellingen",
+      "noOrdersDesc": "Recente bestellingen verschijnen hier",
+      "table": "Tafel {{number}}",
+      "itemsCount_one": "{{count}} artikel",
+      "itemsCount_other": "{{count}} artikelen",
+      "stats": {
+        "todayOrders": "Bestellingen vandaag",
+        "revenue": "Omzet",
+        "pending": "In behandeling",
+        "avgOrder": "Gemiddelde bestelling",
+        "vsYesterday": "vs gisteren",
+        "toProcess": "Te verwerken"
+      },
+      "actions": {
+        "orders": {
+          "title": "Bestellingen",
+          "subtitle": "Bestellingen beheren"
+        },
+        "menu": {
+          "title": "Menu",
+          "subtitle": "Menu bewerken"
+        },
+        "tables": {
+          "title": "Tafels",
+          "subtitle": "QR-codes"
+        },
+        "statistics": {
+          "title": "Statistieken",
+          "subtitle": "Analyse"
+        },
+        "profile": {
+          "title": "Profiel",
+          "subtitle": "Instellingen"
+        },
+        "support": {
+          "title": "Ondersteuning",
+          "subtitle": "Hulp & contact"
+        }
+      },
+      "toggle": {
+        "title": "Status wijzigen",
+        "confirmOpen": "Wil je je restaurant openen?",
+        "confirmClose": "Wil je je restaurant sluiten?",
+        "nowOpen": "Je restaurant is nu open.",
+        "nowClosed": "Je restaurant is nu gesloten.",
+        "error": "Kan de status niet wijzigen"
+      },
+      "refresh": {
+        "success": "Gegevens succesvol vernieuwd",
+        "error": "Kan de gegevens niet vernieuwen"
+      }
+    },
   "common": {
     "ok": "OK",
     "cancel": "Annuleren",

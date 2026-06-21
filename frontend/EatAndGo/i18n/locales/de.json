@@ -1,4 +1,64 @@
 {
+    "dashboard": {
+      "greeting": "Hallo, Chef!",
+      "open": "Geöffnet",
+      "closed": "Geschlossen",
+      "quickActions": "Schnellaktionen",
+      "recentOrders": "Aktuelle Bestellungen",
+      "seeAll": "Alle ansehen",
+      "new": "Neu",
+      "noOrders": "Keine Bestellungen",
+      "noOrdersDesc": "Aktuelle Bestellungen erscheinen hier",
+      "table": "Tisch {{number}}",
+      "itemsCount_one": "{{count}} Artikel",
+      "itemsCount_other": "{{count}} Artikel",
+      "stats": {
+        "todayOrders": "Heutige Bestellungen",
+        "revenue": "Umsatz",
+        "pending": "Ausstehend",
+        "avgOrder": "Durchschnittsbestellung",
+        "vsYesterday": "vs. gestern",
+        "toProcess": "Zu bearbeiten"
+      },
+      "actions": {
+        "orders": {
+          "title": "Bestellungen",
+          "subtitle": "Bestellungen verwalten"
+        },
+        "menu": {
+          "title": "Menü",
+          "subtitle": "Karte bearbeiten"
+        },
+        "tables": {
+          "title": "Tische",
+          "subtitle": "QR-Codes"
+        },
+        "statistics": {
+          "title": "Statistiken",
+          "subtitle": "Analyse"
+        },
+        "profile": {
+          "title": "Profil",
+          "subtitle": "Einstellungen"
+        },
+        "support": {
+          "title": "Support",
+          "subtitle": "Hilfe & Kontakt"
+        }
+      },
+      "toggle": {
+        "title": "Status ändern",
+        "confirmOpen": "Möchtest du dein Restaurant öffnen?",
+        "confirmClose": "Möchtest du dein Restaurant schließen?",
+        "nowOpen": "Dein Restaurant ist jetzt geöffnet.",
+        "nowClosed": "Dein Restaurant ist jetzt geschlossen.",
+        "error": "Status konnte nicht geändert werden"
+      },
+      "refresh": {
+        "success": "Daten erfolgreich aktualisiert",
+        "error": "Daten konnten nicht aktualisiert werden"
+      }
+    },
   "common": {
     "ok": "OK",
     "cancel": "Abbrechen",
