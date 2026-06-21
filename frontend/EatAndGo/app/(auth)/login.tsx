@@ -25,6 +25,7 @@ import { Alert as CustomAlert } from '@/components/ui/Alert';
 import { useTranslation } from 'react-i18next';
 import { useAppTheme } from '@/utils/designSystem';
 import { HeaderActionsBar } from '@/components/common/HeaderActions';
+import { quickAuthService } from '@/services/quickAuthService';
 
 const APP_LOGO = require('@/assets/images/logo.png');
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -42,6 +43,14 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Partial<LoginFormData>>({});
+
+  // ── Reconnexion 1-clic (biométrie + identifiants mémorisés) ──────────────
+  // `rememberMe` : choix opt-in de mémoriser les identifiants après login.
+  // `hasQuickAuth` : des identifiants sont déjà mémorisés → on affiche le bouton.
+  // `savedEmail` : email mémorisé, affiché sous le bouton de reconnexion rapide.
+  const [rememberMe, setRememberMe] = useState(false);
+  const [hasQuickAuth, setHasQuickAuth] = useState(false);
+  const [savedEmail, setSavedEmail] = useState<string | null>(null);
 
   // ÉTAT POUR L'ALERTE PERSONNALISÉE
   const [customAlert, setCustomAlert] = useState<{
@@ -71,6 +80,28 @@ export default function LoginScreen() {
   useEffect(() => {
     ApiClient._isOnLoginPage = true;
     return () => { ApiClient._isOnLoginPage = false; };
+  }, []);
+
+  // ── Initialisation reconnexion rapide ────────────────────────────────────
+  // Au montage : détecte des identifiants mémorisés, pré-remplit l'email et
+  // pré-coche "Se souvenir de moi" pour ne pas perdre le réglage au re-login.
+  useEffect(() => {
+    (async () => {
+      try {
+        const enabled = await quickAuthService.isEnabled();
+        setHasQuickAuth(enabled);
+        setRememberMe(enabled);
+        const email = await quickAuthService.getSavedEmail();
+        if (email) {
+          setSavedEmail(email);
+          // Ne pré-remplit que si le champ est encore vide (évite d'écraser une
+          // saisie en cours après un remontage).
+          setFormData(prev => (prev.email ? prev : { ...prev, email }));
+        }
+      } catch (e) {
+        console.warn('⚠️ Init reconnexion rapide échouée:', e);
+      }
+    })();
   }, []);
 
   // VALIDATION
@@ -181,6 +212,23 @@ export default function LoginScreen() {
         password: formData.password,
       });
 
+      // ── Mémorisation des identifiants pour la reconnexion 1-clic ─────────
+      // Opt-in via "Se souvenir de moi". Stockage Keychain/Keystore
+      // (expo-secure-store), lecture future protégée par gate biométrique.
+      // Best-effort : un échec de stockage ne doit pas casser le login.
+      try {
+        if (rememberMe) {
+          await quickAuthService.saveCredentials(
+            formData.email.trim().toLowerCase(),
+            formData.password,
+          );
+        } else {
+          await quickAuthService.clearCredentials();
+        }
+      } catch (storageError) {
+        console.warn('⚠️ Mémorisation des identifiants échouée:', storageError);
+      }
+
       // ── Override de la navigation par défaut si `returnTo` est présent ──
       // AuthContext.login() appelle navigateByRole() qui redirige vers
       // /(client) ou /(restaurant). Si l'utilisateur arrive du flow QR
@@ -202,7 +250,45 @@ export default function LoginScreen() {
     } finally {
       setLoading(false);
     }
-  }, [formData, login, validateForm, returnTo]);
+  }, [formData, login, validateForm, returnTo, rememberMe]);
+
+  // RECONNEXION 1-CLIC — gate biométrique puis login avec identifiants mémorisés
+  const handleQuickReconnect = useCallback(async () => {
+    setErrors({});
+    setLoading(true);
+    try {
+      const creds = await quickAuthService.quickReconnect();
+      // null = annulation utilisateur / biométrie échouée / pas d'identifiants.
+      // On reste silencieux : l'utilisateur peut saisir manuellement en dessous.
+      if (!creds) return;
+
+      await login({ username: creds.email, password: creds.password });
+
+      // Même override de navigation que handleSubmit si on vient d'un AuthGate.
+      if (returnTo) {
+        setTimeout(() => {
+          try {
+            router.replace(returnTo as any);
+          } catch (navError) {
+            console.warn('⚠️ Redirection returnTo échouée, fallback:', navError);
+          }
+        }, 50);
+      }
+    } catch (error: any) {
+      // Identifiants mémorisés devenus invalides (mot de passe changé côté serveur)
+      // → on purge pour ne pas reproposer un 1-clic voué à l'échec.
+      const status = error?.response?.status ?? error?.status;
+      if (status === 401 || status === 400) {
+        await quickAuthService.clearCredentials();
+        setHasQuickAuth(false);
+        setSavedEmail(null);
+        setRememberMe(false);
+      }
+      handleLoginError(error);
+    } finally {
+      setLoading(false);
+    }
+  }, [login, returnTo]);
 
   // HELPERS
   const updateFormData = useCallback((field: keyof LoginFormData) => 
@@ -498,6 +584,47 @@ export default function LoginScreen() {
       marginTop: SPACING.sm,
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
     },
+
+    // Reconnexion 1-clic
+    quickAuthSection: {
+      marginBottom: getSpacing(SPACING.sm, SPACING.md),
+      gap: SPACING.xs,
+    },
+    quickAuthEmail: {
+      fontSize: 13,
+      color: colors.text.secondary,
+      textAlign: 'center' as const,
+      marginTop: SPACING.xs,
+    },
+
+    // Case "Se souvenir de moi"
+    rememberRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 8,
+      marginTop: SPACING.sm,
+      alignSelf: 'flex-start' as const,
+      paddingVertical: SPACING.xs,
+    },
+    checkbox: {
+      width: 22,
+      height: 22,
+      borderRadius: 6,
+      borderWidth: 2,
+      borderColor: colors.border.default,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      backgroundColor: 'transparent',
+    },
+    checkboxChecked: {
+      backgroundColor: COLORS.secondary,
+      borderColor: COLORS.secondary,
+    },
+    rememberText: {
+      fontSize: getFontSize(14, 15, 16),
+      color: colors.text.primary,
+      fontWeight: TYPOGRAPHY.fontWeight.medium,
+    },
     
     submitButton: {
       // Fond/ombre gérés par le variant "primary" du Button (theme-aware).
@@ -633,6 +760,34 @@ export default function LoginScreen() {
                 </View>
               )}
               
+              {/* RECONNEXION 1-CLIC — visible uniquement si identifiants mémorisés */}
+              {hasQuickAuth && (
+                <View style={styles.quickAuthSection}>
+                  <Button
+                    title="Se reconnecter"
+                    onPress={handleQuickReconnect}
+                    loading={loading}
+                    disabled={loading}
+                    variant="primary"
+                    size={isSmallScreen ? 'sm' : (isMobile ? 'md' : 'lg')}
+                    fullWidth
+                    leftIcon={
+                      <Ionicons name="finger-print" size={20} color={COLORS.text.inverse} />
+                    }
+                  />
+                  {savedEmail && (
+                    <Text style={styles.quickAuthEmail} numberOfLines={1}>
+                      {savedEmail}
+                    </Text>
+                  )}
+                  <View style={styles.divider}>
+                    <View style={styles.dividerLine} />
+                    <Text style={styles.dividerText}>ou un autre compte</Text>
+                    <View style={styles.dividerLine} />
+                  </View>
+                </View>
+              )}
+
               {/* SOCIAL LOGIN SECTION */}
               <View style={styles.socialSection}>
                 <Button
@@ -706,6 +861,22 @@ export default function LoginScreen() {
                   required
                 />
               </View>
+
+              {/* SE SOUVENIR DE MOI — opt-in pour la reconnexion 1-clic */}
+              <TouchableOpacity
+                style={styles.rememberRow}
+                onPress={() => setRememberMe(prev => !prev)}
+                activeOpacity={0.7}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: rememberMe }}
+              >
+                <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
+                  {rememberMe && (
+                    <Ionicons name="checkmark" size={14} color={COLORS.text.inverse} />
+                  )}
+                </View>
+                <Text style={styles.rememberText}>Se souvenir de moi</Text>
+              </TouchableOpacity>
 
               <TouchableOpacity 
                 onPress={handleForgotPassword}
