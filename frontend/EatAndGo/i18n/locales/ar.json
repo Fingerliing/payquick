@@ -593,6 +593,25 @@
     "tomorrow": "غدًا"
   },
   "legal": {
+      "document": {
+        "lastUpdate": "آخر تحديث: {{date}}",
+        "acceptDefault": "لقد قرأت وأوافق",
+        "acceptTerms": "لقد قرأت شروط الاستخدام وأوافق عليها",
+        "acceptPrivacy": "لقد قرأت السياسة وأوافق عليها",
+        "saveError": "حدث خطأ أثناء الحفظ. يرجى المحاولة مرة أخرى."
+      },
+      "modal": {
+        "welcomeTitle": "مرحبًا بك في EatQuickeR",
+        "intro": "للمتابعة، يرجى قبول مستنداتنا القانونية.",
+        "termsName": "شروط الاستخدام",
+        "privacyName": "سياسة الخصوصية",
+        "viewDocument": "عرض المستند",
+        "acceptTermsLabel": "أوافق على شروط الاستخدام",
+        "acceptPrivacyLabel": "أوافق على سياسة الخصوصية",
+        "helpText": "يمكنك الاطّلاع على المستندات قبل قبولها بالضغط على «عرض المستند».",
+        "acceptBoth": "يرجى قبول كلا المستندين",
+        "saveError": "حدث خطأ أثناء الحفظ. يرجى المحاولة مرة أخرى."
+      },
     "copyright": "© {{year}} EatQuicker. جميع الحقوق محفوظة.",
     "termsShort": "الشروط",
     "privacyShort": "الخصوصية",

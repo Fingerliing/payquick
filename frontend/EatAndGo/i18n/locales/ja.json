@@ -593,6 +593,25 @@
     "tomorrow": "明日"
   },
   "legal": {
+      "document": {
+        "lastUpdate": "最終更新：{{date}}",
+        "acceptDefault": "読みました。同意します",
+        "acceptTerms": "利用規約を読み、同意します",
+        "acceptPrivacy": "ポリシーを読み、同意します",
+        "saveError": "保存中にエラーが発生しました。もう一度お試しください。"
+      },
+      "modal": {
+        "welcomeTitle": "EatQuickeR へようこそ",
+        "intro": "続けるには、当社の法的文書に同意してください。",
+        "termsName": "利用規約",
+        "privacyName": "プライバシーポリシー",
+        "viewDocument": "文書を表示",
+        "acceptTermsLabel": "利用規約に同意します",
+        "acceptPrivacyLabel": "プライバシーポリシーに同意します",
+        "helpText": "「文書を表示」をタップすると、同意する前に文書を確認できます。",
+        "acceptBoth": "両方の文書に同意してください",
+        "saveError": "保存中にエラーが発生しました。もう一度お試しください。"
+      },
     "copyright": "© {{year}} EatQuicker. 全著作権所有。",
     "termsShort": "利用規約",
     "privacyShort": "プライバシー",

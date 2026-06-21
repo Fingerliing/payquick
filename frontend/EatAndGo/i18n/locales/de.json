@@ -592,6 +592,25 @@
     "tomorrow": "Morgen"
   },
   "legal": {
+      "document": {
+        "lastUpdate": "Zuletzt aktualisiert: {{date}}",
+        "acceptDefault": "Ich habe es gelesen und akzeptiere",
+        "acceptTerms": "Ich habe die AGB gelesen und akzeptiere sie",
+        "acceptPrivacy": "Ich habe die Richtlinie gelesen und akzeptiere sie",
+        "saveError": "Fehler beim Speichern. Bitte versuche es erneut."
+      },
+      "modal": {
+        "welcomeTitle": "Willkommen bei EatQuickeR",
+        "intro": "Um fortzufahren, akzeptiere bitte unsere rechtlichen Dokumente.",
+        "termsName": "Nutzungsbedingungen",
+        "privacyName": "Datenschutzrichtlinie",
+        "viewDocument": "Dokument ansehen",
+        "acceptTermsLabel": "Ich akzeptiere die Nutzungsbedingungen",
+        "acceptPrivacyLabel": "Ich akzeptiere die Datenschutzrichtlinie",
+        "helpText": "Du kannst die Dokumente vor dem Akzeptieren ansehen, indem du auf „Dokument ansehen“ tippst.",
+        "acceptBoth": "Akzeptiere beide Dokumente",
+        "saveError": "Fehler beim Speichern. Bitte versuche es erneut."
+      },
     "copyright": "© {{year}} EatQuicker. Alle Rechte vorbehalten.",
     "termsShort": "AGB",
     "privacyShort": "Datenschutz",

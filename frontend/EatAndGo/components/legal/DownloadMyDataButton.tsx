@@ -1,17 +1,19 @@
-import React, { useState } from 'react';
-import { 
-  TouchableOpacity, 
-  Text, 
-  StyleSheet, 
-  Alert, 
+import React, { useMemo, useState } from 'react';
+import {
+  TouchableOpacity,
+  Text,
+  StyleSheet,
+  Alert,
   ActivityIndicator,
-  View 
+  View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import { legalService } from '@/services/legalService';
+import { useAppTheme, type AppColors } from '@/utils/designSystem';
 
 export interface ExportedUserData {
   user: {
@@ -32,26 +34,29 @@ export interface ExportedUserData {
 
 export function DownloadMyDataButton() {
   const { user } = useAuth();
+  const { t } = useTranslation();
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState<string>('');
 
   const handleDownload = async () => {
     if (!user) {
-      Alert.alert('Erreur', 'Vous devez être connecté pour exporter vos données');
+      Alert.alert(t('common.error'), t('legal.downloadMyData.errors.notLoggedIn'));
       return;
     }
 
     Alert.alert(
-      'Export de données',
-      'Souhaitez-vous télécharger toutes vos données personnelles ?\n\nCela inclut : profil, commandes, préférences, et historique.',
+      t('legal.downloadMyData.confirmTitle'),
+      t('legal.downloadMyData.confirmMessage'),
       [
-        { text: 'Annuler', style: 'cancel' },
-        { 
-          text: 'Télécharger', 
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('legal.downloadMyData.download'),
           style: 'default',
-          onPress: () => performDownload()
-        }
-      ]
+          onPress: () => performDownload(),
+        },
+      ],
     );
   };
 
@@ -59,22 +64,22 @@ export function DownloadMyDataButton() {
     // Capturer user localement pour éviter les problèmes de nullabilité
     const currentUser = user;
     if (!currentUser) {
-      Alert.alert('Erreur', 'Vous devez être connecté pour exporter vos données');
+      Alert.alert(t('common.error'), t('legal.downloadMyData.errors.notLoggedIn'));
       return;
     }
 
     setLoading(true);
-    setProgress('Récupération des données...');
-    
+    setProgress(t('legal.downloadMyData.progress.fetching'));
+
     let fileUri: string | null = null;
-    
+
     try {
       const userData = await legalService.exportUserData();
-      
-      setProgress('Préparation du fichier...');
-      
+
+      setProgress(t('legal.downloadMyData.progress.preparing'));
+
       const jsonData = JSON.stringify(userData, null, 2);
-      
+
       const timestamp = new Date().toISOString().split('T')[0];
       const filename = `eatquicker_export_${currentUser.id}_${timestamp}.json`;
       fileUri = `${FileSystem.documentDirectory}${filename}`;
@@ -84,30 +89,30 @@ export function DownloadMyDataButton() {
         encoding: FileSystem.EncodingType.UTF8,
       });
 
-      setProgress('Export terminé !');
+      setProgress(t('legal.downloadMyData.progress.done'));
 
       const fileInfo = await FileSystem.getInfoAsync(fileUri);
-      const fileSizeKB = fileInfo.exists && fileInfo.size 
-        ? (fileInfo.size / 1024).toFixed(2) 
+      const fileSizeKB = fileInfo.exists && fileInfo.size
+        ? (fileInfo.size / 1024).toFixed(2)
         : '0';
 
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(fileUri, {
           mimeType: 'application/json',
-          dialogTitle: 'Télécharger mes données EatQuickeR',
+          dialogTitle: t('legal.downloadMyData.shareDialogTitle'),
           UTI: 'public.json',
         });
-        
+
         Alert.alert(
-          'Export réussi',
-          `Vos données (${fileSizeKB} KB) ont été exportées.\n\nVous pouvez maintenant les sauvegarder ou les partager.`,
-          [{ text: 'OK' }]
+          t('legal.downloadMyData.success.title'),
+          t('legal.downloadMyData.success.message', { size: fileSizeKB }),
+          [{ text: t('common.ok') }],
         );
       } else {
         Alert.alert(
-          'Export réussi',
-          `Vos données ont été exportées dans :\n${filename}\n\nTaille: ${fileSizeKB} KB`,
-          [{ text: 'OK' }]
+          t('legal.downloadMyData.success.title'),
+          t('legal.downloadMyData.success.messageFallback', { filename, size: fileSizeKB }),
+          [{ text: t('common.ok') }],
         );
       }
 
@@ -119,24 +124,24 @@ export function DownloadMyDataButton() {
 
     } catch (error: any) {
       console.error('Erreur lors du téléchargement:', error);
-      
+
       const errorMessages: Record<number, string> = {
-        429: 'Vous avez atteint la limite d\'exports quotidiens. Veuillez réessayer demain.',
-        401: 'Votre session a expiré. Veuillez vous reconnecter.',
-        403: 'Vous n\'avez pas la permission d\'exporter ces données.',
-        500: 'Erreur serveur. Veuillez réessayer dans quelques instants.',
-        503: 'Le service d\'export est temporairement indisponible. Réessayez dans quelques minutes.',
+        429: t('legal.downloadMyData.errors.rateLimit'),
+        401: t('legal.downloadMyData.errors.sessionExpired'),
+        403: t('legal.downloadMyData.errors.forbidden'),
+        500: t('legal.downloadMyData.errors.serverError'),
+        503: t('legal.downloadMyData.errors.serviceUnavailable'),
       };
-      
-      let errorMessage = 'Impossible de télécharger vos données. Veuillez réessayer.';
-      
+
+      let errorMessage = t('legal.downloadMyData.errors.generic');
+
       if (error.response?.status) {
         errorMessage = errorMessages[error.response.status] || errorMessage;
       } else if (!error.response) {
-        errorMessage = 'Erreur de connexion. Vérifiez votre connexion internet.';
+        errorMessage = t('legal.downloadMyData.errors.connection');
       }
-      
-      Alert.alert('Erreur', errorMessage);
+
+      Alert.alert(t('common.error'), errorMessage);
     } finally {
       if (fileUri) {
         try {
@@ -145,7 +150,7 @@ export function DownloadMyDataButton() {
           console.warn('Échec du nettoyage du fichier temporaire:', cleanupError);
         }
       }
-      
+
       setLoading(false);
       setProgress('');
     }
@@ -155,71 +160,71 @@ export function DownloadMyDataButton() {
     // Capturer user localement
     const currentUser = user;
     if (!currentUser) {
-      Alert.alert('Erreur', 'Vous devez être connecté pour exporter vos données');
+      Alert.alert(t('common.error'), t('legal.downloadMyData.errors.notLoggedIn'));
       return;
     }
 
     Alert.alert(
-      'Export par email',
-      'Vous recevrez un email avec un lien de téléchargement sécurisé sous 48h.\n\nContinuer ?',
+      t('legal.downloadMyData.email.title'),
+      t('legal.downloadMyData.email.confirmMessage'),
       [
-        { text: 'Annuler', style: 'cancel' },
-        { 
-          text: 'Confirmer', 
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.confirm'),
           onPress: async () => {
             setLoading(true);
-            setProgress('Envoi de la demande...');
-            
+            setProgress(t('legal.downloadMyData.progress.sending'));
+
             try {
               await legalService.requestDataExport();
               Alert.alert(
-                'Demande enregistrée',
-                `Un email sera envoyé à ${currentUser.email} sous 48h avec vos données.`,
-                [{ text: 'OK' }]
+                t('legal.downloadMyData.email.successTitle'),
+                t('legal.downloadMyData.email.successMessage', { email: currentUser.email }),
+                [{ text: t('common.ok') }],
               );
-              
+
               console.log(`Email export requested for user_id:${currentUser.id} at ${new Date().toISOString()}`);
-              
+
             } catch (error: any) {
               console.error('Erreur lors de la demande d\'export:', error);
-              
-              let errorMessage = 'Impossible d\'enregistrer votre demande. Veuillez réessayer.';
-              
+
+              let errorMessage = t('legal.downloadMyData.errors.emailRequestFailed');
+
               if (error.response?.status === 429) {
-                errorMessage = 'Vous avez déjà une demande d\'export en cours. Veuillez patienter.';
+                errorMessage = t('legal.downloadMyData.errors.emailPending');
               } else if (error.response?.status === 401) {
-                errorMessage = 'Votre session a expiré. Veuillez vous reconnecter.';
+                errorMessage = t('legal.downloadMyData.errors.sessionExpired');
               }
-              
-              Alert.alert('Erreur', errorMessage);
+
+              Alert.alert(t('common.error'), errorMessage);
             } finally {
               setLoading(false);
               setProgress('');
             }
-          }
-        }
-      ]
+          },
+        },
+      ],
     );
   };
 
   const showOptions = () => {
     Alert.alert(
-      'Export de données',
-      'Comment souhaitez-vous recevoir vos données ?',
+      t('legal.downloadMyData.options.title'),
+      t('legal.downloadMyData.options.message'),
       [
         {
-          text: 'Téléchargement direct',
+          text: t('legal.downloadMyData.options.direct'),
           onPress: performDownload,
         },
         {
-          text: 'Par email (sous 48h)',
+          text: t('legal.downloadMyData.options.email'),
           onPress: handleRequestEmailExport,
         },
         {
-          text: 'Annuler',
+          text: t('common.cancel'),
           style: 'cancel',
         },
-      ]
+      ],
     );
   };
 
@@ -230,65 +235,66 @@ export function DownloadMyDataButton() {
         onPress={showOptions}
         disabled={loading}
         activeOpacity={0.7}
-        accessibilityLabel="Télécharger mes données personnelles"
-        accessibilityHint="Exporter toutes vos données conformément au RGPD"
+        accessibilityLabel={t('legal.downloadMyData.a11y.label')}
+        accessibilityHint={t('legal.downloadMyData.a11y.hint')}
         accessibilityRole="button"
       >
         {loading ? (
           <>
-            <ActivityIndicator size="small" color="#1E40AF" />
+            <ActivityIndicator size="small" color={colors.primary} />
             <Text style={styles.buttonText}>
-              {progress || 'Préparation...'}
+              {progress || t('legal.downloadMyData.progress.preparingShort')}
             </Text>
           </>
         ) : (
           <>
-            <Ionicons name="download-outline" size={20} color="#1E40AF" />
-            <Text style={styles.buttonText}>Télécharger mes données</Text>
+            <Ionicons name="download-outline" size={20} color={colors.primary} />
+            <Text style={styles.buttonText}>{t('legal.downloadMyData.cta')}</Text>
           </>
         )}
       </TouchableOpacity>
 
       <Text style={styles.infoText}>
-        <Ionicons name="information-circle-outline" size={14} color="#6B7280" />
-        {' '}Export conforme RGPD (Article 20)
+        <Ionicons name="information-circle-outline" size={14} color={colors.text.secondary} />
+        {' '}{t('legal.downloadMyData.gdprNotice')}
       </Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    gap: 8,
-  },
-  button: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#EEF2FF',
-    padding: 16,
-    borderRadius: 12,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: '#C7D2FE',
-    shadowColor: '#1E40AF',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: '#1E40AF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  infoText: {
-    fontSize: 12,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-});
+const createStyles = (colors: AppColors) =>
+  StyleSheet.create({
+    container: {
+      gap: 8,
+    },
+    button: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.variants.primary[50],
+      padding: 16,
+      borderRadius: 12,
+      gap: 8,
+      borderWidth: 1,
+      borderColor: colors.variants.primary[200],
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    buttonDisabled: {
+      opacity: 0.6,
+    },
+    buttonText: {
+      color: colors.primary,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    infoText: {
+      fontSize: 12,
+      color: colors.text.secondary,
+      textAlign: 'center',
+      lineHeight: 18,
+    },
+  });

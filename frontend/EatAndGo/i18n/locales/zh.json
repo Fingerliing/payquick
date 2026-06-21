@@ -593,6 +593,25 @@
     "tomorrow": "明天"
   },
   "legal": {
+      "document": {
+        "lastUpdate": "最后更新：{{date}}",
+        "acceptDefault": "我已阅读并接受",
+        "acceptTerms": "我已阅读并接受条款",
+        "acceptPrivacy": "我已阅读并接受政策",
+        "saveError": "保存时出错，请重试。"
+      },
+      "modal": {
+        "welcomeTitle": "欢迎使用 EatQuickeR",
+        "intro": "若要继续，请接受我们的法律文件。",
+        "termsName": "使用条款",
+        "privacyName": "隐私政策",
+        "viewDocument": "查看文件",
+        "acceptTermsLabel": "我接受使用条款",
+        "acceptPrivacyLabel": "我接受隐私政策",
+        "helpText": "点按“查看文件”，可在接受前先阅读文件。",
+        "acceptBoth": "请接受两份文件",
+        "saveError": "保存时出错，请重试。"
+      },
     "copyright": "© {{year}} EatQuicker。保留所有权利。",
     "termsShort": "条款",
     "privacyShort": "隐私",

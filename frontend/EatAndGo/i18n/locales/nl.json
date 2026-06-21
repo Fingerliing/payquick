@@ -592,6 +592,25 @@
     "tomorrow": "Morgen"
   },
   "legal": {
+      "document": {
+        "lastUpdate": "Laatst bijgewerkt: {{date}}",
+        "acceptDefault": "Ik heb het gelezen en ga akkoord",
+        "acceptTerms": "Ik heb de voorwaarden gelezen en ga akkoord",
+        "acceptPrivacy": "Ik heb het beleid gelezen en ga akkoord",
+        "saveError": "Fout bij het opslaan. Probeer het opnieuw."
+      },
+      "modal": {
+        "welcomeTitle": "Welkom bij EatQuickeR",
+        "intro": "Accepteer onze juridische documenten om door te gaan.",
+        "termsName": "Gebruiksvoorwaarden",
+        "privacyName": "Privacybeleid",
+        "viewDocument": "Document bekijken",
+        "acceptTermsLabel": "Ik ga akkoord met de gebruiksvoorwaarden",
+        "acceptPrivacyLabel": "Ik ga akkoord met het privacybeleid",
+        "helpText": "Je kunt de documenten bekijken voordat je ze accepteert door op “Document bekijken” te tikken.",
+        "acceptBoth": "Accepteer beide documenten",
+        "saveError": "Fout bij het opslaan. Probeer het opnieuw."
+      },
     "copyright": "© {{year}} EatQuicker. Alle rechten voorbehouden.",
     "termsShort": "Voorwaarden",
     "privacyShort": "Privacy",

@@ -593,6 +593,25 @@
     "tomorrow": "Bihar"
   },
   "legal": {
+      "document": {
+        "lastUpdate": "Azken eguneratzea: {{date}}",
+        "acceptDefault": "Irakurri dut eta onartzen dut",
+        "acceptTerms": "Erabilera-baldintzak irakurri ditut eta onartzen ditut",
+        "acceptPrivacy": "Politika irakurri dut eta onartzen dut",
+        "saveError": "Errorea gordetzean. Saiatu berriro."
+      },
+      "modal": {
+        "welcomeTitle": "Ongi etorri EatQuickeR-era",
+        "intro": "Jarraitzeko, onartu gure dokumentu legalak.",
+        "termsName": "Erabilera-baldintzak",
+        "privacyName": "Pribatutasun-politika",
+        "viewDocument": "Ikusi dokumentua",
+        "acceptTermsLabel": "Erabilera-baldintzak onartzen ditut",
+        "acceptPrivacyLabel": "Pribatutasun-politika onartzen dut",
+        "helpText": "Dokumentuak onartu aurretik ikus ditzakezu «Ikusi dokumentua» sakatuta.",
+        "acceptBoth": "Onartu bi dokumentuak",
+        "saveError": "Errorea gordetzean. Saiatu berriro."
+      },
     "copyright": "© {{year}} EatQuicker. Eskubide guztiak erreserbatuak.",
     "termsShort": "Baldintzak",
     "privacyShort": "Pribatutasuna",

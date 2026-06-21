@@ -2,10 +2,12 @@ import React from 'react';
 import { LegalDocument } from '@/components/legal/LegalDocument';
 import { TERMS_OF_SERVICE } from '@/constants/legal';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useLegalAcceptance } from '@/contexts/LegalAcceptanceContext';
 
 export default function TermsScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const params = useLocalSearchParams();
   const fromModal = params.fromModal === 'true';
   const { acceptTerms } = useLegalAcceptance();
@@ -17,7 +19,7 @@ export default function TermsScreen() {
       router.back();
     } catch (error) {
       console.error('❌ Erreur lors de l\'acceptation:', error);
-      alert('Erreur lors de l\'enregistrement. Veuillez réessayer.');
+      alert(t('legal.document.saveError'));
     }
   };
 
@@ -28,7 +30,7 @@ export default function TermsScreen() {
       sections={TERMS_OF_SERVICE.sections}
       showAcceptButton={fromModal}
       onAccept={handleAccept}
-      acceptButtonText="J'ai lu et j'accepte les CGU"
+      acceptButtonText={t('legal.document.acceptTerms')}
     />
   );
 }
