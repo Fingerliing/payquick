@@ -162,6 +162,7 @@
         "emailCodeInfo": "Se enviará un código de verificación a tu correo electrónico.",
         "errors": {
           "emailRequired": "Correo obligatorio",
+          "emailInvalid": "Formato de correo no válido",
           "passwordRequired": "Contraseña obligatoria",
           "passwordMin": "Mínimo 8 caracteres",
           "nameRequired": "Nombre obligatorio",
@@ -239,6 +240,58 @@
     "welcomeSubtitle": "Inicia sesión para continuar",
     "slogan": "Un servidor al servicio de los servidores",
     "loginTitle": "Iniciar sesión",
+    "resumeOrderPrompt": "Inicia sesión para retomar tu pedido donde lo dejaste.",
+      "validation": {
+        "emailRequired": "Correo electrónico obligatorio",
+        "passwordRequired": "Contraseña obligatoria",
+        "passwordMinLength": "Al menos {{min}} caracteres",
+        "noAccountEmail": "No hay ninguna cuenta con este correo"
+      },
+      "alerts": {
+        "accountNotFound": {
+          "title": "Cuenta no encontrada",
+          "message": "No hay ninguna cuenta asociada a este correo."
+        },
+        "invalidCredentials": {
+          "title": "Credenciales no válidas",
+          "message": "Correo o contraseña incorrectos. Inténtalo de nuevo."
+        },
+        "accessDenied": {
+          "title": "Acceso denegado",
+          "message": "Tu cuenta no está autorizada a iniciar sesión. Contacta con soporte."
+        },
+        "tooManyAttempts": {
+          "title": "Demasiados intentos",
+          "message": "Demasiados intentos de inicio de sesión. Inténtalo de nuevo en unos momentos."
+        },
+        "networkError": {
+          "title": "Error de conexión",
+          "message": "Comprueba tu conexión a internet e inténtalo de nuevo."
+        },
+        "serviceUnavailable": {
+          "title": "Servicio no disponible",
+          "message": "El servicio no está disponible temporalmente. Inténtalo más tarde."
+        },
+        "genericError": {
+          "title": "Error de conexión",
+          "message": "Se ha producido un error. Inténtalo de nuevo."
+        },
+        "googlePlayUnavailable": {
+          "title": "Google Play no disponible",
+          "message": "Google Play Services no está disponible en este dispositivo."
+        },
+        "googleLoginFailed": {
+          "title": "No se pudo iniciar sesión con Google"
+        },
+        "comingSoon": {
+          "title": "Próximamente",
+          "message": "El inicio de sesión con Apple estará disponible próximamente."
+        },
+        "sessionExpired": {
+          "title": "Sesión caducada",
+          "message": "Tu sesión ha caducado. Vuelve a iniciar sesión."
+        }
+      },
     "continueWithApple": "Continuar con Apple",
     "signIn": "Iniciar sesión",
     "signUp": "Crear cuenta",
@@ -252,6 +305,8 @@
     "lastName": "Apellido",
     "phone": "Teléfono",
     "rememberMe": "Recordarme",
+    "reconnect": "Volver a entrar",
+    "useAnotherAccount": "o con otra cuenta",
     "continueAsGuest": "Continuar como invitado",
     "continueWithGoogle": "Continuar con Google",
     "alreadyHaveAccount": "¿Ya tienes una cuenta?",

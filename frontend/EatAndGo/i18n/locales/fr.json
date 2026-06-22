@@ -162,6 +162,7 @@
         "emailCodeInfo": "Un code de vérification sera envoyé à votre adresse email.",
         "errors": {
           "emailRequired": "Email requis",
+          "emailInvalid": "Format d'email invalide",
           "passwordRequired": "Mot de passe requis",
           "passwordMin": "Minimum 8 caractères",
           "nameRequired": "Nom requis",
@@ -239,6 +240,58 @@
     "welcomeSubtitle": "Connectez-vous pour continuer",
     "slogan": "Un serveur au service des serveurs",
     "loginTitle": "Connexion",
+    "resumeOrderPrompt": "Connectez-vous pour reprendre votre commande là où vous l'aviez laissée.",
+      "validation": {
+        "emailRequired": "Email requis",
+        "passwordRequired": "Mot de passe requis",
+        "passwordMinLength": "Au moins {{min}} caractères",
+        "noAccountEmail": "Aucun compte avec cet email"
+      },
+      "alerts": {
+        "accountNotFound": {
+          "title": "Compte introuvable",
+          "message": "Aucun compte associé à cet email."
+        },
+        "invalidCredentials": {
+          "title": "Identifiants invalides",
+          "message": "Email ou mot de passe incorrect. Veuillez réessayer."
+        },
+        "accessDenied": {
+          "title": "Accès refusé",
+          "message": "Votre compte n'est pas autorisé à se connecter. Contactez le support."
+        },
+        "tooManyAttempts": {
+          "title": "Trop de tentatives",
+          "message": "Trop de tentatives de connexion. Réessayez dans quelques instants."
+        },
+        "networkError": {
+          "title": "Erreur de connexion",
+          "message": "Vérifiez votre connexion internet et réessayez."
+        },
+        "serviceUnavailable": {
+          "title": "Service indisponible",
+          "message": "Le service est temporairement indisponible. Réessayez plus tard."
+        },
+        "genericError": {
+          "title": "Erreur de connexion",
+          "message": "Une erreur est survenue. Veuillez réessayer."
+        },
+        "googlePlayUnavailable": {
+          "title": "Google Play indisponible",
+          "message": "Google Play Services n'est pas disponible sur cet appareil."
+        },
+        "googleLoginFailed": {
+          "title": "Connexion Google impossible"
+        },
+        "comingSoon": {
+          "title": "Bientôt disponible",
+          "message": "La connexion Apple sera disponible prochainement"
+        },
+        "sessionExpired": {
+          "title": "Session expirée",
+          "message": "Votre session a expiré. Veuillez vous reconnecter."
+        }
+      },
     "continueWithApple": "Continuer avec Apple",
     "signIn": "Se connecter",
     "signUp": "Créer un compte",
@@ -252,6 +305,8 @@
     "lastName": "Nom",
     "phone": "Téléphone",
     "rememberMe": "Se souvenir de moi",
+    "reconnect": "Se reconnecter",
+    "useAnotherAccount": "ou un autre compte",
     "continueAsGuest": "Continuer en invité",
     "continueWithGoogle": "Continuer avec Google",
     "alreadyHaveAccount": "Vous avez déjà un compte ?",

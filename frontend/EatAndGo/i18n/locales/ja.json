@@ -163,6 +163,7 @@
         "emailCodeInfo": "確認コードがメールアドレスに送信されます。",
         "errors": {
           "emailRequired": "メールアドレスは必須です",
+          "emailInvalid": "メールアドレスの形式が正しくありません",
           "passwordRequired": "パスワードは必須です",
           "passwordMin": "8 文字以上",
           "nameRequired": "氏名は必須です",
@@ -240,6 +241,58 @@
     "welcomeSubtitle": "続けるにはログインしてください",
     "slogan": "サーバーのためのサーバー",
     "loginTitle": "ログイン",
+    "resumeOrderPrompt": "ログインして、中断したところから注文を再開しましょう。",
+      "validation": {
+        "emailRequired": "メールアドレスを入力してください",
+        "passwordRequired": "パスワードを入力してください",
+        "passwordMinLength": "{{min}} 文字以上で入力してください",
+        "noAccountEmail": "このメールアドレスのアカウントはありません"
+      },
+      "alerts": {
+        "accountNotFound": {
+          "title": "アカウントが見つかりません",
+          "message": "このメールアドレスに関連付けられたアカウントはありません。"
+        },
+        "invalidCredentials": {
+          "title": "認証情報が無効です",
+          "message": "メールアドレスまたはパスワードが正しくありません。もう一度お試しください。"
+        },
+        "accessDenied": {
+          "title": "アクセスが拒否されました",
+          "message": "このアカウントはログインを許可されていません。サポートにお問い合わせください。"
+        },
+        "tooManyAttempts": {
+          "title": "試行回数が多すぎます",
+          "message": "ログインの試行回数が多すぎます。しばらくしてからお試しください。"
+        },
+        "networkError": {
+          "title": "接続エラー",
+          "message": "インターネット接続を確認して、もう一度お試しください。"
+        },
+        "serviceUnavailable": {
+          "title": "サービスを利用できません",
+          "message": "サービスは一時的に利用できません。後でもう一度お試しください。"
+        },
+        "genericError": {
+          "title": "接続エラー",
+          "message": "エラーが発生しました。もう一度お試しください。"
+        },
+        "googlePlayUnavailable": {
+          "title": "Google Play を利用できません",
+          "message": "この端末では Google Play 開発者サービスを利用できません。"
+        },
+        "googleLoginFailed": {
+          "title": "Google でログインできませんでした"
+        },
+        "comingSoon": {
+          "title": "近日公開",
+          "message": "Apple でのログインは近日中に利用可能になります。"
+        },
+        "sessionExpired": {
+          "title": "セッションの有効期限が切れました",
+          "message": "セッションの有効期限が切れました。もう一度ログインしてください。"
+        }
+      },
     "continueWithApple": "Appleで続ける",
     "signIn": "ログイン",
     "signUp": "アカウント作成",
@@ -253,6 +306,8 @@
     "lastName": "姓",
     "phone": "電話番号",
     "rememberMe": "ログイン状態を保持",
+    "reconnect": "再ログイン",
+    "useAnotherAccount": "または別のアカウント",
     "continueAsGuest": "ゲストとして続行",
     "continueWithGoogle": "Google で続行",
     "alreadyHaveAccount": "アカウントをお持ちですか？",

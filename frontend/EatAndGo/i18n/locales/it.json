@@ -162,6 +162,7 @@
         "emailCodeInfo": "Un codice di verifica sarà inviato al tuo indirizzo email.",
         "errors": {
           "emailRequired": "Email obbligatoria",
+          "emailInvalid": "Formato email non valido",
           "passwordRequired": "Password obbligatoria",
           "passwordMin": "Minimo 8 caratteri",
           "nameRequired": "Nome obbligatorio",
@@ -239,6 +240,58 @@
     "welcomeSubtitle": "Accedi per continuare",
     "slogan": "Un server al servizio dei server",
     "loginTitle": "Accedi",
+    "resumeOrderPrompt": "Accedi per riprendere il tuo ordine da dove l'avevi lasciato.",
+      "validation": {
+        "emailRequired": "Email obbligatoria",
+        "passwordRequired": "Password obbligatoria",
+        "passwordMinLength": "Almeno {{min}} caratteri",
+        "noAccountEmail": "Nessun account con questa email"
+      },
+      "alerts": {
+        "accountNotFound": {
+          "title": "Account non trovato",
+          "message": "Nessun account è associato a questa email."
+        },
+        "invalidCredentials": {
+          "title": "Credenziali non valide",
+          "message": "Email o password errati. Riprova."
+        },
+        "accessDenied": {
+          "title": "Accesso negato",
+          "message": "Il tuo account non è autorizzato ad accedere. Contatta l'assistenza."
+        },
+        "tooManyAttempts": {
+          "title": "Troppi tentativi",
+          "message": "Troppi tentativi di accesso. Riprova tra qualche istante."
+        },
+        "networkError": {
+          "title": "Errore di connessione",
+          "message": "Controlla la tua connessione internet e riprova."
+        },
+        "serviceUnavailable": {
+          "title": "Servizio non disponibile",
+          "message": "Il servizio è temporaneamente non disponibile. Riprova più tardi."
+        },
+        "genericError": {
+          "title": "Errore di connessione",
+          "message": "Si è verificato un errore. Riprova."
+        },
+        "googlePlayUnavailable": {
+          "title": "Google Play non disponibile",
+          "message": "Google Play Services non è disponibile su questo dispositivo."
+        },
+        "googleLoginFailed": {
+          "title": "Accesso con Google non riuscito"
+        },
+        "comingSoon": {
+          "title": "Disponibile a breve",
+          "message": "L'accesso con Apple sarà presto disponibile."
+        },
+        "sessionExpired": {
+          "title": "Sessione scaduta",
+          "message": "La tua sessione è scaduta. Accedi di nuovo."
+        }
+      },
     "continueWithApple": "Continua con Apple",
     "signIn": "Accedi",
     "signUp": "Crea account",
@@ -252,6 +305,8 @@
     "lastName": "Cognome",
     "phone": "Telefono",
     "rememberMe": "Ricordami",
+    "reconnect": "Accedi di nuovo",
+    "useAnotherAccount": "o un altro account",
     "continueAsGuest": "Continua come ospite",
     "continueWithGoogle": "Continua con Google",
     "alreadyHaveAccount": "Hai già un account?",

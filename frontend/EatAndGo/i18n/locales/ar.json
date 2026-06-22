@@ -163,6 +163,7 @@
         "emailCodeInfo": "سيتم إرسال رمز تحقّق إلى بريدك الإلكتروني.",
         "errors": {
           "emailRequired": "البريد الإلكتروني مطلوب",
+          "emailInvalid": "صيغة البريد الإلكتروني غير صالحة",
           "passwordRequired": "كلمة المرور مطلوبة",
           "passwordMin": "8 أحرف على الأقل",
           "nameRequired": "الاسم مطلوب",
@@ -240,6 +241,58 @@
     "welcomeSubtitle": "سجّل الدخول للمتابعة",
     "slogan": "خادمٌ في خدمة الخوادم",
     "loginTitle": "تسجيل الدخول",
+    "resumeOrderPrompt": "سجّل الدخول لاستئناف طلبك من حيث توقفت.",
+      "validation": {
+        "emailRequired": "البريد الإلكتروني مطلوب",
+        "passwordRequired": "كلمة المرور مطلوبة",
+        "passwordMinLength": "{{min}} أحرف على الأقل",
+        "noAccountEmail": "لا يوجد حساب بهذا البريد الإلكتروني"
+      },
+      "alerts": {
+        "accountNotFound": {
+          "title": "الحساب غير موجود",
+          "message": "لا يوجد حساب مرتبط بهذا البريد الإلكتروني."
+        },
+        "invalidCredentials": {
+          "title": "بيانات اعتماد غير صالحة",
+          "message": "البريد الإلكتروني أو كلمة المرور غير صحيحة. حاول مرة أخرى."
+        },
+        "accessDenied": {
+          "title": "تم رفض الوصول",
+          "message": "حسابك غير مصرّح له بتسجيل الدخول. تواصل مع الدعم."
+        },
+        "tooManyAttempts": {
+          "title": "محاولات كثيرة جدًا",
+          "message": "محاولات تسجيل دخول كثيرة جدًا. حاول مرة أخرى بعد قليل."
+        },
+        "networkError": {
+          "title": "خطأ في الاتصال",
+          "message": "تحقّق من اتصالك بالإنترنت وحاول مرة أخرى."
+        },
+        "serviceUnavailable": {
+          "title": "الخدمة غير متوفرة",
+          "message": "الخدمة غير متوفرة مؤقتًا. حاول مرة أخرى لاحقًا."
+        },
+        "genericError": {
+          "title": "خطأ في الاتصال",
+          "message": "حدث خطأ ما. حاول مرة أخرى."
+        },
+        "googlePlayUnavailable": {
+          "title": "Google Play غير متوفر",
+          "message": "خدمات Google Play غير متوفرة على هذا الجهاز."
+        },
+        "googleLoginFailed": {
+          "title": "تعذّر تسجيل الدخول عبر Google"
+        },
+        "comingSoon": {
+          "title": "قريبًا",
+          "message": "سيتوفّر تسجيل الدخول عبر Apple قريبًا."
+        },
+        "sessionExpired": {
+          "title": "انتهت الجلسة",
+          "message": "انتهت صلاحية جلستك. سجّل الدخول مرة أخرى."
+        }
+      },
     "continueWithApple": "المتابعة باستخدام Apple",
     "signIn": "تسجيل الدخول",
     "signUp": "إنشاء حساب",
@@ -253,6 +306,8 @@
     "lastName": "الاسم العائلي",
     "phone": "الهاتف",
     "rememberMe": "تذكرني",
+    "reconnect": "تسجيل الدخول مجددًا",
+    "useAnotherAccount": "أو حساب آخر",
     "continueAsGuest": "المتابعة كضيف",
     "continueWithGoogle": "المتابعة باستخدام Google",
     "alreadyHaveAccount": "هل لديك حساب بالفعل؟",

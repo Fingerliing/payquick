@@ -162,6 +162,7 @@
         "emailCodeInfo": "Er wordt een verificatiecode naar je e-mailadres gestuurd.",
         "errors": {
           "emailRequired": "E-mail vereist",
+          "emailInvalid": "Ongeldig e-mailformaat",
           "passwordRequired": "Wachtwoord vereist",
           "passwordMin": "Minimaal 8 tekens",
           "nameRequired": "Naam vereist",
@@ -239,6 +240,58 @@
     "welcomeSubtitle": "Log in om door te gaan",
     "slogan": "Een server in dienst van servers",
     "loginTitle": "Inloggen",
+    "resumeOrderPrompt": "Log in om je bestelling te hervatten waar je was gebleven.",
+      "validation": {
+        "emailRequired": "E-mailadres vereist",
+        "passwordRequired": "Wachtwoord vereist",
+        "passwordMinLength": "Minimaal {{min}} tekens",
+        "noAccountEmail": "Geen account met dit e-mailadres"
+      },
+      "alerts": {
+        "accountNotFound": {
+          "title": "Account niet gevonden",
+          "message": "Er is geen account aan dit e-mailadres gekoppeld."
+        },
+        "invalidCredentials": {
+          "title": "Ongeldige inloggegevens",
+          "message": "E-mailadres of wachtwoord is onjuist. Probeer het opnieuw."
+        },
+        "accessDenied": {
+          "title": "Toegang geweigerd",
+          "message": "Je account mag niet inloggen. Neem contact op met support."
+        },
+        "tooManyAttempts": {
+          "title": "Te veel pogingen",
+          "message": "Te veel inlogpogingen. Probeer het over enkele ogenblikken opnieuw."
+        },
+        "networkError": {
+          "title": "Verbindingsfout",
+          "message": "Controleer je internetverbinding en probeer het opnieuw."
+        },
+        "serviceUnavailable": {
+          "title": "Service niet beschikbaar",
+          "message": "De service is tijdelijk niet beschikbaar. Probeer het later opnieuw."
+        },
+        "genericError": {
+          "title": "Verbindingsfout",
+          "message": "Er is iets misgegaan. Probeer het opnieuw."
+        },
+        "googlePlayUnavailable": {
+          "title": "Google Play niet beschikbaar",
+          "message": "Google Play Services is niet beschikbaar op dit apparaat."
+        },
+        "googleLoginFailed": {
+          "title": "Inloggen met Google mislukt"
+        },
+        "comingSoon": {
+          "title": "Binnenkort beschikbaar",
+          "message": "Inloggen met Apple is binnenkort beschikbaar."
+        },
+        "sessionExpired": {
+          "title": "Sessie verlopen",
+          "message": "Je sessie is verlopen. Log opnieuw in."
+        }
+      },
     "continueWithApple": "Doorgaan met Apple",
     "signIn": "Inloggen",
     "signUp": "Account aanmaken",
@@ -252,6 +305,8 @@
     "lastName": "Achternaam",
     "phone": "Telefoon",
     "rememberMe": "Onthoud mij",
+    "reconnect": "Opnieuw inloggen",
+    "useAnotherAccount": "of een ander account",
     "continueAsGuest": "Doorgaan als gast",
     "continueWithGoogle": "Doorgaan met Google",
     "alreadyHaveAccount": "Heb je al een account?",

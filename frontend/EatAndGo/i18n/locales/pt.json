@@ -162,6 +162,7 @@
         "emailCodeInfo": "Um código de verificação será enviado para o seu e-mail.",
         "errors": {
           "emailRequired": "E-mail obrigatório",
+          "emailInvalid": "Formato de e-mail inválido",
           "passwordRequired": "Senha obrigatória",
           "passwordMin": "Mínimo de 8 caracteres",
           "nameRequired": "Nome obrigatório",
@@ -239,6 +240,58 @@
     "welcomeSubtitle": "Entre para continuar",
     "slogan": "Um servidor a serviço dos servidores",
     "loginTitle": "Entrar",
+    "resumeOrderPrompt": "Entre para retomar o seu pedido de onde parou.",
+      "validation": {
+        "emailRequired": "E-mail obrigatório",
+        "passwordRequired": "Senha obrigatória",
+        "passwordMinLength": "Pelo menos {{min}} caracteres",
+        "noAccountEmail": "Nenhuma conta com este e-mail"
+      },
+      "alerts": {
+        "accountNotFound": {
+          "title": "Conta não encontrada",
+          "message": "Nenhuma conta está associada a este e-mail."
+        },
+        "invalidCredentials": {
+          "title": "Credenciais inválidas",
+          "message": "E-mail ou senha incorretos. Tente novamente."
+        },
+        "accessDenied": {
+          "title": "Acesso negado",
+          "message": "Sua conta não está autorizada a entrar. Entre em contato com o suporte."
+        },
+        "tooManyAttempts": {
+          "title": "Muitas tentativas",
+          "message": "Muitas tentativas de login. Tente novamente em instantes."
+        },
+        "networkError": {
+          "title": "Erro de conexão",
+          "message": "Verifique sua conexão com a internet e tente novamente."
+        },
+        "serviceUnavailable": {
+          "title": "Serviço indisponível",
+          "message": "O serviço está temporariamente indisponível. Tente mais tarde."
+        },
+        "genericError": {
+          "title": "Erro de conexão",
+          "message": "Ocorreu um erro. Tente novamente."
+        },
+        "googlePlayUnavailable": {
+          "title": "Google Play indisponível",
+          "message": "O Google Play Services não está disponível neste dispositivo."
+        },
+        "googleLoginFailed": {
+          "title": "Não foi possível entrar com o Google"
+        },
+        "comingSoon": {
+          "title": "Em breve",
+          "message": "O login com a Apple estará disponível em breve."
+        },
+        "sessionExpired": {
+          "title": "Sessão expirada",
+          "message": "Sua sessão expirou. Entre novamente."
+        }
+      },
     "continueWithApple": "Continuar com a Apple",
     "signIn": "Iniciar sessão",
     "signUp": "Criar conta",
@@ -252,6 +305,8 @@
     "lastName": "Apelido",
     "phone": "Telefone",
     "rememberMe": "Lembrar-me",
+    "reconnect": "Entrar novamente",
+    "useAnotherAccount": "ou outra conta",
     "continueAsGuest": "Continuar como convidado",
     "continueWithGoogle": "Continuar com o Google",
     "alreadyHaveAccount": "Já tem uma conta?",

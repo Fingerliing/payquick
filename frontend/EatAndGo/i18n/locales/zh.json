@@ -163,6 +163,7 @@
         "emailCodeInfo": "验证码将发送至您的电子邮箱。",
         "errors": {
           "emailRequired": "请输入电子邮箱",
+          "emailInvalid": "邮箱格式无效",
           "passwordRequired": "请输入密码",
           "passwordMin": "至少 8 个字符",
           "nameRequired": "请输入姓名",
@@ -240,6 +241,58 @@
     "welcomeSubtitle": "登录以继续",
     "slogan": "服务于服务器的服务者",
     "loginTitle": "登录",
+    "resumeOrderPrompt": "登录以从上次中断的地方继续您的订单。",
+      "validation": {
+        "emailRequired": "请输入邮箱",
+        "passwordRequired": "请输入密码",
+        "passwordMinLength": "至少 {{min}} 个字符",
+        "noAccountEmail": "该邮箱没有对应的账号"
+      },
+      "alerts": {
+        "accountNotFound": {
+          "title": "未找到账号",
+          "message": "没有与此邮箱关联的账号。"
+        },
+        "invalidCredentials": {
+          "title": "凭据无效",
+          "message": "邮箱或密码错误，请重试。"
+        },
+        "accessDenied": {
+          "title": "访问被拒绝",
+          "message": "您的账号无权登录，请联系客服。"
+        },
+        "tooManyAttempts": {
+          "title": "尝试次数过多",
+          "message": "登录尝试次数过多，请稍后再试。"
+        },
+        "networkError": {
+          "title": "连接错误",
+          "message": "请检查您的网络连接后重试。"
+        },
+        "serviceUnavailable": {
+          "title": "服务不可用",
+          "message": "服务暂时不可用，请稍后再试。"
+        },
+        "genericError": {
+          "title": "连接错误",
+          "message": "发生错误，请重试。"
+        },
+        "googlePlayUnavailable": {
+          "title": "Google Play 不可用",
+          "message": "此设备上无法使用 Google Play 服务。"
+        },
+        "googleLoginFailed": {
+          "title": "无法通过 Google 登录"
+        },
+        "comingSoon": {
+          "title": "即将推出",
+          "message": "Apple 登录即将推出。"
+        },
+        "sessionExpired": {
+          "title": "会话已过期",
+          "message": "您的会话已过期，请重新登录。"
+        }
+      },
     "continueWithApple": "使用 Apple 继续",
     "signIn": "登录",
     "signUp": "注册",
@@ -253,6 +306,8 @@
     "lastName": "姓",
     "phone": "电话",
     "rememberMe": "记住我",
+    "reconnect": "重新登录",
+    "useAnotherAccount": "或使用其他账号",
     "continueAsGuest": "以访客身份继续",
     "continueWithGoogle": "使用 Google 继续",
     "alreadyHaveAccount": "已有账户？",

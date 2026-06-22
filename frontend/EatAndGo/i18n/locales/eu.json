@@ -163,6 +163,7 @@
         "emailCodeInfo": "Egiaztapen-kode bat bidaliko da zure helbide elektronikora.",
         "errors": {
           "emailRequired": "Helbide elektronikoa beharrezkoa da",
+          "emailInvalid": "Helbide elektronikoaren formatu baliogabea",
           "passwordRequired": "Pasahitza beharrezkoa da",
           "passwordMin": "Gutxienez 8 karaktere",
           "nameRequired": "Izena beharrezkoa da",
@@ -240,6 +241,58 @@
     "welcomeSubtitle": "Hasi saioa jarraitzeko",
     "slogan": "Zerbitzarien zerbitzura dagoen zerbitzaria",
     "loginTitle": "Hasi saioa",
+    "resumeOrderPrompt": "Hasi saioa zure eskaera utzi zenuen tokian berrekiteko.",
+      "validation": {
+        "emailRequired": "Helbide elektronikoa beharrezkoa da",
+        "passwordRequired": "Pasahitza beharrezkoa da",
+        "passwordMinLength": "Gutxienez {{min}} karaktere",
+        "noAccountEmail": "Ez dago konturik helbide honekin"
+      },
+      "alerts": {
+        "accountNotFound": {
+          "title": "Ez da konturik aurkitu",
+          "message": "Ez dago konturik helbide elektroniko honi lotuta."
+        },
+        "invalidCredentials": {
+          "title": "Kredentzial baliogabeak",
+          "message": "Helbide elektronikoa edo pasahitza okerra da. Saiatu berriro."
+        },
+        "accessDenied": {
+          "title": "Sarbidea ukatuta",
+          "message": "Zure kontuak ez du saioa hasteko baimenik. Jarri laguntzarekin harremanetan."
+        },
+        "tooManyAttempts": {
+          "title": "Saiakera gehiegi",
+          "message": "Saio-hasiera saiakera gehiegi. Saiatu berriro une batzuk barru."
+        },
+        "networkError": {
+          "title": "Konexio-errorea",
+          "message": "Egiaztatu zure interneteko konexioa eta saiatu berriro."
+        },
+        "serviceUnavailable": {
+          "title": "Zerbitzua ez dago erabilgarri",
+          "message": "Zerbitzua aldi baterako ez dago erabilgarri. Saiatu berriro geroago."
+        },
+        "genericError": {
+          "title": "Konexio-errorea",
+          "message": "Errore bat gertatu da. Saiatu berriro."
+        },
+        "googlePlayUnavailable": {
+          "title": "Google Play ez dago erabilgarri",
+          "message": "Google Play Services ez dago erabilgarri gailu honetan."
+        },
+        "googleLoginFailed": {
+          "title": "Ezin izan da Googlerekin saioa hasi"
+        },
+        "comingSoon": {
+          "title": "Laster eskuragarri",
+          "message": "Applerekin saioa hastea laster egongo da eskuragarri."
+        },
+        "sessionExpired": {
+          "title": "Saioa iraungi da",
+          "message": "Zure saioa iraungi da. Hasi saioa berriro."
+        }
+      },
     "continueWithApple": "Jarraitu Applerekin",
     "signIn": "Saioa hasi",
     "signUp": "Kontua sortu",
@@ -253,6 +306,8 @@
     "lastName": "Abizena",
     "phone": "Telefonoa",
     "rememberMe": "Gogoratu",
+    "reconnect": "Saioa berriz hasi",
+    "useAnotherAccount": "edo beste kontu bat",
     "continueAsGuest": "Jarraitu gonbidatu gisa",
     "continueWithGoogle": "Jarraitu Google-rekin",
     "alreadyHaveAccount": "Konturik baduzu?",

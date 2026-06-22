@@ -162,6 +162,7 @@
         "emailCodeInfo": "Ein Bestätigungscode wird an deine E-Mail-Adresse gesendet.",
         "errors": {
           "emailRequired": "E-Mail erforderlich",
+          "emailInvalid": "Ungültiges E-Mail-Format",
           "passwordRequired": "Passwort erforderlich",
           "passwordMin": "Mindestens 8 Zeichen",
           "nameRequired": "Name erforderlich",
@@ -239,6 +240,58 @@
     "welcomeSubtitle": "Melde dich an, um fortzufahren",
     "slogan": "Ein Server im Dienste der Server",
     "loginTitle": "Anmelden",
+    "resumeOrderPrompt": "Melde dich an, um deine Bestellung dort fortzusetzen, wo du aufgehört hast.",
+      "validation": {
+        "emailRequired": "E-Mail erforderlich",
+        "passwordRequired": "Passwort erforderlich",
+        "passwordMinLength": "Mindestens {{min}} Zeichen",
+        "noAccountEmail": "Kein Konto mit dieser E-Mail"
+      },
+      "alerts": {
+        "accountNotFound": {
+          "title": "Konto nicht gefunden",
+          "message": "Mit dieser E-Mail ist kein Konto verknüpft."
+        },
+        "invalidCredentials": {
+          "title": "Ungültige Anmeldedaten",
+          "message": "E-Mail oder Passwort ist falsch. Bitte versuche es erneut."
+        },
+        "accessDenied": {
+          "title": "Zugriff verweigert",
+          "message": "Dein Konto ist nicht zur Anmeldung berechtigt. Bitte kontaktiere den Support."
+        },
+        "tooManyAttempts": {
+          "title": "Zu viele Versuche",
+          "message": "Zu viele Anmeldeversuche. Bitte versuche es in Kürze erneut."
+        },
+        "networkError": {
+          "title": "Verbindungsfehler",
+          "message": "Überprüfe deine Internetverbindung und versuche es erneut."
+        },
+        "serviceUnavailable": {
+          "title": "Dienst nicht verfügbar",
+          "message": "Der Dienst ist vorübergehend nicht verfügbar. Bitte versuche es später erneut."
+        },
+        "genericError": {
+          "title": "Verbindungsfehler",
+          "message": "Ein Fehler ist aufgetreten. Bitte versuche es erneut."
+        },
+        "googlePlayUnavailable": {
+          "title": "Google Play nicht verfügbar",
+          "message": "Google Play Services ist auf diesem Gerät nicht verfügbar."
+        },
+        "googleLoginFailed": {
+          "title": "Google-Anmeldung fehlgeschlagen"
+        },
+        "comingSoon": {
+          "title": "Demnächst verfügbar",
+          "message": "Die Anmeldung mit Apple ist bald verfügbar."
+        },
+        "sessionExpired": {
+          "title": "Sitzung abgelaufen",
+          "message": "Deine Sitzung ist abgelaufen. Bitte melde dich erneut an."
+        }
+      },
     "continueWithApple": "Mit Apple fortfahren",
     "signIn": "Anmelden",
     "signUp": "Konto erstellen",
@@ -252,6 +305,8 @@
     "lastName": "Nachname",
     "phone": "Telefon",
     "rememberMe": "Angemeldet bleiben",
+    "reconnect": "Erneut anmelden",
+    "useAnotherAccount": "oder anderes Konto",
     "continueAsGuest": "Als Gast fortfahren",
     "continueWithGoogle": "Mit Google fortfahren",
     "alreadyHaveAccount": "Bereits ein Konto?",

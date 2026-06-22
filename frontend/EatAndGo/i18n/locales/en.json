@@ -162,6 +162,7 @@
         "emailCodeInfo": "A verification code will be sent to your email address.",
         "errors": {
           "emailRequired": "Email required",
+          "emailInvalid": "Invalid email format",
           "passwordRequired": "Password required",
           "passwordMin": "Minimum 8 characters",
           "nameRequired": "Name required",
@@ -239,6 +240,58 @@
     "welcomeSubtitle": "Sign in to continue",
     "slogan": "A server at the service of servers",
     "loginTitle": "Sign in",
+    "resumeOrderPrompt": "Sign in to pick up your order right where you left off.",
+      "validation": {
+        "emailRequired": "Email required",
+        "passwordRequired": "Password required",
+        "passwordMinLength": "At least {{min}} characters",
+        "noAccountEmail": "No account with this email"
+      },
+      "alerts": {
+        "accountNotFound": {
+          "title": "Account not found",
+          "message": "No account is linked to this email."
+        },
+        "invalidCredentials": {
+          "title": "Invalid credentials",
+          "message": "Incorrect email or password. Please try again."
+        },
+        "accessDenied": {
+          "title": "Access denied",
+          "message": "Your account isn't allowed to sign in. Please contact support."
+        },
+        "tooManyAttempts": {
+          "title": "Too many attempts",
+          "message": "Too many sign-in attempts. Please try again shortly."
+        },
+        "networkError": {
+          "title": "Connection error",
+          "message": "Check your internet connection and try again."
+        },
+        "serviceUnavailable": {
+          "title": "Service unavailable",
+          "message": "The service is temporarily unavailable. Please try again later."
+        },
+        "genericError": {
+          "title": "Connection error",
+          "message": "Something went wrong. Please try again."
+        },
+        "googlePlayUnavailable": {
+          "title": "Google Play unavailable",
+          "message": "Google Play Services isn't available on this device."
+        },
+        "googleLoginFailed": {
+          "title": "Google sign-in failed"
+        },
+        "comingSoon": {
+          "title": "Coming soon",
+          "message": "Apple sign-in will be available soon."
+        },
+        "sessionExpired": {
+          "title": "Session expired",
+          "message": "Your session has expired. Please sign in again."
+        }
+      },
     "continueWithApple": "Continue with Apple",
     "signIn": "Sign in",
     "signUp": "Sign up",
@@ -252,6 +305,8 @@
     "lastName": "Last name",
     "phone": "Phone",
     "rememberMe": "Remember me",
+    "reconnect": "Log back in",
+    "useAnotherAccount": "or another account",
     "continueAsGuest": "Continue as guest",
     "continueWithGoogle": "Continue with Google",
     "alreadyHaveAccount": "Already have an account?",

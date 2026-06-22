@@ -61,7 +61,7 @@ export default function LoginScreen() {
   
   const { login, googleLogin } = useAuth();
   const { t } = useTranslation();
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const { isMobile, isTablet, isSmallScreen, getSpacing, getFontSize, getResponsiveValue } = useResponsive();
   const insets = useSafeAreaInsets();
 
@@ -111,21 +111,21 @@ export default function LoginScreen() {
     // Email validation
     const email = formData.email.trim();
     if (!email) {
-      newErrors.email = 'Email requis';
+      newErrors.email = t('auth.validation.emailRequired');
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      newErrors.email = 'Format d\'email invalide';
+      newErrors.email = t('auth.validation.emailInvalid');
     }
     
     // Password validation
     if (!formData.password) {
-      newErrors.password = 'Mot de passe requis';
+      newErrors.password = t('auth.validation.passwordRequired');
     } else if (formData.password.length < 6) {
-      newErrors.password = 'Minimum 6 caractères';
+      newErrors.password = t('auth.validation.passwordMinLength', { min: 6 });
     }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [formData.email, formData.password]);
+  }, [formData.email, formData.password, t]);
 
   const handleLoginError = (error: any) => {
     console.error('Login error:', error);
@@ -147,8 +147,8 @@ export default function LoginScreen() {
       code === 'USER_NOT_FOUND' ||
       /user.*not.*found|no.*user|aucun.*utilisateur|unknown.*user|ressource.*non.*trouv|no.*account.*found/.test(serverMessage)
     ) {
-      setErrors(prev => ({ ...prev, email: 'Aucun compte avec cet email' }));
-      show('error', 'Compte introuvable', 'Aucun compte associé à cet email.');
+      setErrors(prev => ({ ...prev, email: t('auth.validation.noAccountEmail') }));
+      show('error', t('auth.alerts.accountNotFound.title'), t('auth.alerts.accountNotFound.message'));
       return;
     }
 
@@ -158,7 +158,7 @@ export default function LoginScreen() {
       /no.*active.*account|identifiant.*invalide|invalid.*credential|wrong.*password|invalid.*password|bad.*credentials|mot.*de.*passe.*(incorrect|invalide|erron)|donn.*es.*invalide|erreur.*lors.*connexion/.test(serverMessage)
     ) {
       setErrors(prev => ({ ...prev, email: ' ', password: ' ' }));
-      show('error', 'Identifiants invalides', 'Email ou mot de passe incorrect. Veuillez réessayer.');
+      show('error', t('auth.alerts.invalidCredentials.title'), t('auth.alerts.invalidCredentials.message'));
       return;
     }
 
@@ -167,7 +167,7 @@ export default function LoginScreen() {
       code === 'ACCOUNT_DISABLED' ||
       /compte.*d.sactiv|account.*disabled|acc.s.*refus|permissions.*insuffisantes|profil.*restaurateur.*doit/.test(serverMessage)
     ) {
-      show('warning', 'Accès refusé', 'Votre compte n\'est pas autorisé à se connecter. Contactez le support.');
+      show('warning', t('auth.alerts.accessDenied.title'), t('auth.alerts.accessDenied.message'));
       return;
     }
 
@@ -176,7 +176,7 @@ export default function LoginScreen() {
       code === 'RATE_LIMITED' ||
       /trop.*tentatives|too.*many.*requests|rate.*limit/.test(serverMessage)
     ) {
-      show('warning', 'Trop de tentatives', 'Trop de tentatives de connexion. Réessayez dans quelques instants.');
+      show('warning', t('auth.alerts.tooManyAttempts.title'), t('auth.alerts.tooManyAttempts.message'));
       return;
     }
 
@@ -185,7 +185,7 @@ export default function LoginScreen() {
       code === 'NETWORK_ERROR' ||
       /network.*error|connexion.*impossible|failed.*fetch|r.seau.*indisponible/.test(serverMessage)
     ) {
-      show('warning', 'Erreur de connexion', 'Vérifiez votre connexion internet et réessayez.');
+      show('warning', t('auth.alerts.networkError.title'), t('auth.alerts.networkError.message'));
       return;
     }
 
@@ -193,11 +193,11 @@ export default function LoginScreen() {
       (typeof status === 'number' && status >= 500) ||
       /erreur.*serveur|service.*indisponible|server.*error|internal.*error/.test(serverMessage)
     ) {
-      show('error', 'Service indisponible', 'Le service est temporairement indisponible. Réessayez plus tard.');
+      show('error', t('auth.alerts.serviceUnavailable.title'), t('auth.alerts.serviceUnavailable.message'));
       return;
     }
 
-    show('error', 'Erreur de connexion', error?.response?.data?.detail || error?.response?.data?.message || error?.message || 'Une erreur est survenue. Veuillez réessayer.');
+    show('error', t('auth.alerts.genericError.title'), error?.response?.data?.detail || error?.response?.data?.message || error?.message || t('auth.alerts.genericError.message'));
   };
 
   // SOUMISSION AVEC FEEDBACK
@@ -334,16 +334,16 @@ export default function LoginScreen() {
       if (error?.code === 'PLAY_SERVICES_UNAVAILABLE') {
         setCustomAlert({
           variant: 'warning',
-          title: 'Google Play indisponible',
-          message: 'Google Play Services n\'est pas disponible sur cet appareil.',
+          title: t('auth.alerts.googlePlayUnavailable.title'),
+          message: t('auth.alerts.googlePlayUnavailable.message'),
         });
         return;
       }
 
       setCustomAlert({
         variant: 'error',
-        title: 'Connexion Google impossible',
-        message: error?.message || 'Une erreur est survenue. Veuillez réessayer.',
+        title: t('auth.alerts.googleLoginFailed.title'),
+        message: error?.message || t('auth.alerts.genericError.message'),
       });
     } finally {
       setLoading(false);
@@ -353,8 +353,8 @@ export default function LoginScreen() {
   const handleAppleLogin = useCallback(() => {
     setCustomAlert({
       variant: 'info',
-      title: 'Bientôt disponible',
-      message: 'La connexion Apple sera disponible prochainement',
+      title: t('auth.alerts.comingSoon.title'),
+      message: t('auth.alerts.comingSoon.message'),
     });
   }, []);
 
@@ -374,8 +374,8 @@ export default function LoginScreen() {
     if (params.reason === 'session_expired') {
       setCustomAlert({
         variant: 'warning',
-        title: 'Session expirée',
-        message: 'Votre session a expiré. Veuillez vous reconnecter.',
+        title: t('auth.alerts.sessionExpired.title'),
+        message: t('auth.alerts.sessionExpired.message'),
       });
       // Nettoyer le param pour éviter les re-triggers au remontage
       // (returnTo est conservé pour qu'il survive au nettoyage de `reason`)
@@ -704,7 +704,9 @@ export default function LoginScreen() {
       {/* HEADER AVEC LOGO */}
       <View style={styles.header}>
         <LinearGradient
-          colors={['#1E2A78', '#2D3E8F', '#3B4BA3']}
+          colors={isDark
+            ? ['#0E1330', '#161E47', '#1E2A78']
+            : ['#1E2A78', '#2D3E8F', '#3B4BA3']}
           style={styles.headerGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -728,9 +730,9 @@ export default function LoginScreen() {
               resizeMode="cover"
             />
           </View>
-          <Text style={styles.headerTitle}>Ravis de vous voir</Text>
-          <Text style={styles.headerSubtitle}>Connectez-vous pour continuer</Text>
-          <Text style={styles.headerSlogan}>« Un serveur au service des serveurs »</Text>
+          <Text style={styles.headerTitle}>{t('auth.welcomeTitle')}</Text>
+          <Text style={styles.headerSubtitle}>{t('auth.welcomeSubtitle')}</Text>
+          <Text style={styles.headerSlogan}>{t('auth.slogan')}</Text>
         </View>
       </View>
 
@@ -748,14 +750,14 @@ export default function LoginScreen() {
             bounces={false}
           >
             <Card style={styles.formCard} variant="elevated" padding="xl">
-              <Text style={styles.formTitle}>Connexion</Text>
+              <Text style={styles.formTitle}>{t('auth.loginTitle')}</Text>
 
               {/* Bandeau d'info si on revient d'un AuthGate (returnTo défini) */}
               {returnTo && (
                 <View style={styles.returnToBanner}>
                   <Ionicons name="information-circle" size={18} color={COLORS.secondary} />
                   <Text style={styles.returnToBannerText}>
-                    Connectez-vous pour reprendre votre commande là où vous l'aviez laissée.
+                    {t('auth.resumeOrderPrompt')}
                   </Text>
                 </View>
               )}
@@ -764,7 +766,7 @@ export default function LoginScreen() {
               {hasQuickAuth && (
                 <View style={styles.quickAuthSection}>
                   <Button
-                    title="Se reconnecter"
+                    title={t('auth.reconnect')}
                     onPress={handleQuickReconnect}
                     loading={loading}
                     disabled={loading}
@@ -782,7 +784,7 @@ export default function LoginScreen() {
                   )}
                   <View style={styles.divider}>
                     <View style={styles.dividerLine} />
-                    <Text style={styles.dividerText}>ou un autre compte</Text>
+                    <Text style={styles.dividerText}>{t('auth.useAnotherAccount')}</Text>
                     <View style={styles.dividerLine} />
                   </View>
                 </View>
@@ -875,7 +877,7 @@ export default function LoginScreen() {
                     <Ionicons name="checkmark" size={14} color={COLORS.text.inverse} />
                   )}
                 </View>
-                <Text style={styles.rememberText}>Se souvenir de moi</Text>
+                <Text style={styles.rememberText}>{t('auth.rememberMe')}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity 
