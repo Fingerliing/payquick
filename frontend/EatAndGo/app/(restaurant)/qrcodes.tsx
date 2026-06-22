@@ -212,6 +212,22 @@ export default function QRCodesScreen() {
     [t],
   );
 
+  // Sépare le label combiné "Petit (24/page)" en { name, count } pour pouvoir
+  // afficher le nombre de pages sur une 2e ligne dans le sélecteur de taille.
+  // Gère les parenthèses ASCII () et pleine chasse （）. Fallback : si la langue
+  // n'utilise pas de parenthèses, tout reste sur la 1re ligne (count = '').
+  const getQrSizeParts = useCallback(
+    (size: QRSize): { name: string; count: string } => {
+      const full = getQrSizeLabel(size);
+      const match = full.match(/^(.*?)\s*[(（]([^)）]*)[)）]\s*$/);
+      if (match) {
+        return { name: match[1].trim(), count: match[2].trim() };
+      }
+      return { name: full, count: '' };
+    },
+    [getQrSizeLabel],
+  );
+
   // ──────────────────────────────────────────────────────────────────────────
   // Auto-sélection du restaurant unique
   // ──────────────────────────────────────────────────────────────────────────
@@ -828,26 +844,37 @@ export default function QRCodesScreen() {
     <View style={styles.qrSizePicker}>
       <Text style={styles.qrSizeLabel}>{t('restaurantQrCodes.controls.qrSize')}</Text>
       <View style={styles.qrSizeButtons}>
-        {(Object.keys(QR_SIZES) as QRSize[]).map((size) => (
-          <Pressable
-            key={size}
-            onPress={() => setQrSize(size)}
-            style={[
-              styles.qrSizeButton,
-              qrSize === size && styles.qrSizeButtonActive,
-            ]}
-            android_ripple={{ color: colors.secondary + '20', borderless: false }}
-          >
-            <Text
-              style={[
-                styles.qrSizeButtonText,
-                qrSize === size && styles.qrSizeButtonTextActive,
-              ]}
+        {(Object.keys(QR_SIZES) as QRSize[]).map((size) => {
+          const { name, count } = getQrSizeParts(size);
+          const active = qrSize === size;
+          return (
+            <Pressable
+              key={size}
+              onPress={() => setQrSize(size)}
+              style={[styles.qrSizeButton, active && styles.qrSizeButtonActive]}
+              android_ripple={{ color: colors.secondary + '20', borderless: false }}
             >
-              {getQrSizeLabel(size)}
-            </Text>
-          </Pressable>
-        ))}
+              <Text
+                style={[
+                  styles.qrSizeButtonText,
+                  active && styles.qrSizeButtonTextActive,
+                ]}
+              >
+                {name}
+              </Text>
+              {count ? (
+                <Text
+                  style={[
+                    styles.qrSizeButtonCount,
+                    active && styles.qrSizeButtonCountActive,
+                  ]}
+                >
+                  {count}
+                </Text>
+              ) : null}
+            </Pressable>
+          );
+        })}
       </View>
     </View>
   );
@@ -1625,6 +1652,18 @@ const makeStyles = (
     qrSizeButtonTextActive: {
       color: isDark ? colors.text.golden : colors.secondary,
       fontWeight: '600',
+    },
+
+    qrSizeButtonCount: {
+      fontSize: getResponsiveValue({ mobile: 11, tablet: 12, desktop: 13 }, screenType),
+      fontWeight: '400',
+      color: colors.text.light,
+      marginTop: 2,
+      textAlign: 'center',
+    },
+
+    qrSizeButtonCountActive: {
+      color: isDark ? colors.text.golden : colors.secondary,
     },
 
     // Contrôles numériques
