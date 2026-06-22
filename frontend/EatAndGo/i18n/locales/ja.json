@@ -1,4 +1,113 @@
 {
+    "addRestaurant": {
+      "title": "レストランを追加",
+      "image": {
+        "section": "カバー画像",
+        "choose": "画像を選択",
+        "formatHint": "16:9 の形式を推奨"
+      },
+      "sections": {
+        "basicInfo": "基本情報",
+        "contact": "連絡先",
+        "location": "住所と位置情報",
+        "mealVouchers": "食事券",
+        "legal": "法的情報"
+      },
+      "fields": {
+        "name": "レストラン名 *",
+        "namePlaceholder": "例：La Bonne Table",
+        "description": "説明",
+        "descriptionPlaceholder": "店舗の簡単な説明",
+        "cuisineType": "料理の種類 *",
+        "priceRange": "価格帯",
+        "phone": "電話番号 *",
+        "email": "メール *",
+        "website": "ウェブサイト",
+        "address": "住所 *",
+        "city": "市区町村 *",
+        "cityPlaceholder": "パリ",
+        "postalCode": "郵便番号 *",
+        "siret": "SIRET 番号 *",
+        "siretPlaceholder": "12345678901234",
+        "raisonSociale": "会社名",
+        "raisonSocialePlaceholder": "例：SARL Restaurant Chez Paul"
+      },
+      "cuisines": {
+        "french": "フランス料理",
+        "italian": "イタリア料理",
+        "asian": "アジア料理",
+        "mexican": "メキシコ料理",
+        "indian": "インド料理",
+        "american": "アメリカ料理",
+        "mediterranean": "地中海料理",
+        "japanese": "日本料理",
+        "chinese": "中華料理",
+        "thai": "タイ料理",
+        "other": "その他"
+      },
+      "priceRanges": {
+        "eco": "お手頃",
+        "moderate": "標準",
+        "expensive": "高め",
+        "luxury": "高級"
+      },
+      "mealVouchers": {
+        "accept": "食事券を受け付ける",
+        "providers": "Swile、Edenred、Up…",
+        "legalInfoTitle": "法的情報",
+        "legalLimit": "法定上限：1人1日あたり19ユーロ",
+        "legalUsage": "利用：月曜から土曜（日曜・祝日を除く、例外あり）",
+        "legalProducts": "対象商品：すぐに食べられる食品",
+        "customInfoLabel": "お客様に表示される情報",
+        "customInfoPlaceholder": "例：月曜〜土曜に利用可、上限19ユーロ",
+        "accepted": "利用可",
+        "notAccepted": "利用不可",
+        "titleAccepted": "食事券は利用可能",
+        "titleNotAccepted": "食事券は利用不可",
+        "defaultInfo": "法的条件に従って食事券を受け付けます"
+      },
+      "status": {
+        "closedNow": "現在は休業中",
+        "period": "時間帯：{{start}} - {{end}}",
+        "nextOpening": "次回の営業：{{time}}"
+      },
+      "submit": {
+        "create": "レストランを作成",
+        "creating": "作成中…",
+        "processing": "処理中…"
+      },
+      "validation": {
+        "nameRequired": "名前は必須です",
+        "addressRequired": "住所は必須です",
+        "cityRequired": "市区町村は必須です",
+        "zipRequired": "郵便番号は必須です",
+        "phoneRequired": "電話番号は必須です",
+        "emailRequired": "メールは必須です",
+        "cuisineRequired": "料理の種類は必須です",
+        "siretRequired": "SIRET は必須です",
+        "siretInvalid": "SIRET は正確に14桁である必要があります",
+        "zipInvalid": "郵便番号は正確に5桁である必要があります",
+        "phoneInvalid": "形式が無効です。0612345678 または +33612345678 を使用してください",
+        "hoursAllDays": "営業時間は週7日すべてをカバーする必要があります",
+        "hoursPeriodRequired": "営業日には少なくとも1つの時間帯が必要です",
+        "hoursStartEnd": "各時間帯には開始時刻と終了時刻が必要です",
+        "hoursDifferent": "終了時刻は開始時刻と異なる必要があります",
+        "fixFieldsTitle": "未入力の項目",
+        "fixFieldsMessage": "赤色の項目を修正してください。"
+      },
+      "alerts": {
+        "permissionDeniedTitle": "許可が拒否されました",
+        "photoPermissionMessage": "写真へのアクセス許可が必要です",
+        "imagePickError": "画像を選択できません",
+        "errorTitle": "エラー",
+        "locationPermissionMessage": "位置情報の許可が必要です",
+        "locationError": "位置情報を取得できません",
+        "successTitle": "成功",
+        "createSuccessMessage": "レストランが正常に作成されました！\n現在の状態：{{status}}\n食事券：{{vouchers}}",
+        "createError": "レストランを作成できません",
+        "validationError": "入力エラーが検出されました。赤色の項目を確認してください"
+      }
+    },
     "dashboard": {
       "greeting": "こんにちは、シェフ！",
       "open": "営業中",

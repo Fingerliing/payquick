@@ -1,4 +1,113 @@
 {
+    "addRestaurant": {
+      "title": "添加餐厅",
+      "image": {
+        "section": "封面图片",
+        "choose": "选择图片",
+        "formatHint": "推荐 16:9 格式"
+      },
+      "sections": {
+        "basicInfo": "基本信息",
+        "contact": "联系方式",
+        "location": "地址与定位",
+        "mealVouchers": "餐券",
+        "legal": "法律信息"
+      },
+      "fields": {
+        "name": "餐厅名称 *",
+        "namePlaceholder": "例如：La Bonne Table",
+        "description": "描述",
+        "descriptionPlaceholder": "对您店铺的简短描述",
+        "cuisineType": "菜系 *",
+        "priceRange": "价格区间",
+        "phone": "电话 *",
+        "email": "电子邮箱 *",
+        "website": "网站",
+        "address": "地址 *",
+        "city": "城市 *",
+        "cityPlaceholder": "巴黎",
+        "postalCode": "邮政编码 *",
+        "siret": "SIRET 编号 *",
+        "siretPlaceholder": "12345678901234",
+        "raisonSociale": "公司名称",
+        "raisonSocialePlaceholder": "例如：SARL Restaurant Chez Paul"
+      },
+      "cuisines": {
+        "french": "法国菜",
+        "italian": "意大利菜",
+        "asian": "亚洲菜",
+        "mexican": "墨西哥菜",
+        "indian": "印度菜",
+        "american": "美式菜",
+        "mediterranean": "地中海菜",
+        "japanese": "日本料理",
+        "chinese": "中餐",
+        "thai": "泰国菜",
+        "other": "其他"
+      },
+      "priceRanges": {
+        "eco": "经济",
+        "moderate": "适中",
+        "expensive": "较贵",
+        "luxury": "奢华"
+      },
+      "mealVouchers": {
+        "accept": "接受餐券",
+        "providers": "Swile、Edenred、Up…",
+        "legalInfoTitle": "法律信息",
+        "legalLimit": "法定上限：每人每天 19 欧元",
+        "legalUsage": "使用：周一至周六（周日及节假日除外，特殊情况除外）",
+        "legalProducts": "适用商品：可立即食用的食品",
+        "customInfoLabel": "向顾客显示的信息",
+        "customInfoPlaceholder": "例如：周一至周六可用，上限 19 欧元",
+        "accepted": "接受",
+        "notAccepted": "不接受",
+        "titleAccepted": "接受餐券",
+        "titleNotAccepted": "不接受餐券",
+        "defaultInfo": "按照法律条件接受餐券"
+      },
+      "status": {
+        "closedNow": "暂时休息",
+        "period": "时段：{{start}} - {{end}}",
+        "nextOpening": "下次营业：{{time}}"
+      },
+      "submit": {
+        "create": "创建餐厅",
+        "creating": "正在创建…",
+        "processing": "正在处理…"
+      },
+      "validation": {
+        "nameRequired": "名称为必填项",
+        "addressRequired": "地址为必填项",
+        "cityRequired": "城市为必填项",
+        "zipRequired": "邮政编码为必填项",
+        "phoneRequired": "电话为必填项",
+        "emailRequired": "电子邮箱为必填项",
+        "cuisineRequired": "菜系为必填项",
+        "siretRequired": "SIRET 为必填项",
+        "siretInvalid": "SIRET 必须正好为 14 位数字",
+        "zipInvalid": "邮政编码必须正好为 5 位数字",
+        "phoneInvalid": "格式无效。请使用 0612345678 或 +33612345678",
+        "hoursAllDays": "营业时间必须覆盖一周 7 天",
+        "hoursPeriodRequired": "每个营业日至少需包含一个时段",
+        "hoursStartEnd": "每个时段必须有开始和结束时间",
+        "hoursDifferent": "结束时间必须与开始时间不同",
+        "fixFieldsTitle": "缺少字段",
+        "fixFieldsMessage": "请修正标红的字段。"
+      },
+      "alerts": {
+        "permissionDeniedTitle": "权限被拒绝",
+        "photoPermissionMessage": "需要照片访问权限",
+        "imagePickError": "无法选择图片",
+        "errorTitle": "错误",
+        "locationPermissionMessage": "需要定位权限",
+        "locationError": "无法获取您的位置",
+        "successTitle": "成功",
+        "createSuccessMessage": "餐厅创建成功！\n当前状态：{{status}}\n餐券：{{vouchers}}",
+        "createError": "无法创建餐厅",
+        "validationError": "检测到验证错误——请检查标红的字段"
+      }
+    },
     "dashboard": {
       "greeting": "您好，主厨！",
       "open": "营业中",

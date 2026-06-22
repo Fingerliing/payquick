@@ -1,4 +1,113 @@
 {
+    "addRestaurant": {
+      "title": "Restaurant hinzufügen",
+      "image": {
+        "section": "Titelbild",
+        "choose": "Bild auswählen",
+        "formatHint": "Format 16:9 empfohlen"
+      },
+      "sections": {
+        "basicInfo": "Grundinformationen",
+        "contact": "Kontakt",
+        "location": "Adresse & Geolokalisierung",
+        "mealVouchers": "Essensgutscheine",
+        "legal": "Rechtliche Informationen"
+      },
+      "fields": {
+        "name": "Name des Restaurants *",
+        "namePlaceholder": "z. B. La Bonne Table",
+        "description": "Beschreibung",
+        "descriptionPlaceholder": "Kurze Beschreibung Ihres Lokals",
+        "cuisineType": "Küchenart *",
+        "priceRange": "Preisklasse",
+        "phone": "Telefon *",
+        "email": "E-Mail *",
+        "website": "Website",
+        "address": "Adresse *",
+        "city": "Stadt *",
+        "cityPlaceholder": "Paris",
+        "postalCode": "Postleitzahl *",
+        "siret": "SIRET-Nummer *",
+        "siretPlaceholder": "12345678901234",
+        "raisonSociale": "Firmenname",
+        "raisonSocialePlaceholder": "z. B. SARL Restaurant Chez Paul"
+      },
+      "cuisines": {
+        "french": "Französisch",
+        "italian": "Italienisch",
+        "asian": "Asiatisch",
+        "mexican": "Mexikanisch",
+        "indian": "Indisch",
+        "american": "Amerikanisch",
+        "mediterranean": "Mediterran",
+        "japanese": "Japanisch",
+        "chinese": "Chinesisch",
+        "thai": "Thailändisch",
+        "other": "Andere"
+      },
+      "priceRanges": {
+        "eco": "Günstig",
+        "moderate": "Moderat",
+        "expensive": "Teuer",
+        "luxury": "Luxus"
+      },
+      "mealVouchers": {
+        "accept": "Essensgutscheine akzeptieren",
+        "providers": "Swile, Edenred, Up…",
+        "legalInfoTitle": "Rechtliche Informationen",
+        "legalLimit": "Gesetzliche Grenze: 19 € pro Tag und Person",
+        "legalUsage": "Verwendung: Montag bis Samstag (außer sonntags und an Feiertagen, sofern nicht anders erlaubt)",
+        "legalProducts": "Zulässige Produkte: sofort verzehrfertige Lebensmittel",
+        "customInfoLabel": "Für Kunden angezeigte Infos",
+        "customInfoPlaceholder": "z. B. Akzeptiert Montag bis Samstag, max. 19 €",
+        "accepted": "akzeptiert",
+        "notAccepted": "nicht akzeptiert",
+        "titleAccepted": "Essensgutscheine akzeptiert",
+        "titleNotAccepted": "Essensgutscheine nicht akzeptiert",
+        "defaultInfo": "Essensgutscheine gemäß den gesetzlichen Bedingungen akzeptiert"
+      },
+      "status": {
+        "closedNow": "Momentan geschlossen",
+        "period": "Zeitraum: {{start}} - {{end}}",
+        "nextOpening": "Nächste Öffnung: {{time}}"
+      },
+      "submit": {
+        "create": "Restaurant erstellen",
+        "creating": "Wird erstellt…",
+        "processing": "Wird verarbeitet…"
+      },
+      "validation": {
+        "nameRequired": "Name erforderlich",
+        "addressRequired": "Adresse erforderlich",
+        "cityRequired": "Stadt erforderlich",
+        "zipRequired": "Postleitzahl erforderlich",
+        "phoneRequired": "Telefon erforderlich",
+        "emailRequired": "E-Mail erforderlich",
+        "cuisineRequired": "Küche erforderlich",
+        "siretRequired": "SIRET erforderlich",
+        "siretInvalid": "Die SIRET muss genau 14 Ziffern enthalten",
+        "zipInvalid": "Die Postleitzahl muss genau 5 Ziffern enthalten",
+        "phoneInvalid": "Ungültiges Format. Verwenden Sie 0612345678 oder +33612345678",
+        "hoursAllDays": "Die Öffnungszeiten müssen alle 7 Wochentage abdecken",
+        "hoursPeriodRequired": "Jeder geöffnete Tag muss mindestens einen Zeitraum enthalten",
+        "hoursStartEnd": "Jeder Zeitraum muss eine Anfangs- und Endzeit haben",
+        "hoursDifferent": "Die Endzeit muss sich von der Öffnungszeit unterscheiden",
+        "fixFieldsTitle": "Fehlende Felder",
+        "fixFieldsMessage": "Bitte korrigieren Sie die rot markierten Felder."
+      },
+      "alerts": {
+        "permissionDeniedTitle": "Berechtigung verweigert",
+        "photoPermissionMessage": "Zugriffsberechtigung für Fotos erforderlich",
+        "imagePickError": "Bild konnte nicht ausgewählt werden",
+        "errorTitle": "Fehler",
+        "locationPermissionMessage": "Standortberechtigung erforderlich",
+        "locationError": "Ihr Standort konnte nicht ermittelt werden",
+        "successTitle": "Erfolg",
+        "createSuccessMessage": "Restaurant erfolgreich erstellt!\nAktueller Status: {{status}}\nEssensgutscheine: {{vouchers}}",
+        "createError": "Restaurant konnte nicht erstellt werden",
+        "validationError": "Validierungsfehler erkannt – überprüfen Sie die rot markierten Felder"
+      }
+    },
     "dashboard": {
       "greeting": "Hallo, Chef!",
       "open": "Geöffnet",

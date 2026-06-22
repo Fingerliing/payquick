@@ -1,4 +1,113 @@
 {
+    "addRestaurant": {
+      "title": "إضافة مطعم",
+      "image": {
+        "section": "صورة الغلاف",
+        "choose": "اختر صورة",
+        "formatHint": "يُنصح بنسبة 16:9"
+      },
+      "sections": {
+        "basicInfo": "معلومات أساسية",
+        "contact": "جهة الاتصال",
+        "location": "العنوان والموقع الجغرافي",
+        "mealVouchers": "قسائم الطعام",
+        "legal": "معلومات قانونية"
+      },
+      "fields": {
+        "name": "اسم المطعم *",
+        "namePlaceholder": "مثال: La Bonne Table",
+        "description": "الوصف",
+        "descriptionPlaceholder": "وصف موجز لمنشأتك",
+        "cuisineType": "نوع المطبخ *",
+        "priceRange": "نطاق الأسعار",
+        "phone": "الهاتف *",
+        "email": "البريد الإلكتروني *",
+        "website": "الموقع الإلكتروني",
+        "address": "العنوان *",
+        "city": "المدينة *",
+        "cityPlaceholder": "باريس",
+        "postalCode": "الرمز البريدي *",
+        "siret": "رقم SIRET *",
+        "siretPlaceholder": "12345678901234",
+        "raisonSociale": "الاسم التجاري",
+        "raisonSocialePlaceholder": "مثال: SARL Restaurant Chez Paul"
+      },
+      "cuisines": {
+        "french": "فرنسي",
+        "italian": "إيطالي",
+        "asian": "آسيوي",
+        "mexican": "مكسيكي",
+        "indian": "هندي",
+        "american": "أمريكي",
+        "mediterranean": "متوسطي",
+        "japanese": "ياباني",
+        "chinese": "صيني",
+        "thai": "تايلندي",
+        "other": "أخرى"
+      },
+      "priceRanges": {
+        "eco": "اقتصادي",
+        "moderate": "متوسط",
+        "expensive": "مرتفع",
+        "luxury": "فاخر"
+      },
+      "mealVouchers": {
+        "accept": "قبول قسائم الطعام",
+        "providers": "Swile، Edenred، Up…",
+        "legalInfoTitle": "معلومات قانونية",
+        "legalLimit": "الحد القانوني: 19 يورو لكل شخص في اليوم",
+        "legalUsage": "الاستخدام: من الإثنين إلى السبت (باستثناء الأحد والعطلات الرسمية، إلا في حالات استثنائية)",
+        "legalProducts": "المنتجات المؤهلة: الأطعمة الجاهزة للاستهلاك الفوري",
+        "customInfoLabel": "المعلومات المعروضة للعملاء",
+        "customInfoPlaceholder": "مثال: مقبولة من الإثنين إلى السبت، بحد أقصى 19 يورو",
+        "accepted": "مقبولة",
+        "notAccepted": "غير مقبولة",
+        "titleAccepted": "قسائم الطعام مقبولة",
+        "titleNotAccepted": "قسائم الطعام غير مقبولة",
+        "defaultInfo": "تُقبل قسائم الطعام وفقًا للشروط القانونية"
+      },
+      "status": {
+        "closedNow": "مغلق حاليًا",
+        "period": "الفترة: {{start}} - {{end}}",
+        "nextOpening": "الفتح التالي: {{time}}"
+      },
+      "submit": {
+        "create": "إنشاء المطعم",
+        "creating": "جارٍ الإنشاء…",
+        "processing": "جارٍ المعالجة…"
+      },
+      "validation": {
+        "nameRequired": "الاسم مطلوب",
+        "addressRequired": "العنوان مطلوب",
+        "cityRequired": "المدينة مطلوبة",
+        "zipRequired": "الرمز البريدي مطلوب",
+        "phoneRequired": "الهاتف مطلوب",
+        "emailRequired": "البريد الإلكتروني مطلوب",
+        "cuisineRequired": "المطبخ مطلوب",
+        "siretRequired": "رقم SIRET مطلوب",
+        "siretInvalid": "يجب أن يحتوي SIRET على 14 رقمًا بالضبط",
+        "zipInvalid": "يجب أن يحتوي الرمز البريدي على 5 أرقام بالضبط",
+        "phoneInvalid": "تنسيق غير صالح. استخدم 0612345678 أو +33612345678",
+        "hoursAllDays": "يجب أن تغطي ساعات العمل أيام الأسبوع السبعة",
+        "hoursPeriodRequired": "يجب أن يحتوي كل يوم عمل على فترة واحدة على الأقل",
+        "hoursStartEnd": "يجب أن يكون لكل فترة وقت بدء ووقت انتهاء",
+        "hoursDifferent": "يجب أن يختلف وقت الانتهاء عن وقت البدء",
+        "fixFieldsTitle": "حقول ناقصة",
+        "fixFieldsMessage": "يُرجى تصحيح الحقول المميزة بالأحمر."
+      },
+      "alerts": {
+        "permissionDeniedTitle": "تم رفض الإذن",
+        "photoPermissionMessage": "يلزم إذن الوصول إلى الصور",
+        "imagePickError": "تعذّر تحديد الصورة",
+        "errorTitle": "خطأ",
+        "locationPermissionMessage": "يلزم إذن تحديد الموقع",
+        "locationError": "تعذّر تحديد موقعك",
+        "successTitle": "نجاح",
+        "createSuccessMessage": "تم إنشاء المطعم بنجاح!\nالحالة الحالية: {{status}}\nقسائم الطعام: {{vouchers}}",
+        "createError": "تعذّر إنشاء المطعم",
+        "validationError": "تم اكتشاف أخطاء في التحقق - تحقق من الحقول المميزة بالأحمر"
+      }
+    },
     "dashboard": {
       "greeting": "مرحبًا، أيها الطاهي!",
       "open": "مفتوح",

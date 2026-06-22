@@ -1,4 +1,113 @@
 {
+    "addRestaurant": {
+      "title": "Gehitu jatetxe bat",
+      "image": {
+        "section": "Azaleko irudia",
+        "choose": "Aukeratu irudi bat",
+        "formatHint": "16:9 formatua gomendatua"
+      },
+      "sections": {
+        "basicInfo": "Oinarrizko informazioa",
+        "contact": "Kontaktua",
+        "location": "Helbidea eta kokapena",
+        "mealVouchers": "Bazkari-txartelak",
+        "legal": "Lege-informazioa"
+      },
+      "fields": {
+        "name": "Jatetxearen izena *",
+        "namePlaceholder": "Adib.: La Bonne Table",
+        "description": "Deskribapena",
+        "descriptionPlaceholder": "Zure establezimenduaren deskribapen laburra",
+        "cuisineType": "Sukaldaritza mota *",
+        "priceRange": "Prezio-tartea",
+        "phone": "Telefonoa *",
+        "email": "Helbide elektronikoa *",
+        "website": "Webgunea",
+        "address": "Helbidea *",
+        "city": "Hiria *",
+        "cityPlaceholder": "Paris",
+        "postalCode": "Posta-kodea *",
+        "siret": "SIRET zenbakia *",
+        "siretPlaceholder": "12345678901234",
+        "raisonSociale": "Sozietate-izena",
+        "raisonSocialePlaceholder": "Adib.: SARL Restaurant Chez Paul"
+      },
+      "cuisines": {
+        "french": "Frantsesa",
+        "italian": "Italiarra",
+        "asian": "Asiarra",
+        "mexican": "Mexikarra",
+        "indian": "Indiarra",
+        "american": "Amerikarra",
+        "mediterranean": "Mediterraneoa",
+        "japanese": "Japoniarra",
+        "chinese": "Txinatarra",
+        "thai": "Thailandiarra",
+        "other": "Bestelakoa"
+      },
+      "priceRanges": {
+        "eco": "Ekonomikoa",
+        "moderate": "Moderatua",
+        "expensive": "Garestia",
+        "luxury": "Luxuzkoa"
+      },
+      "mealVouchers": {
+        "accept": "Onartu bazkari-txartelak",
+        "providers": "Swile, Edenred, Up…",
+        "legalInfoTitle": "Lege-informazioa",
+        "legalLimit": "Lege-muga: 19 € eguneko eta pertsonako",
+        "legalUsage": "Erabilera: astelehenetik larunbatera (igande eta jaiegunak izan ezik, salbuespenak salbu)",
+        "legalProducts": "Produktu onargarriak: berehala kontsumitzeko elikagaiak",
+        "customInfoLabel": "Bezeroei erakutsitako informazioa",
+        "customInfoPlaceholder": "Adib.: Astelehenetik larunbatera onartuak, geh. 19 €",
+        "accepted": "onartuak",
+        "notAccepted": "ez onartuak",
+        "titleAccepted": "Bazkari-txartelak onartuak",
+        "titleNotAccepted": "Bazkari-txartelak ez onartuak",
+        "defaultInfo": "Bazkari-txartelak lege-baldintzen arabera onartuak"
+      },
+      "status": {
+        "closedNow": "Une honetan itxita",
+        "period": "Aldia: {{start}} - {{end}}",
+        "nextOpening": "Hurrengo irekiera: {{time}}"
+      },
+      "submit": {
+        "create": "Sortu jatetxea",
+        "creating": "Sortzen…",
+        "processing": "Prozesatzen…"
+      },
+      "validation": {
+        "nameRequired": "Izena beharrezkoa da",
+        "addressRequired": "Helbidea beharrezkoa da",
+        "cityRequired": "Hiria beharrezkoa da",
+        "zipRequired": "Posta-kodea beharrezkoa da",
+        "phoneRequired": "Telefonoa beharrezkoa da",
+        "emailRequired": "Helbide elektronikoa beharrezkoa da",
+        "cuisineRequired": "Sukaldaritza beharrezkoa da",
+        "siretRequired": "SIRET beharrezkoa da",
+        "siretInvalid": "SIRET-ak zehazki 14 digitu izan behar ditu",
+        "zipInvalid": "Posta-kodeak zehazki 5 digitu izan behar ditu",
+        "phoneInvalid": "Formatu baliogabea. Erabili 0612345678 edo +33612345678",
+        "hoursAllDays": "Ordutegiak asteko 7 egunak hartu behar ditu",
+        "hoursPeriodRequired": "Irekitako egun bakoitzak gutxienez aldi bat izan behar du",
+        "hoursStartEnd": "Aldi bakoitzak hasiera- eta amaiera-ordua izan behar ditu",
+        "hoursDifferent": "Amaiera-orduak irekiera-ordutik desberdina izan behar du",
+        "fixFieldsTitle": "Eremu hutsak",
+        "fixFieldsMessage": "Mesedez, zuzendu gorriz markatutako eremuak."
+      },
+      "alerts": {
+        "permissionDeniedTitle": "Baimena ukatua",
+        "photoPermissionMessage": "Argazkietarako sarbide-baimena behar da",
+        "imagePickError": "Ezin izan da irudia hautatu",
+        "errorTitle": "Errorea",
+        "locationPermissionMessage": "Kokapen-baimena behar da",
+        "locationError": "Ezin izan da zure kokapena detektatu",
+        "successTitle": "Ondo",
+        "createSuccessMessage": "Jatetxea ondo sortu da!\nUneko egoera: {{status}}\nBazkari-txartelak: {{vouchers}}",
+        "createError": "Ezin izan da jatetxea sortu",
+        "validationError": "Balioztatze-erroreak antzeman dira - egiaztatu gorriz markatutako eremuak"
+      }
+    },
     "dashboard": {
       "greeting": "Kaixo, sukaldari!",
       "open": "Irekita",

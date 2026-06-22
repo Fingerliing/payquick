@@ -1,4 +1,113 @@
 {
+    "addRestaurant": {
+      "title": "Adicionar um restaurante",
+      "image": {
+        "section": "Imagem de capa",
+        "choose": "Escolher uma imagem",
+        "formatHint": "Formato 16:9 recomendado"
+      },
+      "sections": {
+        "basicInfo": "Informações básicas",
+        "contact": "Contacto",
+        "location": "Endereço e geolocalização",
+        "mealVouchers": "Vales de refeição",
+        "legal": "Informações legais"
+      },
+      "fields": {
+        "name": "Nome do restaurante *",
+        "namePlaceholder": "Ex.: La Bonne Table",
+        "description": "Descrição",
+        "descriptionPlaceholder": "Breve descrição do seu estabelecimento",
+        "cuisineType": "Tipo de cozinha *",
+        "priceRange": "Faixa de preço",
+        "phone": "Telefone *",
+        "email": "Email *",
+        "website": "Site",
+        "address": "Endereço *",
+        "city": "Cidade *",
+        "cityPlaceholder": "Paris",
+        "postalCode": "Código postal *",
+        "siret": "Número SIRET *",
+        "siretPlaceholder": "12345678901234",
+        "raisonSociale": "Razão social",
+        "raisonSocialePlaceholder": "Ex.: SARL Restaurant Chez Paul"
+      },
+      "cuisines": {
+        "french": "Francesa",
+        "italian": "Italiana",
+        "asian": "Asiática",
+        "mexican": "Mexicana",
+        "indian": "Indiana",
+        "american": "Americana",
+        "mediterranean": "Mediterrânica",
+        "japanese": "Japonesa",
+        "chinese": "Chinesa",
+        "thai": "Tailandesa",
+        "other": "Outra"
+      },
+      "priceRanges": {
+        "eco": "Económico",
+        "moderate": "Moderado",
+        "expensive": "Caro",
+        "luxury": "Luxo"
+      },
+      "mealVouchers": {
+        "accept": "Aceitar vales de refeição",
+        "providers": "Swile, Edenred, Up…",
+        "legalInfoTitle": "Informações legais",
+        "legalLimit": "Limite legal: 19 € por dia e por pessoa",
+        "legalUsage": "Utilização: de segunda a sábado (exceto domingos e feriados, salvo exceção)",
+        "legalProducts": "Produtos elegíveis: alimentos de consumo imediato",
+        "customInfoLabel": "Informações mostradas aos clientes",
+        "customInfoPlaceholder": "Ex.: Aceites de segunda a sábado, máx. 19 €",
+        "accepted": "aceites",
+        "notAccepted": "não aceites",
+        "titleAccepted": "Vales de refeição aceites",
+        "titleNotAccepted": "Vales de refeição não aceites",
+        "defaultInfo": "Vales de refeição aceites de acordo com as condições legais"
+      },
+      "status": {
+        "closedNow": "Fechado de momento",
+        "period": "Período: {{start}} - {{end}}",
+        "nextOpening": "Próxima abertura: {{time}}"
+      },
+      "submit": {
+        "create": "Criar restaurante",
+        "creating": "A criar…",
+        "processing": "A processar…"
+      },
+      "validation": {
+        "nameRequired": "Nome obrigatório",
+        "addressRequired": "Endereço obrigatório",
+        "cityRequired": "Cidade obrigatória",
+        "zipRequired": "Código postal obrigatório",
+        "phoneRequired": "Telefone obrigatório",
+        "emailRequired": "Email obrigatório",
+        "cuisineRequired": "Cozinha obrigatória",
+        "siretRequired": "SIRET obrigatório",
+        "siretInvalid": "O SIRET deve conter exatamente 14 dígitos",
+        "zipInvalid": "O código postal deve conter exatamente 5 dígitos",
+        "phoneInvalid": "Formato inválido. Utilize 0612345678 ou +33612345678",
+        "hoursAllDays": "O horário deve cobrir os 7 dias da semana",
+        "hoursPeriodRequired": "Cada dia aberto deve conter pelo menos um período",
+        "hoursStartEnd": "Cada período deve ter uma hora de início e de fim",
+        "hoursDifferent": "A hora de fim deve ser diferente da de abertura",
+        "fixFieldsTitle": "Campos em falta",
+        "fixFieldsMessage": "Corrija os campos a vermelho."
+      },
+      "alerts": {
+        "permissionDeniedTitle": "Permissão recusada",
+        "photoPermissionMessage": "É necessária permissão de acesso às fotos",
+        "imagePickError": "Não foi possível selecionar a imagem",
+        "errorTitle": "Erro",
+        "locationPermissionMessage": "É necessária permissão de geolocalização",
+        "locationError": "Não foi possível detetar a sua localização",
+        "successTitle": "Sucesso",
+        "createSuccessMessage": "Restaurante criado com sucesso!\nEstado atual: {{status}}\nVales de refeição: {{vouchers}}",
+        "createError": "Não foi possível criar o restaurante",
+        "validationError": "Foram detetados erros de validação - verifique os campos a vermelho"
+      }
+    },
     "dashboard": {
       "greeting": "Olá, Chef!",
       "open": "Aberto",

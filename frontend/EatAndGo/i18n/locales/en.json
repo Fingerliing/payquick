@@ -1,4 +1,113 @@
 {
+    "addRestaurant": {
+      "title": "Add a restaurant",
+      "image": {
+        "section": "Cover image",
+        "choose": "Choose an image",
+        "formatHint": "16:9 format recommended"
+      },
+      "sections": {
+        "basicInfo": "Basic information",
+        "contact": "Contact",
+        "location": "Address & geolocation",
+        "mealVouchers": "Meal vouchers",
+        "legal": "Legal information"
+      },
+      "fields": {
+        "name": "Restaurant name *",
+        "namePlaceholder": "e.g. La Bonne Table",
+        "description": "Description",
+        "descriptionPlaceholder": "Short description of your establishment",
+        "cuisineType": "Cuisine type *",
+        "priceRange": "Price range",
+        "phone": "Phone *",
+        "email": "Email *",
+        "website": "Website",
+        "address": "Address *",
+        "city": "City *",
+        "cityPlaceholder": "Paris",
+        "postalCode": "Postal code *",
+        "siret": "SIRET number *",
+        "siretPlaceholder": "12345678901234",
+        "raisonSociale": "Company name",
+        "raisonSocialePlaceholder": "e.g. SARL Restaurant Chez Paul"
+      },
+      "cuisines": {
+        "french": "French",
+        "italian": "Italian",
+        "asian": "Asian",
+        "mexican": "Mexican",
+        "indian": "Indian",
+        "american": "American",
+        "mediterranean": "Mediterranean",
+        "japanese": "Japanese",
+        "chinese": "Chinese",
+        "thai": "Thai",
+        "other": "Other"
+      },
+      "priceRanges": {
+        "eco": "Budget",
+        "moderate": "Moderate",
+        "expensive": "Expensive",
+        "luxury": "Luxury"
+      },
+      "mealVouchers": {
+        "accept": "Accept meal vouchers",
+        "providers": "Swile, Edenred, Up…",
+        "legalInfoTitle": "Legal information",
+        "legalLimit": "Legal limit: €19 per day per person",
+        "legalUsage": "Use: Monday to Saturday (excluding Sundays and public holidays, except where allowed)",
+        "legalProducts": "Eligible products: ready-to-eat food items",
+        "customInfoLabel": "Info shown to customers",
+        "customInfoPlaceholder": "e.g. Accepted Monday to Saturday, max €19",
+        "accepted": "accepted",
+        "notAccepted": "not accepted",
+        "titleAccepted": "Meal vouchers accepted",
+        "titleNotAccepted": "Meal vouchers not accepted",
+        "defaultInfo": "Meal vouchers accepted in accordance with legal conditions"
+      },
+      "status": {
+        "closedNow": "Closed at the moment",
+        "period": "Period: {{start}} - {{end}}",
+        "nextOpening": "Next opening: {{time}}"
+      },
+      "submit": {
+        "create": "Create restaurant",
+        "creating": "Creating…",
+        "processing": "Processing…"
+      },
+      "validation": {
+        "nameRequired": "Name required",
+        "addressRequired": "Address required",
+        "cityRequired": "City required",
+        "zipRequired": "Postal code required",
+        "phoneRequired": "Phone required",
+        "emailRequired": "Email required",
+        "cuisineRequired": "Cuisine required",
+        "siretRequired": "SIRET required",
+        "siretInvalid": "The SIRET must contain exactly 14 digits",
+        "zipInvalid": "The postal code must contain exactly 5 digits",
+        "phoneInvalid": "Invalid format. Use 0612345678 or +33612345678",
+        "hoursAllDays": "Opening hours must cover all 7 days of the week",
+        "hoursPeriodRequired": "Each open day must contain at least one period",
+        "hoursStartEnd": "Each period must have a start and end time",
+        "hoursDifferent": "The end time must differ from the opening time",
+        "fixFieldsTitle": "Missing fields",
+        "fixFieldsMessage": "Please correct the fields in red."
+      },
+      "alerts": {
+        "permissionDeniedTitle": "Permission denied",
+        "photoPermissionMessage": "Photo library access permission required",
+        "imagePickError": "Unable to select the image",
+        "errorTitle": "Error",
+        "locationPermissionMessage": "Location permission required",
+        "locationError": "Unable to detect your location",
+        "successTitle": "Success",
+        "createSuccessMessage": "Restaurant created successfully!\nCurrent status: {{status}}\nMeal vouchers: {{vouchers}}",
+        "createError": "Unable to create the restaurant",
+        "validationError": "Validation errors detected - check the fields in red"
+      }
+    },
     "dashboard": {
       "greeting": "Hello, Chef!",
       "open": "Open",

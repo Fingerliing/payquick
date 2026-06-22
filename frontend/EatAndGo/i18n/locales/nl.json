@@ -1,4 +1,113 @@
 {
+    "addRestaurant": {
+      "title": "Een restaurant toevoegen",
+      "image": {
+        "section": "Omslagafbeelding",
+        "choose": "Kies een afbeelding",
+        "formatHint": "Formaat 16:9 aanbevolen"
+      },
+      "sections": {
+        "basicInfo": "Basisinformatie",
+        "contact": "Contact",
+        "location": "Adres & geolocatie",
+        "mealVouchers": "Maaltijdcheques",
+        "legal": "Juridische informatie"
+      },
+      "fields": {
+        "name": "Naam van het restaurant *",
+        "namePlaceholder": "Bijv. La Bonne Table",
+        "description": "Beschrijving",
+        "descriptionPlaceholder": "Korte beschrijving van uw zaak",
+        "cuisineType": "Type keuken *",
+        "priceRange": "Prijsklasse",
+        "phone": "Telefoon *",
+        "email": "E-mail *",
+        "website": "Website",
+        "address": "Adres *",
+        "city": "Stad *",
+        "cityPlaceholder": "Parijs",
+        "postalCode": "Postcode *",
+        "siret": "SIRET-nummer *",
+        "siretPlaceholder": "12345678901234",
+        "raisonSociale": "Bedrijfsnaam",
+        "raisonSocialePlaceholder": "Bijv. SARL Restaurant Chez Paul"
+      },
+      "cuisines": {
+        "french": "Frans",
+        "italian": "Italiaans",
+        "asian": "Aziatisch",
+        "mexican": "Mexicaans",
+        "indian": "Indiaas",
+        "american": "Amerikaans",
+        "mediterranean": "Mediterraan",
+        "japanese": "Japans",
+        "chinese": "Chinees",
+        "thai": "Thais",
+        "other": "Overig"
+      },
+      "priceRanges": {
+        "eco": "Budget",
+        "moderate": "Gemiddeld",
+        "expensive": "Duur",
+        "luxury": "Luxe"
+      },
+      "mealVouchers": {
+        "accept": "Maaltijdcheques accepteren",
+        "providers": "Swile, Edenred, Up…",
+        "legalInfoTitle": "Juridische informatie",
+        "legalLimit": "Wettelijke limiet: € 19 per dag per persoon",
+        "legalUsage": "Gebruik: maandag tot zaterdag (behalve zon- en feestdagen, tenzij toegestaan)",
+        "legalProducts": "In aanmerking komende producten: direct consumeerbare voedingsmiddelen",
+        "customInfoLabel": "Info getoond aan klanten",
+        "customInfoPlaceholder": "Bijv. Geaccepteerd van maandag tot zaterdag, max. € 19",
+        "accepted": "geaccepteerd",
+        "notAccepted": "niet geaccepteerd",
+        "titleAccepted": "Maaltijdcheques geaccepteerd",
+        "titleNotAccepted": "Maaltijdcheques niet geaccepteerd",
+        "defaultInfo": "Maaltijdcheques geaccepteerd volgens de wettelijke voorwaarden"
+      },
+      "status": {
+        "closedNow": "Momenteel gesloten",
+        "period": "Periode: {{start}} - {{end}}",
+        "nextOpening": "Volgende opening: {{time}}"
+      },
+      "submit": {
+        "create": "Restaurant aanmaken",
+        "creating": "Bezig met aanmaken…",
+        "processing": "Bezig met verwerken…"
+      },
+      "validation": {
+        "nameRequired": "Naam vereist",
+        "addressRequired": "Adres vereist",
+        "cityRequired": "Stad vereist",
+        "zipRequired": "Postcode vereist",
+        "phoneRequired": "Telefoon vereist",
+        "emailRequired": "E-mail vereist",
+        "cuisineRequired": "Keuken vereist",
+        "siretRequired": "SIRET vereist",
+        "siretInvalid": "De SIRET moet precies 14 cijfers bevatten",
+        "zipInvalid": "De postcode moet precies 5 cijfers bevatten",
+        "phoneInvalid": "Ongeldig formaat. Gebruik 0612345678 of +33612345678",
+        "hoursAllDays": "De openingstijden moeten alle 7 dagen van de week dekken",
+        "hoursPeriodRequired": "Elke geopende dag moet ten minste één periode bevatten",
+        "hoursStartEnd": "Elke periode moet een begin- en eindtijd hebben",
+        "hoursDifferent": "De eindtijd moet verschillen van de openingstijd",
+        "fixFieldsTitle": "Ontbrekende velden",
+        "fixFieldsMessage": "Corrigeer de rood gemarkeerde velden."
+      },
+      "alerts": {
+        "permissionDeniedTitle": "Toestemming geweigerd",
+        "photoPermissionMessage": "Toestemming voor toegang tot foto's vereist",
+        "imagePickError": "Kan de afbeelding niet selecteren",
+        "errorTitle": "Fout",
+        "locationPermissionMessage": "Locatietoestemming vereist",
+        "locationError": "Kan uw locatie niet bepalen",
+        "successTitle": "Gelukt",
+        "createSuccessMessage": "Restaurant succesvol aangemaakt!\nHuidige status: {{status}}\nMaaltijdcheques: {{vouchers}}",
+        "createError": "Kan het restaurant niet aanmaken",
+        "validationError": "Validatiefouten gedetecteerd - controleer de rood gemarkeerde velden"
+      }
+    },
     "dashboard": {
       "greeting": "Hallo, Chef!",
       "open": "Open",

@@ -1,4 +1,113 @@
 {
+    "addRestaurant": {
+      "title": "Aggiungi un ristorante",
+      "image": {
+        "section": "Immagine di copertina",
+        "choose": "Scegli un'immagine",
+        "formatHint": "Formato 16:9 consigliato"
+      },
+      "sections": {
+        "basicInfo": "Informazioni di base",
+        "contact": "Contatto",
+        "location": "Indirizzo e geolocalizzazione",
+        "mealVouchers": "Buoni pasto",
+        "legal": "Informazioni legali"
+      },
+      "fields": {
+        "name": "Nome del ristorante *",
+        "namePlaceholder": "Es.: La Bonne Table",
+        "description": "Descrizione",
+        "descriptionPlaceholder": "Breve descrizione del tuo locale",
+        "cuisineType": "Tipo di cucina *",
+        "priceRange": "Fascia di prezzo",
+        "phone": "Telefono *",
+        "email": "Email *",
+        "website": "Sito web",
+        "address": "Indirizzo *",
+        "city": "Città *",
+        "cityPlaceholder": "Parigi",
+        "postalCode": "Codice postale *",
+        "siret": "Numero SIRET *",
+        "siretPlaceholder": "12345678901234",
+        "raisonSociale": "Ragione sociale",
+        "raisonSocialePlaceholder": "Es.: SARL Restaurant Chez Paul"
+      },
+      "cuisines": {
+        "french": "Francese",
+        "italian": "Italiana",
+        "asian": "Asiatica",
+        "mexican": "Messicana",
+        "indian": "Indiana",
+        "american": "Americana",
+        "mediterranean": "Mediterranea",
+        "japanese": "Giapponese",
+        "chinese": "Cinese",
+        "thai": "Tailandese",
+        "other": "Altra"
+      },
+      "priceRanges": {
+        "eco": "Economico",
+        "moderate": "Moderato",
+        "expensive": "Caro",
+        "luxury": "Lusso"
+      },
+      "mealVouchers": {
+        "accept": "Accetta i buoni pasto",
+        "providers": "Swile, Edenred, Up…",
+        "legalInfoTitle": "Informazioni legali",
+        "legalLimit": "Limite legale: 19 € al giorno per persona",
+        "legalUsage": "Utilizzo: dal lunedì al sabato (esclusi domeniche e festivi, salvo eccezioni)",
+        "legalProducts": "Prodotti idonei: alimenti pronti al consumo immediato",
+        "customInfoLabel": "Info mostrate ai clienti",
+        "customInfoPlaceholder": "Es.: Accettati dal lunedì al sabato, max 19 €",
+        "accepted": "accettati",
+        "notAccepted": "non accettati",
+        "titleAccepted": "Buoni pasto accettati",
+        "titleNotAccepted": "Buoni pasto non accettati",
+        "defaultInfo": "Buoni pasto accettati secondo le condizioni legali"
+      },
+      "status": {
+        "closedNow": "Chiuso al momento",
+        "period": "Periodo: {{start}} - {{end}}",
+        "nextOpening": "Prossima apertura: {{time}}"
+      },
+      "submit": {
+        "create": "Crea ristorante",
+        "creating": "Creazione in corso…",
+        "processing": "Elaborazione in corso…"
+      },
+      "validation": {
+        "nameRequired": "Nome obbligatorio",
+        "addressRequired": "Indirizzo obbligatorio",
+        "cityRequired": "Città obbligatoria",
+        "zipRequired": "Codice postale obbligatorio",
+        "phoneRequired": "Telefono obbligatorio",
+        "emailRequired": "Email obbligatoria",
+        "cuisineRequired": "Cucina obbligatoria",
+        "siretRequired": "SIRET obbligatorio",
+        "siretInvalid": "Il SIRET deve contenere esattamente 14 cifre",
+        "zipInvalid": "Il codice postale deve contenere esattamente 5 cifre",
+        "phoneInvalid": "Formato non valido. Usa 0612345678 o +33612345678",
+        "hoursAllDays": "Gli orari devono coprire tutti i 7 giorni della settimana",
+        "hoursPeriodRequired": "Ogni giorno di apertura deve contenere almeno un periodo",
+        "hoursStartEnd": "Ogni periodo deve avere un orario di inizio e di fine",
+        "hoursDifferent": "L'orario di fine deve essere diverso da quello di apertura",
+        "fixFieldsTitle": "Campi mancanti",
+        "fixFieldsMessage": "Correggi i campi in rosso."
+      },
+      "alerts": {
+        "permissionDeniedTitle": "Autorizzazione negata",
+        "photoPermissionMessage": "È richiesta l'autorizzazione di accesso alle foto",
+        "imagePickError": "Impossibile selezionare l'immagine",
+        "errorTitle": "Errore",
+        "locationPermissionMessage": "È richiesta l'autorizzazione di geolocalizzazione",
+        "locationError": "Impossibile rilevare la tua posizione",
+        "successTitle": "Successo",
+        "createSuccessMessage": "Ristorante creato con successo!\nStato attuale: {{status}}\nBuoni pasto: {{vouchers}}",
+        "createError": "Impossibile creare il ristorante",
+        "validationError": "Rilevati errori di validazione: controlla i campi in rosso"
+      }
+    },
     "dashboard": {
       "greeting": "Ciao, Chef!",
       "open": "Aperto",
