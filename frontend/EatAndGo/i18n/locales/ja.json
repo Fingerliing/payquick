@@ -105,7 +105,9 @@
         "successTitle": "成功",
         "createSuccessMessage": "レストランが正常に作成されました！\n現在の状態：{{status}}\n食事券：{{vouchers}}",
         "createError": "レストランを作成できません",
-        "validationError": "入力エラーが検出されました。赤色の項目を確認してください"
+        "validationError": "入力エラーが検出されました。赤色の項目を確認してください",
+        "stripeRequiredTitle": "Stripe が未有効",
+        "stripeRequired": "Stripe アカウントがまだ有効化されていません。レストランを作成するには Stripe を有効にしてください。"
       }
     },
     "dashboard": {

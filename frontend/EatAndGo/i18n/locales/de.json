@@ -105,7 +105,9 @@
         "successTitle": "Erfolg",
         "createSuccessMessage": "Restaurant erfolgreich erstellt!\nAktueller Status: {{status}}\nEssensgutscheine: {{vouchers}}",
         "createError": "Restaurant konnte nicht erstellt werden",
-        "validationError": "Validierungsfehler erkannt – überprüfen Sie die rot markierten Felder"
+        "validationError": "Validierungsfehler erkannt – überprüfen Sie die rot markierten Felder",
+        "stripeRequiredTitle": "Stripe nicht aktiviert",
+        "stripeRequired": "Ihr Stripe-Konto ist noch nicht aktiviert. Aktivieren Sie Stripe, um ein Restaurant erstellen zu können."
       }
     },
     "dashboard": {

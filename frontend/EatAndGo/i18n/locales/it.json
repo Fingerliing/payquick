@@ -105,7 +105,9 @@
         "successTitle": "Successo",
         "createSuccessMessage": "Ristorante creato con successo!\nStato attuale: {{status}}\nBuoni pasto: {{vouchers}}",
         "createError": "Impossibile creare il ristorante",
-        "validationError": "Rilevati errori di validazione: controlla i campi in rosso"
+        "validationError": "Rilevati errori di validazione: controlla i campi in rosso",
+        "stripeRequiredTitle": "Stripe non attivato",
+        "stripeRequired": "Il tuo account Stripe non è ancora attivato. Attiva Stripe per poter creare un ristorante."
       }
     },
     "dashboard": {

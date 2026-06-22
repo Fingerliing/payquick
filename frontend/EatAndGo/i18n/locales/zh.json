@@ -105,7 +105,9 @@
         "successTitle": "成功",
         "createSuccessMessage": "餐厅创建成功！\n当前状态：{{status}}\n餐券：{{vouchers}}",
         "createError": "无法创建餐厅",
-        "validationError": "检测到验证错误——请检查标红的字段"
+        "validationError": "检测到验证错误——请检查标红的字段",
+        "stripeRequiredTitle": "Stripe 未启用",
+        "stripeRequired": "您的 Stripe 账户尚未激活。请先启用 Stripe，然后才能创建餐厅。"
       }
     },
     "dashboard": {

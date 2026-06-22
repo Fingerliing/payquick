@@ -105,7 +105,9 @@
         "successTitle": "Ondo",
         "createSuccessMessage": "Jatetxea ondo sortu da!\nUneko egoera: {{status}}\nBazkari-txartelak: {{vouchers}}",
         "createError": "Ezin izan da jatetxea sortu",
-        "validationError": "Balioztatze-erroreak antzeman dira - egiaztatu gorriz markatutako eremuak"
+        "validationError": "Balioztatze-erroreak antzeman dira - egiaztatu gorriz markatutako eremuak",
+        "stripeRequiredTitle": "Stripe ez dago aktibatuta",
+        "stripeRequired": "Zure Stripe kontua ez dago oraindik aktibatuta. Aktibatu Stripe jatetxe bat sortu ahal izateko."
       }
     },
     "dashboard": {

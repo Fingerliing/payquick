@@ -105,7 +105,9 @@
         "successTitle": "Success",
         "createSuccessMessage": "Restaurant created successfully!\nCurrent status: {{status}}\nMeal vouchers: {{vouchers}}",
         "createError": "Unable to create the restaurant",
-        "validationError": "Validation errors detected - check the fields in red"
+        "validationError": "Validation errors detected - check the fields in red",
+        "stripeRequiredTitle": "Stripe not enabled",
+        "stripeRequired": "Your Stripe account isn't activated yet. Enable Stripe before you can create a restaurant."
       }
     },
     "dashboard": {

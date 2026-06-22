@@ -105,7 +105,9 @@
         "successTitle": "Gelukt",
         "createSuccessMessage": "Restaurant succesvol aangemaakt!\nHuidige status: {{status}}\nMaaltijdcheques: {{vouchers}}",
         "createError": "Kan het restaurant niet aanmaken",
-        "validationError": "Validatiefouten gedetecteerd - controleer de rood gemarkeerde velden"
+        "validationError": "Validatiefouten gedetecteerd - controleer de rood gemarkeerde velden",
+        "stripeRequiredTitle": "Stripe niet geactiveerd",
+        "stripeRequired": "Je Stripe-account is nog niet geactiveerd. Activeer Stripe voordat je een restaurant kunt aanmaken."
       }
     },
     "dashboard": {

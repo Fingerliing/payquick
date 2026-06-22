@@ -105,7 +105,9 @@
         "successTitle": "Sucesso",
         "createSuccessMessage": "Restaurante criado com sucesso!\nEstado atual: {{status}}\nVales de refeição: {{vouchers}}",
         "createError": "Não foi possível criar o restaurante",
-        "validationError": "Foram detetados erros de validação - verifique os campos a vermelho"
+        "validationError": "Foram detetados erros de validação - verifique os campos a vermelho",
+        "stripeRequiredTitle": "Stripe não ativado",
+        "stripeRequired": "A tua conta Stripe ainda não está ativada. Ativa o Stripe para poderes criar um restaurante."
       }
     },
     "dashboard": {

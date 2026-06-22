@@ -105,7 +105,9 @@
         "successTitle": "نجاح",
         "createSuccessMessage": "تم إنشاء المطعم بنجاح!\nالحالة الحالية: {{status}}\nقسائم الطعام: {{vouchers}}",
         "createError": "تعذّر إنشاء المطعم",
-        "validationError": "تم اكتشاف أخطاء في التحقق - تحقق من الحقول المميزة بالأحمر"
+        "validationError": "تم اكتشاف أخطاء في التحقق - تحقق من الحقول المميزة بالأحمر",
+        "stripeRequiredTitle": "Stripe غير مُفعّل",
+        "stripeRequired": "حساب Stripe الخاص بك غير مُفعّل بعد. فعّل Stripe لتتمكن من إنشاء مطعم."
       }
     },
     "dashboard": {

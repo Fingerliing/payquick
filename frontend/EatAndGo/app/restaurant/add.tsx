@@ -439,6 +439,7 @@ export default function AddRestaurantScreen() {
       router.back();
     } catch (error: any) {
       let errorMessage = t('addRestaurant.alerts.createError');
+      let errorTitle = t('addRestaurant.alerts.errorTitle');
 
       // apiClient peut re-throw sous deux formes :
       //   - axios standard : error.response.data
@@ -446,6 +447,16 @@ export default function AddRestaurantScreen() {
       const responseData = error?.response?.data ?? error?.details;
       const validationErrors =
         responseData?.validation_errors ?? error?.validation_errors;
+
+      // Stripe non activé : le backend bloque la création avec un 403
+      // (message DRF générique « Vous n'avez pas la permission… »). On le
+      // détecte ici pour afficher un message explicite côté restaurateur.
+      const httpStatus = error?.response?.status ?? error?.status;
+      const detailText = String(
+        responseData?.detail ?? responseData?.message ?? error?.message ?? '',
+      );
+      const isStripePermissionError =
+        httpStatus === 403 || /permission/i.test(detailText);
 
       if (validationErrors) {
         const backendErrors: FormValidationErrors = {};
@@ -464,6 +475,9 @@ export default function AddRestaurantScreen() {
         });
         setErrors(backendErrors);
         errorMessage = t('addRestaurant.alerts.validationError');
+      } else if (isStripePermissionError) {
+        errorMessage = t('addRestaurant.alerts.stripeRequired');
+        errorTitle = t('addRestaurant.alerts.stripeRequiredTitle');
       } else if (responseData?.error) {
         errorMessage = Array.isArray(responseData.error)
           ? responseData.error[0]
@@ -476,7 +490,7 @@ export default function AddRestaurantScreen() {
         errorMessage = error.message;
       }
 
-      showError(errorMessage, t('addRestaurant.alerts.errorTitle'));
+      showError(errorMessage, errorTitle);
     } finally {
       setIsLoading(false);
     }
