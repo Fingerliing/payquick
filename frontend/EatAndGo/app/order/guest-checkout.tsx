@@ -113,17 +113,26 @@ export default function GuestCheckoutScreen() {
     );
   }
 
-  const items = cart.items.map((item) => {
-    const menuItemId = Number(item.menuItemId || item.id);
-    if (isNaN(menuItemId)) {
-      throw new Error(`ID d'article invalide: ${item.name}`);
-    }
-    return {
-      menu_item_id: menuItemId,
-      quantity: item.quantity,
-      options: item.customizations || undefined,
-    };
-  });
+  // Lignes plat à la carte uniquement (les formules sont routées à part).
+  const items = cart.items
+    .filter((it) => it.kind !== 'formule')
+    .map((item) => {
+      const menuItemId = Number(item.menuItemId || item.id);
+      if (isNaN(menuItemId)) {
+        throw new Error(`ID d'article invalide: ${item.name}`);
+      }
+      return {
+        menu_item_id: menuItemId,
+        quantity: item.quantity,
+        options: item.customizations || undefined,
+      };
+    });
+
+  // Lignes formule : on transmet le payload backend déjà construit (CreateFormuleInput),
+  // en faisant primer la quantité de la ligne panier.
+  const formules = cart.items
+    .filter((it) => it.kind === 'formule' && it.formule)
+    .map((it) => ({ ...it.formule!, quantity: it.quantity }));
 
   async function pollUntilOrder(draftId: string): Promise<number | null> {
     const started = Date.now();
@@ -170,6 +179,7 @@ export default function GuestCheckoutScreen() {
 
     try {
       for (const item of cart.items) {
+        if (item.kind === 'formule') continue; // les formules n'ont pas de menu_item_id
         const menuItemId = Number(item.menuItemId || item.id);
         if (isNaN(menuItemId)) {
           throw new Error(`ID d'article invalide pour: ${item.name}`);
@@ -187,6 +197,7 @@ export default function GuestCheckoutScreen() {
         restaurant_id: Number(restaurantId),
         table_number: resolvedTableNumber, // ✅ FIX : utiliser resolvedTableNumber
         items,
+        formules,
         customer_name: name.trim(),
         phone: phone.replace(/[\s.-]/g, ''),
         email: email.trim() || undefined,

@@ -9,16 +9,42 @@ class GuestItemSerializer(serializers.Serializer):
     options = serializers.JSONField(required=False)
 
 
+class GuestFormuleSelectionSerializer(serializers.Serializer):
+    """Un choix de plat dans un cran (aligné sur CreateFormuleInput.selections)."""
+    course = serializers.UUIDField()
+    menu_item = serializers.IntegerField()
+
+
+class GuestFormuleSerializer(serializers.Serializer):
+    """Une formule sélectionnée (aligné sur CreateFormuleInput).
+
+    Validation structurelle uniquement : l'éligibilité (formule active du
+    restaurant, plats disponibles, min/max) est vérifiée côté vue avec le
+    restaurant résolu, via api.utils.formule_validation.validate_guest_formules.
+    """
+    formule = serializers.UUIDField()
+    quantity = serializers.IntegerField(min_value=1, max_value=50, default=1)
+    selections = GuestFormuleSelectionSerializer(many=True)
+
+
 class GuestPrepareSerializer(serializers.Serializer):
     """Serializer for preparing a guest order"""
     restaurant_id = serializers.IntegerField()
     table_number = serializers.CharField(required=False, allow_blank=True)
-    items = GuestItemSerializer(many=True)
+    items = GuestItemSerializer(many=True, required=False, default=list)
+    formules = GuestFormuleSerializer(many=True, required=False, default=list)
     customer_name = serializers.CharField(max_length=120)
     phone = serializers.RegexField(r"^(\+33|0)[1-9]\d{8}$")  # FR, aligné à ton validateur
     email = serializers.EmailField(required=False, allow_blank=True)
     payment_method = serializers.ChoiceField(choices=["online", "cash"])
     consent = serializers.BooleanField()
+
+    def validate(self, attrs):
+        if not attrs.get("items") and not attrs.get("formules"):
+            raise serializers.ValidationError(
+                "La commande doit contenir au moins un article ou une formule."
+            )
+        return attrs
 
 
 class GuestPrepareResponse(serializers.Serializer):

@@ -1,1795 +1,1813 @@
 {
     "addRestaurant": {
-      "title": "Een restaurant toevoegen",
-      "image": {
-        "section": "Omslagafbeelding",
-        "choose": "Kies een afbeelding",
-        "formatHint": "Formaat 16:9 aanbevolen"
-      },
-      "sections": {
-        "basicInfo": "Basisinformatie",
-        "contact": "Contact",
-        "location": "Adres & geolocatie",
-        "mealVouchers": "Maaltijdcheques",
-        "legal": "Juridische informatie"
-      },
-      "fields": {
-        "name": "Naam van het restaurant *",
-        "namePlaceholder": "Bijv. La Bonne Table",
-        "description": "Beschrijving",
-        "descriptionPlaceholder": "Korte beschrijving van uw zaak",
-        "cuisineType": "Type keuken *",
-        "priceRange": "Prijsklasse",
-        "phone": "Telefoon *",
-        "email": "E-mail *",
-        "website": "Website",
-        "address": "Adres *",
-        "city": "Stad *",
-        "cityPlaceholder": "Parijs",
-        "postalCode": "Postcode *",
-        "siret": "SIRET-nummer *",
-        "siretPlaceholder": "12345678901234",
-        "raisonSociale": "Bedrijfsnaam",
-        "raisonSocialePlaceholder": "Bijv. SARL Restaurant Chez Paul"
-      },
-      "cuisines": {
-        "french": "Frans",
-        "italian": "Italiaans",
-        "asian": "Aziatisch",
-        "mexican": "Mexicaans",
-        "indian": "Indiaas",
-        "american": "Amerikaans",
-        "mediterranean": "Mediterraan",
-        "japanese": "Japans",
-        "chinese": "Chinees",
-        "thai": "Thais",
-        "other": "Overig"
-      },
-      "priceRanges": {
-        "eco": "Budget",
-        "moderate": "Gemiddeld",
-        "expensive": "Duur",
-        "luxury": "Luxe"
-      },
-      "mealVouchers": {
-        "accept": "Maaltijdcheques accepteren",
-        "providers": "Swile, Edenred, Up…",
-        "legalInfoTitle": "Juridische informatie",
-        "legalLimit": "Wettelijke limiet: € 19 per dag per persoon",
-        "legalUsage": "Gebruik: maandag tot zaterdag (behalve zon- en feestdagen, tenzij toegestaan)",
-        "legalProducts": "In aanmerking komende producten: direct consumeerbare voedingsmiddelen",
-        "customInfoLabel": "Info getoond aan klanten",
-        "customInfoPlaceholder": "Bijv. Geaccepteerd van maandag tot zaterdag, max. € 19",
-        "accepted": "geaccepteerd",
-        "notAccepted": "niet geaccepteerd",
-        "titleAccepted": "Maaltijdcheques geaccepteerd",
-        "titleNotAccepted": "Maaltijdcheques niet geaccepteerd",
-        "defaultInfo": "Maaltijdcheques geaccepteerd volgens de wettelijke voorwaarden"
-      },
-      "status": {
-        "closedNow": "Momenteel gesloten",
-        "period": "Periode: {{start}} - {{end}}",
-        "nextOpening": "Volgende opening: {{time}}"
-      },
-      "submit": {
-        "create": "Restaurant aanmaken",
-        "creating": "Bezig met aanmaken…",
-        "processing": "Bezig met verwerken…"
-      },
-      "validation": {
-        "nameRequired": "Naam vereist",
-        "addressRequired": "Adres vereist",
-        "cityRequired": "Stad vereist",
-        "zipRequired": "Postcode vereist",
-        "phoneRequired": "Telefoon vereist",
-        "emailRequired": "E-mail vereist",
-        "cuisineRequired": "Keuken vereist",
-        "siretRequired": "SIRET vereist",
-        "siretInvalid": "De SIRET moet precies 14 cijfers bevatten",
-        "zipInvalid": "De postcode moet precies 5 cijfers bevatten",
-        "phoneInvalid": "Ongeldig formaat. Gebruik 0612345678 of +33612345678",
-        "hoursAllDays": "De openingstijden moeten alle 7 dagen van de week dekken",
-        "hoursPeriodRequired": "Elke geopende dag moet ten minste één periode bevatten",
-        "hoursStartEnd": "Elke periode moet een begin- en eindtijd hebben",
-        "hoursDifferent": "De eindtijd moet verschillen van de openingstijd",
-        "fixFieldsTitle": "Ontbrekende velden",
-        "fixFieldsMessage": "Corrigeer de rood gemarkeerde velden."
-      },
-      "alerts": {
-        "permissionDeniedTitle": "Toestemming geweigerd",
-        "photoPermissionMessage": "Toestemming voor toegang tot foto's vereist",
-        "imagePickError": "Kan de afbeelding niet selecteren",
-        "errorTitle": "Fout",
-        "locationPermissionMessage": "Locatietoestemming vereist",
-        "locationError": "Kan uw locatie niet bepalen",
-        "successTitle": "Gelukt",
-        "createSuccessMessage": "Restaurant succesvol aangemaakt!\nHuidige status: {{status}}\nMaaltijdcheques: {{vouchers}}",
-        "createError": "Kan het restaurant niet aanmaken",
-        "validationError": "Validatiefouten gedetecteerd - controleer de rood gemarkeerde velden",
-        "stripeRequiredTitle": "Stripe niet geactiveerd",
-        "stripeRequired": "Je Stripe-account is nog niet geactiveerd. Activeer Stripe voordat je een restaurant kunt aanmaken."
-      }
+        "title": "Een restaurant toevoegen",
+        "image": {
+            "section": "Omslagafbeelding",
+            "choose": "Kies een afbeelding",
+            "formatHint": "Formaat 16:9 aanbevolen"
+        },
+        "sections": {
+            "basicInfo": "Basisinformatie",
+            "contact": "Contact",
+            "location": "Adres & geolocatie",
+            "mealVouchers": "Maaltijdcheques",
+            "legal": "Juridische informatie"
+        },
+        "fields": {
+            "name": "Naam van het restaurant *",
+            "namePlaceholder": "Bijv. La Bonne Table",
+            "description": "Beschrijving",
+            "descriptionPlaceholder": "Korte beschrijving van uw zaak",
+            "cuisineType": "Type keuken *",
+            "priceRange": "Prijsklasse",
+            "phone": "Telefoon *",
+            "email": "E-mail *",
+            "website": "Website",
+            "address": "Adres *",
+            "city": "Stad *",
+            "cityPlaceholder": "Parijs",
+            "postalCode": "Postcode *",
+            "siret": "SIRET-nummer *",
+            "siretPlaceholder": "12345678901234",
+            "raisonSociale": "Bedrijfsnaam",
+            "raisonSocialePlaceholder": "Bijv. SARL Restaurant Chez Paul"
+        },
+        "cuisines": {
+            "french": "Frans",
+            "italian": "Italiaans",
+            "asian": "Aziatisch",
+            "mexican": "Mexicaans",
+            "indian": "Indiaas",
+            "american": "Amerikaans",
+            "mediterranean": "Mediterraan",
+            "japanese": "Japans",
+            "chinese": "Chinees",
+            "thai": "Thais",
+            "other": "Overig"
+        },
+        "priceRanges": {
+            "eco": "Budget",
+            "moderate": "Gemiddeld",
+            "expensive": "Duur",
+            "luxury": "Luxe"
+        },
+        "mealVouchers": {
+            "accept": "Maaltijdcheques accepteren",
+            "providers": "Swile, Edenred, Up…",
+            "legalInfoTitle": "Juridische informatie",
+            "legalLimit": "Wettelijke limiet: € 19 per dag per persoon",
+            "legalUsage": "Gebruik: maandag tot zaterdag (behalve zon- en feestdagen, tenzij toegestaan)",
+            "legalProducts": "In aanmerking komende producten: direct consumeerbare voedingsmiddelen",
+            "customInfoLabel": "Info getoond aan klanten",
+            "customInfoPlaceholder": "Bijv. Geaccepteerd van maandag tot zaterdag, max. € 19",
+            "accepted": "geaccepteerd",
+            "notAccepted": "niet geaccepteerd",
+            "titleAccepted": "Maaltijdcheques geaccepteerd",
+            "titleNotAccepted": "Maaltijdcheques niet geaccepteerd",
+            "defaultInfo": "Maaltijdcheques geaccepteerd volgens de wettelijke voorwaarden"
+        },
+        "status": {
+            "closedNow": "Momenteel gesloten",
+            "period": "Periode: {{start}} - {{end}}",
+            "nextOpening": "Volgende opening: {{time}}"
+        },
+        "submit": {
+            "create": "Restaurant aanmaken",
+            "creating": "Bezig met aanmaken…",
+            "processing": "Bezig met verwerken…"
+        },
+        "validation": {
+            "nameRequired": "Naam vereist",
+            "addressRequired": "Adres vereist",
+            "cityRequired": "Stad vereist",
+            "zipRequired": "Postcode vereist",
+            "phoneRequired": "Telefoon vereist",
+            "emailRequired": "E-mail vereist",
+            "cuisineRequired": "Keuken vereist",
+            "siretRequired": "SIRET vereist",
+            "siretInvalid": "De SIRET moet precies 14 cijfers bevatten",
+            "zipInvalid": "De postcode moet precies 5 cijfers bevatten",
+            "phoneInvalid": "Ongeldig formaat. Gebruik 0612345678 of +33612345678",
+            "hoursAllDays": "De openingstijden moeten alle 7 dagen van de week dekken",
+            "hoursPeriodRequired": "Elke geopende dag moet ten minste één periode bevatten",
+            "hoursStartEnd": "Elke periode moet een begin- en eindtijd hebben",
+            "hoursDifferent": "De eindtijd moet verschillen van de openingstijd",
+            "fixFieldsTitle": "Ontbrekende velden",
+            "fixFieldsMessage": "Corrigeer de rood gemarkeerde velden."
+        },
+        "alerts": {
+            "permissionDeniedTitle": "Toestemming geweigerd",
+            "photoPermissionMessage": "Toestemming voor toegang tot foto's vereist",
+            "imagePickError": "Kan de afbeelding niet selecteren",
+            "errorTitle": "Fout",
+            "locationPermissionMessage": "Locatietoestemming vereist",
+            "locationError": "Kan uw locatie niet bepalen",
+            "successTitle": "Gelukt",
+            "createSuccessMessage": "Restaurant succesvol aangemaakt!\nHuidige status: {{status}}\nMaaltijdcheques: {{vouchers}}",
+            "createError": "Kan het restaurant niet aanmaken",
+            "validationError": "Validatiefouten gedetecteerd - controleer de rood gemarkeerde velden",
+            "stripeRequiredTitle": "Stripe niet geactiveerd",
+            "stripeRequired": "Je Stripe-account is nog niet geactiveerd. Activeer Stripe voordat je een restaurant kunt aanmaken."
+        }
     },
     "dashboard": {
-      "greeting": "Hallo, Chef!",
-      "open": "Open",
-      "closed": "Gesloten",
-      "quickActions": "Snelle acties",
-      "recentOrders": "Recente bestellingen",
-      "seeAll": "Alles bekijken",
-      "new": "Nieuw",
-      "noOrders": "Geen bestellingen",
-      "noOrdersDesc": "Recente bestellingen verschijnen hier",
-      "table": "Tafel {{number}}",
-      "itemsCount_one": "{{count}} artikel",
-      "itemsCount_other": "{{count}} artikelen",
-      "stats": {
-        "todayOrders": "Bestellingen vandaag",
-        "revenue": "Omzet",
-        "pending": "In behandeling",
-        "avgOrder": "Gemiddelde bestelling",
-        "vsYesterday": "vs gisteren",
-        "toProcess": "Te verwerken"
-      },
-      "actions": {
-        "orders": {
-          "title": "Bestellingen",
-          "subtitle": "Bestellingen beheren"
+        "greeting": "Hallo, Chef!",
+        "open": "Open",
+        "closed": "Gesloten",
+        "quickActions": "Snelle acties",
+        "recentOrders": "Recente bestellingen",
+        "seeAll": "Alles bekijken",
+        "new": "Nieuw",
+        "noOrders": "Geen bestellingen",
+        "noOrdersDesc": "Recente bestellingen verschijnen hier",
+        "table": "Tafel {{number}}",
+        "itemsCount_one": "{{count}} artikel",
+        "itemsCount_other": "{{count}} artikelen",
+        "stats": {
+            "todayOrders": "Bestellingen vandaag",
+            "revenue": "Omzet",
+            "pending": "In behandeling",
+            "avgOrder": "Gemiddelde bestelling",
+            "vsYesterday": "vs gisteren",
+            "toProcess": "Te verwerken"
         },
-        "menu": {
-          "title": "Menu",
-          "subtitle": "Menu bewerken"
+        "actions": {
+            "orders": {
+                "title": "Bestellingen",
+                "subtitle": "Bestellingen beheren"
+            },
+            "menu": {
+                "title": "Menu",
+                "subtitle": "Menu bewerken"
+            },
+            "tables": {
+                "title": "Tafels",
+                "subtitle": "QR-codes"
+            },
+            "statistics": {
+                "title": "Statistieken",
+                "subtitle": "Analyse"
+            },
+            "profile": {
+                "title": "Profiel",
+                "subtitle": "Instellingen"
+            },
+            "support": {
+                "title": "Ondersteuning",
+                "subtitle": "Hulp & contact"
+            }
         },
-        "tables": {
-          "title": "Tafels",
-          "subtitle": "QR-codes"
+        "toggle": {
+            "title": "Status wijzigen",
+            "confirmOpen": "Wil je je restaurant openen?",
+            "confirmClose": "Wil je je restaurant sluiten?",
+            "nowOpen": "Je restaurant is nu open.",
+            "nowClosed": "Je restaurant is nu gesloten.",
+            "error": "Kan de status niet wijzigen"
         },
-        "statistics": {
-          "title": "Statistieken",
-          "subtitle": "Analyse"
-        },
-        "profile": {
-          "title": "Profiel",
-          "subtitle": "Instellingen"
-        },
-        "support": {
-          "title": "Ondersteuning",
-          "subtitle": "Hulp & contact"
+        "refresh": {
+            "success": "Gegevens succesvol vernieuwd",
+            "error": "Kan de gegevens niet vernieuwen"
         }
-      },
-      "toggle": {
-        "title": "Status wijzigen",
-        "confirmOpen": "Wil je je restaurant openen?",
-        "confirmClose": "Wil je je restaurant sluiten?",
-        "nowOpen": "Je restaurant is nu open.",
-        "nowClosed": "Je restaurant is nu gesloten.",
-        "error": "Kan de status niet wijzigen"
-      },
-      "refresh": {
-        "success": "Gegevens succesvol vernieuwd",
-        "error": "Kan de gegevens niet vernieuwen"
-      }
     },
-  "common": {
-    "ok": "OK",
-    "cancel": "Annuleren",
-    "save": "Opslaan",
-    "delete": "Verwijderen",
-    "edit": "Bewerken",
-    "close": "Sluiten",
-    "back": "Terug",
-    "next": "Volgende",
-    "previous": "Vorige",
-    "confirm": "Bevestigen",
-    "continue": "Doorgaan",
-    "retry": "Opnieuw proberen",
-    "loading": "Laden…",
-    "search": "Zoeken",
-    "filter": "Filteren",
-    "clear": "Wissen",
-    "select": "Selecteren",
-    "selected": "Geselecteerd",
-    "add": "Toevoegen",
-    "remove": "Verwijderen",
-    "yes": "Ja",
-    "no": "Nee",
-    "or": "of",
-    "and": "en",
-    "all": "Alle",
-    "none": "Geen",
-    "more": "Meer",
-    "less": "Minder",
-    "share": "Delen",
-    "copy": "Kopiëren",
-    "copied": "Gekopieerd",
-    "refresh": "Vernieuwen",
-    "submit": "Verzenden",
-    "done": "Klaar",
-    "skip": "Overslaan",
-    "optional": "Optioneel",
-    "required": "Verplicht",
-    "available": "Beschikbaar",
-    "unavailable": "Niet beschikbaar",
-    "comingSoon": "Binnenkort",
-    "error": "Fout",
-    "success": "Gelukt"
-  },
-  "nav": {
-    "home": "Home",
-    "menu": "Menu",
-    "orders": "Bestellingen",
-    "cart": "Winkelwagen",
-    "profile": "Profiel",
-    "settings": "Instellingen",
-    "restaurants": "Restaurants",
-    "dashboard": "Dashboard",
-    "history": "Geschiedenis",
-    "help": "Help",
-    "logout": "Uitloggen",
-    "scanner": "Scannen"
-  },
-  "auth": {
-      "stripe": {
-        "title": "Stripe-configuratie",
-        "prepStatus": "Je Stripe-configuratie wordt voorbereid...",
-        "validated": "Je Stripe-account is succesvol gevalideerd!",
-        "inProgress": "Configuratie bezig. Dit kan enkele minuten duren...",
-        "stillChecking": "Nog aan het verifiëren...",
-        "statusCheckError": "Fout bij het controleren van de status.",
-        "statusFetchFail": "Kan de status van je account niet ophalen.",
-        "refreshFail": "Kan de status niet vernieuwen. Probeer het opnieuw.",
-        "refreshFailShort": "Kan de status niet vernieuwen.",
-        "redirectNote": "Automatisch doorsturen naar het dashboard...",
-        "errorDetail": "Foutdetails",
-        "goToDashboard": "Naar dashboard",
-        "refreshStatus": "Status vernieuwen",
-        "opening": "Openen...",
-        "configureAccount": "Mijn Stripe-account instellen",
-        "continueWithout": "Doorgaan zonder Stripe",
-        "paymentsDisabledPrefix": "Betalingen blijven",
-        "paymentsDisabledWord": "uitgeschakeld",
-        "paymentsDisabledSuffix": "totdat de Stripe-validatie is voltooid.",
-        "helpTitle": "Hulp nodig?",
-        "helpMessage": "Als je problemen ondervindt bij het instellen van je Stripe-account, neem dan gerust contact met ons op.",
-        "contactUs": "Neem contact op",
-        "noUrl": "Geen onboarding-URL teruggegeven door de server.",
-        "popupBlocked": "De browser blokkeerde het openen van het tabblad. Sta pop-ups toe voor eatquicker.fr.",
-        "cannotOpenBrowser": "Kan de Stripe-browser niet openen.",
-        "cannotOpenPage": "Kan de Stripe-pagina niet openen. Controleer je verbinding en probeer het opnieuw."
-      },
-      "register": {
-        "title": "Account aanmaken",
-        "tagline": "Bestel aan tafel",
-        "returnToBanner": "Maak je account aan om je bestelling na verificatie te hervatten.",
-        "iAm": "Ik ben:",
-        "roleClient": "Klant",
-        "roleRestaurateur": "Restauranthouder",
-        "fullName": "Volledige naam",
-        "siret": "SIRET-nummer",
-        "termsPrefix": "Ik ga akkoord met de",
-        "termsCgu": "gebruiksvoorwaarden",
-        "termsAnd": "en het",
-        "termsPrivacy": "privacybeleid",
-        "emailCodeInfo": "Er wordt een verificatiecode naar je e-mailadres gestuurd.",
+    "common": {
+        "ok": "OK",
+        "cancel": "Annuleren",
+        "save": "Opslaan",
+        "delete": "Verwijderen",
+        "edit": "Bewerken",
+        "close": "Sluiten",
+        "back": "Terug",
+        "next": "Volgende",
+        "previous": "Vorige",
+        "confirm": "Bevestigen",
+        "continue": "Doorgaan",
+        "retry": "Opnieuw proberen",
+        "loading": "Laden…",
+        "search": "Zoeken",
+        "filter": "Filteren",
+        "clear": "Wissen",
+        "select": "Selecteren",
+        "selected": "Geselecteerd",
+        "add": "Toevoegen",
+        "remove": "Verwijderen",
+        "yes": "Ja",
+        "no": "Nee",
+        "or": "of",
+        "and": "en",
+        "all": "Alle",
+        "none": "Geen",
+        "more": "Meer",
+        "less": "Minder",
+        "share": "Delen",
+        "copy": "Kopiëren",
+        "copied": "Gekopieerd",
+        "refresh": "Vernieuwen",
+        "submit": "Verzenden",
+        "done": "Klaar",
+        "skip": "Overslaan",
+        "optional": "Optioneel",
+        "required": "Verplicht",
+        "available": "Beschikbaar",
+        "unavailable": "Niet beschikbaar",
+        "comingSoon": "Binnenkort",
+        "error": "Fout",
+        "success": "Gelukt"
+    },
+    "nav": {
+        "home": "Home",
+        "menu": "Menu",
+        "orders": "Bestellingen",
+        "cart": "Winkelwagen",
+        "profile": "Profiel",
+        "settings": "Instellingen",
+        "restaurants": "Restaurants",
+        "dashboard": "Dashboard",
+        "history": "Geschiedenis",
+        "help": "Help",
+        "logout": "Uitloggen",
+        "scanner": "Scannen"
+    },
+    "auth": {
+        "stripe": {
+            "title": "Stripe-configuratie",
+            "prepStatus": "Je Stripe-configuratie wordt voorbereid...",
+            "validated": "Je Stripe-account is succesvol gevalideerd!",
+            "inProgress": "Configuratie bezig. Dit kan enkele minuten duren...",
+            "stillChecking": "Nog aan het verifiëren...",
+            "statusCheckError": "Fout bij het controleren van de status.",
+            "statusFetchFail": "Kan de status van je account niet ophalen.",
+            "refreshFail": "Kan de status niet vernieuwen. Probeer het opnieuw.",
+            "refreshFailShort": "Kan de status niet vernieuwen.",
+            "redirectNote": "Automatisch doorsturen naar het dashboard...",
+            "errorDetail": "Foutdetails",
+            "goToDashboard": "Naar dashboard",
+            "refreshStatus": "Status vernieuwen",
+            "opening": "Openen...",
+            "configureAccount": "Mijn Stripe-account instellen",
+            "continueWithout": "Doorgaan zonder Stripe",
+            "paymentsDisabledPrefix": "Betalingen blijven",
+            "paymentsDisabledWord": "uitgeschakeld",
+            "paymentsDisabledSuffix": "totdat de Stripe-validatie is voltooid.",
+            "helpTitle": "Hulp nodig?",
+            "helpMessage": "Als je problemen ondervindt bij het instellen van je Stripe-account, neem dan gerust contact met ons op.",
+            "contactUs": "Neem contact op",
+            "noUrl": "Geen onboarding-URL teruggegeven door de server.",
+            "popupBlocked": "De browser blokkeerde het openen van het tabblad. Sta pop-ups toe voor eatquicker.fr.",
+            "cannotOpenBrowser": "Kan de Stripe-browser niet openen.",
+            "cannotOpenPage": "Kan de Stripe-pagina niet openen. Controleer je verbinding en probeer het opnieuw."
+        },
+        "register": {
+            "title": "Account aanmaken",
+            "tagline": "Bestel aan tafel",
+            "returnToBanner": "Maak je account aan om je bestelling na verificatie te hervatten.",
+            "iAm": "Ik ben:",
+            "roleClient": "Klant",
+            "roleRestaurateur": "Restauranthouder",
+            "fullName": "Volledige naam",
+            "siret": "SIRET-nummer",
+            "termsPrefix": "Ik ga akkoord met de",
+            "termsCgu": "gebruiksvoorwaarden",
+            "termsAnd": "en het",
+            "termsPrivacy": "privacybeleid",
+            "emailCodeInfo": "Er wordt een verificatiecode naar je e-mailadres gestuurd.",
+            "errors": {
+                "emailRequired": "E-mail vereist",
+                "emailInvalid": "Ongeldig e-mailformaat",
+                "passwordRequired": "Wachtwoord vereist",
+                "passwordMin": "Minimaal 8 tekens",
+                "nameRequired": "Naam vereist",
+                "phoneRequired": "Telefoonnummer vereist",
+                "phoneInvalid": "Ongeldig formaat (bijv. +33612345678)",
+                "siretRequired": "SIRET vereist",
+                "siretInvalid": "De SIRET moet 14 cijfers bevatten",
+                "acceptTerms": "Je moet de algemene voorwaarden accepteren",
+                "generic": "Er is een fout opgetreden tijdens de registratie"
+            }
+        },
+        "passwordHint": "Minstens 8 tekens, met een hoofdletter, een cijfer en een speciaal teken",
+        "reset": {
+            "title": "Nieuw wachtwoord",
+            "step1": "1. Voer de 6-cijferige code in",
+            "step2": "2. Kies een nieuw wachtwoord",
+            "newPasswordLabel": "Nieuw wachtwoord",
+            "submit": "Wachtwoord opnieuw instellen",
+            "pwdMinLength": "Het wachtwoord moet minstens {{n}} tekens bevatten.",
+            "pwdUpper": "Het wachtwoord moet minstens één hoofdletter bevatten.",
+            "pwdDigit": "Het wachtwoord moet minstens één cijfer bevatten.",
+            "pwdSpecial": "Het wachtwoord moet minstens één speciaal teken bevatten.",
+            "codeIncompleteTitle": "Onvolledige code",
+            "codeIncompleteMsg": "Voer de 6-cijferige code in die je per e-mail hebt ontvangen.",
+            "invalidRequestTitle": "Ongeldig verzoek",
+            "invalidRequestMsg": "Dit verzoek is niet meer geldig. Begin opnieuw.",
+            "codeIncorrectTitle": "Onjuiste code",
+            "codeInvalidRemaining": "Ongeldige code. Nog {{count}} poging(en).",
+            "tooManyAttempts": "Te veel pogingen. Vraag een nieuwe code aan.",
+            "requestExpiredTitle": "Verzoek verlopen",
+            "requestExpiredMsg": "Dit verzoek is niet meer geldig. Begin opnieuw.",
+            "tooManyTitle": "Te veel pogingen",
+            "tooManyMsg": "Vraag een nieuwe code aan en probeer het opnieuw.",
+            "genericError": "Er is iets misgegaan. Probeer het opnieuw.",
+            "successTitle": "Wachtwoord gewijzigd",
+            "successMsg": "Je wachtwoord is opnieuw ingesteld."
+        },
+        "forgot": {
+            "title": "Wachtwoord vergeten",
+            "subtitle": "Voer het e-mailadres in dat aan je account is gekoppeld. We sturen je een code om je wachtwoord opnieuw in te stellen.",
+            "cardLabel": "Accountherstel",
+            "cardSubtitle": "Voer het e-mailadres van je EatQuickeR-account in.",
+            "sendCode": "Code versturen",
+            "backToPrefix": "Terug naar",
+            "backToLogin": "inloggen",
+            "rateLimitTitle": "Te veel pogingen",
+            "rateLimitMsg": "Wacht even voordat je het opnieuw probeert.",
+            "sendError": "Kon de code niet versturen. Probeer het opnieuw.",
+            "networkErrorTitle": "Netwerkfout",
+            "networkErrorMsg": "Controleer je verbinding en probeer het opnieuw."
+        },
+        "verify": {
+            "title": "E-mailverificatie",
+            "sentTo": "Code verzonden naar",
+            "returnToBanner": "Verifieer je e-mail om je bestelling te hervatten.",
+            "enterCode": "Voer de 6-cijferige code in",
+            "expiresIn": "Deze code verloopt over {{minutes}} minuten",
+            "confirm": "E-mail bevestigen",
+            "noCode": "Geen code ontvangen?",
+            "resend": "Code opnieuw versturen",
+            "resendIn": "Opnieuw versturen over {{seconds}}s",
+            "editEmail": "← Mijn e-mail wijzigen",
+            "sessionInvalid": "Ongeldige sessie. Begin de registratie opnieuw.",
+            "invalidCodeTitle": "Ongeldige code",
+            "invalidCodeMsg": "Onjuiste code. Probeer het opnieuw.",
+            "accountCreatedTitle": "Account aangemaakt!",
+            "accountCreatedMsg": "Welkom bij EatQuickeR 🎉",
+            "networkErrorTitle": "Netwerkfout",
+            "networkErrorMsg": "Er is iets misgegaan. Probeer het opnieuw.",
+            "resendError": "Kon de code niet opnieuw versturen.",
+            "codeResentTitle": "Code opnieuw verzonden",
+            "codeResentMsg": "Nieuwe code verzonden naar {{email}}."
+        },
+        "welcomeTitle": "Fijn je te zien",
+        "welcomeSubtitle": "Log in om door te gaan",
+        "slogan": "Een server in dienst van servers",
+        "loginTitle": "Inloggen",
+        "resumeOrderPrompt": "Log in om je bestelling te hervatten waar je was gebleven.",
+        "validation": {
+            "emailRequired": "E-mailadres vereist",
+            "passwordRequired": "Wachtwoord vereist",
+            "passwordMinLength": "Minimaal {{min}} tekens",
+            "noAccountEmail": "Geen account met dit e-mailadres"
+        },
+        "alerts": {
+            "accountNotFound": {
+                "title": "Account niet gevonden",
+                "message": "Er is geen account aan dit e-mailadres gekoppeld."
+            },
+            "invalidCredentials": {
+                "title": "Ongeldige inloggegevens",
+                "message": "E-mailadres of wachtwoord is onjuist. Probeer het opnieuw."
+            },
+            "accessDenied": {
+                "title": "Toegang geweigerd",
+                "message": "Je account mag niet inloggen. Neem contact op met support."
+            },
+            "tooManyAttempts": {
+                "title": "Te veel pogingen",
+                "message": "Te veel inlogpogingen. Probeer het over enkele ogenblikken opnieuw."
+            },
+            "networkError": {
+                "title": "Verbindingsfout",
+                "message": "Controleer je internetverbinding en probeer het opnieuw."
+            },
+            "serviceUnavailable": {
+                "title": "Service niet beschikbaar",
+                "message": "De service is tijdelijk niet beschikbaar. Probeer het later opnieuw."
+            },
+            "genericError": {
+                "title": "Verbindingsfout",
+                "message": "Er is iets misgegaan. Probeer het opnieuw."
+            },
+            "googlePlayUnavailable": {
+                "title": "Google Play niet beschikbaar",
+                "message": "Google Play Services is niet beschikbaar op dit apparaat."
+            },
+            "googleLoginFailed": {
+                "title": "Inloggen met Google mislukt"
+            },
+            "comingSoon": {
+                "title": "Binnenkort beschikbaar",
+                "message": "Inloggen met Apple is binnenkort beschikbaar."
+            },
+            "sessionExpired": {
+                "title": "Sessie verlopen",
+                "message": "Je sessie is verlopen. Log opnieuw in."
+            }
+        },
+        "continueWithApple": "Doorgaan met Apple",
+        "signIn": "Inloggen",
+        "signUp": "Account aanmaken",
+        "signOut": "Uitloggen",
+        "email": "E-mail",
+        "password": "Wachtwoord",
+        "passwordConfirm": "Wachtwoord bevestigen",
+        "forgotPassword": "Wachtwoord vergeten?",
+        "resetPassword": "Wachtwoord opnieuw instellen",
+        "firstName": "Voornaam",
+        "lastName": "Achternaam",
+        "phone": "Telefoon",
+        "rememberMe": "Onthoud mij",
+        "reconnect": "Opnieuw inloggen",
+        "useAnotherAccount": "of een ander account",
+        "continueAsGuest": "Doorgaan als gast",
+        "continueWithGoogle": "Doorgaan met Google",
+        "alreadyHaveAccount": "Heb je al een account?",
+        "noAccount": "Nog geen account?",
+        "verifyEmail": "Verifieer je e-mail",
+        "verificationSent": "Er is een verificatiemail verzonden.",
+        "termsAccept": "Ik accepteer de gebruiksvoorwaarden",
+        "privacyAccept": "Ik accepteer het privacybeleid"
+    },
+    "menu": {
+        "title": "Menu",
+        "categories": "Categorieën",
+        "viewMenu": "Bekijk menu",
+        "allergens": "Allergenen",
+        "ingredients": "Ingrediënten",
+        "description": "Beschrijving",
+        "price": "Prijs",
+        "addToCart": "Toevoegen aan winkelwagen",
+        "removeFromCart": "Verwijderen uit winkelwagen",
+        "outOfStock": "Niet op voorraad",
+        "popular": "Populair",
+        "new": "Nieuw",
+        "spicy": "Pittig",
+        "vegetarian": "Vegetarisch",
+        "vegan": "Veganistisch",
+        "glutenFree": "Glutenvrij",
+        "dailyMenu": "Menu van de dag",
+        "specialOffer": "Speciale aanbieding",
+        "language": "Menutaal",
+        "noItems": "Geen gerechten beschikbaar",
+        "searchPlaceholder": "Zoek een gerecht…"
+    },
+    "cart": {
+        "title": "Winkelwagen",
+        "empty": "Je winkelwagen is leeg",
+        "emptyHint": "Voeg gerechten toe om je bestelling te starten.",
+        "backToMenu": "Terug naar menu",
+        "item_one": "{{count}} artikel",
+        "item_other": "{{count}} artikelen",
+        "subtotal": "Subtotaal",
+        "tax": "Belasting",
+        "tip": "Fooi",
+        "total": "Totaal",
+        "checkout": "Afrekenen",
+        "quantity": "Aantal",
+        "specialInstructions": "Speciale instructies",
+        "specialInstructionsPlaceholder": "Allergieën, bereiding, zonder ui…",
+        "table": "Tafel",
+        "tableNumber": "Tafel nr. {{number}}",
+        "titleWithCount": "Winkelmand ({{count}})",
+        "serviceFee": "Servicekosten",
+        "collaborativeSession": "Gezamenlijke sessie",
+        "scanToOrder": "Scan om te bestellen",
+        "scanToOrderDescription": "Scan een QR-code om het menu te openen",
+        "checkoutForGroup": "Bestellen voor de groep",
+        "processing": "Verwerken…",
+        "hostOnlyCheckout": "Alleen de host kan de groepsbestelling plaatsen.",
+        "formula": {
+            "incomplete": "Menu onvolledig",
+            "completeAction": "Vul je menu aan om te bestellen."
+        },
+        "clearConfirm": {
+            "title": "Winkelmand legen",
+            "message": "Weet je zeker dat je je winkelmand wilt legen? Dit kan niet ongedaan worden gemaakt.",
+            "cta": "Winkelmand legen"
+        },
+        "removeConfirm": {
+            "title": "Artikel verwijderen",
+            "message": "Wil je dit artikel uit je winkelmand verwijderen?",
+            "cta": "Verwijderen"
+        },
+        "splitConfirm": {
+            "title": "Bestellen voor de groep",
+            "message": "Wil je de rekening delen tussen de deelnemers? Iedereen kan zijn deel met de telefoon betalen.",
+            "split": "Rekening delen",
+            "payAll": "Ik betaal alles"
+        },
+        "feedback": {
+            "quantityUpdated": "Aantal bijgewerkt",
+            "itemRemoved": "Artikel verwijderd",
+            "cleared": "Winkelmand geleegd",
+            "emptyOnCheckout": "Je winkelmand is leeg. Voeg artikelen toe om door te gaan.",
+            "restaurantNotFound": "Restaurant niet gevonden. Scan de QR-code opnieuw.",
+            "orderPlaced": "Bestelling geplaatst!",
+            "orderPlacedSplit": "Bestelling geplaatst! Rekening wordt gedeeld…"
+        },
         "errors": {
-          "emailRequired": "E-mail vereist",
-          "emailInvalid": "Ongeldig e-mailformaat",
-          "passwordRequired": "Wachtwoord vereist",
-          "passwordMin": "Minimaal 8 tekens",
-          "nameRequired": "Naam vereist",
-          "phoneRequired": "Telefoonnummer vereist",
-          "phoneInvalid": "Ongeldig formaat (bijv. +33612345678)",
-          "siretRequired": "SIRET vereist",
-          "siretInvalid": "De SIRET moet 14 cijfers bevatten",
-          "acceptTerms": "Je moet de algemene voorwaarden accepteren",
-          "generic": "Er is een fout opgetreden tijdens de registratie"
+            "quantityUpdate": "Fout bij het bijwerken van het aantal",
+            "itemRemove": "Fout bij het verwijderen van het artikel",
+            "cartClear": "Fout bij het legen van de winkelmand",
+            "checkout": "Fout bij het voorbereiden van de bestelling",
+            "groupOrder": "Fout bij groepsbestelling"
+        },
+        "a11y": {
+            "itemImage": "Afbeelding van {{name}}",
+            "itemRow": "{{name}}, aantal {{count}}, prijs {{price}}",
+            "removeItem": "Artikel verwijderen",
+            "decrease": "Aantal verlagen",
+            "increase": "Aantal verhogen",
+            "currentQuantity": "Huidig aantal: {{count}}",
+            "checkoutHint": "Tik om door te gaan naar betalen",
+            "formulaLockHint": "Vul je menu aan om te bestellen",
+            "checkoutLabel": "Bestellen voor een totaal van {{amount}}"
         }
-      },
-    "passwordHint": "Minstens 8 tekens, met een hoofdletter, een cijfer en een speciaal teken",
-      "reset": {
-        "title": "Nieuw wachtwoord",
-        "step1": "1. Voer de 6-cijferige code in",
-        "step2": "2. Kies een nieuw wachtwoord",
-        "newPasswordLabel": "Nieuw wachtwoord",
-        "submit": "Wachtwoord opnieuw instellen",
-        "pwdMinLength": "Het wachtwoord moet minstens {{n}} tekens bevatten.",
-        "pwdUpper": "Het wachtwoord moet minstens één hoofdletter bevatten.",
-        "pwdDigit": "Het wachtwoord moet minstens één cijfer bevatten.",
-        "pwdSpecial": "Het wachtwoord moet minstens één speciaal teken bevatten.",
-        "codeIncompleteTitle": "Onvolledige code",
-        "codeIncompleteMsg": "Voer de 6-cijferige code in die je per e-mail hebt ontvangen.",
-        "invalidRequestTitle": "Ongeldig verzoek",
-        "invalidRequestMsg": "Dit verzoek is niet meer geldig. Begin opnieuw.",
-        "codeIncorrectTitle": "Onjuiste code",
-        "codeInvalidRemaining": "Ongeldige code. Nog {{count}} poging(en).",
-        "tooManyAttempts": "Te veel pogingen. Vraag een nieuwe code aan.",
-        "requestExpiredTitle": "Verzoek verlopen",
-        "requestExpiredMsg": "Dit verzoek is niet meer geldig. Begin opnieuw.",
-        "tooManyTitle": "Te veel pogingen",
-        "tooManyMsg": "Vraag een nieuwe code aan en probeer het opnieuw.",
-        "genericError": "Er is iets misgegaan. Probeer het opnieuw.",
-        "successTitle": "Wachtwoord gewijzigd",
-        "successMsg": "Je wachtwoord is opnieuw ingesteld."
-      },
-      "forgot": {
-        "title": "Wachtwoord vergeten",
-        "subtitle": "Voer het e-mailadres in dat aan je account is gekoppeld. We sturen je een code om je wachtwoord opnieuw in te stellen.",
-        "cardLabel": "Accountherstel",
-        "cardSubtitle": "Voer het e-mailadres van je EatQuickeR-account in.",
-        "sendCode": "Code versturen",
-        "backToPrefix": "Terug naar",
-        "backToLogin": "inloggen",
-        "rateLimitTitle": "Te veel pogingen",
-        "rateLimitMsg": "Wacht even voordat je het opnieuw probeert.",
-        "sendError": "Kon de code niet versturen. Probeer het opnieuw.",
-        "networkErrorTitle": "Netwerkfout",
-        "networkErrorMsg": "Controleer je verbinding en probeer het opnieuw."
-      },
-      "verify": {
-        "title": "E-mailverificatie",
-        "sentTo": "Code verzonden naar",
-        "returnToBanner": "Verifieer je e-mail om je bestelling te hervatten.",
-        "enterCode": "Voer de 6-cijferige code in",
-        "expiresIn": "Deze code verloopt over {{minutes}} minuten",
-        "confirm": "E-mail bevestigen",
-        "noCode": "Geen code ontvangen?",
-        "resend": "Code opnieuw versturen",
-        "resendIn": "Opnieuw versturen over {{seconds}}s",
-        "editEmail": "← Mijn e-mail wijzigen",
-        "sessionInvalid": "Ongeldige sessie. Begin de registratie opnieuw.",
+    },
+    "order": {
+        "title": "Bestelling",
+        "yourOrder": "Jouw bestelling",
+        "orderNumber": "Bestelling nr. {{number}}",
+        "status": {
+            "pending": "In afwachting",
+            "confirmed": "Bevestigd",
+            "preparing": "Wordt bereid",
+            "ready": "Klaar",
+            "served": "Geserveerd",
+            "completed": "Voltooid",
+            "cancelled": "Geannuleerd"
+        },
+        "placedAt": "Geplaatst op {{date}}",
+        "noOrders": "Nog geen bestellingen",
+        "viewDetails": "Details bekijken",
+        "track": "Bestelling volgen",
+        "rate": "Bestelling beoordelen",
+        "reorder": "Opnieuw bestellen",
+        "count_one": "{{count}} bestelling",
+        "count_other": "{{count}} bestellingen",
+        "unpaidTitle_one": "Je hebt een onbetaalde bestelling",
+        "unpaidTitle_other": "Je hebt {{count}} onbetaalde bestellingen",
+        "unpaidSubtitle": "Reken je bestellingen af om opnieuw te kunnen bestellen",
+        "myOrders": "Mijn bestellingen",
+        "tabs": {
+            "active": "Lopend",
+            "history": "Geschiedenis"
+        },
+        "fallbackRestaurant": "Restaurant",
+        "todayAt": "Vandaag om {{time}}",
+        "dineIn": "Ter plaatse",
+        "takeaway": "Afhalen",
+        "paid": "Betaald",
+        "paymentPending": "Betaling in afwachting",
+        "waitingTime": "Geschatte wachttijd: {{minutes}} min",
+        "noActiveOrders": "Geen lopende bestellingen",
+        "noHistoryOrders": "Geen eerdere bestellingen",
+        "scanPrompt": "Scan de QR-code van je tafel om je eerste bestelling te plaatsen",
+        "orderNow": "Nu bestellen",
+        "scanDescription": "Open het menu door de QR-code van je tafel te scannen",
+        "scanQR": "QR scannen",
+        "enterCode": "Code invoeren",
+        "clientOnly": "Alleen voor klanten",
+        "loadingOrders": "Bestellingen laden…",
+        "realtimeUnavailable": "Realtime-meldingen niet beschikbaar. Trek omlaag om te vernieuwen.",
+        "realtime": {
+            "on": "Realtime aan",
+            "connecting": "Verbinden…",
+            "error": "Verbindingsfout",
+            "offline": "Offline"
+        },
+        "statusLabels": {
+            "pending": "In afwachting",
+            "confirmed": "Bevestigd",
+            "preparing": "In voorbereiding",
+            "ready": "Klaar",
+            "served": "Geserveerd",
+            "cancelled": "Geannuleerd"
+        }
+    },
+    "payment": {
+        "title": "Betaling",
+        "method": "Betaalmethode",
+        "card": "Bankkaart",
+        "applePay": "Apple Pay",
+        "googlePay": "Google Pay",
+        "payNow": "Nu betalen",
+        "amount": "Bedrag",
+        "processing": "Bezig met verwerken…",
+        "success": "Betaling geslaagd",
+        "failed": "Betaling mislukt",
+        "splitPayment": "Rekening splitsen",
+        "splitEqual": "Gelijk verdelen",
+        "splitByItem": "Per gerecht",
+        "splitCustom": "Aangepast bedrag",
+        "minAmount": "Het minimumbedrag is {{amount}}",
+        "yourShare": "Jouw deel",
+        "receipt": "Bon",
+        "downloadReceipt": "Bon downloaden"
+    },
+    "session": {
+        "join": "Deelnemen aan tafel",
+        "host": "Gastheer",
+        "participants_one": "{{count}} deelnemer",
+        "participants_other": "{{count}} deelnemers",
+        "yourName": "Jouw naam",
+        "leaveSession": "Sessie verlaten",
+        "sessionEnded": "Sessie beëindigd",
+        "waitingForOthers": "Wachten op andere gasten…",
+        "tableLabel": "{{name}} · Tafel {{table}}",
+        "bannerCta": "Tik om door te gaan",
+        "foundLabel": "Sessie gevonden",
+        "foundCta": "Tik om te joinen",
+        "inactivityWarning": "⚠️ Inactieve sessie — automatisch sluiten over {{time}}",
+        "status": {
+            "active": "Actief",
+            "locked": "Vergrendeld",
+            "payment": "Betaling in afwachting"
+        },
+        "errors": {
+            "emptyCode": "Voer een sessiecode in.",
+            "notFound": "Geen sessie gevonden met deze code.",
+            "inactive": "Deze sessie is niet meer actief.",
+            "invalidCode": "Geen actieve sessie met deze code. Controleer en probeer opnieuw.",
+            "joinFailed": "Kan niet deelnemen aan deze sessie.",
+            "maybeGone": "De sessie is mogelijk niet meer beschikbaar.",
+            "rejected": "De host heeft je verzoek geweigerd.",
+            "joinTitle": "Kan niet deelnemen"
+        },
+        "exit": {
+            "titleHost": "Sessie beëindigen?",
+            "titleMember": "Sessie verlaten?",
+            "messageHost": "Als host sluit dit de sessie voor alle deelnemers.",
+            "messageMember": "Je staat op het punt deze gezamenlijke sessie te verlaten.",
+            "ctaHost": "Beëindigen",
+            "ctaMember": "Verlaten"
+        },
+        "completed": {
+            "title": "Sessie beëindigd",
+            "participantsLabel": "Deelnemers ({{count}})",
+            "totalLabel": "Totaal: {{amount}}",
+            "close": "Sluiten"
+        },
+        "codeModal": {
+            "title": "Sessie joinen",
+            "description": "Voer de code in die door de tafelhost is gedeeld om aan de huidige sessie deel te nemen.",
+            "placeholder": "BV.: ABC123",
+            "cta": "Sessie joinen"
+        },
+        "pending": {
+            "title": "Wachten op goedkeuring",
+            "description": "De host moet je verzoek goedkeuren.\nJe wordt automatisch doorgestuurd zodra je bent geaccepteerd.",
+            "codeLabel": "Sessiecode"
+        },
+        "archive": {
+            "archived": "Deze sessie is gearchiveerd",
+            "archivingIn": "Archiveren over {{time}}",
+            "archivingSoonUrgent": "⚠️ Archiveren over {{time}}"
+        },
+        "joinModal": {
+            "chooseTitle": "Bestellen aan deze tafel",
+            "chooseSubtitle": "Kies hoe je wilt bestellen",
+            "rejoinExisting": {
+                "title": "Huidige sessie hervatten",
+                "subtitle": "Code: {{code}} · {{count}} deelnemer(s)"
+            },
+            "createGroup": {
+                "title": "Een groepssessie maken",
+                "description": "Bestel met vrienden en deel de rekening makkelijk"
+            },
+            "joinGroup": {
+                "title": "Sessie joinen",
+                "description": "Voer de code in die door je groep is gedeeld"
+            },
+            "orderAlone": "Alleen bestellen",
+            "createTitle": "Een groepssessie maken",
+            "hostNameLabel": "Je naam",
+            "hostNamePlaceholder": "Bijv. Jan",
+            "sessionTypeLabel": "Sessietype",
+            "sessionType": {
+                "collaborative": {
+                    "title": "Gezamenlijk",
+                    "desc": "Iedereen ziet de bestellingen"
+                },
+                "individual": {
+                    "title": "Individueel",
+                    "desc": "Iedereen bestelt apart"
+                }
+            },
+            "maxParticipantsLabel": "Maximaal aantal deelnemers",
+            "requireApprovalLabel": "Nieuwe deelnemers handmatig goedkeuren",
+            "back": "Terug",
+            "createCta": "Sessie aanmaken",
+            "joinTitle": "Sessie joinen",
+            "codeLabel": "Sessiecode",
+            "codePlaceholder": "ABC123",
+            "verifyCta": "Verifiëren",
+            "previewTitle": "Sessie-informatie",
+            "previewHost": "Host:",
+            "previewParticipants": "Deelnemers:",
+            "sessionFullOrLocked": "⚠️ Deze sessie is vol of vergrendeld",
+            "guestNameLabel": "Je naam",
+            "guestNamePlaceholder": "Bijv. Marie",
+            "joinCta": "Joinen",
+            "pendingDescription": "De host van de sessie moet je verzoek goedkeuren.\nJe wordt automatisch doorgestuurd zodra je bent geaccepteerd.",
+            "feedback": {
+                "soloError": "Kan solobestelling niet starten.",
+                "fieldRequired": "Verplicht veld",
+                "nameRequiredHost": "Voer je naam in om de sessie te maken.",
+                "nameRequiredGuest": "Voer je naam in om de sessie te joinen.",
+                "invalidCode": "Ongeldige code",
+                "invalidCodeDesc": "De code moet precies 6 tekens bevatten.",
+                "codeNotFound": "Code niet gevonden",
+                "codeNotFoundDesc": "Geen actieve sessie komt overeen met deze code.",
+                "sessionCreated": "Sessie aangemaakt!",
+                "sessionCreatedDesc": "Deel code {{code}} met je vrienden.",
+                "sessionCreateError": "Kan sessie niet aanmaken.",
+                "welcome": "Welkom!",
+                "welcomeDesc": "Je bent succesvol toegetreden tot de sessie.",
+                "joinError": "Kan niet deelnemen aan de sessie.",
+                "approved": "✅ Geaccepteerd!",
+                "approvedDesc": "De host heeft je geaccepteerd in de sessie.",
+                "rejected": "❌ Geweigerd",
+                "rejectedDesc": "De host heeft je verzoek geweigerd."
+            }
+        }
+    },
+    "profile": {
+        "title": "Profiel",
+        "myAccount": "Mijn account",
+        "personalInfo": "Persoonlijke gegevens",
+        "preferences": "Voorkeuren",
+        "language": "Taal",
+        "appearance": "Weergave",
+        "notifications": "Meldingen",
+        "paymentMethods": "Betaalmethoden",
+        "addresses": "Adressen",
+        "support": "Help & ondersteuning",
+        "about": "Over",
+        "terms": "Gebruiksvoorwaarden",
+        "privacy": "Privacybeleid",
+        "version": "Versie {{version}}",
+        "deleteAccount": "Mijn account verwijderen",
+        "signInPrompt": "Log in om je profiel te bekijken",
+        "defaultName": "Gebruiker",
+        "verified": "Geverifieerd",
+        "logoutConfirm": "Weet je zeker dat je wilt uitloggen?",
+        "myActions": "Mijn acties",
+        "information": "Informatie",
+        "helpFaq": "Help & FAQ",
+        "contactUs": "Contact",
+        "personalData": "Persoonlijke gegevens"
+    },
+    "theme": {
+        "title": "Thema",
+        "light": "Licht",
+        "dark": "Donker",
+        "system": "Systeem"
+    },
+    "restaurant": {
+        "dashboard": "Dashboard",
+        "myRestaurants": "Mijn restaurants",
+        "openNow": "Geopend",
+        "closedNow": "Gesloten",
+        "opensAt": "Opent om {{time}}",
+        "closesAt": "Sluit om {{time}}",
+        "address": "Adres",
+        "contact": "Contact",
+        "hours": "Openingstijden",
+        "rating": "Beoordeling",
+        "reviews_one": "{{count}} recensie",
+        "reviews_other": "{{count}} recensies",
+        "menuManagement": "Menubeheer",
+        "ordersManagement": "Bestellingenbeheer",
+        "staff": "Team",
+        "stats": "Statistieken",
+        "revenue": "Omzet",
+        "todayRevenue": "Omzet vandaag",
+        "weekRevenue": "Omzet deze week",
+        "monthRevenue": "Omzet deze maand"
+    },
+    "errors": {
+        "generic": "Er is iets misgegaan. Probeer het opnieuw.",
+        "network": "Netwerkfout. Controleer je verbinding.",
+        "unauthorized": "Je moet inloggen om door te gaan.",
+        "forbidden": "Actie niet toegestaan.",
+        "notFound": "Niet gevonden.",
+        "requiredField": "Dit veld is verplicht.",
+        "invalidEmail": "Ongeldig e-mailadres.",
+        "passwordTooShort": "Wachtwoord moet minstens {{min}} tekens bevatten.",
+        "passwordMismatch": "Wachtwoorden komen niet overeen.",
+        "invalidCredentials": "Ongeldige inloggegevens.",
+        "serverError": "Serverfout. Probeer het later opnieuw.",
+        "timeout": "De server reageert niet. Probeer het opnieuw."
+    },
+    "success": {
+        "saved": "Opgeslagen",
+        "deleted": "Verwijderd",
+        "sent": "Verzonden",
+        "copied": "Gekopieerd naar klembord"
+    },
+    "time": {
+        "now": "Zojuist",
+        "minuteAgo_one": "{{count}} minuut geleden",
+        "minuteAgo_other": "{{count}} minuten geleden",
+        "hourAgo_one": "{{count}} uur geleden",
+        "hourAgo_other": "{{count}} uur geleden",
+        "dayAgo_one": "{{count}} dag geleden",
+        "dayAgo_other": "{{count}} dagen geleden",
+        "today": "Vandaag",
+        "yesterday": "Gisteren",
+        "tomorrow": "Morgen"
+    },
+    "legal": {
+        "document": {
+            "lastUpdate": "Laatst bijgewerkt: {{date}}",
+            "acceptDefault": "Ik heb het gelezen en ga akkoord",
+            "acceptTerms": "Ik heb de voorwaarden gelezen en ga akkoord",
+            "acceptPrivacy": "Ik heb het beleid gelezen en ga akkoord",
+            "saveError": "Fout bij het opslaan. Probeer het opnieuw."
+        },
+        "modal": {
+            "welcomeTitle": "Welkom bij EatQuickeR",
+            "intro": "Accepteer onze juridische documenten om door te gaan.",
+            "termsName": "Gebruiksvoorwaarden",
+            "privacyName": "Privacybeleid",
+            "viewDocument": "Document bekijken",
+            "acceptTermsLabel": "Ik ga akkoord met de gebruiksvoorwaarden",
+            "acceptPrivacyLabel": "Ik ga akkoord met het privacybeleid",
+            "helpText": "Je kunt de documenten bekijken voordat je ze accepteert door op “Document bekijken” te tikken.",
+            "acceptBoth": "Accepteer beide documenten",
+            "saveError": "Fout bij het opslaan. Probeer het opnieuw."
+        },
+        "copyright": "© {{year}} EatQuicker. Alle rechten voorbehouden.",
+        "termsShort": "Voorwaarden",
+        "privacyShort": "Privacy",
+        "noticeShort": "Juridisch",
+        "downloadMyData": {
+            "cta": "Mijn gegevens downloaden",
+            "download": "Downloaden",
+            "gdprNotice": "AVG-conforme export (Artikel 20)",
+            "confirmTitle": "Gegevens exporteren",
+            "confirmMessage": "Wil je al je persoonlijke gegevens downloaden?\n\nDit omvat: profiel, bestellingen, voorkeuren en geschiedenis.",
+            "shareDialogTitle": "Mijn EatQuickeR-gegevens downloaden",
+            "options": {
+                "title": "Gegevens exporteren",
+                "message": "Hoe wil je je gegevens ontvangen?",
+                "direct": "Directe download",
+                "email": "Per e-mail (binnen 48u)"
+            },
+            "progress": {
+                "fetching": "Gegevens ophalen…",
+                "preparing": "Bestand voorbereiden…",
+                "preparingShort": "Voorbereiden…",
+                "done": "Export voltooid!",
+                "sending": "Verzoek verzenden…"
+            },
+            "success": {
+                "title": "Export geslaagd",
+                "message": "Je gegevens ({{size}} KB) zijn geëxporteerd.\n\nJe kunt ze nu opslaan of delen.",
+                "messageFallback": "Je gegevens zijn geëxporteerd naar:\n{{filename}}\n\nGrootte: {{size}} KB"
+            },
+            "email": {
+                "title": "E-mailexport",
+                "confirmMessage": "Je ontvangt binnen 48u een e-mail met een veilige downloadlink.\n\nDoorgaan?",
+                "successTitle": "Verzoek geregistreerd",
+                "successMessage": "Een e-mail wordt binnen 48u naar {{email}} verzonden met je gegevens."
+            },
+            "errors": {
+                "notLoggedIn": "Je moet ingelogd zijn om je gegevens te exporteren",
+                "rateLimit": "Je hebt de dagelijkse exportlimiet bereikt. Probeer het morgen opnieuw.",
+                "sessionExpired": "Je sessie is verlopen. Meld je opnieuw aan.",
+                "forbidden": "Je hebt geen toestemming om deze gegevens te exporteren.",
+                "serverError": "Serverfout. Probeer het over enkele ogenblikken opnieuw.",
+                "serviceUnavailable": "De exportservice is tijdelijk niet beschikbaar. Probeer het over enkele minuten.",
+                "generic": "Kan je gegevens niet downloaden. Probeer het opnieuw.",
+                "connection": "Verbindingsfout. Controleer je internetverbinding.",
+                "emailRequestFailed": "Kan je verzoek niet registreren. Probeer het opnieuw.",
+                "emailPending": "Je hebt al een exportverzoek in behandeling. Even geduld."
+            },
+            "a11y": {
+                "label": "Mijn persoonlijke gegevens downloaden",
+                "hint": "Alle gegevens exporteren conform AVG"
+            }
+        }
+    },
+    "home": {
+        "subtitle": "Bestel met gemak",
+        "welcome": "Hallo {{name}}! 👋",
+        "welcomeSubtext": "Klaar om vandaag te bestellen?",
+        "quickActions": "Snelle acties",
+        "actions": {
+            "myOrders": {
+                "title": "Mijn bestellingen",
+                "subtitle": "Volg je bestellingen"
+            },
+            "myCart": {
+                "title": "Mijn winkelmand",
+                "subtitle": "Rond je aankoop af"
+            },
+            "joinSession": {
+                "title": "Sessie joinen",
+                "subtitle": "Voer een deelcode in"
+            }
+        }
+    },
+    "qrAccess": {
+        "title": "Scan de QR-code van je tafel",
+        "description": "Of voer de code handmatig in",
+        "scanButton": "QR scannen",
+        "codeButton": "Code invoeren",
+        "emptyCode": "Voer een geldige code in.",
         "invalidCodeTitle": "Ongeldige code",
-        "invalidCodeMsg": "Onjuiste code. Probeer het opnieuw.",
-        "accountCreatedTitle": "Account aangemaakt!",
-        "accountCreatedMsg": "Welkom bij EatQuickeR 🎉",
-        "networkErrorTitle": "Netwerkfout",
-        "networkErrorMsg": "Er is iets misgegaan. Probeer het opnieuw.",
-        "resendError": "Kon de code niet opnieuw versturen.",
-        "codeResentTitle": "Code opnieuw verzonden",
-        "codeResentMsg": "Nieuwe code verzonden naar {{email}}."
-      },
-    "welcomeTitle": "Fijn je te zien",
-    "welcomeSubtitle": "Log in om door te gaan",
-    "slogan": "Een server in dienst van servers",
-    "loginTitle": "Inloggen",
-    "resumeOrderPrompt": "Log in om je bestelling te hervatten waar je was gebleven.",
-      "validation": {
-        "emailRequired": "E-mailadres vereist",
-        "passwordRequired": "Wachtwoord vereist",
-        "passwordMinLength": "Minimaal {{min}} tekens",
-        "noAccountEmail": "Geen account met dit e-mailadres"
-      },
-      "alerts": {
-        "accountNotFound": {
-          "title": "Account niet gevonden",
-          "message": "Er is geen account aan dit e-mailadres gekoppeld."
+        "errors": {
+            "notFound": "Deze code komt niet overeen met een restaurant of tafel. Controleer de code of scan de QR.",
+            "restaurantNotFound": "Deze code komt niet overeen met een geregistreerd restaurant. Controleer de QR.",
+            "serverUnavailable": "Restaurant kan niet worden geverifieerd. Controleer je verbinding en probeer opnieuw."
         },
-        "invalidCredentials": {
-          "title": "Ongeldige inloggegevens",
-          "message": "E-mailadres of wachtwoord is onjuist. Probeer het opnieuw."
+        "modal": {
+            "title": "Voer een code in",
+            "description": "Tafelcode (bijv. R12T005) of gedeelde sessiecode (6 tekens).",
+            "placeholder": "Bijv. R12T005 of ABC123",
+            "confirm": "Bevestigen",
+            "verifying": "Controleren…"
         },
-        "accessDenied": {
-          "title": "Toegang geweigerd",
-          "message": "Je account mag niet inloggen. Neem contact op met support."
-        },
-        "tooManyAttempts": {
-          "title": "Te veel pogingen",
-          "message": "Te veel inlogpogingen. Probeer het over enkele ogenblikken opnieuw."
-        },
-        "networkError": {
-          "title": "Verbindingsfout",
-          "message": "Controleer je internetverbinding en probeer het opnieuw."
-        },
-        "serviceUnavailable": {
-          "title": "Service niet beschikbaar",
-          "message": "De service is tijdelijk niet beschikbaar. Probeer het later opnieuw."
-        },
-        "genericError": {
-          "title": "Verbindingsfout",
-          "message": "Er is iets misgegaan. Probeer het opnieuw."
-        },
-        "googlePlayUnavailable": {
-          "title": "Google Play niet beschikbaar",
-          "message": "Google Play Services is niet beschikbaar op dit apparaat."
-        },
-        "googleLoginFailed": {
-          "title": "Inloggen met Google mislukt"
-        },
-        "comingSoon": {
-          "title": "Binnenkort beschikbaar",
-          "message": "Inloggen met Apple is binnenkort beschikbaar."
-        },
-        "sessionExpired": {
-          "title": "Sessie verlopen",
-          "message": "Je sessie is verlopen. Log opnieuw in."
+        "account": {
+            "title": "Wil je een account gebruiken?",
+            "hint": "Met een account vind je je bestellingen en bonnen terug. Je kunt ook direct naar het menu.",
+            "login": {
+                "title": "Inloggen",
+                "desc": "Ik heb al een EatQuickeR-account"
+            },
+            "register": {
+                "title": "Account aanmaken",
+                "desc": "Snelle registratie om bestellingen te volgen"
+            },
+            "or": "of",
+            "guestCta": "Doorgaan zonder account",
+            "guestHint": "Je gaat direct naar het menu. Bij het afrekenen worden naam en telefoonnummer gevraagd."
         }
-      },
-    "continueWithApple": "Doorgaan met Apple",
-    "signIn": "Inloggen",
-    "signUp": "Account aanmaken",
-    "signOut": "Uitloggen",
-    "email": "E-mail",
-    "password": "Wachtwoord",
-    "passwordConfirm": "Wachtwoord bevestigen",
-    "forgotPassword": "Wachtwoord vergeten?",
-    "resetPassword": "Wachtwoord opnieuw instellen",
-    "firstName": "Voornaam",
-    "lastName": "Achternaam",
-    "phone": "Telefoon",
-    "rememberMe": "Onthoud mij",
-    "reconnect": "Opnieuw inloggen",
-    "useAnotherAccount": "of een ander account",
-    "continueAsGuest": "Doorgaan als gast",
-    "continueWithGoogle": "Doorgaan met Google",
-    "alreadyHaveAccount": "Heb je al een account?",
-    "noAccount": "Nog geen account?",
-    "verifyEmail": "Verifieer je e-mail",
-    "verificationSent": "Er is een verificatiemail verzonden.",
-    "termsAccept": "Ik accepteer de gebruiksvoorwaarden",
-    "privacyAccept": "Ik accepteer het privacybeleid"
-  },
-  "menu": {
-    "title": "Menu",
-    "categories": "Categorieën",
-    "viewMenu": "Bekijk menu",
-    "allergens": "Allergenen",
-    "ingredients": "Ingrediënten",
-    "description": "Beschrijving",
-    "price": "Prijs",
-    "addToCart": "Toevoegen aan winkelwagen",
-    "removeFromCart": "Verwijderen uit winkelwagen",
-    "outOfStock": "Niet op voorraad",
-    "popular": "Populair",
-    "new": "Nieuw",
-    "spicy": "Pittig",
-    "vegetarian": "Vegetarisch",
-    "vegan": "Veganistisch",
-    "glutenFree": "Glutenvrij",
-    "dailyMenu": "Menu van de dag",
-    "specialOffer": "Speciale aanbieding",
-    "language": "Menutaal",
-    "noItems": "Geen gerechten beschikbaar",
-    "searchPlaceholder": "Zoek een gerecht…"
-  },
-  "cart": {
-    "title": "Winkelwagen",
-    "empty": "Je winkelwagen is leeg",
-    "emptyHint": "Voeg gerechten toe om je bestelling te starten.",
-    "backToMenu": "Terug naar menu",
-    "item_one": "{{count}} artikel",
-    "item_other": "{{count}} artikelen",
-    "subtotal": "Subtotaal",
-    "tax": "Belasting",
-    "tip": "Fooi",
-    "total": "Totaal",
-    "checkout": "Afrekenen",
-    "quantity": "Aantal",
-    "specialInstructions": "Speciale instructies",
-    "specialInstructionsPlaceholder": "Allergieën, bereiding, zonder ui…",
-    "table": "Tafel",
-    "tableNumber": "Tafel nr. {{number}}",
-    "titleWithCount": "Winkelmand ({{count}})",
-    "serviceFee": "Servicekosten",
-    "collaborativeSession": "Gezamenlijke sessie",
-    "scanToOrder": "Scan om te bestellen",
-    "scanToOrderDescription": "Scan een QR-code om het menu te openen",
-    "checkoutForGroup": "Bestellen voor de groep",
-    "processing": "Verwerken…",
-    "hostOnlyCheckout": "Alleen de host kan de groepsbestelling plaatsen.",
-    "formula": {
-      "incomplete": "Menu onvolledig",
-      "completeAction": "Vul je menu aan om te bestellen."
     },
-    "clearConfirm": {
-      "title": "Winkelmand legen",
-      "message": "Weet je zeker dat je je winkelmand wilt legen? Dit kan niet ongedaan worden gemaakt.",
-      "cta": "Winkelmand legen"
-    },
-    "removeConfirm": {
-      "title": "Artikel verwijderen",
-      "message": "Wil je dit artikel uit je winkelmand verwijderen?",
-      "cta": "Verwijderen"
-    },
-    "splitConfirm": {
-      "title": "Bestellen voor de groep",
-      "message": "Wil je de rekening delen tussen de deelnemers? Iedereen kan zijn deel met de telefoon betalen.",
-      "split": "Rekening delen",
-      "payAll": "Ik betaal alles"
-    },
-    "feedback": {
-      "quantityUpdated": "Aantal bijgewerkt",
-      "itemRemoved": "Artikel verwijderd",
-      "cleared": "Winkelmand geleegd",
-      "emptyOnCheckout": "Je winkelmand is leeg. Voeg artikelen toe om door te gaan.",
-      "restaurantNotFound": "Restaurant niet gevonden. Scan de QR-code opnieuw.",
-      "orderPlaced": "Bestelling geplaatst!",
-      "orderPlacedSplit": "Bestelling geplaatst! Rekening wordt gedeeld…"
-    },
-    "errors": {
-      "quantityUpdate": "Fout bij het bijwerken van het aantal",
-      "itemRemove": "Fout bij het verwijderen van het artikel",
-      "cartClear": "Fout bij het legen van de winkelmand",
-      "checkout": "Fout bij het voorbereiden van de bestelling",
-      "groupOrder": "Fout bij groepsbestelling"
-    },
-    "a11y": {
-      "itemImage": "Afbeelding van {{name}}",
-      "itemRow": "{{name}}, aantal {{count}}, prijs {{price}}",
-      "removeItem": "Artikel verwijderen",
-      "decrease": "Aantal verlagen",
-      "increase": "Aantal verhogen",
-      "currentQuantity": "Huidig aantal: {{count}}",
-      "checkoutHint": "Tik om door te gaan naar betalen",
-      "formulaLockHint": "Vul je menu aan om te bestellen",
-      "checkoutLabel": "Bestellen voor een totaal van {{amount}}"
-    }
-  },
-  "order": {
-    "title": "Bestelling",
-    "yourOrder": "Jouw bestelling",
-    "orderNumber": "Bestelling nr. {{number}}",
-    "status": {
-      "pending": "In afwachting",
-      "confirmed": "Bevestigd",
-      "preparing": "Wordt bereid",
-      "ready": "Klaar",
-      "served": "Geserveerd",
-      "completed": "Voltooid",
-      "cancelled": "Geannuleerd"
-    },
-    "placedAt": "Geplaatst op {{date}}",
-    "noOrders": "Nog geen bestellingen",
-    "viewDetails": "Details bekijken",
-    "track": "Bestelling volgen",
-    "rate": "Bestelling beoordelen",
-    "reorder": "Opnieuw bestellen",
-    "count_one": "{{count}} bestelling",
-    "count_other": "{{count}} bestellingen",
-    "unpaidTitle_one": "Je hebt een onbetaalde bestelling",
-    "unpaidTitle_other": "Je hebt {{count}} onbetaalde bestellingen",
-    "unpaidSubtitle": "Reken je bestellingen af om opnieuw te kunnen bestellen",
-    "myOrders": "Mijn bestellingen",
-    "tabs": {
-      "active": "Lopend",
-      "history": "Geschiedenis"
-    },
-    "fallbackRestaurant": "Restaurant",
-    "todayAt": "Vandaag om {{time}}",
-    "dineIn": "Ter plaatse",
-    "takeaway": "Afhalen",
-    "paid": "Betaald",
-    "paymentPending": "Betaling in afwachting",
-    "waitingTime": "Geschatte wachttijd: {{minutes}} min",
-    "noActiveOrders": "Geen lopende bestellingen",
-    "noHistoryOrders": "Geen eerdere bestellingen",
-    "scanPrompt": "Scan de QR-code van je tafel om je eerste bestelling te plaatsen",
-    "orderNow": "Nu bestellen",
-    "scanDescription": "Open het menu door de QR-code van je tafel te scannen",
-    "scanQR": "QR scannen",
-    "enterCode": "Code invoeren",
-    "clientOnly": "Alleen voor klanten",
-    "loadingOrders": "Bestellingen laden…",
-    "realtimeUnavailable": "Realtime-meldingen niet beschikbaar. Trek omlaag om te vernieuwen.",
-    "realtime": {
-      "on": "Realtime aan",
-      "connecting": "Verbinden…",
-      "error": "Verbindingsfout",
-      "offline": "Offline"
-    },
-    "statusLabels": {
-      "pending": "In afwachting",
-      "confirmed": "Bevestigd",
-      "preparing": "In voorbereiding",
-      "ready": "Klaar",
-      "served": "Geserveerd",
-      "cancelled": "Geannuleerd"
-    }
-  },
-  "payment": {
-    "title": "Betaling",
-    "method": "Betaalmethode",
-    "card": "Bankkaart",
-    "applePay": "Apple Pay",
-    "googlePay": "Google Pay",
-    "payNow": "Nu betalen",
-    "amount": "Bedrag",
-    "processing": "Bezig met verwerken…",
-    "success": "Betaling geslaagd",
-    "failed": "Betaling mislukt",
-    "splitPayment": "Rekening splitsen",
-    "splitEqual": "Gelijk verdelen",
-    "splitByItem": "Per gerecht",
-    "splitCustom": "Aangepast bedrag",
-    "minAmount": "Het minimumbedrag is {{amount}}",
-    "yourShare": "Jouw deel",
-    "receipt": "Bon",
-    "downloadReceipt": "Bon downloaden"
-  },
-  "session": {
-    "join": "Deelnemen aan tafel",
-    "host": "Gastheer",
-    "participants_one": "{{count}} deelnemer",
-    "participants_other": "{{count}} deelnemers",
-    "yourName": "Jouw naam",
-    "leaveSession": "Sessie verlaten",
-    "sessionEnded": "Sessie beëindigd",
-    "waitingForOthers": "Wachten op andere gasten…",
-    "tableLabel": "{{name}} · Tafel {{table}}",
-    "bannerCta": "Tik om door te gaan",
-    "foundLabel": "Sessie gevonden",
-    "foundCta": "Tik om te joinen",
-    "inactivityWarning": "⚠️ Inactieve sessie — automatisch sluiten over {{time}}",
-    "status": {
-      "active": "Actief",
-      "locked": "Vergrendeld",
-      "payment": "Betaling in afwachting"
-    },
-    "errors": {
-      "emptyCode": "Voer een sessiecode in.",
-      "notFound": "Geen sessie gevonden met deze code.",
-      "inactive": "Deze sessie is niet meer actief.",
-      "invalidCode": "Geen actieve sessie met deze code. Controleer en probeer opnieuw.",
-      "joinFailed": "Kan niet deelnemen aan deze sessie.",
-      "maybeGone": "De sessie is mogelijk niet meer beschikbaar.",
-      "rejected": "De host heeft je verzoek geweigerd.",
-      "joinTitle": "Kan niet deelnemen"
-    },
-    "exit": {
-      "titleHost": "Sessie beëindigen?",
-      "titleMember": "Sessie verlaten?",
-      "messageHost": "Als host sluit dit de sessie voor alle deelnemers.",
-      "messageMember": "Je staat op het punt deze gezamenlijke sessie te verlaten.",
-      "ctaHost": "Beëindigen",
-      "ctaMember": "Verlaten"
-    },
-    "completed": {
-      "title": "Sessie beëindigd",
-      "participantsLabel": "Deelnemers ({{count}})",
-      "totalLabel": "Totaal: {{amount}}",
-      "close": "Sluiten"
-    },
-    "codeModal": {
-      "title": "Sessie joinen",
-      "description": "Voer de code in die door de tafelhost is gedeeld om aan de huidige sessie deel te nemen.",
-      "placeholder": "BV.: ABC123",
-      "cta": "Sessie joinen"
-    },
-    "pending": {
-      "title": "Wachten op goedkeuring",
-      "description": "De host moet je verzoek goedkeuren.\nJe wordt automatisch doorgestuurd zodra je bent geaccepteerd.",
-      "codeLabel": "Sessiecode"
-    },
-    "archive": {
-      "archived": "Deze sessie is gearchiveerd",
-      "archivingIn": "Archiveren over {{time}}",
-      "archivingSoonUrgent": "⚠️ Archiveren over {{time}}"
-    },
-    "joinModal": {
-      "chooseTitle": "Bestellen aan deze tafel",
-      "chooseSubtitle": "Kies hoe je wilt bestellen",
-      "rejoinExisting": {
-        "title": "Huidige sessie hervatten",
-        "subtitle": "Code: {{code}} · {{count}} deelnemer(s)"
-      },
-      "createGroup": {
-        "title": "Een groepssessie maken",
-        "description": "Bestel met vrienden en deel de rekening makkelijk"
-      },
-      "joinGroup": {
-        "title": "Sessie joinen",
-        "description": "Voer de code in die door je groep is gedeeld"
-      },
-      "orderAlone": "Alleen bestellen",
-      "createTitle": "Een groepssessie maken",
-      "hostNameLabel": "Je naam",
-      "hostNamePlaceholder": "Bijv. Jan",
-      "sessionTypeLabel": "Sessietype",
-      "sessionType": {
-        "collaborative": {
-          "title": "Gezamenlijk",
-          "desc": "Iedereen ziet de bestellingen"
-        },
-        "individual": {
-          "title": "Individueel",
-          "desc": "Iedereen bestelt apart"
+    "qrScanner": {
+        "invalidTitle": "Ongeldige QR-code",
+        "invalidMessage": "Deze QR-code komt niet overeen met een EatQuickeR-restaurant\n\nGescande waarde: {{value}}",
+        "retry": "Opnieuw proberen",
+        "instruction": "Richt de camera op de QR-code van het restaurant",
+        "permission": {
+            "title": "Cameratoegang vereist",
+            "description": "Om QR-codes te scannen hebben we toegang tot je camera nodig.",
+            "allow": "Toestaan"
         }
-      },
-      "maxParticipantsLabel": "Maximaal aantal deelnemers",
-      "requireApprovalLabel": "Nieuwe deelnemers handmatig goedkeuren",
-      "back": "Terug",
-      "createCta": "Sessie aanmaken",
-      "joinTitle": "Sessie joinen",
-      "codeLabel": "Sessiecode",
-      "codePlaceholder": "ABC123",
-      "verifyCta": "Verifiëren",
-      "previewTitle": "Sessie-informatie",
-      "previewHost": "Host:",
-      "previewParticipants": "Deelnemers:",
-      "sessionFullOrLocked": "⚠️ Deze sessie is vol of vergrendeld",
-      "guestNameLabel": "Je naam",
-      "guestNamePlaceholder": "Bijv. Marie",
-      "joinCta": "Joinen",
-      "pendingDescription": "De host van de sessie moet je verzoek goedkeuren.\nJe wordt automatisch doorgestuurd zodra je bent geaccepteerd.",
-      "feedback": {
-        "soloError": "Kan solobestelling niet starten.",
-        "fieldRequired": "Verplicht veld",
-        "nameRequiredHost": "Voer je naam in om de sessie te maken.",
-        "nameRequiredGuest": "Voer je naam in om de sessie te joinen.",
-        "invalidCode": "Ongeldige code",
-        "invalidCodeDesc": "De code moet precies 6 tekens bevatten.",
-        "codeNotFound": "Code niet gevonden",
-        "codeNotFoundDesc": "Geen actieve sessie komt overeen met deze code.",
-        "sessionCreated": "Sessie aangemaakt!",
-        "sessionCreatedDesc": "Deel code {{code}} met je vrienden.",
-        "sessionCreateError": "Kan sessie niet aanmaken.",
-        "welcome": "Welkom!",
-        "welcomeDesc": "Je bent succesvol toegetreden tot de sessie.",
-        "joinError": "Kan niet deelnemen aan de sessie.",
-        "approved": "✅ Geaccepteerd!",
-        "approvedDesc": "De host heeft je geaccepteerd in de sessie.",
-        "rejected": "❌ Geweigerd",
-        "rejectedDesc": "De host heeft je verzoek geweigerd."
-      }
-    }
-  },
-  "profile": {
-    "title": "Profiel",
-    "myAccount": "Mijn account",
-    "personalInfo": "Persoonlijke gegevens",
-    "preferences": "Voorkeuren",
-    "language": "Taal",
-    "appearance": "Weergave",
-    "notifications": "Meldingen",
-    "paymentMethods": "Betaalmethoden",
-    "addresses": "Adressen",
-    "support": "Help & ondersteuning",
-    "about": "Over",
-    "terms": "Gebruiksvoorwaarden",
-    "privacy": "Privacybeleid",
-    "version": "Versie {{version}}",
-    "deleteAccount": "Mijn account verwijderen",
-    "signInPrompt": "Log in om je profiel te bekijken",
-    "defaultName": "Gebruiker",
-    "verified": "Geverifieerd",
-    "logoutConfirm": "Weet je zeker dat je wilt uitloggen?",
-    "myActions": "Mijn acties",
-    "information": "Informatie",
-    "helpFaq": "Help & FAQ",
-    "contactUs": "Contact",
-    "personalData": "Persoonlijke gegevens"
-  },
-  "theme": {
-    "title": "Thema",
-    "light": "Licht",
-    "dark": "Donker",
-    "system": "Systeem"
-  },
-  "restaurant": {
-    "dashboard": "Dashboard",
-    "myRestaurants": "Mijn restaurants",
-    "openNow": "Geopend",
-    "closedNow": "Gesloten",
-    "opensAt": "Opent om {{time}}",
-    "closesAt": "Sluit om {{time}}",
-    "address": "Adres",
-    "contact": "Contact",
-    "hours": "Openingstijden",
-    "rating": "Beoordeling",
-    "reviews_one": "{{count}} recensie",
-    "reviews_other": "{{count}} recensies",
-    "menuManagement": "Menubeheer",
-    "ordersManagement": "Bestellingenbeheer",
-    "staff": "Team",
-    "stats": "Statistieken",
-    "revenue": "Omzet",
-    "todayRevenue": "Omzet vandaag",
-    "weekRevenue": "Omzet deze week",
-    "monthRevenue": "Omzet deze maand"
-  },
-  "errors": {
-    "generic": "Er is iets misgegaan. Probeer het opnieuw.",
-    "network": "Netwerkfout. Controleer je verbinding.",
-    "unauthorized": "Je moet inloggen om door te gaan.",
-    "forbidden": "Actie niet toegestaan.",
-    "notFound": "Niet gevonden.",
-    "requiredField": "Dit veld is verplicht.",
-    "invalidEmail": "Ongeldig e-mailadres.",
-    "passwordTooShort": "Wachtwoord moet minstens {{min}} tekens bevatten.",
-    "passwordMismatch": "Wachtwoorden komen niet overeen.",
-    "invalidCredentials": "Ongeldige inloggegevens.",
-    "serverError": "Serverfout. Probeer het later opnieuw.",
-    "timeout": "De server reageert niet. Probeer het opnieuw."
-  },
-  "success": {
-    "saved": "Opgeslagen",
-    "deleted": "Verwijderd",
-    "sent": "Verzonden",
-    "copied": "Gekopieerd naar klembord"
-  },
-  "time": {
-    "now": "Zojuist",
-    "minuteAgo_one": "{{count}} minuut geleden",
-    "minuteAgo_other": "{{count}} minuten geleden",
-    "hourAgo_one": "{{count}} uur geleden",
-    "hourAgo_other": "{{count}} uur geleden",
-    "dayAgo_one": "{{count}} dag geleden",
-    "dayAgo_other": "{{count}} dagen geleden",
-    "today": "Vandaag",
-    "yesterday": "Gisteren",
-    "tomorrow": "Morgen"
-  },
-  "legal": {
-      "document": {
-        "lastUpdate": "Laatst bijgewerkt: {{date}}",
-        "acceptDefault": "Ik heb het gelezen en ga akkoord",
-        "acceptTerms": "Ik heb de voorwaarden gelezen en ga akkoord",
-        "acceptPrivacy": "Ik heb het beleid gelezen en ga akkoord",
-        "saveError": "Fout bij het opslaan. Probeer het opnieuw."
-      },
-      "modal": {
-        "welcomeTitle": "Welkom bij EatQuickeR",
-        "intro": "Accepteer onze juridische documenten om door te gaan.",
-        "termsName": "Gebruiksvoorwaarden",
-        "privacyName": "Privacybeleid",
-        "viewDocument": "Document bekijken",
-        "acceptTermsLabel": "Ik ga akkoord met de gebruiksvoorwaarden",
-        "acceptPrivacyLabel": "Ik ga akkoord met het privacybeleid",
-        "helpText": "Je kunt de documenten bekijken voordat je ze accepteert door op “Document bekijken” te tikken.",
-        "acceptBoth": "Accepteer beide documenten",
-        "saveError": "Fout bij het opslaan. Probeer het opnieuw."
-      },
-    "copyright": "© {{year}} EatQuicker. Alle rechten voorbehouden.",
-    "termsShort": "Voorwaarden",
-    "privacyShort": "Privacy",
-    "noticeShort": "Juridisch",
-    "downloadMyData": {
-      "cta": "Mijn gegevens downloaden",
-      "download": "Downloaden",
-      "gdprNotice": "AVG-conforme export (Artikel 20)",
-      "confirmTitle": "Gegevens exporteren",
-      "confirmMessage": "Wil je al je persoonlijke gegevens downloaden?\n\nDit omvat: profiel, bestellingen, voorkeuren en geschiedenis.",
-      "shareDialogTitle": "Mijn EatQuickeR-gegevens downloaden",
-      "options": {
-        "title": "Gegevens exporteren",
-        "message": "Hoe wil je je gegevens ontvangen?",
-        "direct": "Directe download",
-        "email": "Per e-mail (binnen 48u)"
-      },
-      "progress": {
-        "fetching": "Gegevens ophalen…",
-        "preparing": "Bestand voorbereiden…",
-        "preparingShort": "Voorbereiden…",
-        "done": "Export voltooid!",
-        "sending": "Verzoek verzenden…"
-      },
-      "success": {
-        "title": "Export geslaagd",
-        "message": "Je gegevens ({{size}} KB) zijn geëxporteerd.\n\nJe kunt ze nu opslaan of delen.",
-        "messageFallback": "Je gegevens zijn geëxporteerd naar:\n{{filename}}\n\nGrootte: {{size}} KB"
-      },
-      "email": {
-        "title": "E-mailexport",
-        "confirmMessage": "Je ontvangt binnen 48u een e-mail met een veilige downloadlink.\n\nDoorgaan?",
-        "successTitle": "Verzoek geregistreerd",
-        "successMessage": "Een e-mail wordt binnen 48u naar {{email}} verzonden met je gegevens."
-      },
-      "errors": {
-        "notLoggedIn": "Je moet ingelogd zijn om je gegevens te exporteren",
-        "rateLimit": "Je hebt de dagelijkse exportlimiet bereikt. Probeer het morgen opnieuw.",
-        "sessionExpired": "Je sessie is verlopen. Meld je opnieuw aan.",
-        "forbidden": "Je hebt geen toestemming om deze gegevens te exporteren.",
-        "serverError": "Serverfout. Probeer het over enkele ogenblikken opnieuw.",
-        "serviceUnavailable": "De exportservice is tijdelijk niet beschikbaar. Probeer het over enkele minuten.",
-        "generic": "Kan je gegevens niet downloaden. Probeer het opnieuw.",
-        "connection": "Verbindingsfout. Controleer je internetverbinding.",
-        "emailRequestFailed": "Kan je verzoek niet registreren. Probeer het opnieuw.",
-        "emailPending": "Je hebt al een exportverzoek in behandeling. Even geduld."
-      },
-      "a11y": {
-        "label": "Mijn persoonlijke gegevens downloaden",
-        "hint": "Alle gegevens exporteren conform AVG"
-      }
-    }
-  },
-  "home": {
-    "subtitle": "Bestel met gemak",
-    "welcome": "Hallo {{name}}! 👋",
-    "welcomeSubtext": "Klaar om vandaag te bestellen?",
-    "quickActions": "Snelle acties",
-    "actions": {
-      "myOrders": {
-        "title": "Mijn bestellingen",
-        "subtitle": "Volg je bestellingen"
-      },
-      "myCart": {
-        "title": "Mijn winkelmand",
-        "subtitle": "Rond je aankoop af"
-      },
-      "joinSession": {
-        "title": "Sessie joinen",
-        "subtitle": "Voer een deelcode in"
-      }
-    }
-  },
-  "qrAccess": {
-    "title": "Scan de QR-code van je tafel",
-    "description": "Of voer de code handmatig in",
-    "scanButton": "QR scannen",
-    "codeButton": "Code invoeren",
-    "emptyCode": "Voer een geldige code in.",
-    "invalidCodeTitle": "Ongeldige code",
-    "errors": {
-      "notFound": "Deze code komt niet overeen met een restaurant of tafel. Controleer de code of scan de QR.",
-      "restaurantNotFound": "Deze code komt niet overeen met een geregistreerd restaurant. Controleer de QR.",
-      "serverUnavailable": "Restaurant kan niet worden geverifieerd. Controleer je verbinding en probeer opnieuw."
     },
-    "modal": {
-      "title": "Voer een code in",
-      "description": "Tafelcode (bijv. R12T005) of gedeelde sessiecode (6 tekens).",
-      "placeholder": "Bijv. R12T005 of ABC123",
-      "confirm": "Bevestigen",
-      "verifying": "Controleren…"
+    "restaurantNav": {
+        "home": "Home",
+        "restaurants": "Restaurants",
+        "orders": "Bestellingen",
+        "menus": "Menu’s",
+        "dailyMenu": "Dagmenu",
+        "dailyMenuShort": "Dag",
+        "statistics": "Statistieken",
+        "statisticsShort": "Stat.",
+        "qrcodes": "QR-codes",
+        "profile": "Profiel",
+        "accounting": "Boekhouding"
     },
-    "account": {
-      "title": "Wil je een account gebruiken?",
-      "hint": "Met een account vind je je bestellingen en bonnen terug. Je kunt ook direct naar het menu.",
-      "login": {
-        "title": "Inloggen",
-        "desc": "Ik heb al een EatQuickeR-account"
-      },
-      "register": {
-        "title": "Account aanmaken",
-        "desc": "Snelle registratie om bestellingen te volgen"
-      },
-      "or": "of",
-      "guestCta": "Doorgaan zonder account",
-      "guestHint": "Je gaat direct naar het menu. Bij het afrekenen worden naam en telefoonnummer gevraagd."
-    }
-  },
-  "qrScanner": {
-    "invalidTitle": "Ongeldige QR-code",
-    "invalidMessage": "Deze QR-code komt niet overeen met een EatQuickeR-restaurant\n\nGescande waarde: {{value}}",
-    "retry": "Opnieuw proberen",
-    "instruction": "Richt de camera op de QR-code van het restaurant",
-    "permission": {
-      "title": "Cameratoegang vereist",
-      "description": "Om QR-codes te scannen hebben we toegang tot je camera nodig.",
-      "allow": "Toestaan"
-    }
-  },
-  "restaurantNav": {
-    "home": "Home",
-    "restaurants": "Restaurants",
-    "orders": "Bestellingen",
-    "menus": "Menu’s",
-    "dailyMenu": "Dagmenu",
-    "dailyMenuShort": "Dag",
-    "statistics": "Statistieken",
-    "statisticsShort": "Stat.",
-    "qrcodes": "QR-codes",
-    "profile": "Profiel",
-    "accounting": "Boekhouding"
-  },
-  "restaurantProfile": {
-    "fallbackUserName": "Gebruiker",
-    "accountInfo": "Accountinformatie",
-    "email": "E-mail",
-    "phone": "Telefoon",
-    "accountType": "Accounttype",
-    "siret": "SIRET",
-    "stripeStatus": "Stripe-status",
-    "stripeValidated": "Gevalideerd",
-    "stripePending": "In afwachting",
-    "logout": "Uitloggen",
-    "logoutConfirmTitle": "Uitloggen",
-    "logoutConfirmMessage": "Weet je zeker dat je wilt uitloggen?",
-    "role": {
-      "restaurateur": "Restauranthouder",
-      "client": "Klant"
-    },
-    "feedback": {
-      "logoutFailed": "Uitloggen mislukt"
-    }
-  },
-  "restaurantsList": {
-    "subtitle_one": "{{count}} vestiging",
-    "subtitle_other": "{{count}} vestigingen",
-    "overview": "Overzicht",
-    "searchPlaceholder": "Zoek een restaurant…",
-    "loading": "Laden…",
-    "loadingFull": "Restaurants laden…",
-    "pagination": "Pagina {{current}} van {{total}}",
-    "activeFilters_one": "{{count}} actief filter",
-    "activeFilters_other": "{{count}} actieve filters",
-    "clearFilters": "Wissen",
-    "viewMode": {
-      "list": "Lijst",
-      "grid": "Raster"
-    },
-    "stats": {
-      "totalLabel_one": "Restaurant",
-      "totalLabel_other": "Restaurants",
-      "openLabel_one": "Open",
-      "openLabel_other": "Open",
-      "closedLabel_one": "Gesloten",
-      "closedLabel_other": "Gesloten"
-    },
-    "empty": {
-      "noResultTitle": "Geen resultaat",
-      "noResultDescription": "Probeer je zoekopdracht aan te passen of filters bij te stellen",
-      "noRestaurantTitle": "Geen restaurant",
-      "noRestaurantDescription": "Begin met het toevoegen van je eerste restaurant om bestellingen te beheren",
-      "addCta": "Restaurant toevoegen",
-      "howItWorks": "Hoe werkt het?"
-    },
-    "errors": {
-      "searchFailed": "Restaurants kunnen niet worden doorzocht",
-      "reloadFailed": "Restaurants kunnen niet opnieuw worden geladen",
-      "refreshFailed": "Lijst kan niet worden vernieuwd",
-      "loadMoreFailed": "Meer restaurants kunnen niet worden geladen"
-    }
-  },
-  "restaurantOrders": {
-    "noRestaurantFound": "Geen restaurant gevonden",
-    "selectRestaurant": "Selecteer een restaurant",
-    "chooseRestaurant": "Kies een restaurant",
-    "orderTitle": "Bestelling {{number}}",
-    "todayAt": "Vandaag om {{time}}",
-    "anonymousCustomer": "Anonieme klant",
-    "tableLabel": "Tafel {{number}}",
-    "estimatedTime": "Geschatte tijd: {{minutes}} min",
-    "viewDetails": "Details bekijken",
-    "forbiddenMessage": "Alleen voor restauranthouders",
-    "itemsCount_one": "{{count}} artikel",
-    "itemsCount_other": "{{count}} artikelen",
-    "orderType": {
-      "dineIn": "Ter plaatse",
-      "takeaway": "Afhalen"
-    },
-    "paymentStatus": {
-      "paid": "Betaald",
-      "unpaid": "Niet betaald",
-      "unpaidShort": "Onbetaald"
-    },
-    "actions": {
-      "confirm": "Bevestigen",
-      "preparing": "In voorbereiding",
-      "ready": "Klaar",
-      "serve": "Serveren",
-      "collect": "Innen",
-      "archive": "Archiveren",
-      "unarchive": "Uit archief"
-    },
-    "filters": {
-      "all": "Alle",
-      "served": "Geserveerd",
-      "cancelled": "Geannuleerd",
-      "archived": "Archief"
-    },
-    "kanban": {
-      "emptyColumn": "Niets hier",
-      "columns": {
-        "new": {
-          "title": "Nieuw",
-          "chip": "Nieuw",
-          "action": "Starten"
+    "restaurantProfile": {
+        "fallbackUserName": "Gebruiker",
+        "accountInfo": "Accountinformatie",
+        "email": "E-mail",
+        "phone": "Telefoon",
+        "accountType": "Accounttype",
+        "siret": "SIRET",
+        "stripeStatus": "Stripe-status",
+        "stripeValidated": "Gevalideerd",
+        "stripePending": "In afwachting",
+        "logout": "Uitloggen",
+        "logoutConfirmTitle": "Uitloggen",
+        "logoutConfirmMessage": "Weet je zeker dat je wilt uitloggen?",
+        "role": {
+            "restaurateur": "Restauranthouder",
+            "client": "Klant"
         },
-        "preparing": {
-          "title": "In voorbereiding",
-          "chip": "In voorbereiding",
-          "action": "Klaar markeren"
-        },
-        "ready": {
-          "title": "Klaar",
-          "chip": "Klaar",
-          "action": "Geserveerd"
+        "feedback": {
+            "logoutFailed": "Uitloggen mislukt"
         }
-      }
     },
-    "banner": {
-      "title": "Service bezig",
-      "titleWithName": "{{name}} — Service bezig",
-      "pending": "In afwachting",
-      "tonight": "Vanavond",
-      "history": "Geschiedenis",
-      "refresh": "Vernieuwen"
+    "restaurantsList": {
+        "subtitle_one": "{{count}} vestiging",
+        "subtitle_other": "{{count}} vestigingen",
+        "overview": "Overzicht",
+        "searchPlaceholder": "Zoek een restaurant…",
+        "loading": "Laden…",
+        "loadingFull": "Restaurants laden…",
+        "pagination": "Pagina {{current}} van {{total}}",
+        "activeFilters_one": "{{count}} actief filter",
+        "activeFilters_other": "{{count}} actieve filters",
+        "clearFilters": "Wissen",
+        "viewMode": {
+            "list": "Lijst",
+            "grid": "Raster"
+        },
+        "stats": {
+            "totalLabel_one": "Restaurant",
+            "totalLabel_other": "Restaurants",
+            "openLabel_one": "Open",
+            "openLabel_other": "Open",
+            "closedLabel_one": "Gesloten",
+            "closedLabel_other": "Gesloten"
+        },
+        "empty": {
+            "noResultTitle": "Geen resultaat",
+            "noResultDescription": "Probeer je zoekopdracht aan te passen of filters bij te stellen",
+            "noRestaurantTitle": "Geen restaurant",
+            "noRestaurantDescription": "Begin met het toevoegen van je eerste restaurant om bestellingen te beheren",
+            "addCta": "Restaurant toevoegen",
+            "howItWorks": "Hoe werkt het?"
+        },
+        "errors": {
+            "searchFailed": "Restaurants kunnen niet worden doorzocht",
+            "reloadFailed": "Restaurants kunnen niet opnieuw worden geladen",
+            "refreshFailed": "Lijst kan niet worden vernieuwd",
+            "loadMoreFailed": "Meer restaurants kunnen niet worden geladen"
+        }
     },
-    "history": {
-      "title": "Bestelgeschiedenis",
-      "bulkArchive_one": "{{count}} afgeronde bestelling archiveren",
-      "bulkArchive_other": "{{count}} afgeronde bestellingen archiveren",
-      "emptyTitle": "Geen bestellingen",
-      "emptyArchived": "Geen gearchiveerde bestellingen",
-      "emptyCompleted": "Nog geen afgeronde bestellingen"
+    "restaurantOrders": {
+        "noRestaurantFound": "Geen restaurant gevonden",
+        "selectRestaurant": "Selecteer een restaurant",
+        "chooseRestaurant": "Kies een restaurant",
+        "orderTitle": "Bestelling {{number}}",
+        "todayAt": "Vandaag om {{time}}",
+        "anonymousCustomer": "Anonieme klant",
+        "tableLabel": "Tafel {{number}}",
+        "estimatedTime": "Geschatte tijd: {{minutes}} min",
+        "viewDetails": "Details bekijken",
+        "forbiddenMessage": "Alleen voor restauranthouders",
+        "itemsCount_one": "{{count}} artikel",
+        "itemsCount_other": "{{count}} artikelen",
+        "orderType": {
+            "dineIn": "Ter plaatse",
+            "takeaway": "Afhalen"
+        },
+        "paymentStatus": {
+            "paid": "Betaald",
+            "unpaid": "Niet betaald",
+            "unpaidShort": "Onbetaald"
+        },
+        "actions": {
+            "confirm": "Bevestigen",
+            "preparing": "In voorbereiding",
+            "ready": "Klaar",
+            "serve": "Serveren",
+            "collect": "Innen",
+            "archive": "Archiveren",
+            "unarchive": "Uit archief"
+        },
+        "filters": {
+            "all": "Alle",
+            "served": "Geserveerd",
+            "cancelled": "Geannuleerd",
+            "archived": "Archief"
+        },
+        "kanban": {
+            "emptyColumn": "Niets hier",
+            "columns": {
+                "new": {
+                    "title": "Nieuw",
+                    "chip": "Nieuw",
+                    "action": "Starten"
+                },
+                "preparing": {
+                    "title": "In voorbereiding",
+                    "chip": "In voorbereiding",
+                    "action": "Klaar markeren"
+                },
+                "ready": {
+                    "title": "Klaar",
+                    "chip": "Klaar",
+                    "action": "Geserveerd"
+                }
+            }
+        },
+        "banner": {
+            "title": "Service bezig",
+            "titleWithName": "{{name}} — Service bezig",
+            "pending": "In afwachting",
+            "tonight": "Vanavond",
+            "history": "Geschiedenis",
+            "refresh": "Vernieuwen"
+        },
+        "history": {
+            "title": "Bestelgeschiedenis",
+            "bulkArchive_one": "{{count}} afgeronde bestelling archiveren",
+            "bulkArchive_other": "{{count}} afgeronde bestellingen archiveren",
+            "emptyTitle": "Geen bestellingen",
+            "emptyArchived": "Geen gearchiveerde bestellingen",
+            "emptyCompleted": "Nog geen afgeronde bestellingen"
+        },
+        "cancelConfirm": {
+            "title": "Bestelling annuleren",
+            "message": "Bestelling {{number}} echt annuleren?",
+            "keep": "Nee, behouden",
+            "confirm": "Ja, annuleren"
+        },
+        "paymentPrompt": {
+            "title": "Markeren als betaald",
+            "message": "Welke betaalmethode?",
+            "cash": "Contant",
+            "card": "Kaart"
+        },
+        "archiveConfirm": {
+            "title": "Afgeronde bestellingen archiveren",
+            "message": "Alle geserveerde en geannuleerde bestellingen archiveren?"
+        },
+        "loading": {
+            "restaurants": "Restaurants laden…",
+            "orders": "Bestellingen laden…"
+        },
+        "feedback": {
+            "refreshFailed": "Kan bestellingen niet vernieuwen",
+            "statusUpdateFailed": "Kan bestelstatus niet bijwerken",
+            "paidTitle": "Geïnd",
+            "paidMessage": "Bestelling gemarkeerd als betaald",
+            "markPaidFailed": "Kan bestelling niet als betaald markeren",
+            "archivedTitle": "Succes",
+            "archivedMessage_one": "{{count}} bestelling gearchiveerd",
+            "archivedMessage_other": "{{count}} bestellingen gearchiveerd",
+            "noneToArchiveTitle": "Informatie",
+            "noneToArchiveMessage": "Geen bestellingen om te archiveren",
+            "archiveFailed": "Kan bestellingen niet archiveren"
+        }
     },
-    "cancelConfirm": {
-      "title": "Bestelling annuleren",
-      "message": "Bestelling {{number}} echt annuleren?",
-      "keep": "Nee, behouden",
-      "confirm": "Ja, annuleren"
+    "restaurantDailyMenu": {
+        "today": "Vandaag",
+        "close": "Sluiten",
+        "noRestaurantMessage": "Geen restaurant om menu’s te beheren",
+        "createRestaurant": "Mijn restaurant aanmaken",
+        "legend": {
+            "withMenu": "Met menu",
+            "inactiveMenu": "Inactief menu"
+        },
+        "manager": {
+            "duplicate": "Dupliceren",
+            "applied_one": "Menu toegepast op 1 dag",
+            "applied_other": "Menu toegepast op {{count}} dagen",
+            "errors": {
+                "toggleItem": "Kan de beschikbaarheid van het gerecht niet wijzigen",
+                "applyAllFailedTitle": "Mislukt",
+                "applyAllFailed": "Kan het menu niet toepassen op de geselecteerde data",
+                "applyGeneric": "Er is een fout opgetreden bij het toepassen van het menu"
+            },
+            "partialApply": {
+                "title": "Gedeeltelijk toegepast",
+                "message": "{{succeeded}} geslaagd, {{failed}} mislukt"
+            },
+            "replaceDialog": {
+                "title": "Bestaande menu's vervangen?",
+                "message_one": "Er bestaat al een dagmenu voor 1 van de geselecteerde data. Wilt u het vervangen?",
+                "message_other": "Er bestaat al een dagmenu voor {{count}} van de geselecteerde data. Wilt u ze vervangen?",
+                "confirm": "Vervangen"
+            },
+            "empty": {
+                "title": "Geen menu voor deze datum",
+                "subtitleToday": "Maak het dagmenu aan om te beginnen",
+                "subtitleDate": "Maak een menu voor {{date}}",
+                "cta": "Menu aanmaken"
+            },
+            "stats": {
+                "dishes_one": "{{count}} gerecht",
+                "dishes_other": "{{count}} gerechten",
+                "available_one": "{{count}} beschikbaar",
+                "available_other": "{{count}} beschikbaar",
+                "formulaPrice": "{{price}} / menu"
+            },
+            "applyModal": {
+                "title": "Toepassen op andere dagen",
+                "source": "Bron: {{date}}",
+                "selectAll": "Alles selecteren",
+                "unselectAll": "Selectie wissen",
+                "selectedCount_one": "{{count}} geselecteerd",
+                "selectedCount_other": "{{count}} geselecteerd",
+                "existingMenu": "Bestaand menu",
+                "apply": "Toepassen",
+                "applyWithCount": "Toepassen ({{count}})"
+            }
+        }
     },
-    "paymentPrompt": {
-      "title": "Markeren als betaald",
-      "message": "Welke betaalmethode?",
-      "cash": "Contant",
-      "card": "Kaart"
+    "restaurantMenus": {
+        "title": "Mijn menu’s",
+        "stats": {
+            "activeMenus_one": "Actief menu",
+            "activeMenus_other": "Actieve menu’s",
+            "inactive_one": "{{count}} inactief",
+            "inactive_other": "{{count}} inactief",
+            "multiActive": "MULTI-ACTIEF"
+        },
+        "info": {
+            "title": "💡 Slechts één actief menu tegelijk",
+            "description": "Wanneer je een menu activeert, worden alle andere menu’s automatisch gedeactiveerd. Alleen het actieve menu is zichtbaar voor je klanten."
+        },
+        "help": {
+            "title": "Aan de slag met EatQuickeR",
+            "description": "Maak je eerste menu om je gerechten te presenteren en online bestellingen te ontvangen.",
+            "createFirstMenu": "Mijn eerste menu maken",
+            "userGuide": "Gebruikershandleiding"
+        },
+        "switcher": {
+            "title": "Van restaurant wisselen"
+        },
+        "duplicate": {
+            "barButton": "Menu’s ophalen",
+            "pickSourceTitle": "Bronrestaurant kiezen",
+            "pickMenusTitle": "Menu’s selecteren",
+            "emptySource": "Geen menu in dit restaurant",
+            "statusActive": "Actief",
+            "statusInactive": "Inactief",
+            "itemSummary_one": "{{count}} gerecht · {{status}}",
+            "itemSummary_other": "{{count}} gerechten · {{status}}",
+            "duplicating": "Dupliceren…",
+            "confirmSimple": "Dupliceren",
+            "confirmWithCount": "Dupliceren ({{count}})",
+            "doneTitle": "Duplicatie voltooid",
+            "doneSuccess_one": "{{count}} menu succesvol gedupliceerd",
+            "doneSuccess_other": "{{count}} menu’s succesvol gedupliceerd",
+            "donePartial": "{{succeeded}} gelukt, {{failed}} mislukt",
+            "errorGeneric": "Fout tijdens duplicatie"
+        },
+        "delete": {
+            "title": "Verwijdering bevestigen",
+            "message": "Weet je zeker dat je het menu \"{{name}}\" wilt verwijderen?\n\nDeze actie is onomkeerbaar.",
+            "confirm": "Verwijderen"
+        },
+        "feedback": {
+            "successTitle": "Succes",
+            "loadFailed": "Kan menu’s niet laden",
+            "loadSourceFailed": "Kan bronmenu’s niet laden",
+            "menuEnabled": "Menu geactiveerd (andere menu’s gedeactiveerd)",
+            "menuDisabled": "Menu gedeactiveerd",
+            "toggleFailed": "Kan menu niet wijzigen",
+            "toggleForbidden": "Je hebt geen toestemming om dit menu te wijzigen",
+            "menuNotFound": "Menu niet gevonden",
+            "menuDeleted": "Menu verwijderd",
+            "deleteFailed": "Kan menu niet verwijderen"
+        },
+        "card": {
+            "items_one": "{{count}} gerecht",
+            "items_other": "{{count}} gerechten",
+            "available_one": "{{count}} beschikbaar",
+            "available_other": "{{count}} beschikbaar",
+            "active": "Actief",
+            "inactive": "Inactief",
+            "updating": "Bijwerken…",
+            "createdOn": "Aangemaakt op",
+            "updatedOn": "Gewijzigd op",
+            "enable": "Activeren",
+            "disable": "Deactiveren",
+            "inProgress": "Bezig"
+        }
     },
-    "archiveConfirm": {
-      "title": "Afgeronde bestellingen archiveren",
-      "message": "Alle geserveerde en geannuleerde bestellingen archiveren?"
+    "restaurantStats": {
+        "title": "Statistieken — {{period}}",
+        "pickerTitle": "Analyseperiode",
+        "chooseRestaurant": "Kies een restaurant",
+        "noRestaurantMessage": "Je hebt nog geen restaurant",
+        "createFirstRestaurant": "Mijn eerste restaurant aanmaken",
+        "salesCount_one": "{{formatted}} verkoop",
+        "salesCount_other": "{{formatted}} verkopen",
+        "periods": {
+            "thisWeek": "Deze week",
+            "thisMonth": "Deze maand",
+            "last3Months": "Laatste 3 maanden",
+            "last6Months": "Laatste 6 maanden",
+            "thisYear": "Dit jaar"
+        },
+        "deltas": {
+            "vsPrevWeek": "vs vorige week",
+            "vsPrevMonth": "vs vorige maand",
+            "vsPrev3Months": "vs vorige 3 maanden",
+            "vsPrev6Months": "vs vorige 6 maanden",
+            "vsPrevYear": "vs vorig jaar"
+        },
+        "kpi": {
+            "totalRevenue": "Totale omzet",
+            "servedOrders": "Geserveerde bestellingen",
+            "avgOrder": "Gem. bestelling"
+        },
+        "charts": {
+            "revenueByDay": "Omzet per dag",
+            "topDishes": "Top gerechten"
+        },
+        "daysShort": {
+            "monday": "Ma",
+            "tuesday": "Di",
+            "wednesday": "Wo",
+            "thursday": "Do",
+            "friday": "Vr",
+            "saturday": "Za",
+            "sunday": "Zo"
+        },
+        "empty": {
+            "noData": "Geen gegevens beschikbaar",
+            "description": "Statistieken verschijnen hier zodra je bestellingen hebt in deze periode."
+        },
+        "errors": {
+            "loadFailed": "Fout bij het laden van statistieken."
+        }
     },
-    "loading": {
-      "restaurants": "Restaurants laden…",
-      "orders": "Bestellingen laden…"
+    "restaurantHome": {
+        "greeting": {
+            "morning": "Goedemorgen",
+            "afternoon": "Goedemiddag",
+            "evening": "Goedenavond"
+        },
+        "subtitle": {
+            "restaurateur": "Beheer je restaurants en optimaliseer je prestaties",
+            "client": "Ontdek de beste restaurants bij jou in de buurt"
+        },
+        "restaurantFallback": "Restaurant",
+        "unknownDate": "Onbekende datum",
+        "loadingDashboard": "Dashboard laden…",
+        "loadingOrders": "Bestellingen laden…",
+        "viewAll": "Alles bekijken",
+        "stripeAlert": {
+            "validationRequired": {
+                "title": "Accountvalidatie vereist",
+                "message": "Tik hier om je Stripe-account in te stellen en betalingen te activeren."
+            },
+            "finalizeConnect": {
+                "title": "Stripe-configuratie afronden",
+                "allInactive": "Geen van je restaurants ontvangt online betalingen. Stel Stripe in om te beginnen met innen.",
+                "partial_one": "{{count}} restaurant zonder online betaling geactiveerd.",
+                "partial_other": "{{count}} restaurants zonder online betaling geactiveerd."
+            }
+        },
+        "help": {
+            "title": "Aan de slag met EatQuickeR",
+            "description": "Maak je eerste restaurant om online bestellingen te ontvangen en je bedrijf te laten groeien.",
+            "createFirstRestaurant": "Mijn eerste restaurant aanmaken"
+        },
+        "sections": {
+            "overview": "Overzicht",
+            "yourRestaurants": "Jouw restaurants",
+            "recommendedRestaurants": "Aanbevolen restaurants",
+            "receivedOrders": "Ontvangen bestellingen",
+            "yourOrders": "Jouw bestellingen",
+            "quickActions": "Snelle acties"
+        },
+        "stats": {
+            "restaurantCount_one": "Restaurant",
+            "restaurantCount_other": "Restaurants",
+            "orderCount_one": "Bestelling",
+            "orderCount_other": "Bestellingen",
+            "activeCount_one": "Actief",
+            "activeCount_other": "Actief"
+        },
+        "empty": {
+            "loading": "Laden…",
+            "loadingDescription": "Restaurants laden…",
+            "errorPrefix": "Fout: {{error}}",
+            "createFirstTitle": "Maak je eerste restaurant",
+            "validationRequiredTitle": "Validatie vereist",
+            "noRestaurantTitle": "Geen restaurant",
+            "startNowDescription": "Begin nu met online bestellingen ontvangen.",
+            "validateStripeDescription": "Valideer je Stripe-account om restaurants aan te maken.",
+            "noRestaurantDescription": "Geen restaurant beschikbaar op dit moment.",
+            "noOrderTitle": "Geen bestellingen",
+            "noOrderRestaurateur": "Nog geen bestellingen ontvangen",
+            "noOrderClient": "Je hebt nog geen bestelling geplaatst"
+        },
+        "orderStatus": {
+            "pending": "In afwachting",
+            "confirmed": "Bevestigd",
+            "preparing": "In voorbereiding",
+            "ready": "Klaar",
+            "served": "Geserveerd",
+            "delivered": "Geleverd",
+            "completed": "Voltooid",
+            "cancelled": "Geannuleerd"
+        },
+        "actions": {
+            "dailyMenu": {
+                "title": "Dagmenu",
+                "description": "Menu van vandaag beheren"
+            },
+            "createRestaurant": {
+                "title": "Restaurant aanmaken",
+                "description": "Nieuwe vestiging"
+            },
+            "qrCodes": {
+                "title": "Tafel-QR-codes",
+                "description": "Genereren en beheren"
+            },
+            "manageMenus": {
+                "title": "Menu's beheren",
+                "description": "Gerechten en prijzen"
+            },
+            "viewOrders": {
+                "title": "Bestellingen bekijken",
+                "description": "Beheer en tracking"
+            },
+            "statistics": {
+                "title": "Statistieken",
+                "description": "Prestaties"
+            }
+        }
     },
-    "feedback": {
-      "refreshFailed": "Kan bestellingen niet vernieuwen",
-      "statusUpdateFailed": "Kan bestelstatus niet bijwerken",
-      "paidTitle": "Geïnd",
-      "paidMessage": "Bestelling gemarkeerd als betaald",
-      "markPaidFailed": "Kan bestelling niet als betaald markeren",
-      "archivedTitle": "Succes",
-      "archivedMessage_one": "{{count}} bestelling gearchiveerd",
-      "archivedMessage_other": "{{count}} bestellingen gearchiveerd",
-      "noneToArchiveTitle": "Informatie",
-      "noneToArchiveMessage": "Geen bestellingen om te archiveren",
-      "archiveFailed": "Kan bestellingen niet archiveren"
-    }
-  },
-  "restaurantDailyMenu": {
-    "today": "Vandaag",
-    "close": "Sluiten",
-    "noRestaurantMessage": "Geen restaurant om menu’s te beheren",
-    "createRestaurant": "Mijn restaurant aanmaken",
-    "legend": {
-      "withMenu": "Met menu",
-      "inactiveMenu": "Inactief menu"
+    "restaurantQrCodes": {
+        "sizes": {
+            "small": "Klein ({{count}}/pagina)",
+            "medium": "Middel ({{count}}/pagina)",
+            "large": "Groot ({{count}}/pagina)"
+        },
+        "generator": {
+            "sectionTitle": "QR-code generator",
+            "description": "Maak QR-codes voor je tafels en laat klanten scannen of een handmatige code invoeren om het menu te openen.",
+            "restaurantLabel": "Restaurant",
+            "selectPlaceholder": "Selecteer een restaurant"
+        },
+        "controls": {
+            "qrSize": "QR-code grootte",
+            "tablesCount": "Aantal tafels",
+            "tablesToAdd": "Aantal tafels toe te voegen",
+            "startNumber": "Startnummer"
+        },
+        "warnings": {
+            "existingTables_one": "{{count}} tafel bestaat al voor dit restaurant",
+            "existingTables_other": "{{count}} tafels bestaan al voor dit restaurant"
+        },
+        "actions": {
+            "generate": "QR-codes genereren",
+            "generating": "Genereren…",
+            "addTables_one": "{{count}} tafel toevoegen",
+            "addTables_other": "{{count}} tafels toevoegen",
+            "replace": "Vervangen",
+            "replaceAll": "Alle tafels vervangen",
+            "print": "Afdrukken",
+            "printing": "Afdrukken…",
+            "printAll": "Alles afdrukken",
+            "downloadPdf": "PDF downloaden",
+            "downloading": "Downloaden…",
+            "preview": "Voorbeeld",
+            "share": "Delen",
+            "download": "Downloaden"
+        },
+        "card": {
+            "tableTitle": "Tafel {{number}}",
+            "manualCodeLabel": "Handmatige code",
+            "instruction": "Scan de QR-code of voer de handmatige code in"
+        },
+        "list": {
+            "title_one": "{{count}} QR-code gegenereerd",
+            "title_other": "{{count}} QR-codes gegenereerd"
+        },
+        "empty": {
+            "title": "Geen QR-code gegenereerd",
+            "message": "Selecteer een restaurant en geef het aantal tafels op om te beginnen"
+        },
+        "help": {
+            "title": "Hoe werkt het?",
+            "steps": "• Kies je restaurant\n• Selecteer de QR-code grootte\n• Geef het aantal tafels op\n• Genereer de QR-codes\n• Druk af of download als PDF\n• Je klanten kunnen scannen of de handmatige code invoeren"
+        },
+        "restaurantPicker": {
+            "title": "Een restaurant kiezen"
+        },
+        "conflicts": {
+            "replaceTitle": "Vervanging bevestigen",
+            "replaceMessage": "Wil je echt de bestaande tafels vervangen?\n\nDeze actie zal:\n• Alle bestaande tafels verwijderen\n• {{count}} nieuwe tafels aanmaken (1 tot {{count}})\n\nDeze actie is onomkeerbaar.",
+            "conflictTitle": "Conflict gedetecteerd",
+            "conflictMessage": "Sommige tafels bestaan al met deze nummers. Wat wil je doen?",
+            "moreOptions": "Meer opties",
+            "optionsTitle": "Beschikbare opties",
+            "optionsMessage": "Je kunt de bestaande tafels laden of een ander startnummer kiezen.",
+            "otherNumber": "Ander nummer",
+            "loadExisting": "Bestaande laden"
+        },
+        "suggest": {
+            "title": "Voorgesteld nummer",
+            "message_one": "Er is al {{count}} tafel (tot nummer {{max}}).\n\nBeginnen bij nummer {{suggested}}?",
+            "message_other": "Er zijn al {{count}} tafels (tot nummer {{max}}).\n\nBeginnen bij nummer {{suggested}}?",
+            "choose": "Andere kiezen",
+            "accept": "Accepteren"
+        },
+        "feedback": {
+            "infoTitle": "Info",
+            "tablesAddedTitle": "Tafels toegevoegd",
+            "tablesAddedMessage_one": "{{count}} tafel succesvol toegevoegd!",
+            "tablesAddedMessage_other": "{{count}} tafels succesvol toegevoegd!",
+            "tablesCreatedTitle": "Tafels aangemaakt",
+            "tablesCreatedMessage_one": "{{count}} tafel succesvol aangemaakt!",
+            "tablesCreatedMessage_other": "{{count}} tafels succesvol aangemaakt!",
+            "replaceSuccessTitle": "Vervanging gelukt",
+            "replaceSuccessMessage": "{{deleted}} tafel(s) verwijderd en {{created}} nieuwe tafel(s) aangemaakt!",
+            "replaceCreatedMessage_one": "{{count}} tafel aangemaakt!",
+            "replaceCreatedMessage_other": "{{count}} tafels aangemaakt!",
+            "tablesLoadedTitle": "Tafels geladen",
+            "tablesLoadedMessage_one": "{{count}} bestaande tafel geladen.",
+            "tablesLoadedMessage_other": "{{count}} bestaande tafels geladen.",
+            "noTableTitle": "Geen tafels",
+            "noTableForRestaurant": "Geen tafels gevonden voor dit restaurant.",
+            "noExistingStartsAt1": "Geen bestaande tafels gevonden. Startnummer blijft op 1.",
+            "noExistingCanStartAt1": "Geen bestaande tafels gevonden. Je kunt beginnen bij nummer 1.",
+            "chooseNumberTitle": "Een nummer kiezen",
+            "chooseNumberMessage": "Gebruik de +/- knoppen om het startnummer aan te passen en genereer dan opnieuw.",
+            "numberUpdatedTitle": "Nummer bijgewerkt",
+            "numberUpdatedMessage": "Het startnummer is gewijzigd naar {{number}}."
+        },
+        "errors": {
+            "selectRestaurant": "Selecteer een restaurant",
+            "generationFailed": "Fout bij genereren van QR-codes",
+            "replaceFailed": "Fout bij vervangen van tafels",
+            "loadFailed": "Kan bestaande tafels niet laden.",
+            "checkFailed": "Kan bestaande tafels niet controleren.",
+            "shareFailed": "Kan deze QR-code niet delen.",
+            "printAllFailed": "Kan QR-codes niet afdrukken",
+            "printOneFailed": "Kan QR-code niet afdrukken",
+            "pdfFailed": "Kan PDF niet genereren",
+            "refreshFailed": "Vernieuwen mislukt."
+        },
+        "share": {
+            "title": "QR-code - Tafel {{number}}",
+            "message": "Tafel {{number}} - {{restaurant}}\n\nHandmatige code: {{code}}\nOf scan deze QR-code om het menu te openen!\n\n{{url}}"
+        },
+        "pdf": {
+            "tableLabel": "Tafel",
+            "scanOrEnter": "Scan of invoer"
+        }
     },
-    "manager": {
-      "duplicate": "Dupliceren",
-      "applied_one": "Menu toegepast op 1 dag",
-      "applied_other": "Menu toegepast op {{count}} dagen",
-      "errors": {
-        "toggleItem": "Kan de beschikbaarheid van het gerecht niet wijzigen",
-        "applyAllFailedTitle": "Mislukt",
-        "applyAllFailed": "Kan het menu niet toepassen op de geselecteerde data",
-        "applyGeneric": "Er is een fout opgetreden bij het toepassen van het menu"
-      },
-      "partialApply": {
-        "title": "Gedeeltelijk toegepast",
-        "message": "{{succeeded}} geslaagd, {{failed}} mislukt"
-      },
-      "replaceDialog": {
-        "title": "Bestaande menu's vervangen?",
-        "message_one": "Er bestaat al een dagmenu voor 1 van de geselecteerde data. Wilt u het vervangen?",
-        "message_other": "Er bestaat al een dagmenu voor {{count}} van de geselecteerde data. Wilt u ze vervangen?",
-        "confirm": "Vervangen"
-      },
-      "empty": {
-        "title": "Geen menu voor deze datum",
-        "subtitleToday": "Maak het dagmenu aan om te beginnen",
-        "subtitleDate": "Maak een menu voor {{date}}",
-        "cta": "Menu aanmaken"
-      },
-      "stats": {
-        "dishes_one": "{{count}} gerecht",
-        "dishes_other": "{{count}} gerechten",
-        "available_one": "{{count}} beschikbaar",
-        "available_other": "{{count}} beschikbaar",
-        "formulaPrice": "{{price}} / menu"
-      },
-      "applyModal": {
-        "title": "Toepassen op andere dagen",
-        "source": "Bron: {{date}}",
-        "selectAll": "Alles selecteren",
-        "unselectAll": "Selectie wissen",
-        "selectedCount_one": "{{count}} geselecteerd",
-        "selectedCount_other": "{{count}} geselecteerd",
-        "existingMenu": "Bestaand menu",
+    "restaurantCard": {
+        "distanceKm": "{{distance}} km",
+        "walkingMinutes": "{{minutes}} min"
+    },
+    "validationPending": {
+        "title": "Profiel wordt gevalideerd",
+        "stripeCompleted": "Stripe-instelling voltooid",
+        "stripePending": "Stripe-instelling bezig",
+        "profileActivated": "Profiel geactiveerd",
+        "profilePending": "Profiel wacht op activatie",
+        "setupStripe": "Stripe instellen",
+        "contactSupport": "Contact opnemen met ondersteuning",
+        "infoDelay": "De validatie van uw profiel kan 1 tot 3 werkdagen duren nadat u uw Stripe-instelling hebt afgerond.",
+        "supportEmailSubject": "Hulp bij validatie restauranthouder-profiel"
+    },
+    "restaurantSelector": {
+        "noRestaurantTitle": "U heeft nog geen restaurant",
+        "noRestaurantSubtitle": "Maak uw eerste restaurant aan om menu's en bestellingen te beheren.",
+        "createFirst": "Mijn eerste restaurant aanmaken",
+        "chooseTitle": "Restaurant kiezen",
+        "chooseHint": "Selecteer het restaurant dat u wilt beheren.",
+        "selecting": "Selecteren…"
+    },
+    "stripeCommission": {
+        "compact": {
+            "title": "Platformcommissie",
+            "description": "Bij elke kaartbetaling wordt {{percent}}% commissie ingehouden."
+        },
+        "title": "Betalingsprijzen",
+        "subtitle": "Voorwaarden van toepassing op kaartbetalingen",
+        "platform": {
+            "title": "EatQuickeR-commissie",
+            "description": "Voor elke bestelling die via de app wordt betaald, neemt EatQuickeR een commissie van {{percent}}% over het totaalbedrag. Deze commissie dekt de bemiddelingskosten, het beheer van het platform en de technische ondersteuning."
+        },
+        "stripe": {
+            "title": "Stripe-verwerkingskosten",
+            "description": "De Stripe-bankkosten worden toegepast volgens hun standaardtarief. Deze kosten kunnen variëren afhankelijk van het type kaart dat de klant gebruikt."
+        },
+        "example": {
+            "title": "Voorbeeld voor een bestelling van {{amount}}",
+            "orderAmount": "Bestelbedrag",
+            "platformFee": "EatQuickeR-commissie ({{percent}}%)",
+            "stripeFee": "Stripe-kosten (geschat)",
+            "netAmount": "Netto-bedrag ontvangen"
+        },
+        "bullets": {
+            "autoDeduct": "De commissie wordt automatisch ingehouden bij de betaling",
+            "cashNoFee": "Contante betalingen zijn niet onderhevig aan commissie",
+            "directPayout": "U ontvangt uw geld rechtstreeks op uw bankrekening"
+        },
+        "acceptTerms": "Ik heb de tariefvoorwaarden gelezen en aanvaard"
+    },
+    "stripeAccount": {
+        "title": "Stripe-account",
+        "checking": "Status controleren…",
+        "errors": {
+            "fetch": "Fout bij het ophalen van de status",
+            "setup": "Fout bij het instellen van de Stripe-account"
+        },
+        "validated": {
+            "title": "Account gevalideerd",
+            "description": "Uw Stripe-account is gevalideerd en klaar om betalingen te ontvangen.",
+            "successMessage": "U kunt nu uw restaurants activeren en bestellingen ontvangen."
+        },
+        "inProgress": {
+            "title": "Instelling bezig",
+            "description": "Uw Stripe-account bestaat maar moet worden afgerond.",
+            "action": "Instelling voortzetten"
+        },
+        "notStarted": {
+            "title": "Instelling vereist",
+            "description": "U moet uw Stripe-account instellen om betalingen te ontvangen.",
+            "action": "Stripe instellen"
+        },
+        "redirectDialog": {
+            "title": "Doorverwijzen naar Stripe",
+            "message": "U wordt doorverwezen naar Stripe om uw betaalaccount in te stellen."
+        },
+        "continueDialog": {
+            "title": "Instelling voortzetten",
+            "message": "U wordt doorverwezen naar Stripe om uw instelling af te ronden."
+        },
+        "requirements": {
+            "title": "Vereiste documenten:",
+            "othersCount_one": "En {{count}} ander…",
+            "othersCount_other": "En {{count}} andere…"
+        },
+        "infoDelay": "De validatie van uw account kan 1 tot 3 werkdagen duren nadat alle vereiste documenten zijn ingediend."
+    },
+    "revenueCard": {
+        "title": "Inkomsten",
+        "defaultPeriod": "Deze maand",
+        "details": "Details",
+        "netRevenue": "Netto-inkomsten",
+        "netRevenueEstimated": "Geschatte netto-inkomsten",
+        "ordersCount_one": "{{count}} bestelling",
+        "ordersCount_other": "{{count}} bestellingen",
+        "grossRevenueTitle": "Bruto-omzet",
+        "cardPayments": "Kaartbetalingen",
+        "cashPayments": "Contante betalingen",
+        "grossTotal": "Bruto totaal",
+        "feesTitle": "Kosten en commissies",
+        "stripeFeesNote": "Alleen van toepassing op kaartbetalingen. Stripe-kosten worden apart ingehouden.",
+        "platformCommissionLine": "EatQuickeR-commissie: {{amount}}",
+        "legendGross": "Bruto-omzet: {{amount}}",
+        "legendCommission": "Commissie: {{amount}}"
+    },
+    "openingHours": {
+        "title": "Openingstijden",
+        "subtitle": "Stel uw service-uren in voor elke dag van de week",
+        "quickPresets": "Snelle sjablonen",
+        "open": "Open",
+        "closed": "Gesloten",
+        "start": "Begin",
+        "end": "Einde",
         "apply": "Toepassen",
-        "applyWithCount": "Toepassen ({{count}})"
-      }
+        "addPeriod": "Tijdsblok toevoegen",
+        "serviceNamePlaceholder": "Naam van de service (bv. Lunch)",
+        "tip1": "Tik op de uren om uw service-uren gemakkelijk te kiezen",
+        "tip2": "Gebruik de voorgestelde uren of stel aangepaste uren in",
+        "timePicker": {
+            "title": "Tijd kiezen",
+            "ok": "OK",
+            "suggestedTimes": "Voorgestelde tijden",
+            "customTime": "Aangepaste tijd",
+            "hours": "Uren",
+            "minutes": "Minuten"
+        },
+        "presets": {
+            "continuous": {
+                "name": "Doorlopende service"
+            },
+            "lunchDinner": {
+                "name": "Lunch + Diner"
+            },
+            "complete": {
+                "name": "Volledig"
+            }
+        },
+        "periodNames": {
+            "lunch": "Lunch",
+            "dinner": "Diner",
+            "breakfast": "Ontbijt",
+            "service": "Service"
+        },
+        "confirmApplyPreset": {
+            "title": "Sjabloon toepassen",
+            "message": "„{{name}}\" op alle dagen van de week toepassen?"
+        },
+        "confirmCopyHours": {
+            "title": "Uren kopiëren",
+            "message": "De uren van {{day}} op alle werkdagen toepassen (maandag–vrijdag)?"
+        }
+    },
+    "statistics": {
+        "kpis": {
+            "title": "Belangrijke prestatie-indicatoren",
+            "cancellationRate": "Annuleringspercentage",
+            "paymentRate": "Betalingspercentage",
+            "availabilityRate": "Beschikbaarheid van gerechten",
+            "avgOrderValue": "Gemiddelde rekening",
+            "perOrder": "Per bestelling",
+            "serviceTime": "Servicetijd",
+            "avgTime": "Gemiddelde tijd",
+            "tableUsage": "Tafelbezetting"
+        },
+        "qualifiers": {
+            "excellent": "Uitstekend",
+            "toImprove": "Te verbeteren",
+            "veryGood": "Zeer goed",
+            "toWatch": "In de gaten houden",
+            "optimal": "Optimaal",
+            "critical": "Kritiek",
+            "toOptimize": "Te optimaliseren"
+        },
+        "priorities": {
+            "high": "DRINGEND",
+            "medium": "Belangrijk",
+            "low": "Info"
+        },
+        "recommendations": {
+            "title": "Persoonlijke aanbevelingen"
+        },
+        "topDishes": {
+            "title": "Top 5 meest bestelde gerechten",
+            "dishStats": "{{orders}} bestellingen • {{revenue}} omzet"
+        },
+        "underperforming": {
+            "title": "Te optimaliseren gerechten",
+            "neverOrdered_one": "{{count}} gerecht is nog nooit besteld. Overweeg het te verwijderen of te promoten.",
+            "neverOrdered_other": "{{count}} gerechten zijn nog nooit besteld. Overweeg ze te verwijderen of te promoten.",
+            "lowOrders": "Weinig bestelde gerechten (laatste 30 dagen)",
+            "onlyOrders_one": "Slechts {{count}} bestelling",
+            "onlyOrders_other": "Slechts {{count}} bestellingen"
+        },
+        "revenue": {
+            "title": "Omzetanalyse",
+            "currentPeriod": "Huidige periode",
+            "previousPeriod": "Vorige periode",
+            "evolution": "Evolutie",
+            "avgOrderValue": "Gemiddelde rekening",
+            "perOrder": "per bestelling",
+            "ordersCount_one": "{{count}} bestelling",
+            "ordersCount_other": "{{count}} bestellingen"
+        },
+        "peakHours": {
+            "title": "Uurlijkse verdeling van bestellingen",
+            "peakSlots": "Piekuren",
+            "ordersCount_one": "{{count}} bestelling",
+            "ordersCount_other": "{{count}} bestellingen"
+        },
+        "dailyPerformance": {
+            "title": "Prestaties per dag van de week",
+            "bestDay": "Beste dag",
+            "worstDay": "Zwakste dag"
+        }
+    },
+    "dailyMenuDisplay": {
+        "loading": "Menu laden…",
+        "completeFormula": "Volledig menu",
+        "formulaHint": "1 gerecht per categorie • {{price}} / gerecht",
+        "dishesCount_one": "{{count}} gerecht",
+        "dishesCount_other": "{{count}} gerechten",
+        "categoriesCount_one": "{{count}} categorie",
+        "categoriesCount_other": "{{count}} categorieën"
+    },
+    "menuItem": {
+        "add": "Toevoegen",
+        "unavailable": "Niet beschikbaar",
+        "unavailableShort": "N.b."
+    },
+    "menuGrid": {
+        "otherCategory": "Overige",
+        "defaultRestaurantName": "Restaurant",
+        "groupToggle": "Groeperen",
+        "filters": "Filters",
+        "viewModes": {
+            "list": "Lijst",
+            "grid": "Raster",
+            "masonry": "Mozaïek",
+            "table": "Tabel"
+        },
+        "table": {
+            "photo": "Foto",
+            "name": "Naam",
+            "description": "Beschrijving",
+            "price": "Prijs",
+            "action": "Actie"
+        },
+        "stats": {
+            "availableShort_one": "{{count}} besch.",
+            "availableShort_other": "{{count}} besch.",
+            "availableLong_one": "{{count}} gerecht beschikbaar",
+            "availableLong_other": "{{count}} gerechten beschikbaar",
+            "photos_one": "{{count}} foto",
+            "photos_other": "{{count}} foto's"
+        },
+        "accordion": {
+            "expandAll": "Alles uitklappen",
+            "collapseAll": "Alles inklappen"
+        }
+    },
+    "formule": {
+        "title": "Stel je menu samen",
+        "sectionTitle": "Onze menu's",
+        "compose": "Samenstellen",
+        "basePrice": "Menu voor {{price}}",
+        "required": "Verplicht",
+        "optional": "Optioneel",
+        "chooseOne": "Kies 1 gerecht",
+        "chooseN": "Kies {{count}} gerechten",
+        "addToCart": "In winkelmand",
+        "quantity": "Aantal",
+        "incomplete": "Maak je menu compleet",
+        "unavailable": "Menu momenteel niet beschikbaar",
+        "empty": "Geen gerecht beschikbaar in deze gang",
+        "loadError": "Menu kon niet worden geladen",
+        "notFound": "Menu niet gevonden",
+        "added": "Menu toegevoegd aan winkelmand"
     }
-  },
-  "restaurantMenus": {
-    "title": "Mijn menu’s",
-    "stats": {
-      "activeMenus_one": "Actief menu",
-      "activeMenus_other": "Actieve menu’s",
-      "inactive_one": "{{count}} inactief",
-      "inactive_other": "{{count}} inactief",
-      "multiActive": "MULTI-ACTIEF"
-    },
-    "info": {
-      "title": "💡 Slechts één actief menu tegelijk",
-      "description": "Wanneer je een menu activeert, worden alle andere menu’s automatisch gedeactiveerd. Alleen het actieve menu is zichtbaar voor je klanten."
-    },
-    "help": {
-      "title": "Aan de slag met EatQuickeR",
-      "description": "Maak je eerste menu om je gerechten te presenteren en online bestellingen te ontvangen.",
-      "createFirstMenu": "Mijn eerste menu maken",
-      "userGuide": "Gebruikershandleiding"
-    },
-    "switcher": {
-      "title": "Van restaurant wisselen"
-    },
-    "duplicate": {
-      "barButton": "Menu’s ophalen",
-      "pickSourceTitle": "Bronrestaurant kiezen",
-      "pickMenusTitle": "Menu’s selecteren",
-      "emptySource": "Geen menu in dit restaurant",
-      "statusActive": "Actief",
-      "statusInactive": "Inactief",
-      "itemSummary_one": "{{count}} gerecht · {{status}}",
-      "itemSummary_other": "{{count}} gerechten · {{status}}",
-      "duplicating": "Dupliceren…",
-      "confirmSimple": "Dupliceren",
-      "confirmWithCount": "Dupliceren ({{count}})",
-      "doneTitle": "Duplicatie voltooid",
-      "doneSuccess_one": "{{count}} menu succesvol gedupliceerd",
-      "doneSuccess_other": "{{count}} menu’s succesvol gedupliceerd",
-      "donePartial": "{{succeeded}} gelukt, {{failed}} mislukt",
-      "errorGeneric": "Fout tijdens duplicatie"
-    },
-    "delete": {
-      "title": "Verwijdering bevestigen",
-      "message": "Weet je zeker dat je het menu \"{{name}}\" wilt verwijderen?\n\nDeze actie is onomkeerbaar.",
-      "confirm": "Verwijderen"
-    },
-    "feedback": {
-      "successTitle": "Succes",
-      "loadFailed": "Kan menu’s niet laden",
-      "loadSourceFailed": "Kan bronmenu’s niet laden",
-      "menuEnabled": "Menu geactiveerd (andere menu’s gedeactiveerd)",
-      "menuDisabled": "Menu gedeactiveerd",
-      "toggleFailed": "Kan menu niet wijzigen",
-      "toggleForbidden": "Je hebt geen toestemming om dit menu te wijzigen",
-      "menuNotFound": "Menu niet gevonden",
-      "menuDeleted": "Menu verwijderd",
-      "deleteFailed": "Kan menu niet verwijderen"
-    },
-    "card": {
-      "items_one": "{{count}} gerecht",
-      "items_other": "{{count}} gerechten",
-      "available_one": "{{count}} beschikbaar",
-      "available_other": "{{count}} beschikbaar",
-      "active": "Actief",
-      "inactive": "Inactief",
-      "updating": "Bijwerken…",
-      "createdOn": "Aangemaakt op",
-      "updatedOn": "Gewijzigd op",
-      "enable": "Activeren",
-      "disable": "Deactiveren",
-      "inProgress": "Bezig"
-    }
-  },
-  "restaurantStats": {
-    "title": "Statistieken — {{period}}",
-    "pickerTitle": "Analyseperiode",
-    "chooseRestaurant": "Kies een restaurant",
-    "noRestaurantMessage": "Je hebt nog geen restaurant",
-    "createFirstRestaurant": "Mijn eerste restaurant aanmaken",
-    "salesCount_one": "{{formatted}} verkoop",
-    "salesCount_other": "{{formatted}} verkopen",
-    "periods": {
-      "thisWeek": "Deze week",
-      "thisMonth": "Deze maand",
-      "last3Months": "Laatste 3 maanden",
-      "last6Months": "Laatste 6 maanden",
-      "thisYear": "Dit jaar"
-    },
-    "deltas": {
-      "vsPrevWeek": "vs vorige week",
-      "vsPrevMonth": "vs vorige maand",
-      "vsPrev3Months": "vs vorige 3 maanden",
-      "vsPrev6Months": "vs vorige 6 maanden",
-      "vsPrevYear": "vs vorig jaar"
-    },
-    "kpi": {
-      "totalRevenue": "Totale omzet",
-      "servedOrders": "Geserveerde bestellingen",
-      "avgOrder": "Gem. bestelling"
-    },
-    "charts": {
-      "revenueByDay": "Omzet per dag",
-      "topDishes": "Top gerechten"
-    },
-    "daysShort": {
-      "monday": "Ma",
-      "tuesday": "Di",
-      "wednesday": "Wo",
-      "thursday": "Do",
-      "friday": "Vr",
-      "saturday": "Za",
-      "sunday": "Zo"
-    },
-    "empty": {
-      "noData": "Geen gegevens beschikbaar",
-      "description": "Statistieken verschijnen hier zodra je bestellingen hebt in deze periode."
-    },
-    "errors": {
-      "loadFailed": "Fout bij het laden van statistieken."
-    }
-  },
-  "restaurantHome": {
-    "greeting": {
-      "morning": "Goedemorgen",
-      "afternoon": "Goedemiddag",
-      "evening": "Goedenavond"
-    },
-    "subtitle": {
-      "restaurateur": "Beheer je restaurants en optimaliseer je prestaties",
-      "client": "Ontdek de beste restaurants bij jou in de buurt"
-    },
-    "restaurantFallback": "Restaurant",
-    "unknownDate": "Onbekende datum",
-    "loadingDashboard": "Dashboard laden…",
-    "loadingOrders": "Bestellingen laden…",
-    "viewAll": "Alles bekijken",
-    "stripeAlert": {
-      "validationRequired": {
-        "title": "Accountvalidatie vereist",
-        "message": "Tik hier om je Stripe-account in te stellen en betalingen te activeren."
-      },
-      "finalizeConnect": {
-        "title": "Stripe-configuratie afronden",
-        "allInactive": "Geen van je restaurants ontvangt online betalingen. Stel Stripe in om te beginnen met innen.",
-        "partial_one": "{{count}} restaurant zonder online betaling geactiveerd.",
-        "partial_other": "{{count}} restaurants zonder online betaling geactiveerd."
-      }
-    },
-    "help": {
-      "title": "Aan de slag met EatQuickeR",
-      "description": "Maak je eerste restaurant om online bestellingen te ontvangen en je bedrijf te laten groeien.",
-      "createFirstRestaurant": "Mijn eerste restaurant aanmaken"
-    },
-    "sections": {
-      "overview": "Overzicht",
-      "yourRestaurants": "Jouw restaurants",
-      "recommendedRestaurants": "Aanbevolen restaurants",
-      "receivedOrders": "Ontvangen bestellingen",
-      "yourOrders": "Jouw bestellingen",
-      "quickActions": "Snelle acties"
-    },
-    "stats": {
-      "restaurantCount_one": "Restaurant",
-      "restaurantCount_other": "Restaurants",
-      "orderCount_one": "Bestelling",
-      "orderCount_other": "Bestellingen",
-      "activeCount_one": "Actief",
-      "activeCount_other": "Actief"
-    },
-    "empty": {
-      "loading": "Laden…",
-      "loadingDescription": "Restaurants laden…",
-      "errorPrefix": "Fout: {{error}}",
-      "createFirstTitle": "Maak je eerste restaurant",
-      "validationRequiredTitle": "Validatie vereist",
-      "noRestaurantTitle": "Geen restaurant",
-      "startNowDescription": "Begin nu met online bestellingen ontvangen.",
-      "validateStripeDescription": "Valideer je Stripe-account om restaurants aan te maken.",
-      "noRestaurantDescription": "Geen restaurant beschikbaar op dit moment.",
-      "noOrderTitle": "Geen bestellingen",
-      "noOrderRestaurateur": "Nog geen bestellingen ontvangen",
-      "noOrderClient": "Je hebt nog geen bestelling geplaatst"
-    },
-    "orderStatus": {
-      "pending": "In afwachting",
-      "confirmed": "Bevestigd",
-      "preparing": "In voorbereiding",
-      "ready": "Klaar",
-      "served": "Geserveerd",
-      "delivered": "Geleverd",
-      "completed": "Voltooid",
-      "cancelled": "Geannuleerd"
-    },
-    "actions": {
-      "dailyMenu": {
-        "title": "Dagmenu",
-        "description": "Menu van vandaag beheren"
-      },
-      "createRestaurant": {
-        "title": "Restaurant aanmaken",
-        "description": "Nieuwe vestiging"
-      },
-      "qrCodes": {
-        "title": "Tafel-QR-codes",
-        "description": "Genereren en beheren"
-      },
-      "manageMenus": {
-        "title": "Menu's beheren",
-        "description": "Gerechten en prijzen"
-      },
-      "viewOrders": {
-        "title": "Bestellingen bekijken",
-        "description": "Beheer en tracking"
-      },
-      "statistics": {
-        "title": "Statistieken",
-        "description": "Prestaties"
-      }
-    }
-  },
-  "restaurantQrCodes": {
-    "sizes": {
-      "small": "Klein ({{count}}/pagina)",
-      "medium": "Middel ({{count}}/pagina)",
-      "large": "Groot ({{count}}/pagina)"
-    },
-    "generator": {
-      "sectionTitle": "QR-code generator",
-      "description": "Maak QR-codes voor je tafels en laat klanten scannen of een handmatige code invoeren om het menu te openen.",
-      "restaurantLabel": "Restaurant",
-      "selectPlaceholder": "Selecteer een restaurant"
-    },
-    "controls": {
-      "qrSize": "QR-code grootte",
-      "tablesCount": "Aantal tafels",
-      "tablesToAdd": "Aantal tafels toe te voegen",
-      "startNumber": "Startnummer"
-    },
-    "warnings": {
-      "existingTables_one": "{{count}} tafel bestaat al voor dit restaurant",
-      "existingTables_other": "{{count}} tafels bestaan al voor dit restaurant"
-    },
-    "actions": {
-      "generate": "QR-codes genereren",
-      "generating": "Genereren…",
-      "addTables_one": "{{count}} tafel toevoegen",
-      "addTables_other": "{{count}} tafels toevoegen",
-      "replace": "Vervangen",
-      "replaceAll": "Alle tafels vervangen",
-      "print": "Afdrukken",
-      "printing": "Afdrukken…",
-      "printAll": "Alles afdrukken",
-      "downloadPdf": "PDF downloaden",
-      "downloading": "Downloaden…",
-      "preview": "Voorbeeld",
-      "share": "Delen",
-      "download": "Downloaden"
-    },
-    "card": {
-      "tableTitle": "Tafel {{number}}",
-      "manualCodeLabel": "Handmatige code",
-      "instruction": "Scan de QR-code of voer de handmatige code in"
-    },
-    "list": {
-      "title_one": "{{count}} QR-code gegenereerd",
-      "title_other": "{{count}} QR-codes gegenereerd"
-    },
-    "empty": {
-      "title": "Geen QR-code gegenereerd",
-      "message": "Selecteer een restaurant en geef het aantal tafels op om te beginnen"
-    },
-    "help": {
-      "title": "Hoe werkt het?",
-      "steps": "• Kies je restaurant\n• Selecteer de QR-code grootte\n• Geef het aantal tafels op\n• Genereer de QR-codes\n• Druk af of download als PDF\n• Je klanten kunnen scannen of de handmatige code invoeren"
-    },
-    "restaurantPicker": {
-      "title": "Een restaurant kiezen"
-    },
-    "conflicts": {
-      "replaceTitle": "Vervanging bevestigen",
-      "replaceMessage": "Wil je echt de bestaande tafels vervangen?\n\nDeze actie zal:\n• Alle bestaande tafels verwijderen\n• {{count}} nieuwe tafels aanmaken (1 tot {{count}})\n\nDeze actie is onomkeerbaar.",
-      "conflictTitle": "Conflict gedetecteerd",
-      "conflictMessage": "Sommige tafels bestaan al met deze nummers. Wat wil je doen?",
-      "moreOptions": "Meer opties",
-      "optionsTitle": "Beschikbare opties",
-      "optionsMessage": "Je kunt de bestaande tafels laden of een ander startnummer kiezen.",
-      "otherNumber": "Ander nummer",
-      "loadExisting": "Bestaande laden"
-    },
-    "suggest": {
-      "title": "Voorgesteld nummer",
-      "message_one": "Er is al {{count}} tafel (tot nummer {{max}}).\n\nBeginnen bij nummer {{suggested}}?",
-      "message_other": "Er zijn al {{count}} tafels (tot nummer {{max}}).\n\nBeginnen bij nummer {{suggested}}?",
-      "choose": "Andere kiezen",
-      "accept": "Accepteren"
-    },
-    "feedback": {
-      "infoTitle": "Info",
-      "tablesAddedTitle": "Tafels toegevoegd",
-      "tablesAddedMessage_one": "{{count}} tafel succesvol toegevoegd!",
-      "tablesAddedMessage_other": "{{count}} tafels succesvol toegevoegd!",
-      "tablesCreatedTitle": "Tafels aangemaakt",
-      "tablesCreatedMessage_one": "{{count}} tafel succesvol aangemaakt!",
-      "tablesCreatedMessage_other": "{{count}} tafels succesvol aangemaakt!",
-      "replaceSuccessTitle": "Vervanging gelukt",
-      "replaceSuccessMessage": "{{deleted}} tafel(s) verwijderd en {{created}} nieuwe tafel(s) aangemaakt!",
-      "replaceCreatedMessage_one": "{{count}} tafel aangemaakt!",
-      "replaceCreatedMessage_other": "{{count}} tafels aangemaakt!",
-      "tablesLoadedTitle": "Tafels geladen",
-      "tablesLoadedMessage_one": "{{count}} bestaande tafel geladen.",
-      "tablesLoadedMessage_other": "{{count}} bestaande tafels geladen.",
-      "noTableTitle": "Geen tafels",
-      "noTableForRestaurant": "Geen tafels gevonden voor dit restaurant.",
-      "noExistingStartsAt1": "Geen bestaande tafels gevonden. Startnummer blijft op 1.",
-      "noExistingCanStartAt1": "Geen bestaande tafels gevonden. Je kunt beginnen bij nummer 1.",
-      "chooseNumberTitle": "Een nummer kiezen",
-      "chooseNumberMessage": "Gebruik de +/- knoppen om het startnummer aan te passen en genereer dan opnieuw.",
-      "numberUpdatedTitle": "Nummer bijgewerkt",
-      "numberUpdatedMessage": "Het startnummer is gewijzigd naar {{number}}."
-    },
-    "errors": {
-      "selectRestaurant": "Selecteer een restaurant",
-      "generationFailed": "Fout bij genereren van QR-codes",
-      "replaceFailed": "Fout bij vervangen van tafels",
-      "loadFailed": "Kan bestaande tafels niet laden.",
-      "checkFailed": "Kan bestaande tafels niet controleren.",
-      "shareFailed": "Kan deze QR-code niet delen.",
-      "printAllFailed": "Kan QR-codes niet afdrukken",
-      "printOneFailed": "Kan QR-code niet afdrukken",
-      "pdfFailed": "Kan PDF niet genereren",
-      "refreshFailed": "Vernieuwen mislukt."
-    },
-    "share": {
-      "title": "QR-code - Tafel {{number}}",
-      "message": "Tafel {{number}} - {{restaurant}}\n\nHandmatige code: {{code}}\nOf scan deze QR-code om het menu te openen!\n\n{{url}}"
-    },
-    "pdf": {
-      "tableLabel": "Tafel",
-      "scanOrEnter": "Scan of invoer"
-    }
-  },
-  "restaurantCard": {
-    "distanceKm": "{{distance}} km",
-    "walkingMinutes": "{{minutes}} min"
-  },
-  "validationPending": {
-    "title": "Profiel wordt gevalideerd",
-    "stripeCompleted": "Stripe-instelling voltooid",
-    "stripePending": "Stripe-instelling bezig",
-    "profileActivated": "Profiel geactiveerd",
-    "profilePending": "Profiel wacht op activatie",
-    "setupStripe": "Stripe instellen",
-    "contactSupport": "Contact opnemen met ondersteuning",
-    "infoDelay": "De validatie van uw profiel kan 1 tot 3 werkdagen duren nadat u uw Stripe-instelling hebt afgerond.",
-    "supportEmailSubject": "Hulp bij validatie restauranthouder-profiel"
-  },
-  "restaurantSelector": {
-    "noRestaurantTitle": "U heeft nog geen restaurant",
-    "noRestaurantSubtitle": "Maak uw eerste restaurant aan om menu's en bestellingen te beheren.",
-    "createFirst": "Mijn eerste restaurant aanmaken",
-    "chooseTitle": "Restaurant kiezen",
-    "chooseHint": "Selecteer het restaurant dat u wilt beheren.",
-    "selecting": "Selecteren…"
-  },
-  "stripeCommission": {
-    "compact": {
-      "title": "Platformcommissie",
-      "description": "Bij elke kaartbetaling wordt {{percent}}% commissie ingehouden."
-    },
-    "title": "Betalingsprijzen",
-    "subtitle": "Voorwaarden van toepassing op kaartbetalingen",
-    "platform": {
-      "title": "EatQuickeR-commissie",
-      "description": "Voor elke bestelling die via de app wordt betaald, neemt EatQuickeR een commissie van {{percent}}% over het totaalbedrag. Deze commissie dekt de bemiddelingskosten, het beheer van het platform en de technische ondersteuning."
-    },
-    "stripe": {
-      "title": "Stripe-verwerkingskosten",
-      "description": "De Stripe-bankkosten worden toegepast volgens hun standaardtarief. Deze kosten kunnen variëren afhankelijk van het type kaart dat de klant gebruikt."
-    },
-    "example": {
-      "title": "Voorbeeld voor een bestelling van {{amount}}",
-      "orderAmount": "Bestelbedrag",
-      "platformFee": "EatQuickeR-commissie ({{percent}}%)",
-      "stripeFee": "Stripe-kosten (geschat)",
-      "netAmount": "Netto-bedrag ontvangen"
-    },
-    "bullets": {
-      "autoDeduct": "De commissie wordt automatisch ingehouden bij de betaling",
-      "cashNoFee": "Contante betalingen zijn niet onderhevig aan commissie",
-      "directPayout": "U ontvangt uw geld rechtstreeks op uw bankrekening"
-    },
-    "acceptTerms": "Ik heb de tariefvoorwaarden gelezen en aanvaard"
-  },
-  "stripeAccount": {
-    "title": "Stripe-account",
-    "checking": "Status controleren…",
-    "errors": {
-      "fetch": "Fout bij het ophalen van de status",
-      "setup": "Fout bij het instellen van de Stripe-account"
-    },
-    "validated": {
-      "title": "Account gevalideerd",
-      "description": "Uw Stripe-account is gevalideerd en klaar om betalingen te ontvangen.",
-      "successMessage": "U kunt nu uw restaurants activeren en bestellingen ontvangen."
-    },
-    "inProgress": {
-      "title": "Instelling bezig",
-      "description": "Uw Stripe-account bestaat maar moet worden afgerond.",
-      "action": "Instelling voortzetten"
-    },
-    "notStarted": {
-      "title": "Instelling vereist",
-      "description": "U moet uw Stripe-account instellen om betalingen te ontvangen.",
-      "action": "Stripe instellen"
-    },
-    "redirectDialog": {
-      "title": "Doorverwijzen naar Stripe",
-      "message": "U wordt doorverwezen naar Stripe om uw betaalaccount in te stellen."
-    },
-    "continueDialog": {
-      "title": "Instelling voortzetten",
-      "message": "U wordt doorverwezen naar Stripe om uw instelling af te ronden."
-    },
-    "requirements": {
-      "title": "Vereiste documenten:",
-      "othersCount_one": "En {{count}} ander…",
-      "othersCount_other": "En {{count}} andere…"
-    },
-    "infoDelay": "De validatie van uw account kan 1 tot 3 werkdagen duren nadat alle vereiste documenten zijn ingediend."
-  },
-  "revenueCard": {
-    "title": "Inkomsten",
-    "defaultPeriod": "Deze maand",
-    "details": "Details",
-    "netRevenue": "Netto-inkomsten",
-    "netRevenueEstimated": "Geschatte netto-inkomsten",
-    "ordersCount_one": "{{count}} bestelling",
-    "ordersCount_other": "{{count}} bestellingen",
-    "grossRevenueTitle": "Bruto-omzet",
-    "cardPayments": "Kaartbetalingen",
-    "cashPayments": "Contante betalingen",
-    "grossTotal": "Bruto totaal",
-    "feesTitle": "Kosten en commissies",
-    "stripeFeesNote": "Alleen van toepassing op kaartbetalingen. Stripe-kosten worden apart ingehouden.",
-    "platformCommissionLine": "EatQuickeR-commissie: {{amount}}",
-    "legendGross": "Bruto-omzet: {{amount}}",
-    "legendCommission": "Commissie: {{amount}}"
-  },
-  "openingHours": {
-    "title": "Openingstijden",
-    "subtitle": "Stel uw service-uren in voor elke dag van de week",
-    "quickPresets": "Snelle sjablonen",
-    "open": "Open",
-    "closed": "Gesloten",
-    "start": "Begin",
-    "end": "Einde",
-    "apply": "Toepassen",
-    "addPeriod": "Tijdsblok toevoegen",
-    "serviceNamePlaceholder": "Naam van de service (bv. Lunch)",
-    "tip1": "Tik op de uren om uw service-uren gemakkelijk te kiezen",
-    "tip2": "Gebruik de voorgestelde uren of stel aangepaste uren in",
-    "timePicker": {
-      "title": "Tijd kiezen",
-      "ok": "OK",
-      "suggestedTimes": "Voorgestelde tijden",
-      "customTime": "Aangepaste tijd",
-      "hours": "Uren",
-      "minutes": "Minuten"
-    },
-    "presets": {
-      "continuous": {
-        "name": "Doorlopende service"
-      },
-      "lunchDinner": {
-        "name": "Lunch + Diner"
-      },
-      "complete": {
-        "name": "Volledig"
-      }
-    },
-    "periodNames": {
-      "lunch": "Lunch",
-      "dinner": "Diner",
-      "breakfast": "Ontbijt",
-      "service": "Service"
-    },
-    "confirmApplyPreset": {
-      "title": "Sjabloon toepassen",
-      "message": "„{{name}}\" op alle dagen van de week toepassen?"
-    },
-    "confirmCopyHours": {
-      "title": "Uren kopiëren",
-      "message": "De uren van {{day}} op alle werkdagen toepassen (maandag–vrijdag)?"
-    }
-  },
-  "statistics": {
-    "kpis": {
-      "title": "Belangrijke prestatie-indicatoren",
-      "cancellationRate": "Annuleringspercentage",
-      "paymentRate": "Betalingspercentage",
-      "availabilityRate": "Beschikbaarheid van gerechten",
-      "avgOrderValue": "Gemiddelde rekening",
-      "perOrder": "Per bestelling",
-      "serviceTime": "Servicetijd",
-      "avgTime": "Gemiddelde tijd",
-      "tableUsage": "Tafelbezetting"
-    },
-    "qualifiers": {
-      "excellent": "Uitstekend",
-      "toImprove": "Te verbeteren",
-      "veryGood": "Zeer goed",
-      "toWatch": "In de gaten houden",
-      "optimal": "Optimaal",
-      "critical": "Kritiek",
-      "toOptimize": "Te optimaliseren"
-    },
-    "priorities": {
-      "high": "DRINGEND",
-      "medium": "Belangrijk",
-      "low": "Info"
-    },
-    "recommendations": {
-      "title": "Persoonlijke aanbevelingen"
-    },
-    "topDishes": {
-      "title": "Top 5 meest bestelde gerechten",
-      "dishStats": "{{orders}} bestellingen • {{revenue}} omzet"
-    },
-    "underperforming": {
-      "title": "Te optimaliseren gerechten",
-      "neverOrdered_one": "{{count}} gerecht is nog nooit besteld. Overweeg het te verwijderen of te promoten.",
-      "neverOrdered_other": "{{count}} gerechten zijn nog nooit besteld. Overweeg ze te verwijderen of te promoten.",
-      "lowOrders": "Weinig bestelde gerechten (laatste 30 dagen)",
-      "onlyOrders_one": "Slechts {{count}} bestelling",
-      "onlyOrders_other": "Slechts {{count}} bestellingen"
-    },
-    "revenue": {
-      "title": "Omzetanalyse",
-      "currentPeriod": "Huidige periode",
-      "previousPeriod": "Vorige periode",
-      "evolution": "Evolutie",
-      "avgOrderValue": "Gemiddelde rekening",
-      "perOrder": "per bestelling",
-      "ordersCount_one": "{{count}} bestelling",
-      "ordersCount_other": "{{count}} bestellingen"
-    },
-    "peakHours": {
-      "title": "Uurlijkse verdeling van bestellingen",
-      "peakSlots": "Piekuren",
-      "ordersCount_one": "{{count}} bestelling",
-      "ordersCount_other": "{{count}} bestellingen"
-    },
-    "dailyPerformance": {
-      "title": "Prestaties per dag van de week",
-      "bestDay": "Beste dag",
-      "worstDay": "Zwakste dag"
-    }
-  },
-  "dailyMenuDisplay": {
-    "loading": "Menu laden…",
-    "completeFormula": "Volledig menu",
-    "formulaHint": "1 gerecht per categorie • {{price}} / gerecht",
-    "dishesCount_one": "{{count}} gerecht",
-    "dishesCount_other": "{{count}} gerechten",
-    "categoriesCount_one": "{{count}} categorie",
-    "categoriesCount_other": "{{count}} categorieën"
-  },
-  "menuItem": {
-    "add": "Toevoegen",
-    "unavailable": "Niet beschikbaar",
-    "unavailableShort": "N.b."
-  },
-  "menuGrid": {
-    "otherCategory": "Overige",
-    "defaultRestaurantName": "Restaurant",
-    "groupToggle": "Groeperen",
-    "filters": "Filters",
-    "viewModes": {
-      "list": "Lijst",
-      "grid": "Raster",
-      "masonry": "Mozaïek",
-      "table": "Tabel"
-    },
-    "table": {
-      "photo": "Foto",
-      "name": "Naam",
-      "description": "Beschrijving",
-      "price": "Prijs",
-      "action": "Actie"
-    },
-    "stats": {
-      "availableShort_one": "{{count}} besch.",
-      "availableShort_other": "{{count}} besch.",
-      "availableLong_one": "{{count}} gerecht beschikbaar",
-      "availableLong_other": "{{count}} gerechten beschikbaar",
-      "photos_one": "{{count}} foto",
-      "photos_other": "{{count}} foto's"
-    },
-    "accordion": {
-      "expandAll": "Alles uitklappen",
-      "collapseAll": "Alles inklappen"
-    }
-  }
 }

@@ -507,6 +507,10 @@ class DraftOrder(models.Model):
     restaurant = models.ForeignKey('Restaurant', on_delete=models.CASCADE)
     table_number = models.CharField(max_length=12, blank=True, null=True)
     items = models.JSONField()  # [{menu_item_id, quantity, options}]
+    # Formules sélectionnées (invité). Forme : [{formule, quantity,
+    # selections:[{course, menu_item}]}] — alignée sur CreateFormuleInput / le
+    # flux authentifié. Vide pour une commande sans formule.
+    formules = models.JSONField(default=list, blank=True)
     amount = models.PositiveIntegerField(help_text="centimes")
     currency = models.CharField(max_length=10, default="eur")
     customer_name = models.CharField(max_length=120)

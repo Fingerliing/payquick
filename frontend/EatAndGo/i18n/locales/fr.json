@@ -1,1795 +1,1813 @@
 {
     "addRestaurant": {
-      "title": "Ajouter un restaurant",
-      "image": {
-        "section": "Image de couverture",
-        "choose": "Choisir une image",
-        "formatHint": "Format 16:9 recommandé"
-      },
-      "sections": {
-        "basicInfo": "Informations de base",
-        "contact": "Contact",
-        "location": "Adresse & géolocalisation",
-        "mealVouchers": "Titres-restaurant",
-        "legal": "Informations légales"
-      },
-      "fields": {
-        "name": "Nom du restaurant *",
-        "namePlaceholder": "Ex : La Bonne Table",
-        "description": "Description",
-        "descriptionPlaceholder": "Courte description de votre établissement",
-        "cuisineType": "Type de cuisine *",
-        "priceRange": "Gamme de prix",
-        "phone": "Téléphone *",
-        "email": "Email *",
-        "website": "Site web",
-        "address": "Adresse *",
-        "city": "Ville *",
-        "cityPlaceholder": "Paris",
-        "postalCode": "Code postal *",
-        "siret": "Numéro SIRET *",
-        "siretPlaceholder": "12345678901234",
-        "raisonSociale": "Raison sociale",
-        "raisonSocialePlaceholder": "Ex : SARL Restaurant Chez Paul"
-      },
-      "cuisines": {
-        "french": "Française",
-        "italian": "Italienne",
-        "asian": "Asiatique",
-        "mexican": "Mexicaine",
-        "indian": "Indienne",
-        "american": "Américaine",
-        "mediterranean": "Méditerranéenne",
-        "japanese": "Japonaise",
-        "chinese": "Chinoise",
-        "thai": "Thaïlandaise",
-        "other": "Autre"
-      },
-      "priceRanges": {
-        "eco": "Éco",
-        "moderate": "Modéré",
-        "expensive": "Cher",
-        "luxury": "Luxe"
-      },
-      "mealVouchers": {
-        "accept": "Accepter les titres-restaurant",
-        "providers": "Swile, Edenred, Up…",
-        "legalInfoTitle": "Informations légales",
-        "legalLimit": "Limite légale : 19 € par jour et par personne",
-        "legalUsage": "Utilisation : du lundi au samedi (hors dimanches et jours fériés sauf exception)",
-        "legalProducts": "Produits éligibles : denrées immédiatement consommables",
-        "customInfoLabel": "Infos affichées aux clients",
-        "customInfoPlaceholder": "Ex : Acceptés du lundi au samedi, max 19 €",
-        "accepted": "acceptés",
-        "notAccepted": "non acceptés",
-        "titleAccepted": "Titres-restaurant acceptés",
-        "titleNotAccepted": "Titres-restaurant non acceptés",
-        "defaultInfo": "Titres-restaurant acceptés selon les conditions légales"
-      },
-      "status": {
-        "closedNow": "Fermé pour le moment",
-        "period": "Période : {{start}} - {{end}}",
-        "nextOpening": "Prochaine ouverture : {{time}}"
-      },
-      "submit": {
-        "create": "Créer le restaurant",
-        "creating": "Création en cours…",
-        "processing": "Traitement en cours…"
-      },
-      "validation": {
-        "nameRequired": "Nom requis",
-        "addressRequired": "Adresse requise",
-        "cityRequired": "Ville requise",
-        "zipRequired": "Code postal requis",
-        "phoneRequired": "Téléphone requis",
-        "emailRequired": "Email requis",
-        "cuisineRequired": "Cuisine requise",
-        "siretRequired": "SIRET requis",
-        "siretInvalid": "Le SIRET doit contenir exactement 14 chiffres",
-        "zipInvalid": "Le code postal doit contenir exactement 5 chiffres",
-        "phoneInvalid": "Format invalide. Utilisez 0612345678 ou +33612345678",
-        "hoursAllDays": "Les horaires doivent couvrir les 7 jours de la semaine",
-        "hoursPeriodRequired": "Chaque jour ouvert doit contenir au moins une période",
-        "hoursStartEnd": "Chaque période doit avoir une heure de début et de fin",
-        "hoursDifferent": "L'heure de fin doit différer de l'ouverture",
-        "fixFieldsTitle": "Champs manquants",
-        "fixFieldsMessage": "Merci de corriger les champs en rouge."
-      },
-      "alerts": {
-        "permissionDeniedTitle": "Permission refusée",
-        "photoPermissionMessage": "Permission d'accès aux photos requise",
-        "imagePickError": "Impossible de sélectionner l'image",
-        "errorTitle": "Erreur",
-        "locationPermissionMessage": "Permission de géolocalisation requise",
-        "locationError": "Impossible de détecter votre position",
-        "successTitle": "Succès",
-        "createSuccessMessage": "Restaurant créé avec succès !\nStatut actuel : {{status}}\nTitres-restaurant : {{vouchers}}",
-        "createError": "Impossible de créer le restaurant",
-        "validationError": "Erreurs de validation détectées - vérifiez les champs en rouge",
-        "stripeRequiredTitle": "Stripe non activé",
-        "stripeRequired": "Votre compte Stripe n'est pas encore activé. Activez Stripe pour pouvoir créer un restaurant."
-      }
+        "title": "Ajouter un restaurant",
+        "image": {
+            "section": "Image de couverture",
+            "choose": "Choisir une image",
+            "formatHint": "Format 16:9 recommandé"
+        },
+        "sections": {
+            "basicInfo": "Informations de base",
+            "contact": "Contact",
+            "location": "Adresse & géolocalisation",
+            "mealVouchers": "Titres-restaurant",
+            "legal": "Informations légales"
+        },
+        "fields": {
+            "name": "Nom du restaurant *",
+            "namePlaceholder": "Ex : La Bonne Table",
+            "description": "Description",
+            "descriptionPlaceholder": "Courte description de votre établissement",
+            "cuisineType": "Type de cuisine *",
+            "priceRange": "Gamme de prix",
+            "phone": "Téléphone *",
+            "email": "Email *",
+            "website": "Site web",
+            "address": "Adresse *",
+            "city": "Ville *",
+            "cityPlaceholder": "Paris",
+            "postalCode": "Code postal *",
+            "siret": "Numéro SIRET *",
+            "siretPlaceholder": "12345678901234",
+            "raisonSociale": "Raison sociale",
+            "raisonSocialePlaceholder": "Ex : SARL Restaurant Chez Paul"
+        },
+        "cuisines": {
+            "french": "Française",
+            "italian": "Italienne",
+            "asian": "Asiatique",
+            "mexican": "Mexicaine",
+            "indian": "Indienne",
+            "american": "Américaine",
+            "mediterranean": "Méditerranéenne",
+            "japanese": "Japonaise",
+            "chinese": "Chinoise",
+            "thai": "Thaïlandaise",
+            "other": "Autre"
+        },
+        "priceRanges": {
+            "eco": "Éco",
+            "moderate": "Modéré",
+            "expensive": "Cher",
+            "luxury": "Luxe"
+        },
+        "mealVouchers": {
+            "accept": "Accepter les titres-restaurant",
+            "providers": "Swile, Edenred, Up…",
+            "legalInfoTitle": "Informations légales",
+            "legalLimit": "Limite légale : 19 € par jour et par personne",
+            "legalUsage": "Utilisation : du lundi au samedi (hors dimanches et jours fériés sauf exception)",
+            "legalProducts": "Produits éligibles : denrées immédiatement consommables",
+            "customInfoLabel": "Infos affichées aux clients",
+            "customInfoPlaceholder": "Ex : Acceptés du lundi au samedi, max 19 €",
+            "accepted": "acceptés",
+            "notAccepted": "non acceptés",
+            "titleAccepted": "Titres-restaurant acceptés",
+            "titleNotAccepted": "Titres-restaurant non acceptés",
+            "defaultInfo": "Titres-restaurant acceptés selon les conditions légales"
+        },
+        "status": {
+            "closedNow": "Fermé pour le moment",
+            "period": "Période : {{start}} - {{end}}",
+            "nextOpening": "Prochaine ouverture : {{time}}"
+        },
+        "submit": {
+            "create": "Créer le restaurant",
+            "creating": "Création en cours…",
+            "processing": "Traitement en cours…"
+        },
+        "validation": {
+            "nameRequired": "Nom requis",
+            "addressRequired": "Adresse requise",
+            "cityRequired": "Ville requise",
+            "zipRequired": "Code postal requis",
+            "phoneRequired": "Téléphone requis",
+            "emailRequired": "Email requis",
+            "cuisineRequired": "Cuisine requise",
+            "siretRequired": "SIRET requis",
+            "siretInvalid": "Le SIRET doit contenir exactement 14 chiffres",
+            "zipInvalid": "Le code postal doit contenir exactement 5 chiffres",
+            "phoneInvalid": "Format invalide. Utilisez 0612345678 ou +33612345678",
+            "hoursAllDays": "Les horaires doivent couvrir les 7 jours de la semaine",
+            "hoursPeriodRequired": "Chaque jour ouvert doit contenir au moins une période",
+            "hoursStartEnd": "Chaque période doit avoir une heure de début et de fin",
+            "hoursDifferent": "L'heure de fin doit différer de l'ouverture",
+            "fixFieldsTitle": "Champs manquants",
+            "fixFieldsMessage": "Merci de corriger les champs en rouge."
+        },
+        "alerts": {
+            "permissionDeniedTitle": "Permission refusée",
+            "photoPermissionMessage": "Permission d'accès aux photos requise",
+            "imagePickError": "Impossible de sélectionner l'image",
+            "errorTitle": "Erreur",
+            "locationPermissionMessage": "Permission de géolocalisation requise",
+            "locationError": "Impossible de détecter votre position",
+            "successTitle": "Succès",
+            "createSuccessMessage": "Restaurant créé avec succès !\nStatut actuel : {{status}}\nTitres-restaurant : {{vouchers}}",
+            "createError": "Impossible de créer le restaurant",
+            "validationError": "Erreurs de validation détectées - vérifiez les champs en rouge",
+            "stripeRequiredTitle": "Stripe non activé",
+            "stripeRequired": "Votre compte Stripe n'est pas encore activé. Activez Stripe pour pouvoir créer un restaurant."
+        }
     },
     "dashboard": {
-      "greeting": "Bonjour, Chef !",
-      "open": "Ouvert",
-      "closed": "Fermé",
-      "quickActions": "Actions rapides",
-      "recentOrders": "Commandes récentes",
-      "seeAll": "Voir tout",
-      "new": "Nouveau",
-      "noOrders": "Aucune commande",
-      "noOrdersDesc": "Les commandes récentes apparaîtront ici",
-      "table": "Table {{number}}",
-      "itemsCount_one": "{{count}} article",
-      "itemsCount_other": "{{count}} articles",
-      "stats": {
-        "todayOrders": "Commandes aujourd'hui",
-        "revenue": "Chiffre d'affaires",
-        "pending": "En attente",
-        "avgOrder": "Panier moyen",
-        "vsYesterday": "vs hier",
-        "toProcess": "À traiter"
-      },
-      "actions": {
-        "orders": {
-          "title": "Commandes",
-          "subtitle": "Gérer les commandes"
+        "greeting": "Bonjour, Chef !",
+        "open": "Ouvert",
+        "closed": "Fermé",
+        "quickActions": "Actions rapides",
+        "recentOrders": "Commandes récentes",
+        "seeAll": "Voir tout",
+        "new": "Nouveau",
+        "noOrders": "Aucune commande",
+        "noOrdersDesc": "Les commandes récentes apparaîtront ici",
+        "table": "Table {{number}}",
+        "itemsCount_one": "{{count}} article",
+        "itemsCount_other": "{{count}} articles",
+        "stats": {
+            "todayOrders": "Commandes aujourd'hui",
+            "revenue": "Chiffre d'affaires",
+            "pending": "En attente",
+            "avgOrder": "Panier moyen",
+            "vsYesterday": "vs hier",
+            "toProcess": "À traiter"
         },
-        "menu": {
-          "title": "Menu",
-          "subtitle": "Modifier la carte"
+        "actions": {
+            "orders": {
+                "title": "Commandes",
+                "subtitle": "Gérer les commandes"
+            },
+            "menu": {
+                "title": "Menu",
+                "subtitle": "Modifier la carte"
+            },
+            "tables": {
+                "title": "Tables",
+                "subtitle": "QR codes"
+            },
+            "statistics": {
+                "title": "Statistiques",
+                "subtitle": "Analytics"
+            },
+            "profile": {
+                "title": "Profil",
+                "subtitle": "Paramètres"
+            },
+            "support": {
+                "title": "Support",
+                "subtitle": "Aide & contact"
+            }
         },
-        "tables": {
-          "title": "Tables",
-          "subtitle": "QR codes"
+        "toggle": {
+            "title": "Changer le statut",
+            "confirmOpen": "Voulez-vous ouvrir votre restaurant ?",
+            "confirmClose": "Voulez-vous fermer votre restaurant ?",
+            "nowOpen": "Votre restaurant est maintenant ouvert.",
+            "nowClosed": "Votre restaurant est maintenant fermé.",
+            "error": "Impossible de modifier le statut"
         },
-        "statistics": {
-          "title": "Statistiques",
-          "subtitle": "Analytics"
-        },
-        "profile": {
-          "title": "Profil",
-          "subtitle": "Paramètres"
-        },
-        "support": {
-          "title": "Support",
-          "subtitle": "Aide & contact"
+        "refresh": {
+            "success": "Données rafraîchies avec succès",
+            "error": "Impossible de rafraîchir les données"
         }
-      },
-      "toggle": {
-        "title": "Changer le statut",
-        "confirmOpen": "Voulez-vous ouvrir votre restaurant ?",
-        "confirmClose": "Voulez-vous fermer votre restaurant ?",
-        "nowOpen": "Votre restaurant est maintenant ouvert.",
-        "nowClosed": "Votre restaurant est maintenant fermé.",
-        "error": "Impossible de modifier le statut"
-      },
-      "refresh": {
-        "success": "Données rafraîchies avec succès",
-        "error": "Impossible de rafraîchir les données"
-      }
     },
-  "common": {
-    "ok": "OK",
-    "cancel": "Annuler",
-    "save": "Enregistrer",
-    "delete": "Supprimer",
-    "edit": "Modifier",
-    "close": "Fermer",
-    "back": "Retour",
-    "next": "Suivant",
-    "previous": "Précédent",
-    "confirm": "Confirmer",
-    "continue": "Continuer",
-    "retry": "Réessayer",
-    "loading": "Chargement…",
-    "search": "Rechercher",
-    "filter": "Filtrer",
-    "clear": "Effacer",
-    "select": "Sélectionner",
-    "selected": "Sélectionné",
-    "add": "Ajouter",
-    "remove": "Retirer",
-    "yes": "Oui",
-    "no": "Non",
-    "or": "ou",
-    "and": "et",
-    "all": "Tous",
-    "none": "Aucun",
-    "more": "Plus",
-    "less": "Moins",
-    "share": "Partager",
-    "copy": "Copier",
-    "copied": "Copié",
-    "refresh": "Actualiser",
-    "submit": "Valider",
-    "done": "Terminé",
-    "skip": "Passer",
-    "optional": "Optionnel",
-    "required": "Obligatoire",
-    "available": "Disponible",
-    "unavailable": "Indisponible",
-    "comingSoon": "Bientôt",
-    "error": "Erreur",
-    "success": "Succès"
-  },
-  "nav": {
-    "home": "Accueil",
-    "menu": "Menu",
-    "orders": "Commandes",
-    "cart": "Panier",
-    "profile": "Profil",
-    "settings": "Réglages",
-    "restaurants": "Restaurants",
-    "dashboard": "Tableau de bord",
-    "history": "Historique",
-    "help": "Aide",
-    "logout": "Déconnexion",
-    "scanner": "Scanner"
-  },
-  "auth": {
-      "stripe": {
-        "title": "Configuration Stripe",
-        "prepStatus": "Préparation de votre configuration Stripe...",
-        "validated": "Votre compte Stripe a été validé avec succès !",
-        "inProgress": "Configuration en cours. Cela peut prendre quelques minutes...",
-        "stillChecking": "Toujours en cours de vérification...",
-        "statusCheckError": "Erreur lors de la vérification du statut.",
-        "statusFetchFail": "Impossible de récupérer le statut de votre compte.",
-        "refreshFail": "Impossible de rafraîchir le statut. Réessayez.",
-        "refreshFailShort": "Impossible de rafraîchir le statut.",
-        "redirectNote": "Redirection automatique vers le tableau de bord...",
-        "errorDetail": "Détail de l'erreur",
-        "goToDashboard": "Accéder au tableau de bord",
-        "refreshStatus": "Rafraîchir le statut",
-        "opening": "Ouverture...",
-        "configureAccount": "Configurer mon compte Stripe",
-        "continueWithout": "Continuer sans Stripe",
-        "paymentsDisabledPrefix": "Les paiements resteront",
-        "paymentsDisabledWord": "désactivés",
-        "paymentsDisabledSuffix": "tant que la validation Stripe n'est pas terminée.",
-        "helpTitle": "Besoin d'aide ?",
-        "helpMessage": "Si vous rencontrez des difficultés lors de la configuration de votre compte Stripe, n'hésitez pas à nous contacter.",
-        "contactUs": "Nous contacter",
-        "noUrl": "Aucune URL d'onboarding renvoyée par le serveur.",
-        "popupBlocked": "Le navigateur a bloqué l'ouverture de l'onglet. Autorisez les pop-ups pour eatquicker.fr.",
-        "cannotOpenBrowser": "Impossible d'ouvrir le navigateur Stripe.",
-        "cannotOpenPage": "Impossible d'ouvrir la page Stripe. Vérifiez votre connexion et réessayez."
-      },
-      "register": {
-        "title": "Créer un compte",
-        "tagline": "Commandez à table",
-        "returnToBanner": "Créez votre compte pour reprendre votre commande après vérification.",
-        "iAm": "Je suis :",
-        "roleClient": "Client",
-        "roleRestaurateur": "Restaurateur",
-        "fullName": "Nom complet",
-        "siret": "Numéro SIRET",
-        "termsPrefix": "J'accepte les",
-        "termsCgu": "conditions générales d'utilisation",
-        "termsAnd": "et la",
-        "termsPrivacy": "politique de confidentialité",
-        "emailCodeInfo": "Un code de vérification sera envoyé à votre adresse email.",
+    "common": {
+        "ok": "OK",
+        "cancel": "Annuler",
+        "save": "Enregistrer",
+        "delete": "Supprimer",
+        "edit": "Modifier",
+        "close": "Fermer",
+        "back": "Retour",
+        "next": "Suivant",
+        "previous": "Précédent",
+        "confirm": "Confirmer",
+        "continue": "Continuer",
+        "retry": "Réessayer",
+        "loading": "Chargement…",
+        "search": "Rechercher",
+        "filter": "Filtrer",
+        "clear": "Effacer",
+        "select": "Sélectionner",
+        "selected": "Sélectionné",
+        "add": "Ajouter",
+        "remove": "Retirer",
+        "yes": "Oui",
+        "no": "Non",
+        "or": "ou",
+        "and": "et",
+        "all": "Tous",
+        "none": "Aucun",
+        "more": "Plus",
+        "less": "Moins",
+        "share": "Partager",
+        "copy": "Copier",
+        "copied": "Copié",
+        "refresh": "Actualiser",
+        "submit": "Valider",
+        "done": "Terminé",
+        "skip": "Passer",
+        "optional": "Optionnel",
+        "required": "Obligatoire",
+        "available": "Disponible",
+        "unavailable": "Indisponible",
+        "comingSoon": "Bientôt",
+        "error": "Erreur",
+        "success": "Succès"
+    },
+    "nav": {
+        "home": "Accueil",
+        "menu": "Menu",
+        "orders": "Commandes",
+        "cart": "Panier",
+        "profile": "Profil",
+        "settings": "Réglages",
+        "restaurants": "Restaurants",
+        "dashboard": "Tableau de bord",
+        "history": "Historique",
+        "help": "Aide",
+        "logout": "Déconnexion",
+        "scanner": "Scanner"
+    },
+    "auth": {
+        "stripe": {
+            "title": "Configuration Stripe",
+            "prepStatus": "Préparation de votre configuration Stripe...",
+            "validated": "Votre compte Stripe a été validé avec succès !",
+            "inProgress": "Configuration en cours. Cela peut prendre quelques minutes...",
+            "stillChecking": "Toujours en cours de vérification...",
+            "statusCheckError": "Erreur lors de la vérification du statut.",
+            "statusFetchFail": "Impossible de récupérer le statut de votre compte.",
+            "refreshFail": "Impossible de rafraîchir le statut. Réessayez.",
+            "refreshFailShort": "Impossible de rafraîchir le statut.",
+            "redirectNote": "Redirection automatique vers le tableau de bord...",
+            "errorDetail": "Détail de l'erreur",
+            "goToDashboard": "Accéder au tableau de bord",
+            "refreshStatus": "Rafraîchir le statut",
+            "opening": "Ouverture...",
+            "configureAccount": "Configurer mon compte Stripe",
+            "continueWithout": "Continuer sans Stripe",
+            "paymentsDisabledPrefix": "Les paiements resteront",
+            "paymentsDisabledWord": "désactivés",
+            "paymentsDisabledSuffix": "tant que la validation Stripe n'est pas terminée.",
+            "helpTitle": "Besoin d'aide ?",
+            "helpMessage": "Si vous rencontrez des difficultés lors de la configuration de votre compte Stripe, n'hésitez pas à nous contacter.",
+            "contactUs": "Nous contacter",
+            "noUrl": "Aucune URL d'onboarding renvoyée par le serveur.",
+            "popupBlocked": "Le navigateur a bloqué l'ouverture de l'onglet. Autorisez les pop-ups pour eatquicker.fr.",
+            "cannotOpenBrowser": "Impossible d'ouvrir le navigateur Stripe.",
+            "cannotOpenPage": "Impossible d'ouvrir la page Stripe. Vérifiez votre connexion et réessayez."
+        },
+        "register": {
+            "title": "Créer un compte",
+            "tagline": "Commandez à table",
+            "returnToBanner": "Créez votre compte pour reprendre votre commande après vérification.",
+            "iAm": "Je suis :",
+            "roleClient": "Client",
+            "roleRestaurateur": "Restaurateur",
+            "fullName": "Nom complet",
+            "siret": "Numéro SIRET",
+            "termsPrefix": "J'accepte les",
+            "termsCgu": "conditions générales d'utilisation",
+            "termsAnd": "et la",
+            "termsPrivacy": "politique de confidentialité",
+            "emailCodeInfo": "Un code de vérification sera envoyé à votre adresse email.",
+            "errors": {
+                "emailRequired": "Email requis",
+                "emailInvalid": "Format d'email invalide",
+                "passwordRequired": "Mot de passe requis",
+                "passwordMin": "Minimum 8 caractères",
+                "nameRequired": "Nom requis",
+                "phoneRequired": "Numéro de téléphone requis",
+                "phoneInvalid": "Format invalide (ex: +33612345678)",
+                "siretRequired": "SIRET requis",
+                "siretInvalid": "Le SIRET doit contenir 14 chiffres",
+                "acceptTerms": "Vous devez accepter les conditions générales",
+                "generic": "Une erreur est survenue lors de l'inscription"
+            }
+        },
+        "passwordHint": "Au moins 8 caractères, avec une majuscule, un chiffre et un caractère spécial",
+        "reset": {
+            "title": "Nouveau mot de passe",
+            "step1": "1. Entrez le code à 6 chiffres",
+            "step2": "2. Choisissez un nouveau mot de passe",
+            "newPasswordLabel": "Nouveau mot de passe",
+            "submit": "Réinitialiser le mot de passe",
+            "pwdMinLength": "Le mot de passe doit contenir au moins {{n}} caractères.",
+            "pwdUpper": "Le mot de passe doit contenir au moins une majuscule.",
+            "pwdDigit": "Le mot de passe doit contenir au moins un chiffre.",
+            "pwdSpecial": "Le mot de passe doit contenir au moins un caractère spécial.",
+            "codeIncompleteTitle": "Code incomplet",
+            "codeIncompleteMsg": "Veuillez saisir le code à 6 chiffres reçu par email.",
+            "invalidRequestTitle": "Demande invalide",
+            "invalidRequestMsg": "Cette demande n'est plus valide. Veuillez recommencer la procédure.",
+            "codeIncorrectTitle": "Code incorrect",
+            "codeInvalidRemaining": "Code invalide. {{count}} tentative(s) restante(s).",
+            "tooManyAttempts": "Trop de tentatives. Veuillez demander un nouveau code.",
+            "requestExpiredTitle": "Demande expirée",
+            "requestExpiredMsg": "Cette demande n'est plus valide. Veuillez recommencer.",
+            "tooManyTitle": "Trop de tentatives",
+            "tooManyMsg": "Veuillez demander un nouveau code et réessayer.",
+            "genericError": "Une erreur est survenue. Veuillez réessayer.",
+            "successTitle": "Mot de passe modifié",
+            "successMsg": "Votre mot de passe a été réinitialisé avec succès."
+        },
+        "forgot": {
+            "title": "Mot de passe oublié",
+            "subtitle": "Entrez l'adresse email associée à votre compte. Nous vous enverrons un code pour réinitialiser votre mot de passe.",
+            "cardLabel": "Récupération du compte",
+            "cardSubtitle": "Saisissez l'email de votre compte EatQuickeR.",
+            "sendCode": "Envoyer le code",
+            "backToPrefix": "Retour à",
+            "backToLogin": "la connexion",
+            "rateLimitTitle": "Trop de tentatives",
+            "rateLimitMsg": "Veuillez patienter quelques instants avant de réessayer.",
+            "sendError": "Impossible d'envoyer le code. Veuillez réessayer.",
+            "networkErrorTitle": "Erreur réseau",
+            "networkErrorMsg": "Vérifiez votre connexion et réessayez."
+        },
+        "verify": {
+            "title": "Vérification email",
+            "sentTo": "Code envoyé à",
+            "returnToBanner": "Validez votre email pour reprendre votre commande.",
+            "enterCode": "Entrez le code à 6 chiffres",
+            "expiresIn": "Ce code expire dans {{minutes}} minutes",
+            "confirm": "Confirmer l'email",
+            "noCode": "Vous n'avez pas reçu le code ?",
+            "resend": "Renvoyer le code",
+            "resendIn": "Renvoyer dans {{seconds}}s",
+            "editEmail": "← Modifier mon email",
+            "sessionInvalid": "Session invalide. Veuillez recommencer l'inscription.",
+            "invalidCodeTitle": "Code invalide",
+            "invalidCodeMsg": "Code incorrect. Veuillez réessayer.",
+            "accountCreatedTitle": "Compte créé !",
+            "accountCreatedMsg": "Bienvenue sur EatQuickeR 🎉",
+            "networkErrorTitle": "Erreur réseau",
+            "networkErrorMsg": "Une erreur est survenue. Veuillez réessayer.",
+            "resendError": "Impossible de renvoyer le code.",
+            "codeResentTitle": "Code renvoyé",
+            "codeResentMsg": "Nouveau code envoyé à {{email}}."
+        },
+        "welcomeTitle": "Ravis de vous voir",
+        "welcomeSubtitle": "Connectez-vous pour continuer",
+        "slogan": "Un serveur au service des serveurs",
+        "loginTitle": "Connexion",
+        "resumeOrderPrompt": "Connectez-vous pour reprendre votre commande là où vous l'aviez laissée.",
+        "validation": {
+            "emailRequired": "Email requis",
+            "passwordRequired": "Mot de passe requis",
+            "passwordMinLength": "Au moins {{min}} caractères",
+            "noAccountEmail": "Aucun compte avec cet email"
+        },
+        "alerts": {
+            "accountNotFound": {
+                "title": "Compte introuvable",
+                "message": "Aucun compte associé à cet email."
+            },
+            "invalidCredentials": {
+                "title": "Identifiants invalides",
+                "message": "Email ou mot de passe incorrect. Veuillez réessayer."
+            },
+            "accessDenied": {
+                "title": "Accès refusé",
+                "message": "Votre compte n'est pas autorisé à se connecter. Contactez le support."
+            },
+            "tooManyAttempts": {
+                "title": "Trop de tentatives",
+                "message": "Trop de tentatives de connexion. Réessayez dans quelques instants."
+            },
+            "networkError": {
+                "title": "Erreur de connexion",
+                "message": "Vérifiez votre connexion internet et réessayez."
+            },
+            "serviceUnavailable": {
+                "title": "Service indisponible",
+                "message": "Le service est temporairement indisponible. Réessayez plus tard."
+            },
+            "genericError": {
+                "title": "Erreur de connexion",
+                "message": "Une erreur est survenue. Veuillez réessayer."
+            },
+            "googlePlayUnavailable": {
+                "title": "Google Play indisponible",
+                "message": "Google Play Services n'est pas disponible sur cet appareil."
+            },
+            "googleLoginFailed": {
+                "title": "Connexion Google impossible"
+            },
+            "comingSoon": {
+                "title": "Bientôt disponible",
+                "message": "La connexion Apple sera disponible prochainement"
+            },
+            "sessionExpired": {
+                "title": "Session expirée",
+                "message": "Votre session a expiré. Veuillez vous reconnecter."
+            }
+        },
+        "continueWithApple": "Continuer avec Apple",
+        "signIn": "Se connecter",
+        "signUp": "Créer un compte",
+        "signOut": "Se déconnecter",
+        "email": "E-mail",
+        "password": "Mot de passe",
+        "passwordConfirm": "Confirmer le mot de passe",
+        "forgotPassword": "Mot de passe oublié ?",
+        "resetPassword": "Réinitialiser le mot de passe",
+        "firstName": "Prénom",
+        "lastName": "Nom",
+        "phone": "Téléphone",
+        "rememberMe": "Se souvenir de moi",
+        "reconnect": "Se reconnecter",
+        "useAnotherAccount": "ou un autre compte",
+        "continueAsGuest": "Continuer en invité",
+        "continueWithGoogle": "Continuer avec Google",
+        "alreadyHaveAccount": "Vous avez déjà un compte ?",
+        "noAccount": "Pas encore de compte ?",
+        "verifyEmail": "Vérifier votre e-mail",
+        "verificationSent": "Un e-mail de vérification vous a été envoyé.",
+        "termsAccept": "J'accepte les conditions d'utilisation",
+        "privacyAccept": "J'accepte la politique de confidentialité"
+    },
+    "menu": {
+        "title": "Menu",
+        "categories": "Catégories",
+        "viewMenu": "Voir le menu",
+        "allergens": "Allergènes",
+        "ingredients": "Ingrédients",
+        "description": "Description",
+        "price": "Prix",
+        "addToCart": "Ajouter au panier",
+        "removeFromCart": "Retirer du panier",
+        "outOfStock": "Rupture de stock",
+        "popular": "Populaire",
+        "new": "Nouveau",
+        "spicy": "Épicé",
+        "vegetarian": "Végétarien",
+        "vegan": "Végan",
+        "glutenFree": "Sans gluten",
+        "dailyMenu": "Menu du jour",
+        "specialOffer": "Offre spéciale",
+        "language": "Langue du menu",
+        "noItems": "Aucun plat disponible",
+        "searchPlaceholder": "Rechercher un plat…"
+    },
+    "cart": {
+        "title": "Panier",
+        "empty": "Votre panier est vide",
+        "emptyHint": "Ajoutez des plats pour commencer votre commande.",
+        "backToMenu": "Retour au menu",
+        "item_one": "{{count}} article",
+        "item_other": "{{count}} articles",
+        "subtotal": "Sous-total",
+        "tax": "Taxes",
+        "tip": "Pourboire",
+        "total": "Total",
+        "checkout": "Passer la commande",
+        "quantity": "Quantité",
+        "specialInstructions": "Instructions spéciales",
+        "specialInstructionsPlaceholder": "Allergies, cuisson, sans oignon…",
+        "table": "Table",
+        "tableNumber": "Table n° {{number}}",
+        "titleWithCount": "Panier ({{count}})",
+        "serviceFee": "Frais de service",
+        "collaborativeSession": "Session collaborative",
+        "scanToOrder": "Scanner pour commander",
+        "scanToOrderDescription": "Scannez un QR code pour accéder au menu",
+        "checkoutForGroup": "Commander pour le groupe",
+        "processing": "Traitement en cours…",
+        "hostOnlyCheckout": "Seul l'hôte peut passer la commande du groupe.",
+        "formula": {
+            "incomplete": "Formule incomplète",
+            "completeAction": "Complétez votre formule pour passer commande."
+        },
+        "clearConfirm": {
+            "title": "Vider le panier",
+            "message": "Êtes-vous sûr de vouloir vider votre panier ? Cette action est irréversible.",
+            "cta": "Vider le panier"
+        },
+        "removeConfirm": {
+            "title": "Retirer l'article",
+            "message": "Voulez-vous retirer cet article de votre panier ?",
+            "cta": "Retirer"
+        },
+        "splitConfirm": {
+            "title": "Commander pour le groupe",
+            "message": "Souhaitez-vous diviser la note entre les participants ? Chacun pourra payer sa part depuis son téléphone.",
+            "split": "Diviser la note",
+            "payAll": "Je paie tout"
+        },
+        "feedback": {
+            "quantityUpdated": "Quantité mise à jour",
+            "itemRemoved": "Article retiré du panier",
+            "cleared": "Panier vidé",
+            "emptyOnCheckout": "Votre panier est vide. Ajoutez des articles pour continuer.",
+            "restaurantNotFound": "Restaurant non trouvé. Veuillez scanner à nouveau le QR code.",
+            "orderPlaced": "Commande passée avec succès !",
+            "orderPlacedSplit": "Commande passée ! Division de la note en cours…"
+        },
         "errors": {
-          "emailRequired": "Email requis",
-          "emailInvalid": "Format d'email invalide",
-          "passwordRequired": "Mot de passe requis",
-          "passwordMin": "Minimum 8 caractères",
-          "nameRequired": "Nom requis",
-          "phoneRequired": "Numéro de téléphone requis",
-          "phoneInvalid": "Format invalide (ex: +33612345678)",
-          "siretRequired": "SIRET requis",
-          "siretInvalid": "Le SIRET doit contenir 14 chiffres",
-          "acceptTerms": "Vous devez accepter les conditions générales",
-          "generic": "Une erreur est survenue lors de l'inscription"
+            "quantityUpdate": "Erreur lors de la mise à jour de la quantité",
+            "itemRemove": "Erreur lors du retrait de l'article",
+            "cartClear": "Erreur lors de la suppression du panier",
+            "checkout": "Erreur lors de la préparation de la commande",
+            "groupOrder": "Erreur lors de la commande groupée"
+        },
+        "a11y": {
+            "itemImage": "Image de {{name}}",
+            "itemRow": "{{name}}, quantité {{count}}, prix {{price}}",
+            "removeItem": "Retirer l'article",
+            "decrease": "Diminuer la quantité",
+            "increase": "Augmenter la quantité",
+            "currentQuantity": "Quantité actuelle : {{count}}",
+            "checkoutHint": "Appuyez pour procéder au paiement",
+            "formulaLockHint": "Complétez votre formule pour passer commande",
+            "checkoutLabel": "Commander pour un total de {{amount}}"
         }
-      },
-    "passwordHint": "Au moins 8 caractères, avec une majuscule, un chiffre et un caractère spécial",
-      "reset": {
-        "title": "Nouveau mot de passe",
-        "step1": "1. Entrez le code à 6 chiffres",
-        "step2": "2. Choisissez un nouveau mot de passe",
-        "newPasswordLabel": "Nouveau mot de passe",
-        "submit": "Réinitialiser le mot de passe",
-        "pwdMinLength": "Le mot de passe doit contenir au moins {{n}} caractères.",
-        "pwdUpper": "Le mot de passe doit contenir au moins une majuscule.",
-        "pwdDigit": "Le mot de passe doit contenir au moins un chiffre.",
-        "pwdSpecial": "Le mot de passe doit contenir au moins un caractère spécial.",
-        "codeIncompleteTitle": "Code incomplet",
-        "codeIncompleteMsg": "Veuillez saisir le code à 6 chiffres reçu par email.",
-        "invalidRequestTitle": "Demande invalide",
-        "invalidRequestMsg": "Cette demande n'est plus valide. Veuillez recommencer la procédure.",
-        "codeIncorrectTitle": "Code incorrect",
-        "codeInvalidRemaining": "Code invalide. {{count}} tentative(s) restante(s).",
-        "tooManyAttempts": "Trop de tentatives. Veuillez demander un nouveau code.",
-        "requestExpiredTitle": "Demande expirée",
-        "requestExpiredMsg": "Cette demande n'est plus valide. Veuillez recommencer.",
-        "tooManyTitle": "Trop de tentatives",
-        "tooManyMsg": "Veuillez demander un nouveau code et réessayer.",
-        "genericError": "Une erreur est survenue. Veuillez réessayer.",
-        "successTitle": "Mot de passe modifié",
-        "successMsg": "Votre mot de passe a été réinitialisé avec succès."
-      },
-      "forgot": {
-        "title": "Mot de passe oublié",
-        "subtitle": "Entrez l'adresse email associée à votre compte. Nous vous enverrons un code pour réinitialiser votre mot de passe.",
-        "cardLabel": "Récupération du compte",
-        "cardSubtitle": "Saisissez l'email de votre compte EatQuickeR.",
-        "sendCode": "Envoyer le code",
-        "backToPrefix": "Retour à",
-        "backToLogin": "la connexion",
-        "rateLimitTitle": "Trop de tentatives",
-        "rateLimitMsg": "Veuillez patienter quelques instants avant de réessayer.",
-        "sendError": "Impossible d'envoyer le code. Veuillez réessayer.",
-        "networkErrorTitle": "Erreur réseau",
-        "networkErrorMsg": "Vérifiez votre connexion et réessayez."
-      },
-      "verify": {
-        "title": "Vérification email",
-        "sentTo": "Code envoyé à",
-        "returnToBanner": "Validez votre email pour reprendre votre commande.",
-        "enterCode": "Entrez le code à 6 chiffres",
-        "expiresIn": "Ce code expire dans {{minutes}} minutes",
-        "confirm": "Confirmer l'email",
-        "noCode": "Vous n'avez pas reçu le code ?",
-        "resend": "Renvoyer le code",
-        "resendIn": "Renvoyer dans {{seconds}}s",
-        "editEmail": "← Modifier mon email",
-        "sessionInvalid": "Session invalide. Veuillez recommencer l'inscription.",
+    },
+    "order": {
+        "title": "Commande",
+        "yourOrder": "Votre commande",
+        "orderNumber": "Commande n° {{number}}",
+        "status": {
+            "pending": "En attente",
+            "confirmed": "Confirmée",
+            "preparing": "En préparation",
+            "ready": "Prête",
+            "served": "Servie",
+            "completed": "Terminée",
+            "cancelled": "Annulée"
+        },
+        "placedAt": "Passée le {{date}}",
+        "noOrders": "Aucune commande pour le moment",
+        "viewDetails": "Voir les détails",
+        "track": "Suivre la commande",
+        "rate": "Noter la commande",
+        "reorder": "Commander à nouveau",
+        "count_one": "{{count}} commande",
+        "count_other": "{{count}} commandes",
+        "unpaidTitle_one": "Vous avez une commande impayée",
+        "unpaidTitle_other": "Vous avez {{count}} commandes impayées",
+        "unpaidSubtitle": "Réglez vos commandes pour pouvoir commander à nouveau",
+        "myOrders": "Mes commandes",
+        "tabs": {
+            "active": "En cours",
+            "history": "Historique"
+        },
+        "fallbackRestaurant": "Restaurant",
+        "todayAt": "Aujourd'hui à {{time}}",
+        "dineIn": "Sur place",
+        "takeaway": "À emporter",
+        "paid": "Payé",
+        "paymentPending": "Paiement en attente",
+        "waitingTime": "Temps d'attente estimé : {{minutes}} min",
+        "noActiveOrders": "Aucune commande en cours",
+        "noHistoryOrders": "Aucune commande passée",
+        "scanPrompt": "Scannez le QR code de votre table pour passer votre première commande",
+        "orderNow": "Commander maintenant",
+        "scanDescription": "Accédez au menu en scannant le QR code de votre table",
+        "scanQR": "Scanner QR Code",
+        "enterCode": "Entrer le code",
+        "clientOnly": "Accès réservé aux clients",
+        "loadingOrders": "Chargement de vos commandes…",
+        "realtimeUnavailable": "Notifications temps réel indisponibles. Tirez pour actualiser.",
+        "realtime": {
+            "on": "Temps réel activé",
+            "connecting": "Connexion…",
+            "error": "Erreur connexion",
+            "offline": "Hors ligne"
+        },
+        "statusLabels": {
+            "pending": "En attente",
+            "confirmed": "Confirmée",
+            "preparing": "En préparation",
+            "ready": "Prête",
+            "served": "Servie",
+            "cancelled": "Annulée"
+        }
+    },
+    "payment": {
+        "title": "Paiement",
+        "method": "Méthode de paiement",
+        "card": "Carte bancaire",
+        "applePay": "Apple Pay",
+        "googlePay": "Google Pay",
+        "payNow": "Payer maintenant",
+        "amount": "Montant",
+        "processing": "Traitement en cours…",
+        "success": "Paiement effectué",
+        "failed": "Le paiement a échoué",
+        "splitPayment": "Partager l'addition",
+        "splitEqual": "Diviser à parts égales",
+        "splitByItem": "Diviser par plat",
+        "splitCustom": "Montant personnalisé",
+        "minAmount": "Le montant minimum est de {{amount}}",
+        "yourShare": "Votre part",
+        "receipt": "Reçu",
+        "downloadReceipt": "Télécharger le reçu"
+    },
+    "session": {
+        "join": "Rejoindre la table",
+        "host": "Hôte",
+        "participants_one": "{{count}} participant",
+        "participants_other": "{{count}} participants",
+        "yourName": "Votre prénom",
+        "leaveSession": "Quitter la session",
+        "sessionEnded": "Session terminée",
+        "waitingForOthers": "En attente des autres convives…",
+        "tableLabel": "{{name}} · Table {{table}}",
+        "bannerCta": "Appuyer pour reprendre",
+        "foundLabel": "Session retrouvée",
+        "foundCta": "Appuyer pour rejoindre",
+        "inactivityWarning": "⚠️ Session inactive — fermeture auto dans {{time}}",
+        "status": {
+            "active": "En cours",
+            "locked": "Verrouillée",
+            "payment": "Paiement en attente"
+        },
+        "errors": {
+            "emptyCode": "Veuillez saisir un code de session.",
+            "notFound": "Aucune session trouvée avec ce code.",
+            "inactive": "Cette session n'est plus active.",
+            "invalidCode": "Aucune session active avec ce code. Vérifiez le code et réessayez.",
+            "joinFailed": "Impossible de rejoindre cette session.",
+            "maybeGone": "La session n'est peut-être plus disponible.",
+            "rejected": "L'hôte a refusé votre demande d'accès.",
+            "joinTitle": "Impossible de rejoindre"
+        },
+        "exit": {
+            "titleHost": "Terminer la session ?",
+            "titleMember": "Quitter la session ?",
+            "messageHost": "En tant qu'hôte, cela fermera la session pour tous les participants.",
+            "messageMember": "Vous allez quitter cette session collaborative.",
+            "ctaHost": "Terminer",
+            "ctaMember": "Quitter"
+        },
+        "completed": {
+            "title": "Session terminée",
+            "participantsLabel": "Participants ({{count}})",
+            "totalLabel": "Total : {{amount}}",
+            "close": "Fermer"
+        },
+        "codeModal": {
+            "title": "Rejoindre une session",
+            "description": "Saisissez le code partagé par l'hôte de la table pour rejoindre la session en cours.",
+            "placeholder": "EX : ABC123",
+            "cta": "Rejoindre la session"
+        },
+        "pending": {
+            "title": "En attente d'approbation",
+            "description": "L'hôte doit valider votre demande.\nVous serez redirigé automatiquement une fois accepté.",
+            "codeLabel": "Code de session"
+        },
+        "archive": {
+            "archived": "Cette session a été archivée",
+            "archivingIn": "Archivage dans {{time}}",
+            "archivingSoonUrgent": "⚠️ Archivage dans {{time}}"
+        },
+        "joinModal": {
+            "chooseTitle": "Commander sur cette table",
+            "chooseSubtitle": "Choisissez comment vous souhaitez commander",
+            "rejoinExisting": {
+                "title": "Rejoindre la session en cours",
+                "subtitle": "Code : {{code}} · {{count}} participant(s)"
+            },
+            "createGroup": {
+                "title": "Créer une session de groupe",
+                "description": "Commandez avec vos amis et divisez l'addition facilement"
+            },
+            "joinGroup": {
+                "title": "Rejoindre une session",
+                "description": "Entrez le code partagé par votre groupe"
+            },
+            "orderAlone": "Commander seul(e)",
+            "createTitle": "Créer une session de groupe",
+            "hostNameLabel": "Votre nom",
+            "hostNamePlaceholder": "Ex : Jean",
+            "sessionTypeLabel": "Type de session",
+            "sessionType": {
+                "collaborative": {
+                    "title": "Collaborative",
+                    "desc": "Tout le monde voit les commandes"
+                },
+                "individual": {
+                    "title": "Individuelle",
+                    "desc": "Chacun commande séparément"
+                }
+            },
+            "maxParticipantsLabel": "Nombre maximum de participants",
+            "requireApprovalLabel": "Approuver manuellement les nouveaux participants",
+            "back": "Retour",
+            "createCta": "Créer la session",
+            "joinTitle": "Rejoindre une session",
+            "codeLabel": "Code de session",
+            "codePlaceholder": "ABC123",
+            "verifyCta": "Vérifier",
+            "previewTitle": "Informations de la session",
+            "previewHost": "Hôte :",
+            "previewParticipants": "Participants :",
+            "sessionFullOrLocked": "⚠️ Cette session est pleine ou verrouillée",
+            "guestNameLabel": "Votre nom",
+            "guestNamePlaceholder": "Ex : Marie",
+            "joinCta": "Rejoindre",
+            "pendingDescription": "L'hôte de la session doit valider votre demande.\nVous serez automatiquement redirigé une fois accepté.",
+            "feedback": {
+                "soloError": "Impossible de démarrer la commande solo.",
+                "fieldRequired": "Champ requis",
+                "nameRequiredHost": "Veuillez entrer votre nom pour créer la session.",
+                "nameRequiredGuest": "Veuillez entrer votre nom pour rejoindre la session.",
+                "invalidCode": "Code invalide",
+                "invalidCodeDesc": "Le code doit contenir exactement 6 caractères.",
+                "codeNotFound": "Code introuvable",
+                "codeNotFoundDesc": "Aucune session active ne correspond à ce code.",
+                "sessionCreated": "Session créée !",
+                "sessionCreatedDesc": "Partagez le code {{code}} avec vos amis.",
+                "sessionCreateError": "Impossible de créer la session.",
+                "welcome": "Bienvenue !",
+                "welcomeDesc": "Vous avez rejoint la session avec succès.",
+                "joinError": "Impossible de rejoindre la session.",
+                "approved": "✅ Accepté !",
+                "approvedDesc": "L'hôte vous a accepté dans la session.",
+                "rejected": "❌ Refusé",
+                "rejectedDesc": "L'hôte a refusé votre demande."
+            }
+        }
+    },
+    "profile": {
+        "title": "Profil",
+        "myAccount": "Mon compte",
+        "personalInfo": "Informations personnelles",
+        "preferences": "Préférences",
+        "language": "Langue",
+        "appearance": "Apparence",
+        "notifications": "Notifications",
+        "paymentMethods": "Moyens de paiement",
+        "addresses": "Adresses",
+        "support": "Aide & support",
+        "about": "À propos",
+        "terms": "Conditions d'utilisation",
+        "privacy": "Politique de confidentialité",
+        "version": "Version {{version}}",
+        "deleteAccount": "Supprimer mon compte",
+        "signInPrompt": "Connectez-vous pour accéder à votre profil",
+        "defaultName": "Utilisateur",
+        "verified": "Vérifié",
+        "logoutConfirm": "Êtes-vous sûr de vouloir vous déconnecter ?",
+        "myActions": "Mes actions",
+        "information": "Informations",
+        "helpFaq": "Aide et FAQ",
+        "contactUs": "Nous contacter",
+        "personalData": "Données personnelles"
+    },
+    "theme": {
+        "title": "Thème",
+        "light": "Clair",
+        "dark": "Sombre",
+        "system": "Système"
+    },
+    "restaurant": {
+        "dashboard": "Tableau de bord",
+        "myRestaurants": "Mes restaurants",
+        "openNow": "Ouvert",
+        "closedNow": "Fermé",
+        "opensAt": "Ouvre à {{time}}",
+        "closesAt": "Ferme à {{time}}",
+        "address": "Adresse",
+        "contact": "Contact",
+        "hours": "Horaires d'ouverture",
+        "rating": "Note",
+        "reviews_one": "{{count}} avis",
+        "reviews_other": "{{count}} avis",
+        "menuManagement": "Gestion du menu",
+        "ordersManagement": "Gestion des commandes",
+        "staff": "Équipe",
+        "stats": "Statistiques",
+        "revenue": "Chiffre d'affaires",
+        "todayRevenue": "CA aujourd'hui",
+        "weekRevenue": "CA cette semaine",
+        "monthRevenue": "CA ce mois"
+    },
+    "errors": {
+        "generic": "Une erreur est survenue. Veuillez réessayer.",
+        "network": "Erreur réseau. Vérifiez votre connexion.",
+        "unauthorized": "Vous devez vous connecter pour continuer.",
+        "forbidden": "Action non autorisée.",
+        "notFound": "Ressource introuvable.",
+        "requiredField": "Ce champ est obligatoire.",
+        "invalidEmail": "Adresse e-mail invalide.",
+        "passwordTooShort": "Le mot de passe doit contenir au moins {{min}} caractères.",
+        "passwordMismatch": "Les mots de passe ne correspondent pas.",
+        "invalidCredentials": "Identifiants incorrects.",
+        "serverError": "Erreur serveur. Veuillez réessayer plus tard.",
+        "timeout": "Le serveur ne répond pas. Réessayez."
+    },
+    "success": {
+        "saved": "Enregistré",
+        "deleted": "Supprimé",
+        "sent": "Envoyé",
+        "copied": "Copié dans le presse-papiers"
+    },
+    "time": {
+        "now": "À l'instant",
+        "minuteAgo_one": "Il y a {{count}} minute",
+        "minuteAgo_other": "Il y a {{count}} minutes",
+        "hourAgo_one": "Il y a {{count}} heure",
+        "hourAgo_other": "Il y a {{count}} heures",
+        "dayAgo_one": "Il y a {{count}} jour",
+        "dayAgo_other": "Il y a {{count}} jours",
+        "today": "Aujourd'hui",
+        "yesterday": "Hier",
+        "tomorrow": "Demain"
+    },
+    "legal": {
+        "document": {
+            "lastUpdate": "Dernière mise à jour : {{date}}",
+            "acceptDefault": "J'ai lu et j'accepte",
+            "acceptTerms": "J'ai lu et j'accepte les CGU",
+            "acceptPrivacy": "J'ai lu et j'accepte la politique",
+            "saveError": "Erreur lors de l'enregistrement. Veuillez réessayer."
+        },
+        "modal": {
+            "welcomeTitle": "Bienvenue sur EatQuickeR",
+            "intro": "Pour continuer, veuillez accepter nos documents légaux.",
+            "termsName": "Conditions Générales d'Utilisation",
+            "privacyName": "Politique de Confidentialité",
+            "viewDocument": "Consulter le document",
+            "acceptTermsLabel": "J'accepte les Conditions Générales d'Utilisation",
+            "acceptPrivacyLabel": "J'accepte la Politique de Confidentialité",
+            "helpText": "Vous pouvez consulter les documents avant de les accepter en cliquant sur « Consulter le document ».",
+            "acceptBoth": "Acceptez les deux documents",
+            "saveError": "Erreur lors de la sauvegarde. Veuillez réessayer."
+        },
+        "copyright": "© {{year}} EatQuicker. Tous droits réservés.",
+        "termsShort": "CGU",
+        "privacyShort": "Confidentialité",
+        "noticeShort": "Mentions légales",
+        "downloadMyData": {
+            "cta": "Télécharger mes données",
+            "download": "Télécharger",
+            "gdprNotice": "Export conforme RGPD (Article 20)",
+            "confirmTitle": "Export de données",
+            "confirmMessage": "Souhaitez-vous télécharger toutes vos données personnelles ?\n\nCela inclut : profil, commandes, préférences, et historique.",
+            "shareDialogTitle": "Télécharger mes données EatQuickeR",
+            "options": {
+                "title": "Export de données",
+                "message": "Comment souhaitez-vous recevoir vos données ?",
+                "direct": "Téléchargement direct",
+                "email": "Par email (sous 48h)"
+            },
+            "progress": {
+                "fetching": "Récupération des données…",
+                "preparing": "Préparation du fichier…",
+                "preparingShort": "Préparation…",
+                "done": "Export terminé !",
+                "sending": "Envoi de la demande…"
+            },
+            "success": {
+                "title": "Export réussi",
+                "message": "Vos données ({{size}} KB) ont été exportées.\n\nVous pouvez maintenant les sauvegarder ou les partager.",
+                "messageFallback": "Vos données ont été exportées dans :\n{{filename}}\n\nTaille : {{size}} KB"
+            },
+            "email": {
+                "title": "Export par email",
+                "confirmMessage": "Vous recevrez un email avec un lien de téléchargement sécurisé sous 48h.\n\nContinuer ?",
+                "successTitle": "Demande enregistrée",
+                "successMessage": "Un email sera envoyé à {{email}} sous 48h avec vos données."
+            },
+            "errors": {
+                "notLoggedIn": "Vous devez être connecté pour exporter vos données",
+                "rateLimit": "Vous avez atteint la limite d'exports quotidiens. Veuillez réessayer demain.",
+                "sessionExpired": "Votre session a expiré. Veuillez vous reconnecter.",
+                "forbidden": "Vous n'avez pas la permission d'exporter ces données.",
+                "serverError": "Erreur serveur. Veuillez réessayer dans quelques instants.",
+                "serviceUnavailable": "Le service d'export est temporairement indisponible. Réessayez dans quelques minutes.",
+                "generic": "Impossible de télécharger vos données. Veuillez réessayer.",
+                "connection": "Erreur de connexion. Vérifiez votre connexion internet.",
+                "emailRequestFailed": "Impossible d'enregistrer votre demande. Veuillez réessayer.",
+                "emailPending": "Vous avez déjà une demande d'export en cours. Veuillez patienter."
+            },
+            "a11y": {
+                "label": "Télécharger mes données personnelles",
+                "hint": "Exporter toutes vos données conformément au RGPD"
+            }
+        }
+    },
+    "home": {
+        "subtitle": "Commandez facilement",
+        "welcome": "Bonjour {{name}} ! 👋",
+        "welcomeSubtext": "Prêt(e) à commander aujourd'hui ?",
+        "quickActions": "Actions rapides",
+        "actions": {
+            "myOrders": {
+                "title": "Mes commandes",
+                "subtitle": "Suivez vos commandes"
+            },
+            "myCart": {
+                "title": "Mon panier",
+                "subtitle": "Finalisez votre achat"
+            },
+            "joinSession": {
+                "title": "Rejoindre une session",
+                "subtitle": "Entrez un code de partage"
+            }
+        }
+    },
+    "qrAccess": {
+        "title": "Scanner le QR code de votre table",
+        "description": "Ou entrez le code manuellement",
+        "scanButton": "Scanner QR code",
+        "codeButton": "Saisir le code",
+        "emptyCode": "Veuillez entrer un code valide.",
         "invalidCodeTitle": "Code invalide",
-        "invalidCodeMsg": "Code incorrect. Veuillez réessayer.",
-        "accountCreatedTitle": "Compte créé !",
-        "accountCreatedMsg": "Bienvenue sur EatQuickeR 🎉",
-        "networkErrorTitle": "Erreur réseau",
-        "networkErrorMsg": "Une erreur est survenue. Veuillez réessayer.",
-        "resendError": "Impossible de renvoyer le code.",
-        "codeResentTitle": "Code renvoyé",
-        "codeResentMsg": "Nouveau code envoyé à {{email}}."
-      },
-    "welcomeTitle": "Ravis de vous voir",
-    "welcomeSubtitle": "Connectez-vous pour continuer",
-    "slogan": "Un serveur au service des serveurs",
-    "loginTitle": "Connexion",
-    "resumeOrderPrompt": "Connectez-vous pour reprendre votre commande là où vous l'aviez laissée.",
-      "validation": {
-        "emailRequired": "Email requis",
-        "passwordRequired": "Mot de passe requis",
-        "passwordMinLength": "Au moins {{min}} caractères",
-        "noAccountEmail": "Aucun compte avec cet email"
-      },
-      "alerts": {
-        "accountNotFound": {
-          "title": "Compte introuvable",
-          "message": "Aucun compte associé à cet email."
+        "errors": {
+            "notFound": "Ce code ne correspond à aucun restaurant ni table. Vérifiez le code ou scannez le QR code.",
+            "restaurantNotFound": "Ce code ne correspond à aucun restaurant enregistré. Vérifiez le QR code.",
+            "serverUnavailable": "Impossible de vérifier ce restaurant. Vérifiez votre connexion et réessayez."
         },
-        "invalidCredentials": {
-          "title": "Identifiants invalides",
-          "message": "Email ou mot de passe incorrect. Veuillez réessayer."
+        "modal": {
+            "title": "Entrer un code",
+            "description": "Code de table (Ex : R12T005) ou code de session partagé (6 caractères).",
+            "placeholder": "Ex : R12T005 ou ABC123",
+            "confirm": "Valider",
+            "verifying": "Vérification…"
         },
-        "accessDenied": {
-          "title": "Accès refusé",
-          "message": "Votre compte n'est pas autorisé à se connecter. Contactez le support."
-        },
-        "tooManyAttempts": {
-          "title": "Trop de tentatives",
-          "message": "Trop de tentatives de connexion. Réessayez dans quelques instants."
-        },
-        "networkError": {
-          "title": "Erreur de connexion",
-          "message": "Vérifiez votre connexion internet et réessayez."
-        },
-        "serviceUnavailable": {
-          "title": "Service indisponible",
-          "message": "Le service est temporairement indisponible. Réessayez plus tard."
-        },
-        "genericError": {
-          "title": "Erreur de connexion",
-          "message": "Une erreur est survenue. Veuillez réessayer."
-        },
-        "googlePlayUnavailable": {
-          "title": "Google Play indisponible",
-          "message": "Google Play Services n'est pas disponible sur cet appareil."
-        },
-        "googleLoginFailed": {
-          "title": "Connexion Google impossible"
-        },
-        "comingSoon": {
-          "title": "Bientôt disponible",
-          "message": "La connexion Apple sera disponible prochainement"
-        },
-        "sessionExpired": {
-          "title": "Session expirée",
-          "message": "Votre session a expiré. Veuillez vous reconnecter."
+        "account": {
+            "title": "Souhaitez-vous utiliser un compte ?",
+            "hint": "Un compte permet de retrouver vos commandes et factures. Vous pouvez aussi accéder au menu directement.",
+            "login": {
+                "title": "Se connecter",
+                "desc": "J'ai déjà un compte EatQuickeR"
+            },
+            "register": {
+                "title": "Créer un compte",
+                "desc": "Inscription rapide pour suivre mes commandes"
+            },
+            "or": "ou",
+            "guestCta": "Continuer sans compte",
+            "guestHint": "Vous accédez immédiatement au menu. Un nom et un numéro de téléphone vous seront demandés au moment de commander."
         }
-      },
-    "continueWithApple": "Continuer avec Apple",
-    "signIn": "Se connecter",
-    "signUp": "Créer un compte",
-    "signOut": "Se déconnecter",
-    "email": "E-mail",
-    "password": "Mot de passe",
-    "passwordConfirm": "Confirmer le mot de passe",
-    "forgotPassword": "Mot de passe oublié ?",
-    "resetPassword": "Réinitialiser le mot de passe",
-    "firstName": "Prénom",
-    "lastName": "Nom",
-    "phone": "Téléphone",
-    "rememberMe": "Se souvenir de moi",
-    "reconnect": "Se reconnecter",
-    "useAnotherAccount": "ou un autre compte",
-    "continueAsGuest": "Continuer en invité",
-    "continueWithGoogle": "Continuer avec Google",
-    "alreadyHaveAccount": "Vous avez déjà un compte ?",
-    "noAccount": "Pas encore de compte ?",
-    "verifyEmail": "Vérifier votre e-mail",
-    "verificationSent": "Un e-mail de vérification vous a été envoyé.",
-    "termsAccept": "J'accepte les conditions d'utilisation",
-    "privacyAccept": "J'accepte la politique de confidentialité"
-  },
-  "menu": {
-    "title": "Menu",
-    "categories": "Catégories",
-    "viewMenu": "Voir le menu",
-    "allergens": "Allergènes",
-    "ingredients": "Ingrédients",
-    "description": "Description",
-    "price": "Prix",
-    "addToCart": "Ajouter au panier",
-    "removeFromCart": "Retirer du panier",
-    "outOfStock": "Rupture de stock",
-    "popular": "Populaire",
-    "new": "Nouveau",
-    "spicy": "Épicé",
-    "vegetarian": "Végétarien",
-    "vegan": "Végan",
-    "glutenFree": "Sans gluten",
-    "dailyMenu": "Menu du jour",
-    "specialOffer": "Offre spéciale",
-    "language": "Langue du menu",
-    "noItems": "Aucun plat disponible",
-    "searchPlaceholder": "Rechercher un plat…"
-  },
-  "cart": {
-    "title": "Panier",
-    "empty": "Votre panier est vide",
-    "emptyHint": "Ajoutez des plats pour commencer votre commande.",
-    "backToMenu": "Retour au menu",
-    "item_one": "{{count}} article",
-    "item_other": "{{count}} articles",
-    "subtotal": "Sous-total",
-    "tax": "Taxes",
-    "tip": "Pourboire",
-    "total": "Total",
-    "checkout": "Passer la commande",
-    "quantity": "Quantité",
-    "specialInstructions": "Instructions spéciales",
-    "specialInstructionsPlaceholder": "Allergies, cuisson, sans oignon…",
-    "table": "Table",
-    "tableNumber": "Table n° {{number}}",
-    "titleWithCount": "Panier ({{count}})",
-    "serviceFee": "Frais de service",
-    "collaborativeSession": "Session collaborative",
-    "scanToOrder": "Scanner pour commander",
-    "scanToOrderDescription": "Scannez un QR code pour accéder au menu",
-    "checkoutForGroup": "Commander pour le groupe",
-    "processing": "Traitement en cours…",
-    "hostOnlyCheckout": "Seul l'hôte peut passer la commande du groupe.",
-    "formula": {
-      "incomplete": "Formule incomplète",
-      "completeAction": "Complétez votre formule pour passer commande."
     },
-    "clearConfirm": {
-      "title": "Vider le panier",
-      "message": "Êtes-vous sûr de vouloir vider votre panier ? Cette action est irréversible.",
-      "cta": "Vider le panier"
-    },
-    "removeConfirm": {
-      "title": "Retirer l'article",
-      "message": "Voulez-vous retirer cet article de votre panier ?",
-      "cta": "Retirer"
-    },
-    "splitConfirm": {
-      "title": "Commander pour le groupe",
-      "message": "Souhaitez-vous diviser la note entre les participants ? Chacun pourra payer sa part depuis son téléphone.",
-      "split": "Diviser la note",
-      "payAll": "Je paie tout"
-    },
-    "feedback": {
-      "quantityUpdated": "Quantité mise à jour",
-      "itemRemoved": "Article retiré du panier",
-      "cleared": "Panier vidé",
-      "emptyOnCheckout": "Votre panier est vide. Ajoutez des articles pour continuer.",
-      "restaurantNotFound": "Restaurant non trouvé. Veuillez scanner à nouveau le QR code.",
-      "orderPlaced": "Commande passée avec succès !",
-      "orderPlacedSplit": "Commande passée ! Division de la note en cours…"
-    },
-    "errors": {
-      "quantityUpdate": "Erreur lors de la mise à jour de la quantité",
-      "itemRemove": "Erreur lors du retrait de l'article",
-      "cartClear": "Erreur lors de la suppression du panier",
-      "checkout": "Erreur lors de la préparation de la commande",
-      "groupOrder": "Erreur lors de la commande groupée"
-    },
-    "a11y": {
-      "itemImage": "Image de {{name}}",
-      "itemRow": "{{name}}, quantité {{count}}, prix {{price}}",
-      "removeItem": "Retirer l'article",
-      "decrease": "Diminuer la quantité",
-      "increase": "Augmenter la quantité",
-      "currentQuantity": "Quantité actuelle : {{count}}",
-      "checkoutHint": "Appuyez pour procéder au paiement",
-      "formulaLockHint": "Complétez votre formule pour passer commande",
-      "checkoutLabel": "Commander pour un total de {{amount}}"
-    }
-  },
-  "order": {
-    "title": "Commande",
-    "yourOrder": "Votre commande",
-    "orderNumber": "Commande n° {{number}}",
-    "status": {
-      "pending": "En attente",
-      "confirmed": "Confirmée",
-      "preparing": "En préparation",
-      "ready": "Prête",
-      "served": "Servie",
-      "completed": "Terminée",
-      "cancelled": "Annulée"
-    },
-    "placedAt": "Passée le {{date}}",
-    "noOrders": "Aucune commande pour le moment",
-    "viewDetails": "Voir les détails",
-    "track": "Suivre la commande",
-    "rate": "Noter la commande",
-    "reorder": "Commander à nouveau",
-    "count_one": "{{count}} commande",
-    "count_other": "{{count}} commandes",
-    "unpaidTitle_one": "Vous avez une commande impayée",
-    "unpaidTitle_other": "Vous avez {{count}} commandes impayées",
-    "unpaidSubtitle": "Réglez vos commandes pour pouvoir commander à nouveau",
-    "myOrders": "Mes commandes",
-    "tabs": {
-      "active": "En cours",
-      "history": "Historique"
-    },
-    "fallbackRestaurant": "Restaurant",
-    "todayAt": "Aujourd'hui à {{time}}",
-    "dineIn": "Sur place",
-    "takeaway": "À emporter",
-    "paid": "Payé",
-    "paymentPending": "Paiement en attente",
-    "waitingTime": "Temps d'attente estimé : {{minutes}} min",
-    "noActiveOrders": "Aucune commande en cours",
-    "noHistoryOrders": "Aucune commande passée",
-    "scanPrompt": "Scannez le QR code de votre table pour passer votre première commande",
-    "orderNow": "Commander maintenant",
-    "scanDescription": "Accédez au menu en scannant le QR code de votre table",
-    "scanQR": "Scanner QR Code",
-    "enterCode": "Entrer le code",
-    "clientOnly": "Accès réservé aux clients",
-    "loadingOrders": "Chargement de vos commandes…",
-    "realtimeUnavailable": "Notifications temps réel indisponibles. Tirez pour actualiser.",
-    "realtime": {
-      "on": "Temps réel activé",
-      "connecting": "Connexion…",
-      "error": "Erreur connexion",
-      "offline": "Hors ligne"
-    },
-    "statusLabels": {
-      "pending": "En attente",
-      "confirmed": "Confirmée",
-      "preparing": "En préparation",
-      "ready": "Prête",
-      "served": "Servie",
-      "cancelled": "Annulée"
-    }
-  },
-  "payment": {
-    "title": "Paiement",
-    "method": "Méthode de paiement",
-    "card": "Carte bancaire",
-    "applePay": "Apple Pay",
-    "googlePay": "Google Pay",
-    "payNow": "Payer maintenant",
-    "amount": "Montant",
-    "processing": "Traitement en cours…",
-    "success": "Paiement effectué",
-    "failed": "Le paiement a échoué",
-    "splitPayment": "Partager l'addition",
-    "splitEqual": "Diviser à parts égales",
-    "splitByItem": "Diviser par plat",
-    "splitCustom": "Montant personnalisé",
-    "minAmount": "Le montant minimum est de {{amount}}",
-    "yourShare": "Votre part",
-    "receipt": "Reçu",
-    "downloadReceipt": "Télécharger le reçu"
-  },
-  "session": {
-    "join": "Rejoindre la table",
-    "host": "Hôte",
-    "participants_one": "{{count}} participant",
-    "participants_other": "{{count}} participants",
-    "yourName": "Votre prénom",
-    "leaveSession": "Quitter la session",
-    "sessionEnded": "Session terminée",
-    "waitingForOthers": "En attente des autres convives…",
-    "tableLabel": "{{name}} · Table {{table}}",
-    "bannerCta": "Appuyer pour reprendre",
-    "foundLabel": "Session retrouvée",
-    "foundCta": "Appuyer pour rejoindre",
-    "inactivityWarning": "⚠️ Session inactive — fermeture auto dans {{time}}",
-    "status": {
-      "active": "En cours",
-      "locked": "Verrouillée",
-      "payment": "Paiement en attente"
-    },
-    "errors": {
-      "emptyCode": "Veuillez saisir un code de session.",
-      "notFound": "Aucune session trouvée avec ce code.",
-      "inactive": "Cette session n'est plus active.",
-      "invalidCode": "Aucune session active avec ce code. Vérifiez le code et réessayez.",
-      "joinFailed": "Impossible de rejoindre cette session.",
-      "maybeGone": "La session n'est peut-être plus disponible.",
-      "rejected": "L'hôte a refusé votre demande d'accès.",
-      "joinTitle": "Impossible de rejoindre"
-    },
-    "exit": {
-      "titleHost": "Terminer la session ?",
-      "titleMember": "Quitter la session ?",
-      "messageHost": "En tant qu'hôte, cela fermera la session pour tous les participants.",
-      "messageMember": "Vous allez quitter cette session collaborative.",
-      "ctaHost": "Terminer",
-      "ctaMember": "Quitter"
-    },
-    "completed": {
-      "title": "Session terminée",
-      "participantsLabel": "Participants ({{count}})",
-      "totalLabel": "Total : {{amount}}",
-      "close": "Fermer"
-    },
-    "codeModal": {
-      "title": "Rejoindre une session",
-      "description": "Saisissez le code partagé par l'hôte de la table pour rejoindre la session en cours.",
-      "placeholder": "EX : ABC123",
-      "cta": "Rejoindre la session"
-    },
-    "pending": {
-      "title": "En attente d'approbation",
-      "description": "L'hôte doit valider votre demande.\nVous serez redirigé automatiquement une fois accepté.",
-      "codeLabel": "Code de session"
-    },
-    "archive": {
-      "archived": "Cette session a été archivée",
-      "archivingIn": "Archivage dans {{time}}",
-      "archivingSoonUrgent": "⚠️ Archivage dans {{time}}"
-    },
-    "joinModal": {
-      "chooseTitle": "Commander sur cette table",
-      "chooseSubtitle": "Choisissez comment vous souhaitez commander",
-      "rejoinExisting": {
-        "title": "Rejoindre la session en cours",
-        "subtitle": "Code : {{code}} · {{count}} participant(s)"
-      },
-      "createGroup": {
-        "title": "Créer une session de groupe",
-        "description": "Commandez avec vos amis et divisez l'addition facilement"
-      },
-      "joinGroup": {
-        "title": "Rejoindre une session",
-        "description": "Entrez le code partagé par votre groupe"
-      },
-      "orderAlone": "Commander seul(e)",
-      "createTitle": "Créer une session de groupe",
-      "hostNameLabel": "Votre nom",
-      "hostNamePlaceholder": "Ex : Jean",
-      "sessionTypeLabel": "Type de session",
-      "sessionType": {
-        "collaborative": {
-          "title": "Collaborative",
-          "desc": "Tout le monde voit les commandes"
-        },
-        "individual": {
-          "title": "Individuelle",
-          "desc": "Chacun commande séparément"
+    "qrScanner": {
+        "invalidTitle": "QR Code invalide",
+        "invalidMessage": "Ce QR code ne correspond pas à un restaurant EatQuickeR\n\nValeur scannée : {{value}}",
+        "retry": "Réessayer",
+        "instruction": "Pointez la caméra vers le QR code du restaurant",
+        "permission": {
+            "title": "Accès caméra requis",
+            "description": "Pour scanner les QR codes, nous avons besoin d'accéder à votre caméra.",
+            "allow": "Autoriser"
         }
-      },
-      "maxParticipantsLabel": "Nombre maximum de participants",
-      "requireApprovalLabel": "Approuver manuellement les nouveaux participants",
-      "back": "Retour",
-      "createCta": "Créer la session",
-      "joinTitle": "Rejoindre une session",
-      "codeLabel": "Code de session",
-      "codePlaceholder": "ABC123",
-      "verifyCta": "Vérifier",
-      "previewTitle": "Informations de la session",
-      "previewHost": "Hôte :",
-      "previewParticipants": "Participants :",
-      "sessionFullOrLocked": "⚠️ Cette session est pleine ou verrouillée",
-      "guestNameLabel": "Votre nom",
-      "guestNamePlaceholder": "Ex : Marie",
-      "joinCta": "Rejoindre",
-      "pendingDescription": "L'hôte de la session doit valider votre demande.\nVous serez automatiquement redirigé une fois accepté.",
-      "feedback": {
-        "soloError": "Impossible de démarrer la commande solo.",
-        "fieldRequired": "Champ requis",
-        "nameRequiredHost": "Veuillez entrer votre nom pour créer la session.",
-        "nameRequiredGuest": "Veuillez entrer votre nom pour rejoindre la session.",
-        "invalidCode": "Code invalide",
-        "invalidCodeDesc": "Le code doit contenir exactement 6 caractères.",
-        "codeNotFound": "Code introuvable",
-        "codeNotFoundDesc": "Aucune session active ne correspond à ce code.",
-        "sessionCreated": "Session créée !",
-        "sessionCreatedDesc": "Partagez le code {{code}} avec vos amis.",
-        "sessionCreateError": "Impossible de créer la session.",
-        "welcome": "Bienvenue !",
-        "welcomeDesc": "Vous avez rejoint la session avec succès.",
-        "joinError": "Impossible de rejoindre la session.",
-        "approved": "✅ Accepté !",
-        "approvedDesc": "L'hôte vous a accepté dans la session.",
-        "rejected": "❌ Refusé",
-        "rejectedDesc": "L'hôte a refusé votre demande."
-      }
-    }
-  },
-  "profile": {
-    "title": "Profil",
-    "myAccount": "Mon compte",
-    "personalInfo": "Informations personnelles",
-    "preferences": "Préférences",
-    "language": "Langue",
-    "appearance": "Apparence",
-    "notifications": "Notifications",
-    "paymentMethods": "Moyens de paiement",
-    "addresses": "Adresses",
-    "support": "Aide & support",
-    "about": "À propos",
-    "terms": "Conditions d'utilisation",
-    "privacy": "Politique de confidentialité",
-    "version": "Version {{version}}",
-    "deleteAccount": "Supprimer mon compte",
-    "signInPrompt": "Connectez-vous pour accéder à votre profil",
-    "defaultName": "Utilisateur",
-    "verified": "Vérifié",
-    "logoutConfirm": "Êtes-vous sûr de vouloir vous déconnecter ?",
-    "myActions": "Mes actions",
-    "information": "Informations",
-    "helpFaq": "Aide et FAQ",
-    "contactUs": "Nous contacter",
-    "personalData": "Données personnelles"
-  },
-  "theme": {
-    "title": "Thème",
-    "light": "Clair",
-    "dark": "Sombre",
-    "system": "Système"
-  },
-  "restaurant": {
-    "dashboard": "Tableau de bord",
-    "myRestaurants": "Mes restaurants",
-    "openNow": "Ouvert",
-    "closedNow": "Fermé",
-    "opensAt": "Ouvre à {{time}}",
-    "closesAt": "Ferme à {{time}}",
-    "address": "Adresse",
-    "contact": "Contact",
-    "hours": "Horaires d'ouverture",
-    "rating": "Note",
-    "reviews_one": "{{count}} avis",
-    "reviews_other": "{{count}} avis",
-    "menuManagement": "Gestion du menu",
-    "ordersManagement": "Gestion des commandes",
-    "staff": "Équipe",
-    "stats": "Statistiques",
-    "revenue": "Chiffre d'affaires",
-    "todayRevenue": "CA aujourd'hui",
-    "weekRevenue": "CA cette semaine",
-    "monthRevenue": "CA ce mois"
-  },
-  "errors": {
-    "generic": "Une erreur est survenue. Veuillez réessayer.",
-    "network": "Erreur réseau. Vérifiez votre connexion.",
-    "unauthorized": "Vous devez vous connecter pour continuer.",
-    "forbidden": "Action non autorisée.",
-    "notFound": "Ressource introuvable.",
-    "requiredField": "Ce champ est obligatoire.",
-    "invalidEmail": "Adresse e-mail invalide.",
-    "passwordTooShort": "Le mot de passe doit contenir au moins {{min}} caractères.",
-    "passwordMismatch": "Les mots de passe ne correspondent pas.",
-    "invalidCredentials": "Identifiants incorrects.",
-    "serverError": "Erreur serveur. Veuillez réessayer plus tard.",
-    "timeout": "Le serveur ne répond pas. Réessayez."
-  },
-  "success": {
-    "saved": "Enregistré",
-    "deleted": "Supprimé",
-    "sent": "Envoyé",
-    "copied": "Copié dans le presse-papiers"
-  },
-  "time": {
-    "now": "À l'instant",
-    "minuteAgo_one": "Il y a {{count}} minute",
-    "minuteAgo_other": "Il y a {{count}} minutes",
-    "hourAgo_one": "Il y a {{count}} heure",
-    "hourAgo_other": "Il y a {{count}} heures",
-    "dayAgo_one": "Il y a {{count}} jour",
-    "dayAgo_other": "Il y a {{count}} jours",
-    "today": "Aujourd'hui",
-    "yesterday": "Hier",
-    "tomorrow": "Demain"
-  },
-  "legal": {
-      "document": {
-        "lastUpdate": "Dernière mise à jour : {{date}}",
-        "acceptDefault": "J'ai lu et j'accepte",
-        "acceptTerms": "J'ai lu et j'accepte les CGU",
-        "acceptPrivacy": "J'ai lu et j'accepte la politique",
-        "saveError": "Erreur lors de l'enregistrement. Veuillez réessayer."
-      },
-      "modal": {
-        "welcomeTitle": "Bienvenue sur EatQuickeR",
-        "intro": "Pour continuer, veuillez accepter nos documents légaux.",
-        "termsName": "Conditions Générales d'Utilisation",
-        "privacyName": "Politique de Confidentialité",
-        "viewDocument": "Consulter le document",
-        "acceptTermsLabel": "J'accepte les Conditions Générales d'Utilisation",
-        "acceptPrivacyLabel": "J'accepte la Politique de Confidentialité",
-        "helpText": "Vous pouvez consulter les documents avant de les accepter en cliquant sur « Consulter le document ».",
-        "acceptBoth": "Acceptez les deux documents",
-        "saveError": "Erreur lors de la sauvegarde. Veuillez réessayer."
-      },
-    "copyright": "© {{year}} EatQuicker. Tous droits réservés.",
-    "termsShort": "CGU",
-    "privacyShort": "Confidentialité",
-    "noticeShort": "Mentions légales",
-    "downloadMyData": {
-      "cta": "Télécharger mes données",
-      "download": "Télécharger",
-      "gdprNotice": "Export conforme RGPD (Article 20)",
-      "confirmTitle": "Export de données",
-      "confirmMessage": "Souhaitez-vous télécharger toutes vos données personnelles ?\n\nCela inclut : profil, commandes, préférences, et historique.",
-      "shareDialogTitle": "Télécharger mes données EatQuickeR",
-      "options": {
-        "title": "Export de données",
-        "message": "Comment souhaitez-vous recevoir vos données ?",
-        "direct": "Téléchargement direct",
-        "email": "Par email (sous 48h)"
-      },
-      "progress": {
-        "fetching": "Récupération des données…",
-        "preparing": "Préparation du fichier…",
-        "preparingShort": "Préparation…",
-        "done": "Export terminé !",
-        "sending": "Envoi de la demande…"
-      },
-      "success": {
-        "title": "Export réussi",
-        "message": "Vos données ({{size}} KB) ont été exportées.\n\nVous pouvez maintenant les sauvegarder ou les partager.",
-        "messageFallback": "Vos données ont été exportées dans :\n{{filename}}\n\nTaille : {{size}} KB"
-      },
-      "email": {
-        "title": "Export par email",
-        "confirmMessage": "Vous recevrez un email avec un lien de téléchargement sécurisé sous 48h.\n\nContinuer ?",
-        "successTitle": "Demande enregistrée",
-        "successMessage": "Un email sera envoyé à {{email}} sous 48h avec vos données."
-      },
-      "errors": {
-        "notLoggedIn": "Vous devez être connecté pour exporter vos données",
-        "rateLimit": "Vous avez atteint la limite d'exports quotidiens. Veuillez réessayer demain.",
-        "sessionExpired": "Votre session a expiré. Veuillez vous reconnecter.",
-        "forbidden": "Vous n'avez pas la permission d'exporter ces données.",
-        "serverError": "Erreur serveur. Veuillez réessayer dans quelques instants.",
-        "serviceUnavailable": "Le service d'export est temporairement indisponible. Réessayez dans quelques minutes.",
-        "generic": "Impossible de télécharger vos données. Veuillez réessayer.",
-        "connection": "Erreur de connexion. Vérifiez votre connexion internet.",
-        "emailRequestFailed": "Impossible d'enregistrer votre demande. Veuillez réessayer.",
-        "emailPending": "Vous avez déjà une demande d'export en cours. Veuillez patienter."
-      },
-      "a11y": {
-        "label": "Télécharger mes données personnelles",
-        "hint": "Exporter toutes vos données conformément au RGPD"
-      }
-    }
-  },
-  "home": {
-    "subtitle": "Commandez facilement",
-    "welcome": "Bonjour {{name}} ! 👋",
-    "welcomeSubtext": "Prêt(e) à commander aujourd'hui ?",
-    "quickActions": "Actions rapides",
-    "actions": {
-      "myOrders": {
-        "title": "Mes commandes",
-        "subtitle": "Suivez vos commandes"
-      },
-      "myCart": {
-        "title": "Mon panier",
-        "subtitle": "Finalisez votre achat"
-      },
-      "joinSession": {
-        "title": "Rejoindre une session",
-        "subtitle": "Entrez un code de partage"
-      }
-    }
-  },
-  "qrAccess": {
-    "title": "Scanner le QR code de votre table",
-    "description": "Ou entrez le code manuellement",
-    "scanButton": "Scanner QR code",
-    "codeButton": "Saisir le code",
-    "emptyCode": "Veuillez entrer un code valide.",
-    "invalidCodeTitle": "Code invalide",
-    "errors": {
-      "notFound": "Ce code ne correspond à aucun restaurant ni table. Vérifiez le code ou scannez le QR code.",
-      "restaurantNotFound": "Ce code ne correspond à aucun restaurant enregistré. Vérifiez le QR code.",
-      "serverUnavailable": "Impossible de vérifier ce restaurant. Vérifiez votre connexion et réessayez."
     },
-    "modal": {
-      "title": "Entrer un code",
-      "description": "Code de table (Ex : R12T005) ou code de session partagé (6 caractères).",
-      "placeholder": "Ex : R12T005 ou ABC123",
-      "confirm": "Valider",
-      "verifying": "Vérification…"
+    "restaurantNav": {
+        "home": "Accueil",
+        "restaurants": "Restaurants",
+        "orders": "Commandes",
+        "menus": "Menus",
+        "dailyMenu": "Menu du jour",
+        "dailyMenuShort": "Menu jour",
+        "statistics": "Statistiques",
+        "statisticsShort": "Stats",
+        "qrcodes": "QR Codes",
+        "profile": "Profil",
+        "accounting": "Comptabilité"
     },
-    "account": {
-      "title": "Souhaitez-vous utiliser un compte ?",
-      "hint": "Un compte permet de retrouver vos commandes et factures. Vous pouvez aussi accéder au menu directement.",
-      "login": {
-        "title": "Se connecter",
-        "desc": "J'ai déjà un compte EatQuickeR"
-      },
-      "register": {
-        "title": "Créer un compte",
-        "desc": "Inscription rapide pour suivre mes commandes"
-      },
-      "or": "ou",
-      "guestCta": "Continuer sans compte",
-      "guestHint": "Vous accédez immédiatement au menu. Un nom et un numéro de téléphone vous seront demandés au moment de commander."
-    }
-  },
-  "qrScanner": {
-    "invalidTitle": "QR Code invalide",
-    "invalidMessage": "Ce QR code ne correspond pas à un restaurant EatQuickeR\n\nValeur scannée : {{value}}",
-    "retry": "Réessayer",
-    "instruction": "Pointez la caméra vers le QR code du restaurant",
-    "permission": {
-      "title": "Accès caméra requis",
-      "description": "Pour scanner les QR codes, nous avons besoin d'accéder à votre caméra.",
-      "allow": "Autoriser"
-    }
-  },
-  "restaurantNav": {
-    "home": "Accueil",
-    "restaurants": "Restaurants",
-    "orders": "Commandes",
-    "menus": "Menus",
-    "dailyMenu": "Menu du jour",
-    "dailyMenuShort": "Menu jour",
-    "statistics": "Statistiques",
-    "statisticsShort": "Stats",
-    "qrcodes": "QR Codes",
-    "profile": "Profil",
-    "accounting": "Comptabilité"
-  },
-  "restaurantProfile": {
-    "fallbackUserName": "Utilisateur",
-    "accountInfo": "Informations du compte",
-    "email": "Email",
-    "phone": "Téléphone",
-    "accountType": "Type de compte",
-    "siret": "SIRET",
-    "stripeStatus": "Statut Stripe",
-    "stripeValidated": "Validé",
-    "stripePending": "En attente",
-    "logout": "Déconnexion",
-    "logoutConfirmTitle": "Déconnexion",
-    "logoutConfirmMessage": "Êtes-vous sûr de vouloir vous déconnecter ?",
-    "role": {
-      "restaurateur": "Restaurateur",
-      "client": "Client"
-    },
-    "feedback": {
-      "logoutFailed": "Impossible de se déconnecter"
-    }
-  },
-  "restaurantsList": {
-    "subtitle_one": "{{count}} établissement",
-    "subtitle_other": "{{count}} établissements",
-    "overview": "Vue d'ensemble",
-    "searchPlaceholder": "Rechercher un restaurant…",
-    "loading": "Chargement…",
-    "loadingFull": "Chargement des restaurants…",
-    "pagination": "Page {{current}} sur {{total}}",
-    "activeFilters_one": "{{count}} filtre actif",
-    "activeFilters_other": "{{count}} filtres actifs",
-    "clearFilters": "Effacer",
-    "viewMode": {
-      "list": "Liste",
-      "grid": "Grille"
-    },
-    "stats": {
-      "totalLabel_one": "Restaurant",
-      "totalLabel_other": "Restaurants",
-      "openLabel_one": "Ouvert",
-      "openLabel_other": "Ouverts",
-      "closedLabel_one": "Fermé",
-      "closedLabel_other": "Fermés"
-    },
-    "empty": {
-      "noResultTitle": "Aucun résultat",
-      "noResultDescription": "Essayez de modifier votre recherche ou ajustez les filtres",
-      "noRestaurantTitle": "Aucun restaurant",
-      "noRestaurantDescription": "Commencez par ajouter votre premier restaurant pour gérer vos commandes",
-      "addCta": "Ajouter un restaurant",
-      "howItWorks": "Comment ça marche ?"
-    },
-    "errors": {
-      "searchFailed": "Impossible de rechercher les restaurants",
-      "reloadFailed": "Impossible de recharger les restaurants",
-      "refreshFailed": "Impossible de rafraîchir la liste",
-      "loadMoreFailed": "Impossible de charger plus de restaurants"
-    }
-  },
-  "restaurantOrders": {
-    "noRestaurantFound": "Aucun restaurant trouvé",
-    "selectRestaurant": "Sélectionner un restaurant",
-    "chooseRestaurant": "Choisir un restaurant",
-    "orderTitle": "Commande {{number}}",
-    "todayAt": "Aujourd'hui à {{time}}",
-    "anonymousCustomer": "Client anonyme",
-    "tableLabel": "Table {{number}}",
-    "estimatedTime": "Temps estimé : {{minutes}} min",
-    "viewDetails": "Voir les détails",
-    "forbiddenMessage": "Accès réservé aux restaurateurs",
-    "itemsCount_one": "{{count}} article",
-    "itemsCount_other": "{{count}} articles",
-    "orderType": {
-      "dineIn": "Sur place",
-      "takeaway": "À emporter"
-    },
-    "paymentStatus": {
-      "paid": "Payée",
-      "unpaid": "Non payée",
-      "unpaidShort": "Non payé"
-    },
-    "actions": {
-      "confirm": "Confirmer",
-      "preparing": "En préparation",
-      "ready": "Prêt",
-      "serve": "Servir",
-      "collect": "Encaisser",
-      "archive": "Archiver",
-      "unarchive": "Désarchiver"
-    },
-    "filters": {
-      "all": "Toutes",
-      "served": "Servies",
-      "cancelled": "Annulées",
-      "archived": "Archives"
-    },
-    "kanban": {
-      "emptyColumn": "Rien ici",
-      "columns": {
-        "new": {
-          "title": "Nouvelles",
-          "chip": "Nouvelle",
-          "action": "Commencer"
+    "restaurantProfile": {
+        "fallbackUserName": "Utilisateur",
+        "accountInfo": "Informations du compte",
+        "email": "Email",
+        "phone": "Téléphone",
+        "accountType": "Type de compte",
+        "siret": "SIRET",
+        "stripeStatus": "Statut Stripe",
+        "stripeValidated": "Validé",
+        "stripePending": "En attente",
+        "logout": "Déconnexion",
+        "logoutConfirmTitle": "Déconnexion",
+        "logoutConfirmMessage": "Êtes-vous sûr de vouloir vous déconnecter ?",
+        "role": {
+            "restaurateur": "Restaurateur",
+            "client": "Client"
         },
-        "preparing": {
-          "title": "En préparation",
-          "chip": "En préparation",
-          "action": "Marquer prête"
-        },
-        "ready": {
-          "title": "Prêtes",
-          "chip": "Prête",
-          "action": "Servie"
+        "feedback": {
+            "logoutFailed": "Impossible de se déconnecter"
         }
-      }
     },
-    "banner": {
-      "title": "Service en cours",
-      "titleWithName": "{{name}} — Service en cours",
-      "pending": "En attente",
-      "tonight": "Ce soir",
-      "history": "Historique",
-      "refresh": "Actualiser"
+    "restaurantsList": {
+        "subtitle_one": "{{count}} établissement",
+        "subtitle_other": "{{count}} établissements",
+        "overview": "Vue d'ensemble",
+        "searchPlaceholder": "Rechercher un restaurant…",
+        "loading": "Chargement…",
+        "loadingFull": "Chargement des restaurants…",
+        "pagination": "Page {{current}} sur {{total}}",
+        "activeFilters_one": "{{count}} filtre actif",
+        "activeFilters_other": "{{count}} filtres actifs",
+        "clearFilters": "Effacer",
+        "viewMode": {
+            "list": "Liste",
+            "grid": "Grille"
+        },
+        "stats": {
+            "totalLabel_one": "Restaurant",
+            "totalLabel_other": "Restaurants",
+            "openLabel_one": "Ouvert",
+            "openLabel_other": "Ouverts",
+            "closedLabel_one": "Fermé",
+            "closedLabel_other": "Fermés"
+        },
+        "empty": {
+            "noResultTitle": "Aucun résultat",
+            "noResultDescription": "Essayez de modifier votre recherche ou ajustez les filtres",
+            "noRestaurantTitle": "Aucun restaurant",
+            "noRestaurantDescription": "Commencez par ajouter votre premier restaurant pour gérer vos commandes",
+            "addCta": "Ajouter un restaurant",
+            "howItWorks": "Comment ça marche ?"
+        },
+        "errors": {
+            "searchFailed": "Impossible de rechercher les restaurants",
+            "reloadFailed": "Impossible de recharger les restaurants",
+            "refreshFailed": "Impossible de rafraîchir la liste",
+            "loadMoreFailed": "Impossible de charger plus de restaurants"
+        }
     },
-    "history": {
-      "title": "Historique des commandes",
-      "bulkArchive_one": "Archiver la {{count}} commande terminée",
-      "bulkArchive_other": "Archiver les {{count}} commandes terminées",
-      "emptyTitle": "Aucune commande",
-      "emptyArchived": "Aucune commande archivée",
-      "emptyCompleted": "Aucune commande terminée pour le moment"
+    "restaurantOrders": {
+        "noRestaurantFound": "Aucun restaurant trouvé",
+        "selectRestaurant": "Sélectionner un restaurant",
+        "chooseRestaurant": "Choisir un restaurant",
+        "orderTitle": "Commande {{number}}",
+        "todayAt": "Aujourd'hui à {{time}}",
+        "anonymousCustomer": "Client anonyme",
+        "tableLabel": "Table {{number}}",
+        "estimatedTime": "Temps estimé : {{minutes}} min",
+        "viewDetails": "Voir les détails",
+        "forbiddenMessage": "Accès réservé aux restaurateurs",
+        "itemsCount_one": "{{count}} article",
+        "itemsCount_other": "{{count}} articles",
+        "orderType": {
+            "dineIn": "Sur place",
+            "takeaway": "À emporter"
+        },
+        "paymentStatus": {
+            "paid": "Payée",
+            "unpaid": "Non payée",
+            "unpaidShort": "Non payé"
+        },
+        "actions": {
+            "confirm": "Confirmer",
+            "preparing": "En préparation",
+            "ready": "Prêt",
+            "serve": "Servir",
+            "collect": "Encaisser",
+            "archive": "Archiver",
+            "unarchive": "Désarchiver"
+        },
+        "filters": {
+            "all": "Toutes",
+            "served": "Servies",
+            "cancelled": "Annulées",
+            "archived": "Archives"
+        },
+        "kanban": {
+            "emptyColumn": "Rien ici",
+            "columns": {
+                "new": {
+                    "title": "Nouvelles",
+                    "chip": "Nouvelle",
+                    "action": "Commencer"
+                },
+                "preparing": {
+                    "title": "En préparation",
+                    "chip": "En préparation",
+                    "action": "Marquer prête"
+                },
+                "ready": {
+                    "title": "Prêtes",
+                    "chip": "Prête",
+                    "action": "Servie"
+                }
+            }
+        },
+        "banner": {
+            "title": "Service en cours",
+            "titleWithName": "{{name}} — Service en cours",
+            "pending": "En attente",
+            "tonight": "Ce soir",
+            "history": "Historique",
+            "refresh": "Actualiser"
+        },
+        "history": {
+            "title": "Historique des commandes",
+            "bulkArchive_one": "Archiver la {{count}} commande terminée",
+            "bulkArchive_other": "Archiver les {{count}} commandes terminées",
+            "emptyTitle": "Aucune commande",
+            "emptyArchived": "Aucune commande archivée",
+            "emptyCompleted": "Aucune commande terminée pour le moment"
+        },
+        "cancelConfirm": {
+            "title": "Annuler la commande",
+            "message": "Voulez-vous vraiment annuler la commande {{number}} ?",
+            "keep": "Non, garder",
+            "confirm": "Oui, annuler"
+        },
+        "paymentPrompt": {
+            "title": "Marquer comme payée",
+            "message": "Quelle méthode de paiement ?",
+            "cash": "Espèces",
+            "card": "Carte"
+        },
+        "archiveConfirm": {
+            "title": "Archiver les commandes terminées",
+            "message": "Voulez-vous archiver toutes les commandes servies et annulées ?"
+        },
+        "loading": {
+            "restaurants": "Chargement des restaurants…",
+            "orders": "Chargement des commandes…"
+        },
+        "feedback": {
+            "refreshFailed": "Impossible d'actualiser les commandes",
+            "statusUpdateFailed": "Impossible de mettre à jour le statut de la commande",
+            "paidTitle": "Encaissement",
+            "paidMessage": "La commande a été marquée comme payée",
+            "markPaidFailed": "Impossible de marquer la commande comme payée",
+            "archivedTitle": "Succès",
+            "archivedMessage_one": "{{count}} commande archivée",
+            "archivedMessage_other": "{{count}} commandes archivées",
+            "noneToArchiveTitle": "Information",
+            "noneToArchiveMessage": "Aucune commande à archiver",
+            "archiveFailed": "Impossible d'archiver les commandes"
+        }
     },
-    "cancelConfirm": {
-      "title": "Annuler la commande",
-      "message": "Voulez-vous vraiment annuler la commande {{number}} ?",
-      "keep": "Non, garder",
-      "confirm": "Oui, annuler"
+    "restaurantDailyMenu": {
+        "today": "Aujourd'hui",
+        "close": "Fermer",
+        "noRestaurantMessage": "Aucun restaurant pour gérer les menus",
+        "createRestaurant": "Créer mon restaurant",
+        "legend": {
+            "withMenu": "Avec menu",
+            "inactiveMenu": "Menu inactif"
+        },
+        "manager": {
+            "duplicate": "Dupliquer",
+            "applied_one": "Menu appliqué à 1 jour",
+            "applied_other": "Menu appliqué à {{count}} jours",
+            "errors": {
+                "toggleItem": "Impossible de modifier la disponibilité du plat",
+                "applyAllFailedTitle": "Échec",
+                "applyAllFailed": "Impossible d'appliquer le menu aux dates sélectionnées",
+                "applyGeneric": "Une erreur est survenue lors de l'application du menu"
+            },
+            "partialApply": {
+                "title": "Application partielle",
+                "message": "{{succeeded}} réussi(s), {{failed}} échoué(s)"
+            },
+            "replaceDialog": {
+                "title": "Remplacer les menus existants ?",
+                "message_one": "Un menu du jour existe déjà pour 1 des dates sélectionnées. Voulez-vous le remplacer ?",
+                "message_other": "Un menu du jour existe déjà pour {{count}} des dates sélectionnées. Voulez-vous les remplacer ?",
+                "confirm": "Remplacer"
+            },
+            "empty": {
+                "title": "Aucun menu pour cette date",
+                "subtitleToday": "Créez le menu du jour pour commencer",
+                "subtitleDate": "Créez un menu pour le {{date}}",
+                "cta": "Créer le menu"
+            },
+            "stats": {
+                "dishes_one": "{{count}} plat",
+                "dishes_other": "{{count}} plats",
+                "available_one": "{{count}} disponible",
+                "available_other": "{{count}} disponibles",
+                "formulaPrice": "{{price}} / formule"
+            },
+            "applyModal": {
+                "title": "Appliquer à d'autres jours",
+                "source": "Source : {{date}}",
+                "selectAll": "Tout sélectionner",
+                "unselectAll": "Tout désélectionner",
+                "selectedCount_one": "{{count}} sélectionné",
+                "selectedCount_other": "{{count}} sélectionnés",
+                "existingMenu": "Menu existant",
+                "apply": "Appliquer",
+                "applyWithCount": "Appliquer ({{count}})"
+            }
+        }
     },
-    "paymentPrompt": {
-      "title": "Marquer comme payée",
-      "message": "Quelle méthode de paiement ?",
-      "cash": "Espèces",
-      "card": "Carte"
+    "restaurantMenus": {
+        "title": "Mes menus",
+        "stats": {
+            "activeMenus_one": "Menu actif",
+            "activeMenus_other": "Menus actifs",
+            "inactive_one": "{{count}} inactif",
+            "inactive_other": "{{count}} inactifs",
+            "multiActive": "MULTI-ACTIFS"
+        },
+        "info": {
+            "title": "💡 Un seul menu actif à la fois",
+            "description": "Lorsque vous activez un menu, tous les autres menus sont automatiquement désactivés. Seul le menu actif sera visible par vos clients."
+        },
+        "help": {
+            "title": "Commencer avec EatQuickeR",
+            "description": "Créez votre premier menu pour mettre en valeur vos plats et commencer à recevoir des commandes en ligne.",
+            "createFirstMenu": "Créer mon premier menu",
+            "userGuide": "Guide d'utilisation"
+        },
+        "switcher": {
+            "title": "Changer de restaurant"
+        },
+        "duplicate": {
+            "barButton": "Récupérer des menus",
+            "pickSourceTitle": "Choisir un restaurant source",
+            "pickMenusTitle": "Sélectionner les menus",
+            "emptySource": "Aucun menu dans ce restaurant",
+            "statusActive": "Actif",
+            "statusInactive": "Inactif",
+            "itemSummary_one": "{{count}} plat · {{status}}",
+            "itemSummary_other": "{{count}} plats · {{status}}",
+            "duplicating": "Duplication…",
+            "confirmSimple": "Dupliquer",
+            "confirmWithCount": "Dupliquer ({{count}})",
+            "doneTitle": "Duplication terminée",
+            "doneSuccess_one": "{{count}} menu dupliqué avec succès",
+            "doneSuccess_other": "{{count}} menus dupliqués avec succès",
+            "donePartial": "{{succeeded}} réussi(s), {{failed}} échoué(s)",
+            "errorGeneric": "Erreur lors de la duplication"
+        },
+        "delete": {
+            "title": "Confirmer la suppression",
+            "message": "Êtes-vous sûr de vouloir supprimer le menu \"{{name}}\" ?\n\nCette action est irréversible.",
+            "confirm": "Supprimer"
+        },
+        "feedback": {
+            "successTitle": "Succès",
+            "loadFailed": "Impossible de charger les menus",
+            "loadSourceFailed": "Impossible de charger les menus source",
+            "menuEnabled": "Menu activé avec succès (les autres menus ont été désactivés)",
+            "menuDisabled": "Menu désactivé avec succès",
+            "toggleFailed": "Impossible de modifier le menu",
+            "toggleForbidden": "Vous n'avez pas les permissions pour modifier ce menu",
+            "menuNotFound": "Menu non trouvé",
+            "menuDeleted": "Menu supprimé avec succès",
+            "deleteFailed": "Impossible de supprimer le menu"
+        },
+        "card": {
+            "items_one": "{{count}} plat",
+            "items_other": "{{count}} plats",
+            "available_one": "{{count}} disponible",
+            "available_other": "{{count}} disponibles",
+            "active": "Actif",
+            "inactive": "Inactif",
+            "updating": "Mise à jour en cours…",
+            "createdOn": "Créé le",
+            "updatedOn": "Modifié le",
+            "enable": "Activer",
+            "disable": "Désactiver",
+            "inProgress": "En cours"
+        }
     },
-    "archiveConfirm": {
-      "title": "Archiver les commandes terminées",
-      "message": "Voulez-vous archiver toutes les commandes servies et annulées ?"
+    "restaurantStats": {
+        "title": "Statistiques — {{period}}",
+        "pickerTitle": "Période d'analyse",
+        "chooseRestaurant": "Choisir un restaurant",
+        "noRestaurantMessage": "Vous n'avez pas encore de restaurant",
+        "createFirstRestaurant": "Créer mon premier restaurant",
+        "salesCount_one": "{{formatted}} vente",
+        "salesCount_other": "{{formatted}} ventes",
+        "periods": {
+            "thisWeek": "Cette semaine",
+            "thisMonth": "Ce mois",
+            "last3Months": "3 derniers mois",
+            "last6Months": "6 derniers mois",
+            "thisYear": "Cette année"
+        },
+        "deltas": {
+            "vsPrevWeek": "vs semaine précédente",
+            "vsPrevMonth": "vs mois précédent",
+            "vsPrev3Months": "vs 3 mois précédents",
+            "vsPrev6Months": "vs 6 mois précédents",
+            "vsPrevYear": "vs année précédente"
+        },
+        "kpi": {
+            "totalRevenue": "CA total",
+            "servedOrders": "Commandes servies",
+            "avgOrder": "Ticket moyen"
+        },
+        "charts": {
+            "revenueByDay": "CA par jour",
+            "topDishes": "Top plats"
+        },
+        "daysShort": {
+            "monday": "Lun",
+            "tuesday": "Mar",
+            "wednesday": "Mer",
+            "thursday": "Jeu",
+            "friday": "Ven",
+            "saturday": "Sam",
+            "sunday": "Dim"
+        },
+        "empty": {
+            "noData": "Aucune donnée disponible",
+            "description": "Les statistiques apparaîtront ici une fois que vous aurez des commandes sur cette période."
+        },
+        "errors": {
+            "loadFailed": "Erreur lors du chargement des statistiques."
+        }
     },
-    "loading": {
-      "restaurants": "Chargement des restaurants…",
-      "orders": "Chargement des commandes…"
+    "restaurantHome": {
+        "greeting": {
+            "morning": "Bonjour",
+            "afternoon": "Bon après-midi",
+            "evening": "Bonsoir"
+        },
+        "subtitle": {
+            "restaurateur": "Gérez vos restaurants et optimisez vos performances",
+            "client": "Découvrez les meilleurs restaurants près de chez vous"
+        },
+        "restaurantFallback": "Restaurant",
+        "unknownDate": "Date inconnue",
+        "loadingDashboard": "Chargement du tableau de bord…",
+        "loadingOrders": "Chargement des commandes…",
+        "viewAll": "Voir tout",
+        "stripeAlert": {
+            "validationRequired": {
+                "title": "Validation de compte requise",
+                "message": "Appuyez ici pour configurer votre compte Stripe et activer les paiements."
+            },
+            "finalizeConnect": {
+                "title": "Finalisez votre configuration Stripe",
+                "allInactive": "Aucun de vos restaurants ne reçoit de paiements en ligne. Configurez Stripe pour commencer à encaisser.",
+                "partial_one": "{{count}} restaurant sans paiement en ligne activé.",
+                "partial_other": "{{count}} restaurants sans paiement en ligne activé."
+            }
+        },
+        "help": {
+            "title": "Commencer avec EatQuickeR",
+            "description": "Créez votre premier restaurant pour commencer à recevoir des commandes en ligne et développer votre activité.",
+            "createFirstRestaurant": "Créer mon premier restaurant"
+        },
+        "sections": {
+            "overview": "Aperçu",
+            "yourRestaurants": "Vos restaurants",
+            "recommendedRestaurants": "Restaurants recommandés",
+            "receivedOrders": "Commandes reçues",
+            "yourOrders": "Vos commandes",
+            "quickActions": "Actions rapides"
+        },
+        "stats": {
+            "restaurantCount_one": "Restaurant",
+            "restaurantCount_other": "Restaurants",
+            "orderCount_one": "Commande",
+            "orderCount_other": "Commandes",
+            "activeCount_one": "Actif",
+            "activeCount_other": "Actifs"
+        },
+        "empty": {
+            "loading": "Chargement…",
+            "loadingDescription": "Chargement des restaurants en cours…",
+            "errorPrefix": "Erreur : {{error}}",
+            "createFirstTitle": "Créez votre premier restaurant",
+            "validationRequiredTitle": "Validation requise",
+            "noRestaurantTitle": "Aucun restaurant",
+            "startNowDescription": "Commencez dès maintenant à recevoir des commandes en ligne.",
+            "validateStripeDescription": "Validez votre compte Stripe pour créer vos restaurants.",
+            "noRestaurantDescription": "Aucun restaurant disponible pour le moment.",
+            "noOrderTitle": "Aucune commande",
+            "noOrderRestaurateur": "Aucune commande reçue pour le moment",
+            "noOrderClient": "Vous n'avez pas encore passé de commande"
+        },
+        "orderStatus": {
+            "pending": "En attente",
+            "confirmed": "Confirmée",
+            "preparing": "En préparation",
+            "ready": "Prête",
+            "served": "Servie",
+            "delivered": "Livrée",
+            "completed": "Terminée",
+            "cancelled": "Annulée"
+        },
+        "actions": {
+            "dailyMenu": {
+                "title": "Menu du jour",
+                "description": "Gérer le menu d'aujourd'hui"
+            },
+            "createRestaurant": {
+                "title": "Créer un restaurant",
+                "description": "Nouvel établissement"
+            },
+            "qrCodes": {
+                "title": "QR Codes Tables",
+                "description": "Générer et gérer"
+            },
+            "manageMenus": {
+                "title": "Gérer les menus",
+                "description": "Plats et prix"
+            },
+            "viewOrders": {
+                "title": "Voir les commandes",
+                "description": "Gestion et suivi"
+            },
+            "statistics": {
+                "title": "Statistiques",
+                "description": "Performances"
+            }
+        }
     },
-    "feedback": {
-      "refreshFailed": "Impossible d'actualiser les commandes",
-      "statusUpdateFailed": "Impossible de mettre à jour le statut de la commande",
-      "paidTitle": "Encaissement",
-      "paidMessage": "La commande a été marquée comme payée",
-      "markPaidFailed": "Impossible de marquer la commande comme payée",
-      "archivedTitle": "Succès",
-      "archivedMessage_one": "{{count}} commande archivée",
-      "archivedMessage_other": "{{count}} commandes archivées",
-      "noneToArchiveTitle": "Information",
-      "noneToArchiveMessage": "Aucune commande à archiver",
-      "archiveFailed": "Impossible d'archiver les commandes"
-    }
-  },
-  "restaurantDailyMenu": {
-    "today": "Aujourd'hui",
-    "close": "Fermer",
-    "noRestaurantMessage": "Aucun restaurant pour gérer les menus",
-    "createRestaurant": "Créer mon restaurant",
-    "legend": {
-      "withMenu": "Avec menu",
-      "inactiveMenu": "Menu inactif"
+    "restaurantQrCodes": {
+        "sizes": {
+            "small": "Petit ({{count}}/page)",
+            "medium": "Moyen ({{count}}/page)",
+            "large": "Grand ({{count}}/page)"
+        },
+        "generator": {
+            "sectionTitle": "Générateur de QR Codes",
+            "description": "Créez des QR codes pour vos tables et permettez à vos clients de scanner ou saisir un code manuel pour accéder au menu.",
+            "restaurantLabel": "Restaurant",
+            "selectPlaceholder": "Sélectionner un restaurant"
+        },
+        "controls": {
+            "qrSize": "Taille du QR Code",
+            "tablesCount": "Nombre de tables",
+            "tablesToAdd": "Nombre de tables à ajouter",
+            "startNumber": "Numéro de départ"
+        },
+        "warnings": {
+            "existingTables_one": "{{count}} table existe déjà pour ce restaurant",
+            "existingTables_other": "{{count}} tables existent déjà pour ce restaurant"
+        },
+        "actions": {
+            "generate": "Générer les QR Codes",
+            "generating": "Génération…",
+            "addTables_one": "Ajouter {{count}} table",
+            "addTables_other": "Ajouter {{count}} tables",
+            "replace": "Remplacer",
+            "replaceAll": "Remplacer toutes les tables",
+            "print": "Imprimer",
+            "printing": "Impression…",
+            "printAll": "Imprimer tout",
+            "downloadPdf": "Télécharger PDF",
+            "downloading": "Téléchargement…",
+            "preview": "Aperçu",
+            "share": "Partager",
+            "download": "Télécharger"
+        },
+        "card": {
+            "tableTitle": "Table {{number}}",
+            "manualCodeLabel": "Code manuel",
+            "instruction": "Scannez le QR code ou saisissez le code manuel"
+        },
+        "list": {
+            "title_one": "{{count}} QR Code généré",
+            "title_other": "{{count}} QR Codes générés"
+        },
+        "empty": {
+            "title": "Aucun QR code généré",
+            "message": "Sélectionnez un restaurant et spécifiez le nombre de tables pour commencer"
+        },
+        "help": {
+            "title": "Comment ça marche ?",
+            "steps": "• Choisissez votre restaurant\n• Sélectionnez la taille des QR codes\n• Indiquez le nombre de tables\n• Générez les QR codes\n• Imprimez ou téléchargez en PDF\n• Vos clients pourront scanner ou saisir le code manuel"
+        },
+        "restaurantPicker": {
+            "title": "Choisir un restaurant"
+        },
+        "conflicts": {
+            "replaceTitle": "Confirmer le remplacement",
+            "replaceMessage": "Voulez-vous vraiment remplacer les tables existantes ?\n\nCette action va :\n• Supprimer toutes les tables existantes\n• Créer {{count}} nouvelles tables (1 à {{count}})\n\nCette action est irréversible.",
+            "conflictTitle": "Conflit détecté",
+            "conflictMessage": "Certaines tables existent déjà avec ces numéros. Que souhaitez-vous faire ?",
+            "moreOptions": "Plus d'options",
+            "optionsTitle": "Options disponibles",
+            "optionsMessage": "Vous pouvez charger les tables existantes ou choisir un autre numéro de départ.",
+            "otherNumber": "Autre numéro",
+            "loadExisting": "Charger existantes"
+        },
+        "suggest": {
+            "title": "Numéro suggéré",
+            "message_one": "Il y a déjà {{count}} table (jusqu'au numéro {{max}}).\n\nCommencer au numéro {{suggested}} ?",
+            "message_other": "Il y a déjà {{count}} tables (jusqu'au numéro {{max}}).\n\nCommencer au numéro {{suggested}} ?",
+            "choose": "Choisir autre",
+            "accept": "Accepter"
+        },
+        "feedback": {
+            "infoTitle": "Info",
+            "tablesAddedTitle": "Tables ajoutées",
+            "tablesAddedMessage_one": "{{count}} table ajoutée avec succès !",
+            "tablesAddedMessage_other": "{{count}} tables ajoutées avec succès !",
+            "tablesCreatedTitle": "Tables créées",
+            "tablesCreatedMessage_one": "{{count}} table créée avec succès !",
+            "tablesCreatedMessage_other": "{{count}} tables créées avec succès !",
+            "replaceSuccessTitle": "Remplacement réussi",
+            "replaceSuccessMessage": "{{deleted}} table(s) supprimée(s) et {{created}} nouvelle(s) table(s) créée(s) !",
+            "replaceCreatedMessage_one": "{{count}} table créée !",
+            "replaceCreatedMessage_other": "{{count}} tables créées !",
+            "tablesLoadedTitle": "Tables chargées",
+            "tablesLoadedMessage_one": "{{count}} table existante a été chargée.",
+            "tablesLoadedMessage_other": "{{count}} tables existantes ont été chargées.",
+            "noTableTitle": "Aucune table",
+            "noTableForRestaurant": "Aucune table trouvée pour ce restaurant.",
+            "noExistingStartsAt1": "Aucune table existante trouvée. Le numéro de départ reste à 1.",
+            "noExistingCanStartAt1": "Aucune table existante trouvée. Vous pouvez commencer au numéro 1.",
+            "chooseNumberTitle": "Choisir un numéro",
+            "chooseNumberMessage": "Utilisez les boutons +/- pour ajuster le numéro de départ, puis générez à nouveau.",
+            "numberUpdatedTitle": "Numéro mis à jour",
+            "numberUpdatedMessage": "Le numéro de départ a été changé pour {{number}}."
+        },
+        "errors": {
+            "selectRestaurant": "Veuillez sélectionner un restaurant",
+            "generationFailed": "Erreur lors de la génération des QR codes",
+            "replaceFailed": "Erreur lors du remplacement des tables",
+            "loadFailed": "Impossible de charger les tables existantes.",
+            "checkFailed": "Impossible de vérifier les tables existantes.",
+            "shareFailed": "Impossible de partager ce QR code.",
+            "printAllFailed": "Impossible d’imprimer les QR codes",
+            "printOneFailed": "Impossible d’imprimer le QR code",
+            "pdfFailed": "Impossible de générer le PDF",
+            "refreshFailed": "Échec du rafraîchissement."
+        },
+        "share": {
+            "title": "QR Code - Table {{number}}",
+            "message": "Table {{number}} - {{restaurant}}\n\nCode manuel: {{code}}\nOu scannez ce QR code pour accéder au menu !\n\n{{url}}"
+        },
+        "pdf": {
+            "tableLabel": "Table",
+            "scanOrEnter": "Scanner ou saisir"
+        }
     },
-    "manager": {
-      "duplicate": "Dupliquer",
-      "applied_one": "Menu appliqué à 1 jour",
-      "applied_other": "Menu appliqué à {{count}} jours",
-      "errors": {
-        "toggleItem": "Impossible de modifier la disponibilité du plat",
-        "applyAllFailedTitle": "Échec",
-        "applyAllFailed": "Impossible d'appliquer le menu aux dates sélectionnées",
-        "applyGeneric": "Une erreur est survenue lors de l'application du menu"
-      },
-      "partialApply": {
-        "title": "Application partielle",
-        "message": "{{succeeded}} réussi(s), {{failed}} échoué(s)"
-      },
-      "replaceDialog": {
-        "title": "Remplacer les menus existants ?",
-        "message_one": "Un menu du jour existe déjà pour 1 des dates sélectionnées. Voulez-vous le remplacer ?",
-        "message_other": "Un menu du jour existe déjà pour {{count}} des dates sélectionnées. Voulez-vous les remplacer ?",
-        "confirm": "Remplacer"
-      },
-      "empty": {
-        "title": "Aucun menu pour cette date",
-        "subtitleToday": "Créez le menu du jour pour commencer",
-        "subtitleDate": "Créez un menu pour le {{date}}",
-        "cta": "Créer le menu"
-      },
-      "stats": {
-        "dishes_one": "{{count}} plat",
-        "dishes_other": "{{count}} plats",
-        "available_one": "{{count}} disponible",
-        "available_other": "{{count}} disponibles",
-        "formulaPrice": "{{price}} / formule"
-      },
-      "applyModal": {
-        "title": "Appliquer à d'autres jours",
-        "source": "Source : {{date}}",
-        "selectAll": "Tout sélectionner",
-        "unselectAll": "Tout désélectionner",
-        "selectedCount_one": "{{count}} sélectionné",
-        "selectedCount_other": "{{count}} sélectionnés",
-        "existingMenu": "Menu existant",
+    "restaurantCard": {
+        "distanceKm": "{{distance}} km",
+        "walkingMinutes": "{{minutes}} min"
+    },
+    "validationPending": {
+        "title": "Profil en cours de validation",
+        "stripeCompleted": "Configuration Stripe complétée",
+        "stripePending": "Configuration Stripe en cours",
+        "profileActivated": "Profil activé",
+        "profilePending": "Profil en attente d'activation",
+        "setupStripe": "Configurer Stripe",
+        "contactSupport": "Contacter le support",
+        "infoDelay": "La validation de votre profil peut prendre 1 à 3 jours ouvrés après la finalisation de votre configuration Stripe.",
+        "supportEmailSubject": "Aide validation profil restaurateur"
+    },
+    "restaurantSelector": {
+        "noRestaurantTitle": "Vous n'avez pas encore de restaurant",
+        "noRestaurantSubtitle": "Créez votre premier restaurant pour commencer à gérer vos menus et commandes.",
+        "createFirst": "Créer mon premier restaurant",
+        "chooseTitle": "Choisir un restaurant",
+        "chooseHint": "Sélectionnez le restaurant que vous souhaitez gérer.",
+        "selecting": "Sélection en cours…"
+    },
+    "stripeCommission": {
+        "compact": {
+            "title": "Commission plateforme",
+            "description": "Une commission de {{percent}}% est prélevée sur chaque paiement par carte bancaire."
+        },
+        "title": "Tarification des paiements",
+        "subtitle": "Conditions applicables aux paiements par carte",
+        "platform": {
+            "title": "Commission EatQuickeR",
+            "description": "Pour chaque commande payée via l'application, EatQuickeR prélève une commission de {{percent}}% sur le montant TTC. Cette commission couvre les frais de mise en relation, de gestion de la plateforme et du support technique."
+        },
+        "stripe": {
+            "title": "Frais de traitement Stripe",
+            "description": "Les frais bancaires Stripe sont appliqués selon leur grille tarifaire standard. Ces frais peuvent varier selon le type de carte utilisée par le client."
+        },
+        "example": {
+            "title": "Exemple pour une commande de {{amount}}",
+            "orderAmount": "Montant de la commande",
+            "platformFee": "Commission EatQuickeR ({{percent}}%)",
+            "stripeFee": "Frais Stripe (estimés)",
+            "netAmount": "Montant net reçu"
+        },
+        "bullets": {
+            "autoDeduct": "La commission est prélevée automatiquement lors du paiement",
+            "cashNoFee": "Les paiements en espèces ne sont pas soumis à commission",
+            "directPayout": "Vous recevez vos fonds directement sur votre compte bancaire"
+        },
+        "acceptTerms": "J'ai lu et j'accepte les conditions tarifaires"
+    },
+    "stripeAccount": {
+        "title": "Compte Stripe",
+        "checking": "Vérification du statut…",
+        "errors": {
+            "fetch": "Erreur lors de la récupération du statut",
+            "setup": "Erreur lors de la configuration du compte Stripe"
+        },
+        "validated": {
+            "title": "Compte validé",
+            "description": "Votre compte Stripe est validé et prêt à recevoir des paiements.",
+            "successMessage": "Vous pouvez maintenant activer vos restaurants et commencer à recevoir des commandes."
+        },
+        "inProgress": {
+            "title": "Configuration en cours",
+            "description": "Votre compte Stripe existe mais nécessite une finalisation.",
+            "action": "Continuer la configuration"
+        },
+        "notStarted": {
+            "title": "Configuration requise",
+            "description": "Vous devez configurer votre compte Stripe pour recevoir des paiements.",
+            "action": "Configurer Stripe"
+        },
+        "redirectDialog": {
+            "title": "Redirection vers Stripe",
+            "message": "Vous allez être redirigé vers Stripe pour configurer votre compte de paiement."
+        },
+        "continueDialog": {
+            "title": "Continuer la configuration",
+            "message": "Vous allez être redirigé vers Stripe pour finaliser votre configuration."
+        },
+        "requirements": {
+            "title": "Documents requis :",
+            "othersCount_one": "Et {{count}} autre…",
+            "othersCount_other": "Et {{count}} autres…"
+        },
+        "infoDelay": "La validation de votre compte peut prendre 1 à 3 jours ouvrés après soumission de tous les documents requis."
+    },
+    "revenueCard": {
+        "title": "Revenus",
+        "defaultPeriod": "Ce mois",
+        "details": "Détails",
+        "netRevenue": "Revenu net",
+        "netRevenueEstimated": "Revenu net estimé",
+        "ordersCount_one": "{{count}} commande",
+        "ordersCount_other": "{{count}} commandes",
+        "grossRevenueTitle": "Chiffre d'affaires brut",
+        "cardPayments": "Paiements carte",
+        "cashPayments": "Paiements espèces",
+        "grossTotal": "Total brut",
+        "feesTitle": "Frais et commissions",
+        "stripeFeesNote": "Applicable uniquement aux paiements par carte. Les frais Stripe sont déduits séparément.",
+        "platformCommissionLine": "Commission EatQuickeR : {{amount}}",
+        "legendGross": "CA brut : {{amount}}",
+        "legendCommission": "Commission : {{amount}}"
+    },
+    "openingHours": {
+        "title": "Horaires d'ouverture",
+        "subtitle": "Définissez vos horaires de service pour chaque jour de la semaine",
+        "quickPresets": "Modèles rapides",
+        "open": "Ouvert",
+        "closed": "Fermé",
+        "start": "Début",
+        "end": "Fin",
         "apply": "Appliquer",
-        "applyWithCount": "Appliquer ({{count}})"
-      }
+        "addPeriod": "Ajouter une plage horaire",
+        "serviceNamePlaceholder": "Nom du service (ex: Déjeuner)",
+        "tip1": "Cliquez sur les heures pour choisir facilement vos horaires de service",
+        "tip2": "Utilisez les horaires suggérés ou définissez des heures personnalisées",
+        "timePicker": {
+            "title": "Choisir l'heure",
+            "ok": "OK",
+            "suggestedTimes": "Horaires suggérés",
+            "customTime": "Heure personnalisée",
+            "hours": "Heures",
+            "minutes": "Minutes"
+        },
+        "presets": {
+            "continuous": {
+                "name": "Service continu"
+            },
+            "lunchDinner": {
+                "name": "Déjeuner + Dîner"
+            },
+            "complete": {
+                "name": "Complet"
+            }
+        },
+        "periodNames": {
+            "lunch": "Déjeuner",
+            "dinner": "Dîner",
+            "breakfast": "Petit-déjeuner",
+            "service": "Service"
+        },
+        "confirmApplyPreset": {
+            "title": "Appliquer le modèle",
+            "message": "Appliquer « {{name}} » à tous les jours de la semaine ?"
+        },
+        "confirmCopyHours": {
+            "title": "Copier les horaires",
+            "message": "Appliquer les horaires de {{day}} à tous les jours de semaine (lundi–vendredi) ?"
+        }
+    },
+    "statistics": {
+        "kpis": {
+            "title": "Indicateurs clés de performance",
+            "cancellationRate": "Taux d'annulation",
+            "paymentRate": "Taux de paiement",
+            "availabilityRate": "Disponibilité des plats",
+            "avgOrderValue": "Ticket moyen",
+            "perOrder": "Par commande",
+            "serviceTime": "Temps de service",
+            "avgTime": "Temps moyen",
+            "tableUsage": "Utilisation des tables"
+        },
+        "qualifiers": {
+            "excellent": "Excellent",
+            "toImprove": "À améliorer",
+            "veryGood": "Très bien",
+            "toWatch": "À surveiller",
+            "optimal": "Optimal",
+            "critical": "Critique",
+            "toOptimize": "À optimiser"
+        },
+        "priorities": {
+            "high": "URGENT",
+            "medium": "Important",
+            "low": "Info"
+        },
+        "recommendations": {
+            "title": "Recommandations personnalisées"
+        },
+        "topDishes": {
+            "title": "Top 5 des plats les plus commandés",
+            "dishStats": "{{orders}} commandes • {{revenue}} CA"
+        },
+        "underperforming": {
+            "title": "Plats à optimiser",
+            "neverOrdered_one": "{{count}} plat n'a jamais été commandé. Envisagez de le retirer ou de le promouvoir.",
+            "neverOrdered_other": "{{count}} plats n'ont jamais été commandés. Envisagez de les retirer ou de les promouvoir.",
+            "lowOrders": "Plats peu commandés (30 derniers jours)",
+            "onlyOrders_one": "{{count}} commande seulement",
+            "onlyOrders_other": "{{count}} commandes seulement"
+        },
+        "revenue": {
+            "title": "Analyse des revenus",
+            "currentPeriod": "Période actuelle",
+            "previousPeriod": "Période précédente",
+            "evolution": "Évolution",
+            "avgOrderValue": "Ticket moyen",
+            "perOrder": "par commande",
+            "ordersCount_one": "{{count}} commande",
+            "ordersCount_other": "{{count}} commandes"
+        },
+        "peakHours": {
+            "title": "Distribution horaire des commandes",
+            "peakSlots": "Heures de pointe",
+            "ordersCount_one": "{{count}} commande",
+            "ordersCount_other": "{{count}} commandes"
+        },
+        "dailyPerformance": {
+            "title": "Performance par jour de la semaine",
+            "bestDay": "Meilleur jour",
+            "worstDay": "Jour le plus faible"
+        }
+    },
+    "dailyMenuDisplay": {
+        "loading": "Chargement du menu…",
+        "completeFormula": "Formule complète",
+        "formulaHint": "1 plat par catégorie • {{price}} / plat",
+        "dishesCount_one": "{{count}} plat",
+        "dishesCount_other": "{{count}} plats",
+        "categoriesCount_one": "{{count}} catégorie",
+        "categoriesCount_other": "{{count}} catégories"
+    },
+    "menuItem": {
+        "add": "Ajouter",
+        "unavailable": "Indisponible",
+        "unavailableShort": "Indispo"
+    },
+    "menuGrid": {
+        "otherCategory": "Autres",
+        "defaultRestaurantName": "Restaurant",
+        "groupToggle": "Grouper",
+        "filters": "Filtres",
+        "viewModes": {
+            "list": "Liste",
+            "grid": "Grille",
+            "masonry": "Mosaïque",
+            "table": "Tableau"
+        },
+        "table": {
+            "photo": "Photo",
+            "name": "Nom",
+            "description": "Description",
+            "price": "Prix",
+            "action": "Action"
+        },
+        "stats": {
+            "availableShort_one": "{{count}} dispo",
+            "availableShort_other": "{{count}} dispo",
+            "availableLong_one": "{{count}} plat disponible",
+            "availableLong_other": "{{count}} plats disponibles",
+            "photos_one": "{{count}} photo",
+            "photos_other": "{{count}} photos"
+        },
+        "accordion": {
+            "expandAll": "Tout ouvrir",
+            "collapseAll": "Tout fermer"
+        }
+    },
+    "formule": {
+        "title": "Composez votre formule",
+        "sectionTitle": "Nos formules",
+        "compose": "Composer",
+        "basePrice": "Formule à {{price}}",
+        "required": "Obligatoire",
+        "optional": "Optionnel",
+        "chooseOne": "Choisissez 1 plat",
+        "chooseN": "Choisissez {{count}} plats",
+        "addToCart": "Ajouter au panier",
+        "quantity": "Quantité",
+        "incomplete": "Complétez votre formule",
+        "unavailable": "Formule indisponible pour le moment",
+        "empty": "Aucun plat disponible dans ce cran",
+        "loadError": "Impossible de charger la formule",
+        "notFound": "Formule introuvable",
+        "added": "Formule ajoutée au panier"
     }
-  },
-  "restaurantMenus": {
-    "title": "Mes menus",
-    "stats": {
-      "activeMenus_one": "Menu actif",
-      "activeMenus_other": "Menus actifs",
-      "inactive_one": "{{count}} inactif",
-      "inactive_other": "{{count}} inactifs",
-      "multiActive": "MULTI-ACTIFS"
-    },
-    "info": {
-      "title": "💡 Un seul menu actif à la fois",
-      "description": "Lorsque vous activez un menu, tous les autres menus sont automatiquement désactivés. Seul le menu actif sera visible par vos clients."
-    },
-    "help": {
-      "title": "Commencer avec EatQuickeR",
-      "description": "Créez votre premier menu pour mettre en valeur vos plats et commencer à recevoir des commandes en ligne.",
-      "createFirstMenu": "Créer mon premier menu",
-      "userGuide": "Guide d'utilisation"
-    },
-    "switcher": {
-      "title": "Changer de restaurant"
-    },
-    "duplicate": {
-      "barButton": "Récupérer des menus",
-      "pickSourceTitle": "Choisir un restaurant source",
-      "pickMenusTitle": "Sélectionner les menus",
-      "emptySource": "Aucun menu dans ce restaurant",
-      "statusActive": "Actif",
-      "statusInactive": "Inactif",
-      "itemSummary_one": "{{count}} plat · {{status}}",
-      "itemSummary_other": "{{count}} plats · {{status}}",
-      "duplicating": "Duplication…",
-      "confirmSimple": "Dupliquer",
-      "confirmWithCount": "Dupliquer ({{count}})",
-      "doneTitle": "Duplication terminée",
-      "doneSuccess_one": "{{count}} menu dupliqué avec succès",
-      "doneSuccess_other": "{{count}} menus dupliqués avec succès",
-      "donePartial": "{{succeeded}} réussi(s), {{failed}} échoué(s)",
-      "errorGeneric": "Erreur lors de la duplication"
-    },
-    "delete": {
-      "title": "Confirmer la suppression",
-      "message": "Êtes-vous sûr de vouloir supprimer le menu \"{{name}}\" ?\n\nCette action est irréversible.",
-      "confirm": "Supprimer"
-    },
-    "feedback": {
-      "successTitle": "Succès",
-      "loadFailed": "Impossible de charger les menus",
-      "loadSourceFailed": "Impossible de charger les menus source",
-      "menuEnabled": "Menu activé avec succès (les autres menus ont été désactivés)",
-      "menuDisabled": "Menu désactivé avec succès",
-      "toggleFailed": "Impossible de modifier le menu",
-      "toggleForbidden": "Vous n'avez pas les permissions pour modifier ce menu",
-      "menuNotFound": "Menu non trouvé",
-      "menuDeleted": "Menu supprimé avec succès",
-      "deleteFailed": "Impossible de supprimer le menu"
-    },
-    "card": {
-      "items_one": "{{count}} plat",
-      "items_other": "{{count}} plats",
-      "available_one": "{{count}} disponible",
-      "available_other": "{{count}} disponibles",
-      "active": "Actif",
-      "inactive": "Inactif",
-      "updating": "Mise à jour en cours…",
-      "createdOn": "Créé le",
-      "updatedOn": "Modifié le",
-      "enable": "Activer",
-      "disable": "Désactiver",
-      "inProgress": "En cours"
-    }
-  },
-  "restaurantStats": {
-    "title": "Statistiques — {{period}}",
-    "pickerTitle": "Période d'analyse",
-    "chooseRestaurant": "Choisir un restaurant",
-    "noRestaurantMessage": "Vous n'avez pas encore de restaurant",
-    "createFirstRestaurant": "Créer mon premier restaurant",
-    "salesCount_one": "{{formatted}} vente",
-    "salesCount_other": "{{formatted}} ventes",
-    "periods": {
-      "thisWeek": "Cette semaine",
-      "thisMonth": "Ce mois",
-      "last3Months": "3 derniers mois",
-      "last6Months": "6 derniers mois",
-      "thisYear": "Cette année"
-    },
-    "deltas": {
-      "vsPrevWeek": "vs semaine précédente",
-      "vsPrevMonth": "vs mois précédent",
-      "vsPrev3Months": "vs 3 mois précédents",
-      "vsPrev6Months": "vs 6 mois précédents",
-      "vsPrevYear": "vs année précédente"
-    },
-    "kpi": {
-      "totalRevenue": "CA total",
-      "servedOrders": "Commandes servies",
-      "avgOrder": "Ticket moyen"
-    },
-    "charts": {
-      "revenueByDay": "CA par jour",
-      "topDishes": "Top plats"
-    },
-    "daysShort": {
-      "monday": "Lun",
-      "tuesday": "Mar",
-      "wednesday": "Mer",
-      "thursday": "Jeu",
-      "friday": "Ven",
-      "saturday": "Sam",
-      "sunday": "Dim"
-    },
-    "empty": {
-      "noData": "Aucune donnée disponible",
-      "description": "Les statistiques apparaîtront ici une fois que vous aurez des commandes sur cette période."
-    },
-    "errors": {
-      "loadFailed": "Erreur lors du chargement des statistiques."
-    }
-  },
-  "restaurantHome": {
-    "greeting": {
-      "morning": "Bonjour",
-      "afternoon": "Bon après-midi",
-      "evening": "Bonsoir"
-    },
-    "subtitle": {
-      "restaurateur": "Gérez vos restaurants et optimisez vos performances",
-      "client": "Découvrez les meilleurs restaurants près de chez vous"
-    },
-    "restaurantFallback": "Restaurant",
-    "unknownDate": "Date inconnue",
-    "loadingDashboard": "Chargement du tableau de bord…",
-    "loadingOrders": "Chargement des commandes…",
-    "viewAll": "Voir tout",
-    "stripeAlert": {
-      "validationRequired": {
-        "title": "Validation de compte requise",
-        "message": "Appuyez ici pour configurer votre compte Stripe et activer les paiements."
-      },
-      "finalizeConnect": {
-        "title": "Finalisez votre configuration Stripe",
-        "allInactive": "Aucun de vos restaurants ne reçoit de paiements en ligne. Configurez Stripe pour commencer à encaisser.",
-        "partial_one": "{{count}} restaurant sans paiement en ligne activé.",
-        "partial_other": "{{count}} restaurants sans paiement en ligne activé."
-      }
-    },
-    "help": {
-      "title": "Commencer avec EatQuickeR",
-      "description": "Créez votre premier restaurant pour commencer à recevoir des commandes en ligne et développer votre activité.",
-      "createFirstRestaurant": "Créer mon premier restaurant"
-    },
-    "sections": {
-      "overview": "Aperçu",
-      "yourRestaurants": "Vos restaurants",
-      "recommendedRestaurants": "Restaurants recommandés",
-      "receivedOrders": "Commandes reçues",
-      "yourOrders": "Vos commandes",
-      "quickActions": "Actions rapides"
-    },
-    "stats": {
-      "restaurantCount_one": "Restaurant",
-      "restaurantCount_other": "Restaurants",
-      "orderCount_one": "Commande",
-      "orderCount_other": "Commandes",
-      "activeCount_one": "Actif",
-      "activeCount_other": "Actifs"
-    },
-    "empty": {
-      "loading": "Chargement…",
-      "loadingDescription": "Chargement des restaurants en cours…",
-      "errorPrefix": "Erreur : {{error}}",
-      "createFirstTitle": "Créez votre premier restaurant",
-      "validationRequiredTitle": "Validation requise",
-      "noRestaurantTitle": "Aucun restaurant",
-      "startNowDescription": "Commencez dès maintenant à recevoir des commandes en ligne.",
-      "validateStripeDescription": "Validez votre compte Stripe pour créer vos restaurants.",
-      "noRestaurantDescription": "Aucun restaurant disponible pour le moment.",
-      "noOrderTitle": "Aucune commande",
-      "noOrderRestaurateur": "Aucune commande reçue pour le moment",
-      "noOrderClient": "Vous n'avez pas encore passé de commande"
-    },
-    "orderStatus": {
-      "pending": "En attente",
-      "confirmed": "Confirmée",
-      "preparing": "En préparation",
-      "ready": "Prête",
-      "served": "Servie",
-      "delivered": "Livrée",
-      "completed": "Terminée",
-      "cancelled": "Annulée"
-    },
-    "actions": {
-      "dailyMenu": {
-        "title": "Menu du jour",
-        "description": "Gérer le menu d'aujourd'hui"
-      },
-      "createRestaurant": {
-        "title": "Créer un restaurant",
-        "description": "Nouvel établissement"
-      },
-      "qrCodes": {
-        "title": "QR Codes Tables",
-        "description": "Générer et gérer"
-      },
-      "manageMenus": {
-        "title": "Gérer les menus",
-        "description": "Plats et prix"
-      },
-      "viewOrders": {
-        "title": "Voir les commandes",
-        "description": "Gestion et suivi"
-      },
-      "statistics": {
-        "title": "Statistiques",
-        "description": "Performances"
-      }
-    }
-  },
-  "restaurantQrCodes": {
-    "sizes": {
-      "small": "Petit ({{count}}/page)",
-      "medium": "Moyen ({{count}}/page)",
-      "large": "Grand ({{count}}/page)"
-    },
-    "generator": {
-      "sectionTitle": "Générateur de QR Codes",
-      "description": "Créez des QR codes pour vos tables et permettez à vos clients de scanner ou saisir un code manuel pour accéder au menu.",
-      "restaurantLabel": "Restaurant",
-      "selectPlaceholder": "Sélectionner un restaurant"
-    },
-    "controls": {
-      "qrSize": "Taille du QR Code",
-      "tablesCount": "Nombre de tables",
-      "tablesToAdd": "Nombre de tables à ajouter",
-      "startNumber": "Numéro de départ"
-    },
-    "warnings": {
-      "existingTables_one": "{{count}} table existe déjà pour ce restaurant",
-      "existingTables_other": "{{count}} tables existent déjà pour ce restaurant"
-    },
-    "actions": {
-      "generate": "Générer les QR Codes",
-      "generating": "Génération…",
-      "addTables_one": "Ajouter {{count}} table",
-      "addTables_other": "Ajouter {{count}} tables",
-      "replace": "Remplacer",
-      "replaceAll": "Remplacer toutes les tables",
-      "print": "Imprimer",
-      "printing": "Impression…",
-      "printAll": "Imprimer tout",
-      "downloadPdf": "Télécharger PDF",
-      "downloading": "Téléchargement…",
-      "preview": "Aperçu",
-      "share": "Partager",
-      "download": "Télécharger"
-    },
-    "card": {
-      "tableTitle": "Table {{number}}",
-      "manualCodeLabel": "Code manuel",
-      "instruction": "Scannez le QR code ou saisissez le code manuel"
-    },
-    "list": {
-      "title_one": "{{count}} QR Code généré",
-      "title_other": "{{count}} QR Codes générés"
-    },
-    "empty": {
-      "title": "Aucun QR code généré",
-      "message": "Sélectionnez un restaurant et spécifiez le nombre de tables pour commencer"
-    },
-    "help": {
-      "title": "Comment ça marche ?",
-      "steps": "• Choisissez votre restaurant\n• Sélectionnez la taille des QR codes\n• Indiquez le nombre de tables\n• Générez les QR codes\n• Imprimez ou téléchargez en PDF\n• Vos clients pourront scanner ou saisir le code manuel"
-    },
-    "restaurantPicker": {
-      "title": "Choisir un restaurant"
-    },
-    "conflicts": {
-      "replaceTitle": "Confirmer le remplacement",
-      "replaceMessage": "Voulez-vous vraiment remplacer les tables existantes ?\n\nCette action va :\n• Supprimer toutes les tables existantes\n• Créer {{count}} nouvelles tables (1 à {{count}})\n\nCette action est irréversible.",
-      "conflictTitle": "Conflit détecté",
-      "conflictMessage": "Certaines tables existent déjà avec ces numéros. Que souhaitez-vous faire ?",
-      "moreOptions": "Plus d'options",
-      "optionsTitle": "Options disponibles",
-      "optionsMessage": "Vous pouvez charger les tables existantes ou choisir un autre numéro de départ.",
-      "otherNumber": "Autre numéro",
-      "loadExisting": "Charger existantes"
-    },
-    "suggest": {
-      "title": "Numéro suggéré",
-      "message_one": "Il y a déjà {{count}} table (jusqu'au numéro {{max}}).\n\nCommencer au numéro {{suggested}} ?",
-      "message_other": "Il y a déjà {{count}} tables (jusqu'au numéro {{max}}).\n\nCommencer au numéro {{suggested}} ?",
-      "choose": "Choisir autre",
-      "accept": "Accepter"
-    },
-    "feedback": {
-      "infoTitle": "Info",
-      "tablesAddedTitle": "Tables ajoutées",
-      "tablesAddedMessage_one": "{{count}} table ajoutée avec succès !",
-      "tablesAddedMessage_other": "{{count}} tables ajoutées avec succès !",
-      "tablesCreatedTitle": "Tables créées",
-      "tablesCreatedMessage_one": "{{count}} table créée avec succès !",
-      "tablesCreatedMessage_other": "{{count}} tables créées avec succès !",
-      "replaceSuccessTitle": "Remplacement réussi",
-      "replaceSuccessMessage": "{{deleted}} table(s) supprimée(s) et {{created}} nouvelle(s) table(s) créée(s) !",
-      "replaceCreatedMessage_one": "{{count}} table créée !",
-      "replaceCreatedMessage_other": "{{count}} tables créées !",
-      "tablesLoadedTitle": "Tables chargées",
-      "tablesLoadedMessage_one": "{{count}} table existante a été chargée.",
-      "tablesLoadedMessage_other": "{{count}} tables existantes ont été chargées.",
-      "noTableTitle": "Aucune table",
-      "noTableForRestaurant": "Aucune table trouvée pour ce restaurant.",
-      "noExistingStartsAt1": "Aucune table existante trouvée. Le numéro de départ reste à 1.",
-      "noExistingCanStartAt1": "Aucune table existante trouvée. Vous pouvez commencer au numéro 1.",
-      "chooseNumberTitle": "Choisir un numéro",
-      "chooseNumberMessage": "Utilisez les boutons +/- pour ajuster le numéro de départ, puis générez à nouveau.",
-      "numberUpdatedTitle": "Numéro mis à jour",
-      "numberUpdatedMessage": "Le numéro de départ a été changé pour {{number}}."
-    },
-    "errors": {
-      "selectRestaurant": "Veuillez sélectionner un restaurant",
-      "generationFailed": "Erreur lors de la génération des QR codes",
-      "replaceFailed": "Erreur lors du remplacement des tables",
-      "loadFailed": "Impossible de charger les tables existantes.",
-      "checkFailed": "Impossible de vérifier les tables existantes.",
-      "shareFailed": "Impossible de partager ce QR code.",
-      "printAllFailed": "Impossible d’imprimer les QR codes",
-      "printOneFailed": "Impossible d’imprimer le QR code",
-      "pdfFailed": "Impossible de générer le PDF",
-      "refreshFailed": "Échec du rafraîchissement."
-    },
-    "share": {
-      "title": "QR Code - Table {{number}}",
-      "message": "Table {{number}} - {{restaurant}}\n\nCode manuel: {{code}}\nOu scannez ce QR code pour accéder au menu !\n\n{{url}}"
-    },
-    "pdf": {
-      "tableLabel": "Table",
-      "scanOrEnter": "Scanner ou saisir"
-    }
-  },
-  "restaurantCard": {
-    "distanceKm": "{{distance}} km",
-    "walkingMinutes": "{{minutes}} min"
-  },
-  "validationPending": {
-    "title": "Profil en cours de validation",
-    "stripeCompleted": "Configuration Stripe complétée",
-    "stripePending": "Configuration Stripe en cours",
-    "profileActivated": "Profil activé",
-    "profilePending": "Profil en attente d'activation",
-    "setupStripe": "Configurer Stripe",
-    "contactSupport": "Contacter le support",
-    "infoDelay": "La validation de votre profil peut prendre 1 à 3 jours ouvrés après la finalisation de votre configuration Stripe.",
-    "supportEmailSubject": "Aide validation profil restaurateur"
-  },
-  "restaurantSelector": {
-    "noRestaurantTitle": "Vous n'avez pas encore de restaurant",
-    "noRestaurantSubtitle": "Créez votre premier restaurant pour commencer à gérer vos menus et commandes.",
-    "createFirst": "Créer mon premier restaurant",
-    "chooseTitle": "Choisir un restaurant",
-    "chooseHint": "Sélectionnez le restaurant que vous souhaitez gérer.",
-    "selecting": "Sélection en cours…"
-  },
-  "stripeCommission": {
-    "compact": {
-      "title": "Commission plateforme",
-      "description": "Une commission de {{percent}}% est prélevée sur chaque paiement par carte bancaire."
-    },
-    "title": "Tarification des paiements",
-    "subtitle": "Conditions applicables aux paiements par carte",
-    "platform": {
-      "title": "Commission EatQuickeR",
-      "description": "Pour chaque commande payée via l'application, EatQuickeR prélève une commission de {{percent}}% sur le montant TTC. Cette commission couvre les frais de mise en relation, de gestion de la plateforme et du support technique."
-    },
-    "stripe": {
-      "title": "Frais de traitement Stripe",
-      "description": "Les frais bancaires Stripe sont appliqués selon leur grille tarifaire standard. Ces frais peuvent varier selon le type de carte utilisée par le client."
-    },
-    "example": {
-      "title": "Exemple pour une commande de {{amount}}",
-      "orderAmount": "Montant de la commande",
-      "platformFee": "Commission EatQuickeR ({{percent}}%)",
-      "stripeFee": "Frais Stripe (estimés)",
-      "netAmount": "Montant net reçu"
-    },
-    "bullets": {
-      "autoDeduct": "La commission est prélevée automatiquement lors du paiement",
-      "cashNoFee": "Les paiements en espèces ne sont pas soumis à commission",
-      "directPayout": "Vous recevez vos fonds directement sur votre compte bancaire"
-    },
-    "acceptTerms": "J'ai lu et j'accepte les conditions tarifaires"
-  },
-  "stripeAccount": {
-    "title": "Compte Stripe",
-    "checking": "Vérification du statut…",
-    "errors": {
-      "fetch": "Erreur lors de la récupération du statut",
-      "setup": "Erreur lors de la configuration du compte Stripe"
-    },
-    "validated": {
-      "title": "Compte validé",
-      "description": "Votre compte Stripe est validé et prêt à recevoir des paiements.",
-      "successMessage": "Vous pouvez maintenant activer vos restaurants et commencer à recevoir des commandes."
-    },
-    "inProgress": {
-      "title": "Configuration en cours",
-      "description": "Votre compte Stripe existe mais nécessite une finalisation.",
-      "action": "Continuer la configuration"
-    },
-    "notStarted": {
-      "title": "Configuration requise",
-      "description": "Vous devez configurer votre compte Stripe pour recevoir des paiements.",
-      "action": "Configurer Stripe"
-    },
-    "redirectDialog": {
-      "title": "Redirection vers Stripe",
-      "message": "Vous allez être redirigé vers Stripe pour configurer votre compte de paiement."
-    },
-    "continueDialog": {
-      "title": "Continuer la configuration",
-      "message": "Vous allez être redirigé vers Stripe pour finaliser votre configuration."
-    },
-    "requirements": {
-      "title": "Documents requis :",
-      "othersCount_one": "Et {{count}} autre…",
-      "othersCount_other": "Et {{count}} autres…"
-    },
-    "infoDelay": "La validation de votre compte peut prendre 1 à 3 jours ouvrés après soumission de tous les documents requis."
-  },
-  "revenueCard": {
-    "title": "Revenus",
-    "defaultPeriod": "Ce mois",
-    "details": "Détails",
-    "netRevenue": "Revenu net",
-    "netRevenueEstimated": "Revenu net estimé",
-    "ordersCount_one": "{{count}} commande",
-    "ordersCount_other": "{{count}} commandes",
-    "grossRevenueTitle": "Chiffre d'affaires brut",
-    "cardPayments": "Paiements carte",
-    "cashPayments": "Paiements espèces",
-    "grossTotal": "Total brut",
-    "feesTitle": "Frais et commissions",
-    "stripeFeesNote": "Applicable uniquement aux paiements par carte. Les frais Stripe sont déduits séparément.",
-    "platformCommissionLine": "Commission EatQuickeR : {{amount}}",
-    "legendGross": "CA brut : {{amount}}",
-    "legendCommission": "Commission : {{amount}}"
-  },
-  "openingHours": {
-    "title": "Horaires d'ouverture",
-    "subtitle": "Définissez vos horaires de service pour chaque jour de la semaine",
-    "quickPresets": "Modèles rapides",
-    "open": "Ouvert",
-    "closed": "Fermé",
-    "start": "Début",
-    "end": "Fin",
-    "apply": "Appliquer",
-    "addPeriod": "Ajouter une plage horaire",
-    "serviceNamePlaceholder": "Nom du service (ex: Déjeuner)",
-    "tip1": "Cliquez sur les heures pour choisir facilement vos horaires de service",
-    "tip2": "Utilisez les horaires suggérés ou définissez des heures personnalisées",
-    "timePicker": {
-      "title": "Choisir l'heure",
-      "ok": "OK",
-      "suggestedTimes": "Horaires suggérés",
-      "customTime": "Heure personnalisée",
-      "hours": "Heures",
-      "minutes": "Minutes"
-    },
-    "presets": {
-      "continuous": {
-        "name": "Service continu"
-      },
-      "lunchDinner": {
-        "name": "Déjeuner + Dîner"
-      },
-      "complete": {
-        "name": "Complet"
-      }
-    },
-    "periodNames": {
-      "lunch": "Déjeuner",
-      "dinner": "Dîner",
-      "breakfast": "Petit-déjeuner",
-      "service": "Service"
-    },
-    "confirmApplyPreset": {
-      "title": "Appliquer le modèle",
-      "message": "Appliquer « {{name}} » à tous les jours de la semaine ?"
-    },
-    "confirmCopyHours": {
-      "title": "Copier les horaires",
-      "message": "Appliquer les horaires de {{day}} à tous les jours de semaine (lundi–vendredi) ?"
-    }
-  },
-  "statistics": {
-    "kpis": {
-      "title": "Indicateurs clés de performance",
-      "cancellationRate": "Taux d'annulation",
-      "paymentRate": "Taux de paiement",
-      "availabilityRate": "Disponibilité des plats",
-      "avgOrderValue": "Ticket moyen",
-      "perOrder": "Par commande",
-      "serviceTime": "Temps de service",
-      "avgTime": "Temps moyen",
-      "tableUsage": "Utilisation des tables"
-    },
-    "qualifiers": {
-      "excellent": "Excellent",
-      "toImprove": "À améliorer",
-      "veryGood": "Très bien",
-      "toWatch": "À surveiller",
-      "optimal": "Optimal",
-      "critical": "Critique",
-      "toOptimize": "À optimiser"
-    },
-    "priorities": {
-      "high": "URGENT",
-      "medium": "Important",
-      "low": "Info"
-    },
-    "recommendations": {
-      "title": "Recommandations personnalisées"
-    },
-    "topDishes": {
-      "title": "Top 5 des plats les plus commandés",
-      "dishStats": "{{orders}} commandes • {{revenue}} CA"
-    },
-    "underperforming": {
-      "title": "Plats à optimiser",
-      "neverOrdered_one": "{{count}} plat n'a jamais été commandé. Envisagez de le retirer ou de le promouvoir.",
-      "neverOrdered_other": "{{count}} plats n'ont jamais été commandés. Envisagez de les retirer ou de les promouvoir.",
-      "lowOrders": "Plats peu commandés (30 derniers jours)",
-      "onlyOrders_one": "{{count}} commande seulement",
-      "onlyOrders_other": "{{count}} commandes seulement"
-    },
-    "revenue": {
-      "title": "Analyse des revenus",
-      "currentPeriod": "Période actuelle",
-      "previousPeriod": "Période précédente",
-      "evolution": "Évolution",
-      "avgOrderValue": "Ticket moyen",
-      "perOrder": "par commande",
-      "ordersCount_one": "{{count}} commande",
-      "ordersCount_other": "{{count}} commandes"
-    },
-    "peakHours": {
-      "title": "Distribution horaire des commandes",
-      "peakSlots": "Heures de pointe",
-      "ordersCount_one": "{{count}} commande",
-      "ordersCount_other": "{{count}} commandes"
-    },
-    "dailyPerformance": {
-      "title": "Performance par jour de la semaine",
-      "bestDay": "Meilleur jour",
-      "worstDay": "Jour le plus faible"
-    }
-  },
-  "dailyMenuDisplay": {
-    "loading": "Chargement du menu…",
-    "completeFormula": "Formule complète",
-    "formulaHint": "1 plat par catégorie • {{price}} / plat",
-    "dishesCount_one": "{{count}} plat",
-    "dishesCount_other": "{{count}} plats",
-    "categoriesCount_one": "{{count}} catégorie",
-    "categoriesCount_other": "{{count}} catégories"
-  },
-  "menuItem": {
-    "add": "Ajouter",
-    "unavailable": "Indisponible",
-    "unavailableShort": "Indispo"
-  },
-  "menuGrid": {
-    "otherCategory": "Autres",
-    "defaultRestaurantName": "Restaurant",
-    "groupToggle": "Grouper",
-    "filters": "Filtres",
-    "viewModes": {
-      "list": "Liste",
-      "grid": "Grille",
-      "masonry": "Mosaïque",
-      "table": "Tableau"
-    },
-    "table": {
-      "photo": "Photo",
-      "name": "Nom",
-      "description": "Description",
-      "price": "Prix",
-      "action": "Action"
-    },
-    "stats": {
-      "availableShort_one": "{{count}} dispo",
-      "availableShort_other": "{{count}} dispo",
-      "availableLong_one": "{{count}} plat disponible",
-      "availableLong_other": "{{count}} plats disponibles",
-      "photos_one": "{{count}} photo",
-      "photos_other": "{{count}} photos"
-    },
-    "accordion": {
-      "expandAll": "Tout ouvrir",
-      "collapseAll": "Tout fermer"
-    }
-  }
 }

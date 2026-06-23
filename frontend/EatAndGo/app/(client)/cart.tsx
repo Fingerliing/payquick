@@ -49,6 +49,12 @@ import { computeFormulaStatus, formatFormulaMissingMessage } from '@/utils/daily
 // TYPES
 // ============================================================================
 
+interface CartFormuleSummaryLine {
+  course_name: string;
+  item_name: string;
+  extra_price?: number;
+}
+
 interface CartItem {
   id: string;
   name: string;
@@ -56,6 +62,9 @@ interface CartItem {
   quantity: number;
   image?: string;
   specialInstructions?: string;
+  // Lignes formule (kind === 'formule') : détail des plats choisis par cran.
+  kind?: 'dish' | 'formule';
+  formuleSummary?: CartFormuleSummaryLine[];
 }
 
 type ScreenType = 'mobile' | 'tablet' | 'desktop';
@@ -179,6 +188,31 @@ const CartItemCard = React.memo<CartItemCardProps>(({
               >
                 {item.specialInstructions}
               </Text>
+            </View>
+          )}
+
+          {item.kind === 'formule' && !!item.formuleSummary?.length && (
+            <View style={[local.formuleSummaryBox, styles.mt('xs')]}>
+              {item.formuleSummary.map((line, idx) => (
+                <View key={`${item.id}-fs-${idx}`} style={local.formuleSummaryLine}>
+                  <Ionicons
+                    name="ellipse"
+                    size={5}
+                    color={colors.text.light}
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text
+                    style={[styles.textCaption, local.formuleSummaryText]}
+                    numberOfLines={1}
+                  >
+                    <Text style={local.formuleSummaryCourse}>{line.course_name}</Text>
+                    {`  ${line.item_name}`}
+                    {line.extra_price
+                      ? `  (+${line.extra_price.toFixed(2)} €)`
+                      : ''}
+                  </Text>
+                </View>
+              ))}
             </View>
           )}
 
@@ -1127,6 +1161,25 @@ const makeLocalStyles = (colors: AppColors, isDark: boolean) => {
     instructions: {
       flex: 1,
       fontStyle: 'italic',
+    },
+    formuleSummaryBox: {
+      backgroundColor: colors.variants.primary[50],
+      paddingVertical: SPACING.xs.mobile,
+      paddingHorizontal: SPACING.sm.mobile,
+      borderRadius: BORDER_RADIUS.sm,
+      gap: 2,
+    },
+    formuleSummaryLine: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    formuleSummaryText: {
+      flexShrink: 1,
+      color: colors.text.secondary,
+    },
+    formuleSummaryCourse: {
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      color: colors.text.primary,
     },
     itemFooter: {
       flexDirection: 'row',

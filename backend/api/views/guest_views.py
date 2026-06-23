@@ -10,6 +10,7 @@ import datetime, stripe
 
 from api.models import DraftOrder, Restaurant, MenuItem
 from api.utils.commission_utils import build_stripe_payment_params
+from api.utils.formule_validation import validate_guest_formules, formules_amount_cents
 from api.serializers import GuestPrepareSerializer, GuestPrepareResponse, DraftStatusQuery, DraftStatusResponse
 from api.services import create_order_from_draft
 
@@ -46,11 +47,18 @@ class GuestPrepare(APIView):
         if not rest.can_receive_orders:
             return Response({"detail": "Restaurant indisponible"}, status=403)
 
+        # Valider les formules contre le restaurant résolu (éligibilité, min/max)
+        # et obtenir une forme normalisée stockable dans le draft.
+        formules = validate_guest_formules(rest, data.get("formules", []))
+
         amount = compute_amount_cents(rest, data["items"])
+        amount += formules_amount_cents(rest, formules)
+
         draft = DraftOrder.objects.create(
             restaurant=rest,
             table_number=data.get("table_number") or None,
             items=data["items"],
+            formules=formules,
             amount=amount,
             currency="eur",
             customer_name=data["customer_name"],

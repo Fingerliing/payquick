@@ -1,8 +1,9 @@
 from decimal import Decimal
 from django.db import transaction
 from django.utils import timezone
-from api.models import Order, OrderItem, DraftOrder
-from api.models import MenuItem
+from api.models import Order, OrderItem, OrderItemComponent, DraftOrder
+from api.models import MenuItem, Formule, FormuleCourse, FormuleCourseItem
+from api.utils.formule_pricing import build_formule_components
 
 # Statuts qui indiquent qu'un draft a déjà été consommé ou invalidé.
 # Tout draft portant l'un de ces statuts doit bloquer la création d'une commande.
@@ -123,5 +124,64 @@ def _create_order_from_draft_atomic(draft: DraftOrder, paid: bool) -> Order:
             customizations=it.get("options") or {},
             special_instructions=""
         )
+
+    # ── Créer les formules (1 OrderItem 'formule' + N OrderItemComponent) ────
+    # draft.formules : [{formule, quantity, selections:[{course, menu_item}]}]
+    # On re-résout depuis la DB (prix/TVA courants) et on fige les composants via
+    # build_formule_components — exactement comme OrderCreateSerializer.create.
+    for f in (getattr(draft, "formules", None) or []):
+        try:
+            formule = Formule.objects.get(id=f["formule"], restaurant=draft.restaurant)
+        except Formule.DoesNotExist:
+            continue
+
+        chosen = []
+        for sel in f.get("selections", []):
+            try:
+                course = FormuleCourse.objects.get(id=sel["course"], formule=formule)
+                course_item = FormuleCourseItem.objects.select_related("menu_item").get(
+                    course=course, menu_item_id=sel["menu_item"]
+                )
+            except (FormuleCourse.DoesNotExist, FormuleCourseItem.DoesNotExist):
+                continue
+            chosen.append({
+                "course": course,
+                "menu_item": course_item.menu_item,
+                "extra_price": course_item.extra_price,
+            })
+
+        if not chosen:
+            continue
+
+        f_qty = int(f.get("quantity", 1))
+        unit_price, comps = build_formule_components(formule, chosen)
+        line_vat = sum((c["vat_amount"] for c in comps), Decimal("0.00")) * f_qty
+
+        line = OrderItem.objects.create(
+            order=order,
+            kind="formule",
+            menu_item=None,
+            formule=formule,
+            label=formule.name,
+            quantity=f_qty,
+            unit_price=unit_price,
+            total_price=(unit_price * f_qty).quantize(Decimal("0.01")),
+            vat_amount=line_vat.quantize(Decimal("0.01")),
+        )
+        OrderItemComponent.objects.bulk_create([
+            OrderItemComponent(order_item=line, **c) for c in comps
+        ])
+
+    # ── Ventilation TVA (plats + formules, taux mixtes) ──────────────────────
+    # Recalcule la TVA réelle depuis les lignes créées et renseigne tax_amount /
+    # vat_details. calculate_vat_breakdown descend dans les OrderItemComponent
+    # pour les formules (taux potentiellement mixtes). subtotal reste le montant
+    # payé (draft.amount) — même convention que les total_price recalculés.
+    order.calculate_vat_breakdown()
+    order.tax_amount = sum(
+        (Decimal(str(bucket["tva"])) for bucket in order.vat_details.values()),
+        Decimal("0.00"),
+    )
+    order.save(update_fields=["tax_amount", "vat_details"])
 
     return order
