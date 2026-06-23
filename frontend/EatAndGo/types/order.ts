@@ -1,17 +1,43 @@
 import type { OrderStatus, PaymentStatus, OrderType, ListResponse, MonetaryAmount } from './common';
 
 // ------------------------------
+// Composant de formule (un plat choisi dans un cran)
+// ------------------------------
+export interface OrderItemComponent {
+  id: string;                        // UUID
+  course_name: string;               // "Entrée"
+  menu_item: number | null;          // FK MenuItem (null si plat supprimé)
+  menu_item_name: string;            // snapshot figé
+  menu_item_image: string | null;
+  extra_price: string;               // décimal en string
+  allocated_price: string;           // part du prix formule (ventilation TVA)
+  vat_rate: number;
+  vat_amount: number;
+  allergen_display?: any;
+  dietary_tags?: any;
+  display_order: number;
+}
+
+// ------------------------------
 // Items de commande (backend)
 // ------------------------------
 export interface OrderItem {
   id: number;
-  menu_item: number;                 // FK MenuItem (ID)
+  kind: 'dish' | 'formule';          // discriminant de ligne
+  display_name?: string;             // libellé universel (plat OU formule)
+
+  menu_item: number | null;          // FK MenuItem (null pour une formule)
   menu_item_name?: string;           // read-only (serializer)
   menu_item_image?: string | null;   // read-only (serializer)
-  menu_item_price?: string;          // read-only (serializer)
-  category?: string;                 // read-only (serializer)
-  allergen_display?: any;            // read-only (serializer)
-  dietary_tags?: any;                // read-only (serializer)
+  menu_item_price?: string | null;   // read-only (serializer)
+  category?: string | null;          // read-only (serializer)
+  allergen_display?: any;            // read-only (union des composants si formule)
+  dietary_tags?: any;                // read-only (intersection des composants si formule)
+
+  // Champs "formule"
+  formule?: string | null;           // UUID de la Formule
+  label?: string;                    // libellé figé de la formule
+  components?: OrderItemComponent[];  // plats choisis (par cran)
 
   quantity: number;
   unit_price: string;                // décimal en string
@@ -129,6 +155,20 @@ export interface CreateOrderItemInput {
 }
 
 // ------------------------------
+// Payload pour une formule (1 OrderItem = 1 formule)
+// ------------------------------
+export interface CreateFormuleSelectionInput {
+  course: string;                    // UUID FormuleCourse
+  menu_item: number;                 // FK MenuItem choisi pour ce cran
+}
+
+export interface CreateFormuleInput {
+  formule: string;                   // UUID Formule
+  quantity: number;
+  selections: CreateFormuleSelectionInput[];
+}
+
+// ------------------------------
 // Payload de création (POST /orders)
 // Correspond exactement à OrderCreateSerializer
 // ------------------------------
@@ -140,7 +180,8 @@ export interface CreateOrderRequest {
   phone?: string;
   payment_method?: string;           // 'cash' | 'card' | 'online'
   notes?: string;
-  items: CreateOrderItemInput[];     // liste des items
+  items?: CreateOrderItemInput[];    // liste des items à la carte (peut être vide)
+  formules?: CreateFormuleInput[];   // formules sélectionnées (peut être vide)
 }
 
 // ------------------------------
@@ -256,6 +297,7 @@ export const normalizeCreateOrderRequest = (
     restaurant: request.restaurant,
     order_type: request.order_type,
     items: request.items || [],
+    formules: request.formules || [],
   };
 
   // Gérer table vs table_number
@@ -283,20 +325,37 @@ export const isValidCreateOrderRequest = (
   // Vérifications de base
   if (typeof data.restaurant !== 'number') return false;
   if (!['dine_in', 'takeaway'].includes(data.order_type)) return false;
-  
+
   // Pour dine_in, table_number est requis
   if (data.order_type === 'dine_in' && !data.table_number) return false;
-  
-  // Vérifier les items
-  if (!Array.isArray(data.items) || data.items.length === 0) return false;
-  
-  // Vérifier chaque item
-  return data.items.every((item: any) =>
+
+  const items = Array.isArray(data.items) ? data.items : [];
+  const formules = Array.isArray(data.formules) ? data.formules : [];
+
+  // La commande doit contenir au moins un item OU une formule
+  if (items.length === 0 && formules.length === 0) return false;
+
+  // Vérifier chaque item à la carte
+  const itemsOk = items.every((item: any) =>
     item &&
     typeof item.menu_item === 'number' &&
     typeof item.quantity === 'number' &&
     item.quantity > 0
   );
+  if (!itemsOk) return false;
+
+  // Vérifier chaque formule
+  const formulesOk = formules.every((f: any) =>
+    f &&
+    typeof f.formule === 'string' &&
+    typeof f.quantity === 'number' &&
+    f.quantity > 0 &&
+    Array.isArray(f.selections) &&
+    f.selections.every((s: any) =>
+      s && typeof s.course === 'string' && typeof s.menu_item === 'number'
+    )
+  );
+  return formulesOk;
 };
 
 // Helper pour extraire les stats d'une réponse enveloppée

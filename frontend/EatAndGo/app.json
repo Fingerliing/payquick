@@ -22,7 +22,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#1E3A5F"
+        "backgroundColor": "#0C1219"
       },
       "edgeToEdgeEnabled": true,
       "package": "fr.fingerliing.EatQuickeR",
