@@ -258,7 +258,7 @@ const AnimatedRestaurantItem: React.FC<{
       <RestaurantCard
         restaurant={item}
         onPress={() => router.push(`/restaurant/${item.id}`)}
-        variant="default"
+        variant={viewMode === 'list' ? 'compact' : 'default'}
       />
     </Animated.View>
   );
@@ -570,9 +570,9 @@ export default function RestaurantsScreen() {
         columnWrapperStyle={
           viewMode === 'grid' && numColumns > 1 ? styles.columnWrapper : undefined
         }
-        ListHeaderComponent={renderHeader}
-        ListFooterComponent={renderFooter}
-        ListEmptyComponent={renderEmpty}
+        ListHeaderComponent={renderHeader()}
+        ListFooterComponent={renderFooter()}
+        ListEmptyComponent={renderEmpty()}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

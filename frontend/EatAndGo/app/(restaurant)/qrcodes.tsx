@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
   View,
   Text,
+  TextInput,
   ScrollView,
   Pressable,
   Share,
@@ -20,6 +21,7 @@ import QRCode from 'react-native-qrcode-svg';
 import { useTranslation } from 'react-i18next';
 
 import { useRestaurant } from '@/contexts/RestaurantContext';
+import { RestaurantAutoSelector } from '@/components/restaurant/RestaurantAutoSelector';
 import { Header } from '@/components/ui/Header';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -143,7 +145,11 @@ const QR_SIZES: Record<QRSize, QRSizeConfig> = {
 // ════════════════════════════════════════════════════════════════════════════
 // COMPOSANT PRINCIPAL
 // ════════════════════════════════════════════════════════════════════════════
-export default function QRCodesScreen() {
+interface QRCodesScreenContentProps {
+  restaurant: NonNullable<ReturnType<typeof useRestaurant>['currentRestaurant']>;
+}
+
+function QRCodesScreenContent({ restaurant }: QRCodesScreenContentProps) {
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
 
@@ -155,7 +161,7 @@ export default function QRCodesScreen() {
     isLoading,
   } = useRestaurant();
 
-  const [selectedRestaurant, setSelectedRestaurant] = useState('');
+  const [selectedRestaurant, setSelectedRestaurant] = useState(restaurant.id);
   const [tableCount, setTableCount] = useState(5);
   const [startNumber, setStartNumber] = useState(1);
   const [generatedTables, setGeneratedTables] = useState<Table[]>([]);
@@ -229,13 +235,11 @@ export default function QRCodesScreen() {
   );
 
   // ──────────────────────────────────────────────────────────────────────────
-  // Auto-sélection du restaurant unique
+  // Synchronisation avec le restaurant courant (fourni par RestaurantAutoSelector)
   // ──────────────────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (restaurants.length === 1) {
-      setSelectedRestaurant(restaurants[0].id);
-    }
-  }, [restaurants]);
+    setSelectedRestaurant(restaurant.id);
+  }, [restaurant.id]);
 
   // ──────────────────────────────────────────────────────────────────────────
   // Chargement du logo en base64
@@ -418,11 +422,12 @@ export default function QRCodesScreen() {
         await Promise.all(deletePromises);
       }
 
-      const newTables = await createTables(selectedRestaurant, tableCount, 1);
+      const newTables = await createTables(selectedRestaurant, tableCount, startNumber);
 
       setGeneratedTables(newTables);
       setExistingTablesCount(newTables.length);
-      setStartNumber(newTables.length + 1);
+      // Prochain numéro libre après un remplacement démarrant à `startNumber`
+      setStartNumber(startNumber + newTables.length);
 
       pushAlert(
         'success',
@@ -1140,7 +1145,25 @@ export default function QRCodesScreen() {
                     >
                       <Ionicons name="remove-outline" size={iconSize} color={colors.text.secondary} />
                     </Pressable>
-                    <Text style={styles.controlValue}>{tableCount}</Text>
+                    <TextInput
+                      style={[styles.controlValue, styles.controlInput]}
+                      value={String(tableCount)}
+                      onChangeText={(text) => {
+                        const digits = text.replace(/[^0-9]/g, '');
+                        if (digits === '') {
+                          setTableCount(1);
+                          return;
+                        }
+                        // Borne haute 50 = limite du bulk_create backend
+                        setTableCount(Math.max(1, Math.min(50, parseInt(digits, 10))));
+                      }}
+                      keyboardType="number-pad"
+                      selectTextOnFocus
+                      maxLength={2}
+                      underlineColorAndroid="transparent"
+                      selectionColor={colors.primary}
+                      returnKeyType="done"
+                    />
                     <Pressable
                       onPress={() => setTableCount(Math.min(50, tableCount + 1))}
                       style={styles.controlButton}
@@ -1162,7 +1185,25 @@ export default function QRCodesScreen() {
                       >
                         <Ionicons name="remove-outline" size={iconSize} color={colors.text.secondary} />
                       </Pressable>
-                      <Text style={styles.controlValue}>{startNumber}</Text>
+                      <TextInput
+                        style={[styles.controlValue, styles.controlInput]}
+                        value={String(startNumber)}
+                        onChangeText={(text) => {
+                          const digits = text.replace(/[^0-9]/g, '');
+                          if (digits === '') {
+                            setStartNumber(1);
+                            return;
+                          }
+                          // Pas de borne haute stricte : un resto peut démarrer à 100, 250…
+                          setStartNumber(Math.max(1, Math.min(9999, parseInt(digits, 10))));
+                        }}
+                        keyboardType="number-pad"
+                        selectTextOnFocus
+                        maxLength={4}
+                        underlineColorAndroid="transparent"
+                        selectionColor={colors.primary}
+                        returnKeyType="done"
+                      />
                       <Pressable
                         onPress={() => setStartNumber(startNumber + 1)}
                         style={styles.controlButton}
@@ -1512,6 +1553,26 @@ export default function QRCodesScreen() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+// WRAPPER avec gestion automatique de la sélection du restaurant
+// ════════════════════════════════════════════════════════════════════════════
+export default function QRCodesScreen() {
+  const { t } = useTranslation();
+  const { currentRestaurant } = useRestaurant();
+
+  return (
+    <RestaurantAutoSelector
+      noRestaurantMessage={t('restaurantDailyMenu.noRestaurantMessage')}
+      createButtonText={t('restaurantDailyMenu.createRestaurant')}
+      onRestaurantSelected={(_restaurantId) => {
+        /* noop */
+      }}
+    >
+      {currentRestaurant && <QRCodesScreenContent restaurant={currentRestaurant} />}
+    </RestaurantAutoSelector>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 // STYLES (fabrique theme-aware)
 // ════════════════════════════════════════════════════════════════════════════
 const makeStyles = (
@@ -1710,6 +1771,11 @@ const makeStyles = (
       fontSize: getResponsiveValue({ mobile: 16, tablet: 17, desktop: 18 }, screenType),
       fontWeight: '600',
       color: colors.text.primary,
+    },
+
+    controlInput: {
+      paddingVertical: 0,
+      marginHorizontal: getResponsiveValue(SPACING.xs, screenType),
     },
 
     // Actions
