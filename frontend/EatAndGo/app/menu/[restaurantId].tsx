@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -24,7 +25,7 @@ import { Alert as AppAlert, AlertWithAction, useAlert } from '@/components/ui/Al
 import {
   useScreenType,
   getResponsiveValue,
-  COLORS,
+  useAppTheme,
   SPACING,
   BORDER_RADIUS,
   SHADOWS,
@@ -114,6 +115,8 @@ const ALLERGENS = [
 export default function MenuScreen() {
   const { restaurantId } = useLocalSearchParams<{ restaurantId: string }>();
   const screenType = useScreenType();
+  const { colors } = useAppTheme();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
 
   // Alerts (comme dans [id].tsx)
@@ -373,7 +376,7 @@ export default function MenuScreen() {
     } catch (error) {
       console.error('Erreur chargement menu:', error);
       // Remplace l'alerte native par notre Alert custom
-      showError('Impossible de charger le menu', 'Erreur');
+      showError(t('menuForm.loadError'), 'Erreur');
     } finally {
       setLoading(false);
     }
@@ -551,19 +554,19 @@ export default function MenuScreen() {
       }]);
     }
 
-    showSuccess(`"${item.name}" ajouté au panier`, 'Ajouté');
+    showSuccess(t('menuBrowse.addedToCart', { name: item.name }), t('menuBrowse.added'));
   }, [cart, showSuccess]);
 
   const requestRemoveFromCart = useCallback((itemId: string, itemName?: string, instructions?: string) => {
     setConfirm({
       visible: true,
-      title: 'Supprimer l’article',
-      message: `Voulez-vous supprimer "${itemName ?? 'cet article'}" du panier ?`,
+      title: t('menuBrowse.removeItemTitle'),
+      message: t('menuBrowse.removeItemMessage', { name: itemName ?? t('menuBrowse.thisItem') }),
       onConfirm: () => {
         setCart(current =>
           current.filter(ci => !(ci.menuItem.id === itemId && ci.specialInstructions === instructions))
         );
-        showSuccess('Article supprimé du panier', 'Supprimé');
+        showSuccess(t('menuBrowse.itemRemoved'), t('menuBrowse.removed'));
       }
     });
   }, [showSuccess]);
@@ -587,11 +590,11 @@ export default function MenuScreen() {
     // ✅ Confirmation via AlertWithAction (Oui/Non)
     setConfirm({
       visible: true,
-      title: 'Vider le panier',
-      message: 'Êtes-vous sûr de vouloir vider votre panier ?',
+      title: t('menuBrowse.clearCartTitle'),
+      message: t('menuBrowse.clearCartMessage'),
       onConfirm: () => {
         setCart([]);
-        showSuccess('Votre panier a été vidé.', 'Panier');
+        showSuccess(t('menuBrowse.cartCleared'), t('menuBrowse.cartLabel'));
       }
     });
   }, [showSuccess]);
@@ -611,16 +614,16 @@ export default function MenuScreen() {
   const dynamicStyles = {
     container: {
       flex: 1,
-      backgroundColor: COLORS.background,
+      backgroundColor: colors.background,
       paddingBottom: cart.length > 0 ? 90 : insets.bottom,
     },
     headerCard: {
-      backgroundColor: COLORS.goldenSurface,
+      backgroundColor: colors.goldenSurface,
       paddingTop: insets.top + 12,
       paddingBottom: getResponsiveValue(SPACING.lg, screenType),
       paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
       borderBottomWidth: 2,
-      borderBottomColor: COLORS.border.golden,
+      borderBottomColor: colors.border.golden,
       ...SHADOWS.premiumCard,
     },
     headerTop: {
@@ -633,7 +636,7 @@ export default function MenuScreen() {
       width: 40,
       height: 40,
       borderRadius: 20,
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
       ...SHADOWS.sm,
@@ -645,12 +648,12 @@ export default function MenuScreen() {
     restaurantName: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize['2xl'], screenType),
       fontWeight: TYPOGRAPHY.fontWeight.bold as any,
-      color: COLORS.primary,
+      color: colors.primary,
       textAlign: 'center' as const,
     },
     restaurantCuisine: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       textAlign: 'center' as const,
       marginTop: getResponsiveValue(SPACING.xs, screenType),
     },
@@ -658,7 +661,7 @@ export default function MenuScreen() {
       width: 40,
       height: 40,
       borderRadius: 20,
-      backgroundColor: COLORS.primary,
+      backgroundColor: colors.primary,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
       position: 'relative' as const,
@@ -668,7 +671,7 @@ export default function MenuScreen() {
       position: 'absolute' as const,
       top: -6,
       right: -6,
-      backgroundColor: COLORS.error,
+      backgroundColor: colors.error,
       borderRadius: BORDER_RADIUS.full,
       minWidth: 20,
       height: 20,
@@ -676,18 +679,18 @@ export default function MenuScreen() {
       justifyContent: 'center' as const,
       paddingHorizontal: 6,
       borderWidth: 2,
-      borderColor: COLORS.goldenSurface,
+      borderColor: colors.goldenSurface,
     },
     cartBadgeText: {
       fontSize: 11,
       fontWeight: TYPOGRAPHY.fontWeight.bold as any,
-      color: COLORS.text.inverse,
+      color: colors.text.inverse,
     },
     searchContainer: {
       marginTop: getResponsiveValue(SPACING.sm, screenType),
     },
     filterSection: {
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderRadius: BORDER_RADIUS.xl,
       padding: getResponsiveValue(SPACING.md, screenType),
       marginHorizontal: getResponsiveValue(SPACING.container, screenType),
@@ -704,11 +707,11 @@ export default function MenuScreen() {
     filterTitle: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
       fontWeight: TYPOGRAPHY.fontWeight.bold as any,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       flex: 1,
     },
     filterBadge: {
-      backgroundColor: COLORS.primary,
+      backgroundColor: colors.primary,
       borderRadius: BORDER_RADIUS.full,
       width: 24,
       height: 24,
@@ -717,7 +720,7 @@ export default function MenuScreen() {
       marginLeft: 8,
     },
     filterBadgeText: {
-      color: COLORS.text.inverse,
+      color: colors.text.inverse,
       fontSize: 12,
       fontWeight: TYPOGRAPHY.fontWeight.bold as any,
     },
@@ -727,7 +730,7 @@ export default function MenuScreen() {
     filterGroupTitle: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
       fontWeight: TYPOGRAPHY.fontWeight.semibold as any,
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       marginBottom: getResponsiveValue(SPACING.xs, screenType),
       textTransform: 'uppercase' as const,
       letterSpacing: 0.5,
@@ -742,52 +745,52 @@ export default function MenuScreen() {
       paddingVertical: 8,
       borderRadius: BORDER_RADIUS.full,
       borderWidth: 1.5,
-      borderColor: COLORS.border.light,
-      backgroundColor: COLORS.background,
+      borderColor: colors.border.light,
+      backgroundColor: colors.background,
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
       gap: 6,
     },
     filterChipActive: {
-      backgroundColor: COLORS.primary,
-      borderColor: COLORS.primary,
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
     },
     filterChipText: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       fontWeight: TYPOGRAPHY.fontWeight.medium as any,
     },
     filterChipTextActive: {
-      color: COLORS.text.inverse,
+      color: colors.text.inverse,
       fontWeight: TYPOGRAPHY.fontWeight.semibold as any,
     },
     sectionHeader: {
-      backgroundColor: COLORS.variants.primary[50],
+      backgroundColor: colors.variants.primary[50],
       paddingVertical: getResponsiveValue(SPACING.md, screenType),
       paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
       marginTop: getResponsiveValue(SPACING.md, screenType),
       marginBottom: getResponsiveValue(SPACING.sm, screenType),
       borderRadius: BORDER_RADIUS.lg,
       borderLeftWidth: 4,
-      borderLeftColor: COLORS.primary,
+      borderLeftColor: colors.primary,
       marginHorizontal: getResponsiveValue(SPACING.container, screenType),
       ...SHADOWS.sm,
     },
     sectionHeaderTitle: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xl, screenType),
       fontWeight: TYPOGRAPHY.fontWeight.extrabold as any,
-      color: COLORS.primary,
+      color: colors.primary,
     },
     sectionHeaderSubtitle: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       marginTop: 2,
       fontWeight: TYPOGRAPHY.fontWeight.medium as any,
     },
     menuItemCard: {
       marginBottom: getResponsiveValue(SPACING.md, screenType),
       marginHorizontal: getResponsiveValue(SPACING.container, screenType),
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderRadius: BORDER_RADIUS.xl,
       ...SHADOWS.lg,
       overflow: 'hidden' as const,
@@ -801,24 +804,24 @@ export default function MenuScreen() {
     itemName: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xl, screenType),
       fontWeight: TYPOGRAPHY.fontWeight.bold as any,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       flex: 1,
       marginRight: getResponsiveValue(SPACING.sm, screenType),
     },
     itemPrice: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xl, screenType),
       fontWeight: TYPOGRAPHY.fontWeight.extrabold as any,
-      color: COLORS.variants.secondary[600],
-      backgroundColor: COLORS.variants.secondary[100],
+      color: colors.variants.secondary[600],
+      backgroundColor: colors.variants.secondary[100],
       paddingHorizontal: 12,
       paddingVertical: 6,
       borderRadius: BORDER_RADIUS.lg,
       borderWidth: 1.5,
-      borderColor: COLORS.variants.secondary[400],
+      borderColor: colors.variants.secondary[400],
     },
     itemDescription: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       lineHeight: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType) * 1.5,
     },
     itemFooter: {
@@ -834,23 +837,23 @@ export default function MenuScreen() {
       flex: 1,
     },
     dietaryTag: {
-      backgroundColor: COLORS.variants.secondary[50],
+      backgroundColor: colors.variants.secondary[50],
       paddingHorizontal: 10,
       paddingVertical: 5,
       borderRadius: BORDER_RADIUS.full,
       borderWidth: 1,
-      borderColor: COLORS.variants.secondary[200],
+      borderColor: colors.variants.secondary[200],
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
       gap: 4,
     },
     dietaryTagText: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
-      color: COLORS.variants.secondary[800],
+      color: colors.variants.secondary[800],
       fontWeight: TYPOGRAPHY.fontWeight.semibold as any,
     },
     addButton: {
-      backgroundColor: COLORS.primary,
+      backgroundColor: colors.primary,
       borderRadius: BORDER_RADIUS.lg,
       paddingHorizontal: 16,
       paddingVertical: 10,
@@ -860,7 +863,7 @@ export default function MenuScreen() {
       ...SHADOWS.button,
     },
     addButtonText: {
-      color: COLORS.text.inverse,
+      color: colors.text.inverse,
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
       fontWeight: TYPOGRAPHY.fontWeight.semibold as any,
     },
@@ -869,7 +872,7 @@ export default function MenuScreen() {
       bottom: insets.bottom + getResponsiveValue(SPACING.md, screenType),
       left: getResponsiveValue(SPACING.container, screenType),
       right: getResponsiveValue(SPACING.container, screenType),
-      backgroundColor: COLORS.primary,
+      backgroundColor: colors.primary,
       borderRadius: BORDER_RADIUS.xl,
       paddingHorizontal: getResponsiveValue(SPACING.lg, screenType),
       paddingVertical: getResponsiveValue(SPACING.md, screenType),
@@ -883,22 +886,22 @@ export default function MenuScreen() {
     },
     cartItems: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
-      color: COLORS.text.inverse,
+      color: colors.text.inverse,
       opacity: 0.9,
     },
     cartTotal: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xl, screenType),
       fontWeight: TYPOGRAPHY.fontWeight.bold as any,
-      color: COLORS.text.inverse,
+      color: colors.text.inverse,
     },
     viewCartButton: {
-      backgroundColor: COLORS.text.inverse,
+      backgroundColor: colors.text.inverse,
       borderRadius: BORDER_RADIUS.lg,
       paddingHorizontal: getResponsiveValue(SPACING.lg, screenType),
       paddingVertical: getResponsiveValue(SPACING.sm, screenType),
     },
     viewCartText: {
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       fontWeight: TYPOGRAPHY.fontWeight.bold as any,
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
     },
@@ -911,7 +914,7 @@ export default function MenuScreen() {
   if (loading) {
     return (
       <View style={[dynamicStyles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
         {/* Alert global (affiche les erreurs pendant le chargement si besoin) */}
         {alertState?.visible && (
           <AppAlert
@@ -933,7 +936,7 @@ export default function MenuScreen() {
       <View style={dynamicStyles.headerCard}>
         <View style={dynamicStyles.headerTop}>
           <TouchableOpacity style={dynamicStyles.backButton} onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={22} color={COLORS.text.primary} />
+            <Ionicons name="chevron-back" size={22} color={colors.text.primary} />
           </TouchableOpacity>
 
           <View style={dynamicStyles.restaurantInfo}>
@@ -944,7 +947,7 @@ export default function MenuScreen() {
           </View>
 
           <TouchableOpacity style={dynamicStyles.cartButton} onPress={() => setShowCart(true)}>
-            <Ionicons name="cart" size={20} color={COLORS.text.inverse} />
+            <Ionicons name="cart" size={20} color={colors.text.inverse} />
             {cart.length > 0 && (
               <View style={dynamicStyles.cartBadge}>
                 <Text style={dynamicStyles.cartBadgeText}>{getTotalItems()}</Text>
@@ -956,7 +959,7 @@ export default function MenuScreen() {
         {/* Recherche */}
         <View style={dynamicStyles.searchContainer}>
           <Input
-            placeholder="Rechercher un plat..."
+            placeholder={t('menuBrowse.searchPlaceholder')}
             value={searchQuery}
             onChangeText={setSearchQuery}
             leftIcon="search"
@@ -972,8 +975,8 @@ export default function MenuScreen() {
           activeOpacity={0.7}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-            <Ionicons name="funnel" size={20} color={COLORS.primary} style={{ marginRight: 8 }} />
-            <Text style={dynamicStyles.filterTitle}>Filtres</Text>
+            <Ionicons name="funnel" size={20} color={colors.primary} style={{ marginRight: 8 }} />
+            <Text style={dynamicStyles.filterTitle}>{t('menuBrowse.filters')}</Text>
             {hasActiveFilters() && (
               <View style={dynamicStyles.filterBadge}>
                 <Text style={dynamicStyles.filterBadgeText}>
@@ -989,7 +992,7 @@ export default function MenuScreen() {
           <Ionicons
             name={showFilters ? 'chevron-up' : 'chevron-down'}
             size={24}
-            color={COLORS.text.secondary}
+            color={colors.text.secondary}
           />
         </TouchableOpacity>
 
@@ -1001,12 +1004,12 @@ export default function MenuScreen() {
                 <Text style={{
                   fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
                   fontWeight: TYPOGRAPHY.fontWeight.semibold as any,
-                  color: COLORS.text.secondary,
+                  color: colors.text.secondary,
                   marginBottom: getResponsiveValue(SPACING.xs, screenType),
                   textTransform: 'uppercase' as const,
                   letterSpacing: 0.5,
                 }}>
-                  Catégories
+                  {t('menuBrowse.categories')}
                 </Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                   {categories.map(category => (
@@ -1037,12 +1040,12 @@ export default function MenuScreen() {
                 <Text style={{
                   fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
                   fontWeight: TYPOGRAPHY.fontWeight.semibold as any,
-                  color: COLORS.text.secondary,
+                  color: colors.text.secondary,
                   marginBottom: getResponsiveValue(SPACING.xs, screenType),
                   textTransform: 'uppercase' as const,
                   letterSpacing: 0.5,
                 }}>
-                  Sous-catégories ({subcategories.length})
+                  {t('menuBrowse.subcategoriesCount', { count: subcategories.length })}
                 </Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                   {subcategories.map(subcategory => {
@@ -1075,12 +1078,12 @@ export default function MenuScreen() {
               <Text style={{
                 fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
                 fontWeight: TYPOGRAPHY.fontWeight.semibold as any,
-                color: COLORS.text.secondary,
+                color: colors.text.secondary,
                 marginBottom: getResponsiveValue(SPACING.xs, screenType),
                 textTransform: 'uppercase' as const,
                 letterSpacing: 0.5,
               }}>
-                Régime alimentaire
+                {t('menuBrowse.diet')}
               </Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                 <TouchableOpacity
@@ -1094,13 +1097,13 @@ export default function MenuScreen() {
                   <Ionicons
                     name="leaf-outline"
                     size={14}
-                    color={filters.dietary.includes('vegetarian') ? COLORS.text.inverse : COLORS.text.primary}
+                    color={filters.dietary.includes('vegetarian') ? colors.text.inverse : colors.text.primary}
                   />
                   <Text style={[
                     dynamicStyles.filterChipText,
                     filters.dietary.includes('vegetarian') && dynamicStyles.filterChipTextActive
                   ]}>
-                    Végétarien
+                    {t('menuBrowse.vegetarian')}
                   </Text>
                 </TouchableOpacity>
 
@@ -1115,13 +1118,13 @@ export default function MenuScreen() {
                   <Ionicons
                     name="nutrition-outline"
                     size={14}
-                    color={filters.dietary.includes('vegan') ? COLORS.text.inverse : COLORS.text.primary}
+                    color={filters.dietary.includes('vegan') ? colors.text.inverse : colors.text.primary}
                   />
                   <Text style={[
                     dynamicStyles.filterChipText,
                     filters.dietary.includes('vegan') && dynamicStyles.filterChipTextActive
                   ]}>
-                    Vegan
+                    {t('menuBrowse.vegan')}
                   </Text>
                 </TouchableOpacity>
 
@@ -1136,13 +1139,13 @@ export default function MenuScreen() {
                   <Ionicons
                     name="fitness-outline"
                     size={14}
-                    color={filters.dietary.includes('gluten_free') ? COLORS.text.inverse : COLORS.text.primary}
+                    color={filters.dietary.includes('gluten_free') ? colors.text.inverse : colors.text.primary}
                   />
                   <Text style={[
                     dynamicStyles.filterChipText,
                     filters.dietary.includes('gluten_free') && dynamicStyles.filterChipTextActive
                   ]}>
-                    Sans gluten
+                    {t('menuBrowse.glutenFree')}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -1154,12 +1157,12 @@ export default function MenuScreen() {
                 <Text style={{
                   fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
                   fontWeight: TYPOGRAPHY.fontWeight.semibold as any,
-                  color: COLORS.text.secondary,
+                  color: colors.text.secondary,
                   marginBottom: getResponsiveValue(SPACING.xs, screenType),
                   textTransform: 'uppercase' as const,
                   letterSpacing: 0.5,
                 }}>
-                  Exclure les allergènes
+                  {t('menuBrowse.excludeAllergens')}
                 </Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                   {ALLERGENS.map(allergen => (
@@ -1175,13 +1178,13 @@ export default function MenuScreen() {
                       <Ionicons
                         name="warning-outline"
                         size={14}
-                        color={filters.allergens.includes(allergen.id) ? COLORS.text.inverse : COLORS.error}
+                        color={filters.allergens.includes(allergen.id) ? colors.text.inverse : colors.error}
                       />
                       <Text style={[
                         dynamicStyles.filterChipText,
                         filters.allergens.includes(allergen.id) && dynamicStyles.filterChipTextActive
                       ]}>
-                        {allergen.name}
+                        {t(`allergens.${allergen.id}.name`, allergen.name)}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -1192,11 +1195,11 @@ export default function MenuScreen() {
             {/* Bouton réinitialiser */}
             {hasActiveFilters() && (
               <Button
-                title="Réinitialiser les filtres"
+                title={t('menuBrowse.resetFilters')}
                 onPress={clearAllFilters}
                 variant="outline"
                 size="sm"
-                leftIcon={<Ionicons name="close-circle-outline" size={18} color={COLORS.primary} />}
+                leftIcon={<Ionicons name="close-circle-outline" size={18} color={colors.primary} />}
                 style={{ marginTop: getResponsiveValue(SPACING.xs, screenType) }}
               />
             )}
@@ -1213,7 +1216,7 @@ export default function MenuScreen() {
           <View style={dynamicStyles.sectionHeader}>
             <Text style={dynamicStyles.sectionHeaderTitle}>{section.title}</Text>
             <Text style={dynamicStyles.sectionHeaderSubtitle}>
-              {section.data.length} plat{section.data.length > 1 ? 's' : ''}
+              {t('menuBrowse.itemsCount', { count: section.data.length })}
             </Text>
           </View>
         )}
@@ -1233,20 +1236,20 @@ export default function MenuScreen() {
                 <View style={dynamicStyles.dietaryTags}>
                   {item.is_vegetarian && (
                     <View style={dynamicStyles.dietaryTag}>
-                      <Ionicons name="leaf-outline" size={14} color={COLORS.variants.secondary[800]} />
-                      <Text style={dynamicStyles.dietaryTagText}>Végétarien</Text>
+                      <Ionicons name="leaf-outline" size={14} color={colors.variants.secondary[800]} />
+                      <Text style={dynamicStyles.dietaryTagText}>{t('menuBrowse.vegetarian')}</Text>
                     </View>
                   )}
                   {item.is_vegan && (
                     <View style={dynamicStyles.dietaryTag}>
-                      <Ionicons name="nutrition-outline" size={14} color={COLORS.variants.secondary[800]} />
-                      <Text style={dynamicStyles.dietaryTagText}>Vegan</Text>
+                      <Ionicons name="nutrition-outline" size={14} color={colors.variants.secondary[800]} />
+                      <Text style={dynamicStyles.dietaryTagText}>{t('menuBrowse.vegan')}</Text>
                     </View>
                   )}
                   {item.is_gluten_free && (
                     <View style={dynamicStyles.dietaryTag}>
-                      <Ionicons name="fitness-outline" size={14} color={COLORS.variants.secondary[800]} />
-                      <Text style={dynamicStyles.dietaryTagText}>Sans gluten</Text>
+                      <Ionicons name="fitness-outline" size={14} color={colors.variants.secondary[800]} />
+                      <Text style={dynamicStyles.dietaryTagText}>{t('menuBrowse.glutenFree')}</Text>
                     </View>
                   )}
                 </View>
@@ -1255,8 +1258,8 @@ export default function MenuScreen() {
                   style={dynamicStyles.addButton}
                   onPress={() => addToCart(item, 1)}
                 >
-                  <Ionicons name="add" size={16} color={COLORS.text.inverse} />
-                  <Text style={dynamicStyles.addButtonText}>Ajouter</Text>
+                  <Ionicons name="add" size={16} color={colors.text.inverse} />
+                  <Text style={dynamicStyles.addButtonText}>{t('menuBrowse.addToCart')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1268,20 +1271,20 @@ export default function MenuScreen() {
       {cart.length > 0 && (
         <View style={dynamicStyles.floatingCart}>
           <View style={dynamicStyles.cartInfo}>
-            <Text style={dynamicStyles.cartItems}>{getTotalItems()} article{getTotalItems() > 1 ? 's' : ''}</Text>
+            <Text style={dynamicStyles.cartItems}>{t('menuBrowse.articlesCount', { count: getTotalItems() })}</Text>
             <Text style={dynamicStyles.cartTotal}>{getTotalPrice().toFixed(2)} €</Text>
           </View>
           <TouchableOpacity style={dynamicStyles.viewCartButton} onPress={() => setShowCart(true)}>
-            <Text style={dynamicStyles.viewCartText}>Voir le panier</Text>
+            <Text style={dynamicStyles.viewCartText}>{t('menuBrowse.viewCart')}</Text>
           </TouchableOpacity>
         </View>
       )}
 
       {/* Modal Panier */}
       <Modal visible={showCart} animationType="slide" onRequestClose={() => setShowCart(false)}>
-        <View style={{ flex: 1, backgroundColor: COLORS.background }}>
+        <View style={{ flex: 1, backgroundColor: colors.background }}>
           <Header
-            title="Votre panier"
+            title={t('menuBrowse.cartTitle')}
             leftIcon="close"
             onLeftPress={() => setShowCart(false)}
             rightIcon={cart.length > 0 ? 'trash' : undefined}
@@ -1290,14 +1293,14 @@ export default function MenuScreen() {
 
           <ScrollView contentContainerStyle={{ padding: getResponsiveValue(SPACING.container, screenType) }}>
             {cart.length === 0 ? (
-              <Text style={{ color: COLORS.text.secondary }}>Votre panier est vide.</Text>
+              <Text style={{ color: colors.text.secondary }}>{t('menuBrowse.cartEmpty')}</Text>
             ) : (
               cart.map((ci) => (
                 <Card key={`${ci.menuItem.id}-${ci.specialInstructions ?? ''}`} style={{ marginBottom: 12 }}>
                   <View style={{ padding: 12, gap: 8 }}>
-                    <Text style={{ fontWeight: '600', color: COLORS.text.primary }}>{ci.menuItem.name}</Text>
-                    <Text style={{ color: COLORS.text.secondary }}>
-                      {(ci.menuItem.price * ci.quantity).toFixed(2)} € · Qté {ci.quantity}
+                    <Text style={{ fontWeight: '600', color: colors.text.primary }}>{ci.menuItem.name}</Text>
+                    <Text style={{ color: colors.text.secondary }}>
+                      {(ci.menuItem.price * ci.quantity).toFixed(2)} € · {t('menuBrowse.qty')} {ci.quantity}
                     </Text>
 
                     <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -1313,11 +1316,11 @@ export default function MenuScreen() {
                         onPress={() => updateQuantity(ci.menuItem.id, ci.quantity + 1, ci.specialInstructions)}
                       />
                       <Button
-                        title="Supprimer"
+                        title={t('menuItemForm.delete')}
                         size="sm"
                         variant="ghost"
                         onPress={() => requestRemoveFromCart(ci.menuItem.id, ci.menuItem.name, ci.specialInstructions)}
-                        leftIcon={<Ionicons name="trash" size={14} color={COLORS.error} />}
+                        leftIcon={<Ionicons name="trash" size={14} color={colors.error} />}
                       />
                     </View>
                   </View>
@@ -1348,10 +1351,10 @@ export default function MenuScreen() {
         }}>
           <AlertWithAction
             variant="warning"
-            title={confirm.title ?? 'Confirmer la suppression'}
+            title={confirm.title ?? t('menuBrowse.confirmDeleteTitle')}
             message={confirm.message}
             primaryButton={{
-              text: 'Oui',
+              text: t('menuBrowse.yes'),
               onPress: () => {
                 // onConfirm peut déclencher une mise à jour d’état
                 confirm.onConfirm();
@@ -1360,7 +1363,7 @@ export default function MenuScreen() {
               variant: 'danger',
             }}
             secondaryButton={{
-              text: 'Non',
+              text: t('menuBrowse.no'),
               onPress: () => setConfirm(null),
             }}
           />

@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, TextInput, ScrollView, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Header } from '@/components/ui/Header';
 import { Button } from '@/components/ui/Button';
 import { menuService } from '@/services/menuService';
 import { Alert, AlertWithAction, useAlert } from '@/components/ui/Alert';
 import {
-  COLORS,
+  useAppTheme,
+  type AppColors,
   SPACING,
   TYPOGRAPHY,
   BORDER_RADIUS,
@@ -30,15 +32,18 @@ export default function AddMenuScreen() {
 
   const screenType = useScreenType();
   const styles = createResponsiveStyles(screenType);
+  const { colors } = useAppTheme();
+  const { t } = useTranslation();
+  const localStyles = useMemo(() => createLocalStyles(colors), [colors]);
 
   const handleCreate = async () => {
     if (!name.trim()) {
-      showError('Le nom du menu est requis', 'Erreur');
+      showError(t('menuForm.nameRequired'), t('menuItemForm.error'));
       return;
     }
 
     if (!restaurantId) {
-      showError('Restaurant non spécifié', 'Erreur');
+      showError(t('menuForm.restaurantNotSpecified'), t('menuItemForm.error'));
       return;
     }
 
@@ -52,7 +57,7 @@ export default function AddMenuScreen() {
       setNextAction(() => () => router.replace(`/menu/${newMenu.id}` as any));
     } catch (error) {
       console.error('Erreur lors de la création du menu:', error);
-      showError('Impossible de créer le menu', 'Erreur');
+      showError(t('menuForm.createError'), t('menuItemForm.error'));
     } finally {
       setIsCreating(false);
     }
@@ -62,7 +67,7 @@ export default function AddMenuScreen() {
     <View style={[localStyles.safeArea, { paddingBottom: insets.bottom }]}>
       <View style={localStyles.container}>
         <Header
-          title="Nouveau menu"
+          title={t('menuForm.newTitle')}
           leftIcon="arrow-back"
           onLeftPress={() => router.back()}
         />
@@ -88,13 +93,13 @@ export default function AddMenuScreen() {
               localStyles.headerTitle,
               { textAlign: 'center' }
             ]}>
-              Créer un nouveau menu
+              {t('menuForm.createTitle')}
             </Text>
             <Text style={[
               styles.textBody,
               { textAlign: 'center', marginTop: getResponsiveValue(SPACING.xs, screenType) }
             ]}>
-              Organisez vos plats en créant des menus thématiques
+              {t('menuForm.createSubtitle')}
             </Text>
           </View>
 
@@ -102,10 +107,10 @@ export default function AddMenuScreen() {
           <View style={[styles.card, styles.mb('lg')]}>
             <View style={localStyles.labelContainer}>
               <Text style={[styles.textSubtitle, localStyles.label]}>
-                Nom du menu
+                {t('menuForm.namePlaceholder')}
               </Text>
               <View style={localStyles.requiredBadge}>
-                <Text style={localStyles.requiredText}>Requis</Text>
+                <Text style={localStyles.requiredText}>{t('menuForm.required')}</Text>
               </View>
             </View>
 
@@ -114,8 +119,8 @@ export default function AddMenuScreen() {
               onChangeText={setName}
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
-              placeholder="Ex: Menu Printemps 2025, Menu des Fêtes..."
-              placeholderTextColor={COLORS.text.light}
+              placeholder={t('menuForm.namePlaceholderExample')}
+              placeholderTextColor={colors.text.light}
               style={[
                 COMPONENT_STYLES.input.base,
                 isFocused && COMPONENT_STYLES.input.focused,
@@ -132,7 +137,7 @@ export default function AddMenuScreen() {
               styles.textCaption,
               { marginTop: getResponsiveValue(SPACING.xs, screenType) }
             ]}>
-              Créez un menu pour une période donnée (saison, événement spécial...).
+              {t('menuForm.nameHint')}
             </Text>
           </View>
 
@@ -147,7 +152,7 @@ export default function AddMenuScreen() {
                 <Text style={localStyles.tipIcon}>💡</Text>
               </View>
               <Text style={[styles.textSubtitle, localStyles.tipTitle]}>
-                Conseil
+                {t('menuForm.tip')}
               </Text>
             </View>
 
@@ -155,29 +160,28 @@ export default function AddMenuScreen() {
               styles.textBody,
               { marginTop: getResponsiveValue(SPACING.sm, screenType) }
             ]}>
-              Créez différents menus pour vos saisons, événements ou périodes spéciales
-              (ex: "Menu Printemps", "Menu Été", "Menu des Fêtes").
+              {t('menuForm.tipBody')}
             </Text>
 
             <View style={localStyles.tipFeatures}>
               <View style={localStyles.tipFeature}>
                 <Text style={localStyles.tipFeatureIcon}>✓</Text>
-                <Text style={styles.textCaption}>Activation/désactivation selon la saison</Text>
+                <Text style={styles.textCaption}>{t('menuForm.tipFeature1')}</Text>
               </View>
               <View style={localStyles.tipFeature}>
                 <Text style={localStyles.tipFeatureIcon}>✓</Text>
-                <Text style={styles.textCaption}>Organisation par période</Text>
+                <Text style={styles.textCaption}>{t('menuForm.tipFeature2')}</Text>
               </View>
               <View style={localStyles.tipFeature}>
                 <Text style={localStyles.tipFeatureIcon}>✓</Text>
-                <Text style={styles.textCaption}>Un seul menu actif possible</Text>
+                <Text style={styles.textCaption}>{t('menuForm.tipFeature3')}</Text>
               </View>
             </View>
           </View>
 
           {/* Bouton de création */}
           <Button
-            title={isCreating ? "Création en cours..." : "Créer le menu"}
+            title={isCreating ? t('menuItemForm.creating') : t('menuForm.createButton')}
             onPress={handleCreate}
             disabled={isCreating || !name.trim()}
             variant={name.trim() ? "secondary" : "primary"}
@@ -206,18 +210,18 @@ export default function AddMenuScreen() {
           <View pointerEvents="box-none" style={localStyles.alertOverlay}>
             <AlertWithAction
               variant="success"
-              title="Menu créé"
-              message="Souhaitez-vous ajouter des plats maintenant ou revenir à la liste ?"
+              title={t('menuForm.createdTitle')}
+              message={t('menuForm.createdMessage')}
               autoDismiss={false}
               primaryButton={{
-                text: 'Ajouter des plats',
+                text: t('menuForm.addDishes'),
                 onPress: () => {
                   nextAction();
                   setNextAction(null);
                 },
               }}
               secondaryButton={{
-                text: 'Retour à la liste',
+                text: t('menuForm.backToList'),
                 onPress: () => {
                   router.back();
                   setNextAction(null);
@@ -231,14 +235,14 @@ export default function AddMenuScreen() {
   );
 }
 
-const localStyles = StyleSheet.create({
+const createLocalStyles = (colors: AppColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   scrollView: { flex: 1 },
   scrollContent: { flexGrow: 1 },
@@ -247,12 +251,12 @@ const localStyles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: COLORS.variants.secondary[100],
+    backgroundColor: colors.variants.secondary[100],
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
     borderWidth: 2,
-    borderColor: COLORS.border.golden,
+    borderColor: colors.border.golden,
   },
   iconEmoji: { fontSize: 32 },
   headerTitle: { marginTop: 8 },
@@ -263,23 +267,23 @@ const localStyles = StyleSheet.create({
   },
   label: { flex: 1 },
   requiredBadge: {
-    backgroundColor: COLORS.variants.secondary[100],
+    backgroundColor: colors.variants.secondary[100],
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: BORDER_RADIUS.full,
     borderWidth: 1,
-    borderColor: COLORS.variants.secondary[300],
+    borderColor: colors.variants.secondary[300],
   },
   requiredText: {
     fontSize: 11,
     fontWeight: '600',
-    color: COLORS.variants.secondary[700],
+    color: colors.variants.secondary[700],
   },
   tipCard: {
-    backgroundColor: COLORS.goldenSurface,
+    backgroundColor: colors.goldenSurface,
     borderRadius: BORDER_RADIUS.xl,
     borderWidth: 1,
-    borderColor: COLORS.border.golden,
+    borderColor: colors.border.golden,
     ...SHADOWS.md,
   },
   tipHeader: { flexDirection: 'row', alignItems: 'center' },
@@ -287,18 +291,18 @@ const localStyles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: COLORS.variants.secondary[200],
+    backgroundColor: colors.variants.secondary[200],
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
   tipIcon: { fontSize: 18 },
-  tipTitle: { color: COLORS.variants.secondary[700] },
+  tipTitle: { color: colors.variants.secondary[700] },
   tipFeatures: { marginTop: 16, gap: 8 },
   tipFeature: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   tipFeatureIcon: {
     fontSize: 16,
-    color: COLORS.variants.secondary[600],
+    color: colors.variants.secondary[600],
     fontWeight: 'bold',
   },
   alertOverlay: {

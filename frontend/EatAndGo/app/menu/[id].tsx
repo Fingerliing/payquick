@@ -13,6 +13,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -38,7 +39,8 @@ import { MenuCategory } from '@/types/category';
 // Design System & Responsive
 import { useResponsive } from '@/utils/responsive';
 import {
-  COLORS,
+  useAppTheme,
+  type AppColors,
   BORDER_RADIUS,
   SHADOWS,
 } from '@/utils/designSystem';
@@ -107,9 +109,12 @@ const DishCard: React.FC<DishCardProps> = ({
   onToggle,
   onDelete,
 }) => {
+  const { colors } = useAppTheme();
+  const { t } = useTranslation();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const emoji = category?.icon || inferCategoryEmoji(category?.name || '');
   const pastel = pastelize(category?.color, 0.22);
-  const accent = category?.color || COLORS.secondary;
+  const accent = category?.color || colors.secondary;
 
   const allergenCount = item.allergens?.length || 0;
   const dietaryTags: { label: string; color: string }[] = [];
@@ -167,7 +172,7 @@ const DishCard: React.FC<DishCardProps> = ({
           <View style={styles.unavailableOverlay}>
             <View style={styles.unavailableBadge}>
               <Ionicons name="eye-off" size={12} color="#FFFFFF" />
-              <Text style={styles.unavailableText}>Masqué</Text>
+              <Text style={styles.unavailableText}>{t('menuDetail.hidden')}</Text>
             </View>
           </View>
         )}
@@ -179,7 +184,7 @@ const DishCard: React.FC<DishCardProps> = ({
           disabled={isDeleting}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Ionicons name="trash-outline" size={14} color={COLORS.error} />
+          <Ionicons name="trash-outline" size={14} color={colors.error} />
         </TouchableOpacity>
       </TouchableOpacity>
 
@@ -207,10 +212,10 @@ const DishCard: React.FC<DishCardProps> = ({
           <Text
             style={[
               styles.toggleLabel,
-              { color: item.is_available ? COLORS.text.primary : COLORS.text.secondary },
+              { color: item.is_available ? colors.text.primary : colors.text.secondary },
             ]}
           >
-            {item.is_available ? 'Disponible' : 'Indisponible'}
+            {item.is_available ? t('menuDetail.available') : t('menuDetail.unavailable')}
           </Text>
         </View>
       </TouchableOpacity>
@@ -230,18 +235,21 @@ interface CategorySidebarProps {
 }
 
 const CategorySidebar: React.FC<CategorySidebarProps> = ({ categories, selectedId, onSelect, onReorderPress }) => {
+  const { colors } = useAppTheme();
+  const { t } = useTranslation();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.sidebar}>
       <View style={styles.sidebarHeader}>
-        <Text style={styles.sidebarTitle}>CATÉGORIES</Text>
+        <Text style={styles.sidebarTitle}>{t('menuDetail.categoriesHeader')}</Text>
         {!!onReorderPress && categories.length > 1 && (
           <TouchableOpacity
             onPress={onReorderPress}
             style={styles.sidebarReorderButton}
             hitSlop={8}
-            accessibilityLabel="Réorganiser les catégories"
+            accessibilityLabel={t('menuDetail.reorderCategories')}
           >
-            <Ionicons name="swap-vertical" size={16} color={COLORS.primary} />
+            <Ionicons name="swap-vertical" size={16} color={colors.primary} />
           </TouchableOpacity>
         )}
       </View>
@@ -286,6 +294,9 @@ interface CategoryTabsProps {
 }
 
 const CategoryTabs: React.FC<CategoryTabsProps> = ({ categories, selectedId, onSelect, onReorderPress }) => {
+  const { colors } = useAppTheme();
+  const { t } = useTranslation();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.tabsContainer}>
       <ScrollView
@@ -322,9 +333,9 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({ categories, selectedId, onS
           onPress={onReorderPress}
           style={styles.tabsReorderButton}
           hitSlop={6}
-          accessibilityLabel="Réorganiser les catégories"
+          accessibilityLabel={t('menuDetail.reorderCategories')}
         >
-          <Ionicons name="swap-vertical" size={20} color={COLORS.primary} />
+          <Ionicons name="swap-vertical" size={20} color={colors.primary} />
         </TouchableOpacity>
       )}
     </View>
@@ -336,6 +347,9 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({ categories, selectedId, onS
 // ────────────────────────────────────────────────────────────────────────────
 
 export default function MenuDetailScreen() {
+  const { colors } = useAppTheme();
+  const { t } = useTranslation();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { id } = useLocalSearchParams<{ id: string }>();
   const responsive = useResponsive();
   const { width: windowWidth } = useWindowDimensions();
@@ -382,7 +396,7 @@ export default function MenuDetailScreen() {
       const menuId = parseInt(id, 10);
       if (Number.isNaN(menuId)) {
         console.error('[menu/[id]] ID de menu invalide:', id);
-        showError('Identifiant de menu invalide', 'Erreur');
+        showError(t('menuDetail.invalidMenuId'), t('menuItemForm.error'));
         router.back();
         return;
       }
@@ -396,7 +410,7 @@ export default function MenuDetailScreen() {
           '| code:', menuError?.code,
           '| message:', menuError?.message,
         );
-        showError('Ce menu est introuvable', 'Erreur');
+        showError(t('menuDetail.menuNotFoundToast'), t('menuItemForm.error'));
         router.back();
         return;
       }
@@ -447,7 +461,7 @@ export default function MenuDetailScreen() {
       }
     } catch (error: any) {
       console.error('Erreur lors du chargement des données:', error);
-      showError('Impossible de charger le menu', 'Erreur');
+      showError(t('menuForm.loadError'), t('menuItemForm.error'));
       router.back();
     } finally {
       setIsLoading(false);
@@ -540,12 +554,12 @@ export default function MenuDetailScreen() {
         };
       });
       showSuccess(
-        `Plat ${updated.is_available ? 'activé' : 'désactivé'} avec succès`,
-        'Succès'
+        updated.is_available ? t('menuDetail.dishActivatedMsg') : t('menuDetail.dishDeactivatedMsg'),
+        t('menuItemForm.success')
       );
     } catch (error) {
       console.error('Toggle item error:', error);
-      showError('Impossible de modifier le statut du plat', 'Erreur');
+      showError(t('menuDetail.toggleStatusError'), t('menuItemForm.error'));
     } finally {
       setTogglingItemId(null);
     }
@@ -562,10 +576,10 @@ export default function MenuDetailScreen() {
         return { ...prev, items: prev.items.filter((i) => i.id !== itemToDelete.id) };
       });
       setItemToDelete(null);
-      showSuccess(`Le plat "${itemName}" a été supprimé`, 'Succès');
+      showSuccess(t('menuDetail.dishDeleted', { name: itemName }), t('menuItemForm.success'));
     } catch (error) {
       console.error('Delete item error:', error);
-      showError('Impossible de supprimer le plat', 'Erreur');
+      showError(t('menuDetail.deleteDishError'), t('menuItemForm.error'));
     } finally {
       setDeletingItemId(null);
     }
@@ -667,18 +681,18 @@ export default function MenuDetailScreen() {
                 (r?.subcategories_translated || 0);
               showSuccess(
                 total > 0
-                  ? `${total} élément(s) traduits dans ${fresh.target_languages.length} langue(s).`
-                  : 'Tout était déjà traduit.',
-                'Traduction terminée',
+                  ? t('menuDetail.translatedCount', { count: total, langs: fresh.target_languages.length })
+                  : t('menuDetail.allAlreadyTranslated'),
+                t('menuDetail.translationDone'),
               );
               loadInitialData();
             } else if (fresh.status === 'failed') {
               showError(
-                fresh.error_message || 'La traduction a échoué.',
-                'Erreur',
+                fresh.error_message || t('menuDetail.translationFailed'),
+                t('menuItemForm.error'),
               );
             } else {
-              showError('La traduction prend trop de temps. Réessayez.', 'Délai dépassé');
+              showError(t('menuDetail.translationTimeout'), t('menuDetail.timeout'));
             }
           }
         } catch {
@@ -687,7 +701,7 @@ export default function MenuDetailScreen() {
       }, 2500);
     } catch (error: any) {
       setTranslating(false);
-      showError(error?.message || 'Impossible de lancer la traduction.', 'Erreur');
+      showError(error?.message || 'Impossible de lancer la traduction.', t('menuItemForm.error'));
     }
   }, [menu?.restaurant, translating, selectedLangs, showSuccess, showError]);
 
@@ -705,28 +719,28 @@ export default function MenuDetailScreen() {
       return (
         <View style={styles.emptyState}>
           <View style={styles.emptyIcon}>
-            <Ionicons name="restaurant-outline" size={48} color={COLORS.text.light} />
+            <Ionicons name="restaurant-outline" size={48} color={colors.text.light} />
           </View>
           <Text style={styles.emptyTitle}>
-            {totalItems === 0 ? 'Aucun plat dans ce menu' : 'Aucun plat dans cette catégorie'}
+            {totalItems === 0 ? t('menuDetail.emptyMenuTitle') : t('menuDetail.emptyCategoryTitle')}
           </Text>
           <Text style={styles.emptyText}>
             {totalItems === 0
-              ? 'Ajoutez votre premier plat pour commencer.'
-              : 'Ajoutez un plat à cette catégorie ou sélectionnez-en une autre.'}
+              ? t('menuDetail.emptyMenuText')
+              : t('menuDetail.emptyCategoryText')}
           </Text>
           <Button
-            title="Ajouter un plat"
+            title={t('menuDetail.addDish')}
             onPress={navigateToAdd}
             variant="primary"
-            leftIcon={<Ionicons name="add-circle-outline" size={20} color={COLORS.text.inverse} />}
+            leftIcon={<Ionicons name="add-circle-outline" size={20} color={colors.text.inverse} />}
           />
           {totalItems === 0 && (
             <Button
-              title="Importer une carte par photo"
+              title={t('menuDetail.importMenuPhoto')}
               onPress={navigateToScan}
               variant="outline"
-              leftIcon={<Ionicons name="sparkles-outline" size={20} color={COLORS.primary} />}
+              leftIcon={<Ionicons name="sparkles-outline" size={20} color={colors.primary} />}
               style={{ marginTop: 12 }}
             />
           )}
@@ -772,19 +786,19 @@ export default function MenuDetailScreen() {
     return (
       <View style={styles.container}>
         <Header
-          title="Carte du restaurant"
+          title={t('menuDetail.restaurantMenuTitle')}
           leftIcon="arrow-back"
           onLeftPress={() => router.back()}
           includeSafeArea
         />
         <View style={styles.emptyState}>
-          <Ionicons name="restaurant-outline" size={64} color={COLORS.text.light} />
-          <Text style={styles.emptyTitle}>Menu introuvable</Text>
+          <Ionicons name="restaurant-outline" size={64} color={colors.text.light} />
+          <Text style={styles.emptyTitle}>{t('menuDetail.menuNotFound')}</Text>
           <Button
-            title="Retour"
+            title={t('menuItemForm.back')}
             onPress={() => router.back()}
             variant="outline"
-            leftIcon={<Ionicons name="arrow-back" size={20} color={COLORS.primary} />}
+            leftIcon={<Ionicons name="arrow-back" size={20} color={colors.primary} />}
           />
         </View>
       </View>
@@ -798,7 +812,7 @@ export default function MenuDetailScreen() {
   return (
     <View style={styles.container}>
       <Header
-        title="Carte du restaurant"
+        title={t('menuDetail.restaurantMenuTitle')}
         subtitle={`${menu.name} · ${availableCount}/${totalItems} disponibles`}
         leftIcon="arrow-back"
         onLeftPress={() => router.back()}
@@ -811,34 +825,34 @@ export default function MenuDetailScreen() {
       {useSidebar && (
         <View style={styles.actionBar}>
           <Button
-            title="Importer par photo"
+            title={t('menuDetail.importPhoto')}
             onPress={navigateToScan}
             variant="outline"
             size="sm"
-            leftIcon={<Ionicons name="sparkles-outline" size={16} color={COLORS.primary} />}
+            leftIcon={<Ionicons name="sparkles-outline" size={16} color={colors.primary} />}
           />
           <Button
-            title={translating ? `Traduction… ${translationProgress}%` : 'Traduire le menu'}
+            title={translating ? t('menuDetail.translatingProgress', { progress: translationProgress }) : t('menuDetail.translateMenu')}
             onPress={handleTranslateMenu}
             variant="outline"
             size="sm"
             disabled={translating}
-            leftIcon={<Ionicons name="language-outline" size={16} color={COLORS.primary} />}
+            leftIcon={<Ionicons name="language-outline" size={16} color={colors.primary} />}
             style={{ marginLeft: 8 }}
           />
           {availableLanguages.length > 1 && (
             <Button
-              title={`Aperçu : ${getMenuLanguage(previewLang).flag} ${previewLang.toUpperCase()}`}
+              title={`${t('menuDetail.previewPrefix')} ${getMenuLanguage(previewLang).flag} ${previewLang.toUpperCase()}`}
               onPress={() => setShowPreviewPicker(true)}
               variant="ghost"
               size="sm"
-              leftIcon={<Ionicons name="eye-outline" size={16} color={COLORS.primary} />}
+              leftIcon={<Ionicons name="eye-outline" size={16} color={colors.primary} />}
               style={{ marginLeft: 8 }}
             />
           )}
           <View style={styles.actionBarSpacer} />
           <Button
-            title="+ Ajouter un plat"
+            title={t('menuDetail.addDishShort')}
             onPress={navigateToAdd}
             variant="primary"
             size="sm"
@@ -854,12 +868,12 @@ export default function MenuDetailScreen() {
             onPress={navigateToScan}
             activeOpacity={0.8}
           >
-            <Ionicons name="sparkles" size={16} color={COLORS.primary} />
-            <Text style={styles.scanBarText}>Importer une carte par photo</Text>
+            <Ionicons name="sparkles" size={16} color={colors.primary} />
+            <Text style={styles.scanBarText}>{t('menuDetail.importMenuPhoto')}</Text>
             <Ionicons
               name="chevron-forward"
               size={16}
-              color={COLORS.text.secondary}
+              color={colors.text.secondary}
             />
           </TouchableOpacity>
 
@@ -870,15 +884,15 @@ export default function MenuDetailScreen() {
             disabled={translating}
           >
             {translating ? (
-              <ActivityIndicator size="small" color={COLORS.primary} />
+              <ActivityIndicator size="small" color={colors.primary} />
             ) : (
-              <Ionicons name="language-outline" size={16} color={COLORS.primary} />
+              <Ionicons name="language-outline" size={16} color={colors.primary} />
             )}
             <Text style={styles.scanBarText}>
-              {translating ? `Traduction en cours… ${translationProgress}%` : 'Traduire le menu'}
+              {translating ? t('menuDetail.translatingProgressLong', { progress: translationProgress }) : t('menuDetail.translateMenu')}
             </Text>
             {!translating && (
-              <Ionicons name="chevron-forward" size={16} color={COLORS.text.secondary} />
+              <Ionicons name="chevron-forward" size={16} color={colors.text.secondary} />
             )}
           </TouchableOpacity>
 
@@ -888,11 +902,11 @@ export default function MenuDetailScreen() {
               onPress={() => setShowPreviewPicker(true)}
               activeOpacity={0.8}
             >
-              <Ionicons name="eye-outline" size={16} color={COLORS.primary} />
+              <Ionicons name="eye-outline" size={16} color={colors.primary} />
               <Text style={styles.scanBarText}>
-                Aperçu : {getMenuLanguage(previewLang).flag} {getMenuLanguage(previewLang).label}
+                {t('menuDetail.previewPrefix')} {getMenuLanguage(previewLang).flag} {getMenuLanguage(previewLang).label}
               </Text>
-              <Ionicons name="chevron-forward" size={16} color={COLORS.text.secondary} />
+              <Ionicons name="chevron-forward" size={16} color={colors.text.secondary} />
             </TouchableOpacity>
           )}
         </View>
@@ -957,11 +971,11 @@ export default function MenuDetailScreen() {
             <View style={styles.modalContainer}>
               <AlertWithAction
                 variant="warning"
-                title="Supprimer le plat"
-                message={`Êtes-vous sûr de vouloir supprimer "${itemToDelete.name}" ?\n\nCette action est irréversible.`}
+                title={t('menuDetail.deleteDishTitle')}
+                message={t('menuDetail.deleteDishMessage', { name: itemToDelete.name })}
                 showIcon
                 primaryButton={{
-                  text: 'Supprimer',
+                  text: t('menuItemForm.delete'),
                   onPress: confirmDeleteItem,
                   variant: 'danger',
                 }}
@@ -985,9 +999,9 @@ export default function MenuDetailScreen() {
       >
         <View style={styles.langModalOverlay}>
           <View style={styles.langModalCard}>
-            <Text style={styles.langModalTitle}>Langues à traduire</Text>
+            <Text style={styles.langModalTitle}>{t('menuDetail.langsToTranslate')}</Text>
             <Text style={styles.langModalSubtitle}>
-              Seul ce qui n'est pas encore traduit sera complété.
+              {t('menuDetail.onlyUntranslated')}
             </Text>
             <View style={styles.langChipsWrap}>
               {MENU_LANGUAGES.filter((l) => l.code !== 'fr').map((language) => {
@@ -1000,7 +1014,7 @@ export default function MenuDetailScreen() {
                     style={[styles.langChip, selected && styles.langChipSelected]}
                   >
                     {selected && (
-                      <Ionicons name="checkmark-circle" size={15} color={COLORS.primary} />
+                      <Ionicons name="checkmark-circle" size={15} color={colors.primary} />
                     )}
                     <Text style={[styles.langChipText, selected && styles.langChipTextSelected]}>
                       {language.flag} {language.label}
@@ -1011,13 +1025,13 @@ export default function MenuDetailScreen() {
             </View>
             <View style={styles.langModalActions}>
               <Button
-                title="Annuler"
+                title={t('menuDetail.cancel')}
                 onPress={() => setShowLangSelector(false)}
                 variant="ghost"
                 size="sm"
               />
               <Button
-                title={`Traduire (${selectedLangs.length})`}
+                title={t('menuDetail.translateButton', { count: selectedLangs.length })}
                 onPress={launchTranslation}
                 variant="primary"
                 size="sm"
@@ -1041,9 +1055,9 @@ export default function MenuDetailScreen() {
           style={styles.langModalOverlay}
         >
           <View style={styles.langModalCard}>
-            <Text style={styles.langModalTitle}>Aperçu du menu</Text>
+            <Text style={styles.langModalTitle}>{t('menuDetail.menuPreview')}</Text>
             <Text style={styles.langModalSubtitle}>
-              Visualisez votre menu tel que le verra le client.
+              {t('menuDetail.previewSubtitle')}
             </Text>
             {availableLanguages.map((language) => {
               const selected = language.code === previewLang;
@@ -1058,10 +1072,10 @@ export default function MenuDetailScreen() {
                   style={[styles.previewRow, selected && styles.previewRowSelected]}
                 >
                   <Text style={{ fontSize: 20 }}>{language.flag}</Text>
-                  <Text style={[styles.previewRowText, selected && { color: COLORS.primary, fontWeight: '700' }]}>
+                  <Text style={[styles.previewRowText, selected && { color: colors.primary, fontWeight: '700' }]}>
                     {language.label}
                   </Text>
-                  {selected && <Ionicons name="checkmark-circle" size={18} color={COLORS.primary} />}
+                  {selected && <Ionicons name="checkmark-circle" size={18} color={colors.primary} />}
                 </TouchableOpacity>
               );
             })}
@@ -1097,10 +1111,10 @@ export default function MenuDetailScreen() {
 
 const SIDEBAR_WIDTH = 220;
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
 
   // Action bar (bouton "Ajouter un plat" sur desktop/tablet)
@@ -1111,8 +1125,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border.light,
-    backgroundColor: COLORS.surface,
+    borderBottomColor: colors.border.light,
+    backgroundColor: colors.surface,
   },
   actionBarSpacer: {
     flex: 1,
@@ -1122,9 +1136,9 @@ const styles = StyleSheet.create({
   scanBar: {
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border.light,
+    borderBottomColor: colors.border.light,
   },
   scanBarButton: {
     flexDirection: 'row',
@@ -1132,16 +1146,16 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 10,
     paddingHorizontal: 14,
-    backgroundColor: COLORS.goldenSurface,
+    backgroundColor: colors.goldenSurface,
     borderRadius: BORDER_RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.border.golden,
+    borderColor: colors.border.golden,
   },
   scanBarText: {
     flex: 1,
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.primary,
+    color: colors.primary,
   },
 
   // Modaux de langue (sélection + aperçu)
@@ -1152,18 +1166,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
   },
   langModalCard: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 18,
   },
   langModalTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   langModalSubtitle: {
     fontSize: 13,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     marginTop: 4,
     marginBottom: 14,
   },
@@ -1180,20 +1194,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 999,
     borderWidth: 1.5,
-    borderColor: COLORS.border.default,
-    backgroundColor: COLORS.background,
+    borderColor: colors.border.default,
+    backgroundColor: colors.background,
   },
   langChipSelected: {
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.primary + '12',
+    borderColor: colors.primary,
+    backgroundColor: colors.primary + '12',
   },
   langChipText: {
     fontSize: 13,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     fontWeight: '500',
   },
   langChipTextSelected: {
-    color: COLORS.primary,
+    color: colors.primary,
     fontWeight: '700',
   },
   langModalActions: {
@@ -1211,12 +1225,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   previewRowSelected: {
-    backgroundColor: COLORS.primary + '12',
+    backgroundColor: colors.primary + '12',
   },
   previewRowText: {
     flex: 1,
     fontSize: 15,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     fontWeight: '500',
   },
 
@@ -1234,16 +1248,16 @@ const styles = StyleSheet.create({
   // Sidebar (desktop/tablet)
   sidebar: {
     width: SIDEBAR_WIDTH,
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRightWidth: 1,
-    borderRightColor: COLORS.border.light,
+    borderRightColor: colors.border.light,
     paddingTop: 20,
     paddingBottom: 12,
   },
   sidebarTitle: {
     fontSize: 11,
     fontWeight: '700',
-    color: COLORS.text.light,
+    color: colors.text.light,
     letterSpacing: 1.2,
   },
   sidebarHeader: {
@@ -1257,7 +1271,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: COLORS.variants.primary[50],
+    backgroundColor: colors.variants.primary[50],
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1270,7 +1284,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   sidebarItemActive: {
-    backgroundColor: COLORS.variants.primary[50],
+    backgroundColor: colors.variants.primary[50],
   },
   sidebarActiveBar: {
     position: 'absolute',
@@ -1278,18 +1292,18 @@ const styles = StyleSheet.create({
     top: 6,
     bottom: 6,
     width: 3,
-    backgroundColor: COLORS.secondary,
+    backgroundColor: colors.secondary,
     borderTopRightRadius: 2,
     borderBottomRightRadius: 2,
   },
   sidebarItemText: {
     flex: 1,
     fontSize: 15,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     fontWeight: '500',
   },
   sidebarItemTextActive: {
-    color: COLORS.primary,
+    color: colors.primary,
     fontWeight: '700',
   },
   sidebarBadge: {
@@ -1297,17 +1311,17 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 11,
     paddingHorizontal: 6,
-    backgroundColor: COLORS.variants.primary[100],
+    backgroundColor: colors.variants.primary[100],
     alignItems: 'center',
     justifyContent: 'center',
   },
   sidebarBadgeActive: {
-    backgroundColor: COLORS.secondary,
+    backgroundColor: colors.secondary,
   },
   sidebarBadgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
   },
   sidebarBadgeTextActive: {
     color: '#FFFFFF',
@@ -1317,9 +1331,9 @@ const styles = StyleSheet.create({
   tabsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border.light,
+    borderBottomColor: colors.border.light,
   },
   tabsContent: {
     paddingHorizontal: 12,
@@ -1330,7 +1344,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: COLORS.variants.primary[50],
+    backgroundColor: colors.variants.primary[50],
     alignItems: 'center',
     justifyContent: 'center',
     marginHorizontal: 8,
@@ -1342,18 +1356,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: BORDER_RADIUS.full,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: COLORS.border.light,
+    borderColor: colors.border.light,
   },
   tabItemActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   tabItemText: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
   },
   tabItemTextActive: {
     color: '#FFFFFF',
@@ -1363,17 +1377,17 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 10,
     paddingHorizontal: 5,
-    backgroundColor: COLORS.variants.primary[100],
+    backgroundColor: colors.variants.primary[100],
     alignItems: 'center',
     justifyContent: 'center',
   },
   tabBadgeActive: {
-    backgroundColor: COLORS.secondary,
+    backgroundColor: colors.secondary,
   },
   tabBadgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
   },
   tabBadgeTextActive: {
     color: '#FFFFFF',
@@ -1396,12 +1410,12 @@ const styles = StyleSheet.create({
   categoryHeaderTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: COLORS.primary,
+    color: colors.primary,
     letterSpacing: -0.3,
   },
   categoryHeaderCount: {
     fontSize: 13,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     fontWeight: '500',
   },
   grid: {
@@ -1416,11 +1430,11 @@ const styles = StyleSheet.create({
 
   // Card d'un plat
   dishCard: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.lg,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: COLORS.border.light,
+    borderColor: colors.border.light,
     ...SHADOWS.sm,
   },
   thumbWrapper: {
@@ -1454,7 +1468,7 @@ const styles = StyleSheet.create({
   priceBadgeText: {
     fontSize: 12,
     fontWeight: '700',
-    color: COLORS.primary,
+    color: colors.primary,
   },
   allergenBadge: {
     position: 'absolute',
@@ -1541,7 +1555,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontWeight: '700',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     lineHeight: 18,
   },
   dishPrice: {
@@ -1571,7 +1585,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: COLORS.variants.primary[50],
+    backgroundColor: colors.variants.primary[50],
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
@@ -1579,12 +1593,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     textAlign: 'center',
   },
   emptyText: {
     fontSize: 14,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 8,
