@@ -32,11 +32,13 @@ import {
   Modal,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 import {
-  COLORS,
+  useAppTheme,
+  type AppColors,
   SPACING,
   TYPOGRAPHY,
   BORDER_RADIUS,
@@ -87,6 +89,8 @@ type ToastState = { variant: ToastVariant; title?: string; message: string } | n
 export default function MenuScanReviewScreen() {
   const insets = useSafeAreaInsets();
   const screenType = useScreenType();
+  const { colors } = useAppTheme();
+  const { t } = useTranslation();
   const { jobId } = useLocalSearchParams<{ jobId: string }>();
 
   const [job, setJob] = useState<MenuScanJob | null>(null);
@@ -136,7 +140,7 @@ export default function MenuScanReviewScreen() {
         stopPolling();
       }
     } catch (error: any) {
-      notify('error', error?.message || 'Chargement impossible.', 'Erreur');
+      notify('error', error?.message || t('scanImport.loadError'), t('menuItemForm.error'));
     } finally {
       setLoading(false);
     }
@@ -157,8 +161,8 @@ export default function MenuScanReviewScreen() {
           stopPolling();
           notify(
             'warning',
-            'Le traitement prend plus de temps que prévu. Réessayez plus tard.',
-            'Délai dépassé',
+            t('scanImport.processingTimeout'),
+            t('menuDetail.timeout'),
           );
           return;
         }
@@ -318,7 +322,7 @@ export default function MenuScanReviewScreen() {
       stopPolling();
       pollRef.current = setInterval(fetchJob, POLL_INTERVAL_MS);
     } catch (error: any) {
-      notify('error', error?.message || 'Relance impossible.', 'Erreur');
+      notify('error', error?.message || t('scanImport.retryError'), t('menuItemForm.error'));
     } finally {
       setBusy(false);
     }
@@ -335,13 +339,13 @@ export default function MenuScanReviewScreen() {
       setApplyResult(result);
       setJob(result.job);
     } catch (error: any) {
-      notify('error', error?.message || "L'application a échoué.", 'Erreur');
+      notify('error', error?.message || t('scanImport.applyError'), t('menuItemForm.error'));
     } finally {
       setBusy(false);
     }
   }, [jobId, draft, notify]);
 
-  const styles = useMemo(() => createStyles(screenType), [screenType]);
+  const styles = useMemo(() => createStyles(colors, screenType), [colors, screenType]);
 
   // ── Rendu : en-tête commun ──────────────────────────────────────────────
   const renderHeader = (title: string) => (
@@ -351,7 +355,7 @@ export default function MenuScanReviewScreen() {
         hitSlop={10}
         style={styles.headerButton}
       >
-        <Ionicons name="arrow-back" size={24} color={COLORS.text.primary} />
+        <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
       </TouchableOpacity>
       <Text style={styles.headerTitle} numberOfLines={1}>
         {title}
@@ -386,9 +390,9 @@ export default function MenuScanReviewScreen() {
   if (loading && !job) {
     return (
       <View style={styles.root}>
-        {renderHeader('Import du menu')}
+        {renderHeader(t('scanImport.importMenu'))}
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       </View>
     );
@@ -401,35 +405,35 @@ export default function MenuScanReviewScreen() {
     const r = applyResult.report;
     return (
       <View style={styles.root}>
-        {renderHeader('Import terminé')}
+        {renderHeader(t('scanImport.importDone'))}
         <ScrollView contentContainerStyle={styles.centeredScroll}>
           <View style={[styles.statusIcon, styles.statusIconSuccess]}>
-            <Ionicons name="checkmark" size={44} color={COLORS.success} />
+            <Ionicons name="checkmark" size={44} color={colors.success} />
           </View>
-          <Text style={styles.bigTitle}>Menu importé</Text>
+          <Text style={styles.bigTitle}>{t('scanImport.menuImported')}</Text>
           <Text style={styles.bigSubtitle}>
             {r.categories_created} catégorie(s) et {r.items_created} plat(s)
             ajoutés à votre menu.
           </Text>
 
           <View style={styles.reportCard}>
-            <ReportLine label="Catégories créées" value={r.categories_created} />
-            <ReportLine label="Catégories réutilisées" value={r.categories_reused} />
+            <ReportLine label={t('scanImport.categoriesCreated')} value={r.categories_created} />
+            <ReportLine label={t('scanImport.categoriesReused')} value={r.categories_reused} />
             <ReportLine
-              label="Sous-catégories créées"
+              label={t('scanImport.subcategoriesCreated')}
               value={r.subcategories_created}
             />
-            <ReportLine label="Plats créés" value={r.items_created} />
+            <ReportLine label={t('scanImport.dishesCreated')} value={r.items_created} />
             <ReportLine
-              label="Charte graphique"
-              value={r.branding_applied ? 'Appliquée' : 'Inchangée'}
+              label={t('scanImport.graphicGuide')}
+              value={r.branding_applied ? t('scanImport.applied') : t('scanImport.unchanged')}
             />
           </View>
 
           {r.warnings.length > 0 && (
             <View style={styles.warningCard}>
               <Text style={styles.warningTitle}>
-                <Ionicons name="warning-outline" size={14} /> À vérifier
+                <Ionicons name="warning-outline" size={14} /> {t('scanImport.toReview')}
               </Text>
               {r.warnings.map((w, i) => (
                 <Text key={i} style={styles.warningItem}>
@@ -445,7 +449,7 @@ export default function MenuScanReviewScreen() {
             onPress={() => router.replace('/(restaurant)/menu')}
             activeOpacity={0.85}
           >
-            <Text style={styles.primaryButtonText}>Voir mon menu</Text>
+            <Text style={styles.primaryButtonText}>{t('scanImport.viewMenu')}</Text>
           </TouchableOpacity>
         </View>
         {renderToast()}
@@ -457,20 +461,20 @@ export default function MenuScanReviewScreen() {
   if (status === 'applied') {
     return (
       <View style={styles.root}>
-        {renderHeader('Import du menu')}
+        {renderHeader(t('scanImport.importMenu'))}
         <View style={styles.centeredScroll}>
           <View style={[styles.statusIcon, styles.statusIconSuccess]}>
-            <Ionicons name="checkmark-done" size={44} color={COLORS.success} />
+            <Ionicons name="checkmark-done" size={44} color={colors.success} />
           </View>
-          <Text style={styles.bigTitle}>Déjà appliqué</Text>
+          <Text style={styles.bigTitle}>{t('scanImport.alreadyApplied')}</Text>
           <Text style={styles.bigSubtitle}>
-            Cet import a déjà été ajouté à votre menu.
+            {t('scanImport.alreadyAppliedMsg')}
           </Text>
           <TouchableOpacity
             style={[styles.primaryButton, { marginTop: 24 }]}
             onPress={() => router.replace('/(restaurant)/menu')}
           >
-            <Text style={styles.primaryButtonText}>Voir mon menu</Text>
+            <Text style={styles.primaryButtonText}>{t('scanImport.viewMenu')}</Text>
           </TouchableOpacity>
         </View>
         {renderToast()}
@@ -482,15 +486,15 @@ export default function MenuScanReviewScreen() {
   if (status === 'failed') {
     return (
       <View style={styles.root}>
-        {renderHeader('Import du menu')}
+        {renderHeader(t('scanImport.importMenu'))}
         <View style={styles.centeredScroll}>
           <View style={[styles.statusIcon, styles.statusIconError]}>
-            <Ionicons name="close" size={44} color={COLORS.error} />
+            <Ionicons name="close" size={44} color={colors.error} />
           </View>
-          <Text style={styles.bigTitle}>L'analyse a échoué</Text>
+          <Text style={styles.bigTitle}>{t('scanImport.analysisFailed')}</Text>
           <Text style={styles.bigSubtitle}>
             {job?.error_message ||
-              "Le traitement de votre carte n'a pas abouti."}
+              t('scanImport.processingFailed')}
           </Text>
           <TouchableOpacity
             style={[styles.primaryButton, { marginTop: 24 }]}
@@ -500,7 +504,7 @@ export default function MenuScanReviewScreen() {
             {busy ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Text style={styles.primaryButtonText}>Réessayer</Text>
+              <Text style={styles.primaryButtonText}>{t('scanImport.retry')}</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -512,8 +516,8 @@ export default function MenuScanReviewScreen() {
   // ── État : traitement en cours ──────────────────────────────────────────
   if (NON_TERMINAL_STATUSES.includes(status)) {
     const steps: { key: MenuScanStatus; label: string }[] = [
-      { key: 'processing', label: 'Analyse de la carte' },
-      { key: 'translating', label: 'Traduction du contenu' },
+      { key: 'processing', label: t('scanImport.analyzeTitle') },
+      { key: 'translating', label: t('scanImport.translatingContent') },
     ];
     const rank: Record<string, number> = {
       pending: 0,
@@ -525,15 +529,14 @@ export default function MenuScanReviewScreen() {
 
     return (
       <View style={styles.root}>
-        {renderHeader('Analyse en cours')}
+        {renderHeader(t('scanImport.analyzing'))}
         <View style={styles.centeredScroll}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={[styles.bigTitle, { marginTop: 24 }]}>
-            Lecture de votre carte…
+            {t('scanImport.readingCard')}
           </Text>
           <Text style={styles.bigSubtitle}>
-            Cela prend généralement moins d'une minute. Vous pouvez patienter
-            sur cet écran.
+            {t('scanImport.waitHint')}
           </Text>
 
           <View style={styles.stepsCard}>
@@ -554,10 +557,10 @@ export default function MenuScanReviewScreen() {
                     size={20}
                     color={
                       done
-                        ? COLORS.success
+                        ? colors.success
                         : active
-                          ? COLORS.primary
-                          : COLORS.text.light
+                          ? colors.primary
+                          : colors.text.light
                     }
                   />
                   <Text
@@ -571,7 +574,7 @@ export default function MenuScanReviewScreen() {
                   {active && (
                     <ActivityIndicator
                       size="small"
-                      color={COLORS.primary}
+                      color={colors.primary}
                       style={{ marginLeft: 'auto' }}
                     />
                   )}
@@ -588,7 +591,7 @@ export default function MenuScanReviewScreen() {
   // ── État : prêt -> éditeur du brouillon ─────────────────────────────────
   return (
     <View style={styles.root}>
-      {renderHeader('Vérifier le menu')}
+      {renderHeader(t('scanImport.reviewMenuTitle'))}
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -612,7 +615,7 @@ export default function MenuScanReviewScreen() {
             </Text>
           )}
           <Text style={styles.summaryHint}>
-            Relisez les prix et les noms. Tout reste modifiable après l'import.
+            {t('scanImport.reviewHint')}
           </Text>
         </View>
 
@@ -624,8 +627,8 @@ export default function MenuScanReviewScreen() {
               <TextInput
                 value={category.name}
                 onChangeText={(t) => patchCategoryName(catIndex, t)}
-                placeholder="Nom de la catégorie"
-                placeholderTextColor={COLORS.text.light}
+                placeholder={t('scanImport.categoryName')}
+                placeholderTextColor={colors.text.light}
                 style={styles.categoryNameInput}
               />
               <TouchableOpacity
@@ -633,7 +636,7 @@ export default function MenuScanReviewScreen() {
                 hitSlop={8}
                 style={styles.categoryDeleteBtn}
               >
-                <Ionicons name="trash-outline" size={18} color={COLORS.error} />
+                <Ionicons name="trash-outline" size={18} color={colors.error} />
               </TouchableOpacity>
             </View>
 
@@ -657,15 +660,15 @@ export default function MenuScanReviewScreen() {
                   <Ionicons
                     name="return-down-forward"
                     size={16}
-                    color={COLORS.text.secondary}
+                    color={colors.text.secondary}
                   />
                   <TextInput
                     value={sub.name}
                     onChangeText={(t) =>
                       patchSubCategoryName(catIndex, subIndex, t)
                     }
-                    placeholder="Nom de la sous-catégorie"
-                    placeholderTextColor={COLORS.text.light}
+                    placeholder={t('scanImport.subcategoryName')}
+                    placeholderTextColor={colors.text.light}
                     style={styles.subNameInput}
                   />
                 </View>
@@ -699,7 +702,7 @@ export default function MenuScanReviewScreen() {
           ) : (
             <>
               <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
-              <Text style={styles.primaryButtonText}>Appliquer à mon menu</Text>
+              <Text style={styles.primaryButtonText}>{t('scanImport.applyToMenu')}</Text>
             </>
           )}
         </TouchableOpacity>
@@ -717,20 +720,20 @@ export default function MenuScanReviewScreen() {
           <View style={styles.modalCard}>
             <AlertWithAction
               variant={draftStats.missingPrices > 0 ? 'warning' : 'info'}
-              title="Appliquer l'import ?"
+              title={t('scanImport.applyConfirm')}
               message={
                 draftStats.missingPrices > 0
-                  ? `${draftStats.missingPrices} plat(s) n'ont pas de prix valide et seront créés à 0,00 €. Continuer quand même ?`
-                  : `${draftStats.categories} catégorie(s) et ${draftStats.items} plat(s) seront ajoutés à votre menu.`
+                  ? t('scanImport.applyWarnMissingPrices', { count: draftStats.missingPrices })
+                  : t('scanImport.applySummary', { categories: draftStats.categories, items: draftStats.items })
               }
               autoDismiss={false}
               primaryButton={{
-                text: 'Appliquer',
+                text: t('scanImport.apply'),
                 onPress: handleApply,
                 variant: 'primary',
               }}
               secondaryButton={{
-                text: 'Annuler',
+                text: t('menuDetail.cancel'),
                 onPress: () => setConfirmVisible(false),
               }}
             />
@@ -759,6 +762,8 @@ const ItemEditor: React.FC<ItemEditorProps> = ({
   onChange,
   onDelete,
 }) => {
+  const { colors } = useAppTheme();
+  const { t } = useTranslation();
   const priceValue = parseFloat((item.price || '').replace(',', '.'));
   const priceInvalid =
     !item.price || Number.isNaN(priceValue) || priceValue <= 0;
@@ -780,18 +785,18 @@ const ItemEditor: React.FC<ItemEditorProps> = ({
         <TextInput
           value={item.name}
           onChangeText={(t) => onChange({ name: t })}
-          placeholder="Nom du plat"
-          placeholderTextColor={COLORS.text.light}
+          placeholder={t('scanImport.dishName')}
+          placeholderTextColor={colors.text.light}
           style={styles.itemNameInput}
         />
         <TouchableOpacity onPress={onDelete} hitSlop={8} style={styles.itemDeleteBtn}>
-          <Ionicons name="close-circle" size={22} color={COLORS.text.light} />
+          <Ionicons name="close-circle" size={22} color={colors.text.light} />
         </TouchableOpacity>
       </View>
 
       {/* Ligne 2 : prix */}
       <View style={styles.priceRow}>
-        <Text style={styles.fieldLabel}>Prix</Text>
+        <Text style={styles.fieldLabel}>{t('scanImport.price')}</Text>
         <View
           style={[
             styles.priceInputWrap,
@@ -802,14 +807,14 @@ const ItemEditor: React.FC<ItemEditorProps> = ({
             value={item.price}
             onChangeText={(t) => onChange({ price: t })}
             placeholder="0.00"
-            placeholderTextColor={COLORS.text.light}
+            placeholderTextColor={colors.text.light}
             keyboardType="decimal-pad"
             style={styles.priceInput}
           />
           <Text style={styles.priceCurrency}>€</Text>
         </View>
         {priceInvalid && (
-          <Text style={styles.priceErrorText}>Prix à compléter</Text>
+          <Text style={styles.priceErrorText}>{t('scanImport.priceToComplete')}</Text>
         )}
       </View>
 
@@ -817,8 +822,8 @@ const ItemEditor: React.FC<ItemEditorProps> = ({
       <TextInput
         value={item.description}
         onChangeText={(t) => onChange({ description: t })}
-        placeholder="Description (optionnelle)"
-        placeholderTextColor={COLORS.text.light}
+        placeholder={t('scanImport.descOptional')}
+        placeholderTextColor={colors.text.light}
         multiline
         style={styles.descriptionInput}
       />
@@ -827,9 +832,9 @@ const ItemEditor: React.FC<ItemEditorProps> = ({
       <View style={styles.flagsRow}>
         {(
           [
-            ['is_vegetarian', 'Végétarien'],
-            ['is_vegan', 'Vegan'],
-            ['is_gluten_free', 'Sans gluten'],
+            ['is_vegetarian', t('menuBrowse.vegetarian')],
+            ['is_vegan', t('menuBrowse.vegan')],
+            ['is_gluten_free', t('menuBrowse.glutenFree')],
           ] as const
         ).map(([key, label]) => {
           const active = item[key];
@@ -859,7 +864,7 @@ const ItemEditor: React.FC<ItemEditorProps> = ({
           {item.allergens.map((code) => (
             <View key={code} style={styles.allergenBadge}>
               <Text style={styles.allergenBadgeText}>
-                {ALLERGEN_LABELS[code] || code}
+                {t(`allergens.${code}.name`, ALLERGEN_LABELS[code] || code)}
               </Text>
             </View>
           ))}
@@ -875,34 +880,39 @@ const ItemEditor: React.FC<ItemEditorProps> = ({
 const ReportLine: React.FC<{ label: string; value: number | string }> = ({
   label,
   value,
-}) => (
+}) => {
+  const { colors } = useAppTheme();
+  const { t } = useTranslation();
+  const reportLineStyles = useMemo(() => createReportLineStyles(colors), [colors]);
+  return (
   <View style={reportLineStyles.row}>
     <Text style={reportLineStyles.label}>{label}</Text>
     <Text style={reportLineStyles.value}>{value}</Text>
   </View>
-);
+  );
+};
 
-const reportLineStyles = StyleSheet.create({
+const createReportLineStyles = (colors: AppColors) => StyleSheet.create({
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: 6,
   },
-  label: { fontSize: 14, color: COLORS.text.secondary },
-  value: { fontSize: 14, fontWeight: '700', color: COLORS.text.primary },
+  label: { fontSize: 14, color: colors.text.secondary },
+  value: { fontSize: 14, fontWeight: '700', color: colors.text.primary },
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Styles
 // ─────────────────────────────────────────────────────────────────────────────
-function createStyles(screenType: 'mobile' | 'tablet' | 'desktop') {
+function createStyles(colors: AppColors, screenType: 'mobile' | 'tablet' | 'desktop') {
   const sp = (key: keyof typeof SPACING) =>
     getResponsiveValue(SPACING[key], screenType);
   const fs = (key: keyof typeof TYPOGRAPHY.fontSize) =>
     getResponsiveValue(TYPOGRAPHY.fontSize[key], screenType);
 
   return StyleSheet.create({
-    root: { flex: 1, backgroundColor: COLORS.background },
+    root: { flex: 1, backgroundColor: colors.background },
 
     header: {
       flexDirection: 'row',
@@ -910,9 +920,9 @@ function createStyles(screenType: 'mobile' | 'tablet' | 'desktop') {
       justifyContent: 'space-between',
       paddingHorizontal: sp('container'),
       paddingBottom: sp('sm'),
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderBottomWidth: 1,
-      borderBottomColor: COLORS.border.light,
+      borderBottomColor: colors.border.light,
     },
     headerButton: {
       width: 40,
@@ -925,7 +935,7 @@ function createStyles(screenType: 'mobile' | 'tablet' | 'desktop') {
       textAlign: 'center',
       fontSize: fs('lg'),
       fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
     },
 
     centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
@@ -945,17 +955,17 @@ function createStyles(screenType: 'mobile' | 'tablet' | 'desktop') {
       justifyContent: 'center',
       marginBottom: sp('lg'),
     },
-    statusIconSuccess: { backgroundColor: COLORS.variants.primary[50] },
+    statusIconSuccess: { backgroundColor: colors.variants.primary[50] },
     statusIconError: { backgroundColor: '#FEF2F2' },
     bigTitle: {
       fontSize: fs('xl'),
       fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       textAlign: 'center',
     },
     bigSubtitle: {
       fontSize: fs('sm'),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       textAlign: 'center',
       marginTop: sp('sm'),
       lineHeight: fs('sm') * 1.5,
@@ -963,7 +973,7 @@ function createStyles(screenType: 'mobile' | 'tablet' | 'desktop') {
 
     stepsCard: {
       width: '100%',
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderRadius: BORDER_RADIUS.lg,
       padding: sp('lg'),
       marginTop: sp('xl'),
@@ -971,16 +981,16 @@ function createStyles(screenType: 'mobile' | 'tablet' | 'desktop') {
       ...SHADOWS.sm,
     },
     stepRow: { flexDirection: 'row', alignItems: 'center', gap: sp('sm') },
-    stepLabel: { fontSize: fs('sm'), color: COLORS.text.light },
+    stepLabel: { fontSize: fs('sm'), color: colors.text.light },
     stepLabelActive: {
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       fontWeight: TYPOGRAPHY.fontWeight.medium,
     },
 
     // Bilan
     reportCard: {
       width: '100%',
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderRadius: BORDER_RADIUS.lg,
       padding: sp('lg'),
       marginTop: sp('lg'),
@@ -988,28 +998,28 @@ function createStyles(screenType: 'mobile' | 'tablet' | 'desktop') {
     },
     warningCard: {
       width: '100%',
-      backgroundColor: COLORS.variants.secondary[50],
+      backgroundColor: colors.variants.secondary[50],
       borderRadius: BORDER_RADIUS.lg,
       borderWidth: 1,
-      borderColor: COLORS.border.golden,
+      borderColor: colors.border.golden,
       padding: sp('lg'),
       marginTop: sp('md'),
     },
     warningTitle: {
       fontSize: fs('sm'),
       fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: COLORS.variants.secondary[800],
+      color: colors.variants.secondary[800],
       marginBottom: sp('xs'),
     },
     warningItem: {
       fontSize: fs('xs'),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       lineHeight: fs('xs') * 1.6,
     },
 
     // Éditeur — récapitulatif
     summaryCard: {
-      backgroundColor: COLORS.variants.primary[50],
+      backgroundColor: colors.variants.primary[50],
       borderRadius: BORDER_RADIUS.lg,
       padding: sp('md'),
       marginBottom: sp('lg'),
@@ -1017,17 +1027,17 @@ function createStyles(screenType: 'mobile' | 'tablet' | 'desktop') {
     summaryText: {
       fontSize: fs('sm'),
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
     },
     summaryWarning: {
       fontSize: fs('xs'),
-      color: COLORS.variants.secondary[800],
+      color: colors.variants.secondary[800],
       marginTop: sp('xs'),
       fontWeight: TYPOGRAPHY.fontWeight.medium,
     },
     summaryHint: {
       fontSize: fs('xs'),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       marginTop: sp('xs'),
     },
 
@@ -1044,10 +1054,10 @@ function createStyles(screenType: 'mobile' | 'tablet' | 'desktop') {
       flex: 1,
       fontSize: fs('lg'),
       fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       paddingVertical: 4,
       borderBottomWidth: 1,
-      borderBottomColor: COLORS.border.light,
+      borderBottomColor: colors.border.light,
     },
     categoryDeleteBtn: {
       width: 32,
@@ -1062,7 +1072,7 @@ function createStyles(screenType: 'mobile' | 'tablet' | 'desktop') {
       marginLeft: sp('sm'),
       paddingLeft: sp('sm'),
       borderLeftWidth: 2,
-      borderLeftColor: COLORS.border.light,
+      borderLeftColor: colors.border.light,
     },
     subHeader: {
       flexDirection: 'row',
@@ -1074,13 +1084,13 @@ function createStyles(screenType: 'mobile' | 'tablet' | 'desktop') {
       flex: 1,
       fontSize: fs('base'),
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       paddingVertical: 2,
     },
 
     // Plat
     itemCard: {
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderRadius: BORDER_RADIUS.lg,
       padding: sp('md'),
       marginBottom: sp('sm'),
@@ -1091,7 +1101,7 @@ function createStyles(screenType: 'mobile' | 'tablet' | 'desktop') {
       flex: 1,
       fontSize: fs('base'),
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       paddingVertical: 4,
     },
     itemDeleteBtn: {
@@ -1103,7 +1113,7 @@ function createStyles(screenType: 'mobile' | 'tablet' | 'desktop') {
 
     fieldLabel: {
       fontSize: fs('xs'),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       fontWeight: TYPOGRAPHY.fontWeight.medium,
     },
     priceRow: {
@@ -1116,33 +1126,33 @@ function createStyles(screenType: 'mobile' | 'tablet' | 'desktop') {
       flexDirection: 'row',
       alignItems: 'center',
       borderWidth: 1.5,
-      borderColor: COLORS.border.default,
+      borderColor: colors.border.default,
       borderRadius: BORDER_RADIUS.md,
       paddingHorizontal: sp('sm'),
-      backgroundColor: COLORS.background,
+      backgroundColor: colors.background,
       minWidth: 96,
     },
-    priceInputWrapError: { borderColor: COLORS.error },
+    priceInputWrapError: { borderColor: colors.error },
     priceInput: {
       flex: 1,
       fontSize: fs('base'),
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       paddingVertical: 6,
     },
     priceCurrency: {
       fontSize: fs('base'),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
     },
-    priceErrorText: { fontSize: fs('xs'), color: COLORS.error },
+    priceErrorText: { fontSize: fs('xs'), color: colors.error },
 
     descriptionInput: {
       fontSize: fs('sm'),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       marginTop: sp('sm'),
       paddingVertical: 6,
       paddingHorizontal: sp('sm'),
-      backgroundColor: COLORS.background,
+      backgroundColor: colors.background,
       borderRadius: BORDER_RADIUS.md,
       minHeight: 40,
       textAlignVertical: 'top',
@@ -1159,16 +1169,16 @@ function createStyles(screenType: 'mobile' | 'tablet' | 'desktop') {
       paddingHorizontal: sp('sm'),
       borderRadius: BORDER_RADIUS.full,
       borderWidth: 1.5,
-      borderColor: COLORS.border.default,
-      backgroundColor: COLORS.background,
+      borderColor: colors.border.default,
+      backgroundColor: colors.background,
     },
     flagChipActive: {
-      borderColor: COLORS.success,
+      borderColor: colors.success,
       backgroundColor: '#ECFDF5',
     },
-    flagChipText: { fontSize: fs('xs'), color: COLORS.text.secondary },
+    flagChipText: { fontSize: fs('xs'), color: colors.text.secondary },
     flagChipTextActive: {
-      color: COLORS.success,
+      color: colors.success,
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
     },
 
@@ -1182,20 +1192,20 @@ function createStyles(screenType: 'mobile' | 'tablet' | 'desktop') {
       paddingVertical: 3,
       paddingHorizontal: sp('sm'),
       borderRadius: BORDER_RADIUS.sm,
-      backgroundColor: COLORS.variants.secondary[100],
+      backgroundColor: colors.variants.secondary[100],
     },
     allergenBadgeText: {
       fontSize: fs('xs'),
-      color: COLORS.variants.secondary[800],
+      color: colors.variants.secondary[800],
     },
 
     // Footer + boutons
     footer: {
       paddingHorizontal: sp('container'),
       paddingTop: sp('md'),
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderTopWidth: 1,
-      borderTopColor: COLORS.border.light,
+      borderTopColor: colors.border.light,
     },
     primaryButton: {
       flexDirection: 'row',
@@ -1204,11 +1214,11 @@ function createStyles(screenType: 'mobile' | 'tablet' | 'desktop') {
       gap: sp('sm'),
       paddingVertical: sp('md'),
       borderRadius: BORDER_RADIUS.lg,
-      backgroundColor: COLORS.primary,
+      backgroundColor: colors.primary,
       minHeight: 52,
       ...SHADOWS.md,
     },
-    primaryButtonDisabled: { backgroundColor: COLORS.text.light, ...SHADOWS.none },
+    primaryButtonDisabled: { backgroundColor: colors.text.light, ...SHADOWS.none },
     primaryButtonText: {
       color: '#FFFFFF',
       fontSize: fs('base'),
@@ -1223,7 +1233,7 @@ function createStyles(screenType: 'mobile' | 'tablet' | 'desktop') {
       paddingHorizontal: sp('xl'),
     },
     modalCard: {
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderRadius: BORDER_RADIUS.xl,
       padding: sp('lg'),
       ...SHADOWS.lg,

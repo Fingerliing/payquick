@@ -510,7 +510,7 @@ export default function MenuDetailScreen() {
     if (uncategorized.length > 0) {
       list.push({
         id: UNCATEGORIZED_ID,
-        name: 'Sans catégorie',
+        name: t('menuDetail.uncategorized'),
         count: uncategorized.length,
       });
     }
@@ -701,7 +701,7 @@ export default function MenuDetailScreen() {
       }, 2500);
     } catch (error: any) {
       setTranslating(false);
-      showError(error?.message || 'Impossible de lancer la traduction.', t('menuItemForm.error'));
+      showError(error?.message || t('menuDetail.translationStartError'), t('menuItemForm.error'));
     }
   }, [menu?.restaurant, translating, selectedLangs, showSuccess, showError]);
 
@@ -779,7 +779,7 @@ export default function MenuDetailScreen() {
   // ── Loading & not-found ────────────────────────────────────────────────────
 
   if (isLoading) {
-    return <Loading fullScreen text="Chargement de la carte..." />;
+    return <Loading fullScreen text={t('menuDetail.loadingCard')} />;
   }
 
   if (!menu) {
@@ -813,7 +813,7 @@ export default function MenuDetailScreen() {
     <View style={styles.container}>
       <Header
         title={t('menuDetail.restaurantMenuTitle')}
-        subtitle={`${menu.name} · ${availableCount}/${totalItems} disponibles`}
+        subtitle={t('menuDetail.menuSubtitle', { name: menu.name, available: availableCount, total: totalItems })}
         leftIcon="arrow-back"
         onLeftPress={() => router.back()}
         rightIcon="add-circle"
@@ -980,7 +980,7 @@ export default function MenuDetailScreen() {
                   variant: 'danger',
                 }}
                 secondaryButton={{
-                  text: 'Annuler',
+                  text: t('menuDetail.cancel'),
                   onPress: () => setItemToDelete(null),
                 }}
               />

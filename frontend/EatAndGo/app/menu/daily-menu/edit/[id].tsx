@@ -344,7 +344,7 @@ export default function EditDailyMenuScreen() {
             disabled={removing}
             style={styles.removeButton}
             hitSlop={8}
-            accessibilityLabel={`Retirer ${item.menu_item_name} du menu`}
+            accessibilityLabel={t('dailyMenuForm.removeFromMenuLabel', { name: item.menu_item_name })}
           >
             {removing ? (
               <ActivityIndicator size="small" color={colors.error} />
@@ -549,13 +549,13 @@ export default function EditDailyMenuScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.sectionTitle}>{t('dailyMenuForm.menuDishes')}</Text>
               <Text style={styles.sectionSubtitle}>
-                {dailyMenu.total_items_count} plat{dailyMenu.total_items_count > 1 ? 's' : ''} disponible{dailyMenu.total_items_count > 1 ? 's' : ''}
+                {t('dailyMenuForm.availableDishes', { count: dailyMenu.total_items_count })}
               </Text>
             </View>
             <TouchableOpacity
               onPress={() => setIsAddModalOpen(true)}
               style={styles.addItemButton}
-              accessibilityLabel="Ajouter un plat"
+              accessibilityLabel={t('menuDetail.addDish')}
             >
               <Ionicons name="add" size={18} color={colors.surface} />
               <Text style={styles.addItemButtonText}>{t('dailyMenuForm.add')}</Text>
