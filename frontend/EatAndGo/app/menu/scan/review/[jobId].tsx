@@ -89,7 +89,7 @@ type ToastState = { variant: ToastVariant; title?: string; message: string } | n
 export default function MenuScanReviewScreen() {
   const insets = useSafeAreaInsets();
   const screenType = useScreenType();
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const { t } = useTranslation();
   const { jobId } = useLocalSearchParams<{ jobId: string }>();
 
@@ -345,7 +345,7 @@ export default function MenuScanReviewScreen() {
     }
   }, [jobId, draft, notify]);
 
-  const styles = useMemo(() => createStyles(colors, screenType), [colors, screenType]);
+  const styles = useMemo(() => createStyles(colors, isDark, screenType), [colors, isDark, screenType]);
 
   // ── Rendu : en-tête commun ──────────────────────────────────────────────
   const renderHeader = (title: string) => (
@@ -905,7 +905,7 @@ const createReportLineStyles = (colors: AppColors) => StyleSheet.create({
 // ─────────────────────────────────────────────────────────────────────────────
 // Styles
 // ─────────────────────────────────────────────────────────────────────────────
-function createStyles(colors: AppColors, screenType: 'mobile' | 'tablet' | 'desktop') {
+function createStyles(colors: AppColors, isDark: boolean, screenType: 'mobile' | 'tablet' | 'desktop') {
   const sp = (key: keyof typeof SPACING) =>
     getResponsiveValue(SPACING[key], screenType);
   const fs = (key: keyof typeof TYPOGRAPHY.fontSize) =>
@@ -956,7 +956,7 @@ function createStyles(colors: AppColors, screenType: 'mobile' | 'tablet' | 'desk
       marginBottom: sp('lg'),
     },
     statusIconSuccess: { backgroundColor: colors.variants.primary[50] },
-    statusIconError: { backgroundColor: '#FEF2F2' },
+    statusIconError: { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEF2F2' },
     bigTitle: {
       fontSize: fs('xl'),
       fontWeight: TYPOGRAPHY.fontWeight.bold,
@@ -1174,7 +1174,7 @@ function createStyles(colors: AppColors, screenType: 'mobile' | 'tablet' | 'desk
     },
     flagChipActive: {
       borderColor: colors.success,
-      backgroundColor: '#ECFDF5',
+      backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#ECFDF5',
     },
     flagChipText: { fontSize: fs('xs'), color: colors.text.secondary },
     flagChipTextActive: {

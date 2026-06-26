@@ -51,7 +51,8 @@ import { Menu, MenuItem } from '@/types/menu';
 import { Restaurant } from '@/types/restaurant';
 
 // Design system
-import { COLORS, BORDER_RADIUS } from '@/utils/designSystem';
+import { useAppTheme, type AppColors, BORDER_RADIUS } from '@/utils/designSystem';
+import { useTranslation } from 'react-i18next';
 
 // =============================================================================
 // HELPERS VISUELS
@@ -160,6 +161,9 @@ export default function ClientRestaurantPage() {
     fromQR?: string;       // '1' si l'utilisateur arrive d'un scan QR
   }>();
   const insets = useSafeAreaInsets();
+  const { colors } = useAppTheme();
+  const { t } = useTranslation();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   // ─── SessionContext : source de vérité pour le participantId en mémoire ───
   const { session: ctxSession, participantId: ctxParticipantId, clearSession } = useSession();
@@ -205,7 +209,7 @@ export default function ClientRestaurantPage() {
     // on bascule l'utilisateur en mode solo sans qu'il reste coincé sur une
     // session zombie qui empêcherait tout ajout au panier.
     onSessionGone: () => {
-      showToastRef.current('warning', 'Session terminée', 'La session collaborative a été fermée.');
+      showToastRef.current('warning', t('clientMenu.sessionEndedTitle'), t('clientMenu.sessionEndedMsg'));
       clearSession();
     },
   });
@@ -400,7 +404,7 @@ const handleOrderAloneFromMenu = useCallback(() => {
       const newest = pendingParticipants[currentCount - 1];
       setPendingRequest({
         id: newest.id,
-        name: newest?.display_name ?? "Quelqu'un",
+        name: newest?.display_name ?? t('clientMenu.someone'),
       });
     }
     prevPendingCountRef.current = currentCount;
@@ -458,7 +462,7 @@ const handleOrderAloneFromMenu = useCallback(() => {
 
       setDailyMenu(dailyMenuRes);
     } catch (error) {
-      showToast('error', 'Erreur', 'Impossible de charger le menu');
+      showToast('error', t('common.error'), t('clientMenu.loadFailed'));
       setRestaurant(null);
       setMenus([]);
       setDailyMenu(null);
@@ -762,13 +766,13 @@ const handleOrderAloneFromMenu = useCallback(() => {
         if (effectiveSessionId) {
           const existing = sessionCart.myItems.find((ci) => Number(ci.menu_item) === menuItemId);
           if (existing && existing.quantity >= 1) {
-            showToast('info', 'Déjà sélectionné', `${item.name} fait déjà partie de votre formule`);
+            showToast('info', t('clientMenu.alreadySelectedTitle'), t('clientMenu.alreadySelectedMsg', { name: item.name }));
             return;
           }
         } else {
           const existing = cart.items.find((ci) => Number(ci.menuItemId) === menuItemId);
           if (existing && existing.quantity >= 1) {
-            showToast('info', 'Déjà sélectionné', `${item.name} fait déjà partie de votre formule`);
+            showToast('info', t('clientMenu.alreadySelectedTitle'), t('clientMenu.alreadySelectedMsg', { name: item.name }));
             return;
           }
         }
@@ -803,9 +807,9 @@ const handleOrderAloneFromMenu = useCallback(() => {
           await sessionCart.addItem({ menu_item: menuItemId, quantity: 1 });
           await sessionCart.refresh();
           triggerCartPulse();
-          showToast('success', 'Ajouté au panier partagé', `${item.name} a été ajouté`);
+          showToast('success', t('clientMenu.addedSharedTitle'), t('clientMenu.addedMsg', { name: item.name }));
         } catch (err) {
-          showToast('error', 'Erreur', "Impossible d'ajouter au panier partagé");
+          showToast('error', t('common.error'), t('clientMenu.addSharedFailed'));
         }
         return;
       }
@@ -830,7 +834,7 @@ const handleOrderAloneFromMenu = useCallback(() => {
       };
       addToCart(cartItem);
       triggerCartPulse();
-      showToast('success', 'Ajouté au panier', `${item.name} a été ajouté`);
+      showToast('success', t('clientMenu.addedTitle'), t('clientMenu.addedMsg', { name: item.name }));
     },
     [
       effectiveSessionId, sessionCart, cart.items, cart.restaurantId,
@@ -861,7 +865,7 @@ const handleOrderAloneFromMenu = useCallback(() => {
       };
       addToCart(cartItem);
       triggerCartPulse();
-      showToast('success', 'Ajouté au panier', `${item.name} a été ajouté`);
+      showToast('success', t('clientMenu.addedTitle'), t('clientMenu.addedMsg', { name: item.name }));
     },
     [clearCart, addToCart, restaurantId, restaurant, showToast, triggerCartPulse]
   );
@@ -889,7 +893,7 @@ const handleOrderAloneFromMenu = useCallback(() => {
             await sessionCart.updateItem(myItem.id, { quantity: myItem.quantity - 1 });
           }
         } catch {
-          showToast('error', 'Erreur', "Impossible de retirer l'article");
+          showToast('error', t('common.error'), t('clientMenu.removeItemFailed'));
         }
         return;
       }
@@ -919,7 +923,7 @@ const handleOrderAloneFromMenu = useCallback(() => {
       setCodeCopied(true);
       setTimeout(() => setCodeCopied(false), 2000);
     } catch {
-      showToast('error', 'Erreur', 'Impossible de copier le code');
+      showToast('error', t('common.error'), t('clientMenu.copyCodeFailed'));
     }
   }, [session?.share_code, showToast]);
 
@@ -927,8 +931,8 @@ const handleOrderAloneFromMenu = useCallback(() => {
     if (!session?.share_code || !restaurant) return;
     try {
       await Share.share({
-        message: `🍽️ Rejoins-moi au restaurant ${restaurant.name} !\n\nCode de session : ${session.share_code}\n\nEntre ce code dans EatQuickeR pour rejoindre ma table.`,
-        title: 'Rejoins notre table',
+        message: t('clientMenu.shareMessage', { name: restaurant.name, code: session.share_code }),
+        title: t('clientMenu.shareTitle'),
       });
     } catch {
       // ignore cancel
@@ -937,24 +941,24 @@ const handleOrderAloneFromMenu = useCallback(() => {
 
   // ─── Loading / not found ───────────────────────────────────────────────────
   if (isLoading) {
-    return <Loading fullScreen text="Chargement de la carte..." />;
+    return <Loading fullScreen text={t('clientMenu.loadingMenu')} />;
   }
 
   if (!restaurant) {
     return (
       <View style={styles.notFound}>
-        <Ionicons name="restaurant-outline" size={64} color={COLORS.text.light} />
-        <Text style={styles.notFoundTitle}>Restaurant introuvable</Text>
+        <Ionicons name="restaurant-outline" size={64} color={colors.text.light} />
+        <Text style={styles.notFoundTitle}>{t('clientMenu.notFound')}</Text>
         <TouchableOpacity onPress={() => router.back()} style={styles.notFoundBtn}>
-          <Text style={styles.notFoundBtnText}>Retour</Text>
+          <Text style={styles.notFoundBtnText}>{t('common.back')}</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
   const tableLabel = session?.table_number
-    ? `Table ${String(session.table_number).padStart(2, '0')}`
-    : 'Bienvenue';
+    ? t('clientMenu.table', { number: String(session.table_number).padStart(2, '0') })
+    : t('clientMenu.welcome');
 
   // ─── Rendu principal ───────────────────────────────────────────────────────
   return (
@@ -979,15 +983,15 @@ const handleOrderAloneFromMenu = useCallback(() => {
           <View style={styles.alertWrap}>
             <AlertWithAction
               variant="info"
-              title="💳 Paiement de la note"
+              title={t('clientMenu.splitTitle')}
               message={
                 splitPaymentAlert.totalAmount
-                  ? `L'hôte a divisé la note (${splitPaymentAlert.totalAmount}€) en ${splitPaymentAlert.portionsCount} parts. Payez votre part maintenant.`
-                  : `L'hôte a divisé la note en ${splitPaymentAlert.portionsCount} parts. Payez votre part maintenant.`
+                  ? t('clientMenu.splitMsgAmount', { amount: splitPaymentAlert.totalAmount, count: splitPaymentAlert.portionsCount })
+                  : t('clientMenu.splitMsg', { count: splitPaymentAlert.portionsCount })
               }
               autoDismiss={false}
               primaryButton={{
-                text: 'Payer ma part',
+                text: t('clientMenu.payMyShare'),
                 variant: 'primary',
                 onPress: () => {
                   const { orderId } = splitPaymentAlert;
@@ -996,7 +1000,7 @@ const handleOrderAloneFromMenu = useCallback(() => {
                 },
               }}
               secondaryButton={{
-                text: 'Plus tard',
+                text: t('clientMenu.later'),
                 onPress: () => setSplitPaymentAlert(null),
               }}
             />
@@ -1011,7 +1015,7 @@ const handleOrderAloneFromMenu = useCallback(() => {
               message={expiredAlert.message}
               autoDismiss={false}
               primaryButton={{
-                text: "Retour à l'accueil",
+                text: t('clientMenu.backHome'),
                 variant: 'primary',
                 onPress: async () => {
                   dismissExpiredAlert();
@@ -1027,25 +1031,25 @@ const handleOrderAloneFromMenu = useCallback(() => {
           <View style={styles.alertWrap}>
             <AlertWithAction
               variant="info"
-              title="🔔 Nouvelle demande"
-              message={`${pendingRequest.name} souhaite rejoindre votre session.`}
+              title={t('clientMenu.newRequestTitle')}
+              message={t('clientMenu.newRequestMsg', { name: pendingRequest.name })}
               primaryButton={{
-                text: '✅ Accepter',
+                text: t('clientMenu.accept'),
                 variant: 'primary',
                 onPress: async () => {
                   const id = pendingRequest.id;
                   setPendingRequest(null);
                   try { await approveParticipant(id); }
-                  catch { showToast('error', 'Erreur', "Impossible d'accepter la demande"); }
+                  catch { showToast('error', t('common.error'), t('clientMenu.approveFailed')); }
                 },
               }}
               secondaryButton={{
-                text: '❌ Refuser',
+                text: t('clientMenu.reject'),
                 onPress: async () => {
                   const id = pendingRequest.id;
                   setPendingRequest(null);
                   try { await rejectParticipant(id); }
-                  catch { showToast('error', 'Erreur', 'Impossible de refuser la demande'); }
+                  catch { showToast('error', t('common.error'), t('clientMenu.rejectFailed')); }
                 },
               }}
             />
@@ -1056,16 +1060,16 @@ const handleOrderAloneFromMenu = useCallback(() => {
           <View style={styles.alertWrap}>
             <AlertWithAction
               variant="warning"
-              title="Changer de restaurant ?"
-              message="Voulez-vous vider votre panier ?"
+              title={t('clientMenu.switchRestaurantTitle')}
+              message={t('clientMenu.switchRestaurantMsg')}
               autoDismiss={false}
               onDismiss={() => setConfirmCartSwitch({ visible: false, item: null })}
               secondaryButton={{
-                text: 'Annuler',
+                text: t('common.cancel'),
                 onPress: () => setConfirmCartSwitch({ visible: false, item: null }),
               }}
               primaryButton={{
-                text: 'Continuer',
+                text: t('common.continue'),
                 variant: 'danger',
                 onPress: () => {
                   if (confirmCartSwitch.item) proceedAddToCart(confirmCartSwitch.item);
@@ -1089,7 +1093,7 @@ const handleOrderAloneFromMenu = useCallback(() => {
               ]}
               hitSlop={8}
             >
-              <Ionicons name="people" size={20} color={COLORS.secondary} />
+              <Ionicons name="people" size={20} color={colors.secondary} />
             </Pressable>
           ) : (
             <View style={styles.headerSide} />
@@ -1111,7 +1115,7 @@ const handleOrderAloneFromMenu = useCallback(() => {
               style={styles.headerSide}
               hitSlop={8}
             >
-              <Text style={{ fontSize: 13, fontWeight: '700', color: COLORS.text.inverse }}>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text.inverse }}>
                 {getMenuLanguage(lang).flag} {lang.toUpperCase()}
               </Text>
             </Pressable>
@@ -1128,23 +1132,22 @@ const handleOrderAloneFromMenu = useCallback(() => {
               styles.activeSessionBanner,
               pressed && { opacity: 0.95 },
             ]}
-            android_ripple={{ color: COLORS.success + '15' }}
+            android_ripple={{ color: colors.success + '15' }}
           >
             <View style={styles.activeSessionBannerLeft}>
-              <Ionicons name="people" size={20} color={COLORS.success} />
+              <Ionicons name="people" size={20} color={colors.success} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.activeSessionBannerTitle}>
-                  Session en cours sur cette table
+                  {t('clientMenu.activeSessionTitle')}
                 </Text>
                 <Text style={styles.activeSessionBannerSubtitle}>
-                  {activeSessionOnTable.participant_count ?? 0} participant
-                  {(activeSessionOnTable.participant_count ?? 0) > 1 ? 's' : ''}
-                  {activeSessionOnTable.share_code ? ` · Code ${activeSessionOnTable.share_code}` : ''}
+                  {t('clientMenu.participantsCount', { count: activeSessionOnTable.participant_count ?? 0 })}
+                  {activeSessionOnTable.share_code ? t('clientMenu.codeSuffix', { code: activeSessionOnTable.share_code }) : ''}
                 </Text>
               </View>
             </View>
             <View style={styles.activeSessionBannerCTA}>
-              <Text style={styles.activeSessionBannerCTAText}>Rejoindre</Text>
+              <Text style={styles.activeSessionBannerCTAText}>{t('clientMenu.join')}</Text>
               <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
             </View>
           </Pressable>
@@ -1155,12 +1158,12 @@ const handleOrderAloneFromMenu = useCallback(() => {
           <Pressable
             onPress={() => setSessionSheetOpen(true)}
             style={({ pressed }) => [styles.sessionBanner, pressed && { opacity: 0.95 }]}
-            android_ripple={{ color: COLORS.primary + '15' }}
+            android_ripple={{ color: colors.primary + '15' }}
           >
             <View style={styles.sessionBannerLeft}>
-              <Ionicons name="people" size={16} color={COLORS.secondary} />
+              <Ionicons name="people" size={16} color={colors.secondary} />
               <View>
-                <Text style={styles.sessionBannerLabel}>Code de session</Text>
+                <Text style={styles.sessionBannerLabel}>{t('clientMenu.sessionCode')}</Text>
                 <Text style={styles.sessionBannerCode}>{session.share_code}</Text>
               </View>
             </View>
@@ -1173,7 +1176,7 @@ const handleOrderAloneFromMenu = useCallback(() => {
                 <Ionicons
                   name={codeCopied ? 'checkmark' : 'copy-outline'}
                   size={18}
-                  color={codeCopied ? COLORS.success : COLORS.primary}
+                  color={codeCopied ? colors.success : colors.primary}
                 />
               </Pressable>
               <Pressable
@@ -1181,11 +1184,11 @@ const handleOrderAloneFromMenu = useCallback(() => {
                 style={({ pressed }) => [styles.sessionBannerAction, pressed && { opacity: 0.6 }]}
                 hitSlop={6}
               >
-                <Ionicons name="share-social-outline" size={18} color={COLORS.primary} />
+                <Ionicons name="share-social-outline" size={18} color={colors.primary} />
               </Pressable>
               {(session.participant_count ?? 0) > 0 && (
                 <View style={styles.sessionBannerCount}>
-                  <Ionicons name="people-outline" size={14} color={COLORS.primary} />
+                  <Ionicons name="people-outline" size={14} color={colors.primary} />
                   <Text style={styles.sessionBannerCountText}>{session.participant_count}</Text>
                 </View>
               )}
@@ -1211,7 +1214,7 @@ const handleOrderAloneFromMenu = useCallback(() => {
                     isActive && styles.tabActive,
                     pressed && { opacity: 0.85 },
                   ]}
-                  android_ripple={{ color: COLORS.primary + '20', borderless: false }}
+                  android_ripple={{ color: colors.primary + '20', borderless: false }}
                 >
                   <Text style={styles.tabEmoji}>{tab.emoji}</Text>
                   <Text style={[styles.tabText, isActive && styles.tabTextActive]} numberOfLines={1}>
@@ -1237,11 +1240,11 @@ const handleOrderAloneFromMenu = useCallback(() => {
                     <Text style={styles.dailyCategoryHeaderTitle}>{row.name}</Text>
                     {row.completed ? (
                       <View style={styles.dailyCategoryHeaderBadge}>
-                        <Ionicons name="checkmark" size={12} color={COLORS.surface} />
-                        <Text style={styles.dailyCategoryHeaderBadgeText}>Choisi</Text>
+                        <Ionicons name="checkmark" size={12} color={colors.surface} />
+                        <Text style={styles.dailyCategoryHeaderBadgeText}>{t('clientMenu.chosen')}</Text>
                       </View>
                     ) : (
-                      <Text style={styles.dailyCategoryHeaderHint}>Choisissez 1 plat</Text>
+                      <Text style={styles.dailyCategoryHeaderHint}>{t('clientMenu.chooseOne')}</Text>
                     )}
                   </View>
                   <View style={styles.dailyCategoryHeaderDivider} />
@@ -1274,9 +1277,9 @@ const handleOrderAloneFromMenu = useCallback(() => {
           }
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Ionicons name="restaurant-outline" size={48} color={COLORS.text.light} />
+              <Ionicons name="restaurant-outline" size={48} color={colors.text.light} />
               <Text style={styles.emptyText}>
-                {isDailyTab ? 'Aucun plat dans le menu du jour' : 'Aucun plat dans cette catégorie'}
+                {isDailyTab ? t('clientMenu.emptyDaily') : t('clientMenu.emptyCategory')}
               </Text>
             </View>
           }
@@ -1297,13 +1300,13 @@ const handleOrderAloneFromMenu = useCallback(() => {
             <Pressable
               style={[
                 styles.floatingCartInner,
-                cartLocked && { backgroundColor: COLORS.text.secondary },
+                cartLocked && { backgroundColor: colors.text.secondary },
               ]}
               onPress={() => {
                 if (cartLocked) {
                   const msg = formatFormulaMissingMessage(formulaStatus)
-                    ?? 'Complétez votre formule pour accéder au panier.';
-                  showToast('warning', 'Formule incomplète', msg);
+                    ?? t('clientMenu.completeFormula');
+                  showToast('warning', t('clientMenu.formulaIncomplete'), msg);
                   return;
                 }
                 router.push('/(client)/cart' as any);
@@ -1313,19 +1316,19 @@ const handleOrderAloneFromMenu = useCallback(() => {
               <View style={styles.cartLeft}>
                 <View style={styles.cartBadge}>
                   {cartLocked ? (
-                    <Ionicons name="lock-closed" size={14} color={COLORS.surface} />
+                    <Ionicons name="lock-closed" size={14} color={colors.surface} />
                   ) : (
                     <Text style={styles.cartBadgeText}>{totalCartItems}</Text>
                   )}
                 </View>
                 <View>
                   <Text style={styles.cartLabel}>
-                    {cartLocked ? 'Formule incomplète' : 'Voir le panier'}
+                    {cartLocked ? t('clientMenu.formulaIncomplete') : t('clientMenu.viewCart')}
                   </Text>
                   <Text style={styles.cartSubLabel}>
                     {cartLocked
-                      ? `${formulaStatus.pickedCategories}/${formulaStatus.totalCategories} catégorie${formulaStatus.totalCategories > 1 ? 's' : ''} choisie${formulaStatus.pickedCategories > 1 ? 's' : ''}`
-                      : `${totalCartItems} article${totalCartItems > 1 ? 's' : ''}`}
+                      ? t('clientMenu.categoriesChosen', { picked: formulaStatus.pickedCategories, total: formulaStatus.totalCategories, count: formulaStatus.totalCategories })
+                      : t('clientMenu.articlesCount', { count: totalCartItems })}
                   </Text>
                 </View>
               </View>
@@ -1352,13 +1355,13 @@ const handleOrderAloneFromMenu = useCallback(() => {
               <View style={styles.sheetHandle} />
 
               <View style={styles.sheetHeader}>
-                <Text style={styles.sheetTitle}>Session collaborative</Text>
+                <Text style={styles.sheetTitle}>{t('clientMenu.sessionTitle')}</Text>
                 <Pressable onPress={() => setSessionSheetOpen(false)} hitSlop={10}>
-                  <Ionicons name="close" size={24} color={COLORS.text.secondary} />
+                  <Ionicons name="close" size={24} color={colors.text.secondary} />
                 </Pressable>
               </View>
 
-              <Text style={styles.sheetLabel}>Code de partage</Text>
+              <Text style={styles.sheetLabel}>{t('clientMenu.shareCode')}</Text>
               <View style={styles.codeBox}>
                 <Text style={styles.codeText}>{session?.share_code ?? '------'}</Text>
                 <View style={styles.codeActions}>
@@ -1366,11 +1369,11 @@ const handleOrderAloneFromMenu = useCallback(() => {
                     <Ionicons
                       name={codeCopied ? 'checkmark' : 'copy-outline'}
                       size={20}
-                      color={codeCopied ? COLORS.success : COLORS.primary}
+                      color={codeCopied ? colors.success : colors.primary}
                     />
                   </Pressable>
                   <Pressable onPress={handleShareCode} style={styles.codeAction} hitSlop={6}>
-                    <Ionicons name="share-social-outline" size={20} color={COLORS.primary} />
+                    <Ionicons name="share-social-outline" size={20} color={colors.primary} />
                   </Pressable>
                 </View>
               </View>
@@ -1378,7 +1381,7 @@ const handleOrderAloneFromMenu = useCallback(() => {
               {(session?.participants && session.participants.length > 0) ? (
                 <>
                   <Text style={styles.sheetLabel}>
-                    Participants ({session.participants.length})
+                    {t('clientMenu.participants', { count: session.participants.length })}
                   </Text>
                   {session.participants.map((p: any) => (
                     <View key={p.id} style={styles.participantRow}>
@@ -1389,13 +1392,13 @@ const handleOrderAloneFromMenu = useCallback(() => {
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.participantName}>
-                          {p.display_name ?? 'Anonyme'}
+                          {p.display_name ?? t('clientMenu.anonymous')}
                           {p.is_host && ' 👑'}
                         </Text>
                         <Text style={styles.participantStatus}>
-                          {p.status === 'pending' ? 'En attente' :
-                           p.status === 'active' ? 'Actif' :
-                           p.status === 'left' ? 'Parti' : p.status}
+                          {p.status === 'pending' ? t('clientMenu.statusPending') :
+                           p.status === 'active' ? t('clientMenu.statusActive') :
+                           p.status === 'left' ? t('clientMenu.statusLeft') : p.status}
                         </Text>
                       </View>
                     </View>
@@ -1438,9 +1441,9 @@ const handleOrderAloneFromMenu = useCallback(() => {
             paddingHorizontal: 32,
           }}
         >
-          <View style={{ backgroundColor: COLORS.surface, borderRadius: 16, padding: 16 }}>
-            <Text style={{ fontSize: 16, fontWeight: '700', color: COLORS.text.primary, marginBottom: 12 }}>
-              Langue du menu
+          <View style={{ backgroundColor: colors.surface, borderRadius: 16, padding: 16 }}>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text.primary, marginBottom: 12 }}>
+              {t('clientMenu.menuLanguage')}
             </Text>
             {availableLanguages.map((language) => {
               const selected = language.code === lang;
@@ -1458,7 +1461,7 @@ const handleOrderAloneFromMenu = useCallback(() => {
                     paddingVertical: 12,
                     paddingHorizontal: 12,
                     borderRadius: 12,
-                    backgroundColor: selected ? COLORS.primary + '15' : 'transparent',
+                    backgroundColor: selected ? colors.primary + '15' : 'transparent',
                   }}
                 >
                   <Text style={{ fontSize: 22 }}>{language.flag}</Text>
@@ -1466,11 +1469,11 @@ const handleOrderAloneFromMenu = useCallback(() => {
                     flex: 1,
                     fontSize: 15,
                     fontWeight: selected ? '700' : '500',
-                    color: selected ? COLORS.primary : COLORS.text.primary,
+                    color: selected ? colors.primary : colors.text.primary,
                   }}>
                     {language.label}
                   </Text>
-                  {selected && <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />}
+                  {selected && <Ionicons name="checkmark-circle" size={20} color={colors.primary} />}
                 </Pressable>
               );
             })}
@@ -1496,20 +1499,23 @@ const DailyFormulaBanner: React.FC<{
   categoriesCount: number;
   description: string | null;
 }> = React.memo(({ totalPrice, pricePerCategory, categoriesCount, description }) => {
+  const { colors } = useAppTheme();
+  const { t } = useTranslation();
+  const bannerStyles = useMemo(() => createBannerStyles(colors), [colors]);
   return (
     <View style={bannerStyles.wrap}>
       <View style={bannerStyles.iconCircle}>
-        <Ionicons name="restaurant" size={18} color={COLORS.primary} />
+        <Ionicons name="restaurant" size={18} color={colors.primary} />
       </View>
       <View style={bannerStyles.body}>
         <View style={bannerStyles.headerRow}>
-          <Text style={bannerStyles.title}>Formule du jour</Text>
+          <Text style={bannerStyles.title}>{t('clientMenu.formulaOfDay')}</Text>
           <Text style={bannerStyles.totalPrice}>{formatPrice(totalPrice)}</Text>
         </View>
         <Text style={bannerStyles.subtitle}>
           {categoriesCount > 1
-            ? `1 plat par catégorie • ${categoriesCount} catégories • ${formatPrice(pricePerCategory)} / plat`
-            : `1 plat à choisir • ${formatPrice(pricePerCategory)}`}
+            ? t('clientMenu.formulaSubtitleMulti', { count: categoriesCount, price: formatPrice(pricePerCategory) })
+            : t('clientMenu.formulaSubtitleSingle', { price: formatPrice(pricePerCategory) })}
         </Text>
         {description ? (
           <Text style={bannerStyles.description} numberOfLines={3}>{description}</Text>
@@ -1535,6 +1541,9 @@ const DishCard: React.FC<{
    */
   lockedQuantity?: boolean;
 }> = React.memo(({ item, cartQuantity, onAddToCart, onDecrement, lockedQuantity = false }) => {
+  const { colors } = useAppTheme();
+  const { t } = useTranslation();
+  const cardStyles = useMemo(() => createCardStyles(colors), [colors]);
   const imageUrl = (item as any).image_url;
   const hasImage = !!imageUrl;
   const isAvailable = (item as any).is_available !== false;
@@ -1620,7 +1629,7 @@ const DishCard: React.FC<{
           <Text style={cardStyles.priceText}>{formatPrice((item as any).price)}</Text>
           {!isAvailable && (
             <View style={cardStyles.unavailableBadge}>
-              <Text style={cardStyles.unavailableText}>Indisponible</Text>
+              <Text style={cardStyles.unavailableText}>{t('common.unavailable')}</Text>
             </View>
           )}
         </View>
@@ -1640,10 +1649,10 @@ const DishCard: React.FC<{
                   pressed && cardStyles.selectedPillPressed,
                 ]}
                 hitSlop={6}
-                accessibilityLabel={`Retirer ${item.name} de la formule`}
+                accessibilityLabel={t('clientMenu.removeFromFormula', { name: item.name })}
               >
                 <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" />
-                <Text style={cardStyles.selectedPillText}>Choisi</Text>
+                <Text style={cardStyles.selectedPillText}>{t('clientMenu.chosen')}</Text>
                 <Ionicons name="close" size={14} color="#FFFFFF" />
               </Pressable>
             ) : (
@@ -1652,12 +1661,12 @@ const DishCard: React.FC<{
                   onPress={handleDecPress}
                   style={({ pressed }) => [cardStyles.qtyBtn, pressed && cardStyles.qtyBtnPressed]}
                   hitSlop={6}
-                  accessibilityLabel={`Retirer ${item.name}`}
+                  accessibilityLabel={t('clientMenu.removeItem', { name: item.name })}
                 >
                   <Ionicons
                     name={cartQuantity === 1 ? 'trash-outline' : 'remove'}
                     size={18}
-                    color={cartQuantity === 1 ? COLORS.error : COLORS.primary}
+                    color={cartQuantity === 1 ? colors.error : colors.primary}
                   />
                 </Pressable>
                 <Text style={cardStyles.qtyText}>{cartQuantity}</Text>
@@ -1669,7 +1678,7 @@ const DishCard: React.FC<{
                     pressed && cardStyles.qtyBtnPressed,
                   ]}
                   hitSlop={6}
-                  accessibilityLabel={`Ajouter un ${item.name}`}
+                  accessibilityLabel={t('clientMenu.addOne', { name: item.name })}
                 >
                   <Ionicons name="add" size={18} color="#FFFFFF" />
                 </Pressable>
@@ -1680,7 +1689,7 @@ const DishCard: React.FC<{
               onPress={handleAddPress}
               style={({ pressed }) => [cardStyles.addBtn, pressed && cardStyles.addBtnPressed]}
               hitSlop={6}
-              accessibilityLabel={`Ajouter ${item.name} au panier`}
+              accessibilityLabel={t('clientMenu.addToCartLabel', { name: item.name })}
             >
               <Ionicons name="add" size={24} color="#FFFFFF" />
             </Pressable>
@@ -1695,15 +1704,15 @@ const DishCard: React.FC<{
 // STYLES
 // =============================================================================
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
 
   // ─── Header navy ─────────────────────────────────────────────────────────
   header: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
@@ -1729,7 +1738,7 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 13,
     fontWeight: '600',
-    color: COLORS.secondary,
+    color: colors.secondary,
     marginTop: 2,
     textAlign: 'center',
   },
@@ -1747,14 +1756,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     marginHorizontal: 14,
     marginTop: -10, // chevauche légèrement le header navy
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderRadius: BORDER_RADIUS.lg,
     borderWidth: 1.5,
-    borderColor: COLORS.success,
+    borderColor: colors.success,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.10,
@@ -1773,18 +1782,18 @@ const styles = StyleSheet.create({
   activeSessionBannerTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     marginBottom: 2,
   },
   activeSessionBannerSubtitle: {
     fontSize: 12,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
   },
   activeSessionBannerCTA: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: COLORS.success,
+    backgroundColor: colors.success,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: BORDER_RADIUS.md,
@@ -1798,14 +1807,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     marginHorizontal: 14,
     marginTop: -10, // chevauche légèrement le header navy pour la profondeur
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: BORDER_RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.border.light,
+    borderColor: colors.border.light,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
@@ -1824,14 +1833,14 @@ const styles = StyleSheet.create({
   sessionBannerLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: COLORS.text.light,
+    color: colors.text.light,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
   sessionBannerCode: {
     fontSize: 18,
     fontWeight: '700',
-    color: COLORS.primary,
+    color: colors.primary,
     letterSpacing: 3,
     marginTop: 1,
   },
@@ -1844,7 +1853,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1855,18 +1864,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: BORDER_RADIUS.full,
-    backgroundColor: COLORS.variants?.primary?.[50] ?? (COLORS.primary + '15'),
+    backgroundColor: colors.variants?.primary?.[50] ?? (colors.primary + '15'),
     marginLeft: 4,
   },
   sessionBannerCountText: {
     fontSize: 12,
     fontWeight: '700',
-    color: COLORS.primary,
+    color: colors.primary,
   },
 
   // ─── Onglets ─────────────────────────────────────────────────────────────
   tabsWrapper: {
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     paddingVertical: 12,
   },
   tabsContent: {
@@ -1880,13 +1889,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: BORDER_RADIUS.full,
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: COLORS.border.light,
+    borderColor: colors.border.light,
   },
   tabActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   tabEmoji: {
     fontSize: 14,
@@ -1894,7 +1903,7 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   tabTextActive: {
     color: '#FFFFFF',
@@ -1922,13 +1931,13 @@ const styles = StyleSheet.create({
   dailyCategoryHeaderTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     letterSpacing: 0.3,
     textTransform: 'uppercase',
   },
   dailyCategoryHeaderHint: {
     fontSize: 11,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     fontWeight: '500',
     fontStyle: 'italic',
   },
@@ -1936,7 +1945,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: COLORS.success,
+    backgroundColor: colors.success,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: BORDER_RADIUS.full,
@@ -1944,12 +1953,12 @@ const styles = StyleSheet.create({
   dailyCategoryHeaderBadgeText: {
     fontSize: 10,
     fontWeight: '700',
-    color: COLORS.surface,
+    color: colors.surface,
     letterSpacing: 0.5,
   },
   dailyCategoryHeaderDivider: {
     height: 2,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: 1,
     opacity: 0.6,
   },
@@ -1962,7 +1971,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 14,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
   },
 
   // ─── Toast / alertes ─────────────────────────────────────────────────────
@@ -1989,9 +1998,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 16,
     right: 16,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: BORDER_RADIUS.lg,
-    shadowColor: COLORS.primary,
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
@@ -2014,14 +2023,14 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: COLORS.secondary,
+    backgroundColor: colors.secondary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cartBadgeText: {
     fontSize: 14,
     fontWeight: '700',
-    color: COLORS.primary,
+    color: colors.primary,
   },
   cartLabel: {
     fontSize: 14,
@@ -2036,13 +2045,13 @@ const styles = StyleSheet.create({
   cartTotal: {
     fontSize: 16,
     fontWeight: '700',
-    color: COLORS.secondary,
+    color: colors.secondary,
   },
 
   // ─── Not found ───────────────────────────────────────────────────────────
   notFound: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
@@ -2051,14 +2060,14 @@ const styles = StyleSheet.create({
   notFoundTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   notFoundBtn: {
     marginTop: 8,
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: BORDER_RADIUS.lg,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
   },
   notFoundBtnText: {
     color: '#FFFFFF',
@@ -2072,7 +2081,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheetContainer: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderTopLeftRadius: BORDER_RADIUS.xl,
     borderTopRightRadius: BORDER_RADIUS.xl,
     paddingHorizontal: 20,
@@ -2085,7 +2094,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: COLORS.border.default,
+    backgroundColor: colors.border.default,
     marginBottom: 12,
   },
   sheetHeader: {
@@ -2097,12 +2106,12 @@ const styles = StyleSheet.create({
   sheetTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   sheetLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: COLORS.text.light,
+    color: colors.text.light,
     letterSpacing: 1.2,
     textTransform: 'uppercase',
     marginTop: 12,
@@ -2112,17 +2121,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     borderRadius: BORDER_RADIUS.lg,
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderWidth: 1,
-    borderColor: COLORS.border.light,
+    borderColor: colors.border.light,
   },
   codeText: {
     fontSize: 24,
     fontWeight: '700',
-    color: COLORS.primary,
+    color: colors.primary,
     letterSpacing: 4,
   },
   codeActions: {
@@ -2142,13 +2151,13 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     gap: 12,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border.light,
+    borderBottomColor: colors.border.light,
   },
   participantAvatar: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2160,19 +2169,19 @@ const styles = StyleSheet.create({
   participantName: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   participantStatus: {
     fontSize: 12,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     marginTop: 2,
   },
 });
 
-const cardStyles = StyleSheet.create({
+const createCardStyles = (colors: AppColors) => StyleSheet.create({
   card: {
     flexDirection: 'row',
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.lg,
     padding: 12,
     marginBottom: 12,
@@ -2192,7 +2201,7 @@ const cardStyles = StyleSheet.create({
     paddingVertical: 14,
   },
   cardInCart: {
-    borderColor: COLORS.primary + '40',
+    borderColor: colors.primary + '40',
   },
   cardDisabled: {
     opacity: 0.55,
@@ -2204,7 +2213,7 @@ const cardStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     position: 'relative',
   },
   thumbImage: {
@@ -2220,11 +2229,11 @@ const cardStyles = StyleSheet.create({
     height: 24,
     paddingHorizontal: 6,
     borderRadius: 12,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: COLORS.surface,
+    borderColor: colors.surface,
   },
   // Pastille quantité inline (mode "sans image") : devant le nom
   qtyBadgeInline: {
@@ -2232,7 +2241,7 @@ const cardStyles = StyleSheet.create({
     height: 24,
     paddingHorizontal: 6,
     borderRadius: 12,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
@@ -2255,12 +2264,12 @@ const cardStyles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontWeight: '700',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     letterSpacing: -0.2,
   },
   dishDescription: {
     fontSize: 13,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     lineHeight: 18,
   },
   priceRow: {
@@ -2273,10 +2282,10 @@ const cardStyles = StyleSheet.create({
   priceText: {
     fontSize: 16,
     fontWeight: '700',
-    color: COLORS.primary,
+    color: colors.primary,
   },
   unavailableBadge: {
-    backgroundColor: COLORS.error + '15',
+    backgroundColor: colors.error + '15',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: BORDER_RADIUS.full,
@@ -2284,7 +2293,7 @@ const cardStyles = StyleSheet.create({
   unavailableText: {
     fontSize: 10,
     fontWeight: '700',
-    color: COLORS.error,
+    color: colors.error,
   },
 
   // ─── Action zone (+ ou contrôles inline) ───────────────────────────────
@@ -2296,10 +2305,10 @@ const cardStyles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: COLORS.primary,
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.25,
     shadowRadius: 6,
@@ -2313,25 +2322,25 @@ const cardStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     borderRadius: BORDER_RADIUS.full,
     padding: 4,
     borderWidth: 1,
-    borderColor: COLORS.border.light,
+    borderColor: colors.border.light,
   },
   qtyBtn: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: COLORS.border.light,
+    borderColor: colors.border.light,
   },
   qtyBtnAdd: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   qtyBtnPressed: {
     opacity: 0.85,
@@ -2340,7 +2349,7 @@ const cardStyles = StyleSheet.create({
   qtyText: {
     fontSize: 14,
     fontWeight: '700',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     minWidth: 18,
     textAlign: 'center',
   },
@@ -2353,8 +2362,8 @@ const cardStyles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 7,
     borderRadius: BORDER_RADIUS.full,
-    backgroundColor: COLORS.primary,
-    shadowColor: COLORS.primary,
+    backgroundColor: colors.primary,
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
@@ -2376,24 +2385,24 @@ const cardStyles = StyleSheet.create({
 // STYLES — Bandeau formule menu du jour
 // =============================================================================
 
-const bannerStyles = StyleSheet.create({
+const createBannerStyles = (colors: AppColors) => StyleSheet.create({
   wrap: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
-    backgroundColor: COLORS.secondary + '18',
+    backgroundColor: colors.secondary + '18',
     borderRadius: BORDER_RADIUS.lg,
     paddingHorizontal: 14,
     paddingVertical: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: COLORS.secondary + '40',
+    borderColor: colors.secondary + '40',
   },
   iconCircle: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: COLORS.secondary + '30',
+    backgroundColor: colors.secondary + '30',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2411,22 +2420,22 @@ const bannerStyles = StyleSheet.create({
   title: {
     fontSize: 15,
     fontWeight: '700',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     letterSpacing: -0.2,
   },
   totalPrice: {
     fontSize: 16,
     fontWeight: '800',
-    color: COLORS.primary,
+    color: colors.primary,
   },
   subtitle: {
     fontSize: 12,
     fontWeight: '600',
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
   },
   description: {
     fontSize: 12,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     lineHeight: 16,
     marginTop: 2,
   },

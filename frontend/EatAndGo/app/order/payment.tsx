@@ -13,6 +13,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { StripeProvider, useStripe } from '@stripe/stripe-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -57,32 +58,36 @@ import { useSession } from '@/contexts/SessionContext';
 
 // Constants
 import { STRIPE_PUBLISHABLE_KEY } from '@/constants/config';
+import { useAppTheme, type AppColors } from '@/utils/designSystem';
 
 // Stripe refuse les montants < 0,50 € en EUR.
 const STRIPE_MIN_AMOUNT_EUR = 0.50;
 
-// ==== Design System
-const COLORS = {
-  primary: '#1E2A78',
-  secondary: '#FFC845',
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444',
-  background: '#F8FAFC',
-  surface: '#FFFFFF',
-  surfaceSecondary: '#F1F5F9',
+// ==== Design System — adaptateur theme-aware
+// Cet écran avait sa propre palette statique (clair uniquement). On dérive la
+// même forme depuis useAppTheme() pour activer le dark mode sans réécrire les
+// ~90 références COLORS.x (le paramètre de createStyles garde le nom COLORS).
+const makeColors = (c: AppColors, isDark: boolean) => ({
+  primary: c.primary,
+  secondary: c.secondary,
+  success: c.success,
+  warning: c.warning,
+  error: c.error,
+  background: c.background,
+  surface: c.surface,
+  surfaceSecondary: c.border.light,
   text: {
-    primary: '#0F172A',
-    secondary: '#475569',
-    light: '#64748B',
+    primary: c.text.primary,
+    secondary: c.text.secondary,
+    light: c.text.light,
   },
   border: {
-    light: '#E2E8F0',
-    medium: '#CBD5E1',
+    light: c.border.light,
+    medium: c.border.dark,
   },
-  shadow: 'rgba(15, 23, 42, 0.08)',
-  overlay: 'rgba(15, 23, 42, 0.5)',
-};
+  shadow: c.shadow.default,
+  overlay: c.overlay,
+});
 
 const BREAKPOINTS = {
   mobile: 0,
@@ -152,7 +157,7 @@ const isValidEmail = (email: string): boolean => {
 
 // Helper pour obtenir le nom d'un item
 const getItemName = (item: OrderItem): string => {
-  return item.menu_item_name || 'Article sans nom';
+  return item.menu_item_name || '';
 };
 
 // Helper pour obtenir le prix unitaire d'un item
@@ -168,7 +173,10 @@ export default function PaymentScreen() {
   const { session: collabSession, participantId, isHost } = useSession();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const screenType = useScreenType();
-  
+  const { t } = useTranslation();
+  const { colors, isDark } = useAppTheme();
+  const COLORS = useMemo(() => makeColors(colors, isDark), [colors, isDark]);
+
   // Alert hook
   const {
     alertState,
@@ -212,19 +220,19 @@ export default function PaymentScreen() {
   const paymentMethods: PaymentMethod[] = [
     {
       id: 'online',
-      title: 'Carte bancaire',
-      description: 'Paiement sécurisé par Stripe • Aide le développeur',
+      title: t('payment.methods.onlineTitle'),
+      description: t('payment.methods.onlineDesc'),
       icon: 'card',
-      badge: 'Instantané',
+      badge: t('payment.methods.onlineBadge'),
       recommended: true,
       disabled: !STRIPE_PUBLISHABLE_KEY,
     },
     {
       id: 'cash',
-      title: 'Espèces au restaurant',
-      description: 'Payez directement à votre table',
+      title: t('payment.methods.cashTitle'),
+      description: t('payment.methods.cashDesc'),
       icon: 'cash',
-      badge: 'Disponible',
+      badge: t('payment.methods.cashBadge'),
     },
   ];
 
@@ -243,7 +251,7 @@ export default function PaymentScreen() {
       if (savedEmail && !customerEmail) setCustomerEmail(savedEmail);
     } catch (error) {
       console.error('Error loading order:', error);
-      showError("Impossible de charger la commande", "Erreur");
+      showError(t('payment.toast.loadFailed'), t('common.error'));
       router.back();
     } finally {
       setLoading(false);
@@ -308,7 +316,7 @@ export default function PaymentScreen() {
     console.log('handleSplitPaymentConfirm called with:', { mode, portions });
 
     if (!order) {
-      showError('Commande non trouvée', 'Erreur');
+      showError(t('payment.toast.orderNotFound'), t('common.error'));
       return;
     }
 
@@ -363,9 +371,9 @@ export default function PaymentScreen() {
       setShowSplitModal(false);
 
       const successMessage = mode === 'items'
-        ? `Mode "Par plat" activé. Chaque participant peut maintenant sélectionner les articles qu'il souhaite payer.`
-        : `La note a été divisée en ${session.portions.length} parts. Vous pouvez maintenant payer votre part.`;
-      showSuccess(successMessage, 'Paiement divisé créé !');
+        ? t('payment.split.itemsActivated')
+        : t('payment.split.dividedInto', { count: session.portions.length });
+      showSuccess(successMessage, t('payment.split.createdTitle'));
 
       console.log('Split payment setup completed successfully');
 
@@ -373,8 +381,8 @@ export default function PaymentScreen() {
       console.error('Error creating split payment session:', error);
       const errorMessage = error instanceof Error
         ? error.message
-        : 'Une erreur est survenue lors de la création du paiement divisé';
-      showError(errorMessage, 'Erreur');
+        : t('payment.split.createError');
+      showError(errorMessage, t('common.error'));
     } finally {
       setProcessing(false);
     }
@@ -393,7 +401,7 @@ export default function PaymentScreen() {
       setSplitSession(updated);
     } catch (error: any) {
       console.error('Error claiming item:', error);
-      showError(error?.message || "Impossible d'ajouter cet article", 'Erreur');
+      showError(error?.message || t('payment.split.claimFailed'), t('common.error'));
     } finally {
       setProcessing(false);
     }
@@ -410,7 +418,7 @@ export default function PaymentScreen() {
       setSplitSession(updated);
     } catch (error: any) {
       console.error('Error unclaiming item:', error);
-      showError(error?.message || "Impossible de retirer cet article", 'Erreur');
+      showError(error?.message || t('payment.split.unclaimFailed'), t('common.error'));
     } finally {
       setProcessing(false);
     }
@@ -449,7 +457,7 @@ export default function PaymentScreen() {
             || p.user?.first_name
             || p.user?.email
             || p.name
-            || 'Participant',
+            || t('payment.participantFallback'),
         }));
       if (list.length >= 2) return list;
     }
@@ -458,7 +466,7 @@ export default function PaymentScreen() {
       .filter((p: any) => !!p.participant_id)
       .map((p: any) => ({
         id: String(p.participant_id),
-        name: p.name || 'Participant',
+        name: p.name || t('payment.participantFallback'),
       }));
     return fromPortions;
   }, [collabSession?.participants, splitSession?.portions]);
@@ -486,7 +494,7 @@ export default function PaymentScreen() {
       if (!clientSecret) throw new Error('Client secret manquant');
 
       const { error } = await initPaymentSheet({
-        merchantDisplayName: order.restaurant_name || 'Restaurant',
+        merchantDisplayName: order.restaurant_name || t('order.fallbackRestaurant'),
         paymentIntentClientSecret: clientSecret,
         allowsDelayedPaymentMethods: false,
         defaultBillingDetails: { email: customerEmail || undefined },
@@ -511,7 +519,7 @@ export default function PaymentScreen() {
       return true;
     } catch (error) {
       console.error('Error initializing payment:', error);
-      showError("Impossible d'initialiser le paiement", "Erreur");
+      showError(t('payment.initFailed'), t('common.error'));
       return false;
     }
   };
@@ -520,15 +528,15 @@ export default function PaymentScreen() {
     if (!order) return;
     if (!STRIPE_PUBLISHABLE_KEY) {
       showError(
-        "La clé publique Stripe n'est pas configurée. Contactez le support.",
-        'Configuration Stripe manquante'
+        t('payment.stripeKeyMissing'),
+        t('payment.stripeKeyMissingTitle')
       );
       return;
     }
     if (wantReceipt && customerEmail && !isValidEmail(customerEmail)) {
       showError(
-        "Veuillez saisir une adresse email valide ou désactivez l'envoi du ticket.",
-        'Email invalide'
+        t('payment.emailInvalid'),
+        t('payment.emailInvalidTitle')
       );
       return;
     }
@@ -545,7 +553,7 @@ export default function PaymentScreen() {
         if ((error as any).code === 'Canceled') {
           console.log('Payment canceled by user');
         } else {
-          showError((error as any).message || 'Paiement refusé', 'Erreur de paiement');
+          showError((error as any).message || t('payment.declined'), t('payment.declinedTitle'));
         }
         setProcessing(false);
         return;
@@ -554,7 +562,7 @@ export default function PaymentScreen() {
       await handlePaymentSuccess('online');
     } catch (error) {
       console.error('Payment error:', error);
-      showError('Le paiement a échoué', 'Erreur');
+      showError(t('payment.failed'), t('common.error'));
       setProcessing(false);
     }
   };
@@ -564,8 +572,8 @@ export default function PaymentScreen() {
     
     setConfirmationAlert({
       visible: true,
-      title: 'Paiement en espèces',
-      message: 'Confirmez-vous le paiement en espèces au restaurant ?',
+      title: t('payment.cashConfirmTitle'),
+      message: t('payment.cashConfirmMsg'),
       onConfirm: async () => {
         setConfirmationAlert(null);
         setProcessing(true);
@@ -575,13 +583,13 @@ export default function PaymentScreen() {
           await handlePaymentSuccess('cash');
         } catch (error) {
           console.error('Error confirming cash payment:', error);
-          showError('Impossible de confirmer le paiement', 'Erreur');
+          showError(t('payment.cashConfirmFailed'), t('common.error'));
           setProcessing(false);
         }
       },
       onCancel: () => setConfirmationAlert(null),
-      confirmText: 'Confirmer',
-      cancelText: 'Annuler'
+      confirmText: t('common.confirm'),
+      cancelText: t('common.cancel')
     });
   };
 
@@ -627,14 +635,14 @@ export default function PaymentScreen() {
       }
 
       const successMessage = method === 'online'
-        ? 'Votre paiement a été confirmé.'
-        : 'Votre commande est confirmée. Vous paierez au restaurant.';
+        ? t('payment.successOnlineToast')
+        : t('payment.successCash');
       
       const fullMessage = wantReceipt && customerEmail 
-        ? `${successMessage}\n\nVotre ticket a été envoyé par email.`
+        ? `${successMessage}${t('payment.receiptSentSuffix')}`
         : successMessage;
 
-      showSuccess(fullMessage, 'Paiement réussi !');
+      showSuccess(fullMessage, t('payment.successTitleToast'));
 
     } catch (error) {
       console.error('Post-payment steps error:', error);
@@ -652,17 +660,16 @@ export default function PaymentScreen() {
     const portion = splitSession?.portions.find((p) => p.id === portionId);
     if (portion && portion.amount < STRIPE_MIN_AMOUNT_EUR) {
       showError(
-        `Le montant de cette part (${portion.amount.toFixed(2)} €) est inférieur au minimum accepté par Stripe (0,50 €). ` +
-        `Demandez à un autre participant de combiner sa part avec la vôtre, ou utilisez « Tout payer ».`,
-        'Montant trop faible'
+        t('payment.portionTooLow', { amount: `${portion.amount.toFixed(2)} €` }),
+        t('payment.amountTooLowTitle')
       );
       return;
     }
 
     if (!STRIPE_PUBLISHABLE_KEY) {
       showError(
-        "La clé publique Stripe n'est pas configurée. Contactez le support.",
-        'Configuration Stripe manquante'
+        t('payment.stripeKeyMissing'),
+        t('payment.stripeKeyMissingTitle')
       );
       return;
     }
@@ -681,7 +688,7 @@ export default function PaymentScreen() {
   
       // Initialiser Stripe Payment Sheet
       const { error: initError } = await initPaymentSheet({
-        merchantDisplayName: order.restaurant_name || 'Restaurant',
+        merchantDisplayName: order.restaurant_name || t('order.fallbackRestaurant'),
         paymentIntentClientSecret: paymentData.client_secret,
         allowsDelayedPaymentMethods: false,
         defaultBillingDetails: { email: customerEmail || undefined },
@@ -701,7 +708,7 @@ export default function PaymentScreen() {
   
       if (initError) {
         console.error('Error initializing payment sheet:', initError);
-        showError("Impossible d'initialiser le paiement", "Erreur");
+        showError(t('payment.initFailed'), t('common.error'));
         setProcessing(false);
         return;
       }
@@ -713,7 +720,7 @@ export default function PaymentScreen() {
         if ((paymentError as any).code === 'Canceled') {
           console.log('Payment canceled by user');
         } else {
-          showError((paymentError as any).message || 'Paiement refusé', 'Erreur de paiement');
+          showError((paymentError as any).message || t('payment.declined'), t('payment.declinedTitle'));
         }
         setProcessing(false);
         return;
@@ -755,19 +762,19 @@ export default function PaymentScreen() {
         clearCart();
         setPaymentSuccess(true);
         showSuccess(
-          'Tous les paiements ont été effectués. La commande est maintenant complète.',
-          'Paiement réussi !'
+          t('payment.portionPaidComplete'),
+          t('payment.successTitleToast')
         );
       } else {
         showSuccess(
-          `Votre part a été payée avec succès. Il reste ${completionStatus.remainingPortions} portion(s) à payer.`,
-          'Paiement réussi !'
+          t('payment.portionPaidRemaining', { count: completionStatus.remainingPortions }),
+          t('payment.successTitleToast')
         );
       }
   
     } catch (error) {
       console.error('Error paying portion:', error);
-      showError('Le paiement de cette portion a échoué', 'Erreur');
+      showError(t('payment.portionFailed'), t('common.error'));
     } finally {
       setProcessing(false);
     }
@@ -778,15 +785,15 @@ export default function PaymentScreen() {
     
     if (!STRIPE_PUBLISHABLE_KEY) {
       showError(
-        "La clé publique Stripe n'est pas configurée. Contactez le support.",
-        'Configuration Stripe manquante'
+        t('payment.stripeKeyMissing'),
+        t('payment.stripeKeyMissingTitle')
       );
       return;
     }
   
     const unpaidPortions = splitSession.portions.filter(p => !p.isPaid);
     if (unpaidPortions.length === 0) {
-      showInfo('Toutes les portions sont déjà payées', 'Information');
+      showInfo(t('payment.allPaidAlready'), t('payment.infoTitle'));
       return;
     }
   
@@ -795,16 +802,16 @@ export default function PaymentScreen() {
     // Pré-validation : Stripe refuse les montants < 0,50 €.
     if (totalRemaining < STRIPE_MIN_AMOUNT_EUR) {
       showError(
-        `Le montant restant (${totalRemaining.toFixed(2)} €) est inférieur au minimum accepté par Stripe (0,50 €).`,
-        'Montant trop faible'
+        t('payment.remainingTooLow', { amount: `${totalRemaining.toFixed(2)} €` }),
+        t('payment.amountTooLowTitle')
       );
       return;
     }
   
     setConfirmationAlert({
       visible: true,
-      title: 'Payer toutes les portions restantes',
-      message: `Vous allez payer ${formatCurrency(totalRemaining)} pour ${unpaidPortions.length} portion(s). Confirmez-vous ?`,
+      title: t('payment.payAllTitle'),
+      message: t('payment.payAllMsg', { amount: formatCurrency(totalRemaining), count: unpaidPortions.length }),
       onConfirm: async () => {
         setConfirmationAlert(null);
         setProcessing(true);
@@ -820,7 +827,7 @@ export default function PaymentScreen() {
 
           // Initialiser Stripe Payment Sheet
           const { error: initError } = await initPaymentSheet({
-            merchantDisplayName: order.restaurant_name || 'Restaurant',
+            merchantDisplayName: order.restaurant_name || t('order.fallbackRestaurant'),
             paymentIntentClientSecret: paymentData.client_secret,
             allowsDelayedPaymentMethods: false,
             defaultBillingDetails: { email: customerEmail || undefined },
@@ -840,7 +847,7 @@ export default function PaymentScreen() {
 
           if (initError) {
             console.error('Error initializing payment sheet:', initError);
-            showError("Impossible d'initialiser le paiement", "Erreur");
+            showError(t('payment.initFailed'), t('common.error'));
             setProcessing(false);
             return;
           }
@@ -852,7 +859,7 @@ export default function PaymentScreen() {
             if ((paymentError as any).code === 'Canceled') {
               console.log('Payment canceled by user');
             } else {
-              showError((paymentError as any).message || 'Paiement refusé', 'Erreur de paiement');
+              showError((paymentError as any).message || t('payment.declined'), t('payment.declinedTitle'));
             }
             setProcessing(false);
             return;
@@ -889,33 +896,33 @@ export default function PaymentScreen() {
           clearCart();
           setPaymentSuccess(true);
           showSuccess(
-            'Tous les paiements ont été effectués. La commande est maintenant complète.',
-            'Paiement réussi !'
+            t('payment.portionPaidComplete'),
+            t('payment.successTitleToast')
           );
 
         } catch (error) {
           console.error('Error paying remaining portions:', error);
-          showError('Le paiement des portions restantes a échoué', 'Erreur');
+          showError(t('payment.remainingFailed'), t('common.error'));
           setProcessing(false);
         }
       },
       onCancel: () => setConfirmationAlert(null),
-      confirmText: 'Confirmer',
-      cancelText: 'Annuler'
+      confirmText: t('common.confirm'),
+      cancelText: t('common.cancel')
     });
   };
 
   // Create responsive styles
-  const styles = createStyles(screenType);
+  const styles = useMemo(() => createStyles(COLORS, screenType), [COLORS, screenType]);
 
   // ==== Loading state
   if (loading) {
     return (
       <View style={styles.container}>
-        <Header title="Paiement" leftIcon="arrow-back" onLeftPress={() => router.back()} />
+        <Header title={t('payment.title')} leftIcon="arrow-back" onLeftPress={() => router.back()} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Chargement de la commande...</Text>
+          <Text style={styles.loadingText}>{t('payment.loadingOrder')}</Text>
         </View>
       </View>
     );
@@ -925,27 +932,27 @@ export default function PaymentScreen() {
   if (paymentSuccess) {
     return (
       <View style={styles.container}>
-        <Header title="Paiement réussi" />
+        <Header title={t('payment.successHeader')} />
         <View style={styles.successContainer}>
           <View style={styles.successIcon}>
             <Ionicons name="checkmark-circle" size={80} color={COLORS.success} />
           </View>
-          <Text style={styles.successTitle}>Paiement confirmé !</Text>
+          <Text style={styles.successTitle}>{t('payment.successTitle')}</Text>
           <Text style={styles.successMessage}>
             {paymentMethod === 'online'
-              ? 'Votre paiement a été traité avec succès.'
-              : 'Votre commande est confirmée. Vous paierez au restaurant.'}
-            {wantReceipt && customerEmail && '\n\nVotre ticket a été envoyé par email.'}
+              ? t('payment.successOnline')
+              : t('payment.successCash')}
+            {wantReceipt && customerEmail && t('payment.receiptSentSuffix')}
           </Text>
           <View style={styles.successActions}>
             <Button 
-              title="Voir le ticket" 
+              title={t('payment.viewReceipt')} 
               onPress={() => setShowReceiptPreview(true)} 
               fullWidth 
               style={styles.primaryButton} 
             />
             <Button 
-              title="Retour à la commande" 
+              title={t('payment.backToOrder')} 
               onPress={() => router.replace(`/order/${orderId}`)} 
               variant="outline" 
               fullWidth 
@@ -970,7 +977,7 @@ export default function PaymentScreen() {
             order_type: order.order_type,
             table_number: order.table_number,
             items: order.items?.map(item => ({
-              name: getItemName(item),
+              name: getItemName(item) || t('payment.itemFallback'),
               price: getItemUnitPrice(item),
               quantity: item.quantity,
               total_price: safeParseAmount(item.total_price),
@@ -999,7 +1006,7 @@ export default function PaymentScreen() {
   return (
     <StripeProvider publishableKey={STRIPE_PUBLISHABLE_KEY}>
       <View style={styles.container}>
-        <Header title="Paiement" leftIcon="arrow-back" onLeftPress={() => router.back()} />
+        <Header title={t('payment.title')} leftIcon="arrow-back" onLeftPress={() => router.back()} />
 
         {/* Alert Display */}
         {alertState && (
@@ -1029,12 +1036,12 @@ export default function PaymentScreen() {
                   message={confirmationAlert.message}
                   showIcon={true}
                   primaryButton={{
-                    text: confirmationAlert.confirmText || 'Confirmer',
+                    text: confirmationAlert.confirmText || t('common.confirm'),
                     onPress: confirmationAlert.onConfirm,
                     variant: 'primary'
                   }}
                   secondaryButton={{
-                    text: confirmationAlert.cancelText || 'Annuler',
+                    text: confirmationAlert.cancelText || t('common.cancel'),
                     onPress: confirmationAlert.onCancel
                   }}
                 />
@@ -1056,21 +1063,21 @@ export default function PaymentScreen() {
                 <Card style={styles.orderSummaryCard}>
                   <View style={styles.cardHeader}>
                     <Ionicons name="receipt-outline" size={24} color={COLORS.primary} />
-                    <Text style={styles.cardTitle}>Résumé de la commande</Text>
+                    <Text style={styles.cardTitle}>{t('payment.summaryTitle')}</Text>
                   </View>
                   
                   <View style={styles.orderInfo}>
                     <View style={styles.infoRow}>
-                      <Text style={styles.infoLabel}>N° Commande</Text>
+                      <Text style={styles.infoLabel}>{t('payment.orderNumber')}</Text>
                       <Text style={styles.infoValue}>{order?.order_number}</Text>
                     </View>
                     <View style={styles.infoRow}>
-                      <Text style={styles.infoLabel}>Restaurant</Text>
+                      <Text style={styles.infoLabel}>{t('payment.restaurant')}</Text>
                       <Text style={styles.infoValue}>{order?.restaurant_name}</Text>
                     </View>
                     {!!order?.table_number && (
                       <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>Table</Text>
+                        <Text style={styles.infoLabel}>{t('payment.table')}</Text>
                         <Text style={styles.infoValue}>{order?.table_number}</Text>
                       </View>
                     )}
@@ -1081,7 +1088,7 @@ export default function PaymentScreen() {
                       <View key={`${item.id ?? index}`} style={styles.orderItem}>
                         <View style={styles.itemInfo}>
                           <Text style={styles.itemQuantity}>{item.quantity}×</Text>
-                          <Text style={styles.itemName}>{getItemName(item)}</Text>
+                          <Text style={styles.itemName}>{getItemName(item) || t('payment.itemFallback')}</Text>
                         </View>
                         <Text style={styles.itemPrice}>{formatCurrency(item.total_price)}</Text>
                       </View>
@@ -1110,7 +1117,7 @@ export default function PaymentScreen() {
                         }}
                       >
                         <Ionicons name="create-outline" size={20} color={COLORS.secondary} />
-                        <Text style={styles.splitPaymentText}>Modifier la division</Text>
+                        <Text style={styles.splitPaymentText}>{t('payment.editSplit')}</Text>
                         <Ionicons name="chevron-forward" size={16} color={COLORS.text.secondary} />
                       </Pressable>
                     )}
@@ -1142,7 +1149,7 @@ export default function PaymentScreen() {
                     <Card style={styles.paymentMethodsCard}>
                       <View style={styles.cardHeader}>
                         <Ionicons name="wallet-outline" size={24} color={COLORS.primary} />
-                        <Text style={styles.cardTitle}>Méthode de paiement</Text>
+                        <Text style={styles.cardTitle}>{t('payment.method')}</Text>
                       </View>
 
                       <View style={styles.paymentMethodsList}>
@@ -1186,7 +1193,7 @@ export default function PaymentScreen() {
                                     </Text>
                                     {method.recommended && (
                                       <View style={styles.recommendedBadge}>
-                                        <Text style={styles.recommendedText}>RECOMMANDÉ</Text>
+                                        <Text style={styles.recommendedText}>{t('payment.recommended')}</Text>
                                       </View>
                                     )}
                                   </View>
@@ -1206,7 +1213,7 @@ export default function PaymentScreen() {
                         onPress={() => setShowSplitModal(true)}
                       >
                         <Ionicons name="people-outline" size={20} color={COLORS.secondary} />
-                        <Text style={styles.splitPaymentText}>Diviser la note</Text>
+                        <Text style={styles.splitPaymentText}>{t('payment.splitBill')}</Text>
                         <Ionicons name="chevron-forward" size={16} color={COLORS.text.secondary} />
                       </Pressable>
                     </Card>
@@ -1215,7 +1222,7 @@ export default function PaymentScreen() {
                     <Card style={styles.tipCard}>
                       <View style={styles.cardHeader}>
                         <Ionicons name="heart-outline" size={24} color={COLORS.primary} />
-                        <Text style={styles.cardTitle}>Pourboire (optionnel)</Text>
+                        <Text style={styles.cardTitle}>{t('payment.tipTitle')}</Text>
                       </View>
 
                       <View style={styles.tipButtons}>
@@ -1239,13 +1246,14 @@ export default function PaymentScreen() {
                       </View>
 
                       <View style={styles.customTipContainer}>
-                        <Text style={styles.customTipLabel}>Montant libre</Text>
+                        <Text style={styles.customTipLabel}>{t('payment.tipCustomLabel')}</Text>
                         <View style={styles.customTipInputContainer}>
                           <TextInput
                             style={styles.customTipInput}
                             value={customTipInput}
                             onChangeText={handleCustomTip}
                             placeholder="0.00"
+                            placeholderTextColor={COLORS.text.light}
                             keyboardType={Platform.OS === 'ios' ? 'decimal-pad' : 'numeric'}
                             returnKeyType="done"
                           />
@@ -1258,7 +1266,7 @@ export default function PaymentScreen() {
                     <Card style={styles.receiptCard}>
                       <View style={styles.cardHeader}>
                         <Ionicons name="mail-outline" size={24} color={COLORS.primary} />
-                        <Text style={styles.cardTitle}>Ticket de caisse</Text>
+                        <Text style={styles.cardTitle}>{t('payment.receiptTitle')}</Text>
                       </View>
 
                       <View style={styles.emailInputContainer}>
@@ -1270,6 +1278,7 @@ export default function PaymentScreen() {
                           value={customerEmail}
                           onChangeText={setCustomerEmail}
                           placeholder="votre@email.com"
+                          placeholderTextColor={COLORS.text.light}
                           keyboardType="email-address"
                           autoCapitalize="none"
                           autoCorrect={false}
@@ -1277,7 +1286,7 @@ export default function PaymentScreen() {
                       </View>
 
                       <View style={styles.receiptOption}>
-                        <Text style={styles.receiptOptionText}>Recevoir le ticket par email</Text>
+                        <Text style={styles.receiptOptionText}>{t('payment.receiptOption')}</Text>
                         <Switch
                           value={wantReceipt}
                           onValueChange={setWantReceipt}
@@ -1294,24 +1303,24 @@ export default function PaymentScreen() {
               {/* Side Column - Total & Payment */}
               <View style={styles.sideColumn}>
                 <Card style={styles.totalCard}>
-                  <Text style={styles.cardTitle}>Total</Text>
+                  <Text style={styles.cardTitle}>{t('payment.total')}</Text>
                   
                   <View style={styles.totalDetails}>
                     <View style={styles.totalRow}>
-                      <Text style={styles.totalLabel}>Sous-total</Text>
+                      <Text style={styles.totalLabel}>{t('payment.subtotal')}</Text>
                       <Text style={styles.totalValue}>{formatCurrency(order?.total_amount)}</Text>
                     </View>
                     {tipAmount > 0 && (
                       <View style={styles.totalRow}>
                         <Text style={styles.totalLabel}>
-                          Pourboire {selectedTipPercent ? `(${selectedTipPercent}%)` : ''}
+                          {t('payment.tipLabel')} {selectedTipPercent ? `(${selectedTipPercent}%)` : ''}
                         </Text>
                         <Text style={styles.totalValue}>{formatCurrency(tipAmount)}</Text>
                       </View>
                     )}
                     <View style={styles.totalDivider} />
                     <View style={styles.finalTotalRow}>
-                      <Text style={styles.finalTotalLabel}>Total à payer</Text>
+                      <Text style={styles.finalTotalLabel}>{t('payment.totalDue')}</Text>
                       <Text style={styles.finalTotalAmount}>{formatCurrency(totalWithTip)}</Text>
                     </View>
                   </View>
@@ -1319,10 +1328,10 @@ export default function PaymentScreen() {
                   <Button
                     title={
                       processing
-                        ? 'Traitement...'
+                        ? t('payment.processingBtn')
                         : paymentMethod === 'online'
-                        ? `Payer ${formatCurrency(totalWithTip)}`
-                        : 'Confirmer la commande'
+                        ? t('payment.payAmount', { amount: formatCurrency(totalWithTip) })
+                        : t('payment.confirmOrder')
                     }
                     onPress={paymentMethod === 'online' ? handleOnlinePayment : handleCashPayment}
                     fullWidth
@@ -1333,8 +1342,8 @@ export default function PaymentScreen() {
 
                   <Text style={styles.securityText}>
                     {paymentMethod === 'online'
-                      ? '🔒 Paiement sécurisé par Stripe • ❤️ Soutient le développeur'
-                      : '💰 Paiement au restaurant'}
+                      ? t('payment.securityOnline')
+                      : t('payment.securityCash')}
                   </Text>
                 </Card>
               </View>
@@ -1357,7 +1366,7 @@ export default function PaymentScreen() {
 }
 
 // Create responsive styles function
-function createStyles(screenType: 'mobile' | 'tablet' | 'desktop') {
+function createStyles(COLORS: ReturnType<typeof makeColors>, screenType: 'mobile' | 'tablet' | 'desktop') {
   const isTabletOrLarger = screenType !== 'mobile';
   const isDesktop = screenType === 'desktop';
   

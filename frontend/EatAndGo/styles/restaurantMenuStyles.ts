@@ -1,7 +1,7 @@
 // styles/modernRestaurantMenuStyles.ts
 import { StyleSheet } from 'react-native';
 import {
-  COLORS,
+  type AppColors,
   TYPOGRAPHY,
   SPACING,
   BORDER_RADIUS,
@@ -12,7 +12,7 @@ import {
 
 type ScreenType = 'mobile' | 'tablet' | 'desktop';
 
-export const createRestaurantMenuStyles = (screenType: ScreenType) => {
+export const createRestaurantMenuStyles = (colors: AppColors, screenType: ScreenType) => {
   const gv = (token: any): number => getResponsiveValue(token, screenType) as number;
 
   return StyleSheet.create({
@@ -21,7 +21,7 @@ export const createRestaurantMenuStyles = (screenType: ScreenType) => {
     // ===========================================
     page: { 
       flex: 1,
-      backgroundColor: COLORS.background,
+      backgroundColor: colors.background,
     },
 
     container: { 
@@ -43,7 +43,7 @@ export const createRestaurantMenuStyles = (screenType: ScreenType) => {
     cover: { 
       width: '100%', 
       aspectRatio: 16 / 9, 
-      backgroundColor: COLORS.border.light, 
+      backgroundColor: colors.border.light, 
       borderRadius: BORDER_RADIUS.lg 
     },
 
@@ -54,7 +54,7 @@ export const createRestaurantMenuStyles = (screenType: ScreenType) => {
     heroTitle: { 
       fontSize: gv(TYPOGRAPHY.fontSize.xl), 
       fontWeight: '700', 
-      color: COLORS.text.primary 
+      color: colors.text.primary 
     },
 
     heroMetaRow: { 
@@ -71,7 +71,7 @@ export const createRestaurantMenuStyles = (screenType: ScreenType) => {
     },
 
     badge: { 
-      backgroundColor: COLORS.surface, 
+      backgroundColor: colors.surface, 
       borderRadius: BORDER_RADIUS.full, 
       paddingHorizontal: 10, 
       paddingVertical: 4 
@@ -79,32 +79,32 @@ export const createRestaurantMenuStyles = (screenType: ScreenType) => {
 
     badgeText: { 
       fontSize: gv(TYPOGRAPHY.fontSize.sm), 
-      color: COLORS.text.secondary 
+      color: colors.text.secondary 
     },
 
     tableBadge: { 
       flexDirection: 'row', 
       alignItems: 'center', 
       gap: 6, 
-      backgroundColor: COLORS.primary, 
+      backgroundColor: colors.primary, 
       borderRadius: BORDER_RADIUS.full, 
       paddingHorizontal: 10, 
       paddingVertical: 4 
     },
 
     tableBadgeText: { 
-      color: COLORS.text.inverse, 
+      color: colors.text.inverse, 
       fontWeight: '600' 
     },
 
     heroDesc: { 
       marginTop: gv(SPACING.sm), 
-      color: COLORS.text.secondary, 
+      color: colors.text.secondary, 
       lineHeight: 20 
     },
 
     readMore: { 
-      color: COLORS.primary, 
+      color: colors.primary, 
       marginTop: 6, 
       fontWeight: '600' 
     },
@@ -116,9 +116,9 @@ export const createRestaurantMenuStyles = (screenType: ScreenType) => {
       position: 'sticky' as any, 
       top: 0, 
       zIndex: 5, 
-      backgroundColor: COLORS.background, 
+      backgroundColor: colors.background, 
       borderBottomWidth: 1, 
-      borderBottomColor: COLORS.border.light, 
+      borderBottomColor: colors.border.light, 
       marginBottom: gv(SPACING.sm), 
       paddingVertical: gv(SPACING.xs)
     },
@@ -135,8 +135,8 @@ export const createRestaurantMenuStyles = (screenType: ScreenType) => {
       paddingHorizontal: gv(SPACING.md), 
       paddingVertical: gv(SPACING.sm), 
       borderRadius: BORDER_RADIUS.full, 
-      backgroundColor: COLORS.surface, 
-      shadowColor: COLORS.shadow.default,
+      backgroundColor: colors.surface, 
+      shadowColor: colors.shadow.default,
       shadowOpacity: 0.08,
       shadowRadius: 3,
       shadowOffset: { width: 0, height: 2 },
@@ -144,17 +144,17 @@ export const createRestaurantMenuStyles = (screenType: ScreenType) => {
     },
     
     navPillActive: { 
-      backgroundColor: COLORS.primary 
+      backgroundColor: colors.primary 
     },
     
     navPillText: { 
-      color: COLORS.text.secondary, 
+      color: colors.text.secondary, 
       fontWeight: '600',
       fontSize: gv(14)
     },
     
     navPillTextActive: { 
-      color: COLORS.text.inverse 
+      color: colors.text.inverse 
     },
     
     categoryIcon: { 
@@ -185,21 +185,21 @@ export const createRestaurantMenuStyles = (screenType: ScreenType) => {
       paddingHorizontal: 12, 
       paddingVertical: 10, 
       borderRadius: BORDER_RADIUS.full, 
-      backgroundColor: COLORS.surface, 
+      backgroundColor: colors.surface, 
       minHeight: COMPONENT_CONSTANTS.minTouchTarget 
     },
 
     categoryButtonActive: { 
-      backgroundColor: COLORS.primary 
+      backgroundColor: colors.primary 
     },
 
     categoryText: { 
-      color: COLORS.text.secondary, 
+      color: colors.text.secondary, 
       fontWeight: '600' 
     },
 
     categoryTextActive: { 
-      color: COLORS.text.inverse 
+      color: colors.text.inverse 
     },
 
     fadeRight: { 
@@ -215,30 +215,30 @@ export const createRestaurantMenuStyles = (screenType: ScreenType) => {
       paddingHorizontal: 12, 
       paddingVertical: 10, 
       borderRadius: BORDER_RADIUS.full, 
-      backgroundColor: COLORS.surface, 
+      backgroundColor: colors.surface, 
       minHeight: COMPONENT_CONSTANTS.minTouchTarget 
     },
 
     filterButtonText: { 
-      color: COLORS.text.primary, 
+      color: colors.text.primary, 
       fontWeight: '600' 
     },
 
     filterButtonActive: {
-      backgroundColor: COLORS.variants.primary[50],
+      backgroundColor: colors.variants.primary[50],
       borderWidth: 1,
-      borderColor: COLORS.primary,
+      borderColor: colors.primary,
     },
 
     filterButtonTextActive: {
-      color: COLORS.primary,
+      color: colors.primary,
     },
 
     // ===========================================
     // PANNEAU DE FILTRES
     // ===========================================
     filtersPanel: {
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderRadius: BORDER_RADIUS.lg,
       padding: gv(SPACING.lg),
       marginBottom: gv(SPACING.md),
@@ -255,11 +255,11 @@ export const createRestaurantMenuStyles = (screenType: ScreenType) => {
     filtersPanelTitle: {
       fontSize: gv(TYPOGRAPHY.fontSize.lg),
       fontWeight: '600',
-      color: COLORS.text.primary,
+      color: colors.text.primary,
     },
 
     clearFiltersText: {
-      color: COLORS.primary,
+      color: colors.primary,
       fontSize: gv(TYPOGRAPHY.fontSize.sm),
       fontWeight: '500',
     },
@@ -274,14 +274,14 @@ export const createRestaurantMenuStyles = (screenType: ScreenType) => {
       alignItems: 'center',
       paddingVertical: gv(SPACING.md),
       paddingHorizontal: gv(SPACING.md),
-      backgroundColor: COLORS.background,
+      backgroundColor: colors.background,
       borderRadius: BORDER_RADIUS.md,
       minHeight: COMPONENT_CONSTANTS.minTouchTarget,
     },
 
     filterOptionText: {
       fontSize: gv(TYPOGRAPHY.fontSize.base),
-      color: COLORS.text.primary,
+      color: colors.text.primary,
     },
 
     // ===========================================
@@ -302,7 +302,7 @@ export const createRestaurantMenuStyles = (screenType: ScreenType) => {
     // CARDS MENU ITEMS (MODERNE)
     // ===========================================
     card: { 
-      backgroundColor: COLORS.surface, 
+      backgroundColor: colors.surface, 
       borderRadius: BORDER_RADIUS.lg, 
       padding: gv(SPACING.md), 
       ...SHADOWS.sm 
@@ -317,7 +317,7 @@ export const createRestaurantMenuStyles = (screenType: ScreenType) => {
       width: 84, 
       height: 84, 
       borderRadius: BORDER_RADIUS.md, 
-      backgroundColor: COLORS.border.light 
+      backgroundColor: colors.border.light 
     },
 
     menuItemCol: { 
@@ -333,18 +333,18 @@ export const createRestaurantMenuStyles = (screenType: ScreenType) => {
 
     menuItemName: { 
       fontSize: gv(TYPOGRAPHY.fontSize.lg), 
-      color: COLORS.text.primary, 
+      color: colors.text.primary, 
       fontWeight: '700' 
     },
 
     menuItemPrice: { 
       fontWeight: '700', 
-      color: COLORS.primary,
+      color: colors.primary,
       fontSize: gv(TYPOGRAPHY.fontSize.md)
     },
 
     menuItemDescription: { 
-      color: COLORS.text.secondary, 
+      color: colors.text.secondary, 
       marginBottom: gv(SPACING.xs),
       fontSize: gv(TYPOGRAPHY.fontSize.sm),
       lineHeight: gv(TYPOGRAPHY.fontSize.sm) * 1.4
@@ -364,14 +364,14 @@ export const createRestaurantMenuStyles = (screenType: ScreenType) => {
       flexDirection: 'row', 
       alignItems: 'center', 
       gap: 6, 
-      backgroundColor: COLORS.variants?.primary?.[100] ?? COLORS.border.light, 
+      backgroundColor: colors.variants?.primary?.[100] ?? colors.border.light, 
       borderRadius: BORDER_RADIUS.full, 
       paddingHorizontal: 10, 
       paddingVertical: 4 
     },
 
     tagText: { 
-      color: COLORS.primary, 
+      color: colors.primary, 
       fontSize: gv(TYPOGRAPHY.fontSize.sm), 
       fontWeight: '600' 
     },
@@ -399,11 +399,11 @@ export const createRestaurantMenuStyles = (screenType: ScreenType) => {
       paddingHorizontal: 10, 
       paddingVertical: 4, 
       borderRadius: BORDER_RADIUS.full, 
-      backgroundColor: COLORS.surface 
+      backgroundColor: colors.surface 
     },
 
     allergenToggleText: { 
-      color: COLORS.text.secondary, 
+      color: colors.text.secondary, 
       fontWeight: '600' 
     },
 
@@ -415,14 +415,14 @@ export const createRestaurantMenuStyles = (screenType: ScreenType) => {
     },
 
     allergenChip: { 
-      backgroundColor: COLORS.border.light, 
+      backgroundColor: colors.border.light, 
       paddingHorizontal: 8, 
       paddingVertical: 4, 
       borderRadius: BORDER_RADIUS.full 
     },
 
     allergenChipText: { 
-      color: COLORS.text.secondary, 
+      color: colors.text.secondary, 
       fontSize: gv(TYPOGRAPHY.fontSize.sm) 
     },
 
@@ -437,7 +437,7 @@ export const createRestaurantMenuStyles = (screenType: ScreenType) => {
     },
 
     categoryBadge: { 
-      backgroundColor: COLORS.background, 
+      backgroundColor: colors.background, 
       borderRadius: BORDER_RADIUS.full, 
       paddingHorizontal: 10, 
       paddingVertical: 4 
@@ -445,7 +445,7 @@ export const createRestaurantMenuStyles = (screenType: ScreenType) => {
 
     categoryBadgeText: {
       fontSize: gv(TYPOGRAPHY.fontSize.xs),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       fontWeight: '500',
     },
 
@@ -460,13 +460,13 @@ export const createRestaurantMenuStyles = (screenType: ScreenType) => {
     unavailableContainer: {
       marginTop: gv(SPACING.sm),
       padding: gv(SPACING.sm),
-      backgroundColor: COLORS.border.light,
+      backgroundColor: colors.border.light,
       borderRadius: BORDER_RADIUS.md,
       alignItems: 'center',
     },
 
     unavailableText: {
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       fontSize: gv(TYPOGRAPHY.fontSize.sm),
     },
 
@@ -477,7 +477,7 @@ export const createRestaurantMenuStyles = (screenType: ScreenType) => {
       position: 'absolute',
       left: gv(SPACING.md),
       right: gv(SPACING.md),
-      backgroundColor: COLORS.secondary,
+      backgroundColor: colors.secondary,
       borderRadius: BORDER_RADIUS.lg,
       padding: gv(SPACING.md),
       flexDirection: 'row',
@@ -488,13 +488,13 @@ export const createRestaurantMenuStyles = (screenType: ScreenType) => {
     },
 
     cartButtonText: {
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       fontSize: gv(TYPOGRAPHY.fontSize.md),
       fontWeight: '600',
     },
 
     cartButtonSubtext: {
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       fontSize: gv(TYPOGRAPHY.fontSize.sm),
       opacity: 0.9,
     },
@@ -509,7 +509,7 @@ export const createRestaurantMenuStyles = (screenType: ScreenType) => {
     sectionTitle: {
       fontSize: gv(TYPOGRAPHY.fontSize.xl),
       fontWeight: '700',
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       marginBottom: gv(SPACING.md),
     },
 
@@ -519,7 +519,7 @@ export const createRestaurantMenuStyles = (screenType: ScreenType) => {
     subSectionTitle: {
       fontSize: 16,
       fontWeight: '600',
-      color: '#374151',
+      color: colors.text.primary,
       marginBottom: 8,
     },
 
@@ -535,7 +535,7 @@ export const createRestaurantMenuStyles = (screenType: ScreenType) => {
 
     emptyText: {
       fontSize: gv(TYPOGRAPHY.fontSize.lg),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       textAlign: 'center',
     },
 
@@ -549,7 +549,7 @@ export const createRestaurantMenuStyles = (screenType: ScreenType) => {
 
     emptyStateText: {
       fontSize: gv(TYPOGRAPHY.fontSize.lg),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       textAlign: 'center',
       marginTop: gv(SPACING.md),
       marginBottom: gv(SPACING.md),
@@ -560,7 +560,7 @@ export const createRestaurantMenuStyles = (screenType: ScreenType) => {
     },
 
     resetFiltersText: {
-      color: COLORS.secondary,
+      color: colors.secondary,
       fontSize: gv(TYPOGRAPHY.fontSize.md),
       fontWeight: '500',
     },

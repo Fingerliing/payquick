@@ -200,7 +200,7 @@ export default function MenuScanCaptureScreen() {
           <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>
-          Importer une carte
+          {t('scanImport.headerTitle')}
         </Text>
         <View style={styles.headerButton} />
       </View>
@@ -218,9 +218,7 @@ export default function MenuScanCaptureScreen() {
             <Ionicons name="sparkles" size={22} color={colors.variants.secondary[600]} />
           </View>
           <Text style={styles.introText}>
-            Photographiez votre carte papier. L'IA détecte automatiquement les
-            catégories, les plats, les prix et les traduit. Vous pourrez tout
-            relire et corriger avant de l'appliquer à votre menu.
+            {t('scanImport.intro')}
           </Text>
         </View>
 

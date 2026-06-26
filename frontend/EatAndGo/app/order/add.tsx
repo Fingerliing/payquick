@@ -11,6 +11,7 @@ import {
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 
 // Contexts & Hooks
 import { useOrder } from '@/contexts/OrderContext';
@@ -24,6 +25,9 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Loading } from '@/components/ui/Loading';
 import { Alert as InlineAlert } from '@/components/ui/Alert';
+
+// Theme
+import { useAppTheme } from '@/utils/designSystem';
 
 // Types
 import { MenuItem, Menu } from '@/types/menu';
@@ -52,15 +56,10 @@ interface OrderFormData {
   notes: string;
 }
 
-const ORDER_TYPE_LABELS = {
-  dine_in: '🪑 Sur place',
-  takeaway: '📦 À emporter',
-};
-
 // =============================================================================
 // CONSTANTS
 // =============================================================================
-
+// NB : données mock de personnalisation — non traduites (placeholder métier).
 const CUSTOMIZATION_OPTIONS = {
   sauce: ['Mayo', 'Ketchup', 'Moutarde', 'Sans sauce'],
   cuisson: ['Saignant', 'À point', 'Bien cuit'],
@@ -79,6 +78,8 @@ export default function AddOrderScreen() {
     restaurantId?: string;
     tableCode?: string;
   }>();
+  const { t } = useTranslation();
+  const { colors, isDark } = useAppTheme();
   const { createOrder } = useOrder();
   const { loadRestaurant, currentRestaurant } = useRestaurant();
   const insets = useSafeAreaInsets();
@@ -116,6 +117,10 @@ export default function AddOrderScreen() {
     notes: '',
   });
 
+  // Libellé du type de commande (emoji + i18n)
+  const orderTypeLabel = (type: 'dine_in' | 'takeaway') =>
+    type === 'dine_in' ? `🪑 ${t('order.dineIn')}` : `📦 ${t('order.takeaway')}`;
+
   // ==========================================================================
   // EFFECTS
   // ==========================================================================
@@ -149,7 +154,7 @@ export default function AddOrderScreen() {
       }
     } catch (error) {
       console.error('Erreur lors du chargement des menus:', error);
-      showToast('error', 'Impossible de charger les menus', 'Erreur');
+      showToast('error', t('addOrder.toast.loadMenusFailed'), t('common.error'));
     } finally {
       setIsLoading(false);
     }
@@ -195,7 +200,7 @@ export default function AddOrderScreen() {
     });
 
     setShowCart(true);
-    showToast('success', `${menuItem.name} ajouté au panier`, 'Ajouté');
+    showToast('success', t('addOrder.toast.addedToCart', { name: menuItem.name }), t('addOrder.toast.addedTitle'));
   };
 
   const updateCartItem = (itemId: string, quantity: number) => {
@@ -249,20 +254,20 @@ export default function AddOrderScreen() {
   // ==========================================================================
   const handleSubmitOrder = async () => {
     if (cart.length === 0) {
-      showToast('warning', 'Ajoutez des articles à votre commande', 'Panier vide');
+      showToast('warning', t('addOrder.toast.emptyCart'), t('addOrder.toast.emptyCartTitle'));
       return;
     }
 
     if (!formData.customer_name.trim()) {
-      showToast('error', 'Veuillez renseigner votre nom', 'Information manquante');
+      showToast('error', t('addOrder.toast.nameRequired'), t('addOrder.toast.missingInfoTitle'));
       return;
     }
 
     if (formData.order_type === 'dine_in' && !formData.table_number.trim()) {
       showToast(
         'error',
-        'Numéro de table requis pour une commande sur place',
-        'Information manquante'
+        t('addOrder.toast.tableRequired'),
+        t('addOrder.toast.missingInfoTitle')
       );
       return;
     }
@@ -289,15 +294,18 @@ export default function AddOrderScreen() {
 
       showToast(
         'success',
-        `Commande ${order.order_number} enregistrée. Total: ${getCartTotal().toFixed(2)} €`,
-        'Commande confirmée !'
+        t('addOrder.toast.orderConfirmed', {
+          number: order.order_number,
+          total: getCartTotal().toFixed(2),
+        }),
+        t('addOrder.toast.orderConfirmedTitle')
       );
 
       clearCart();
       router.replace(`/order/${order.id}`);
     } catch (error: any) {
       console.error('❌ Erreur création commande:', error);
-      showToast('error', error?.message || 'Impossible de créer la commande', 'Erreur');
+      showToast('error', error?.message || t('addOrder.toast.createFailed'), t('common.error'));
     } finally {
       setIsLoading(false);
     }
@@ -306,6 +314,10 @@ export default function AddOrderScreen() {
   // ==========================================================================
   // RENDER HELPERS
   // ==========================================================================
+  // Tag diététique : pastel vert en clair, vert translucide en dark.
+  const dietaryBg = isDark ? 'rgba(16, 185, 129, 0.18)' : '#D1FAE5';
+  const dietaryText = isDark ? colors.success : '#065F46';
+
   const renderMenuItem = ({ item }: { item: MenuItem }) => (
     <Card style={{ marginHorizontal: 16, marginBottom: 12 }}>
       <View style={{ flexDirection: 'row' }}>
@@ -314,7 +326,7 @@ export default function AddOrderScreen() {
             style={{
               fontSize: 16,
               fontWeight: '600',
-              color: '#111827',
+              color: colors.text.primary,
               marginBottom: 4,
             }}
           >
@@ -323,7 +335,7 @@ export default function AddOrderScreen() {
           <Text
             style={{
               fontSize: 12,
-              color: '#6B7280',
+              color: colors.text.secondary,
               marginBottom: 8,
               lineHeight: 16,
             }}
@@ -343,7 +355,7 @@ export default function AddOrderScreen() {
                 <View
                   key={index}
                   style={{
-                    backgroundColor: '#D1FAE5',
+                    backgroundColor: dietaryBg,
                     paddingHorizontal: 6,
                     paddingVertical: 2,
                     borderRadius: 4,
@@ -352,7 +364,7 @@ export default function AddOrderScreen() {
                   }}
                 >
                   <Text
-                    style={{ fontSize: 10, color: '#065F46', fontWeight: '500' }}
+                    style={{ fontSize: 10, color: dietaryText, fontWeight: '500' }}
                   >
                     {tag}
                   </Text>
@@ -368,11 +380,11 @@ export default function AddOrderScreen() {
               alignItems: 'center',
             }}
           >
-            <Text style={{ fontSize: 16, fontWeight: '600', color: '#3B82F6' }}>
+            <Text style={{ fontSize: 16, fontWeight: '600', color: colors.primary }}>
               {item.price} €
             </Text>
             <Button
-              title="Ajouter"
+              title={t('addOrder.add')}
               onPress={() => addToCart(item)}
               variant="primary"
               size="sm"
@@ -393,19 +405,19 @@ export default function AddOrderScreen() {
         alignItems: 'center',
         paddingVertical: 12,
         borderBottomWidth: 1,
-        borderBottomColor: '#F3F4F6',
+        borderBottomColor: colors.border.light,
       }}
     >
       <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 14, fontWeight: '500', color: '#111827' }}>
+        <Text style={{ fontSize: 14, fontWeight: '500', color: colors.text.primary }}>
           {item.menuItem.name}
         </Text>
         {item.special_instructions && (
-          <Text style={{ fontSize: 12, color: '#F59E0B', marginTop: 2 }}>
-            Note: {item.special_instructions}
+          <Text style={{ fontSize: 12, color: colors.warning, marginTop: 2 }}>
+            {t('addOrder.note', { text: item.special_instructions })}
           </Text>
         )}
-        <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
+        <Text style={{ fontSize: 12, color: colors.text.secondary, marginTop: 2 }}>
           {item.menuItem.price} € × {item.quantity}
         </Text>
       </View>
@@ -417,12 +429,12 @@ export default function AddOrderScreen() {
             width: 32,
             height: 32,
             borderRadius: 16,
-            backgroundColor: '#F3F4F6',
+            backgroundColor: colors.border.light,
             justifyContent: 'center',
             alignItems: 'center',
           }}
         >
-          <Ionicons name="remove" size={16} color="#6B7280" />
+          <Ionicons name="remove" size={16} color={colors.text.secondary} />
         </TouchableOpacity>
 
         <Text
@@ -430,7 +442,7 @@ export default function AddOrderScreen() {
             fontSize: 14,
             fontWeight: '500',
             marginHorizontal: 12,
-            color: '#111827',
+            color: colors.text.primary,
           }}
         >
           {item.quantity}
@@ -442,12 +454,12 @@ export default function AddOrderScreen() {
             width: 32,
             height: 32,
             borderRadius: 16,
-            backgroundColor: '#3B82F6',
+            backgroundColor: colors.primary,
             justifyContent: 'center',
             alignItems: 'center',
           }}
         >
-          <Ionicons name="add" size={16} color="#FFFFFF" />
+          <Ionicons name="add" size={16} color={colors.text.inverse} />
         </TouchableOpacity>
       </View>
     </View>
@@ -472,7 +484,7 @@ export default function AddOrderScreen() {
               paddingHorizontal: 16,
               paddingVertical: 8,
               borderRadius: 20,
-              backgroundColor: selectedCategory === category ? '#3B82F6' : '#F3F4F6',
+              backgroundColor: selectedCategory === category ? colors.primary : colors.border.light,
               marginRight: 8,
             }}
           >
@@ -480,10 +492,10 @@ export default function AddOrderScreen() {
               style={{
                 fontSize: 12,
                 fontWeight: '500',
-                color: selectedCategory === category ? '#FFFFFF' : '#6B7280',
+                color: selectedCategory === category ? colors.text.inverse : colors.text.secondary,
               }}
             >
-              {category === 'all' ? 'Tout' : category}
+              {category === 'all' ? t('addOrder.categoryAll') : category}
             </Text>
           </TouchableOpacity>
         ))}
@@ -496,23 +508,23 @@ export default function AddOrderScreen() {
   // ==========================================================================
   if (isLoading && !currentRestaurant) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-        <Header title="Commander" leftIcon="arrow-back" onLeftPress={() => router.back()} />
-        <Loading fullScreen text="Chargement du menu..." />
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <Header title={t('addOrder.headerFallback')} leftIcon="arrow-back" onLeftPress={() => router.back()} />
+        <Loading fullScreen text={t('addOrder.loadingMenu')} />
       </View>
     );
   }
 
   if (!currentRestaurant) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-        <Header title="Commander" leftIcon="arrow-back" onLeftPress={() => router.back()} />
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <Header title={t('addOrder.headerFallback')} leftIcon="arrow-back" onLeftPress={() => router.back()} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Ionicons name="restaurant-outline" size={64} color="#D1D5DB" />
-          <Text style={{ fontSize: 18, color: '#6B7280', marginTop: 16, textAlign: 'center' }}>
-            Restaurant non trouvé
+          <Ionicons name="restaurant-outline" size={64} color={colors.border.dark} />
+          <Text style={{ fontSize: 18, color: colors.text.secondary, marginTop: 16, textAlign: 'center' }}>
+            {t('addOrder.restaurantNotFound')}
           </Text>
-          <Button title="Retour" onPress={() => router.back()} variant="outline" style={{ marginTop: 16 }} />
+          <Button title={t('common.back')} onPress={() => router.back()} variant="outline" style={{ marginTop: 16 }} />
         </View>
       </View>
     );
@@ -529,7 +541,7 @@ export default function AddOrderScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 64 : 0}
     >
-      <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
         <Header
           title={currentRestaurant.name}
           leftIcon="arrow-back"
@@ -562,12 +574,12 @@ export default function AddOrderScreen() {
                 }}
               >
                 <View>
-                  <Text style={{ fontSize: 16, fontWeight: '600', color: '#111827' }}>
-                    {ORDER_TYPE_LABELS[formData.order_type]}
+                  <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text.primary }}>
+                    {orderTypeLabel(formData.order_type)}
                   </Text>
                   {formData.table_number ? (
-                    <Text style={{ fontSize: 12, color: '#6B7280' }}>
-                      Table {formData.table_number}
+                    <Text style={{ fontSize: 12, color: colors.text.secondary }}>
+                      {t('addOrder.table', { number: formData.table_number })}
                     </Text>
                   ) : null}
                 </View>
@@ -582,14 +594,14 @@ export default function AddOrderScreen() {
                   style={{
                     flexDirection: 'row',
                     alignItems: 'center',
-                    backgroundColor: '#F3F4F6',
+                    backgroundColor: colors.border.light,
                     paddingHorizontal: 12,
                     paddingVertical: 6,
                     borderRadius: 16,
                   }}
                 >
-                  <Ionicons name="swap-horizontal" size={14} color="#6B7280" />
-                  <Text style={{ fontSize: 12, color: '#6B7280', marginLeft: 4 }}>Changer</Text>
+                  <Ionicons name="swap-horizontal" size={14} color={colors.text.secondary} />
+                  <Text style={{ fontSize: 12, color: colors.text.secondary, marginLeft: 4 }}>{t('addOrder.switch')}</Text>
                 </TouchableOpacity>
               </View>
             </Card>
@@ -603,8 +615,8 @@ export default function AddOrderScreen() {
               contentContainerStyle={{ paddingBottom: 100 }}
               showsVerticalScrollIndicator={false}
               ListEmptyComponent={
-                <Text style={{ textAlign: 'center', color: '#6B7280', marginTop: 24 }}>
-                  Aucun article disponible pour cette catégorie.
+                <Text style={{ textAlign: 'center', color: colors.text.secondary, marginTop: 24 }}>
+                  {t('addOrder.noItems')}
                 </Text>
               }
             />
@@ -620,11 +632,11 @@ export default function AddOrderScreen() {
                   marginBottom: 16,
                 }}
               >
-                <Text style={{ fontSize: 18, fontWeight: '600', color: '#111827' }}>
-                  Votre commande ({getCartItemsCount()} articles)
+                <Text style={{ fontSize: 18, fontWeight: '600', color: colors.text.primary }}>
+                  {t('addOrder.cartTitle', { count: getCartItemsCount() })}
                 </Text>
                 <TouchableOpacity onPress={() => setShowCart(false)}>
-                  <Ionicons name="close" size={24} color="#6B7280" />
+                  <Ionicons name="close" size={24} color={colors.text.secondary} />
                 </TouchableOpacity>
               </View>
 
@@ -636,8 +648,8 @@ export default function AddOrderScreen() {
                   scrollEnabled={false}
                 />
               ) : (
-                <Text style={{ textAlign: 'center', color: '#6B7280', paddingVertical: 24 }}>
-                  Votre panier est vide
+                <Text style={{ textAlign: 'center', color: colors.text.secondary, paddingVertical: 24 }}>
+                  {t('cart.empty')}
                 </Text>
               )}
 
@@ -647,21 +659,21 @@ export default function AddOrderScreen() {
                     marginTop: 16,
                     paddingTop: 16,
                     borderTopWidth: 1,
-                    borderTopColor: '#E5E7EB',
+                    borderTopColor: colors.border.default,
                   }}
                 >
                   <View
                     style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}
                   >
-                    <Text style={{ fontSize: 16, fontWeight: '600', color: '#111827' }}>
-                      Total:
+                    <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text.primary }}>
+                      {t('addOrder.total')}
                     </Text>
-                    <Text style={{ fontSize: 16, fontWeight: '600', color: '#3B82F6' }}>
+                    <Text style={{ fontSize: 16, fontWeight: '600', color: colors.primary }}>
                       {getCartTotal().toFixed(2)} €
                     </Text>
                   </View>
                   <Button
-                    title="Vider le panier"
+                    title={t('addOrder.clearCart')}
                     onPress={clearCart}
                     variant="outline"
                     size="sm"
@@ -677,24 +689,24 @@ export default function AddOrderScreen() {
                   style={{
                     fontSize: 18,
                     fontWeight: '600',
-                    color: '#111827',
+                    color: colors.text.primary,
                     marginBottom: 16,
                   }}
                 >
-                  Informations de commande
+                  {t('addOrder.orderInfo')}
                 </Text>
 
                 <Input
-                  label="Votre nom *"
-                  placeholder="Nom et prénom"
+                  label={t('addOrder.form.nameLabel')}
+                  placeholder={t('addOrder.form.namePlaceholder')}
                   value={formData.customer_name}
                   onChangeText={(value) => updateFormField('customer_name', value)}
                   leftIcon="person-outline"
                 />
 
                 <Input
-                  label="Téléphone"
-                  placeholder="06 12 34 56 78"
+                  label={t('addOrder.form.phoneLabel')}
+                  placeholder={t('addOrder.form.phonePlaceholder')}
                   value={formData.phone}
                   onChangeText={(value) => updateFormField('phone', value)}
                   keyboardType="phone-pad"
@@ -703,8 +715,8 @@ export default function AddOrderScreen() {
 
                 {formData.order_type === 'dine_in' && (
                   <Input
-                    label="Numéro de table *"
-                    placeholder="Ex: 12"
+                    label={t('addOrder.form.tableLabel')}
+                    placeholder={t('addOrder.form.tablePlaceholder')}
                     value={formData.table_number}
                     onChangeText={(value) => updateFormField('table_number', value)}
                     leftIcon="restaurant-outline"
@@ -712,8 +724,8 @@ export default function AddOrderScreen() {
                 )}
 
                 <Input
-                  label="Notes"
-                  placeholder="Allergies, consignes…"
+                  label={t('addOrder.form.notesLabel')}
+                  placeholder={t('addOrder.form.notesPlaceholder')}
                   value={formData.notes}
                   onChangeText={(value) => updateFormField('notes', value)}
                   leftIcon="chatbubble-ellipses-outline"
@@ -728,22 +740,22 @@ export default function AddOrderScreen() {
                     marginTop: 12,
                   }}
                 >
-                  <Text style={{ color: '#6B7280' }}>Méthode de paiement</Text>
+                  <Text style={{ color: colors.text.secondary }}>{t('addOrder.form.paymentMethod')}</Text>
                   <View style={{ flexDirection: 'row', gap: 8 }}>
                     <Button
-                      title="Espèces"
+                      title={t('addOrder.payment.cash')}
                       size="sm"
                       variant={formData.payment_method === 'cash' ? 'primary' : 'outline'}
                       onPress={() => updateFormField('payment_method', 'cash')}
                     />
                     <Button
-                      title="Carte"
+                      title={t('addOrder.payment.card')}
                       size="sm"
                       variant={formData.payment_method === 'card' ? 'primary' : 'outline'}
                       onPress={() => updateFormField('payment_method', 'card')}
                     />
                     <Button
-                      title="En ligne"
+                      title={t('addOrder.payment.online')}
                       size="sm"
                       variant={formData.payment_method === 'online' ? 'primary' : 'outline'}
                       onPress={() => updateFormField('payment_method', 'online')}
@@ -752,7 +764,7 @@ export default function AddOrderScreen() {
                 </View>
 
                 <Button
-                  title={isLoading ? 'Validation…' : 'Valider la commande'}
+                  title={isLoading ? t('addOrder.submitting') : t('checkout.submit.validateOrder')}
                   onPress={handleSubmitOrder}
                   variant="primary"
                   leftIcon="checkmark"
