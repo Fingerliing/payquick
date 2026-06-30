@@ -1,14 +1,19 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, Animated } from 'react-native';
+import React, { useMemo, useRef } from 'react';
+import { View, Text, TouchableOpacity, Animated, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
+
 import { Menu } from '@/types/menu';
-import { 
-  COLORS, 
-  SHADOWS, 
-  BORDER_RADIUS, 
-  useScreenType, 
-  createResponsiveStyles,
-  COMPONENT_STYLES 
+import {
+  useAppTheme,
+  makeShadows,
+  makeComponentStyles,
+  useScreenType,
+  getResponsiveValue,
+  SPACING,
+  TYPOGRAPHY,
+  BORDER_RADIUS,
+  type AppColors,
 } from '@/utils/designSystem';
 
 interface MenuCardProps {
@@ -20,38 +25,69 @@ interface MenuCardProps {
   isToggling?: boolean;
 }
 
-export function MenuCard({ 
-  menu, 
-  onPress, 
-  onEdit, 
-  onToggle, 
+export function MenuCard({
+  menu,
+  onPress,
+  onEdit,
+  onToggle,
   onDelete,
-  isToggling = false
+  isToggling = false,
 }: MenuCardProps) {
+  const { t, i18n } = useTranslation();
+  const { colors, isDark } = useAppTheme();
   const screenType = useScreenType();
-  const styles = createResponsiveStyles(screenType);
-  const scaleAnim = React.useRef(new Animated.Value(1)).current;
-  
-  // Fonction pour déterminer si le menu est disponible
-  const isMenuAvailable = () => {
-    if (typeof menu.is_available === 'boolean') {
-      return menu.is_available;
-    }
-    if (typeof (menu as any).disponible === 'boolean') {
-      return (menu as any).disponible;
-    }
+  const styles = useMemo(
+    () => makeStyles(colors, isDark, screenType),
+    [colors, isDark, screenType],
+  );
+  const componentStyles = useMemo(() => makeComponentStyles(colors), [colors]);
+  const shadows = useMemo(() => makeShadows(colors), [colors]);
+
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  // ── Helpers ──────────────────────────────────────────────────────────
+  const isMenuAvailable = (): boolean => {
+    if (typeof menu.is_available === 'boolean') return menu.is_available;
+    if (typeof (menu as any).disponible === 'boolean') return (menu as any).disponible;
     return false;
   };
 
   const menuIsAvailable = isMenuAvailable();
-  const availableItemsCount = menu.items?.filter(item => item.is_available !== false).length || 0;
+  const totalItems = menu.items?.length || 0;
+  const availableItemsCount =
+    menu.items?.filter((item) => item.is_available !== false).length || 0;
 
-  // Animation au press
+  // Plurielisation CLDR via i18next
+  const itemsLabel = t('restaurantMenus.card.items', { count: totalItems });
+  const availableLabel = t('restaurantMenus.card.available', {
+    count: availableItemsCount,
+  });
+
+  // Formatage des dates dans la locale active
+  const dateFormatter = useMemo(() => {
+    try {
+      return new Intl.DateTimeFormat(i18n.language, {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      });
+    } catch {
+      return null;
+    }
+  }, [i18n.language]);
+
+  const formatDate = (rawDate: string | Date): string => {
+    try {
+      const d = typeof rawDate === 'string' ? new Date(rawDate) : rawDate;
+      return dateFormatter ? dateFormatter.format(d) : d.toLocaleDateString();
+    } catch {
+      return String(rawDate);
+    }
+  };
+
+  // ── Animations ───────────────────────────────────────────────────────
   const handlePressIn = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 0.98,
-      useNativeDriver: true,
-    }).start();
+    Animated.spring(scaleAnim, { toValue: 0.98, useNativeDriver: true }).start();
   };
 
   const handlePressOut = () => {
@@ -63,13 +99,13 @@ export function MenuCard({
     }).start();
   };
 
+  // ── Render ───────────────────────────────────────────────────────────
   return (
     <Animated.View
-      style={{
-        transform: [{ scale: scaleAnim }],
-        marginHorizontal: styles.container.padding,
-        marginVertical: 8,
-      }}
+      style={[
+        styles.outerWrapper,
+        { transform: [{ scale: scaleAnim }] },
+      ]}
     >
       <TouchableOpacity
         onPress={onPress}
@@ -77,284 +113,205 @@ export function MenuCard({
         onPressOut={handlePressOut}
         disabled={isToggling}
         activeOpacity={0.9}
-        style={{
-          backgroundColor: COLORS.surface,
-          borderRadius: BORDER_RADIUS.xl,
-          overflow: 'hidden',
-          ...SHADOWS.card,
-          opacity: isToggling ? 0.7 : 1,
-        }}
+        style={[
+          styles.card,
+          { opacity: isToggling ? 0.7 : 1 },
+        ]}
       >
-        {/* Barre supérieure avec accent doré si actif */}
+        {/* Barre supérieure : accent doré si actif */}
         {menuIsAvailable && (
-          <View 
-            style={{
-              height: 3,
-              backgroundColor: COLORS.secondary,
-              ...SHADOWS.goldenGlow,
-            }} 
-          />
+          <View style={styles.activeAccentBar} />
         )}
 
-        {/* Contenu principal */}
-        <View style={{ padding: 16 }}>
-          {/* En-tête avec titre et bouton édition */}
-          <View style={{ 
-            flexDirection: 'row', 
-            justifyContent: 'space-between', 
-            alignItems: 'flex-start',
-            marginBottom: 12,
-          }}>
-            <View style={{ flex: 1, marginRight: 12 }}>
-              <Text style={{
-                ...styles.textSubtitle,
-                marginBottom: 4,
-                color: menuIsAvailable ? COLORS.text.primary : COLORS.text.secondary,
-              }}>
+        <View style={styles.content}>
+          {/* En-tête : titre + nb items + badge statut */}
+          <View style={styles.header}>
+            <View style={styles.headerLeft}>
+              <Text
+                style={[
+                  styles.title,
+                  {
+                    color: menuIsAvailable
+                      ? colors.text.primary
+                      : colors.text.secondary,
+                  },
+                ]}
+              >
                 {menu.name}
               </Text>
-              
-              <View style={{ 
-                flexDirection: 'row', 
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: 8,
-              }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Ionicons 
-                    name="restaurant" 
-                    size={14} 
-                    color={COLORS.text.golden} 
+
+              <View style={styles.metaRow}>
+                <View style={styles.metaItem}>
+                  <Ionicons
+                    name="restaurant"
+                    size={14}
+                    color={colors.text.golden}
                     style={{ marginRight: 4 }}
                   />
-                  <Text style={styles.textCaption}>
-                    {menu.items?.length || 0} plat{(menu.items?.length || 0) > 1 ? 's' : ''}
-                  </Text>
+                  <Text style={styles.metaText}>{itemsLabel}</Text>
                 </View>
 
-                <Text style={{ ...styles.textCaption, color: COLORS.text.light }}>•</Text>
+                <Text style={styles.metaSeparator}>•</Text>
 
-                <Text style={styles.textCaption}>
-                  {availableItemsCount} disponible{availableItemsCount > 1 ? 's' : ''}
-                </Text>
+                <Text style={styles.metaText}>{availableLabel}</Text>
               </View>
             </View>
 
-            {/* Badge de statut premium */}
-            <View style={{
-              ...COMPONENT_STYLES.statusBadge.base,
-              ...(menuIsAvailable 
-                ? COMPONENT_STYLES.statusBadge.premium 
-                : COMPONENT_STYLES.statusBadge.cancelled
-              ),
-              paddingHorizontal: 12,
-              paddingVertical: 6,
-            }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <View style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: 3,
-                  backgroundColor: menuIsAvailable ? COLORS.secondary : COLORS.error,
-                }} />
-                <Text style={{
-                  fontSize: 12,
-                  fontWeight: '600',
-                  color: menuIsAvailable ? COLORS.text.golden : COLORS.error,
-                }}>
-                  {menuIsAvailable ? 'Actif' : 'Inactif'}
+            {/* Badge statut — réutilise le statusBadge du designSystem */}
+            <View
+              style={[
+                componentStyles.statusBadge.base,
+                menuIsAvailable
+                  ? componentStyles.statusBadge.premium
+                  : componentStyles.statusBadge.cancelled,
+                styles.statusBadgeExtraPadding,
+              ]}
+            >
+              <View style={styles.statusBadgeInner}>
+                <View
+                  style={[
+                    styles.statusDot,
+                    {
+                      backgroundColor: menuIsAvailable
+                        ? colors.secondary
+                        : colors.error,
+                    },
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.statusText,
+                    {
+                      color: menuIsAvailable
+                        ? colors.text.golden
+                        : colors.error,
+                    },
+                  ]}
+                >
+                  {menuIsAvailable
+                    ? t('restaurantMenus.card.active')
+                    : t('restaurantMenus.card.inactive')}
                 </Text>
               </View>
             </View>
           </View>
 
-          {/* Badge "En cours" si en train de toggle */}
+          {/* Bandeau "Mise à jour en cours" */}
           {isToggling && (
-            <View style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              backgroundColor: COLORS.variants.secondary[50],
-              borderLeftWidth: 3,
-              borderLeftColor: COLORS.secondary,
-              paddingHorizontal: 12,
-              paddingVertical: 8,
-              borderRadius: BORDER_RADIUS.md,
-              marginBottom: 12,
-            }}>
-              <Ionicons name="hourglass-outline" size={14} color={COLORS.text.golden} />
-              <Text style={{
-                fontSize: 12,
-                color: COLORS.text.golden,
-                fontWeight: '500',
-                marginLeft: 6,
-              }}>
-                Mise à jour en cours...
+            <View style={styles.updatingBanner}>
+              <Ionicons
+                name="hourglass-outline"
+                size={14}
+                color={colors.text.golden}
+              />
+              <Text style={styles.updatingText}>
+                {t('restaurantMenus.card.updating')}
               </Text>
             </View>
           )}
 
-          {/* Section métadonnées avec design élégant */}
-          <View style={{
-            backgroundColor: COLORS.background,
-            borderRadius: BORDER_RADIUS.md,
-            padding: 12,
-            marginBottom: 12,
-          }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 16 }}>
-              <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                  <Ionicons name="calendar-outline" size={12} color={COLORS.text.light} />
-                  <Text style={{ 
-                    fontSize: 10, 
-                    color: COLORS.text.light,
-                    marginLeft: 4,
-                    fontWeight: '500',
-                    textTransform: 'uppercase',
-                  }}>
-                    Créé le
+          {/* Métadonnées : créé le / modifié le */}
+          <View style={styles.datesBox}>
+            <View style={styles.datesRow}>
+              <View style={styles.dateColumn}>
+                <View style={styles.dateLabelRow}>
+                  <Ionicons
+                    name="calendar-outline"
+                    size={12}
+                    color={colors.text.light}
+                  />
+                  <Text style={styles.dateLabel}>
+                    {t('restaurantMenus.card.createdOn')}
                   </Text>
                 </View>
-                <Text style={{ 
-                  fontSize: 13, 
-                  color: COLORS.text.secondary,
-                  fontWeight: '500',
-                }}>
-                  {new Date(menu.created_at).toLocaleDateString('fr-FR', { 
-                    day: 'numeric', 
-                    month: 'short',
-                    year: 'numeric'
-                  })}
-                </Text>
+                <Text style={styles.dateValue}>{formatDate(menu.created_at)}</Text>
               </View>
 
-              <View style={{ 
-                width: 1, 
-                backgroundColor: COLORS.border.default,
-              }} />
+              <View style={styles.dateColumnDivider} />
 
-              <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                  <Ionicons name="time-outline" size={12} color={COLORS.text.light} />
-                  <Text style={{ 
-                    fontSize: 10, 
-                    color: COLORS.text.light,
-                    marginLeft: 4,
-                    fontWeight: '500',
-                    textTransform: 'uppercase',
-                  }}>
-                    Modifié le
+              <View style={styles.dateColumn}>
+                <View style={styles.dateLabelRow}>
+                  <Ionicons
+                    name="time-outline"
+                    size={12}
+                    color={colors.text.light}
+                  />
+                  <Text style={styles.dateLabel}>
+                    {t('restaurantMenus.card.updatedOn')}
                   </Text>
                 </View>
-                <Text style={{ 
-                  fontSize: 13, 
-                  color: COLORS.text.secondary,
-                  fontWeight: '500',
-                }}>
-                  {new Date(menu.updated_at).toLocaleDateString('fr-FR', { 
-                    day: 'numeric', 
-                    month: 'short',
-                    year: 'numeric'
-                  })}
-                </Text>
+                <Text style={styles.dateValue}>{formatDate(menu.updated_at)}</Text>
               </View>
             </View>
           </View>
 
-          {/* Séparateur élégant */}
-          <View style={{
-            height: 1,
-            backgroundColor: COLORS.border.light,
-            marginBottom: 12,
-          }} />
+          {/* Séparateur */}
+          <View style={styles.separator} />
 
-          {/* Boutons d'action avec design premium */}
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            {/* Bouton Éditer */}
+          {/* Actions */}
+          <View style={styles.actionsRow}>
+            {/* Éditer */}
             <TouchableOpacity
               onPress={onEdit}
               disabled={isToggling}
-              style={{
-                flex: 1,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: COLORS.variants.primary[50],
-                borderWidth: 1,
-                borderColor: COLORS.variants.primary[200],
-                paddingVertical: 10,
-                borderRadius: BORDER_RADIUS.lg,
-                opacity: isToggling ? 0.5 : 1,
-              }}
+              activeOpacity={0.8}
+              style={[
+                styles.actionBtnEdit,
+                { opacity: isToggling ? 0.5 : 1 },
+              ]}
             >
-              <Ionicons name="create-outline" size={16} color={COLORS.primary} />
-              <Text style={{
-                fontSize: 14,
-                fontWeight: '600',
-                color: COLORS.primary,
-                marginLeft: 6,
-              }}>
-                Éditer
-              </Text>
+              <Ionicons name="create-outline" size={16} color={colors.primary} />
+              <Text style={styles.actionBtnEditText}>{t('common.edit')}</Text>
             </TouchableOpacity>
 
-            {/* Bouton Toggle avec design premium */}
+            {/* Toggle (activer/désactiver) */}
             <TouchableOpacity
               onPress={onToggle}
               disabled={isToggling}
-              style={{
-                flex: 1,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: menuIsAvailable ? COLORS.error : COLORS.secondary,
-                paddingVertical: 10,
-                borderRadius: BORDER_RADIUS.lg,
-                opacity: isToggling ? 0.5 : 1,
-                ...(menuIsAvailable ? {} : SHADOWS.goldenGlow),
-              }}
+              activeOpacity={0.8}
+              style={[
+                styles.actionBtnToggle,
+                {
+                  backgroundColor: menuIsAvailable
+                    ? colors.error
+                    : colors.secondary,
+                  opacity: isToggling ? 0.5 : 1,
+                  // glow doré quand on est sur "Activer"
+                  ...(menuIsAvailable ? {} : shadows.goldenGlow),
+                },
+              ]}
             >
-              <Ionicons 
-                name={isToggling 
-                  ? "hourglass-outline" 
-                  : menuIsAvailable 
-                    ? "pause-circle-outline" 
-                    : "play-circle-outline"
-                } 
-                size={16} 
-                color="white" 
-              />
-              <Text style={{
-                fontSize: 14,
-                fontWeight: '600',
-                color: 'white',
-                marginLeft: 6,
-              }}>
-                {isToggling 
-                  ? 'En cours' 
-                  : menuIsAvailable 
-                    ? 'Désactiver' 
-                    : 'Activer'
+              <Ionicons
+                name={
+                  isToggling
+                    ? 'hourglass-outline'
+                    : menuIsAvailable
+                      ? 'pause-circle-outline'
+                      : 'play-circle-outline'
                 }
+                size={16}
+                color="#FFFFFF"
+              />
+              <Text style={styles.actionBtnToggleText}>
+                {isToggling
+                  ? t('restaurantMenus.card.inProgress')
+                  : menuIsAvailable
+                    ? t('restaurantMenus.card.disable')
+                    : t('restaurantMenus.card.enable')}
               </Text>
             </TouchableOpacity>
 
-            {/* Bouton Supprimer compact */}
+            {/* Supprimer (icon-only) */}
             <TouchableOpacity
               onPress={onDelete}
               disabled={isToggling}
-              style={{
-                backgroundColor: COLORS.variants.primary[50],
-                borderWidth: 1,
-                borderColor: COLORS.error,
-                paddingHorizontal: 14,
-                paddingVertical: 10,
-                borderRadius: BORDER_RADIUS.lg,
-                alignItems: 'center',
-                justifyContent: 'center',
-                opacity: isToggling ? 0.5 : 1,
-              }}
+              activeOpacity={0.8}
+              style={[
+                styles.actionBtnDelete,
+                { opacity: isToggling ? 0.5 : 1 },
+              ]}
             >
-              <Ionicons name="trash-outline" size={18} color={COLORS.error} />
+              <Ionicons name="trash-outline" size={18} color={colors.error} />
             </TouchableOpacity>
           </View>
         </View>
@@ -362,3 +319,215 @@ export function MenuCard({
     </Animated.View>
   );
 }
+
+// ──────────────────────────────────────────────────────────────────────────
+// STYLES (fabrique theme-aware)
+// ──────────────────────────────────────────────────────────────────────────
+const makeStyles = (
+  colors: AppColors,
+  isDark: boolean,
+  screenType: ReturnType<typeof useScreenType>,
+) => {
+  const shadows = makeShadows(colors);
+
+  return StyleSheet.create({
+    outerWrapper: {
+      marginHorizontal: getResponsiveValue(SPACING.lg, screenType),
+      marginVertical: 8,
+    },
+
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: BORDER_RADIUS.xl,
+      overflow: 'hidden',
+      borderWidth: isDark ? StyleSheet.hairlineWidth : 0,
+      borderColor: isDark ? 'rgba(212, 175, 55, 0.12)' : 'transparent',
+      ...shadows.card,
+    },
+
+    // Accent doré visuel pour les menus actifs — identité gold stable
+    activeAccentBar: {
+      height: 3,
+      backgroundColor: colors.secondary,
+      ...shadows.goldenGlow,
+    },
+
+    content: {
+      padding: 16,
+    },
+
+    // ── Header ─────────────────────────────────────────────────────────
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: 12,
+    },
+    headerLeft: {
+      flex: 1,
+      marginRight: 12,
+    },
+    title: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      marginBottom: 4,
+    },
+    metaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    metaItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    metaText: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
+      color: colors.text.secondary,
+    },
+    metaSeparator: {
+      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
+      color: colors.text.light,
+    },
+
+    // ── Status badge ───────────────────────────────────────────────────
+    statusBadgeExtraPadding: {
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+    },
+    statusBadgeInner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    statusDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+    },
+    statusText: {
+      fontSize: 12,
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    },
+
+    // ── Updating banner ────────────────────────────────────────────────
+    updatingBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: isDark
+        ? 'rgba(212, 175, 55, 0.10)'
+        : colors.variants.secondary[50],
+      borderLeftWidth: 3,
+      borderLeftColor: colors.secondary,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: BORDER_RADIUS.md,
+      marginBottom: 12,
+      gap: 6,
+    },
+    updatingText: {
+      fontSize: 12,
+      color: colors.text.golden,
+      fontWeight: TYPOGRAPHY.fontWeight.medium,
+    },
+
+    // ── Dates ──────────────────────────────────────────────────────────
+    datesBox: {
+      backgroundColor: colors.background,
+      borderRadius: BORDER_RADIUS.md,
+      padding: 12,
+      marginBottom: 12,
+    },
+    datesRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      gap: 16,
+    },
+    dateColumn: {
+      flex: 1,
+    },
+    dateColumnDivider: {
+      width: 1,
+      backgroundColor: colors.border.default,
+    },
+    dateLabelRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 4,
+      gap: 4,
+    },
+    dateLabel: {
+      fontSize: 10,
+      color: colors.text.light,
+      fontWeight: TYPOGRAPHY.fontWeight.medium,
+      textTransform: 'uppercase',
+    },
+    dateValue: {
+      fontSize: 13,
+      color: colors.text.secondary,
+      fontWeight: TYPOGRAPHY.fontWeight.medium,
+    },
+
+    // ── Separator ──────────────────────────────────────────────────────
+    separator: {
+      height: 1,
+      backgroundColor: colors.border.light,
+      marginBottom: 12,
+    },
+
+    // ── Actions ────────────────────────────────────────────────────────
+    actionsRow: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    actionBtnEdit: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: isDark
+        ? 'rgba(30, 42, 120, 0.18)'
+        : colors.variants.primary[50],
+      borderWidth: 1,
+      borderColor: isDark
+        ? 'rgba(30, 42, 120, 0.45)'
+        : colors.variants.primary[200],
+      paddingVertical: 10,
+      borderRadius: BORDER_RADIUS.lg,
+      gap: 6,
+    },
+    actionBtnEditText: {
+      fontSize: 14,
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      color: colors.primary,
+    },
+    actionBtnToggle: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 10,
+      borderRadius: BORDER_RADIUS.lg,
+      gap: 6,
+    },
+    actionBtnToggleText: {
+      fontSize: 14,
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      // Texte blanc stable sur fonds saturés (rouge ou or)
+      color: '#FFFFFF',
+    },
+    actionBtnDelete: {
+      backgroundColor: isDark
+        ? 'rgba(239, 68, 68, 0.10)'
+        : colors.variants.primary[50],
+      borderWidth: 1,
+      borderColor: colors.error,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: BORDER_RADIUS.lg,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+  });
+};

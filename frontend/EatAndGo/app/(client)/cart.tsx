@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 
 // Contexts & Hooks
 import { useCart } from '@/contexts/CartContext';
@@ -28,15 +29,16 @@ import { Alert, AlertWithAction, useAlert } from '@/components/ui/Alert';
 
 // Utils & Types
 import {
-  COLORS,
+  useAppTheme,
+  makeShadows,
   SPACING,
   TYPOGRAPHY,
   BORDER_RADIUS,
   useScreenType,
   getResponsiveValue,
-  createResponsiveStyles,
+  createResponsiveStylesThemed,
   COMPONENT_CONSTANTS,
-  SHADOWS,
+  type AppColors,
 } from '@/utils/designSystem';
 import { QRSessionUtils } from '@/utils/qrSessionUtils';
 import { collaborativeSessionService } from '@/services/collaborativeSessionService';
@@ -47,6 +49,12 @@ import { computeFormulaStatus, formatFormulaMissingMessage } from '@/utils/daily
 // TYPES
 // ============================================================================
 
+interface CartFormuleSummaryLine {
+  course_name: string;
+  item_name: string;
+  extra_price?: number;
+}
+
 interface CartItem {
   id: string;
   name: string;
@@ -54,12 +62,15 @@ interface CartItem {
   quantity: number;
   image?: string;
   specialInstructions?: string;
+  // Lignes formule (kind === 'formule') : détail des plats choisis par cran.
+  kind?: 'dish' | 'formule';
+  formuleSummary?: CartFormuleSummaryLine[];
 }
 
-interface SessionData {
-  id: string;
-  [key: string]: any;
-}
+type ScreenType = 'mobile' | 'tablet' | 'desktop';
+
+// Formatage de prix simple — peut évoluer vers Intl.NumberFormat localisé
+const formatPrice = (amount: number): string => `${amount.toFixed(2)} €`;
 
 // ============================================================================
 // CART ITEM COMPONENT
@@ -69,23 +80,26 @@ interface CartItemCardProps {
   item: CartItem;
   onQuantityChange: (itemId: string, newQuantity: number) => void;
   onRemove: (itemId: string) => void;
-  screenType: 'mobile' | 'tablet' | 'desktop';
+  screenType: ScreenType;
   isUpdating?: boolean;
 }
 
-const CartItemCard = React.memo<CartItemCardProps>(({ 
-  item, 
-  onQuantityChange, 
+const CartItemCard = React.memo<CartItemCardProps>(({
+  item,
+  onQuantityChange,
   onRemove,
   screenType,
   isUpdating = false,
 }) => {
-  const styles = createResponsiveStyles(screenType);
+  const { t } = useTranslation();
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createResponsiveStylesThemed(screenType, colors), [screenType, colors]);
+  const local = useMemo(() => makeLocalStyles(colors, isDark), [colors, isDark]);
+
   const imageSize = getResponsiveValue({ mobile: 80, tablet: 90, desktop: 100 }, screenType);
   const smallIconSize = getResponsiveValue({ mobile: 18, tablet: 20, desktop: 22 }, screenType);
   const [localQuantity, setLocalQuantity] = useState(item.quantity);
 
-  // Sync local quantity with prop when it changes
   useEffect(() => {
     setLocalQuantity(item.quantity);
   }, [item.quantity]);
@@ -107,129 +121,142 @@ const CartItemCard = React.memo<CartItemCardProps>(({
   }, [localQuantity, item.id, onQuantityChange]);
 
   return (
-    <Card 
+    <Card
       padding="sm"
       style={[
-        localStyles.cartItemCard, 
+        local.cartItemCard,
         styles.mb('sm'),
-        ...(isUpdating ? [localStyles.updatingCard] : []),
+        ...(isUpdating ? [local.updatingCard] : []),
       ]}
-      accessibilityLabel={`${item.name}, quantité ${localQuantity}, prix ${(item.price * localQuantity).toFixed(2)} euros`}
+      accessibilityLabel={t('cart.a11y.itemRow', {
+        name: item.name,
+        count: localQuantity,
+        price: formatPrice(item.price * localQuantity),
+      })}
     >
       {isUpdating && (
-        <View style={localStyles.loadingOverlay}>
-          <ActivityIndicator size="small" color={COLORS.primary} />
+        <View style={local.loadingOverlay}>
+          <ActivityIndicator size="small" color={colors.primary} />
         </View>
       )}
-      
-      <View style={localStyles.cartItemContent}>
+
+      <View style={local.cartItemContent}>
         {item.image && (
-          <Image 
+          <Image
             source={{ uri: item.image }}
             style={[
-              localStyles.itemImage,
-              { 
-                width: imageSize, 
+              local.itemImage,
+              {
+                width: imageSize,
                 height: imageSize,
-                marginRight: getResponsiveValue(SPACING.sm, screenType)
-              }
+                marginRight: getResponsiveValue(SPACING.sm, screenType),
+              },
             ]}
-            accessibilityLabel={`Image de ${item.name}`}
+            accessibilityLabel={t('cart.a11y.itemImage', { name: item.name })}
           />
         )}
-        
-        <View style={localStyles.itemDetails}>
-          <View style={localStyles.itemHeader}>
-            <Text 
-              style={[
-                styles.textSubtitle,
-                localStyles.itemName
-              ]}
+
+        <View style={local.itemDetails}>
+          <View style={local.itemHeader}>
+            <Text
+              style={[styles.textSubtitle, local.itemName]}
               numberOfLines={2}
             >
               {item.name}
             </Text>
-            
+
             <TouchableOpacity
               onPress={() => onRemove(item.id)}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              accessibilityLabel="Retirer l'article"
+              accessibilityLabel={t('cart.a11y.removeItem')}
               accessibilityRole="button"
             >
-              <Ionicons 
-                name="trash-outline" 
-                size={smallIconSize} 
-                color={COLORS.error} 
-              />
+              <Ionicons name="trash-outline" size={smallIconSize} color={colors.error} />
             </TouchableOpacity>
           </View>
-          
+
           {item.specialInstructions && (
-            <View style={[localStyles.instructionsContainer, styles.mt('xs')]}>
-              <Ionicons 
-                name="information-circle-outline" 
-                size={14} 
-                color={COLORS.text.light} 
+            <View style={[local.instructionsContainer, styles.mt('xs')]}>
+              <Ionicons
+                name="information-circle-outline"
+                size={14}
+                color={colors.text.light}
               />
-              <Text 
-                style={[
-                  styles.textCaption,
-                  localStyles.instructions
-                ]}
+              <Text
+                style={[styles.textCaption, local.instructions]}
                 numberOfLines={2}
               >
                 {item.specialInstructions}
               </Text>
             </View>
           )}
-          
-          <View style={[localStyles.itemFooter, styles.mt('sm')]}>
-            <Text 
+
+          {item.kind === 'formule' && !!item.formuleSummary?.length && (
+            <View style={[local.formuleSummaryBox, styles.mt('xs')]}>
+              {item.formuleSummary.map((line, idx) => (
+                <View key={`${item.id}-fs-${idx}`} style={local.formuleSummaryLine}>
+                  <Ionicons
+                    name="ellipse"
+                    size={5}
+                    color={colors.text.light}
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text
+                    style={[styles.textCaption, local.formuleSummaryText]}
+                    numberOfLines={1}
+                  >
+                    <Text style={local.formuleSummaryCourse}>{line.course_name}</Text>
+                    {`  ${line.item_name}`}
+                    {line.extra_price
+                      ? `  (+${line.extra_price.toFixed(2)} €)`
+                      : ''}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          <View style={[local.itemFooter, styles.mt('sm')]}>
+            <Text
               style={[
                 styles.textSubtitle,
-                { color: COLORS.primary, fontWeight: TYPOGRAPHY.fontWeight.bold }
+                { color: colors.primary, fontWeight: TYPOGRAPHY.fontWeight.bold },
               ]}
             >
-              {(item.price * localQuantity).toFixed(2)} €
+              {formatPrice(item.price * localQuantity)}
             </Text>
-            
-            <View style={localStyles.quantityControls}>
+
+            <View style={local.quantityControls}>
               <TouchableOpacity
                 onPress={handleDecrease}
-                style={localStyles.quantityButton}
+                style={local.quantityButton}
                 disabled={isUpdating}
-                accessibilityLabel="Diminuer la quantité"
-                accessibilityHint={`Quantité actuelle: ${localQuantity}`}
+                accessibilityLabel={t('cart.a11y.decrease')}
+                accessibilityHint={t('cart.a11y.currentQuantity', { count: localQuantity })}
                 accessibilityRole="button"
               >
-                <Ionicons 
-                  name={localQuantity === 1 ? "trash" : "remove"} 
-                  size={smallIconSize} 
-                  color={localQuantity === 1 ? COLORS.error : COLORS.primary} 
+                <Ionicons
+                  name={localQuantity === 1 ? 'trash' : 'remove'}
+                  size={smallIconSize}
+                  color={localQuantity === 1 ? colors.error : colors.primary}
                 />
               </TouchableOpacity>
-              
-              <Text 
-                style={[
-                  styles.textSubtitle,
-                  localStyles.quantityText
-                ]}
-                accessibilityLabel={`Quantité: ${localQuantity}`}
+
+              <Text
+                style={[styles.textSubtitle, local.quantityText]}
+                accessibilityLabel={t('cart.a11y.currentQuantity', { count: localQuantity })}
               >
                 {localQuantity}
               </Text>
-              
+
               <TouchableOpacity
                 onPress={handleIncrease}
-                style={[
-                  localStyles.quantityButton,
-                  localStyles.quantityButtonAdd
-                ]}
+                style={[local.quantityButton, local.quantityButtonAdd]}
                 disabled={isUpdating}
-                accessibilityLabel="Augmenter la quantité"
+                accessibilityLabel={t('cart.a11y.increase')}
                 accessibilityRole="button"
               >
-                <Ionicons name="add" size={smallIconSize} color={COLORS.text.inverse} />
+                <Ionicons name="add" size={smallIconSize} color={colors.text.inverse} />
               </TouchableOpacity>
             </View>
           </View>
@@ -250,13 +277,9 @@ interface CartSummaryProps {
   itemCount: number;
   isCreatingOrder: boolean;
   onCheckout: () => void;
-  screenType: 'mobile' | 'tablet' | 'desktop';
+  screenType: ScreenType;
   canCheckout?: boolean;
   checkoutTitle?: string;
-  /**
-   * Si renseigné, affiche un bandeau d'avertissement et désactive le bouton.
-   * Utilisé pour le verrou "formule menu du jour incomplète".
-   */
   formulaWarning?: string | null;
 }
 
@@ -267,98 +290,92 @@ const CartSummary = React.memo<CartSummaryProps>(({
   onCheckout,
   screenType,
   canCheckout = true,
-  checkoutTitle = 'Passer la commande',
+  checkoutTitle,
   formulaWarning = null,
 }) => {
-  const styles = createResponsiveStyles(screenType);
+  const { t } = useTranslation();
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createResponsiveStylesThemed(screenType, colors), [screenType, colors]);
+  const local = useMemo(() => makeLocalStyles(colors, isDark), [colors, isDark]);
+
   const iconSize = getResponsiveValue({ mobile: 20, tablet: 24, desktop: 28 }, screenType);
 
-  // Calcul des frais (à adapter selon votre logique métier)
-  const serviceFee = 0; // Exemple: pas de frais de service
+  const serviceFee = 0;
   const total = subtotal + serviceFee;
 
   const isLockedByFormula = !!formulaWarning;
+  const resolvedCheckoutTitle = checkoutTitle ?? t('cart.checkout');
 
   return (
-    <View style={localStyles.summaryContainer}>
-      <View style={localStyles.summaryContent}>
-        <View style={localStyles.summaryRow}>
+    <View style={local.summaryContainer}>
+      <View style={local.summaryContent}>
+        <View style={local.summaryRow}>
           <Text style={styles.textBody}>
-            Sous-total ({itemCount} {itemCount > 1 ? 'articles' : 'article'})
+            {t('cart.subtotal')} ({t('cart.item', { count: itemCount })})
           </Text>
-          <Text style={styles.textBody}>
-            {subtotal.toFixed(2)} €
-          </Text>
+          <Text style={styles.textBody}>{formatPrice(subtotal)}</Text>
         </View>
 
         {serviceFee > 0 && (
-          <View style={[localStyles.summaryRow, styles.mt('xs')]}>
-            <Text style={styles.textCaption}>
-              Frais de service
-            </Text>
-            <Text style={styles.textCaption}>
-              {serviceFee.toFixed(2)} €
-            </Text>
+          <View style={[local.summaryRow, styles.mt('xs')]}>
+            <Text style={styles.textCaption}>{t('cart.serviceFee')}</Text>
+            <Text style={styles.textCaption}>{formatPrice(serviceFee)}</Text>
           </View>
         )}
 
-        <View style={localStyles.divider} />
+        <View style={local.divider} />
 
-        <View style={localStyles.totalRow}>
-          <Text style={styles.textSubtitle}>
-            Total
-          </Text>
-          <Text
-            style={[
-              styles.textTitle,
-              { color: COLORS.primary }
-            ]}
-          >
-            {total.toFixed(2)} €
+        <View style={local.totalRow}>
+          <Text style={styles.textSubtitle}>{t('cart.total')}</Text>
+          <Text style={[styles.textTitle, { color: colors.primary }]}>
+            {formatPrice(total)}
           </Text>
         </View>
       </View>
 
       {isLockedByFormula && (
-        <View style={localStyles.formulaBanner}>
-          <Ionicons name="information-circle" size={18} color={COLORS.warning} />
+        <View style={local.formulaBanner}>
+          <Ionicons name="information-circle" size={18} color={colors.warning} />
           <View style={{ flex: 1, marginLeft: 8 }}>
-            <Text style={localStyles.formulaBannerTitle}>Formule incomplète</Text>
-            <Text style={localStyles.formulaBannerText}>{formulaWarning}</Text>
+            <Text style={local.formulaBannerTitle}>{t('cart.formula.incomplete')}</Text>
+            <Text style={local.formulaBannerText}>{formulaWarning}</Text>
           </View>
         </View>
       )}
 
       {canCheckout ? (
         <Button
-          title={isCreatingOrder ? "Traitement en cours..." : checkoutTitle}
+          title={isCreatingOrder ? t('cart.processing') : resolvedCheckoutTitle}
           onPress={onCheckout}
           disabled={isCreatingOrder || itemCount === 0 || isLockedByFormula}
           fullWidth
           leftIcon={
             isCreatingOrder ? (
-              <ActivityIndicator size="small" color={COLORS.text.inverse} />
+              <ActivityIndicator size="small" color={colors.text.inverse} />
             ) : (
               <Ionicons
                 name={isLockedByFormula ? 'lock-closed' : 'checkmark-circle'}
                 size={iconSize}
-                color={COLORS.text.inverse}
+                color={colors.text.inverse}
               />
             )
           }
-          accessibilityLabel={`Commander pour un total de ${total.toFixed(2)} euros`}
+          accessibilityLabel={t('cart.a11y.checkoutLabel', { amount: formatPrice(total) })}
           accessibilityHint={
-            isLockedByFormula
-              ? 'Complétez votre formule pour passer commande'
-              : 'Appuyez pour procéder au paiement'
+            isLockedByFormula ? t('cart.a11y.formulaLockHint') : t('cart.a11y.checkoutHint')
           }
           accessibilityState={{ disabled: isCreatingOrder || itemCount === 0 || isLockedByFormula }}
         />
       ) : (
         <View style={{ paddingVertical: 12, alignItems: 'center' }}>
-          <Ionicons name="lock-closed-outline" size={18} color={COLORS.text.secondary} style={{ marginBottom: 4 }} />
-          <Text style={{ color: COLORS.text.secondary, fontSize: 13, textAlign: 'center' }}>
-            Seul l'hôte peut passer la commande du groupe.
+          <Ionicons
+            name="lock-closed-outline"
+            size={18}
+            color={colors.text.secondary}
+            style={{ marginBottom: 4 }}
+          />
+          <Text style={{ color: colors.text.secondary, fontSize: 13, textAlign: 'center' }}>
+            {t('cart.hostOnlyCheckout')}
           </Text>
         </View>
       )}
@@ -377,7 +394,7 @@ interface RestaurantInfoProps {
   tableNumber: string;
   itemCount: number;
   hasActiveSession: boolean;
-  screenType: 'mobile' | 'tablet' | 'desktop';
+  screenType: ScreenType;
 }
 
 const RestaurantInfo = React.memo<RestaurantInfoProps>(({
@@ -385,59 +402,58 @@ const RestaurantInfo = React.memo<RestaurantInfoProps>(({
   tableNumber,
   itemCount,
   hasActiveSession,
-  screenType
+  screenType,
 }) => {
-  const styles = createResponsiveStyles(screenType);
+  const { t } = useTranslation();
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createResponsiveStylesThemed(screenType, colors), [screenType, colors]);
+  const local = useMemo(() => makeLocalStyles(colors, isDark), [colors, isDark]);
+
   const iconSize = getResponsiveValue({ mobile: 16, tablet: 18, desktop: 20 }, screenType);
-  
-  // Padding adaptatif selon le screenType
   const cardPadding: keyof typeof SPACING = screenType === 'mobile' ? 'sm' : 'md';
 
   return (
     <View style={[styles.px('md'), styles.mt('md')]}>
-    <Card 
-      padding={cardPadding}
-      style={localStyles.restaurantCard}
-    >
-      <View style={localStyles.restaurantContent}>
-        <View style={localStyles.restaurantIcon}>
-          <Ionicons name="restaurant" size={iconSize} color={COLORS.primary} />
-        </View>
-        
-        <View style={localStyles.restaurantDetails}>
-          <Text style={[styles.textSubtitle, localStyles.restaurantName]}>
-            {restaurantName || 'Restaurant'}
-          </Text>
-          
-          <View style={localStyles.restaurantMeta}>
-            {tableNumber && (
-              <View style={localStyles.metaItem}>
-                <Ionicons name="location" size={14} color={COLORS.text.secondary} />
-                <Text style={[styles.textCaption, localStyles.metaText]}>
-                  Table {tableNumber}
+      <Card padding={cardPadding} style={local.restaurantCard}>
+        <View style={local.restaurantContent}>
+          <View style={local.restaurantIcon}>
+            <Ionicons name="restaurant" size={iconSize} color={colors.primary} />
+          </View>
+
+          <View style={local.restaurantDetails}>
+            <Text style={[styles.textSubtitle, local.restaurantName]}>
+              {restaurantName || t('order.fallbackRestaurant')}
+            </Text>
+
+            <View style={local.restaurantMeta}>
+              {tableNumber && (
+                <View style={local.metaItem}>
+                  <Ionicons name="location" size={14} color={colors.text.secondary} />
+                  <Text style={[styles.textCaption, local.metaText]}>
+                    {t('cart.tableNumber', { number: tableNumber })}
+                  </Text>
+                </View>
+              )}
+
+              <View style={local.metaItem}>
+                <Ionicons name="cart" size={14} color={colors.text.secondary} />
+                <Text style={[styles.textCaption, local.metaText]}>
+                  {t('cart.item', { count: itemCount })}
+                </Text>
+              </View>
+            </View>
+
+            {hasActiveSession && (
+              <View style={local.sessionBadge}>
+                <Ionicons name="people" size={12} color={colors.success} />
+                <Text style={local.sessionBadgeText}>
+                  {t('cart.collaborativeSession')}
                 </Text>
               </View>
             )}
-            
-            <View style={localStyles.metaItem}>
-              <Ionicons name="cart" size={14} color={COLORS.text.secondary} />
-              <Text style={[styles.textCaption, localStyles.metaText]}>
-                {itemCount} {itemCount > 1 ? 'articles' : 'article'}
-              </Text>
-            </View>
           </View>
-          
-          {hasActiveSession && (
-            <View style={localStyles.sessionBadge}>
-              <Ionicons name="people" size={12} color={COLORS.success} />
-              <Text style={localStyles.sessionBadgeText}>
-                Session collaborative
-              </Text>
-            </View>
-          )}
         </View>
-      </View>
-    </Card>
+      </Card>
     </View>
   );
 });
@@ -449,52 +465,40 @@ RestaurantInfo.displayName = 'RestaurantInfo';
 // ============================================================================
 
 interface EmptyCartProps {
-  screenType: 'mobile' | 'tablet' | 'desktop';
+  screenType: ScreenType;
 }
 
 const EmptyCart = React.memo<EmptyCartProps>(({ screenType }) => {
-  const styles = createResponsiveStyles(screenType);
+  const { t } = useTranslation();
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createResponsiveStylesThemed(screenType, colors), [screenType, colors]);
+  const local = useMemo(() => makeLocalStyles(colors, isDark), [colors, isDark]);
+
   const iconSize = getResponsiveValue({ mobile: 80, tablet: 100, desktop: 120 }, screenType);
 
   return (
-    <View style={localStyles.emptyContainer}>
-      <View style={localStyles.emptyIconContainer}>
-        <Ionicons 
-          name="cart-outline" 
-          size={iconSize} 
-          color={COLORS.border.dark} 
-        />
+    <View style={local.emptyContainer}>
+      <View style={local.emptyIconContainer}>
+        <Ionicons name="cart-outline" size={iconSize} color={colors.border.dark} />
       </View>
-      
-      <Text 
-        style={[
-          styles.textTitle,
-          styles.mt('lg'),
-          { textAlign: 'center' }
-        ]}
-      >
-        Votre panier est vide
+
+      <Text style={[styles.textTitle, styles.mt('lg'), { textAlign: 'center' }]}>
+        {t('cart.empty')}
       </Text>
-      
-      <Text 
-        style={[
-          styles.textBody,
-          styles.mt('sm'),
-          { textAlign: 'center', maxWidth: 320 }
-        ]}
-      >
-        Ajoutez des articles à votre panier pour commencer votre commande
+
+      <Text style={[styles.textBody, styles.mt('sm'), { textAlign: 'center', maxWidth: 320 }]}>
+        {t('cart.emptyHint')}
       </Text>
-      
-      <View style={[localStyles.qrButtonsContainer, styles.mt('xl')]}>
+
+      <View style={[local.qrButtonsContainer, styles.mt('xl')]}>
         <QRAccessButtons
           compact
           vertical
-          title="Scanner pour commander"
-          description="Scannez un QR code pour accéder au menu"
-          scanButtonText="Scanner QR Code"
-          codeButtonText="Entrer le code"
-          containerStyle={localStyles.qrButtons}
+          title={t('cart.scanToOrder')}
+          description={t('cart.scanToOrderDescription')}
+          scanButtonText={t('order.scanQR')}
+          codeButtonText={t('order.enterCode')}
+          containerStyle={local.qrButtons}
         />
       </View>
     </View>
@@ -508,12 +512,22 @@ EmptyCart.displayName = 'EmptyCart';
 // ============================================================================
 
 export default function CartScreen() {
-  const { cart, removeFromCart, updateQuantity, clearCart, setTableNumber, initializeFromQRSession } = useCart();
+  const { t } = useTranslation();
+  const { colors, isDark } = useAppTheme();
+  const {
+    cart,
+    removeFromCart,
+    updateQuantity,
+    clearCart,
+    setTableNumber,
+    initializeFromQRSession,
+  } = useCart();
   const { isAuthenticated } = useAuth();
   const screenType = useScreenType();
-  const styles = createResponsiveStyles(screenType);
+  const styles = useMemo(() => createResponsiveStylesThemed(screenType, colors), [screenType, colors]);
+  const local = useMemo(() => makeLocalStyles(colors, isDark), [colors, isDark]);
   const { alertState, showAlert, hideAlert, showError, showSuccess } = useAlert();
-  
+
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [currentTableNumber, setCurrentTableNumber] = useState(cart.tableNumber || '');
   const [updatingItems, setUpdatingItems] = useState<Set<string>>(new Set());
@@ -521,7 +535,6 @@ export default function CartScreen() {
   const [itemToRemove, setItemToRemove] = useState<string | null>(null);
   const [showSplitConfirmation, setShowSplitConfirmation] = useState(false);
 
-  // Menu du jour du restaurant : chargé pour valider la formule à la commande
   const [dailyMenu, setDailyMenu] = useState<PublicDailyMenu | null>(null);
 
   // ============================================================================
@@ -548,21 +561,13 @@ export default function CartScreen() {
   // HOOKS
   // ============================================================================
 
-  // SessionContext : source de vérité pour la session active en mémoire
   const { session: ctxSession, participantId: ctxParticipantId, isHost } = useSession();
   const ctxSessionId = ctxSession?.id ?? null;
-
-  // Mode session collaborative
   const isSessionMode = !!ctxSessionId;
 
   // ============================================================================
   // BACK NAVIGATION
   // ============================================================================
-  // Le panier est dans le groupe Tabs (client), alors que la page menu
-  // (/menu/client/[restaurantId]) est hors-tabs. router.back() depuis l'onglet
-  // Panier bascule donc sur l'onglet par défaut du groupe (Scanner/Accueil)
-  // au lieu de remonter sur le menu. On reconstruit explicitement l'URL du
-  // menu à partir du contexte du panier pour rétablir le retour attendu.
   const handleGoBack = useCallback(() => {
     const targetRestaurantId =
       cart.restaurantId ?? (isSessionMode ? ctxSession?.restaurant : undefined);
@@ -581,7 +586,6 @@ export default function CartScreen() {
       return;
     }
 
-    // Pas de contexte restaurant : fallback raisonnable
     if (router.canGoBack()) {
       router.back();
     } else {
@@ -596,15 +600,14 @@ export default function CartScreen() {
     ctxSessionId,
   ]);
 
-  // Bouton retour matériel Android — même comportement que la flèche du header
   useFocusEffect(
     useCallback(() => {
       const sub = BackHandler.addEventListener('hardwareBackPress', () => {
         handleGoBack();
-        return true; // empêche le comportement par défaut
+        return true;
       });
       return () => sub.remove();
-    }, [handleGoBack])
+    }, [handleGoBack]),
   );
 
   const sessionCart = useSessionCart({
@@ -616,7 +619,6 @@ export default function CartScreen() {
     },
   });
 
-  // Rediriger les membres vers leurs commandes quand l'hôte passe au paiement
   const { on } = useSessionWebSocket(ctxSessionId);
   useEffect(() => {
     if (!ctxSessionId) return;
@@ -628,16 +630,12 @@ export default function CartScreen() {
     return () => unsub();
   }, [ctxSessionId, on, isHost]);
 
-  // Filet de sécurité : si le statut de la session est déjà 'payment' au montage
   useEffect(() => {
     if (ctxSession?.status === 'payment' && !isHost) {
       router.replace('/(client)/orders' as any);
     }
   }, [ctxSession?.status, isHost]);
 
-  // ── Menu du jour : chargé pour valider la formule ────────────────────────
-  // On en a besoin pour savoir quels items du panier appartiennent à la formule
-  // et combien de catégories distinctes doivent être représentées.
   const restaurantIdForDailyMenu = useMemo(() => {
     const raw = cart.restaurantId ?? (isSessionMode ? ctxSession?.restaurant : undefined);
     if (raw == null) return null;
@@ -656,8 +654,6 @@ export default function CartScreen() {
         const menu = await dailyMenuService.getPublicDailyMenu(restaurantIdForDailyMenu);
         if (!cancelled) setDailyMenu(menu);
       } catch {
-        // Pas bloquant : si l'API renvoie 404 ou échoue, on considère qu'il
-        // n'y a pas de menu du jour formule et on laisse le checkout passer.
         if (!cancelled) setDailyMenu(null);
       }
     })();
@@ -667,62 +663,61 @@ export default function CartScreen() {
   }, [restaurantIdForDailyMenu]);
 
   // ============================================================================
-  // UTILITY FUNCTIONS
+  // UTILITY
   // ============================================================================
 
-  /**
-   * Construit l'URL de checkout avec les query params appropriés
-   */
-  const buildCheckoutUrl = useCallback((sessionId?: string): string => {
-    const params: string[] = [];
-  
-    const effectiveRestaurantId = cart.restaurantId ?? (isSessionMode ? ctxSession?.restaurant : undefined);
-    if (effectiveRestaurantId) {
-      params.push(`restaurantId=${effectiveRestaurantId}`);
-    }
-    if (currentTableNumber || cart.tableNumber) {
-      params.push(`tableNumber=${currentTableNumber || cart.tableNumber}`);
-    }
-    if (sessionId) {
-      params.push(`sessionId=${sessionId}`);
-    }
-  
-    const queryString = params.length > 0 ? `?${params.join('&')}` : '';
-    const basePath = isAuthenticated ? '/order/checkout' : '/order/guest-checkout';
-  
-    return `${basePath}${queryString}`;
-  }, [cart.restaurantId, cart.tableNumber, currentTableNumber, isAuthenticated, isSessionMode, ctxSession]);
-  /**
-   * Navigue vers la page de checkout
-   */
-  const navigateToCheckout = useCallback((sessionId?: string) => {
-    const url = buildCheckoutUrl(sessionId);
-    router.push(url as any);
-  }, [buildCheckoutUrl]);
+  const buildCheckoutUrl = useCallback(
+    (sessionId?: string): string => {
+      const params: string[] = [];
+      const effectiveRestaurantId =
+        cart.restaurantId ?? (isSessionMode ? ctxSession?.restaurant : undefined);
+      if (effectiveRestaurantId) params.push(`restaurantId=${effectiveRestaurantId}`);
+      if (currentTableNumber || cart.tableNumber) {
+        params.push(`tableNumber=${currentTableNumber || cart.tableNumber}`);
+      }
+      if (sessionId) params.push(`sessionId=${sessionId}`);
+
+      const queryString = params.length > 0 ? `?${params.join('&')}` : '';
+      const basePath = isAuthenticated ? '/order/checkout' : '/order/guest-checkout';
+      return `${basePath}${queryString}`;
+    },
+    [cart.restaurantId, cart.tableNumber, currentTableNumber, isAuthenticated, isSessionMode, ctxSession],
+  );
+
+  const navigateToCheckout = useCallback(
+    (sessionId?: string) => {
+      const url = buildCheckoutUrl(sessionId);
+      router.push(url as any);
+    },
+    [buildCheckoutUrl],
+  );
 
   // ============================================================================
   // HANDLERS
   // ============================================================================
 
-  const handleQuantityChange = useCallback(async (itemId: string, newQuantity: number) => {
-    try {
-      setUpdatingItems(prev => new Set(prev).add(itemId));
-      if (isSessionMode) {
-        await sessionCart.updateItem(itemId, { quantity: newQuantity });
-      } else {
-        await updateQuantity(itemId, newQuantity);
+  const handleQuantityChange = useCallback(
+    async (itemId: string, newQuantity: number) => {
+      try {
+        setUpdatingItems((prev) => new Set(prev).add(itemId));
+        if (isSessionMode) {
+          await sessionCart.updateItem(itemId, { quantity: newQuantity });
+        } else {
+          await updateQuantity(itemId, newQuantity);
+        }
+        showSuccess(t('cart.feedback.quantityUpdated'));
+      } catch (error) {
+        showError(t('cart.errors.quantityUpdate'));
+      } finally {
+        setUpdatingItems((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(itemId);
+          return newSet;
+        });
       }
-      showSuccess('Quantité mise à jour');
-    } catch (error) {
-      showError('Erreur lors de la mise à jour de la quantité');
-    } finally {
-      setUpdatingItems(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(itemId);
-        return newSet;
-      });
-    }
-  }, [isSessionMode, sessionCart, updateQuantity, showSuccess, showError]);
+    },
+    [isSessionMode, sessionCart, updateQuantity, showSuccess, showError, t],
+  );
 
   const handleRemoveItem = useCallback((itemId: string) => {
     setItemToRemove(itemId);
@@ -736,12 +731,12 @@ export default function CartScreen() {
       } else {
         await removeFromCart(itemToRemove);
       }
-      showSuccess('Article retiré du panier');
+      showSuccess(t('cart.feedback.itemRemoved'));
       setItemToRemove(null);
     } catch (error) {
-      showError("Erreur lors du retrait de l'article");
+      showError(t('cart.errors.itemRemove'));
     }
-  }, [itemToRemove, isSessionMode, sessionCart, removeFromCart, showSuccess, showError]);
+  }, [itemToRemove, isSessionMode, sessionCart, removeFromCart, showSuccess, showError, t]);
 
   const handleClearCart = useCallback(() => {
     setShowClearConfirmation(true);
@@ -755,15 +750,12 @@ export default function CartScreen() {
         await clearCart();
       }
       setShowClearConfirmation(false);
-      showSuccess('Panier vidé');
+      showSuccess(t('cart.feedback.cleared'));
     } catch (error) {
-      showError('Erreur lors de la suppression du panier');
+      showError(t('cart.errors.cartClear'));
     }
-  }, [isSessionMode, sessionCart, clearCart, showSuccess, showError]);
+  }, [isSessionMode, sessionCart, clearCart, showSuccess, showError, t]);
 
-  // Ref miroir de formulaStatus : utilisée par handleCheckout (défini avant
-  // formulaStatus dans la source pour éviter de tout réorganiser). Le contenu
-  // de la ref est synchronisé après la déclaration de formulaStatus, plus bas.
   const formulaStatusRef = useRef<ReturnType<typeof computeFormulaStatus>>({
     isFormula: false,
     totalCategories: 0,
@@ -775,92 +767,87 @@ export default function CartScreen() {
   });
 
   const handleCheckout = useCallback(async () => {
-    const hasItems = isSessionMode
-      ? sessionCart.items_count > 0
-      : cart.items.length > 0;
+    const hasItems = isSessionMode ? sessionCart.items_count > 0 : cart.items.length > 0;
 
     if (!hasItems) {
-      showError('Votre panier est vide. Ajoutez des articles pour continuer.');
+      showError(t('cart.feedback.emptyOnCheckout'));
       return;
     }
 
-    // Gate formule menu du jour : tant qu'elle n'est pas complète, on bloque.
     const status = formulaStatusRef.current;
     if (!status.isValid) {
-      const msg = formatFormulaMissingMessage(status)
-        ?? 'Complétez votre formule pour passer commande.';
+      const msg = formatFormulaMissingMessage(status) ?? t('cart.formula.completeAction');
       showError(msg);
       return;
     }
 
-    const effectiveRestaurantId = cart.restaurantId ?? (isSessionMode ? ctxSession?.restaurant : undefined);
+    const effectiveRestaurantId =
+      cart.restaurantId ?? (isSessionMode ? ctxSession?.restaurant : undefined);
     if (!effectiveRestaurantId) {
-      showError('Restaurant non trouvé. Veuillez scanner à nouveau le QR code.');
+      showError(t('cart.feedback.restaurantNotFound'));
       return;
     }
 
-    // ── Mode session collaborative (hôte) → commande groupée ──
     if (isSessionMode && isHost && ctxSessionId) {
       setShowSplitConfirmation(true);
       return;
     }
 
-    // ── Mode classique (pas de session ou membre non-hôte) ──
     try {
       setIsCreatingOrder(true);
       navigateToCheckout(isSessionMode ? ctxSessionId ?? undefined : undefined);
     } catch (error) {
-      showError('Erreur lors de la préparation de la commande');
+      showError(t('cart.errors.checkout'));
     } finally {
       setIsCreatingOrder(false);
     }
-  }, [isSessionMode, isHost, sessionCart.items_count, cart.items.length, cart.restaurantId, ctxSession, ctxSessionId, navigateToCheckout, showError]);
+  }, [
+    isSessionMode,
+    isHost,
+    sessionCart.items_count,
+    cart.items.length,
+    cart.restaurantId,
+    ctxSession,
+    ctxSessionId,
+    navigateToCheckout,
+    showError,
+    t,
+  ]);
 
-  /**
-   * Place la commande groupée via le backend.
-   * @param withSplit true → division automatique, false → l'hôte paie tout
-   */
-  const handlePlaceGroupOrder = useCallback(async (withSplit: boolean) => {
-    if (!ctxSessionId) return;
-    setShowSplitConfirmation(false);
-    setIsCreatingOrder(true);
+  const handlePlaceGroupOrder = useCallback(
+    async (withSplit: boolean) => {
+      if (!ctxSessionId) return;
+      setShowSplitConfirmation(false);
+      setIsCreatingOrder(true);
 
-    try {
-      const result = await collaborativeSessionService.placeGroupOrder(
-        ctxSessionId,
-        withSplit
-      );
+      try {
+        const result = await collaborativeSessionService.placeGroupOrder(ctxSessionId, withSplit);
 
-      if (withSplit) {
-        // Le WS broadcast split_payment_initiated → SessionContext redirige tout le monde
-        // vers /order/split-payment. On redirige aussi l'hôte explicitement au cas où
-        // le WS soit lent.
-        showSuccess('Commande passée ! Division de la note en cours...');
-        router.push(`/order/split-payment?orderId=${result.order_id}` as any);
-      } else {
-        // Pas de split → l'hôte paie seul sur la page payment classique
-        showSuccess('Commande passée avec succès !');
-        router.push(`/order/payment?orderId=${result.order_id}` as any);
+        if (withSplit) {
+          showSuccess(t('cart.feedback.orderPlacedSplit'));
+          router.push(`/order/split-payment?orderId=${result.order_id}` as any);
+        } else {
+          showSuccess(t('cart.feedback.orderPlaced'));
+          router.push(`/order/payment?orderId=${result.order_id}` as any);
+        }
+      } catch (error: any) {
+        console.error('Error placing group order:', error);
+        const msg = error?.response?.data?.error || error?.message || t('cart.errors.groupOrder');
+        showError(msg);
+      } finally {
+        setIsCreatingOrder(false);
       }
-    } catch (error: any) {
-      console.error('Error placing group order:', error);
-      const msg = error?.response?.data?.error
-        || error?.message
-        || 'Erreur lors de la commande groupée';
-      showError(msg);
-    } finally {
-      setIsCreatingOrder(false);
-    }
-  }, [ctxSessionId, showSuccess, showError]);
+    },
+    [ctxSessionId, showSuccess, showError, t],
+  );
 
   // ============================================================================
   // MEMOIZED VALUES
   // ============================================================================
 
-  // En mode session : mapper SessionCartItem → CartItem pour réutiliser les composants existants
   const cartItems = useMemo(() => {
     if (isSessionMode) {
-      return sessionCart.items.map(item => ({
+      return sessionCart.items.map((item) => ({
         id: item.id,
         name: item.menu_item_name,
         price: parseFloat(item.menu_item_price || '0'),
@@ -873,22 +860,19 @@ export default function CartScreen() {
   }, [isSessionMode, sessionCart.items, cart.items]);
 
   const itemCount = useMemo(
-    () => isSessionMode ? sessionCart.items_count : (cart.itemCount || 0),
-    [isSessionMode, sessionCart.items_count, cart.itemCount]
+    () => (isSessionMode ? sessionCart.items_count : cart.itemCount || 0),
+    [isSessionMode, sessionCart.items_count, cart.itemCount],
   );
 
   const totalAmount = useMemo(
-    () => isSessionMode ? sessionCart.total : (cart.total || 0),
-    [isSessionMode, sessionCart.total, cart.total]
+    () => (isSessionMode ? sessionCart.total : cart.total || 0),
+    [isSessionMode, sessionCart.total, cart.total],
   );
 
-  // ── Validation formule menu du jour ─────────────────────────────────────
-  // Construit une liste { menuItemId, quantity } à partir du panier (solo ou
-  // session) puis calcule le statut via le helper partagé.
   const formulaCartLines = useMemo(() => {
     const lines: Array<{ menuItemId: number; quantity: number }> = [];
     if (isSessionMode) {
-      sessionCart.items.forEach(it => {
+      sessionCart.items.forEach((it) => {
         const id = Number(it.menu_item);
         if (Number.isFinite(id) && it.quantity > 0) {
           lines.push({ menuItemId: id, quantity: it.quantity });
@@ -907,61 +891,60 @@ export default function CartScreen() {
 
   const formulaStatus = useMemo(
     () => computeFormulaStatus(dailyMenu, formulaCartLines),
-    [dailyMenu, formulaCartLines]
+    [dailyMenu, formulaCartLines],
   );
 
-  // Maintien de la ref miroir utilisée par handleCheckout
   formulaStatusRef.current = formulaStatus;
 
   const formulaWarningMessage = useMemo(
     () => formatFormulaMissingMessage(formulaStatus),
-    [formulaStatus]
+    [formulaStatus],
   );
 
   // ============================================================================
   // RENDER
   // ============================================================================
 
-  // Panier vide
   if (cartItems.length === 0) {
     return (
-      <View style={localStyles.container}>
+      <View style={local.container}>
         <Header
-          title="Panier"
+          title={t('cart.title')}
           leftIcon="arrow-back"
           onLeftPress={handleGoBack}
+          showLanguageSwitcher
+          showThemeSwitcher
         />
         <EmptyCart screenType={screenType} />
       </View>
     );
   }
 
-  // Panier avec articles
   return (
-    <View style={localStyles.container}>
+    <View style={local.container}>
       <Header
-        title={`Panier (${itemCount})`}
+        title={t('cart.titleWithCount', { count: itemCount })}
         leftIcon="arrow-back"
         onLeftPress={handleGoBack}
         rightIcon="trash-outline"
         onRightPress={handleClearCart}
+        showLanguageSwitcher
+        showThemeSwitcher
       />
 
-      <ScrollView 
-        style={localStyles.scrollView} 
+      <ScrollView
+        style={local.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.pb('xl')}
       >
-        {/* Restaurant Info */}
         <RestaurantInfo
-          restaurantName={cart.restaurantName || 'Restaurant'}
+          restaurantName={cart.restaurantName || t('order.fallbackRestaurant')}
           tableNumber={currentTableNumber}
           itemCount={itemCount}
           hasActiveSession={isSessionMode}
           screenType={screenType}
         />
 
-        {/* Alerts */}
         {alertState && (
           <View style={[styles.mx('md'), styles.mt('md')]}>
             <Alert
@@ -972,8 +955,7 @@ export default function CartScreen() {
           </View>
         )}
 
-        {/* Cart Items */}
-        <View style={[localStyles.itemsContainer, styles.px('md'), styles.pt('md')]}>
+        <View style={[local.itemsContainer, styles.px('md'), styles.pt('md')]}>
           {cartItems.map((item) => (
             <CartItemCard
               key={item.id}
@@ -987,7 +969,6 @@ export default function CartScreen() {
         </View>
       </ScrollView>
 
-      {/* Footer with total and checkout */}
       <CartSummary
         subtotal={totalAmount}
         itemCount={itemCount}
@@ -995,25 +976,27 @@ export default function CartScreen() {
         onCheckout={handleCheckout}
         screenType={screenType}
         canCheckout={!isSessionMode || isHost}
-        checkoutTitle={isSessionMode && isHost ? 'Commander pour le groupe' : 'Passer la commande'}
+        checkoutTitle={
+          isSessionMode && isHost ? t('cart.checkoutForGroup') : t('cart.checkout')
+        }
         formulaWarning={formulaWarningMessage}
       />
 
-      {/* Confirmation Modals using AlertWithAction */}
+      {/* Confirmation : vider le panier */}
       {showClearConfirmation && (
-        <View style={localStyles.modalOverlay}>
-          <View style={[localStyles.modalContainer, styles.mx('md')]}>
+        <View style={local.modalOverlay}>
+          <View style={[local.modalContainer, styles.mx('md')]}>
             <AlertWithAction
               variant="warning"
-              title="Vider le panier"
-              message="Êtes-vous sûr de vouloir vider votre panier ? Cette action est irréversible."
+              title={t('cart.clearConfirm.title')}
+              message={t('cart.clearConfirm.message')}
               primaryButton={{
-                text: "Vider le panier",
+                text: t('cart.clearConfirm.cta'),
                 onPress: confirmClearCart,
-                variant: "danger",
+                variant: 'danger',
               }}
               secondaryButton={{
-                text: "Annuler",
+                text: t('common.cancel'),
                 onPress: () => setShowClearConfirmation(false),
               }}
             />
@@ -1021,20 +1004,21 @@ export default function CartScreen() {
         </View>
       )}
 
+      {/* Confirmation : retirer un article */}
       {itemToRemove && (
-        <View style={localStyles.modalOverlay}>
-          <View style={[localStyles.modalContainer, styles.mx('md')]}>
+        <View style={local.modalOverlay}>
+          <View style={[local.modalContainer, styles.mx('md')]}>
             <AlertWithAction
               variant="warning"
-              title="Retirer l'article"
-              message="Voulez-vous retirer cet article de votre panier ?"
+              title={t('cart.removeConfirm.title')}
+              message={t('cart.removeConfirm.message')}
               primaryButton={{
-                text: "Retirer",
+                text: t('cart.removeConfirm.cta'),
                 onPress: confirmRemoveItem,
-                variant: "danger",
+                variant: 'danger',
               }}
               secondaryButton={{
-                text: "Annuler",
+                text: t('common.cancel'),
                 onPress: () => setItemToRemove(null),
               }}
             />
@@ -1042,22 +1026,22 @@ export default function CartScreen() {
         </View>
       )}
 
-      {/* Modal : Diviser la note ? */}
+      {/* Confirmation : diviser la note ? */}
       {showSplitConfirmation && (
-        <View style={localStyles.modalOverlay}>
-          <View style={[localStyles.modalContainer, styles.mx('md')]}>
+        <View style={local.modalOverlay}>
+          <View style={[local.modalContainer, styles.mx('md')]}>
             <AlertWithAction
               variant="info"
-              title="Commander pour le groupe"
-              message="Souhaitez-vous diviser la note entre les participants ? Chacun pourra payer sa part depuis son téléphone."
+              title={t('cart.splitConfirm.title')}
+              message={t('cart.splitConfirm.message')}
               showIcon
               primaryButton={{
-                text: "Diviser la note",
+                text: t('cart.splitConfirm.split'),
                 onPress: () => handlePlaceGroupOrder(true),
-                variant: "primary",
+                variant: 'primary',
               }}
               secondaryButton={{
-                text: "Je paie tout",
+                text: t('cart.splitConfirm.payAll'),
                 onPress: () => handlePlaceGroupOrder(false),
               }}
             />
@@ -1069,281 +1053,254 @@ export default function CartScreen() {
 }
 
 // ============================================================================
-// STYLES
+// STYLES (fabrique theme-aware)
 // ============================================================================
 
-const localStyles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  
-  scrollView: {
-    flex: 1,
-  },
+const makeLocalStyles = (colors: AppColors, isDark: boolean) => {
+  const shadows = makeShadows(colors);
 
-  // Restaurant Info Styles
-  restaurantCard: {
-    // Le padding est géré par la prop du composant Card
-    ...SHADOWS.card,
-  },
-  
-  restaurantContent: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  
-  restaurantIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: BORDER_RADIUS.md,
-    backgroundColor: COLORS.variants.primary[50],
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: SPACING.sm.mobile,
-  },
-  
-  restaurantDetails: {
-    flex: 1,
-  },
-  
-  restaurantName: {
-    marginBottom: 4,
-  },
-  
-  restaurantMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-    gap: SPACING.sm.mobile,
-  },
-  
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  
-  metaText: {
-    marginLeft: 2,
-  },
-  
-  sessionBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-    backgroundColor: COLORS.variants.primary[50],
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: BORDER_RADIUS.full,
-    alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderColor: COLORS.success,
-  },
-  
-  sessionBadgeText: {
-    fontSize: 11,
-    color: COLORS.success,
-    marginLeft: 4,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
-  },
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    scrollView: { flex: 1 },
 
-  // Cart Items Styles
-  itemsContainer: {
-    // Le padding horizontal est géré par styles.px('md')
-  },
-  
-  cartItemCard: {
-    // Le padding est géré par la prop du composant Card
-    position: 'relative',
-  },
-  
-  updatingCard: {
-    opacity: 0.7,
-  },
-  
-  loadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    borderRadius: BORDER_RADIUS.md,
-    zIndex: 1,
-  },
-  
-  cartItemContent: {
-    flexDirection: 'row',
-  },
-  
-  itemImage: {
-    borderRadius: BORDER_RADIUS.md,
-    backgroundColor: COLORS.border.light,
-  },
-  
-  itemDetails: {
-    flex: 1,
-  },
-  
-  itemHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  
-  itemName: {
-    flex: 1,
-    marginRight: SPACING.sm.mobile,
-  },
-  
-  instructionsContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 4,
-    backgroundColor: COLORS.variants.primary[50],
-    padding: SPACING.xs.mobile,
-    borderRadius: BORDER_RADIUS.sm,
-  },
-  
-  instructions: {
-    flex: 1,
-    fontStyle: 'italic',
-  },
-  
-  itemFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  
-  quantityControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm.mobile,
-  },
-  
-  quantityButton: {
-    backgroundColor: COLORS.variants.secondary[100],
-    borderRadius: BORDER_RADIUS.sm,
-    padding: 8,
-    minWidth: COMPONENT_CONSTANTS.minTouchTarget,
-    minHeight: COMPONENT_CONSTANTS.minTouchTarget,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...SHADOWS.sm,
-  },
-  
-  quantityButtonAdd: {
-    backgroundColor: COLORS.primary,
-  },
-  
-  quantityText: {
-    minWidth: 30,
-    textAlign: 'center',
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-  },
+    // Restaurant Info
+    restaurantCard: {
+      ...shadows.card,
+    },
+    restaurantContent: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+    },
+    restaurantIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: BORDER_RADIUS.md,
+      backgroundColor: colors.variants.primary[50],
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: SPACING.sm.mobile,
+    },
+    restaurantDetails: { flex: 1 },
+    restaurantName: { marginBottom: 4 },
+    restaurantMeta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 4,
+      gap: SPACING.sm.mobile,
+    },
+    metaItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    metaText: { marginLeft: 2 },
+    sessionBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 8,
+      backgroundColor: colors.variants.primary[50],
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: BORDER_RADIUS.full,
+      alignSelf: 'flex-start',
+      borderWidth: 1,
+      borderColor: colors.success,
+    },
+    sessionBadgeText: {
+      fontSize: 11,
+      color: colors.success,
+      marginLeft: 4,
+      fontWeight: TYPOGRAPHY.fontWeight.medium,
+    },
 
-  // Summary Styles
-  summaryContainer: {
-    backgroundColor: COLORS.surface,
-    padding: SPACING.md.mobile,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border.default,
-    ...SHADOWS.lg,
-  },
-  
-  summaryContent: {
-    marginBottom: SPACING.md.mobile,
-  },
-  
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  
-  divider: {
-    height: 1,
-    backgroundColor: COLORS.border.default,
-    marginVertical: SPACING.sm.mobile,
-  },
-  
-  totalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 4,
-  },
+    // Cart Items
+    itemsContainer: {},
+    cartItemCard: { position: 'relative' },
+    updatingCard: { opacity: 0.7 },
+    loadingOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      alignItems: 'center',
+      justifyContent: 'center',
+      // En dark, l'overlay doit être sombre lui aussi sinon ça crée un flash blanc
+      backgroundColor: isDark ? 'rgba(15, 21, 40, 0.7)' : 'rgba(255, 255, 255, 0.8)',
+      borderRadius: BORDER_RADIUS.md,
+      zIndex: 1,
+    },
+    cartItemContent: {
+      flexDirection: 'row',
+    },
+    itemImage: {
+      borderRadius: BORDER_RADIUS.md,
+      backgroundColor: colors.border.light,
+    },
+    itemDetails: { flex: 1 },
+    itemHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+    },
+    itemName: {
+      flex: 1,
+      marginRight: SPACING.sm.mobile,
+    },
+    instructionsContainer: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 4,
+      backgroundColor: colors.variants.primary[50],
+      padding: SPACING.xs.mobile,
+      borderRadius: BORDER_RADIUS.sm,
+    },
+    instructions: {
+      flex: 1,
+      fontStyle: 'italic',
+    },
+    formuleSummaryBox: {
+      backgroundColor: colors.variants.primary[50],
+      paddingVertical: SPACING.xs.mobile,
+      paddingHorizontal: SPACING.sm.mobile,
+      borderRadius: BORDER_RADIUS.sm,
+      gap: 2,
+    },
+    formuleSummaryLine: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    formuleSummaryText: {
+      flexShrink: 1,
+      color: colors.text.secondary,
+    },
+    formuleSummaryCourse: {
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      color: colors.text.primary,
+    },
+    itemFooter: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    quantityControls: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.sm.mobile,
+    },
+    quantityButton: {
+      backgroundColor: colors.variants.secondary[100],
+      borderRadius: BORDER_RADIUS.sm,
+      padding: 8,
+      minWidth: COMPONENT_CONSTANTS.minTouchTarget,
+      minHeight: COMPONENT_CONSTANTS.minTouchTarget,
+      alignItems: 'center',
+      justifyContent: 'center',
+      ...shadows.sm,
+    },
+    quantityButtonAdd: {
+      backgroundColor: colors.primary,
+    },
+    quantityText: {
+      minWidth: 30,
+      textAlign: 'center',
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    },
 
-  // Bandeau "formule incomplète"
-  formulaBanner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: COLORS.warning + '15',
-    borderLeftWidth: 3,
-    borderLeftColor: COLORS.warning,
-    borderRadius: BORDER_RADIUS.sm,
-    padding: 10,
-    marginTop: 8,
-    marginBottom: 8,
-  },
-  formulaBannerTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: COLORS.text.primary,
-  },
-  formulaBannerText: {
-    fontSize: 12,
-    color: COLORS.text.secondary,
-    marginTop: 2,
-  },
+    // Summary
+    summaryContainer: {
+      backgroundColor: colors.surface,
+      padding: SPACING.md.mobile,
+      borderTopWidth: 1,
+      borderTopColor: colors.border.default,
+      ...shadows.lg,
+    },
+    summaryContent: {
+      marginBottom: SPACING.md.mobile,
+    },
+    summaryRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 4,
+    },
+    divider: {
+      height: 1,
+      backgroundColor: colors.border.default,
+      marginVertical: SPACING.sm.mobile,
+    },
+    totalRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: 4,
+    },
 
-  // Empty Cart Styles
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.xl.mobile,
-  },
-  
-  emptyIconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: BORDER_RADIUS['2xl'],
-    backgroundColor: COLORS.border.light,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  
-  qrButtonsContainer: {
-    width: '100%',
-    maxWidth: 400,
-  },
-  
-  qrButtons: {
-    width: '100%',
-    backgroundColor: 'transparent',
-  },
-  
-  // Modal Styles
-  modalOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: COLORS.overlay,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: COMPONENT_CONSTANTS.zIndex.modal,
-  },
-  
-  modalContainer: {
-    width: '100%',
-    maxWidth: 400,
-  },
-});
+    // Bandeau "formule incomplète"
+    formulaBanner: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      backgroundColor: colors.warning + '15',
+      borderLeftWidth: 3,
+      borderLeftColor: colors.warning,
+      borderRadius: BORDER_RADIUS.sm,
+      padding: 10,
+      marginTop: 8,
+      marginBottom: 8,
+    },
+    formulaBannerTitle: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.text.primary,
+    },
+    formulaBannerText: {
+      fontSize: 12,
+      color: colors.text.secondary,
+      marginTop: 2,
+    },
+
+    // Empty Cart
+    emptyContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: SPACING.xl.mobile,
+    },
+    emptyIconContainer: {
+      width: 120,
+      height: 120,
+      borderRadius: BORDER_RADIUS['2xl'],
+      backgroundColor: colors.border.light,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    qrButtonsContainer: {
+      width: '100%',
+      maxWidth: 400,
+    },
+    qrButtons: {
+      width: '100%',
+      backgroundColor: 'transparent',
+    },
+
+    // Modals
+    modalOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: colors.overlay,
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: COMPONENT_CONSTANTS.zIndex.modal,
+    },
+    modalContainer: {
+      width: '100%',
+      maxWidth: 400,
+    },
+  });
+};

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -24,7 +25,7 @@ import { groupIdenticalReceiptItems } from '@/utils/regroupItems';
 import {
   useScreenType,
   getResponsiveValue,
-  COLORS,
+  useAppTheme,
   SPACING,
   BORDER_RADIUS,
 } from '@/utils/designSystem';
@@ -116,6 +117,8 @@ export const Receipt: React.FC<ReceiptProps> = ({
   autoSendEmail = false,
   customerEmail,
 }) => {
+  const { colors: COLORS } = useAppTheme();
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [receiptData, setReceiptData] = useState<ReceiptViewData | null>(null);
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -665,7 +668,7 @@ export const Receipt: React.FC<ReceiptProps> = ({
       }
     } catch (error) {
       console.error('Error loading receipt:', error);
-      showError("Impossible de charger le ticket", "Erreur");
+      showError(t('receipt.loadFailed'), t('common.error'));
     } finally {
       setLoading(false);
     }
@@ -690,7 +693,7 @@ export const Receipt: React.FC<ReceiptProps> = ({
       }
     } catch (error) {
       console.error('Error printing:', error);
-      showError("Impossible d'imprimer le ticket", "Erreur");
+      showError(t('receipt.printFailed'), t('common.error'));
     }
   };
 
@@ -698,7 +701,7 @@ export const Receipt: React.FC<ReceiptProps> = ({
     const targetEmail = emailAddress || email;
 
     if (!targetEmail || !targetEmail.includes('@')) {
-      showError('Veuillez entrer une adresse email valide', 'Erreur');
+      showError(t('receipt.emailInvalid'), t('common.error'));
       return;
     }
 
@@ -712,15 +715,15 @@ export const Receipt: React.FC<ReceiptProps> = ({
       } as any);
 
       if ((result as any).success) {
-        showSuccess(`Ticket envoyé à ${targetEmail}`, 'Succès');
+        showSuccess(t('receipt.sentTo', { email: targetEmail }), t('receipt.successTitle'));
         setShowEmailModal(false);
         setEmail('');
       } else {
-        showError((result as any).message ?? 'Erreur inconnue', 'Erreur');
+        showError((result as any).message ?? t('receipt.unknownError'), t('common.error'));
       }
     } catch (error) {
       console.error('Error sending email:', error);
-      showError("Impossible d'envoyer le ticket", "Erreur");
+      showError(t('receipt.sendFailed'), t('common.error'));
     } finally {
       setSendingEmail(false);
     }
@@ -733,7 +736,7 @@ export const Receipt: React.FC<ReceiptProps> = ({
       await Sharing.shareAsync(file.uri);
     } catch (error) {
       console.error('Error sharing:', error);
-      showError("Impossible de partager le ticket", "Erreur");
+      showError(t('receipt.shareFailed'), t('common.error'));
     }
   };
 
@@ -771,18 +774,18 @@ export const Receipt: React.FC<ReceiptProps> = ({
         await LegacyFS.writeAsStringAsync(destUri, pdfBase64, {
           encoding: LegacyFS.EncodingType.Base64,
         });
-        showSuccess('Ticket enregistré avec succès', 'Téléchargement');
+        showSuccess(t('receipt.savedSuccess'), t('receipt.downloadTitle'));
       } else {
         // iOS : sauvegarde directe dans les documents de l'app
         const source = new ExpoFile(uri);
         const dest = new ExpoFile(Paths.document, filename);
         const pdfBytes = await source.bytes();
         await dest.write(pdfBytes);
-        showSuccess(`Ticket enregistré : ${filename}`, 'Téléchargement');
+        showSuccess(t('receipt.savedAs', { filename }), t('receipt.downloadTitle'));
       }
     } catch (error) {
       console.error('Error downloading:', error);
-      showError("Impossible de télécharger le ticket", "Erreur");
+      showError(t('receipt.downloadFailed'), t('common.error'));
     }
   };
 
@@ -813,26 +816,22 @@ export const Receipt: React.FC<ReceiptProps> = ({
 
     return (
       <View style={styles.vatSection}>
-        <Text style={styles.sectionTitle}>Détail TVA</Text>
+        <Text style={styles.sectionTitle}>{t('receipt.vatDetailTitle')}</Text>
         {Object.entries(vatDetails).map(([rate, details]) => {
           if (!details) return null;
           
           return (
             <View key={safeText(rate)} style={styles.vatRow}>
-              <Text style={styles.vatLabel}>TVA {safeText(rate)}%</Text>
+              <Text style={styles.vatLabel}>{t('receipt.vatRate', { rate: safeText(rate) })}</Text>
               <View style={styles.vatDetails}>
-                <Text style={styles.vatAmount}>
-                  Base HT: {formatCurrency(details.ht || 0)}
-                </Text>
-                <Text style={styles.vatAmount}>
-                  TVA: {formatCurrency(details.tva || 0)}
-                </Text>
+                <Text style={styles.vatAmount}>{t('receipt.vatBaseHT', { amount: formatCurrency(details.ht || 0) })}</Text>
+                <Text style={styles.vatAmount}>{t('receipt.vatAmount', { amount: formatCurrency(details.tva || 0) })}</Text>
               </View>
             </View>
           );
         })}
         <View style={styles.vatTotalRow}>
-          <Text style={styles.vatTotalLabel}>Total TVA</Text>
+          <Text style={styles.vatTotalLabel}>{t('receipt.vatTotalTitle')}</Text>
           <Text style={styles.vatTotalAmount}>{formatCurrency(totalVAT)}</Text>
         </View>
       </View>
@@ -1148,7 +1147,7 @@ export const Receipt: React.FC<ReceiptProps> = ({
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={COLORS.primary} />
-        <Text style={{ marginTop: 16, color: COLORS.text.secondary }}>Chargement du ticket...</Text>
+        <Text style={{ marginTop: 16, color: COLORS.text.secondary }}>{t('receipt.loading')}</Text>
       </SafeAreaView>
     );
   }
@@ -1156,7 +1155,7 @@ export const Receipt: React.FC<ReceiptProps> = ({
   if (!receiptData) {
     return (
       <SafeAreaView style={styles.container}>
-        <Text>Aucune donnée de ticket disponible</Text>
+        <Text>{t('receipt.noData')}</Text>
       </SafeAreaView>
     );
   }
@@ -1225,32 +1224,32 @@ export const Receipt: React.FC<ReceiptProps> = ({
           {/* Order Info */}
           <View>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>N° Ticket:</Text>
+              <Text style={styles.infoLabel}>{t('receipt.ticketNumber')}</Text>
               <Text style={styles.infoValue}>
                 {safeText(paymentInfo.sequential_receipt_number || orderData.order_number)}
               </Text>
             </View>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Date:</Text>
+              <Text style={styles.infoLabel}>{t('receipt.dateLabel')}</Text>
               <Text style={styles.infoValue}>{formatDate(paymentInfo.paidAt)}</Text>
             </View>
               {hasValue(orderData.table_number) ? (
                 <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Table:</Text>
+                  <Text style={styles.infoLabel}>{t('receipt.tableLabel')}</Text>
                   <Text style={styles.infoValue}>{safeText(orderData.table_number)}</Text>
                 </View>
               ) : null}
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Type:</Text>
+              <Text style={styles.infoLabel}>{t('receipt.typeLabel')}</Text>
               <Text style={styles.infoValue}>
-                {orderData.order_type === 'dine_in' ? 'Sur place' : 'À emporter'}
+                {orderData.order_type === 'dine_in' ? t('receipt.dineIn') : t('receipt.takeaway')}
               </Text>
             </View>
               {hasValue(paymentInfo.method) ? (
                 <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Paiement:</Text>
+                  <Text style={styles.infoLabel}>{t('receipt.paymentLabel')}</Text>
                   <Text style={styles.infoValue}>
-                    {getPaymentMethodLabel(safeText(paymentInfo.method))}
+                    {t(`receipt.method.${safeText(paymentInfo.method)}`, getPaymentMethodLabel(safeText(paymentInfo.method)))}
                   </Text>
                 </View>
               ) : null}
@@ -1299,25 +1298,25 @@ export const Receipt: React.FC<ReceiptProps> = ({
           {/* Totals conformes */}
           <View style={styles.totalsSection}>
             <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Sous-total HT:</Text>
+              <Text style={styles.totalLabel}>{t('receipt.subtotalHT')}</Text>
               <Text style={styles.totalValue}>{formatPrice(orderData.subtotal_ht || 0)}</Text>
             </View>
             <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>TVA totale:</Text>
+              <Text style={styles.totalLabel}>{t('receipt.vatTotal')}</Text>
               <Text style={styles.totalValue}>{formatPrice(orderData.total_tva || 0)}</Text>
             </View>
             <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Sous-total TTC:</Text>
+              <Text style={styles.totalLabel}>{t('receipt.subtotalTTC')}</Text>
               <Text style={styles.totalValue}>{formatPrice(orderData.subtotal_ttc || 0)}</Text>
             </View>
             {paymentInfo.tip && paymentInfo.tip > 0 ? (
               <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>Pourboire:</Text>
+                <Text style={styles.totalLabel}>{t('receipt.tip')}</Text>
                 <Text style={styles.totalValue}>{formatPrice(paymentInfo.tip)}</Text>
               </View>
             ) : null}
             <View style={styles.finalTotalRow}>
-              <Text style={styles.finalTotalLabel}>TOTAL TTC:</Text>
+              <Text style={styles.finalTotalLabel}>{t('receipt.totalTTC')}</Text>
               <Text style={styles.finalTotalValue}>{formatPrice(orderData.total_amount || 0)}</Text>
             </View>
           </View>
@@ -1331,8 +1330,8 @@ export const Receipt: React.FC<ReceiptProps> = ({
 
           {/* Footer avec mentions légales */}
           <View style={styles.footer}>
-            <Text style={styles.thankYou}>MERCI DE VOTRE VISITE !</Text>
-            <Text style={styles.footerInfo}>À bientôt</Text>
+            <Text style={styles.thankYou}>{t('receipt.thankYou')}</Text>
+            <Text style={styles.footerInfo}>{t('receipt.seeYouSoon')}</Text>
             {hasValue(legalInfo.receipt_notice) ? (
               <Text style={styles.legalNotice}>{safeText(legalInfo.receipt_notice)}</Text>
             ) : null}
@@ -1352,7 +1351,7 @@ export const Receipt: React.FC<ReceiptProps> = ({
           <View style={styles.actionsGrid}>
             <View style={styles.actionButton}>
               <Button 
-                title="Imprimer" 
+                title={t('receipt.print')} 
                 onPress={handlePrint} 
                 leftIcon={<Ionicons name="print" size={20} color="#FFFFFF" />}
                 fullWidth 
@@ -1360,18 +1359,18 @@ export const Receipt: React.FC<ReceiptProps> = ({
             </View>
             <View style={styles.actionButton}>
               <Button 
-                title="Email" 
+                title={t('receipt.email')} 
                 onPress={() => setShowEmailModal(true)} 
-                leftIcon={<Ionicons name="mail" size={20} color="#3B82F6" />}
+                leftIcon={<Ionicons name="mail" size={20} color={COLORS.primary} />}
                 variant="outline" 
                 fullWidth 
               />
             </View>
             <View style={styles.actionButton}>
               <Button 
-                title="Télécharger" 
+                title={t('receipt.download')} 
                 onPress={handleDownload} 
-                leftIcon={<Ionicons name="download" size={20} color="#3B82F6" />}
+                leftIcon={<Ionicons name="download" size={20} color={COLORS.primary} />}
                 variant="outline" 
                 fullWidth 
               />
@@ -1379,9 +1378,9 @@ export const Receipt: React.FC<ReceiptProps> = ({
             {Platform.OS !== 'web' ? (
               <View style={styles.actionButton}>
                 <Button 
-                  title="Partager" 
+                  title={t('receipt.share')} 
                   onPress={handleShare} 
-                  leftIcon={<Ionicons name="share" size={20} color="#3B82F6" />}
+                  leftIcon={<Ionicons name="share" size={20} color={COLORS.primary} />}
                   variant="outline" 
                   fullWidth 
                 />
@@ -1395,13 +1394,13 @@ export const Receipt: React.FC<ReceiptProps> = ({
       <Modal visible={showEmailModal} transparent animationType="fade" onRequestClose={() => setShowEmailModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Envoyer le ticket par email</Text>
+            <Text style={styles.modalTitle}>{t('receipt.emailModalTitle')}</Text>
 
             <TextInput
               style={styles.emailInput}
               value={email}
               onChangeText={setEmail}
-              placeholder="Adresse email"
+              placeholder={t('receipt.emailPlaceholder')}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
@@ -1409,7 +1408,7 @@ export const Receipt: React.FC<ReceiptProps> = ({
             <View style={styles.modalButtons}>
               <View style={styles.modalCancelButton}>
                 <Button 
-                  title="Annuler" 
+                  title={t('common.cancel')} 
                   onPress={() => setShowEmailModal(false)} 
                   variant="outline" 
                   fullWidth 
@@ -1418,7 +1417,7 @@ export const Receipt: React.FC<ReceiptProps> = ({
               </View>
               <View style={styles.modalSendButton}>
                 <Button 
-                  title={sendingEmail ? "Envoi..." : "Envoyer"} 
+                  title={sendingEmail ? t('receipt.sending') : t('receipt.send')} 
                   onPress={() => handleSendEmail()} 
                   fullWidth 
                   loading={sendingEmail} 

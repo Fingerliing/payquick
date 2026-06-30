@@ -9,6 +9,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams, usePathname } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 
 // Contexts & Hooks
 import { useCart } from '@/contexts/CartContext';
@@ -29,7 +30,7 @@ import { clientOrderService } from '@/services/clientOrderService';
 import { collaborativeSessionService } from '@/services/collaborativeSessionService';
 import { QRSessionUtils } from '@/utils/qrSessionUtils';
 import {
-  COLORS,
+  useAppTheme,
   SPACING,
   TYPOGRAPHY,
   useScreenType,
@@ -38,6 +39,8 @@ import {
 
 export default function CheckoutScreen() {
   const params = useLocalSearchParams();
+  const { t } = useTranslation();
+  const { colors, isDark } = useAppTheme();
   const { cart, clearCart, setTableNumber } = useCart();
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const screenType = useScreenType();
@@ -140,20 +143,20 @@ export default function CheckoutScreen() {
     const tableNumber = getEffectiveTableNumber();
 
     if (!restaurantId) {
-      return { valid: false, error: 'Restaurant non défini' };
+      return { valid: false, error: t('checkout.validation.restaurantMissing') };
     }
 
     if (!tableNumber) {
-      return { valid: false, error: 'Numéro de table requis' };
+      return { valid: false, error: t('checkout.validation.tableRequired') };
     }
 
     const itemsToValidate = isSessionMode ? sessionCart.items : cart.items;
     if (itemsToValidate.length === 0) {
-      return { valid: false, error: 'Panier vide' };
+      return { valid: false, error: t('checkout.validation.cartEmpty') };
     }
 
     if (!customerName.trim()) {
-      return { valid: false, error: 'Nom requis' };
+      return { valid: false, error: t('checkout.validation.nameRequired') };
     }
 
     return { 
@@ -169,14 +172,14 @@ export default function CheckoutScreen() {
     // isSessionMode est false hors session → ce bloc n'est jamais atteint
     // pour les commandes solo ou invité.
     if (isSessionMode && !isHost) {
-      showToast('error', "Seul l'hôte peut passer la commande du groupe.", 'Action non autorisée');
+      showToast('error', t('cart.hostOnlyCheckout'), t('errors.forbidden'));
       return;
     }
 
     const validation = validateCheckout();
     
     if (!validation.valid) {
-      showToast('error', validation.error || '', 'Erreur');
+      showToast('error', validation.error || '', t('common.error'));
       return;
     }
 
@@ -225,9 +228,9 @@ export default function CheckoutScreen() {
         showToast(
           'success',
           isInSession 
-            ? 'Votre commande a été ajoutée à la session collaborative.'
-            : 'Votre commande a été envoyée au restaurant.',
-          'Commande passée !'
+            ? t('checkout.toast.addedToSession')
+            : t('checkout.toast.sentToRestaurant'),
+          t('checkout.toast.orderPlacedTitle')
         );
         // router.replace('/orders' as any);
         return;
@@ -245,8 +248,8 @@ export default function CheckoutScreen() {
         }
         showToast(
           'success',
-          `Votre commande #${order.order_number} a été ajoutée à la session collaborative.`,
-          'Commande ajoutée !'
+          t('checkout.toast.addedToSessionNumbered', { number: order.order_number }),
+          t('checkout.toast.orderAddedTitle')
         );
         router.replace(`/order/payment?orderId=${order.id}` as any);
       } else {
@@ -254,7 +257,7 @@ export default function CheckoutScreen() {
       }
     } catch (error: any) {
       console.error('❌ Error creating order:', error);
-      showToast('error', error?.message || 'Erreur lors de la création de la commande', 'Erreur');
+      showToast('error', error?.message || t('checkout.toast.createFailed'), t('common.error'));
     } finally {
       setIsSubmitting(false);
     }
@@ -274,25 +277,31 @@ export default function CheckoutScreen() {
     body: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
   };
 
+  // Carte "session collaborative" : pastel vert en clair, fond vert sombre
+  // teinté en dark pour rester cohérent avec le thème. Le texte passe sur le
+  // vert de succès du thème en dark (lisible sur fond sombre).
+  const sessionCardBg = isDark ? 'rgba(16, 185, 129, 0.12)' : '#E8F5E8';
+  const sessionCardText = isDark ? colors.success : '#2D5A2D';
+
   // ─── Cas spéciaux d'affichage ─────────────────────────────────────────────
 
   // 1) Auth encore en chargement → loader plein écran
   if (authLoading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
         <Header
-          title="Finaliser la commande"
+          title={t('checkout.headerTitle')}
           leftIcon="arrow-back"
           onLeftPress={() => router.back()}
         />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={{
             marginTop: getResponsiveValue(SPACING.md, screenType),
-            color: COLORS.text.secondary,
+            color: colors.text.secondary,
             fontSize: fontSize.body,
           }}>
-            Chargement...
+            {t('common.loading')}
           </Text>
         </View>
       </SafeAreaView>
@@ -304,9 +313,9 @@ export default function CheckoutScreen() {
   //    n'est pas utilisable sans authentification.
   if (!isAuthenticated) {
     return (
-      <View style={{ flex: 1, backgroundColor: COLORS.background }}>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
         <Header
-          title="Finaliser la commande"
+          title={t('checkout.headerTitle')}
           leftIcon="arrow-back"
           onLeftPress={() => router.back()}
         />
@@ -320,28 +329,28 @@ export default function CheckoutScreen() {
           <Ionicons
             name="lock-closed-outline"
             size={getResponsiveValue({ mobile: 60, tablet: 70, desktop: 80 }, screenType)}
-            color={COLORS.border.dark}
+            color={colors.border.dark}
           />
           <Text style={{
             fontSize: fontSize.title,
             fontWeight: TYPOGRAPHY.fontWeight.semibold,
-            color: COLORS.text.primary,
+            color: colors.text.primary,
             marginTop: getResponsiveValue(SPACING.md, screenType),
             textAlign: 'center',
           }}>
-            Connexion requise
+            {t('checkout.authRequired')}
           </Text>
           <Text style={{
             fontSize: fontSize.body,
-            color: COLORS.text.secondary,
+            color: colors.text.secondary,
             marginTop: getResponsiveValue(SPACING.xs, screenType),
             textAlign: 'center',
           }}>
-            Choisissez comment vous souhaitez commander.
+            {t('checkout.authRequiredHint')}
           </Text>
 
           <Button
-            title="Voir les options"
+            title={t('checkout.seeOptions')}
             onPress={() => setShowAuthGate(true)}
             style={{ marginTop: getResponsiveValue(SPACING.lg, screenType) }}
           />
@@ -365,12 +374,12 @@ export default function CheckoutScreen() {
           // - les invités déjà dans la session passent par split payment
           allowGuest={!isSessionMode}
           title={isSessionMode
-            ? 'Connectez-vous pour finaliser votre commande'
-            : 'Comment souhaitez-vous commander ?'
+            ? t('checkout.authGate.titleSession')
+            : t('checkout.authGate.titleSolo')
           }
           subtitle={isSessionMode
-            ? 'Une session collaborative est en cours. Connectez-vous ou créez un compte pour la rejoindre.'
-            : 'Connectez-vous pour retrouver votre historique ou continuez en invité.'
+            ? t('checkout.authGate.subtitleSession')
+            : t('checkout.authGate.subtitleSolo')
           }
         />
       </View>
@@ -382,9 +391,9 @@ export default function CheckoutScreen() {
   const activeItems = isSessionMode ? sessionCart.items : cart.items;
   if (activeItems.length === 0) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
         <Header 
-          title="Finaliser la commande" 
+          title={t('checkout.headerTitle')}
           leftIcon="arrow-back" 
           onLeftPress={() => router.back()} 
         />
@@ -408,21 +417,21 @@ export default function CheckoutScreen() {
           <Ionicons 
             name="bag-outline" 
             size={getResponsiveValue({ mobile: 70, tablet: 80, desktop: 90 }, screenType)} 
-            color={COLORS.border.dark} 
+            color={colors.border.dark} 
           />
           <Text style={{ 
             fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xl, screenType),
             fontWeight: TYPOGRAPHY.fontWeight.bold, 
-            color: COLORS.text.primary, 
+            color: colors.text.primary, 
             marginTop: getResponsiveValue(SPACING.md, screenType)
           }}>
-            Votre panier est vide
+            {t('cart.empty')}
           </Text>
           <Button 
-            title="Retour au menu"
+            title={t('cart.backToMenu')}
             onPress={() => router.back()}
             style={{ 
-              backgroundColor: COLORS.border.dark, 
+              backgroundColor: colors.border.dark, 
               marginTop: getResponsiveValue(SPACING.md, screenType)
             }}
           />
@@ -432,9 +441,9 @@ export default function CheckoutScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <Header 
-        title="Finaliser la commande" 
+        title={t('checkout.headerTitle')}
         leftIcon="arrow-back" 
         onLeftPress={() => router.back()} 
       />
@@ -455,8 +464,8 @@ export default function CheckoutScreen() {
         {isInSession && session && (
           <Card style={{ 
             marginBottom: spacing.card, 
-            backgroundColor: '#E8F5E8', 
-            borderColor: COLORS.success,
+            backgroundColor: sessionCardBg, 
+            borderColor: colors.success,
             borderWidth: 1,
           }}>
             <View style={{ 
@@ -464,27 +473,30 @@ export default function CheckoutScreen() {
               alignItems: 'center', 
               gap: getResponsiveValue(SPACING.sm, screenType)
             }}>
-              <Ionicons name="people" size={iconSize} color={COLORS.success} />
+              <Ionicons name="people" size={iconSize} color={colors.success} />
               <View style={{ flex: 1 }}>
                 <Text style={{ 
                   fontSize: fontSize.subtitle, 
                   fontWeight: TYPOGRAPHY.fontWeight.semibold, 
-                  color: '#2D5A2D', 
+                  color: sessionCardText, 
                   marginBottom: 4 
                 }}>
-                  Session collaborative
+                  {t('checkout.session.title')}
                 </Text>
-                <Text style={{ fontSize: fontSize.body, color: '#2D5A2D' }}>
-                  Table {session.table_number} • {session.participant_count} participant(s)
+                <Text style={{ fontSize: fontSize.body, color: sessionCardText }}>
+                  {t('checkout.session.tableInfo', {
+                    table: session.table_number,
+                    count: session.participant_count,
+                  })}
                 </Text>
                 {currentParticipant && (
                   <Text style={{ 
                     fontSize: fontSize.body, 
-                    color: '#2D5A2D', 
+                    color: sessionCardText, 
                     marginTop: 4 
                   }}>
-                    Vous êtes : {currentParticipant.display_name}
-                    {currentParticipant.is_host && ' (Hôte)'}
+                    {t('checkout.session.youAre', { name: currentParticipant.display_name })}
+                    {currentParticipant.is_host && t('checkout.session.hostSuffix')}
                   </Text>
                 )}
               </View>
@@ -496,40 +508,45 @@ export default function CheckoutScreen() {
           <Text style={{ 
             fontSize: fontSize.title, 
             fontWeight: TYPOGRAPHY.fontWeight.semibold, 
-            color: COLORS.text.primary,
+            color: colors.text.primary,
             marginBottom: getResponsiveValue(SPACING.sm, screenType)
           }}>
-            Détails de la commande
+            {t('checkout.details.title')}
           </Text>
           
           <Text style={{ 
             fontSize: fontSize.subtitle, 
-            color: COLORS.text.primary, 
+            color: colors.text.primary, 
             marginBottom: getResponsiveValue(SPACING.xs, screenType)
           }}>
-            Restaurant: {cart.restaurantName || `ID ${getEffectiveRestaurantId()}`}
+            {t('checkout.details.restaurant', {
+              name: cart.restaurantName
+                || t('checkout.details.restaurantFallback', { id: getEffectiveRestaurantId() }),
+            })}
           </Text>
           
           <View style={{ marginTop: getResponsiveValue(SPACING.xs, screenType) }}>
             <Text style={{ 
               fontSize: fontSize.body, 
               fontWeight: TYPOGRAPHY.fontWeight.medium, 
-              color: COLORS.text.primary,
+              color: colors.text.primary,
               marginBottom: getResponsiveValue(SPACING.xs, screenType)
             }}>
-              Numéro de table
+              {t('checkout.details.tableNumber')}
             </Text>
             <View style={{ 
-              backgroundColor: COLORS.border.light,
+              backgroundColor: colors.border.light,
               padding: getResponsiveValue(SPACING.sm, screenType),
               borderRadius: 8,
             }}>
               <Text style={{ 
                 fontSize: fontSize.subtitle, 
                 fontWeight: TYPOGRAPHY.fontWeight.semibold, 
-                color: COLORS.primary 
+                color: colors.primary 
               }}>
-                Table {getEffectiveTableNumber() || 'Non définie'}
+                {t('checkout.details.table', {
+                  number: getEffectiveTableNumber() || t('checkout.details.tableUndefined'),
+                })}
               </Text>
             </View>
           </View>
@@ -539,26 +556,26 @@ export default function CheckoutScreen() {
           <Text style={{ 
             fontSize: fontSize.title, 
             fontWeight: TYPOGRAPHY.fontWeight.semibold, 
-            color: COLORS.text.primary,
+            color: colors.text.primary,
             marginBottom: getResponsiveValue(SPACING.md, screenType)
           }}>
-            Vos informations
+            {t('checkout.info.title')}
           </Text>
           
           <Input
-            label="Nom"
+            label={t('checkout.info.nameLabel')}
             value={customerName}
             onChangeText={setCustomerName}
-            placeholder="Entrez votre nom"
+            placeholder={t('checkout.info.namePlaceholder')}
             required
             style={{ marginBottom: getResponsiveValue(SPACING.md, screenType) }}
           />
           
           <Input
-            label="Instructions spéciales (optionnel)"
+            label={t('checkout.info.notesLabel')}
             value={notes}
             onChangeText={setNotes}
-            placeholder="Ex: Sans oignons, allergies..."
+            placeholder={t('checkout.info.notesPlaceholder')}
             multiline
             numberOfLines={3}
           />
@@ -568,10 +585,12 @@ export default function CheckoutScreen() {
           <Text style={{ 
             fontSize: fontSize.title, 
             fontWeight: TYPOGRAPHY.fontWeight.semibold, 
-            color: COLORS.text.primary,
+            color: colors.text.primary,
             marginBottom: getResponsiveValue(SPACING.sm, screenType)
           }}>
-            Résumé ({(isSessionMode ? sessionCart.items_count : cart.itemCount)} article{(isSessionMode ? sessionCart.items_count : cart.itemCount) > 1 ? 's' : ''})
+            {t('checkout.summary.title', {
+              count: isSessionMode ? sessionCart.items_count : cart.itemCount,
+            })}
           </Text>
           
           {(isSessionMode
@@ -591,21 +610,21 @@ export default function CheckoutScreen() {
                 justifyContent: 'space-between',
                 paddingVertical: getResponsiveValue(SPACING.xs, screenType),
                 borderBottomWidth: 1,
-                borderBottomColor: COLORS.border.light
+                borderBottomColor: colors.border.light
               }}
             >
               <View style={{ flex: 1 }}>
                 <Text style={{ 
                   fontSize: fontSize.body, 
                   fontWeight: TYPOGRAPHY.fontWeight.medium, 
-                  color: COLORS.text.primary 
+                  color: colors.text.primary 
                 }}>
                   {item.quantity}x {item.name}
                 </Text>
                 {item.specialInstructions && (
                   <Text style={{ 
                     fontSize: fontSize.body, 
-                    color: COLORS.text.secondary, 
+                    color: colors.text.secondary, 
                     marginTop: 2 
                   }}>
                     {item.specialInstructions}
@@ -615,7 +634,7 @@ export default function CheckoutScreen() {
               <Text style={{ 
                 fontSize: fontSize.body, 
                 fontWeight: TYPOGRAPHY.fontWeight.semibold, 
-                color: COLORS.primary 
+                color: colors.primary 
               }}>
                 {(item.price * item.quantity).toFixed(2)} €
               </Text>
@@ -628,19 +647,19 @@ export default function CheckoutScreen() {
             paddingTop: getResponsiveValue(SPACING.sm, screenType),
             marginTop: getResponsiveValue(SPACING.sm, screenType),
             borderTopWidth: 2,
-            borderTopColor: COLORS.primary
+            borderTopColor: colors.primary
           }}>
             <Text style={{ 
               fontSize: fontSize.title, 
               fontWeight: TYPOGRAPHY.fontWeight.bold,
-              color: COLORS.text.primary,
+              color: colors.text.primary,
             }}>
-              Total
+              {t('cart.total')}
             </Text>
             <Text style={{ 
               fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xl, screenType),
               fontWeight: TYPOGRAPHY.fontWeight.bold, 
-              color: COLORS.primary 
+              color: colors.primary 
             }}>
               {(isSessionMode ? sessionCart.total : cart.total).toFixed(2)} €
             </Text>
@@ -653,16 +672,20 @@ export default function CheckoutScreen() {
         paddingHorizontal: 16,
         paddingTop: 12,
         paddingBottom: Math.max(insets.bottom, 16),
-        backgroundColor: COLORS.background,
+        backgroundColor: colors.background,
         borderTopWidth: 1,
-        borderTopColor: COLORS.border.light,
+        borderTopColor: colors.border.light,
       }}>
         <Button
-          title={isSubmitting ? "Envoi en cours..." : isSessionMode ? "Passer commande" : "Valider la commande"}
+          title={isSubmitting
+            ? t('checkout.submit.submitting')
+            : isSessionMode
+              ? t('checkout.submit.placeGroupOrder')
+              : t('checkout.submit.validateOrder')}
           onPress={handleSubmitOrder}
           disabled={isSubmitting}
           fullWidth
-          leftIcon={<Ionicons name="checkmark-circle" size={iconSize} color={COLORS.text.inverse} />}
+          leftIcon={<Ionicons name="checkmark-circle" size={iconSize} color={colors.text.inverse} />}
         />
       </View>
     </View>

@@ -1,0 +1,2872 @@
+{
+  "addRestaurant": {
+    "title": "Gehitu jatetxe bat",
+    "image": {
+      "section": "Azaleko irudia",
+      "choose": "Aukeratu irudi bat",
+      "formatHint": "16:9 formatua gomendatua"
+    },
+    "sections": {
+      "basicInfo": "Oinarrizko informazioa",
+      "contact": "Kontaktua",
+      "location": "Helbidea eta kokapena",
+      "mealVouchers": "Bazkari-txartelak",
+      "legal": "Lege-informazioa"
+    },
+    "fields": {
+      "name": "Jatetxearen izena *",
+      "namePlaceholder": "Adib.: La Bonne Table",
+      "description": "Deskribapena",
+      "descriptionPlaceholder": "Zure establezimenduaren deskribapen laburra",
+      "cuisineType": "Sukaldaritza mota *",
+      "priceRange": "Prezio-tartea",
+      "phone": "Telefonoa *",
+      "email": "Helbide elektronikoa *",
+      "website": "Webgunea",
+      "address": "Helbidea *",
+      "city": "Hiria *",
+      "cityPlaceholder": "Paris",
+      "postalCode": "Posta-kodea *",
+      "siret": "SIRET zenbakia *",
+      "siretPlaceholder": "12345678901234",
+      "raisonSociale": "Sozietate-izena",
+      "raisonSocialePlaceholder": "Adib.: SARL Restaurant Chez Paul"
+    },
+    "cuisines": {
+      "french": "Frantsesa",
+      "italian": "Italiarra",
+      "asian": "Asiarra",
+      "mexican": "Mexikarra",
+      "indian": "Indiarra",
+      "american": "Amerikarra",
+      "mediterranean": "Mediterraneoa",
+      "japanese": "Japoniarra",
+      "chinese": "Txinatarra",
+      "thai": "Thailandiarra",
+      "other": "Bestelakoa"
+    },
+    "priceRanges": {
+      "eco": "Ekonomikoa",
+      "moderate": "Moderatua",
+      "expensive": "Garestia",
+      "luxury": "Luxuzkoa"
+    },
+    "mealVouchers": {
+      "accept": "Onartu bazkari-txartelak",
+      "providers": "Swile, Edenred, Up…",
+      "legalInfoTitle": "Lege-informazioa",
+      "legalLimit": "Lege-muga: 19 € eguneko eta pertsonako",
+      "legalUsage": "Erabilera: astelehenetik larunbatera (igande eta jaiegunak izan ezik, salbuespenak salbu)",
+      "legalProducts": "Produktu onargarriak: berehala kontsumitzeko elikagaiak",
+      "customInfoLabel": "Bezeroei erakutsitako informazioa",
+      "customInfoPlaceholder": "Adib.: Astelehenetik larunbatera onartuak, geh. 19 €",
+      "accepted": "onartuak",
+      "notAccepted": "ez onartuak",
+      "titleAccepted": "Bazkari-txartelak onartuak",
+      "titleNotAccepted": "Bazkari-txartelak ez onartuak",
+      "defaultInfo": "Bazkari-txartelak lege-baldintzen arabera onartuak"
+    },
+    "status": {
+      "closedNow": "Une honetan itxita",
+      "period": "Aldia: {{start}} - {{end}}",
+      "nextOpening": "Hurrengo irekiera: {{time}}"
+    },
+    "submit": {
+      "create": "Sortu jatetxea",
+      "creating": "Sortzen…",
+      "processing": "Prozesatzen…"
+    },
+    "validation": {
+      "nameRequired": "Izena beharrezkoa da",
+      "addressRequired": "Helbidea beharrezkoa da",
+      "cityRequired": "Hiria beharrezkoa da",
+      "zipRequired": "Posta-kodea beharrezkoa da",
+      "phoneRequired": "Telefonoa beharrezkoa da",
+      "emailRequired": "Helbide elektronikoa beharrezkoa da",
+      "cuisineRequired": "Sukaldaritza beharrezkoa da",
+      "siretRequired": "SIRET beharrezkoa da",
+      "siretInvalid": "SIRET-ak zehazki 14 digitu izan behar ditu",
+      "zipInvalid": "Posta-kodeak zehazki 5 digitu izan behar ditu",
+      "phoneInvalid": "Formatu baliogabea. Erabili 0612345678 edo +33612345678",
+      "hoursAllDays": "Ordutegiak asteko 7 egunak hartu behar ditu",
+      "hoursPeriodRequired": "Irekitako egun bakoitzak gutxienez aldi bat izan behar du",
+      "hoursStartEnd": "Aldi bakoitzak hasiera- eta amaiera-ordua izan behar ditu",
+      "hoursDifferent": "Amaiera-orduak irekiera-ordutik desberdina izan behar du",
+      "fixFieldsTitle": "Eremu hutsak",
+      "fixFieldsMessage": "Mesedez, zuzendu gorriz markatutako eremuak."
+    },
+    "alerts": {
+      "permissionDeniedTitle": "Baimena ukatua",
+      "photoPermissionMessage": "Argazkietarako sarbide-baimena behar da",
+      "imagePickError": "Ezin izan da irudia hautatu",
+      "errorTitle": "Errorea",
+      "locationPermissionMessage": "Kokapen-baimena behar da",
+      "locationError": "Ezin izan da zure kokapena detektatu",
+      "successTitle": "Ondo",
+      "createSuccessMessage": "Jatetxea ondo sortu da!\nUneko egoera: {{status}}\nBazkari-txartelak: {{vouchers}}",
+      "createError": "Ezin izan da jatetxea sortu",
+      "validationError": "Balioztatze-erroreak antzeman dira - egiaztatu gorriz markatutako eremuak",
+      "stripeRequiredTitle": "Stripe ez dago aktibatuta",
+      "stripeRequired": "Zure Stripe kontua ez dago oraindik aktibatuta. Aktibatu Stripe jatetxe bat sortu ahal izateko."
+    }
+  },
+  "dashboard": {
+    "greeting": "Kaixo, sukaldari!",
+    "open": "Irekita",
+    "closed": "Itxita",
+    "quickActions": "Ekintza azkarrak",
+    "recentOrders": "Azken eskaerak",
+    "seeAll": "Ikusi dena",
+    "new": "Berria",
+    "noOrders": "Eskaerarik ez",
+    "noOrdersDesc": "Azken eskaerak hemen agertuko dira",
+    "table": "{{number}}. mahaia",
+    "itemsCount_one": "{{count}} elementu",
+    "itemsCount_other": "{{count}} elementu",
+    "stats": {
+      "todayOrders": "Gaurko eskaerak",
+      "revenue": "Fakturazioa",
+      "pending": "Zain",
+      "avgOrder": "Batez besteko eskaera",
+      "vsYesterday": "atzokoarekin alderatuta",
+      "toProcess": "Prozesatzeko"
+    },
+    "actions": {
+      "orders": {
+        "title": "Eskaerak",
+        "subtitle": "Kudeatu eskaerak"
+      },
+      "menu": {
+        "title": "Menua",
+        "subtitle": "Editatu karta"
+      },
+      "tables": {
+        "title": "Mahaiak",
+        "subtitle": "QR kodeak"
+      },
+      "statistics": {
+        "title": "Estatistikak",
+        "subtitle": "Analitika"
+      },
+      "profile": {
+        "title": "Profila",
+        "subtitle": "Ezarpenak"
+      },
+      "support": {
+        "title": "Laguntza",
+        "subtitle": "Laguntza eta kontaktua"
+      }
+    },
+    "toggle": {
+      "title": "Aldatu egoera",
+      "confirmOpen": "Zure jatetxea ireki nahi duzu?",
+      "confirmClose": "Zure jatetxea itxi nahi duzu?",
+      "nowOpen": "Zure jatetxea irekita dago orain.",
+      "nowClosed": "Zure jatetxea itxita dago orain.",
+      "error": "Ezin izan da egoera aldatu"
+    },
+    "refresh": {
+      "success": "Datuak ongi eguneratu dira",
+      "error": "Ezin izan dira datuak eguneratu"
+    }
+  },
+  "_comment": "REVIEW: traductions à valider par un locuteur natif (euskara batua).",
+  "common": {
+    "ok": "OK",
+    "cancel": "Utzi",
+    "save": "Gorde",
+    "delete": "Ezabatu",
+    "edit": "Editatu",
+    "close": "Itxi",
+    "back": "Atzera",
+    "next": "Hurrengoa",
+    "previous": "Aurrekoa",
+    "confirm": "Berretsi",
+    "continue": "Jarraitu",
+    "retry": "Saiatu berriro",
+    "loading": "Kargatzen…",
+    "search": "Bilatu",
+    "filter": "Iragazi",
+    "clear": "Garbitu",
+    "select": "Hautatu",
+    "selected": "Hautatuta",
+    "add": "Gehitu",
+    "remove": "Kendu",
+    "yes": "Bai",
+    "no": "Ez",
+    "or": "edo",
+    "and": "eta",
+    "all": "Denak",
+    "none": "Bat ere ez",
+    "more": "Gehiago",
+    "less": "Gutxiago",
+    "share": "Partekatu",
+    "copy": "Kopiatu",
+    "copied": "Kopiatuta",
+    "refresh": "Berritu",
+    "submit": "Bidali",
+    "done": "Eginda",
+    "skip": "Saltatu",
+    "optional": "Aukerakoa",
+    "required": "Beharrezkoa",
+    "available": "Eskuragarri",
+    "unavailable": "Eskuraezina",
+    "comingSoon": "Laster",
+    "error": "Errorea",
+    "success": "Arrakasta"
+  },
+  "nav": {
+    "home": "Hasiera",
+    "menu": "Menua",
+    "orders": "Eskaerak",
+    "cart": "Saskia",
+    "profile": "Profila",
+    "settings": "Ezarpenak",
+    "restaurants": "Jatetxeak",
+    "dashboard": "Panela",
+    "history": "Historia",
+    "help": "Laguntza",
+    "logout": "Saioa itxi",
+    "scanner": "Eskaneatu",
+    "stats": "Estat."
+  },
+  "auth": {
+    "stripe": {
+      "title": "Stripe konfigurazioa",
+      "prepStatus": "Zure Stripe konfigurazioa prestatzen...",
+      "validated": "Zure Stripe kontua ongi balioztatu da!",
+      "inProgress": "Konfigurazioa abian. Minutu batzuk behar ditzake...",
+      "stillChecking": "Oraindik egiaztatzen...",
+      "statusCheckError": "Errorea egoera egiaztatzean.",
+      "statusFetchFail": "Ezin izan da zure kontuaren egoera eskuratu.",
+      "refreshFail": "Ezin izan da egoera freskatu. Saiatu berriro.",
+      "refreshFailShort": "Ezin izan da egoera freskatu.",
+      "redirectNote": "Panelera automatikoki birbideratzen...",
+      "errorDetail": "Errorearen xehetasunak",
+      "goToDashboard": "Joan panelera",
+      "refreshStatus": "Freskatu egoera",
+      "opening": "Irekitzen...",
+      "configureAccount": "Konfiguratu nire Stripe kontua",
+      "continueWithout": "Jarraitu Stripe gabe",
+      "paymentsDisabledPrefix": "Ordainketak",
+      "paymentsDisabledWord": "desgaituta",
+      "paymentsDisabledSuffix": "egongo dira Stripe balioztatzea amaitu arte.",
+      "helpTitle": "Laguntza behar duzu?",
+      "helpMessage": "Zure Stripe kontua konfiguratzean zailtasunak badituzu, jar zaitez gurekin harremanetan.",
+      "contactUs": "Jarri gurekin harremanetan",
+      "noUrl": "Zerbitzariak ez du onboarding URLrik itzuli.",
+      "popupBlocked": "Nabigatzaileak fitxa irekitzea blokeatu du. Baimendu eatquicker.fr-rako pop-upak.",
+      "cannotOpenBrowser": "Ezin izan da Stripe nabigatzailea ireki.",
+      "cannotOpenPage": "Ezin izan da Stripe orria ireki. Egiaztatu zure konexioa eta saiatu berriro."
+    },
+    "register": {
+      "title": "Sortu kontu bat",
+      "tagline": "Eskatu mahaitik",
+      "returnToBanner": "Sortu zure kontua egiaztapenaren ondoren eskaerarekin jarraitzeko.",
+      "iAm": "Hau naiz:",
+      "roleClient": "Bezeroa",
+      "roleRestaurateur": "Jatetxe-jabea",
+      "fullName": "Izen-abizenak",
+      "siret": "SIRET zenbakia",
+      "termsPrefix": "Onartzen ditut",
+      "termsCgu": "erabilera-baldintzak",
+      "termsAnd": "eta",
+      "termsPrivacy": "pribatutasun-politika",
+      "emailCodeInfo": "Egiaztapen-kode bat bidaliko da zure helbide elektronikora.",
+      "errors": {
+        "emailRequired": "Helbide elektronikoa beharrezkoa da",
+        "emailInvalid": "Helbide elektronikoaren formatu baliogabea",
+        "passwordRequired": "Pasahitza beharrezkoa da",
+        "passwordMin": "Gutxienez 8 karaktere",
+        "nameRequired": "Izena beharrezkoa da",
+        "phoneRequired": "Telefono-zenbakia beharrezkoa da",
+        "phoneInvalid": "Formatu baliogabea (adib. +33612345678)",
+        "siretRequired": "SIRET beharrezkoa da",
+        "siretInvalid": "SIRET-ek 14 digitu izan behar ditu",
+        "acceptTerms": "Baldintza orokorrak onartu behar dituzu",
+        "generic": "Errore bat gertatu da izena ematean"
+      }
+    },
+    "passwordHint": "Gutxienez 8 karaktere, maiuskula bat, zenbaki bat eta karaktere berezi batekin",
+    "reset": {
+      "title": "Pasahitz berria",
+      "step1": "1. Sartu 6 digituko kodea",
+      "step2": "2. Aukeratu pasahitz berri bat",
+      "newPasswordLabel": "Pasahitz berria",
+      "submit": "Berrezarri pasahitza",
+      "pwdMinLength": "Pasahitzak gutxienez {{n}} karaktere izan behar ditu.",
+      "pwdUpper": "Pasahitzak gutxienez maiuskula bat izan behar du.",
+      "pwdDigit": "Pasahitzak gutxienez zenbaki bat izan behar du.",
+      "pwdSpecial": "Pasahitzak gutxienez karaktere berezi bat izan behar du.",
+      "codeIncompleteTitle": "Kode osatugabea",
+      "codeIncompleteMsg": "Sartu posta elektronikoz jaso duzun 6 digituko kodea.",
+      "invalidRequestTitle": "Eskaera baliogabea",
+      "invalidRequestMsg": "Eskaera hau jada ez da baliozkoa. Hasi berriro.",
+      "codeIncorrectTitle": "Kode okerra",
+      "codeInvalidRemaining": "Kode baliogabea. {{count}} saiakera geratzen d(ir)a.",
+      "tooManyAttempts": "Saiakera gehiegi. Eskatu kode berri bat.",
+      "requestExpiredTitle": "Eskaera iraungita",
+      "requestExpiredMsg": "Eskaera hau jada ez da baliozkoa. Hasi berriro.",
+      "tooManyTitle": "Saiakera gehiegi",
+      "tooManyMsg": "Eskatu kode berri bat eta saiatu berriro.",
+      "genericError": "Errore bat gertatu da. Saiatu berriro.",
+      "successTitle": "Pasahitza aldatu da",
+      "successMsg": "Zure pasahitza ongi berrezarri da."
+    },
+    "forgot": {
+      "title": "Pasahitza ahaztu duzu",
+      "subtitle": "Sartu zure kontuari lotutako helbide elektronikoa. Pasahitza berrezartzeko kode bat bidaliko dizugu.",
+      "cardLabel": "Kontua berreskuratzea",
+      "cardSubtitle": "Sartu zure EatQuickeR kontuaren helbide elektronikoa.",
+      "sendCode": "Bidali kodea",
+      "backToPrefix": "Itzuli",
+      "backToLogin": "saioa hastera",
+      "rateLimitTitle": "Saiakera gehiegi",
+      "rateLimitMsg": "Itxaron une batez berriro saiatu aurretik.",
+      "sendError": "Ezin izan da kodea bidali. Saiatu berriro.",
+      "networkErrorTitle": "Sareko errorea",
+      "networkErrorMsg": "Egiaztatu zure konexioa eta saiatu berriro."
+    },
+    "verify": {
+      "title": "Helbide elektronikoaren egiaztapena",
+      "sentTo": "Kodea hona bidali da:",
+      "returnToBanner": "Egiaztatu zure helbide elektronikoa eskaerarekin jarraitzeko.",
+      "enterCode": "Sartu 6 digituko kodea",
+      "expiresIn": "Kode honek {{minutes}} minututan iraungiko du",
+      "confirm": "Berretsi helbide elektronikoa",
+      "noCode": "Ez duzu koderik jaso?",
+      "resend": "Bidali kodea berriro",
+      "resendIn": "Bidali berriro {{seconds}}s barru",
+      "editEmail": "← Aldatu nire helbide elektronikoa",
+      "sessionInvalid": "Saio baliogabea. Hasi izen-ematea berriro.",
+      "invalidCodeTitle": "Kode baliogabea",
+      "invalidCodeMsg": "Kode okerra. Saiatu berriro.",
+      "accountCreatedTitle": "Kontua sortu da!",
+      "accountCreatedMsg": "Ongi etorri EatQuickeR-era 🎉",
+      "networkErrorTitle": "Sareko errorea",
+      "networkErrorMsg": "Errore bat gertatu da. Saiatu berriro.",
+      "resendError": "Ezin izan da kodea berriro bidali.",
+      "codeResentTitle": "Kodea berriro bidali da",
+      "codeResentMsg": "Kode berria {{email}} helbidera bidali da."
+    },
+    "welcomeTitle": "Pozik zu ikusteaz",
+    "welcomeSubtitle": "Hasi saioa jarraitzeko",
+    "slogan": "Zerbitzarien zerbitzura dagoen zerbitzaria",
+    "loginTitle": "Hasi saioa",
+    "resumeOrderPrompt": "Hasi saioa zure eskaera utzi zenuen tokian berrekiteko.",
+    "validation": {
+      "emailRequired": "Helbide elektronikoa beharrezkoa da",
+      "passwordRequired": "Pasahitza beharrezkoa da",
+      "passwordMinLength": "Gutxienez {{min}} karaktere",
+      "noAccountEmail": "Ez dago konturik helbide honekin"
+    },
+    "alerts": {
+      "accountNotFound": {
+        "title": "Ez da konturik aurkitu",
+        "message": "Ez dago konturik helbide elektroniko honi lotuta."
+      },
+      "invalidCredentials": {
+        "title": "Kredentzial baliogabeak",
+        "message": "Helbide elektronikoa edo pasahitza okerra da. Saiatu berriro."
+      },
+      "accessDenied": {
+        "title": "Sarbidea ukatuta",
+        "message": "Zure kontuak ez du saioa hasteko baimenik. Jarri laguntzarekin harremanetan."
+      },
+      "tooManyAttempts": {
+        "title": "Saiakera gehiegi",
+        "message": "Saio-hasiera saiakera gehiegi. Saiatu berriro une batzuk barru."
+      },
+      "networkError": {
+        "title": "Konexio-errorea",
+        "message": "Egiaztatu zure interneteko konexioa eta saiatu berriro."
+      },
+      "serviceUnavailable": {
+        "title": "Zerbitzua ez dago erabilgarri",
+        "message": "Zerbitzua aldi baterako ez dago erabilgarri. Saiatu berriro geroago."
+      },
+      "genericError": {
+        "title": "Konexio-errorea",
+        "message": "Errore bat gertatu da. Saiatu berriro."
+      },
+      "googlePlayUnavailable": {
+        "title": "Google Play ez dago erabilgarri",
+        "message": "Google Play Services ez dago erabilgarri gailu honetan."
+      },
+      "googleLoginFailed": {
+        "title": "Ezin izan da Googlerekin saioa hasi"
+      },
+      "comingSoon": {
+        "title": "Laster eskuragarri",
+        "message": "Applerekin saioa hastea laster egongo da eskuragarri."
+      },
+      "sessionExpired": {
+        "title": "Saioa iraungi da",
+        "message": "Zure saioa iraungi da. Hasi saioa berriro."
+      }
+    },
+    "continueWithApple": "Jarraitu Applerekin",
+    "signIn": "Saioa hasi",
+    "signUp": "Kontua sortu",
+    "signOut": "Saioa itxi",
+    "email": "Helbide elektronikoa",
+    "password": "Pasahitza",
+    "passwordConfirm": "Berretsi pasahitza",
+    "forgotPassword": "Pasahitza ahaztu duzu?",
+    "resetPassword": "Berrezarri pasahitza",
+    "firstName": "Izena",
+    "lastName": "Abizena",
+    "phone": "Telefonoa",
+    "rememberMe": "Gogoratu",
+    "reconnect": "Saioa berriz hasi",
+    "useAnotherAccount": "edo beste kontu bat",
+    "continueAsGuest": "Jarraitu gonbidatu gisa",
+    "continueWithGoogle": "Jarraitu Google-rekin",
+    "alreadyHaveAccount": "Konturik baduzu?",
+    "noAccount": "Konturik ez duzu oraindik?",
+    "verifyEmail": "Egiaztatu zure helbidea",
+    "verificationSent": "Egiaztapen-mezua bidali da.",
+    "termsAccept": "Erabilera-baldintzak onartzen ditut",
+    "privacyAccept": "Pribatutasun-politika onartzen dut"
+  },
+  "menu": {
+    "title": "Menua",
+    "categories": "Kategoriak",
+    "viewMenu": "Ikusi menua",
+    "allergens": "Alergenoak",
+    "ingredients": "Osagaiak",
+    "description": "Deskribapena",
+    "price": "Prezioa",
+    "addToCart": "Saskira gehitu",
+    "removeFromCart": "Saskitik kendu",
+    "outOfStock": "Agortuta",
+    "popular": "Ezaguna",
+    "new": "Berria",
+    "spicy": "Mingotsa",
+    "vegetarian": "Begetarianoa",
+    "vegan": "Beganoa",
+    "glutenFree": "Glutenik gabe",
+    "dailyMenu": "Eguneko menua",
+    "specialOffer": "Eskaintza berezia",
+    "language": "Menuaren hizkuntza",
+    "noItems": "Ez dago platerrik",
+    "searchPlaceholder": "Bilatu platerra…"
+  },
+  "cart": {
+    "title": "Saskia",
+    "empty": "Saskia hutsik dago",
+    "emptyHint": "Gehitu platerak eskaera hasteko.",
+    "backToMenu": "Itzuli menura",
+    "item_one": "{{count}} artikulu",
+    "item_other": "{{count}} artikulu",
+    "subtotal": "Azpitotala",
+    "tax": "Zergak",
+    "tip": "Eskupekoa",
+    "total": "Guztira",
+    "checkout": "Eskaera amaitu",
+    "quantity": "Kopurua",
+    "specialInstructions": "Argibide bereziak",
+    "specialInstructionsPlaceholder": "Alergiak, prestaketa, tipulik gabe…",
+    "table": "Mahaia",
+    "tableNumber": "Mahai {{number}}",
+    "titleWithCount": "Saskia ({{count}})",
+    "serviceFee": "Zerbitzu-gastua",
+    "collaborativeSession": "Saio elkarlanekoa",
+    "scanToOrder": "Eskaneatu eskatzeko",
+    "scanToOrderDescription": "Eskaneatu QR kode bat menua atzitzeko",
+    "checkoutForGroup": "Eskatu taldearentzat",
+    "processing": "Prozesatzen…",
+    "hostOnlyCheckout": "Antolatzaileak baino ezin du taldearen eskaera egin.",
+    "formula": {
+      "incomplete": "Formula osatu gabe",
+      "completeAction": "Osatu zure formula eskaera egiteko."
+    },
+    "clearConfirm": {
+      "title": "Saskia hustu",
+      "message": "Ziur zaude saskia hustu nahi duzula? Ekintza hau ezin da desegin.",
+      "cta": "Saskia hustu"
+    },
+    "removeConfirm": {
+      "title": "Artikulua kendu",
+      "message": "Artikulu hau saskitik kendu nahi duzu?",
+      "cta": "Kendu"
+    },
+    "splitConfirm": {
+      "title": "Eskatu taldearentzat",
+      "message": "Kontua parte-hartzaileen artean banatu nahi duzu? Bakoitzak bere zatia ordainduko du.",
+      "split": "Kontua banatu",
+      "payAll": "Dena nik ordainduko dut"
+    },
+    "feedback": {
+      "quantityUpdated": "Kopurua eguneratuta",
+      "itemRemoved": "Artikulua kendu da",
+      "cleared": "Saskia hustu da",
+      "emptyOnCheckout": "Zure saskia hutsik dago. Gehitu artikuluak jarraitzeko.",
+      "restaurantNotFound": "Ez da jatetxea aurkitu. Eskaneatu berriro QR kodea.",
+      "orderPlaced": "Eskaera egin da!",
+      "orderPlacedSplit": "Eskaera egin da! Kontua banatzen…"
+    },
+    "errors": {
+      "quantityUpdate": "Errorea kopurua eguneratzean",
+      "itemRemove": "Errorea artikulua kentzean",
+      "cartClear": "Errorea saskia husten",
+      "checkout": "Errorea eskaera prestatzean",
+      "groupOrder": "Errorea taldearen eskaeran"
+    },
+    "a11y": {
+      "itemImage": "{{name}} irudia",
+      "itemRow": "{{name}}, kopurua {{count}}, prezioa {{price}}",
+      "removeItem": "Artikulua kendu",
+      "decrease": "Kopurua jaitsi",
+      "increase": "Kopurua igo",
+      "currentQuantity": "Egungo kopurua: {{count}}",
+      "checkoutHint": "Sakatu ordaintzeko",
+      "formulaLockHint": "Osatu zure formula eskaera egiteko",
+      "checkoutLabel": "{{amount}} guztira eskatu"
+    }
+  },
+  "order": {
+    "title": "Eskaera",
+    "yourOrder": "Zure eskaera",
+    "orderNumber": "Eskaera #{{number}}",
+    "status": {
+      "pending": "Zain",
+      "confirmed": "Berretsia",
+      "preparing": "Prestatzen",
+      "ready": "Prest",
+      "served": "Zerbitzatuta",
+      "completed": "Amaituta",
+      "cancelled": "Bertan behera"
+    },
+    "placedAt": "Egina: {{date}}",
+    "noOrders": "Eskaerarik ez oraindik",
+    "viewDetails": "Xehetasunak ikusi",
+    "track": "Eskaera jarraitu",
+    "rate": "Eskaera baloratu",
+    "reorder": "Berriro eskatu",
+    "count_one": "{{count}} eskaera",
+    "count_other": "{{count}} eskaera",
+    "unpaidTitle_one": "Ordaindu gabeko eskaera bat duzu",
+    "unpaidTitle_other": "Ordaindu gabeko {{count}} eskaera dituzu",
+    "unpaidSubtitle": "Ordaindu eskaerak berriz eskatzeko",
+    "myOrders": "Nire eskaerak",
+    "tabs": {
+      "active": "Aktiboak",
+      "history": "Historia"
+    },
+    "fallbackRestaurant": "Jatetxea",
+    "todayAt": "Gaur {{time}}",
+    "dineIn": "Bertan",
+    "takeaway": "Eramateko",
+    "paid": "Ordainduta",
+    "paymentPending": "Ordainketa zain",
+    "waitingTime": "Itxaron-denbora: {{minutes}} min",
+    "noActiveOrders": "Ez dago eskaera aktiborik",
+    "noHistoryOrders": "Ez dago eskaera zaharrik",
+    "scanPrompt": "Eskaneatu mahaiko QR kodea zure lehen eskaera egiteko",
+    "orderNow": "Eskatu orain",
+    "scanDescription": "Sartu menuan mahaiko QR kodea eskaneatuz",
+    "scanQR": "QR eskaneatu",
+    "enterCode": "Sartu kodea",
+    "clientOnly": "Bezeroentzat soilik",
+    "loadingOrders": "Eskaerak kargatzen…",
+    "realtimeUnavailable": "Denbora errealeko jakinarazpenak ez daude eskuragarri. Tira eguneratzeko.",
+    "realtime": {
+      "on": "Denbora erreala aktibo",
+      "connecting": "Konektatzen…",
+      "error": "Konexio-errorea",
+      "offline": "Lineaz kanpo"
+    },
+    "statusLabels": {
+      "pending": "Zain",
+      "confirmed": "Berretsia",
+      "preparing": "Prestatzen",
+      "ready": "Prest",
+      "served": "Zerbitzatua",
+      "cancelled": "Bertan behera"
+    }
+  },
+  "payment": {
+    "title": "Ordainketa",
+    "method": "Ordainketa-modua",
+    "card": "Txartela",
+    "applePay": "Apple Pay",
+    "googlePay": "Google Pay",
+    "payNow": "Ordaindu orain",
+    "amount": "Zenbatekoa",
+    "processing": "Prozesatzen…",
+    "success": "Ordainketa egin da",
+    "failed": "Ordainketak huts egin du",
+    "splitPayment": "Banatu kontua",
+    "splitEqual": "Berdin banatu",
+    "splitByItem": "Plateraka banatu",
+    "splitCustom": "Zenbateko pertsonalizatua",
+    "minAmount": "Gutxieneko zenbatekoa {{amount}} da",
+    "yourShare": "Zure zatia",
+    "receipt": "Ordainagiria",
+    "downloadReceipt": "Ordainagiria deskargatu",
+    "itemFallback": "Izenik gabeko artikulua",
+    "loadingOrder": "Eskaera kargatzen…",
+    "successHeader": "Ordainketa egina",
+    "successTitle": "Ordainketa berretsita!",
+    "successOnline": "Zure ordainketa behar bezala prozesatu da.",
+    "successOnlineToast": "Zure ordainketa berretsi da.",
+    "successCash": "Zure eskaera berretsita dago. Jatetxean ordainduko duzu.",
+    "receiptSentSuffix": "\n\nZure tiketa posta elektronikoz bidali da.",
+    "successTitleToast": "Ordainketa egina!",
+    "viewReceipt": "Ikusi tiketa",
+    "backToOrder": "Itzuli eskaerara",
+    "summaryTitle": "Eskaeraren laburpena",
+    "orderNumber": "Eskaera-zk.",
+    "restaurant": "Jatetxea",
+    "table": "Mahaia",
+    "editSplit": "Banaketa editatu",
+    "splitBill": "Kontua banatu",
+    "recommended": "GOMENDATUA",
+    "tipTitle": "Eskupekoa (aukerakoa)",
+    "tipCustomLabel": "Zenbateko librea",
+    "receiptTitle": "Tiketa",
+    "receiptOption": "Jaso tiketa posta elektronikoz",
+    "total": "Guztira",
+    "subtotal": "Azpitotala",
+    "tipLabel": "Eskupekoa",
+    "totalDue": "Ordaintzeko guztira",
+    "processingBtn": "Prozesatzen…",
+    "payAmount": "Ordaindu {{amount}}",
+    "confirmOrder": "Eskaera berretsi",
+    "securityOnline": "🔒 Ordainketa segurua Stripe bidez • ❤️ Garatzailea laguntzen du",
+    "securityCash": "💰 Ordainketa jatetxean",
+    "participantFallback": "Partaidea",
+    "initFailed": "Ezin izan da ordainketa hasieratu",
+    "stripeKeyMissing": "Stripe gako publikoa ez dago konfiguratuta. Jarri harremanetan laguntzarekin.",
+    "stripeKeyMissingTitle": "Stripe konfigurazioa falta da",
+    "declined": "Ordainketa ukatua",
+    "declinedTitle": "Ordainketa-errorea",
+    "emailInvalid": "Sartu baliozko helbide elektroniko bat edo desaktibatu tiketaren bidalketa.",
+    "emailInvalidTitle": "Email baliogabea",
+    "cashConfirmTitle": "Eskudirutan ordaintzea",
+    "cashConfirmMsg": "Jatetxean eskudirutan ordaintzea berresten duzu?",
+    "cashConfirmFailed": "Ezin izan da ordainketa berretsi",
+    "amountTooLowTitle": "Zenbatekoa baxuegia",
+    "portionTooLow": "Zati honen zenbatekoa ({{amount}}) Stripe-k onartzen duen gutxienekoaren azpitik dago (0,50 €). Eskatu beste partaide bati bere zatia zurearekin konbinatzeko, edo erabili «Ordaindu dena».",
+    "portionPaidComplete": "Ordainketa guztiak egin dira. Eskaera osatuta dago orain.",
+    "portionPaidRemaining": "Zure zatia behar bezala ordaindu da. {{count}} zati geratzen dira ordaintzeko.",
+    "portionFailed": "Zati honen ordainketak huts egin du",
+    "allPaidAlready": "Zati guztiak ordainduta daude jada",
+    "infoTitle": "Informazioa",
+    "remainingTooLow": "Gainerako zenbatekoa ({{amount}}) Stripe-k onartzen duen gutxienekoaren azpitik dago (0,50 €).",
+    "payAllTitle": "Ordaindu gainerako zati guztiak",
+    "payAllMsg": "{{count}} zatiren truke {{amount}} ordainduko duzu. Berresten duzu?",
+    "remainingFailed": "Gainerako zatien ordainketak huts egin du",
+    "methods": {
+      "onlineTitle": "Txartela",
+      "onlineDesc": "Ordainketa segurua Stripe bidez • Garatzailea laguntzen du",
+      "onlineBadge": "Berehala",
+      "cashTitle": "Eskudirutan jatetxean",
+      "cashDesc": "Ordaindu zuzenean zure mahaian",
+      "cashBadge": "Eskuragarri"
+    },
+    "toast": {
+      "loadFailed": "Ezin izan da eskaera kargatu",
+      "orderNotFound": "Eskaera ez da aurkitu"
+    },
+    "split": {
+      "itemsActivated": "«Plateraka» modua aktibatuta. Partaide bakoitzak ordaindu nahi dituen artikuluak hauta ditzake orain.",
+      "dividedInto": "Kontua {{count}} zatitan banatu da. Orain zure zatia ordain dezakezu.",
+      "createdTitle": "Ordainketa banatua sortu da!",
+      "createError": "Errorea gertatu da ordainketa banatua sortzean",
+      "claimFailed": "Ezin izan da artikulu hau gehitu",
+      "unclaimFailed": "Ezin izan da artikulu hau kendu"
+    }
+  },
+  "session": {
+    "join": "Mahaian sartu",
+    "host": "Antolatzailea",
+    "participants_one": "{{count}} parte-hartzaile",
+    "participants_other": "{{count}} parte-hartzaile",
+    "yourName": "Zure izena",
+    "leaveSession": "Saiotik atera",
+    "sessionEnded": "Saioa amaitu da",
+    "waitingForOthers": "Beste gonbidatuen zain…",
+    "tableLabel": "{{name}} · Mahaia {{table}}",
+    "bannerCta": "Sakatu jarraitzeko",
+    "foundLabel": "Saioa aurkitu da",
+    "foundCta": "Sakatu batzeko",
+    "inactivityWarning": "⚠️ Saio inaktiboa — automatikoki itxiko da {{time}} barru",
+    "status": {
+      "active": "Aktiboa",
+      "locked": "Blokeatua",
+      "payment": "Ordainketa zain"
+    },
+    "errors": {
+      "emptyCode": "Mesedez, sartu saio-kode bat.",
+      "notFound": "Ez da saiorik aurkitu kode honekin.",
+      "inactive": "Saio hau ez dago jada aktibo.",
+      "invalidCode": "Ez dago saio aktiborik kode honekin. Egiaztatu eta saiatu berriro.",
+      "joinFailed": "Ezin izan da saio honetara batu.",
+      "maybeGone": "Saioa baliteke eskuragarri ez egotea.",
+      "rejected": "Antolatzaileak zure eskaera ukatu du.",
+      "joinTitle": "Ezin izan da batu"
+    },
+    "exit": {
+      "titleHost": "Saioa amaitu?",
+      "titleMember": "Saiotik atera?",
+      "messageHost": "Antolatzaile gisa, honek saioa itxiko du parte-hartzaile guztientzat.",
+      "messageMember": "Saio elkarlanekotik aterako zara.",
+      "ctaHost": "Amaitu",
+      "ctaMember": "Atera"
+    },
+    "completed": {
+      "title": "Saioa amaitu da",
+      "participantsLabel": "Parte-hartzaileak ({{count}})",
+      "totalLabel": "Guztira: {{amount}}",
+      "close": "Itxi"
+    },
+    "codeModal": {
+      "title": "Saio batera batu",
+      "description": "Sartu mahaiaren antolatzaileak partekatu duen kodea uneko saiora batzeko.",
+      "placeholder": "ADIB.: ABC123",
+      "cta": "Saiora batu"
+    },
+    "pending": {
+      "title": "Onarpenaren zain",
+      "description": "Antolatzaileak zure eskaera onartu behar du.\nOnartu ondoren automatikoki bideratuko zaitugu.",
+      "codeLabel": "Saio-kodea"
+    },
+    "archive": {
+      "archived": "Saio hau artxibatu da",
+      "archivingIn": "Artxibatuko da {{time}} barru",
+      "archivingSoonUrgent": "⚠️ Artxibatuko da {{time}} barru"
+    },
+    "joinModal": {
+      "chooseTitle": "Eskatu mahai honetan",
+      "chooseSubtitle": "Aukeratu nola eskatu nahi duzun",
+      "rejoinExisting": {
+        "title": "Uneko saioara itzuli",
+        "subtitle": "Kodea: {{code}} · {{count}} parte-hartzaile"
+      },
+      "createGroup": {
+        "title": "Talde-saioa sortu",
+        "description": "Eskatu lagunekin eta banatu kontua erraz"
+      },
+      "joinGroup": {
+        "title": "Saio batera batu",
+        "description": "Sartu zure taldeak partekatutako kodea"
+      },
+      "orderAlone": "Bakarrik eskatu",
+      "createTitle": "Talde-saioa sortu",
+      "hostNameLabel": "Zure izena",
+      "hostNamePlaceholder": "Adib.: Jon",
+      "sessionTypeLabel": "Saio mota",
+      "sessionType": {
+        "collaborative": {
+          "title": "Elkarlanekoa",
+          "desc": "Denek ikusten dituzte eskaerak"
+        },
+        "individual": {
+          "title": "Banakakoa",
+          "desc": "Bakoitzak bere aldetik eskatzen du"
+        }
+      },
+      "maxParticipantsLabel": "Gehienezko parte-hartzaile kopurua",
+      "requireApprovalLabel": "Eskuz onartu parte-hartzaile berriak",
+      "back": "Atzera",
+      "createCta": "Saioa sortu",
+      "joinTitle": "Saio batera batu",
+      "codeLabel": "Saio-kodea",
+      "codePlaceholder": "ABC123",
+      "verifyCta": "Egiaztatu",
+      "previewTitle": "Saioaren informazioa",
+      "previewHost": "Antolatzailea:",
+      "previewParticipants": "Parte-hartzaileak:",
+      "sessionFullOrLocked": "⚠️ Saio hau beteta edo blokeatuta dago",
+      "guestNameLabel": "Zure izena",
+      "guestNamePlaceholder": "Adib.: Maria",
+      "joinCta": "Batu",
+      "pendingDescription": "Antolatzaileak zure eskaera onartu behar du.\nOnartu ondoren automatikoki bideratuko zaitugu.",
+      "feedback": {
+        "soloError": "Ezin izan da bakarkako eskaera hasi.",
+        "fieldRequired": "Eremu beharrezkoa",
+        "nameRequiredHost": "Sartu zure izena saioa sortzeko.",
+        "nameRequiredGuest": "Sartu zure izena saiora batzeko.",
+        "invalidCode": "Kode baliogabea",
+        "invalidCodeDesc": "Kodeak 6 karaktere izan behar ditu.",
+        "codeNotFound": "Kodea ez da aurkitu",
+        "codeNotFoundDesc": "Ez dago saio aktiborik kode honekin.",
+        "sessionCreated": "Saioa sortu da!",
+        "sessionCreatedDesc": "Partekatu {{code}} kodea zure lagunekin.",
+        "sessionCreateError": "Ezin izan da saioa sortu.",
+        "welcome": "Ongi etorri!",
+        "welcomeDesc": "Saiora batu zara.",
+        "joinError": "Ezin izan da saiora batu.",
+        "approved": "✅ Onartua!",
+        "approvedDesc": "Antolatzaileak saioan onartu zaitu.",
+        "rejected": "❌ Ukatua",
+        "rejectedDesc": "Antolatzaileak zure eskaera ukatu du."
+      }
+    }
+  },
+  "profile": {
+    "title": "Profila",
+    "myAccount": "Nire kontua",
+    "personalInfo": "Datu pertsonalak",
+    "preferences": "Hobespenak",
+    "language": "Hizkuntza",
+    "appearance": "Itxura",
+    "notifications": "Jakinarazpenak",
+    "paymentMethods": "Ordainketa-metodoak",
+    "addresses": "Helbideak",
+    "support": "Laguntza eta euskarria",
+    "about": "Honi buruz",
+    "terms": "Erabilera-baldintzak",
+    "privacy": "Pribatutasun-politika",
+    "version": "{{version}} bertsioa",
+    "deleteAccount": "Kontua ezabatu",
+    "signInPrompt": "Hasi saioa zure profilera sartzeko",
+    "defaultName": "Erabiltzailea",
+    "verified": "Egiaztatua",
+    "logoutConfirm": "Ziur saioa amaitu nahi duzula?",
+    "myActions": "Nire ekintzak",
+    "information": "Informazioa",
+    "helpFaq": "Laguntza eta FAQ",
+    "contactUs": "Jarri gurekin harremanetan",
+    "personalData": "Datu pertsonalak"
+  },
+  "theme": {
+    "title": "Itxura",
+    "light": "Argia",
+    "dark": "Iluna",
+    "system": "Sistema"
+  },
+  "restaurant": {
+    "dashboard": "Panela",
+    "myRestaurants": "Nire jatetxeak",
+    "openNow": "Irekita",
+    "closedNow": "Itxita",
+    "opensAt": "{{time}}-(e)tan irekitzen da",
+    "closesAt": "{{time}}-(e)tan ixten da",
+    "address": "Helbidea",
+    "contact": "Harremana",
+    "hours": "Ordutegia",
+    "rating": "Balorazioa",
+    "reviews_one": "{{count}} iritzi",
+    "reviews_other": "{{count}} iritzi",
+    "menuManagement": "Menuaren kudeaketa",
+    "ordersManagement": "Eskaeren kudeaketa",
+    "staff": "Taldea",
+    "stats": "Estatistikak",
+    "revenue": "Diru-sarrerak",
+    "todayRevenue": "Gaurko diru-sarrerak",
+    "weekRevenue": "Asteko diru-sarrerak",
+    "monthRevenue": "Hilabeteko diru-sarrerak"
+  },
+  "errors": {
+    "generic": "Errore bat gertatu da. Saiatu berriro.",
+    "network": "Sareko errorea. Egiaztatu konexioa.",
+    "unauthorized": "Saioa hasi behar duzu jarraitzeko.",
+    "forbidden": "Ekintza ez da onartzen.",
+    "notFound": "Ez da aurkitu.",
+    "requiredField": "Eremu hau beharrezkoa da.",
+    "invalidEmail": "Helbide elektroniko baliogabea.",
+    "passwordTooShort": "Pasahitzak gutxienez {{min}} karaktere izan behar ditu.",
+    "passwordMismatch": "Pasahitzak ez datoz bat.",
+    "invalidCredentials": "Kredentzial okerrak.",
+    "serverError": "Zerbitzariaren errorea. Saiatu berriro geroago.",
+    "timeout": "Zerbitzariak ez du erantzuten. Saiatu berriro."
+  },
+  "success": {
+    "saved": "Gordeta",
+    "deleted": "Ezabatuta",
+    "sent": "Bidalia",
+    "copied": "Arbelean kopiatuta"
+  },
+  "time": {
+    "now": "Une honetan",
+    "minuteAgo_one": "Duela {{count}} minutu",
+    "minuteAgo_other": "Duela {{count}} minutu",
+    "hourAgo_one": "Duela {{count}} ordu",
+    "hourAgo_other": "Duela {{count}} ordu",
+    "dayAgo_one": "Duela {{count}} egun",
+    "dayAgo_other": "Duela {{count}} egun",
+    "today": "Gaur",
+    "yesterday": "Atzo",
+    "tomorrow": "Bihar"
+  },
+  "legal": {
+    "document": {
+      "lastUpdate": "Azken eguneratzea: {{date}}",
+      "acceptDefault": "Irakurri dut eta onartzen dut",
+      "acceptTerms": "Erabilera-baldintzak irakurri ditut eta onartzen ditut",
+      "acceptPrivacy": "Politika irakurri dut eta onartzen dut",
+      "saveError": "Errorea gordetzean. Saiatu berriro."
+    },
+    "modal": {
+      "welcomeTitle": "Ongi etorri EatQuickeR-era",
+      "intro": "Jarraitzeko, onartu gure dokumentu legalak.",
+      "termsName": "Erabilera-baldintzak",
+      "privacyName": "Pribatutasun-politika",
+      "viewDocument": "Ikusi dokumentua",
+      "acceptTermsLabel": "Erabilera-baldintzak onartzen ditut",
+      "acceptPrivacyLabel": "Pribatutasun-politika onartzen dut",
+      "helpText": "Dokumentuak onartu aurretik ikus ditzakezu «Ikusi dokumentua» sakatuta.",
+      "acceptBoth": "Onartu bi dokumentuak",
+      "saveError": "Errorea gordetzean. Saiatu berriro."
+    },
+    "copyright": "© {{year}} EatQuicker. Eskubide guztiak erreserbatuak.",
+    "termsShort": "Baldintzak",
+    "privacyShort": "Pribatutasuna",
+    "noticeShort": "Lege oharra",
+    "downloadMyData": {
+      "cta": "Datuak deskargatu",
+      "download": "Deskargatu",
+      "gdprNotice": "GDPRrekin bat datorren esportazioa (20. artikulua)",
+      "confirmTitle": "Datuen esportazioa",
+      "confirmMessage": "Zure datu pertsonal guztiak deskargatu nahi dituzu?\n\nHau biltzen du: profila, eskaerak, hobespenak eta historia.",
+      "shareDialogTitle": "Nire EatQuickeR datuak deskargatu",
+      "options": {
+        "title": "Datuen esportazioa",
+        "message": "Nola jaso nahi dituzu zure datuak?",
+        "direct": "Zuzeneko deskarga",
+        "email": "Posta elektronikoz (48 ord)"
+      },
+      "progress": {
+        "fetching": "Datuak eskuratzen…",
+        "preparing": "Fitxategia prestatzen…",
+        "preparingShort": "Prestatzen…",
+        "done": "Esportazioa amaitua!",
+        "sending": "Eskaera bidaltzen…"
+      },
+      "success": {
+        "title": "Esportazio arrakastatsua",
+        "message": "Zure datuak ({{size}} KB) esportatu dira.\n\nGorde edo partekatu ditzakezu.",
+        "messageFallback": "Zure datuak hemen esportatu dira:\n{{filename}}\n\nTamaina: {{size}} KB"
+      },
+      "email": {
+        "title": "Posta elektronikoz esportatu",
+        "confirmMessage": "Posta elektroniko bat jasoko duzu deskarga-esteka seguruarekin 48 orduren barruan.\n\nJarraitu?",
+        "successTitle": "Eskaera erregistratuta",
+        "successMessage": "Posta elektronikoa bidaliko zaio {{email}}-ra 48 orduren barruan zure datuekin."
+      },
+      "errors": {
+        "notLoggedIn": "Saioa hasi behar duzu datuak esportatzeko",
+        "rateLimit": "Eguneko esportazio-muga gainditu duzu. Saiatu bihar.",
+        "sessionExpired": "Zure saioa iraungi da. Saiatu berriro.",
+        "forbidden": "Ez duzu datu hauek esportatzeko baimenik.",
+        "serverError": "Zerbitzariaren errorea. Saiatu berriro une batzuk barru.",
+        "serviceUnavailable": "Esportazio-zerbitzua aldi baterako ez dago erabilgarri. Saiatu minutu batzuk barru.",
+        "generic": "Ezin dira zure datuak deskargatu. Saiatu berriro.",
+        "connection": "Konexio-errorea. Egiaztatu zure interneterako konexioa.",
+        "emailRequestFailed": "Ezin da zure eskaera erregistratu. Saiatu berriro.",
+        "emailPending": "Esportazio-eskaera bat duzu jada. Itxaron, mesedez."
+      },
+      "a11y": {
+        "label": "Datu pertsonalak deskargatu",
+        "hint": "GDPRri jarraituz zure datu guztiak esportatu"
+      }
+    }
+  },
+  "home": {
+    "subtitle": "Erraz eskatu",
+    "welcome": "Kaixo {{name}}! 👋",
+    "welcomeSubtext": "Prest gaur eskatzeko?",
+    "quickActions": "Ekintza azkarrak",
+    "actions": {
+      "myOrders": {
+        "title": "Nire eskaerak",
+        "subtitle": "Jarraitu zure eskaerak"
+      },
+      "myCart": {
+        "title": "Nire saskia",
+        "subtitle": "Bukatu zure erosketa"
+      },
+      "joinSession": {
+        "title": "Saio batera batu",
+        "subtitle": "Sartu partekatze kodea"
+      }
+    }
+  },
+  "qrAccess": {
+    "title": "Eskaneatu mahaiko QR kodea",
+    "description": "Edo sartu kodea eskuz",
+    "scanButton": "QR eskaneatu",
+    "codeButton": "Sartu kodea",
+    "emptyCode": "Mesedez, sartu kode baliodun bat.",
+    "invalidCodeTitle": "Kode baliogabea",
+    "errors": {
+      "notFound": "Kode honek ez du jatetxerik edo mahairik ezagutzen. Egiaztatu kodea edo eskaneatu QR kodea.",
+      "restaurantNotFound": "Kode honek ez du erregistratutako jatetxerik ezagutzen. Egiaztatu QR kodea.",
+      "serverUnavailable": "Ezin da jatetxea egiaztatu. Egiaztatu konexioa eta saiatu berriro."
+    },
+    "modal": {
+      "title": "Sartu kode bat",
+      "description": "Mahai-kodea (adib. R12T005) edo partekatutako saio-kodea (6 karaktere).",
+      "placeholder": "Adib. R12T005 edo ABC123",
+      "confirm": "Balioztatu",
+      "verifying": "Egiaztatzen…"
+    },
+    "account": {
+      "title": "Konturik erabili nahi duzu?",
+      "hint": "Kontuak zure eskaerak eta fakturak gordetzen ditu. Zuzenean ere sar zaitezke menura.",
+      "login": {
+        "title": "Saioa hasi",
+        "desc": "Lehendik dut EatQuickeR kontu bat"
+      },
+      "register": {
+        "title": "Kontua sortu",
+        "desc": "Erregistro azkarra eskaerak jarraitzeko"
+      },
+      "or": "edo",
+      "guestCta": "Konturik gabe jarraitu",
+      "guestHint": "Berehala sartzen zara menuan. Eskatu zaizu izena eta telefonoa ordainketan."
+    }
+  },
+  "qrScanner": {
+    "invalidTitle": "QR kode baliogabea",
+    "invalidMessage": "QR kode hau ez dator bat EatQuickeR jatetxe batekin\n\nEskaneatutako balioa: {{value}}",
+    "retry": "Saiatu berriro",
+    "instruction": "Zuzendu kamera jatetxeko QR kodera",
+    "permission": {
+      "title": "Kamera-baimena behar da",
+      "description": "QR kodeak eskaneatzeko, kamerara sartzeko baimena behar dugu.",
+      "allow": "Baimendu"
+    }
+  },
+  "restaurantNav": {
+    "home": "Hasiera",
+    "restaurants": "Jatetxeak",
+    "orders": "Eskaerak",
+    "menus": "Menuak",
+    "dailyMenu": "Eguneko menua",
+    "dailyMenuShort": "Eguneko",
+    "statistics": "Estatistikak",
+    "statisticsShort": "Estat.",
+    "qrcodes": "QR kodeak",
+    "profile": "Profila",
+    "accounting": "Kontabilitatea"
+  },
+  "restaurantProfile": {
+    "fallbackUserName": "Erabiltzailea",
+    "accountInfo": "Kontuaren informazioa",
+    "email": "Helbide elektronikoa",
+    "phone": "Telefonoa",
+    "accountType": "Kontu mota",
+    "siret": "SIRET",
+    "stripeStatus": "Stripe egoera",
+    "stripeValidated": "Balioztatua",
+    "stripePending": "Zain",
+    "logout": "Saioa itxi",
+    "logoutConfirmTitle": "Saioa itxi",
+    "logoutConfirmMessage": "Ziur saioa itxi nahi duzula?",
+    "role": {
+      "restaurateur": "Jatetxe-arduraduna",
+      "client": "Bezeroa"
+    },
+    "feedback": {
+      "logoutFailed": "Ezin izan da saioa itxi"
+    }
+  },
+  "restaurantsList": {
+    "subtitle_one": "{{count}} establezimendu",
+    "subtitle_other": "{{count}} establezimendu",
+    "overview": "Ikuspegi orokorra",
+    "searchPlaceholder": "Bilatu jatetxe bat…",
+    "loading": "Kargatzen…",
+    "loadingFull": "Jatetxeak kargatzen…",
+    "pagination": "{{current}}. orria, {{total}}-tik",
+    "activeFilters_one": "{{count}} iragazki aktibo",
+    "activeFilters_other": "{{count}} iragazki aktibo",
+    "clearFilters": "Garbitu",
+    "viewMode": {
+      "list": "Zerrenda",
+      "grid": "Sareta"
+    },
+    "stats": {
+      "totalLabel_one": "Jatetxea",
+      "totalLabel_other": "Jatetxeak",
+      "openLabel_one": "Irekia",
+      "openLabel_other": "Irekiak",
+      "closedLabel_one": "Itxia",
+      "closedLabel_other": "Itxiak"
+    },
+    "empty": {
+      "noResultTitle": "Emaitzarik ez",
+      "noResultDescription": "Saiatu zure bilaketa aldatzen edo iragazkiak doitzen",
+      "noRestaurantTitle": "Jatetxerik ez",
+      "noRestaurantDescription": "Hasi zure lehen jatetxea gehitzen eskaerak kudeatzeko",
+      "addCta": "Jatetxe bat gehitu",
+      "howItWorks": "Nola funtzionatzen du?"
+    },
+    "errors": {
+      "searchFailed": "Ezin dira jatetxeak bilatu",
+      "reloadFailed": "Ezin dira jatetxeak berriz kargatu",
+      "refreshFailed": "Ezin da zerrenda freskatu",
+      "loadMoreFailed": "Ezin dira jatetxe gehiago kargatu"
+    }
+  },
+  "restaurantOrders": {
+    "noRestaurantFound": "Ez da jatetxerik aurkitu",
+    "selectRestaurant": "Hautatu jatetxe bat",
+    "chooseRestaurant": "Aukeratu jatetxe bat",
+    "orderTitle": "{{number}}. eskaera",
+    "todayAt": "Gaur, {{time}}etan",
+    "anonymousCustomer": "Bezero anonimoa",
+    "tableLabel": "{{number}}. mahaia",
+    "estimatedTime": "Estimazioa: {{minutes}} min",
+    "viewDetails": "Xehetasunak ikusi",
+    "forbiddenMessage": "Jatetxe-arduradunentzat soilik",
+    "itemsCount_one": "{{count}} artikulu",
+    "itemsCount_other": "{{count}} artikulu",
+    "orderType": {
+      "dineIn": "Bertan",
+      "takeaway": "Eramateko"
+    },
+    "paymentStatus": {
+      "paid": "Ordainduta",
+      "unpaid": "Ordaintzeke",
+      "unpaidShort": "Ordaintzeke"
+    },
+    "actions": {
+      "confirm": "Berretsi",
+      "preparing": "Prestatzen",
+      "ready": "Prest",
+      "serve": "Zerbitzatu",
+      "collect": "Kobratu",
+      "archive": "Artxibatu",
+      "unarchive": "Artxibotik atera"
+    },
+    "filters": {
+      "all": "Denak",
+      "served": "Zerbitzatuak",
+      "cancelled": "Bertan behera",
+      "archived": "Artxiboak"
+    },
+    "kanban": {
+      "emptyColumn": "Ez dago ezer",
+      "columns": {
+        "new": {
+          "title": "Berriak",
+          "chip": "Berria",
+          "action": "Hasi"
+        },
+        "preparing": {
+          "title": "Prestatzen",
+          "chip": "Prestatzen",
+          "action": "Prest markatu"
+        },
+        "ready": {
+          "title": "Prest",
+          "chip": "Prest",
+          "action": "Zerbitzatua"
+        }
+      }
+    },
+    "banner": {
+      "title": "Zerbitzua martxan",
+      "titleWithName": "{{name}} — Zerbitzua martxan",
+      "pending": "Zain",
+      "tonight": "Gaur gauean",
+      "history": "Historia",
+      "refresh": "Eguneratu"
+    },
+    "history": {
+      "title": "Eskaeren historia",
+      "bulkArchive_one": "{{count}} eskaera amaitua artxibatu",
+      "bulkArchive_other": "{{count}} eskaera amaituak artxibatu",
+      "emptyTitle": "Eskaerarik ez",
+      "emptyArchived": "Ez dago eskaera artxibaturik",
+      "emptyCompleted": "Oraindik ez dago eskaera amaiturik"
+    },
+    "cancelConfirm": {
+      "title": "Eskaera bertan behera utzi",
+      "message": "{{number}}. eskaera benetan bertan behera utzi nahi duzu?",
+      "keep": "Ez, mantendu",
+      "confirm": "Bai, utzi"
+    },
+    "paymentPrompt": {
+      "title": "Ordainduta markatu",
+      "message": "Zein ordainketa-modu?",
+      "cash": "Eskudirua",
+      "card": "Txartela"
+    },
+    "archiveConfirm": {
+      "title": "Eskaera amaituak artxibatu",
+      "message": "Zerbitzatutako eta bertan behera utzitako eskaera guztiak artxibatu?"
+    },
+    "loading": {
+      "restaurants": "Jatetxeak kargatzen…",
+      "orders": "Eskaerak kargatzen…"
+    },
+    "feedback": {
+      "refreshFailed": "Ezin dira eskaerak eguneratu",
+      "statusUpdateFailed": "Ezin da eskaeraren egoera eguneratu",
+      "paidTitle": "Kobrantza",
+      "paidMessage": "Eskaera ordainduta markatu da",
+      "markPaidFailed": "Ezin da eskaera ordainduta markatu",
+      "archivedTitle": "Lortua",
+      "archivedMessage_one": "{{count}} eskaera artxibatua",
+      "archivedMessage_other": "{{count}} eskaera artxibatuak",
+      "noneToArchiveTitle": "Informazioa",
+      "noneToArchiveMessage": "Ez dago artxibatzeko eskaerarik",
+      "archiveFailed": "Ezin dira eskaerak artxibatu"
+    }
+  },
+  "restaurantDailyMenu": {
+    "today": "Gaur",
+    "close": "Itxi",
+    "noRestaurantMessage": "Ez dago jatetxerik menuak kudeatzeko",
+    "createRestaurant": "Sortu nire jatetxea",
+    "legend": {
+      "withMenu": "Menuarekin",
+      "inactiveMenu": "Menu inaktiboa"
+    },
+    "manager": {
+      "duplicate": "Bikoiztu",
+      "applied_one": "Menua egun 1ari aplikatuta",
+      "applied_other": "Menua {{count}} egunari aplikatuta",
+      "errors": {
+        "toggleItem": "Ezin da platerraren erabilgarritasuna aldatu",
+        "applyAllFailedTitle": "Errorea",
+        "applyAllFailed": "Ezin da menua aukeratutako datetan aplikatu",
+        "applyGeneric": "Errorea gertatu da menua aplikatzean"
+      },
+      "partialApply": {
+        "title": "Aplikazio partziala",
+        "message": "{{succeeded}} arrakastatsu, {{failed}} hutsegite"
+      },
+      "replaceDialog": {
+        "title": "Lehendik dauden menuak ordeztu?",
+        "message_one": "Aukeratutako 1 datatan dagoeneko eguneko menua dago. Ordeztu nahi duzu?",
+        "message_other": "Aukeratutako {{count}} datatan dagoeneko eguneko menuak daude. Ordeztu nahi dituzu?",
+        "confirm": "Ordeztu"
+      },
+      "empty": {
+        "title": "Ez dago menurik data honetarako",
+        "subtitleToday": "Sortu eguneko menua hasteko",
+        "subtitleDate": "Sortu menu bat {{date}}-rako",
+        "cta": "Sortu menua"
+      },
+      "stats": {
+        "dishes_one": "{{count}} plater",
+        "dishes_other": "{{count}} plater",
+        "available_one": "{{count}} eskuragarri",
+        "available_other": "{{count}} eskuragarri",
+        "formulaPrice": "{{price}} / menua"
+      },
+      "applyModal": {
+        "title": "Beste egun batzuetan aplikatu",
+        "source": "Iturria: {{date}}",
+        "selectAll": "Hautatu guztia",
+        "unselectAll": "Desautatu guztia",
+        "selectedCount_one": "{{count}} hautatua",
+        "selectedCount_other": "{{count}} hautatuak",
+        "existingMenu": "Lehendik dagoen menua",
+        "apply": "Aplikatu",
+        "applyWithCount": "Aplikatu ({{count}})"
+      }
+    }
+  },
+  "restaurantMenus": {
+    "title": "Nire menuak",
+    "stats": {
+      "activeMenus_one": "Menu aktiboa",
+      "activeMenus_other": "Menu aktiboak",
+      "inactive_one": "{{count}} inaktibo",
+      "inactive_other": "{{count}} inaktibo",
+      "multiActive": "AKTIBO-ANITZ"
+    },
+    "info": {
+      "title": "💡 Menu aktibo bakarra aldi berean",
+      "description": "Menu bat aktibatzen duzunean, gainerakoak automatikoki desaktibatzen dira. Menu aktiboa soilik ikusiko dute zure bezeroek."
+    },
+    "help": {
+      "title": "Hasi EatQuickeR-ekin",
+      "description": "Sortu zure lehen menua zure platerak nabarmentzeko eta lineako eskaerak jasotzen hasteko.",
+      "createFirstMenu": "Sortu nire lehen menua",
+      "userGuide": "Erabiltzaile-gida"
+    },
+    "switcher": {
+      "title": "Jatetxez aldatu"
+    },
+    "duplicate": {
+      "barButton": "Menuak berreskuratu",
+      "pickSourceTitle": "Aukeratu jatorrizko jatetxea",
+      "pickMenusTitle": "Hautatu menuak",
+      "emptySource": "Ez dago menurik jatetxe honetan",
+      "statusActive": "Aktiboa",
+      "statusInactive": "Inaktiboa",
+      "itemSummary_one": "{{count}} plater · {{status}}",
+      "itemSummary_other": "{{count}} plater · {{status}}",
+      "duplicating": "Bikoizten…",
+      "confirmSimple": "Bikoiztu",
+      "confirmWithCount": "Bikoiztu ({{count}})",
+      "doneTitle": "Bikoizketa amaitua",
+      "doneSuccess_one": "{{count}} menu ongi bikoiztua",
+      "doneSuccess_other": "{{count}} menu ongi bikoiztuak",
+      "donePartial": "{{succeeded}} ondo, {{failed}} huts",
+      "errorGeneric": "Errorea bikoizketan"
+    },
+    "delete": {
+      "title": "Berretsi ezabatzea",
+      "message": "Ziur \"{{name}}\" menua ezabatu nahi duzula?\n\nEkintza hau itzulezina da.",
+      "confirm": "Ezabatu"
+    },
+    "feedback": {
+      "successTitle": "Lortua",
+      "loadFailed": "Ezin dira menuak kargatu",
+      "loadSourceFailed": "Ezin dira jatorrizko menuak kargatu",
+      "menuEnabled": "Menua aktibatu da (beste menuak desaktibatu dira)",
+      "menuDisabled": "Menua desaktibatu da",
+      "toggleFailed": "Ezin da menua aldatu",
+      "toggleForbidden": "Ez duzu menu hau aldatzeko baimenik",
+      "menuNotFound": "Menua ez da aurkitu",
+      "menuDeleted": "Menua ezabatu da",
+      "deleteFailed": "Ezin da menua ezabatu"
+    },
+    "card": {
+      "items_one": "{{count}} plater",
+      "items_other": "{{count}} plater",
+      "available_one": "{{count}} eskuragarri",
+      "available_other": "{{count}} eskuragarri",
+      "active": "Aktibo",
+      "inactive": "Ez-aktibo",
+      "updating": "Eguneratzen…",
+      "createdOn": "Sortua",
+      "updatedOn": "Aldatua",
+      "enable": "Aktibatu",
+      "disable": "Desaktibatu",
+      "inProgress": "Abian"
+    }
+  },
+  "restaurantStats": {
+    "title": "Estatistikak — {{period}}",
+    "pickerTitle": "Azterketa-aldia",
+    "chooseRestaurant": "Aukeratu jatetxe bat",
+    "noRestaurantMessage": "Oraindik ez duzu jatetxerik",
+    "createFirstRestaurant": "Sortu nire lehen jatetxea",
+    "salesCount_one": "{{formatted}} salmenta",
+    "salesCount_other": "{{formatted}} salmenta",
+    "periods": {
+      "thisWeek": "Aste honetan",
+      "thisMonth": "Hilabete honetan",
+      "last3Months": "Azken 3 hilabeteak",
+      "last6Months": "Azken 6 hilabeteak",
+      "thisYear": "Urte honetan"
+    },
+    "deltas": {
+      "vsPrevWeek": "aurreko astearekiko",
+      "vsPrevMonth": "aurreko hilabetearekiko",
+      "vsPrev3Months": "aurreko 3 hilabeteekiko",
+      "vsPrev6Months": "aurreko 6 hilabeteekiko",
+      "vsPrevYear": "aurreko urtearekiko"
+    },
+    "kpi": {
+      "totalRevenue": "Diru-sarrera osoa",
+      "servedOrders": "Eskaera zerbitzatuak",
+      "avgOrder": "Batez besteko tiketa"
+    },
+    "charts": {
+      "revenueByDay": "Diru-sarrera eguneko",
+      "topDishes": "Plater nagusiak"
+    },
+    "daysShort": {
+      "monday": "Al",
+      "tuesday": "Ar",
+      "wednesday": "Az",
+      "thursday": "Og",
+      "friday": "Or",
+      "saturday": "Lr",
+      "sunday": "Ig"
+    },
+    "empty": {
+      "noData": "Ez dago daturik eskuragarri",
+      "description": "Aldi honetan eskaerak izaten dituzunean agertuko dira estatistikak."
+    },
+    "errors": {
+      "loadFailed": "Errorea estatistikak kargatzean."
+    }
+  },
+  "restaurantHome": {
+    "greeting": {
+      "morning": "Egun on",
+      "afternoon": "Arratsalde on",
+      "evening": "Arrats on"
+    },
+    "subtitle": {
+      "restaurateur": "Kudeatu zure jatetxeak eta hobetu errendimendua",
+      "client": "Aurkitu zure inguruko jatetxe onenak"
+    },
+    "restaurantFallback": "Jatetxea",
+    "unknownDate": "Data ezezaguna",
+    "loadingDashboard": "Panela kargatzen…",
+    "loadingOrders": "Eskaerak kargatzen…",
+    "viewAll": "Ikusi dena",
+    "stripeAlert": {
+      "validationRequired": {
+        "title": "Kontuaren balidazioa beharrezkoa",
+        "message": "Sakatu hemen zure Stripe kontua konfiguratzeko eta ordainketak aktibatzeko."
+      },
+      "finalizeConnect": {
+        "title": "Amaitu zure Stripe konfigurazioa",
+        "allInactive": "Zure jatetxeetako batek ez du lineako ordainketarik jasotzen. Konfiguratu Stripe kobratzen hasteko.",
+        "partial_one": "Lineako ordainketarik gabeko jatetxe bat.",
+        "partial_other": "{{count}} jatetxe lineako ordainketarik gabe."
+      }
+    },
+    "help": {
+      "title": "Hasi EatQuickeR-ekin",
+      "description": "Sortu zure lehen jatetxea lineako eskaerak jasotzen eta zure jarduera garatzen hasteko.",
+      "createFirstRestaurant": "Sortu nire lehen jatetxea"
+    },
+    "sections": {
+      "overview": "Ikuspegi orokorra",
+      "yourRestaurants": "Zure jatetxeak",
+      "recommendedRestaurants": "Gomendatutako jatetxeak",
+      "receivedOrders": "Jasotako eskaerak",
+      "yourOrders": "Zure eskaerak",
+      "quickActions": "Ekintza azkarrak"
+    },
+    "stats": {
+      "restaurantCount_one": "Jatetxea",
+      "restaurantCount_other": "Jatetxeak",
+      "orderCount_one": "Eskaera",
+      "orderCount_other": "Eskaerak",
+      "activeCount_one": "Aktiboa",
+      "activeCount_other": "Aktiboak"
+    },
+    "empty": {
+      "loading": "Kargatzen…",
+      "loadingDescription": "Jatetxeak kargatzen…",
+      "errorPrefix": "Errorea: {{error}}",
+      "createFirstTitle": "Sortu zure lehen jatetxea",
+      "validationRequiredTitle": "Balidazioa beharrezkoa",
+      "noRestaurantTitle": "Jatetxerik ez",
+      "startNowDescription": "Hasi orain lineako eskaerak jasotzen.",
+      "validateStripeDescription": "Balidatu Stripe kontua zure jatetxeak sortzeko.",
+      "noRestaurantDescription": "Une honetan ez dago jatetxe erabilgarririk.",
+      "noOrderTitle": "Eskaerarik ez",
+      "noOrderRestaurateur": "Oraindik ez da eskaerarik jaso",
+      "noOrderClient": "Oraindik ez duzu eskaerarik egin"
+    },
+    "orderStatus": {
+      "pending": "Zain",
+      "confirmed": "Berretsia",
+      "preparing": "Prestatzen",
+      "ready": "Prest",
+      "served": "Zerbitzatua",
+      "delivered": "Bidalia",
+      "completed": "Amaitua",
+      "cancelled": "Bertan behera"
+    },
+    "actions": {
+      "dailyMenu": {
+        "title": "Eguneko menua",
+        "description": "Gaurko menua kudeatu"
+      },
+      "createRestaurant": {
+        "title": "Jatetxea sortu",
+        "description": "Establezimendu berria"
+      },
+      "qrCodes": {
+        "title": "Mahaietako QR kodeak",
+        "description": "Sortu eta kudeatu"
+      },
+      "manageMenus": {
+        "title": "Menuak kudeatu",
+        "description": "Platerak eta prezioak"
+      },
+      "viewOrders": {
+        "title": "Eskaerak ikusi",
+        "description": "Kudeaketa eta jarraipena"
+      },
+      "statistics": {
+        "title": "Estatistikak",
+        "description": "Errendimendua"
+      }
+    }
+  },
+  "restaurantQrCodes": {
+    "sizes": {
+      "small": "Txikia ({{count}}/orri)",
+      "medium": "Ertaina ({{count}}/orri)",
+      "large": "Handia ({{count}}/orri)"
+    },
+    "generator": {
+      "sectionTitle": "QR kode sortzailea",
+      "description": "Sortu QR kodeak zure mahaietarako, bezeroek menua eskuratzeko eskaneatu edo eskuzko kodea sartu dezaten.",
+      "restaurantLabel": "Jatetxea",
+      "selectPlaceholder": "Aukeratu jatetxe bat"
+    },
+    "controls": {
+      "qrSize": "QR kodearen tamaina",
+      "tablesCount": "Mahai kopurua",
+      "tablesToAdd": "Gehitzeko mahai kopurua",
+      "startNumber": "Hasierako zenbakia"
+    },
+    "warnings": {
+      "existingTables_one": "{{count}} mahaia dagoeneko existitzen da jatetxe honetan",
+      "existingTables_other": "{{count}} mahai dagoeneko existitzen dira jatetxe honetan"
+    },
+    "actions": {
+      "generate": "QR kodeak sortu",
+      "generating": "Sortzen…",
+      "addTables_one": "Gehitu {{count}} mahaia",
+      "addTables_other": "Gehitu {{count}} mahai",
+      "replace": "Ordeztu",
+      "replaceAll": "Mahai guztiak ordeztu",
+      "print": "Inprimatu",
+      "printing": "Inprimatzen…",
+      "printAll": "Inprimatu dena",
+      "downloadPdf": "Deskargatu PDF",
+      "downloading": "Deskargatzen…",
+      "preview": "Aurrebista",
+      "share": "Partekatu",
+      "download": "Deskargatu"
+    },
+    "card": {
+      "tableTitle": "{{number}} mahaia",
+      "manualCodeLabel": "Eskuzko kodea",
+      "instruction": "Eskaneatu QR kodea edo sartu eskuzko kodea"
+    },
+    "list": {
+      "title_one": "{{count}} QR kode sortua",
+      "title_other": "{{count}} QR kode sortuak"
+    },
+    "empty": {
+      "title": "Ez da QR koderik sortu",
+      "message": "Hautatu jatetxea eta zehaztu mahai kopurua hasteko"
+    },
+    "help": {
+      "title": "Nola funtzionatzen du?",
+      "steps": "• Aukeratu zure jatetxea\n• Hautatu QR kodeen tamaina\n• Adierazi mahai kopurua\n• Sortu QR kodeak\n• Inprimatu edo deskargatu PDF gisa\n• Bezeroek eskaneatu edo eskuzko kodea sartu ahal izango dute"
+    },
+    "restaurantPicker": {
+      "title": "Aukeratu jatetxe bat"
+    },
+    "conflicts": {
+      "replaceTitle": "Berretsi ordezkapena",
+      "replaceMessage": "Benetan ordeztu nahi dituzu existitzen diren mahaiak?\n\nEkintza honek:\n• Existitzen diren mahai guztiak ezabatuko ditu\n• {{count}} mahai berri sortuko ditu (1etik {{count}}era)\n\nEkintza hau itzulezina da.",
+      "conflictTitle": "Gatazka detektatua",
+      "conflictMessage": "Zenbaki hauek dituzten mahaiak existitzen dira. Zer egin nahi duzu?",
+      "moreOptions": "Aukera gehiago",
+      "optionsTitle": "Aukera erabilgarriak",
+      "optionsMessage": "Existitzen diren mahaiak kargatu ditzakezu edo beste hasierako zenbaki bat aukeratu.",
+      "otherNumber": "Beste zenbakia",
+      "loadExisting": "Kargatu existitzen direnak"
+    },
+    "suggest": {
+      "title": "Iradokitako zenbakia",
+      "message_one": "Dagoeneko {{count}} mahaia dago ({{max}}. zenbakiraino).\n\nHasi {{suggested}}. zenbakian?",
+      "message_other": "Dagoeneko {{count}} mahai daude ({{max}}. zenbakiraino).\n\nHasi {{suggested}}. zenbakian?",
+      "choose": "Aukeratu beste bat",
+      "accept": "Onartu"
+    },
+    "feedback": {
+      "infoTitle": "Info",
+      "tablesAddedTitle": "Mahaiak gehituak",
+      "tablesAddedMessage_one": "{{count}} mahaia ondo gehitua!",
+      "tablesAddedMessage_other": "{{count}} mahai ondo gehituak!",
+      "tablesCreatedTitle": "Mahaiak sortuak",
+      "tablesCreatedMessage_one": "{{count}} mahaia ondo sortua!",
+      "tablesCreatedMessage_other": "{{count}} mahai ondo sortuak!",
+      "replaceSuccessTitle": "Ordezkapen arrakastatsua",
+      "replaceSuccessMessage": "{{deleted}} mahai ezabatuak eta {{created}} mahai berri sortuak!",
+      "replaceCreatedMessage_one": "{{count}} mahaia sortua!",
+      "replaceCreatedMessage_other": "{{count}} mahai sortuak!",
+      "tablesLoadedTitle": "Mahaiak kargatuak",
+      "tablesLoadedMessage_one": "{{count}} mahai existitzen dena kargatua.",
+      "tablesLoadedMessage_other": "{{count}} mahai existitzen direnak kargatuak.",
+      "noTableTitle": "Mahairik ez",
+      "noTableForRestaurant": "Ez da mahairik aurkitu jatetxe honetan.",
+      "noExistingStartsAt1": "Ez da mahai existitzen denik aurkitu. Hasierako zenbakia 1en geratzen da.",
+      "noExistingCanStartAt1": "Ez da mahai existitzen denik aurkitu. 1. zenbakian has zaitezke.",
+      "chooseNumberTitle": "Aukeratu zenbaki bat",
+      "chooseNumberMessage": "Erabili +/- botoiak hasierako zenbakia doitzeko, ondoren sortu berriro.",
+      "numberUpdatedTitle": "Zenbakia eguneratua",
+      "numberUpdatedMessage": "Hasierako zenbakia {{number}}-(e)ra aldatu da."
+    },
+    "errors": {
+      "selectRestaurant": "Mesedez aukeratu jatetxe bat",
+      "generationFailed": "Errorea QR kodeak sortzean",
+      "replaceFailed": "Errorea mahaiak ordeztean",
+      "loadFailed": "Ezin dira existitzen diren mahaiak kargatu.",
+      "checkFailed": "Ezin dira existitzen diren mahaiak egiaztatu.",
+      "shareFailed": "Ezin da QR kode hau partekatu.",
+      "printAllFailed": "Ezin dira QR kodeak inprimatu",
+      "printOneFailed": "Ezin da QR kodea inprimatu",
+      "pdfFailed": "Ezin da PDFa sortu",
+      "refreshFailed": "Eguneratzeak huts egin du."
+    },
+    "share": {
+      "title": "QR kodea - {{number}} mahaia",
+      "message": "{{number}} mahaia - {{restaurant}}\n\nEskuzko kodea: {{code}}\nEdo eskaneatu QR kode hau menua eskuratzeko!\n\n{{url}}"
+    },
+    "pdf": {
+      "tableLabel": "Mahaia",
+      "scanOrEnter": "Eskaneatu edo sartu"
+    }
+  },
+  "restaurantCard": {
+    "distanceKm": "{{distance}} km",
+    "walkingMinutes": "{{minutes}} min"
+  },
+  "validationPending": {
+    "title": "Profila baliozkotzen",
+    "stripeCompleted": "Stripe konfigurazioa burututa",
+    "stripePending": "Stripe konfigurazioa abian",
+    "profileActivated": "Profila aktibatuta",
+    "profilePending": "Profila aktibatzeko zain",
+    "setupStripe": "Konfiguratu Stripe",
+    "contactSupport": "Jarri harremanetan sostenguarekin",
+    "infoDelay": "Zure profilaren baliozkotzeak 1 eta 3 lanegun bitarte iraun dezake Stripe konfigurazioa amaitu ondoren.",
+    "supportEmailSubject": "Jatetxe-jabearen profila baliozkotzeko laguntza"
+  },
+  "restaurantSelector": {
+    "noRestaurantTitle": "Oraindik ez duzu jatetxerik",
+    "noRestaurantSubtitle": "Sortu zure lehen jatetxea menuak eta eskaerak kudeatzen hasteko.",
+    "createFirst": "Sortu nire lehen jatetxea",
+    "chooseTitle": "Aukeratu jatetxe bat",
+    "chooseHint": "Hautatu kudeatu nahi duzun jatetxea.",
+    "selecting": "Hautatzen…"
+  },
+  "stripeCommission": {
+    "compact": {
+      "title": "Plataformaren komisioa",
+      "description": "Txartelaren bidezko ordainketa bakoitzean %{{percent}}eko komisioa kobratzen da."
+    },
+    "title": "Ordainketen tarifak",
+    "subtitle": "Txartelaren bidezko ordainketei aplikatzen zaizkien baldintzak",
+    "platform": {
+      "title": "EatQuickeR komisioa",
+      "description": "Aplikazioaren bidez ordaindutako eskaera bakoitzean, EatQuickeR-ek %{{percent}}eko komisioa hartzen du zenbateko osoaren gainean. Komisio honek lotura-gastuak, plataformaren kudeaketa eta laguntza teknikoa estaltzen ditu."
+    },
+    "stripe": {
+      "title": "Stripe prozesatze-gastuak",
+      "description": "Stripe banku-gastuak haien tarifa estandarraren arabera aplikatzen dira. Gastu hauek aldatu egin daitezke bezeroak erabilitako txartel-motaren arabera."
+    },
+    "example": {
+      "title": "Adibidea {{amount}}-ko eskaera baterako",
+      "orderAmount": "Eskaeraren zenbatekoa",
+      "platformFee": "EatQuickeR komisioa (%{{percent}})",
+      "stripeFee": "Stripe gastuak (estimatuak)",
+      "netAmount": "Jasotako zenbateko garbia"
+    },
+    "bullets": {
+      "autoDeduct": "Komisioa automatikoki kentzen da ordainketan",
+      "cashNoFee": "Eskudirutako ordainketek ez dute komisiorik",
+      "directPayout": "Funtsak zuzenean jasotzen dituzu zure banku-kontuan"
+    },
+    "acceptTerms": "Irakurri eta tarifa-baldintzak onartzen ditut"
+  },
+  "stripeAccount": {
+    "title": "Stripe kontua",
+    "checking": "Egoera egiaztatzen…",
+    "errors": {
+      "fetch": "Errorea egoera berreskuratzean",
+      "setup": "Errorea Stripe kontua konfiguratzean"
+    },
+    "validated": {
+      "title": "Kontua baliozkotuta",
+      "description": "Zure Stripe kontua baliozkotuta dago eta ordainketak jasotzeko prest.",
+      "successMessage": "Orain zure jatetxeak aktibatu ditzakezu eta eskaerak jasotzen hasi."
+    },
+    "inProgress": {
+      "title": "Konfigurazioa abian",
+      "description": "Zure Stripe kontua badago, baina amaitu egin behar da.",
+      "action": "Konfigurazioa jarraitu"
+    },
+    "notStarted": {
+      "title": "Konfigurazioa beharrezkoa",
+      "description": "Stripe kontua konfiguratu behar duzu ordainketak jasotzeko.",
+      "action": "Stripe konfiguratu"
+    },
+    "redirectDialog": {
+      "title": "Stripe-ra birbideratzen",
+      "message": "Stripe-ra birbideratuko zaitugu zure ordainketa-kontua konfiguratzeko."
+    },
+    "continueDialog": {
+      "title": "Konfigurazioa jarraitu",
+      "message": "Stripe-ra birbideratuko zaitugu zure konfigurazioa amaitzeko."
+    },
+    "requirements": {
+      "title": "Beharrezko dokumentuak:",
+      "othersCount_one": "Eta {{count}} gehiago…",
+      "othersCount_other": "Eta {{count}} gehiago…"
+    },
+    "infoDelay": "Zure kontuaren baliozkotzeak 1 eta 3 lanegun bitarte iraun dezake beharrezko dokumentu guztiak bidali ondoren."
+  },
+  "revenueCard": {
+    "title": "Diru-sarrerak",
+    "defaultPeriod": "Hilabete honetan",
+    "details": "Xehetasunak",
+    "netRevenue": "Diru-sarrera garbia",
+    "netRevenueEstimated": "Estimatutako diru-sarrera garbia",
+    "ordersCount_one": "{{count}} eskaera",
+    "ordersCount_other": "{{count}} eskaera",
+    "grossRevenueTitle": "Negozio-bolumen gordina",
+    "cardPayments": "Txartelaren bidezko ordainketak",
+    "cashPayments": "Eskudirutako ordainketak",
+    "grossTotal": "Gordina guztira",
+    "feesTitle": "Komisioak eta gastuak",
+    "stripeFeesNote": "Txartelaren bidezko ordainketei soilik aplikatzen zaie. Stripe gastuak bereizita kentzen dira.",
+    "platformCommissionLine": "EatQuickeR komisioa: {{amount}}",
+    "legendGross": "Bolumen gordina: {{amount}}",
+    "legendCommission": "Komisioa: {{amount}}"
+  },
+  "openingHours": {
+    "title": "Irekiera orduak",
+    "subtitle": "Ezarri zerbitzu-orduak asteko egun bakoitzerako",
+    "quickPresets": "Eredu azkarrak",
+    "open": "Irekita",
+    "closed": "Itxita",
+    "start": "Hasiera",
+    "end": "Amaiera",
+    "apply": "Aplikatu",
+    "addPeriod": "Gehitu ordu-tarte bat",
+    "serviceNamePlaceholder": "Zerbitzuaren izena (adib.: Bazkaria)",
+    "tip1": "Sakatu orduak zure zerbitzu-orduak erraz hautatzeko",
+    "tip2": "Erabili iradokitako orduak edo ezarri ordu pertsonalizatuak",
+    "timePicker": {
+      "title": "Aukeratu ordua",
+      "ok": "OK",
+      "suggestedTimes": "Iradokitako orduak",
+      "customTime": "Ordu pertsonalizatua",
+      "hours": "Orduak",
+      "minutes": "Minutuak"
+    },
+    "presets": {
+      "continuous": {
+        "name": "Zerbitzu jarraitua"
+      },
+      "lunchDinner": {
+        "name": "Bazkaria + Afaria"
+      },
+      "complete": {
+        "name": "Osoa"
+      }
+    },
+    "periodNames": {
+      "lunch": "Bazkaria",
+      "dinner": "Afaria",
+      "breakfast": "Gosaria",
+      "service": "Zerbitzua"
+    },
+    "confirmApplyPreset": {
+      "title": "Aplikatu eredua",
+      "message": "«{{name}}» asteko egun guztietan aplikatu?"
+    },
+    "confirmCopyHours": {
+      "title": "Kopiatu orduak",
+      "message": "{{day}}-(r)en orduak laneguneko egun guztietan aplikatu (astelehena–ostirala)?"
+    }
+  },
+  "statistics": {
+    "kpis": {
+      "title": "Errendimenduaren adierazle gakoak",
+      "cancellationRate": "Bertan behera uzteko tasa",
+      "paymentRate": "Ordainketa-tasa",
+      "availabilityRate": "Platerren eskuragarritasuna",
+      "avgOrderValue": "Batez besteko tiketa",
+      "perOrder": "Eskaeraka",
+      "serviceTime": "Zerbitzu-denbora",
+      "avgTime": "Batez besteko denbora",
+      "tableUsage": "Mahaien erabilera"
+    },
+    "qualifiers": {
+      "excellent": "Bikaina",
+      "toImprove": "Hobetzeko",
+      "veryGood": "Oso ondo",
+      "toWatch": "Adi egon",
+      "optimal": "Optimoa",
+      "critical": "Kritikoa",
+      "toOptimize": "Optimizatzeko"
+    },
+    "priorities": {
+      "high": "PRESAZKOA",
+      "medium": "Garrantzitsua",
+      "low": "Info"
+    },
+    "recommendations": {
+      "title": "Gomendio pertsonalizatuak"
+    },
+    "topDishes": {
+      "title": "Eskatuenen Top 5 platerak",
+      "dishStats": "{{orders}} eskaera • {{revenue}} fakturazioa"
+    },
+    "underperforming": {
+      "title": "Optimizatu beharreko platerak",
+      "neverOrdered_one": "{{count}} plater ez da inoiz eskatu. Kendu edo sustatzea aztertu.",
+      "neverOrdered_other": "{{count}} plater ez dira inoiz eskatu. Kendu edo sustatzea aztertu.",
+      "lowOrders": "Gutxi eskatutako platerak (azken 30 egun)",
+      "onlyOrders_one": "Eskaera {{count}} besterik ez",
+      "onlyOrders_other": "{{count}} eskaera besterik ez"
+    },
+    "revenue": {
+      "title": "Diru-sarreren analisia",
+      "currentPeriod": "Egungo aldia",
+      "previousPeriod": "Aurreko aldia",
+      "evolution": "Bilakaera",
+      "avgOrderValue": "Batez besteko tiketa",
+      "perOrder": "eskaeraka",
+      "ordersCount_one": "{{count}} eskaera",
+      "ordersCount_other": "{{count}} eskaera"
+    },
+    "peakHours": {
+      "title": "Eskaeren orduen banaketa",
+      "peakSlots": "Punta-orduak",
+      "ordersCount_one": "{{count}} eskaera",
+      "ordersCount_other": "{{count}} eskaera"
+    },
+    "dailyPerformance": {
+      "title": "Errendimendua asteko egunaren arabera",
+      "bestDay": "Egunik onena",
+      "worstDay": "Egunik ahulena"
+    }
+  },
+  "dailyMenuDisplay": {
+    "loading": "Menua kargatzen…",
+    "completeFormula": "Menu osoa",
+    "formulaHint": "Kategoria bakoitzeko plater 1 • {{price}} / platerra",
+    "dishesCount_one": "{{count}} plater",
+    "dishesCount_other": "{{count}} plater",
+    "categoriesCount_one": "{{count}} kategoria",
+    "categoriesCount_other": "{{count}} kategoria"
+  },
+  "menuItem": {
+    "add": "Gehitu",
+    "unavailable": "Ez dago eskuragarri",
+    "unavailableShort": "Ez dago"
+  },
+  "menuGrid": {
+    "otherCategory": "Bestelakoak",
+    "defaultRestaurantName": "Jatetxea",
+    "groupToggle": "Multzokatu",
+    "filters": "Iragazkiak",
+    "viewModes": {
+      "list": "Zerrenda",
+      "grid": "Sareta",
+      "masonry": "Mosaikoa",
+      "table": "Taula"
+    },
+    "table": {
+      "photo": "Argazkia",
+      "name": "Izena",
+      "description": "Deskribapena",
+      "price": "Prezioa",
+      "action": "Ekintza"
+    },
+    "stats": {
+      "availableShort_one": "{{count}} esk.",
+      "availableShort_other": "{{count}} esk.",
+      "availableLong_one": "{{count}} plater eskuragarri",
+      "availableLong_other": "{{count}} plater eskuragarri",
+      "photos_one": "{{count}} argazki",
+      "photos_other": "{{count}} argazki"
+    },
+    "accordion": {
+      "expandAll": "Dena zabaldu",
+      "collapseAll": "Dena tolestu"
+    }
+  },
+  "formule": {
+    "title": "Osatu zure menua",
+    "sectionTitle": "Gure menuak",
+    "compose": "Osatu",
+    "basePrice": "Menua {{price}}",
+    "required": "Beharrezkoa",
+    "optional": "Aukerakoa",
+    "chooseOne": "Aukeratu plater 1",
+    "chooseN": "Aukeratu {{count}} plater",
+    "addToCart": "Gehitu saskira",
+    "quantity": "Kopurua",
+    "incomplete": "Osatu zure menua",
+    "unavailable": "Menua ez dago erabilgarri orain",
+    "empty": "Ez dago platerrik eskuragarri zati honetan",
+    "loadError": "Ezin izan da menua kargatu",
+    "notFound": "Menua ez da aurkitu",
+    "added": "Menua saskira gehitu da"
+  },
+  "menuItemForm": {
+    "newTitle": "Artikulu berria",
+    "editTitle": "Platera editatu",
+    "back": "Itzuli",
+    "itemNotFound": "Ez da platera aurkitu",
+    "loadingItem": "Platera kargatzen...",
+    "sectionInfo": "Informazioa",
+    "sectionPhoto": "Plateraren argazkia",
+    "sectionCategory": "Kategorizazioa",
+    "sectionDietAllergens": "Dietak eta alergenoak",
+    "sectionAvailability": "Eskuragarritasuna",
+    "allergensTitle": "Alergenoak",
+    "allergensMultiSelect": "Alergenoak (hautaketa anitza)",
+    "dietaryTitle": "Dieta-aukerak",
+    "vatTitle": "BEZ",
+    "vatType": "BEZ mota",
+    "vatRateLabel": "Tasa:",
+    "nameLabel": "Izena *",
+    "description": "Deskribapena",
+    "priceLabel": "Prezioa (€) *",
+    "color": "Kolorea",
+    "iconEmoji": "Ikonoa (emojia)",
+    "subcategoryOptional": "Azpikategoria (aukerakoa)",
+    "selectCategoryPlaceholder": "Hautatu kategoria bat",
+    "selectSubcategoryPlaceholder": "Hautatu azpikategoria bat",
+    "selectSubcategory": "Azpikategoria hautatu",
+    "selectSubcategoryFirst": "Hautatu lehenik kategoria bat",
+    "newCategory": "Kategoria berria",
+    "newSubcategory": "Azpikategoria berria",
+    "createCategory": "Kategoria sortu",
+    "createSubcategory": "Azpikategoria sortu",
+    "createNewCategory": "Kategoria berri bat sortu",
+    "createNewSubcategory": "Azpikategoria berri bat sortu",
+    "categoryDescPlaceholder": "Kategoriaren deskribapena",
+    "subcategoryDescPlaceholder": "Azpikategoriaren deskribapena",
+    "deleteCategoryTitle": "Kategoria ezabatu",
+    "deleteSubcategoryTitle": "Azpikategoria ezabatu",
+    "deleteCategoryMessage": "«{{name}}» ezabatu? Lotutako artikulu guztiek kategoria galduko dute.",
+    "deleteSubcategoryMessage": "«{{name}}» ezabatu?",
+    "vegetarian": "Begetarianoa",
+    "vegetarianDesc": "Haragirik ez arrainik gabe",
+    "vegan": "Beganoa",
+    "veganDesc": "Animalia-produkturik gabe",
+    "glutenFree": "Glutenik gabe",
+    "glutenFreeDesc": "Garirik, zekalerik, garagarrik gabe",
+    "photoSelected": "Argazkia hautatua",
+    "noPhoto": "Ez da argazkirik hautatu",
+    "addPhotoHint": "Gehitu argazki bat zure platera erakargarriagoa izan dadin",
+    "replace": "Ordeztu",
+    "photo": "Argazkia",
+    "delete": "Ezabatu",
+    "choosePhoto": "Argazki bat aukeratu",
+    "takePhoto": "Argazkia atera",
+    "availabilityNote": "Eskuragarritasuna menuko platerren zerrendatik alda daiteke",
+    "availableNow": "Plater hau eskuragarri dago une honetan",
+    "unavailableNow": "Plater hau ez dago eskuragarri une honetan",
+    "create": "Sortu",
+    "saveChanges": "Aldaketak gorde",
+    "updating": "Eguneratzen...",
+    "creating": "Sortzen...",
+    "createItem": "Artikulua sortu",
+    "noAllergenSelected": "Ez da alergenorik hautatu",
+    "selectedCount": "{{count}} hautatuta",
+    "exDishNameAdd": "Adib.: Signature Burgerra",
+    "descPlaceholderAdd": "Deskribatu zure platera...",
+    "exCategoryName": "Adib.: Sarrerak",
+    "exSubcategoryName": "Adib.: Entsaladak",
+    "exIcon": "Adib.: 🍽️",
+    "exDishNameEdit": "Adib. Etxeko burgerra",
+    "descPlaceholderEdit": "Deskribatu zure platera (osagaiak, zaporea, etab.)",
+    "exPrice": "Adib. 12.90",
+    "exCatName": "Adib. Platerak",
+    "exCatDesc": "Adib. Plater nagusi guztiak",
+    "exCatIcon": "Adib. 🍽️",
+    "exSubName": "Adib. Burgerrak",
+    "exSubDesc": "Adib. Burger bereziak",
+    "error": "Errorea",
+    "success": "Ondo",
+    "warning": "Kontuz",
+    "nameRequired": "Plateraren izena beharrezkoa da",
+    "selectCategory": "Hautatu kategoria bat mesedez",
+    "selectCategoryFirst": "Hautatu lehenik kategoria bat mesedez",
+    "pricePositive": "Prezioak 0 baino handiagoa izan behar du",
+    "priceInvalid": "Prezioak zenbaki baliodun bat izan behar du",
+    "itemCreated": "Artikulua ondo sortu da!",
+    "createError": "Errorea sortzean",
+    "networkError": "Sare-errorea: ezin da zerbitzarira konektatu",
+    "categoryMissing": "Kategoria falta da",
+    "fieldMissing": "Eremua falta da",
+    "deleteItemError": "Ezin izan da elementu hau ezabatu",
+    "authMissing": "Autentifikazio-tokena falta da. Saioa berriz hasi mesedez.",
+    "genericError": "Errore bat gertatu da",
+    "loadItemError": "Ezin izan da platera kargatu",
+    "loadCategoriesError": "Ezin izan dira kategoriak kargatu",
+    "loadSubcategoriesError": "Ezin izan dira azpikategoriak kargatu",
+    "categoryNameRequired": "Kategoriaren izena beharrezkoa da",
+    "subcategoryNameRequired": "Azpikategoriaren izena beharrezkoa da",
+    "categoryCreated": "Kategoria ondo sortu da",
+    "subcategoryCreated": "Azpikategoria ondo sortu da",
+    "categoryCreateError": "Ezin izan da kategoria sortu",
+    "subcategoryCreateError": "Ezin izan da azpikategoria sortu",
+    "itemNotLoaded": "Menu-elementua ez da kargatu",
+    "itemNotIdentified": "Menu-elementua ez da identifikatu",
+    "photoSubtitle": "Gomendatua zure bezeroak erakartzeko",
+    "sectionInfoBase": "Oinarrizko informazioa",
+    "categorySubtitle": "Lagundu bezeroei menuan nabigatzen",
+    "mainCategory": "Kategoria nagusia *",
+    "categoryLabel": "Kategoria *",
+    "selectCategoryTitle": "Kategoria hautatu",
+    "categoryModalTitle": "Kategoria",
+    "subcategoryModalTitle": "Azpikategoria",
+    "categoryEmpty": "Kategoriarik ez",
+    "subcategoryEmpty": "Azpikategoriarik ez",
+    "iconShort": "Ikonoa (emojia edo testu laburra)",
+    "itemUpdated": "Platera ondo eguneratu da",
+    "photoPermission": "Eman zure argazkietarako sarbidea jarraitzeko.",
+    "cameraPermission": "Eman kamerarako sarbidea jarraitzeko.",
+    "permissionRequired": "Baimena beharrezkoa",
+    "cancel": "Utzi",
+    "createCategoryAction": "Kategoria bat sortu",
+    "createSubcategoryAction": "Azpikategoria bat sortu",
+    "serverError": "Zerbitzari-errorea: erantzun baliogabea. Egiaztatu APIaren URLa.",
+    "createItemError": "Errorea artikulua sortzean",
+    "updateItemError": "Ezin izan da platera eguneratu"
+  },
+  "menuForm": {
+    "editTitle": "Menua editatu",
+    "loading": "Menua kargatzen...",
+    "notFound": "Ez da menua aurkitu",
+    "nameLabel": "Menuaren izena *",
+    "namePlaceholder": "Menuaren izena",
+    "save": "Aldaketak gorde",
+    "updated": "Menua ondo eguneratu da",
+    "activated": "Menua ondo aktibatu da (beste menuak desaktibatu dira)",
+    "deactivated": "Menua ondo desaktibatu da",
+    "toggleError": "Ezin izan da eskuragarritasuna aldatu",
+    "noPermission": "Ez duzu menu hau editatzeko baimenik",
+    "visibleStatus": "Menu hau bezeroentzat ikusgai dago une honetan",
+    "hiddenStatus": "Menu hau ez dago bezeroentzat ikusgai",
+    "deactivate": "Menu hau desaktibatu",
+    "activate": "Menu hau aktibatu",
+    "manageDishes": "Platerak kudeatu",
+    "actions": "Ekintzak",
+    "statistics": "Estatistikak",
+    "dishCount": "{{count}} plater menu honetan",
+    "statTotal": "Plater\nguztira",
+    "statAvailable": "Plater\neskuragarriak",
+    "statUnavailable": "Plater\nez eskuragarriak",
+    "nameRequired": "Menuaren izena beharrezkoa da",
+    "loadError": "Ezin izan da menua kargatu",
+    "saveError": "Ezin izan da menua gorde",
+    "newTitle": "Menu berria",
+    "createTitle": "Menu berri bat sortu",
+    "createSubtitle": "Antolatu zure platerak menu tematikoak sortuz",
+    "required": "Beharrezkoa",
+    "namePlaceholderExample": "Adib.: Udaberriko Menua 2025, Jaietako Menua...",
+    "nameHint": "Sortu menu bat aldi jakin baterako (denboraldia, ekitaldi berezia...).",
+    "tip": "Aholkua",
+    "tipBody": "Sortu menu desberdinak zure denboraldietarako, ekitaldietarako edo aldi berezietarako (adib.: \"Udaberriko Menua\", \"Udako Menua\", \"Jaietako Menua\").",
+    "tipFeature1": "Aktibatzea/desaktibatzea denboraldiaren arabera",
+    "tipFeature2": "Antolaketa aldiaren arabera",
+    "tipFeature3": "Menu aktibo bakarra posible",
+    "createButton": "Menua sortu",
+    "createdTitle": "Menua sortu da",
+    "createdMessage": "Platerak orain gehitu nahi dituzu edo zerrendara itzuli?",
+    "addDishes": "Platerak gehitu",
+    "backToList": "Zerrendara itzuli",
+    "restaurantNotSpecified": "Ez da jatetxea zehaztu",
+    "createError": "Ezin izan da menua sortu"
+  },
+  "allergens": {
+    "gluten": {
+      "name": "Glutena"
+    },
+    "crustaceans": {
+      "name": "Krustazeoak"
+    },
+    "eggs": {
+      "name": "Arrautzak"
+    },
+    "fish": {
+      "name": "Arrainak"
+    },
+    "peanuts": {
+      "name": "Kakahueteak"
+    },
+    "soy": {
+      "name": "Soja"
+    },
+    "milk": {
+      "name": "Esnea"
+    },
+    "nuts": {
+      "name": "Fruitu lehorrak"
+    },
+    "celery": {
+      "name": "Apioa"
+    },
+    "mustard": {
+      "name": "Ziapea"
+    },
+    "sesame": {
+      "name": "Sesamoa"
+    },
+    "sulfites": {
+      "name": "Sulfitoak"
+    },
+    "lupin": {
+      "name": "Eskuzuria"
+    },
+    "mollusks": {
+      "name": "Moluskuak"
+    }
+  },
+  "vatTypes": {
+    "FOOD": {
+      "name": "Janaria"
+    },
+    "DRINK_SOFT": {
+      "name": "Edari biguinak"
+    },
+    "DRINK_ALCOHOL": {
+      "name": "Edari alkoholdunak"
+    },
+    "PACKAGED": {
+      "name": "Aurrez ontziratutako produktuak"
+    }
+  },
+  "menuBrowse": {
+    "searchPlaceholder": "Bilatu plater bat...",
+    "filters": "Iragazkiak",
+    "resetFilters": "Iragazkiak berrezarri",
+    "categories": "Kategoriak",
+    "subcategoriesCount": "Azpikategoriak ({{count}})",
+    "diet": "Dieta",
+    "excludeAllergens": "Alergenoak baztertu",
+    "vegetarian": "Begetarianoa",
+    "vegan": "Beganoa",
+    "glutenFree": "Glutenik gabe",
+    "addToCart": "Gehitu",
+    "viewCart": "Saskia ikusi",
+    "cartTitle": "Zure saskia",
+    "cartEmpty": "Zure saskia hutsik dago.",
+    "itemsCount": "{{count}} plater",
+    "articlesCount": "{{count}} artikulu",
+    "qty": "Kop.",
+    "addedToCart": "«{{name}}» saskira gehitu da",
+    "added": "Gehituta",
+    "removeItemTitle": "Artikulua kendu",
+    "removeItemMessage": "«{{name}}» saskitik kendu?",
+    "thisItem": "artikulu hau",
+    "itemRemoved": "Artikulua saskitik kendu da",
+    "removed": "Kenduta",
+    "clearCartTitle": "Saskia hustu",
+    "clearCartMessage": "Ziur zaude zure saskia hustu nahi duzula?",
+    "cartCleared": "Zure saskia hustu da.",
+    "cartLabel": "Saskia",
+    "yes": "Bai",
+    "no": "Ez",
+    "confirmDeleteTitle": "Ezabaketa berretsi"
+  },
+  "menuDetail": {
+    "addDish": "Platera gehitu",
+    "addDishShort": "+ Platera gehitu",
+    "importPhoto": "Argazkitik inportatu",
+    "importMenuPhoto": "Karta argazkitik inportatu",
+    "deleteDishTitle": "Platera ezabatu",
+    "deleteDishMessage": "Ziur zaude «{{name}}» ezabatu nahi duzula?\n\nEkintza hau ezin da desegin.",
+    "cancel": "Utzi",
+    "hidden": "Ezkutatua",
+    "available": "Eskuragarri",
+    "unavailable": "Ez eskuragarri",
+    "categoriesHeader": "KATEGORIAK",
+    "menuNotFound": "Ez da menua aurkitu",
+    "menuNotFoundToast": "Menu hau ezin da aurkitu",
+    "invalidMenuId": "Menu-ID baliogabea",
+    "toggleStatusError": "Ezin izan da plateraren egoera aldatu",
+    "deleteDishError": "Ezin izan da platera ezabatu",
+    "translationTimeout": "Itzulpenak denbora gehiegi behar du. Saiatu berriro.",
+    "dishDeleted": "«{{name}}» platera ezabatu da",
+    "dishActivatedMsg": "Platera ondo aktibatu da",
+    "dishDeactivatedMsg": "Platera ondo desaktibatu da",
+    "allAlreadyTranslated": "Dena itzulita zegoen jada.",
+    "translatedCount": "{{count}} elementu {{langs}} hizkuntzatara itzuli dira.",
+    "translationDone": "Itzulpena amaituta",
+    "translationFailed": "Itzulpenak huts egin du.",
+    "timeout": "Denbora agortuta",
+    "emptyMenuTitle": "Ez dago platerik menu honetan",
+    "emptyCategoryTitle": "Ez dago platerik kategoria honetan",
+    "emptyMenuText": "Gehitu zure lehen platera hasteko.",
+    "emptyCategoryText": "Gehitu plater bat kategoria honi edo hautatu beste bat.",
+    "translateButton": "Itzuli ({{count}})",
+    "langsToTranslate": "Itzuli beharreko hizkuntzak",
+    "onlyUntranslated": "Oraindik itzuli ez dena soilik osatuko da.",
+    "menuPreview": "Menuaren aurrebista",
+    "previewSubtitle": "Ikusi zure menua bezeroak ikusiko duen bezala.",
+    "reorderCategories": "Kategoriak berrantolatu",
+    "translateMenu": "Menua itzuli",
+    "translatingProgress": "Itzultzen… {{progress}}%",
+    "translatingProgressLong": "Itzulpena abian… {{progress}}%",
+    "previewPrefix": "Aurrebista:",
+    "restaurantMenuTitle": "Jatetxeko karta",
+    "uncategorized": "Kategoriarik gabe",
+    "translationStartError": "Ezin izan da itzulpena hasi.",
+    "loadingCard": "Karta kargatzen...",
+    "menuSubtitle": "{{name}} · {{available}}/{{total}} eskuragarri"
+  },
+  "dailyMenuForm": {
+    "titleLabel": "Menuaren izenburua",
+    "titlePlaceholder": "Adib.: Eguneko menua",
+    "descLabel": "Deskribapena (aukerakoa)",
+    "descPlaceholder": "Adib.: Sarrera + Platera + Postrea",
+    "priceLabel": "Menuaren prezio osoa (€) *",
+    "pricePlaceholder": "Adib.: 19.90",
+    "generalInfo": "Informazio orokorra",
+    "dishSelection": "Plateren hautaketa",
+    "clientPriceHint": "Bezeroak prezio oso hau ordainduko du. Behean hautatzen dituzunen artean kategoria bakoitzeko plater bat aukeratzen du.",
+    "priceSummaryMulti": "{{count}} kategoria • {{price}}€ platerako",
+    "priceSummarySingle": "plater 1 {{price}}€",
+    "selectedDishes": "{{count}} plater hautatuta",
+    "categoriesSuffix": " • {{count}} kategoria",
+    "titleRequired": "Menuaren izenburua beharrezkoa da",
+    "priceRequiredTitle": "Prezioa beharrezkoa",
+    "priceRequiredMessage": "Eguneko menuaren prezio osoa adierazi behar da eta zorrozki positiboa izan.",
+    "saving": "Gordetzen...",
+    "createTitle": "Eguneko menua sortu",
+    "createButton": "Menua sortu",
+    "created": "Eguneko menua ondo sortu da",
+    "createError": "Ezin izan da eguneko menua sortu",
+    "loadItemsError": "Ezin izan dira menuko platerak kargatu",
+    "selectAtLeastOne": "Hautatu gutxienez plater bat",
+    "editTitle": "Eguneko menua editatu",
+    "loadError": "Ezin izan da eguneko menua kargatu",
+    "invalidDishId": "Plater-ID baliogabea",
+    "dishAdded": "«{{name}}» eguneko menura gehitu da",
+    "alreadyPresentTitle": "Jada gehituta",
+    "alreadyPresent": "Plater hau jada eguneko menuaren parte da",
+    "addDishError": "Ezin izan da plater hau gehitu",
+    "removeDishTitle": "Plater hau kendu?",
+    "removeDishMessage": "«{{name}}» eguneko menutik kenduko da.",
+    "removedTitle": "Kenduta",
+    "dishRemoved": "«{{name}}» kendu da",
+    "removeDishError": "Ezin izan da plater hau kendu",
+    "updated": "Eguneko menua eguneratu da",
+    "updateError": "Ezin izan da menua eguneratu",
+    "confirmation": "Berrespena",
+    "deleteMenuMessage": "Ziur zaude eguneko menu hau ezabatu nahi duzula?",
+    "menuDeleted": "Menua ondo ezabatu da",
+    "deleteMenuError": "Ezin izan da menua ezabatu",
+    "loadingDishes": "Platerak kargatzen…",
+    "emptyDishesText": "Edo zure kartako plater guztiak jada eguneko menu honetan daude, edo oraindik ez duzu platerik sortu. Gehitu platerak zure menura lehenik hemen hautatu ahal izateko.",
+    "menuActive": "Menu aktiboa",
+    "menuDishes": "Menuko platerak",
+    "add": "Gehitu",
+    "noDishesAvailable": "Ez dago gehitzeko platerik.",
+    "removeFromMenuLabel": "{{name}} menutik kendu",
+    "availableDishes": "{{count}} plater eskuragarri"
+  },
+  "scanImport": {
+    "photosSection": "Kartaren argazkiak",
+    "photoHint": "Orrialde bakoitzeko argazki bat. Orrialdeen ordena beheko ordenari dagokio.",
+    "noPagesAdded": "Ez da orririk gehitu",
+    "gallery": "Galeria",
+    "translationLangs": "Itzulpen-hizkuntzak",
+    "langsHint": "Edukia frantsesez ateratzen da. Aukeratu sortzeko hizkuntza gehigarriak (aukerakoa).",
+    "submitButton": "Inportazioa hasi ({{count}} orri)",
+    "maxPages": "Inportazioko gehienez {{max}} orri.",
+    "onlySomeAdded": "{{count}} orri soilik gehitu dira.",
+    "limitReached": "Muga gaindituta",
+    "cameraPermissionMsg": "Baimendu kamerarako sarbidea.",
+    "photosPermissionMsg": "Baimendu zure argazkietarako sarbidea.",
+    "restaurantNotFound": "Ez da jatetxea aurkitu. Itzuli Menuak fitxatik.",
+    "addAtLeastOnePhoto": "Gehitu zure kartaren argazki bat gutxienez.",
+    "noPhotoTitle": "Argazkirik ez",
+    "importError": "Ezin izan da inportazioa hasi.",
+    "readingCard": "Zure karta irakurtzen…",
+    "analyzeTitle": "Kartaren analisia",
+    "translatingContent": "Edukiaren itzulpena",
+    "importMenu": "Menuaren inportazioa",
+    "waitHint": "Normalean minutu bat baino gutxiago behar du. Pantaila honetan itxaron dezakezu.",
+    "analysisFailed": "Analisiak huts egin du",
+    "processingFailed": "Zure kartaren prozesamendua ez da burutu.",
+    "retry": "Saiatu berriro",
+    "menuImported": "Menua inportatuta",
+    "importDone": "Inportazioa amaituta",
+    "toReview": "Egiaztatzeko",
+    "reviewHint": "Berrikusi prezioak eta izenak. Dena editagarri jarraitzen du inportatu ondoren.",
+    "applyToMenu": "Nire menuari aplikatu",
+    "viewMenu": "Nire menua ikusi",
+    "applyConfirm": "Inportazioa aplikatu?",
+    "alreadyApplied": "Jada aplikatuta",
+    "alreadyAppliedMsg": "Inportazio hau jada zure menura gehitu da.",
+    "applied": "Aplikatuta",
+    "unchanged": "Aldatu gabe",
+    "dishName": "Plateraren izena",
+    "descOptional": "Deskribapena (aukerakoa)",
+    "price": "Prezioa",
+    "priceToComplete": "Prezioa osatzeko",
+    "categoryName": "Kategoriaren izena",
+    "subcategoryName": "Azpikategoriaren izena",
+    "categoriesCreated": "Sortutako kategoriak",
+    "categoriesReused": "Berrerabilitako kategoriak",
+    "subcategoriesCreated": "Sortutako azpikategoriak",
+    "dishesCreated": "Sortutako platerak",
+    "graphicGuide": "Estilo-gida",
+    "loadError": "Ezin izan da kargatu.",
+    "retryError": "Ezin izan da berriro saiatu.",
+    "applyError": "Aplikazioak huts egin du.",
+    "analyzing": "Analizatzen",
+    "reviewMenuTitle": "Menua egiaztatu",
+    "processingTimeout": "Prozesamenduak uste baino denbora gehiago behar du. Saiatu geroago.",
+    "apply": "Aplikatu",
+    "applyWarnMissingPrices": "{{count}} platerek ez dute prezio baliodunik eta 0,00 €-an sortuko dira. Jarraitu hala ere?",
+    "applySummary": "{{categories}} kategoria eta {{items}} plater zure menura gehituko dira.",
+    "headerTitle": "Karta inportatu",
+    "intro": "Atera zure paperezko kartaren argazkia. IAk automatikoki hautematen ditu kategoriak, platerak eta prezioak, eta itzultzen ditu. Dena berrikusi eta zuzendu ahal izango duzu zure kartan aplikatu aurretik."
+  },
+  "checkout": {
+    "headerTitle": "Eskaera amaitu",
+    "authRequired": "Saioa hastea beharrezkoa",
+    "authRequiredHint": "Aukeratu nola eskatu nahi duzun.",
+    "seeOptions": "Aukerak ikusi",
+    "authGate": {
+      "titleSession": "Hasi saioa zure eskaera amaitzeko",
+      "titleSolo": "Nola eskatu nahi duzu?",
+      "subtitleSession": "Lankidetza-saio bat abian da. Hasi saioa edo sortu kontu bat bertan parte hartzeko.",
+      "subtitleSolo": "Hasi saioa zure historia gordetzeko, edo jarraitu gonbidatu gisa."
+    },
+    "session": {
+      "title": "Lankidetza-saioa",
+      "tableInfo": "{{table}}. mahaia • {{count}} partaide",
+      "youAre": "Zu zara: {{name}}",
+      "hostSuffix": " (Antolatzailea)"
+    },
+    "details": {
+      "title": "Eskaeraren xehetasunak",
+      "restaurant": "Jatetxea: {{name}}",
+      "restaurantFallback": "ID {{id}}",
+      "tableNumber": "Mahai-zenbakia",
+      "table": "{{number}}. mahaia",
+      "tableUndefined": "Zehaztu gabe"
+    },
+    "info": {
+      "title": "Zure datuak",
+      "nameLabel": "Izena",
+      "namePlaceholder": "Idatzi zure izena",
+      "notesLabel": "Argibide bereziak (aukerakoa)",
+      "notesPlaceholder": "Adib.: Tipularik gabe, alergiak…"
+    },
+    "summary": {
+      "title_one": "Laburpena ({{count}} artikulu)",
+      "title_other": "Laburpena ({{count}} artikulu)"
+    },
+    "submit": {
+      "submitting": "Bidaltzen…",
+      "placeGroupOrder": "Eskaera egin",
+      "validateOrder": "Eskaera berretsi"
+    },
+    "validation": {
+      "restaurantMissing": "Jatetxea zehaztu gabe",
+      "tableRequired": "Mahai-zenbakia beharrezkoa",
+      "cartEmpty": "Saskia hutsik",
+      "nameRequired": "Izena beharrezkoa"
+    },
+    "toast": {
+      "orderPlacedTitle": "Eskaera eginda!",
+      "addedToSession": "Zure eskaera lankidetza-saiora gehitu da.",
+      "sentToRestaurant": "Zure eskaera jatetxera bidali da.",
+      "orderAddedTitle": "Eskaera gehituta!",
+      "addedToSessionNumbered": "Zure {{number}} zenbakidun eskaera lankidetza-saiora gehitu da.",
+      "createFailed": "Errorea eskaera sortzean"
+    }
+  },
+  "orderDetail": {
+    "headerTitle": "Eskaeraren xehetasunak",
+    "loading": "Xehetasunak kargatzen…",
+    "error": {
+      "title": "Ene!",
+      "notFound": "Ezin izan da eskaera hau aurkitu",
+      "loadFailed": "Errorea eskaera kargatzean",
+      "orderNotFound": "Eskaera ez da aurkitu"
+    },
+    "title": "{{number}} eskaera",
+    "titleFallback": "#{{id}}",
+    "customerFallback": "Bezero anonimoa",
+    "paid": "Ordainduta",
+    "table": "{{number}}. mahaia",
+    "estimatedTime": "Gutxi gorabeherako denbora: {{minutes}} min",
+    "notesLabel": "Eskaeraren oharrak",
+    "itemsTitle": "Eskatutako artikuluak",
+    "recap": "Laburpena",
+    "subtotal": "Azpitotala:",
+    "totalDue": "Ordaintzeko guztira:",
+    "item": {
+      "fallbackName": "{{id}}. artikulua",
+      "customized": "Pertsonalizatua",
+      "quantity": "Kop.: {{count}}",
+      "unitPrice": "Unitate-prezioa: {{price}}€",
+      "specialInstructions": "Argibide bereziak",
+      "customizations": "Pertsonalizazioak"
+    },
+    "timeline": {
+      "title": "Eskaeraren jarraipena",
+      "created": "Eskaera sortuta",
+      "confirmed": "Berretsita",
+      "preparing": "Prestatzen",
+      "ready": "Prest",
+      "served": "Zerbitzatuta"
+    },
+    "actions": {
+      "quickTitle": "Ekintza azkarrak",
+      "confirm": "Berretsi",
+      "startPreparing": "Prestatzen",
+      "markReady": "Prest",
+      "serve": "Zerbitzatu",
+      "collect": "Kobratu",
+      "receipt": "Tiketa",
+      "cancel": "Utzi"
+    },
+    "cancelConfirm": {
+      "title": "Eskaera bertan behera utzi",
+      "message": "Ziur {{number}}. eskaera bertan behera utzi nahi duzula? Ekintza hau itzulezina da.",
+      "keep": "Ez, mantendu",
+      "confirm": "Bai, utzi"
+    },
+    "payModal": {
+      "title": "Ordainduta gisa markatu",
+      "question": "Zein ordainketa-metodo erregistratu nahi duzu?",
+      "cash": "Eskudirua",
+      "card": "Txartela"
+    },
+    "paidWithCash": "Eskaera ordainduta gisa markatu da (Eskudirua)",
+    "paidWithCard": "Eskaera ordainduta gisa markatu da (Txartela)",
+    "statusUpdated": "Egoera eguneratu da: {{label}}",
+    "statusUpdateFailed": "Ezin izan da egoera eguneratu",
+    "markPaidSuccess": "Eskaera ordainduta gisa markatu da",
+    "markPaidFailed": "Ezin izan da ordainduta gisa markatu",
+    "client": {
+      "payNow": "Ordaindu orain",
+      "viewReceipt": "Ikusi tiketa"
+    }
+  },
+  "addOrder": {
+    "headerFallback": "Eskatu",
+    "loadingMenu": "Menua kargatzen…",
+    "restaurantNotFound": "Jatetxea ez da aurkitu",
+    "switch": "Aldatu",
+    "table": "{{number}}. mahaia",
+    "categoryAll": "Guztiak",
+    "noItems": "Ez dago artikulurik eskuragarri kategoria honetan.",
+    "add": "Gehitu",
+    "note": "Oharra: {{text}}",
+    "cartTitle_one": "Zure eskaera ({{count}} artikulu)",
+    "cartTitle_other": "Zure eskaera ({{count}} artikulu)",
+    "total": "Guztira:",
+    "clearCart": "Saskia hustu",
+    "orderInfo": "Eskaeraren informazioa",
+    "form": {
+      "nameLabel": "Zure izena *",
+      "namePlaceholder": "Izen-abizenak",
+      "phoneLabel": "Telefonoa",
+      "phonePlaceholder": "06 12 34 56 78",
+      "tableLabel": "Mahai-zenbakia *",
+      "tablePlaceholder": "Adib.: 12",
+      "notesLabel": "Oharrak",
+      "notesPlaceholder": "Alergiak, argibideak…",
+      "paymentMethod": "Ordainketa-metodoa"
+    },
+    "payment": {
+      "cash": "Eskudirua",
+      "card": "Txartela",
+      "online": "Linean"
+    },
+    "submitting": "Balioztatzen…",
+    "toast": {
+      "loadMenusFailed": "Ezin izan dira menuak kargatu",
+      "addedToCart": "{{name}} saskira gehitu da",
+      "addedTitle": "Gehituta",
+      "emptyCart": "Gehitu artikuluak zure eskaerara",
+      "emptyCartTitle": "Saskia hutsik",
+      "nameRequired": "Sartu zure izena",
+      "missingInfoTitle": "Informazioa falta da",
+      "tableRequired": "Mahai-zenbakia beharrezkoa da bertan jateko eskaeran",
+      "orderConfirmed": "{{number}} eskaera gordeta. Guztira: {{total}} €",
+      "orderConfirmedTitle": "Eskaera berretsita!",
+      "createFailed": "Ezin izan da eskaera sortu"
+    }
+  },
+  "guestCheckout": {
+    "headerTitle": "Gonbidatu gisa eskatu",
+    "tableLabel": "Mahaia: {{number}}",
+    "tableUndetected": "⚠️ Mahaia ez da hauteman — eskaneatu berriro QR kodea",
+    "processing": "Prozesatzen…",
+    "submit": "Eskaera egin • {{total}} €",
+    "form": {
+      "nameLabel": "Izena / Abizena *",
+      "namePlaceholder": "Zure izen osoa",
+      "phoneLabel": "Telefonoa *",
+      "phonePlaceholder": "06 12 34 56 78",
+      "emailLabel": "Emaila (aukerakoa)",
+      "emailPlaceholder": "zure@email.com"
+    },
+    "payment": {
+      "title": "Ordainketa-modua",
+      "online": "Lineako ordainketa",
+      "onlineHint": "Txartela Stripe bidez",
+      "cashHint": "💰 Zuzenean jatetxean ordainduko duzu"
+    },
+    "consent": {
+      "pre": "Onartzen dut ",
+      "link": "pribatutasun-politika",
+      "post": " eta erabilera-baldintzak *"
+    },
+    "toast": {
+      "nameRequired": "Izena beharrezkoa da",
+      "nameRequiredTitle": "Eremu falta",
+      "phoneInvalid": "Sartu Frantziako telefono-zenbaki balioduna",
+      "phoneInvalidTitle": "Telefono baliogabea",
+      "emailInvalid": "Sartu baliozko helbide elektroniko bat",
+      "emailInvalidTitle": "Email baliogabea",
+      "consentRequired": "Onartu pribatutasun-politika.",
+      "consentRequiredTitle": "Onarpena beharrezkoa",
+      "tableMissing": "Ez da mahai-zenbakia aurkitu. Eskaneatu berriro QR kodea.",
+      "tableMissingTitle": "Mahaia falta da",
+      "paymentInitFailed": "Ezin izan da ordainketa hasieratu",
+      "processingOrder": "Zure eskaera prozesatzen ari da. Begiratu zure eskaerak.",
+      "paymentConfirmedTitle": "Ordainketa berretsita",
+      "failed": "Eskaerak huts egin du. Saiatu berriro.",
+      "invalidItem": "Artikulu-ID baliogabea: {{name}}",
+      "initError": "Hasieratze-errorea: {{message}}",
+      "paymentError": "Ordainketa-errorea: {{message}}"
+    }
+  },
+  "authGate": {
+    "login": "Saioa hasi",
+    "loginDesc": "Aurkitu zure historia eta ordaindu azkarrago",
+    "register": "Kontua sortu",
+    "registerDesc": "Erregistro azkarra zure eskaerak jarraitzeko",
+    "guest": "Jarraitu gonbidatu gisa",
+    "guestHint": "Konturik sortu gabe eska dezakezu, izen bat eta telefono-zenbaki bat emanez."
+  },
+  "clientMenu": {
+    "sessionEndedTitle": "Saioa amaitu da",
+    "sessionEndedMsg": "Lankidetza-saioa itxi da.",
+    "loadFailed": "Ezin izan da menua kargatu",
+    "alreadySelectedTitle": "Jada hautatuta",
+    "alreadySelectedMsg": "{{name}} jada zure menuaren parte da",
+    "addedSharedTitle": "Partekatutako saskira gehitu da",
+    "addedTitle": "Saskira gehitu da",
+    "addedMsg": "{{name}} gehitu da",
+    "addSharedFailed": "Ezin izan da partekatutako saskira gehitu",
+    "removeItemFailed": "Ezin izan da artikulua kendu",
+    "copyCodeFailed": "Ezin izan da kodea kopiatu",
+    "approveFailed": "Ezin izan da eskaera onartu",
+    "rejectFailed": "Ezin izan da eskaera ukatu",
+    "completeFormula": "Osatu zure menua saskira sartzeko.",
+    "formulaIncomplete": "Menua osatu gabe",
+    "someone": "Norbait",
+    "loadingMenu": "Karta kargatzen…",
+    "notFound": "Jatetxea ez da aurkitu",
+    "table": "{{number}}. mahaia",
+    "welcome": "Ongi etorri",
+    "splitTitle": "💳 Kontuaren ordainketa",
+    "splitMsgAmount": "Antolatzaileak kontua ({{amount}}€) {{count}} zatitan banatu du. Ordaindu zure zatia orain.",
+    "splitMsg": "Antolatzaileak kontua {{count}} zatitan banatu du. Ordaindu zure zatia orain.",
+    "payMyShare": "Ordaindu nire zatia",
+    "later": "Geroago",
+    "backHome": "Hasierara itzuli",
+    "newRequestTitle": "🔔 Eskaera berria",
+    "newRequestMsg": "{{name}} zure saiora batu nahi da.",
+    "accept": "✅ Onartu",
+    "reject": "❌ Ukatu",
+    "switchRestaurantTitle": "Jatetxez aldatu?",
+    "switchRestaurantMsg": "Zure saskia hustu nahi duzu?",
+    "activeSessionTitle": "Saio aktiboa mahai honetan",
+    "participantsCount_one": "{{count}} partaide",
+    "participantsCount_other": "{{count}} partaide",
+    "codeSuffix": " · {{code}} kodea",
+    "join": "Batu",
+    "sessionCode": "Saio-kodea",
+    "chosen": "Aukeratua",
+    "chooseOne": "Aukeratu plater 1",
+    "emptyDaily": "Ez dago platerrik eguneko menuan",
+    "emptyCategory": "Ez dago platerrik kategoria honetan",
+    "viewCart": "Ikusi saskia",
+    "categoriesChosen_one": "{{picked}}/{{total}} kategoria aukeratuta",
+    "categoriesChosen_other": "{{picked}}/{{total}} kategoria aukeratuta",
+    "articlesCount_one": "{{count}} artikulu",
+    "articlesCount_other": "{{count}} artikulu",
+    "sessionTitle": "Lankidetza-saioa",
+    "shareCode": "Partekatze-kodea",
+    "participants": "Partaideak ({{count}})",
+    "anonymous": "Anonimoa",
+    "statusPending": "Zain",
+    "statusActive": "Aktibo",
+    "statusLeft": "Joanda",
+    "menuLanguage": "Menuaren hizkuntza",
+    "shareMessage": "🍽️ Batu nirekin {{name}}-(e)n!\n\nSaio-kodea: {{code}}\n\nSartu kode hau EatQuickeR-en nire mahaira batzeko.",
+    "shareTitle": "Batu gure mahaira",
+    "formulaOfDay": "Eguneko menua",
+    "formulaSubtitleMulti": "Plater 1 kategoriako • {{count}} kategoria • {{price}} / plater",
+    "formulaSubtitleSingle": "Plater 1 aukeratzeko • {{price}}",
+    "removeFromFormula": "Kendu {{name}} menutik",
+    "removeItem": "Kendu {{name}}",
+    "addOne": "Gehitu {{name}} bat",
+    "addToCartLabel": "Gehitu {{name}} saskira"
+  },
+  "splitPayment": {
+    "modeEqual": "Kontua {{count}} lagunen artean banatuta",
+    "modeCustom": "Kontua {{count}} zati pertsonalizatutan banatuta",
+    "modeItems": "«Plateraka» modua aktibatuta {{count}} lagunentzat",
+    "configuredTitle": "Banaketa konfiguratuta",
+    "createFailed": "Ezin izan da kontuaren banaketa sortu",
+    "headerTitle": "Kontua banatu",
+    "groupOrder": "Talde-eskaera",
+    "yourPartPaid": "Zure zatia behar bezala ordaindu da.",
+    "backToSession": "Itzuli saiora",
+    "youAreHost": "Zu zara antolatzailea",
+    "splitInProgress": "Kontuaren banaketa abian",
+    "participantsPaid": "{{count}} partaide • {{paid}} ordainduta",
+    "configurePrompt": "Konfiguratu kontuaren banaketa",
+    "hostConfigureHint": "Aukeratu nola banatu ordainketa partaideen artean.",
+    "guestWaitConfig": "Antolatzailea kontuaren banaketa konfiguratzen ari da.",
+    "loadingPortions": "Zatiak kargatzen…",
+    "enterAmounts": "Sartu zenbatekoak",
+    "perfectSplit": "Banaketa perfektua!",
+    "notEnoughParticipantsTitle": "Partaide gutxiegi",
+    "notEnoughParticipantsMsg": "«Plateraka» moduak gutxienez 2 partaide behar ditu saioan.",
+    "minTwoPeople": "Pertsona kopurua gutxienez 2 izan behar da",
+    "splitMismatch": "Banaketa ez dator bat zenbateko osoarekin",
+    "minTwoPortions": "Gutxienez zenbatekoa duten 2 zati behar dira",
+    "totalToSplit": "Banatzeko guztira",
+    "howToSplit": "Nola banatu?",
+    "modeSingle": "Ordainketa bakarra",
+    "modeSingleDesc": "Pertsona bakar batek ordaintzen du",
+    "modeEqualLabel": "Berdina",
+    "modeEqualDesc": "Zati berdinak denentzat",
+    "modeCustomLabel": "Pertsonalizatua",
+    "modeCustomDesc": "Neurrira egindako zenbatekoak",
+    "modeItemsLabel": "Plateraka",
+    "modeItemsDesc": "Bakoitzak hartu duena ordaintzen du",
+    "numberOfPeople": "Pertsona kopurua",
+    "personN": "{{number}}. pertsona",
+    "customAmounts": "Zenbateko pertsonalizatuak",
+    "addPerson": "Gehitu pertsona bat",
+    "anonymous": "Anonimoa",
+    "paidOn": "{{date}}-(e)an ordainduta",
+    "yourPart": "💳 Zure zatia",
+    "waiting": "⏳ Zain",
+    "completedTitle": "🎉 Ordainketa osatuta!",
+    "completedMessage": "Ordainketa guztiak behar bezala egin dira.",
+    "completedOn": "\n\n{{date}}-(e)an osatuta",
+    "people": "Pertsonak",
+    "title": "Ordainketa banatua",
+    "equalSplit": "⚖️ Banaketa berdina",
+    "customSplit": "🎯 Zenbateko pertsonalizatuak",
+    "paidStat": "✅ Ordainduta",
+    "remainingStat": "⏳ Geratzen dena",
+    "peopleStat": "👥 Pertsonak",
+    "paymentsDetail": "📋 Ordainketen xehetasunak",
+    "edit": "Editatu",
+    "payRest": "💳 Ordaindu gainerakoa ({{amount}})",
+    "payForOthersHint": "💡 Beren zatia oraindik ordaindu ez duten besteen alde ordain dezakezu",
+    "payAllRest": "Ordaindu gainerako guztia"
+  },
+  "receipt": {
+    "loading": "Tiketa kargatzen…",
+    "noData": "Ez dago tiket-daturik eskuragarri",
+    "ticketNumber": "Tiket-zk.:",
+    "dateLabel": "Data:",
+    "tableLabel": "Mahaia:",
+    "typeLabel": "Mota:",
+    "dineIn": "Bertan",
+    "takeaway": "Eramateko",
+    "paymentLabel": "Ordainketa:",
+    "subtotalHT": "Subtotala (zergarik gabe):",
+    "vatTotal": "BEZ guztira:",
+    "subtotalTTC": "Subtotala (zergak barne):",
+    "tip": "Eskupekoa:",
+    "totalTTC": "GUZTIRA (zergak barne):",
+    "thankYou": "ESKERRIK ASKO ZURE BISITAGATIK!",
+    "seeYouSoon": "Laster arte",
+    "vatDetailTitle": "BEZ xehetasuna",
+    "vatRate": "BEZ {{rate}}%",
+    "vatBaseHT": "Zerga gabe: {{amount}}",
+    "vatAmount": "BEZ: {{amount}}",
+    "vatTotalTitle": "BEZ guztira",
+    "print": "Inprimatu",
+    "email": "Posta",
+    "download": "Deskargatu",
+    "share": "Partekatu",
+    "emailModalTitle": "Bidali tiketa postaz",
+    "emailPlaceholder": "Posta-helbidea",
+    "sending": "Bidaltzen…",
+    "send": "Bidali",
+    "loadFailed": "Ezin izan da tiketa kargatu",
+    "printFailed": "Ezin izan da tiketa inprimatu",
+    "emailInvalid": "Sartu baliozko posta-helbide bat",
+    "sentTo": "Tiketa {{email}} helbidera bidali da",
+    "successTitle": "Ondo egin da",
+    "unknownError": "Errore ezezaguna",
+    "sendFailed": "Ezin izan da tiketa bidali",
+    "shareFailed": "Ezin izan da tiketa partekatu",
+    "savedSuccess": "Tiketa ondo gorde da",
+    "savedAs": "Tiketa gordeta: {{filename}}",
+    "downloadTitle": "Deskarga",
+    "downloadFailed": "Ezin izan da tiketa deskargatu",
+    "method": {
+      "cash": "Eskudirua",
+      "card": "Txartela",
+      "online": "Linean",
+      "credit": "Kreditua",
+      "check": "Txekea",
+      "transfer": "Transferentzia"
+    }
+  },
+  "unpaidGate": {
+    "headerTitle": "Sarbide mugatua",
+    "title": "Ordainketa zain",
+    "message_one": "Ordaindu gabeko eskaera bat duzu. Mesedez, ordaindu zure eskaerak menura sartu edo eskaera berri bat egin ahal izateko.",
+    "message_other": "Ordaindu gabeko {{count}} eskaera dituzu. Mesedez, ordaindu zure eskaerak menura sartu edo eskaera berri bat egin ahal izateko.",
+    "unpaidBadge": "Ordaindu gabe",
+    "viewOrders": "Ikusi nire eskaerak"
+  },
+  "reorderCategories": {
+    "headerTitle": "Kategoriak berrantolatu",
+    "loadFailed": "Ezin izan dira kategoriak kargatu.",
+    "savedTitle": "Ordena gordeta",
+    "savedMsg": "Kategoriak berrantolatu dira.",
+    "saveFailed": "Ezin izan da ordena gorde.",
+    "noRestaurant": "Ez da jatetxerik hautatu. Itzuli aurreko pantailara eta hautatu jatetxe bat.",
+    "intro": "Hemen aukeratutako ordenak bezeroaren menuko (karta eta eguneko menua) kategorien bistaratze-ordena zehazten du.",
+    "empty": "Ez dago kategoriarik jatetxe honetarako.",
+    "dishCount_one": "plater {{count}}",
+    "dishCount_other": "{{count}} plater",
+    "moveUp": "Igo {{name}}",
+    "moveDown": "Jaitsi {{name}}",
+    "saving": "Gordetzen…",
+    "save": "Gorde ordena"
+  },
+  "notif": {
+    "title": "Jakinarazpenak",
+    "markAllShort": "Irakurri dena",
+    "empty": "Jakinarazpenik ez",
+    "emptySubtitle": "Oraindik ez duzu jakinarazpenik jaso.\nHemen agertuko dira.",
+    "actionsTitle": "Ekintzak",
+    "actionsMessage": "Zer egin nahi duzu?",
+    "alreadyRead": "Irakurrita",
+    "markRead": "Markatu irakurritako gisa",
+    "markAllTitle": "Markatu dena irakurritako gisa",
+    "markAllMessage_one": "{{count}} jakinarazpen irakurritako gisa markatu?",
+    "markAllMessage_other": "{{count}} jakinarazpen irakurritako gisa markatu?",
+    "today": "Gaur",
+    "yesterday": "Atzo"
+  },
+  "prefs": {
+    "title": "Jakinarazpen-hobespenak",
+    "loading": "Hobespenak kargatzen…",
+    "saveFailed": "Ezin izan da hobespena gorde",
+    "permissionsTitle": "Baimenak behar dira",
+    "permissionsMessage": "Jakinarazpenak jasotzeko, zure gailuaren ezarpenetan jakinarazpenak baimendu behar dituzu.",
+    "disabledTitle": "Jakinarazpenak desgaituta",
+    "disabledSubtitle": "Sakatu jakinarazpenak gaitzeko",
+    "sectionOrders": "Eskaeren eguneraketak",
+    "sectionPayments": "Ordainketak",
+    "sectionRestaurateurs": "Jatetxe-arduradunak",
+    "sectionMarketing": "Marketina",
+    "sectionDnd": "Ez molestatu",
+    "sectionSound": "Soinua eta dardara",
+    "ordersTitle": "Eskaerak",
+    "ordersDesc": "Egoera, berrespena, prestaketa",
+    "orderReadyTitle": "Eskaera prest",
+    "orderReadyDesc": "Jaso abisua zure eskaera prest dagoenean",
+    "paymentTitle": "Ordainketa-berrespena",
+    "paymentDesc": "Ordainagiriak eta ordainketa-berrespenak",
+    "newOrdersTitle": "Eskaera berriak",
+    "newOrdersDesc": "Eskaera berrien abisuak (jatetxe-arduradunak)",
+    "promoTitle": "Eskaintza promozionalak",
+    "promoDesc": "Deskontuak eta eskaintza bereziak",
+    "quietTitle": "Isiltasun-orduak",
+    "quietDesc": "Eten jakinarazpenak ordu jakin batzuetan",
+    "soundTitle": "Soinua",
+    "soundDesc": "Jo soinu bat jasotzean",
+    "vibrationTitle": "Dardara",
+    "vibrationDesc": "Gailua dardarazi",
+    "start": "Hasiera",
+    "end": "Amaiera",
+    "startTime": "Hasiera-ordua",
+    "endTime": "Amaiera-ordua",
+    "hour": "Ordua",
+    "minutes": "Minutuak"
+  },
+  "help": {
+    "headerTitle": "Hasteko gida",
+    "heroTitle": "Ongi etorri EatQuickeR-era",
+    "heroSubtitle": "Jarraitu gida hau zure jatetxea minutu gutxitan konfiguratzeko.",
+    "allReadyTitle": "Zure jatetxea martxan dago!",
+    "allReadySubtitle": "Eskaerak jasotzeko prest zaude. Partekatu zure QR kodeak mahaietan eta utzi EatQuickeR-i gainerakoa egiten.",
+    "statsCta": "Estatistikak",
+    "progressDone": "Konfigurazioa amaituta!",
+    "progressInProgress": "Konfigurazioa abian",
+    "stepsCompleted": "{{completed}} / {{total}} urrats osatuta",
+    "stepLabel": "{{total}}(e)TIK {{current}}. URRATSA",
+    "steps": {
+      "stripe": {
+        "title": "Gaitu ordainketak",
+        "subtitle": "Konektatu zure Stripe kontua ordainketak jasotzeko.",
+        "doneLabel": "Stripe gaituta",
+        "s1": "Sartu zure profilera menutik",
+        "s2": "Sakatu \"Konfiguratu Stripe ordainketak\"",
+        "s3": "Bete Stripe izena emateko inprimakia",
+        "s4": "Itxaron berrespena (minutu batzuk)",
+        "tip": "Urrats hau behin bakarrik behar da. EatQuickeR-i zure diru-sarrerak egunero ordaintzeko aukera ematen dio.",
+        "cta": "Konfiguratu Stripe"
+      },
+      "restaurant": {
+        "title": "Sortu zure jatetxea",
+        "subtitle": "Gehitu zure establezimendua eskaerak jasotzen hasteko.",
+        "doneLabel": "Jatetxea sortuta",
+        "s1": "Sakatu \"Sortu jatetxe bat\"",
+        "s2": "Idatzi zure establezimenduaren izena eta helbidea",
+        "s3": "Gehitu azaleko argazki erakargarri bat",
+        "s4": "Idatzi zure harremanetarako telefono-zenbakia",
+        "s5": "Gorde — zure jatetxea linean dago!",
+        "tip": "Hainbat jatetxe sor ditzakezu jatetxe-arduradun kontu bakar batetik.",
+        "cta": "Sortu nire jatetxea"
+      },
+      "menu": {
+        "title": "Sortu zure menua",
+        "subtitle": "Antolatu zure platerak kategorietan egituratutako menu batean.",
+        "doneLabel": "Menua sortuta",
+        "s1": "Joan \"Kudeatu menuak\" atalera eta sortu menu bat",
+        "s2": "Gehitu kategoriak (Hasierakoak, Platerak, Postreak…)",
+        "s3": "Sortu azpikategoriak behar izanez gero (Haragiak, Arrainak…)",
+        "s4": "Gehitu zure platerak izenarekin, prezioarekin eta deskribapenarekin",
+        "s5": "Jarri argazki gozagarri bat plater bakoitzari",
+        "tip": "Sortu menu desberdinak zure urtaro edo ekitaldietarako (Udako Menua, Jaietako Menua…).",
+        "cta": "Kudeatu menuak"
+      },
+      "items": {
+        "title": "Gehitu zure platerak",
+        "subtitle": "Osatu zure menua zure plater eta edari guztiekin.",
+        "doneLabel": "Platerak gehituta",
+        "s1": "Zure menuan, sakatu \"+\" plater bat gehitzeko",
+        "s2": "Zehaztu izena, deskribapena eta prezioa",
+        "s3": "Idatzi alergenoak eta aukerak (begetarianoa, beganoa…)",
+        "s4": "Gaitu platera eskuragarri jartzeko eskaeretarako",
+        "tip": "Platera denbora errealean gaitu/desgaitu dezakezu stockik gabe geratzen bazara.",
+        "cta": "Ikusi nire menuak"
+      },
+      "qrcodes": {
+        "title": "Sortu QR kodeak",
+        "subtitle": "Sortu QR kode bat mahai bakoitzeko, zure bezeroek beren mugikorretik eska dezaten.",
+        "doneLabel": "QR kodeak sortuta",
+        "s1": "Ireki \"Mahaien QR kodeak\" eta hautatu zure jatetxea",
+        "s2": "Adierazi mahai kopurua eta hasierako zenbakia",
+        "s3": "Mahai bakoitzak QR kode bat eta esku-kode bakar bat jasotzen du",
+        "s4": "Inprimatu QR kodeak (A4 PDFa edo banakako partekatzea)",
+        "s5": "Jarri mahaietan — prest dago!",
+        "tip": "\"Inprimatu dena\" funtzioak QR kode guztiekin PDF bat sortzen du klik bakarrarekin.",
+        "cta": "Sortu QR kodeak"
+      }
+    }
+  },
+  "gamifiedTracking": {
+    "estimatedTime": "Aurreikusitako denbora",
+    "accuracy": "Zehaztasuna",
+    "inProgress": "Abian...",
+    "progress": "Aurrerapena",
+    "quality": "Kalitatea",
+    "preparation": "Prestaketa",
+    "efficiency": "Eraginkortasuna",
+    "completion": "Osatzea",
+    "bonusActive": "Bonusa aktibo",
+    "distinctions": "Lorpenak",
+    "preparationSteps": "Prestaketa-urratsak",
+    "estimatedLabel": "Aurreikusia:",
+    "remainingLabel": "Geratzen dena:",
+    "loading": "Jarraipena kargatzen...",
+    "streakCount_one": "{{count}} eskaerako bolada",
+    "streakCount_other": "{{count}} eskaerako bolada",
+    "itemsCount_one": "{{count}} artikulu",
+    "itemsCount_other": "{{count}} artikulu"
+  }
+}

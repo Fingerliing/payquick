@@ -33,6 +33,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Alert as CustomAlert } from '@/components/ui/Alert';
@@ -45,6 +46,7 @@ import {
   SHADOWS,
   useScreenType,
   getResponsiveValue,
+  useAppTheme,
 } from '@/utils/designSystem';
 
 const CODE_LENGTH = 6;
@@ -65,18 +67,18 @@ const PWD_RULES = {
   hasSpecial: /[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/`~;']/,
 };
 
-function validatePassword(pwd: string): string | undefined {
+function validatePassword(pwd: string, t: (k: string, o?: any) => string): string | undefined {
   if (pwd.length < PWD_RULES.minLength) {
-    return `Le mot de passe doit contenir au moins ${PWD_RULES.minLength} caractères.`;
+    return t('auth.reset.pwdMinLength', { n: PWD_RULES.minLength });
   }
   if (!PWD_RULES.hasUpper.test(pwd)) {
-    return 'Le mot de passe doit contenir au moins une majuscule.';
+    return t('auth.reset.pwdUpper');
   }
   if (!PWD_RULES.hasDigit.test(pwd)) {
-    return 'Le mot de passe doit contenir au moins un chiffre.';
+    return t('auth.reset.pwdDigit');
   }
   if (!PWD_RULES.hasSpecial.test(pwd)) {
-    return 'Le mot de passe doit contenir au moins un caractère spécial.';
+    return t('auth.reset.pwdSpecial');
   }
   return undefined;
 }
@@ -92,6 +94,13 @@ export default function ResetPasswordScreen() {
 
   const insets = useSafeAreaInsets();
   const screenType = useScreenType();
+  const { colors, isDark } = useAppTheme();
+  const { t } = useTranslation();
+
+  // Dégradé : navy de marque en clair, bleu nuit profond en dark.
+  const gradientColors = (isDark
+    ? ['#070B18', '#0F1528', '#161D33']
+    : GRADIENT) as [string, string, string];
 
   const sp = (token: { mobile: number; tablet: number; desktop: number }): number =>
     getResponsiveValue(token, screenType);
@@ -177,13 +186,13 @@ export default function ResetPasswordScreen() {
     if (!isCodeComplete) {
       setCustomAlert({
         variant: 'error',
-        title: 'Code incomplet',
-        message: 'Veuillez saisir le code à 6 chiffres reçu par email.',
+        title: t('auth.reset.codeIncompleteTitle'),
+        message: t('auth.reset.codeIncompleteMsg'),
       });
       ok = false;
     }
 
-    const pwdErr = validatePassword(newPassword);
+    const pwdErr = validatePassword(newPassword, t);
     if (pwdErr) {
       setPasswordError(pwdErr);
       ok = false;
@@ -192,7 +201,7 @@ export default function ResetPasswordScreen() {
     }
 
     if (newPassword !== confirmPassword) {
-      setConfirmError('Les mots de passe ne correspondent pas.');
+      setConfirmError(t('errors.passwordMismatch'));
       ok = false;
     } else {
       setConfirmError(undefined);
@@ -208,9 +217,8 @@ export default function ResetPasswordScreen() {
     if (!reset_id) {
       setCustomAlert({
         variant: 'error',
-        title: 'Demande invalide',
-        message:
-          "Cette demande n'est plus valide. Veuillez recommencer la procédure.",
+        title: t('auth.reset.invalidRequestTitle'),
+        message: t('auth.reset.invalidRequestMsg'),
       });
       return;
     }
@@ -235,11 +243,11 @@ export default function ResetPasswordScreen() {
         if (response.status === 400 && typeof data?.attempts_remaining === 'number') {
           setCustomAlert({
             variant: 'error',
-            title: 'Code incorrect',
+            title: t('auth.reset.codeIncorrectTitle'),
             message:
               data.attempts_remaining > 0
-                ? `Code invalide. ${data.attempts_remaining} tentative(s) restante(s).`
-                : 'Trop de tentatives. Veuillez demander un nouveau code.',
+                ? t('auth.reset.codeInvalidRemaining', { count: data.attempts_remaining })
+                : t('auth.reset.tooManyAttempts'),
           });
           setCode(Array(CODE_LENGTH).fill(''));
           inputRefs.current[0]?.focus();
@@ -250,10 +258,10 @@ export default function ResetPasswordScreen() {
         if (response.status === 400 || response.status === 404) {
           setCustomAlert({
             variant: 'error',
-            title: 'Demande expirée',
+            title: t('auth.reset.requestExpiredTitle'),
             message:
               data?.error ||
-              "Cette demande n'est plus valide. Veuillez recommencer.",
+              t('auth.reset.requestExpiredMsg'),
           });
           return;
         }
@@ -262,10 +270,10 @@ export default function ResetPasswordScreen() {
         if (response.status === 429) {
           setCustomAlert({
             variant: 'warning',
-            title: 'Trop de tentatives',
+            title: t('auth.reset.tooManyTitle'),
             message:
               data?.error ||
-              'Veuillez demander un nouveau code et réessayer.',
+              t('auth.reset.tooManyMsg'),
           });
           return;
         }
@@ -281,11 +289,11 @@ export default function ResetPasswordScreen() {
 
         setCustomAlert({
           variant: 'error',
-          title: 'Erreur',
+          title: t('common.error'),
           message:
             data?.error ||
             data?.detail ||
-            'Une erreur est survenue. Veuillez réessayer.',
+            t('auth.reset.genericError'),
         });
         return;
       }
@@ -293,8 +301,8 @@ export default function ResetPasswordScreen() {
       // Succès
       setCustomAlert({
         variant: 'success',
-        title: 'Mot de passe modifié',
-        message: 'Votre mot de passe a été réinitialisé avec succès.',
+        title: t('auth.reset.successTitle'),
+        message: t('auth.reset.successMsg'),
       });
 
       // Petite pause pour laisser voir le message de succès
@@ -304,8 +312,8 @@ export default function ResetPasswordScreen() {
     } catch (e) {
       setCustomAlert({
         variant: 'error',
-        title: 'Erreur réseau',
-        message: 'Vérifiez votre connexion et réessayez.',
+        title: t('auth.forgot.networkErrorTitle'),
+        message: t('auth.forgot.networkErrorMsg'),
       });
     } finally {
       setLoading(false);
@@ -330,11 +338,11 @@ export default function ResetPasswordScreen() {
       if (!response.ok) {
         setCustomAlert({
           variant: 'error',
-          title: 'Erreur',
+          title: t('common.error'),
           message:
             data?.error ||
             data?.detail ||
-            "Impossible de renvoyer le code.",
+            t('auth.verify.resendError'),
         });
         return;
       }
@@ -345,14 +353,14 @@ export default function ResetPasswordScreen() {
       inputRefs.current[0]?.focus();
       setCustomAlert({
         variant: 'success',
-        title: 'Code renvoyé',
-        message: `Nouveau code envoyé à ${email_masked}.`,
+        title: t('auth.verify.codeResentTitle'),
+        message: t('auth.verify.codeResentMsg', { email: email_masked }),
       });
     } catch (e) {
       setCustomAlert({
         variant: 'error',
-        title: 'Erreur réseau',
-        message: 'Vérifiez votre connexion et réessayez.',
+        title: t('auth.forgot.networkErrorTitle'),
+        message: t('auth.forgot.networkErrorMsg'),
       });
     } finally {
       setResendLoading(false);
@@ -412,14 +420,14 @@ export default function ResetPasswordScreen() {
 
     // Card
     card: {
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderRadius: BORDER_RADIUS['3xl'],
       padding: sp(SPACING.xl),
       ...SHADOWS.card,
     },
     goldenAccent: {
       height: 3,
-      backgroundColor: COLORS.secondary,
+      backgroundColor: colors.secondary,
       borderRadius: BORDER_RADIUS.full,
       marginBottom: sp(SPACING.lg),
       opacity: 0.4,
@@ -429,7 +437,7 @@ export default function ResetPasswordScreen() {
     sectionLabel: {
       fontSize: sp(TYPOGRAPHY.fontSize.base),
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       textAlign: 'center',
       marginBottom: sp(SPACING.md),
     },
@@ -446,25 +454,25 @@ export default function ResetPasswordScreen() {
       height: 56,
       borderRadius: BORDER_RADIUS.xl,
       borderWidth: 1.5,
-      borderColor: COLORS.border.default,
+      borderColor: colors.border.default,
       textAlign: 'center',
       fontSize: sp(TYPOGRAPHY.fontSize.xl),
       fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: COLORS.text.primary,
-      backgroundColor: COLORS.background,
+      color: colors.text.primary,
+      backgroundColor: colors.background,
     },
     codeInputFilled: {
-      borderColor: COLORS.primary,
-      backgroundColor: COLORS.variants.primary[50],
-      color: COLORS.primary,
+      borderColor: colors.primary,
+      backgroundColor: colors.variants.primary[50],
+      color: colors.primary,
     },
     codeInputActive: {
-      borderColor: COLORS.primary,
+      borderColor: colors.primary,
       borderWidth: 2,
     },
     expiryText: {
       fontSize: sp(TYPOGRAPHY.fontSize.xs),
-      color: COLORS.text.light,
+      color: colors.text.light,
       textAlign: 'center',
       marginBottom: sp(SPACING.lg),
     },
@@ -472,7 +480,7 @@ export default function ResetPasswordScreen() {
     // Séparateur
     divider: {
       height: 1,
-      backgroundColor: COLORS.border.light,
+      backgroundColor: colors.border.light,
       marginVertical: sp(SPACING.md),
     },
 
@@ -495,7 +503,7 @@ export default function ResetPasswordScreen() {
     passwordHintText: {
       flex: 1,
       fontSize: sp(TYPOGRAPHY.fontSize.xs),
-      color: COLORS.text.light,
+      color: colors.text.light,
       lineHeight:
         sp(TYPOGRAPHY.fontSize.xs) * TYPOGRAPHY.lineHeight.relaxed,
     },
@@ -511,34 +519,34 @@ export default function ResetPasswordScreen() {
     },
     resendText: {
       fontSize: sp(TYPOGRAPHY.fontSize.sm),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
     },
     resendLink: {
       fontSize: sp(TYPOGRAPHY.fontSize.sm),
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      color: COLORS.primary,
+      color: colors.primary,
       textDecorationLine: 'underline',
     },
     resendCountdown: {
       fontSize: sp(TYPOGRAPHY.fontSize.sm),
-      color: COLORS.text.light,
+      color: colors.text.light,
     },
 
     // Lien retour
     backLink: { alignItems: 'center', paddingTop: sp(SPACING.xs) },
     backLinkText: {
       fontSize: sp(TYPOGRAPHY.fontSize.sm),
-      color: COLORS.text.light,
+      color: colors.text.light,
     },
     backLinkBold: {
-      color: COLORS.primary,
+      color: colors.primary,
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
     },
   });
 
   return (
     <LinearGradient
-      colors={GRADIENT}
+      colors={gradientColors}
       style={styles.gradient}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
@@ -568,9 +576,9 @@ export default function ResetPasswordScreen() {
             <View style={styles.iconCircle}>
               <Ionicons name="key-outline" size={34} color={COLORS.secondary} />
             </View>
-            <Text style={styles.title}>Nouveau mot de passe</Text>
+            <Text style={styles.title}>{t('auth.reset.title')}</Text>
             <Text style={styles.subtitle}>
-              Code envoyé à{'\n'}
+              {t('auth.verify.sentTo')}{'\n'}
               <Text style={styles.emailHighlight}>
                 {email_masked || '···@···'}
               </Text>
@@ -595,7 +603,7 @@ export default function ResetPasswordScreen() {
 
             {/* Bloc OTP */}
             <Text style={styles.sectionLabel}>
-              1. Entrez le code à 6 chiffres
+              {t('auth.reset.step1')}
             </Text>
             <View style={styles.codeContainer}>
               {Array(CODE_LENGTH)
@@ -627,8 +635,7 @@ export default function ResetPasswordScreen() {
             </View>
             {expires_in ? (
               <Text style={styles.expiryText}>
-                Ce code expire dans{' '}
-                {Math.round(Number(expires_in) / 60)} minutes
+                {t('auth.verify.expiresIn', { minutes: Math.round(Number(expires_in) / 60) })}
               </Text>
             ) : (
               <View style={{ height: sp(SPACING.md) }} />
@@ -638,12 +645,12 @@ export default function ResetPasswordScreen() {
 
             {/* Bloc nouveau mot de passe */}
             <Text style={styles.sectionLabel}>
-              2. Choisissez un nouveau mot de passe
+              {t('auth.reset.step2')}
             </Text>
 
             <View style={styles.passwordContainer}>
               <Input
-                label="Nouveau mot de passe"
+                label={t('auth.reset.newPasswordLabel')}
                 placeholder="••••••••"
                 value={newPassword}
                 onChangeText={(v: string) => {
@@ -663,7 +670,7 @@ export default function ResetPasswordScreen() {
                 <Ionicons
                   name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                   size={20}
-                  color={COLORS.text.light}
+                  color={colors.text.light}
                 />
               </TouchableOpacity>
               {!passwordError && (
@@ -671,11 +678,10 @@ export default function ResetPasswordScreen() {
                   <Ionicons
                     name="information-circle-outline"
                     size={13}
-                    color={COLORS.text.light}
+                    color={colors.text.light}
                   />
                   <Text style={styles.passwordHintText}>
-                    Au moins 8 caractères, avec une majuscule, un chiffre et un
-                    caractère spécial
+                    {t('auth.passwordHint')}
                   </Text>
                 </View>
               )}
@@ -683,7 +689,7 @@ export default function ResetPasswordScreen() {
 
             <View style={styles.passwordContainer}>
               <Input
-                label="Confirmer le mot de passe"
+                label={t('auth.passwordConfirm')}
                 placeholder="••••••••"
                 value={confirmPassword}
                 onChangeText={(v: string) => {
@@ -705,14 +711,14 @@ export default function ResetPasswordScreen() {
                 <Ionicons
                   name={showConfirm ? 'eye-off-outline' : 'eye-outline'}
                   size={20}
-                  color={COLORS.text.light}
+                  color={colors.text.light}
                 />
               </TouchableOpacity>
             </View>
 
             {/* Bouton de validation */}
             <Button
-              title="Réinitialiser le mot de passe"
+              title={t('auth.reset.submit')}
               onPress={handleSubmit}
               disabled={loading || !isCodeComplete || !newPassword || !confirmPassword}
               loading={loading}
@@ -724,7 +730,7 @@ export default function ResetPasswordScreen() {
             {/* Renvoi */}
             <View style={styles.resendContainer}>
               <Text style={styles.resendText}>
-                Vous n'avez pas reçu le code ?
+                {t('auth.verify.noCode')}
               </Text>
               {canResend ? (
                 <TouchableOpacity
@@ -733,14 +739,14 @@ export default function ResetPasswordScreen() {
                   activeOpacity={0.7}
                 >
                   {resendLoading ? (
-                    <ActivityIndicator size="small" color={COLORS.primary} />
+                    <ActivityIndicator size="small" color={colors.primary} />
                   ) : (
-                    <Text style={styles.resendLink}>Renvoyer le code</Text>
+                    <Text style={styles.resendLink}>{t('auth.verify.resend')}</Text>
                   )}
                 </TouchableOpacity>
               ) : (
                 <Text style={styles.resendCountdown}>
-                  Renvoyer dans {resendCountdown}s
+                  {t('auth.verify.resendIn', { seconds: resendCountdown })}
                 </Text>
               )}
             </View>
@@ -752,8 +758,8 @@ export default function ResetPasswordScreen() {
               activeOpacity={0.7}
             >
               <Text style={styles.backLinkText}>
-                Retour à{' '}
-                <Text style={styles.backLinkBold}>la connexion</Text>
+                {t('auth.forgot.backToPrefix')}{' '}
+                <Text style={styles.backLinkBold}>{t('auth.forgot.backToLogin')}</Text>
               </Text>
             </TouchableOpacity>
           </View>

@@ -1,0 +1,2872 @@
+{
+  "addRestaurant": {
+    "title": "添加餐厅",
+    "image": {
+      "section": "封面图片",
+      "choose": "选择图片",
+      "formatHint": "推荐 16:9 格式"
+    },
+    "sections": {
+      "basicInfo": "基本信息",
+      "contact": "联系方式",
+      "location": "地址与定位",
+      "mealVouchers": "餐券",
+      "legal": "法律信息"
+    },
+    "fields": {
+      "name": "餐厅名称 *",
+      "namePlaceholder": "例如：La Bonne Table",
+      "description": "描述",
+      "descriptionPlaceholder": "对您店铺的简短描述",
+      "cuisineType": "菜系 *",
+      "priceRange": "价格区间",
+      "phone": "电话 *",
+      "email": "电子邮箱 *",
+      "website": "网站",
+      "address": "地址 *",
+      "city": "城市 *",
+      "cityPlaceholder": "巴黎",
+      "postalCode": "邮政编码 *",
+      "siret": "SIRET 编号 *",
+      "siretPlaceholder": "12345678901234",
+      "raisonSociale": "公司名称",
+      "raisonSocialePlaceholder": "例如：SARL Restaurant Chez Paul"
+    },
+    "cuisines": {
+      "french": "法国菜",
+      "italian": "意大利菜",
+      "asian": "亚洲菜",
+      "mexican": "墨西哥菜",
+      "indian": "印度菜",
+      "american": "美式菜",
+      "mediterranean": "地中海菜",
+      "japanese": "日本料理",
+      "chinese": "中餐",
+      "thai": "泰国菜",
+      "other": "其他"
+    },
+    "priceRanges": {
+      "eco": "经济",
+      "moderate": "适中",
+      "expensive": "较贵",
+      "luxury": "奢华"
+    },
+    "mealVouchers": {
+      "accept": "接受餐券",
+      "providers": "Swile、Edenred、Up…",
+      "legalInfoTitle": "法律信息",
+      "legalLimit": "法定上限：每人每天 19 欧元",
+      "legalUsage": "使用：周一至周六（周日及节假日除外，特殊情况除外）",
+      "legalProducts": "适用商品：可立即食用的食品",
+      "customInfoLabel": "向顾客显示的信息",
+      "customInfoPlaceholder": "例如：周一至周六可用，上限 19 欧元",
+      "accepted": "接受",
+      "notAccepted": "不接受",
+      "titleAccepted": "接受餐券",
+      "titleNotAccepted": "不接受餐券",
+      "defaultInfo": "按照法律条件接受餐券"
+    },
+    "status": {
+      "closedNow": "暂时休息",
+      "period": "时段：{{start}} - {{end}}",
+      "nextOpening": "下次营业：{{time}}"
+    },
+    "submit": {
+      "create": "创建餐厅",
+      "creating": "正在创建…",
+      "processing": "正在处理…"
+    },
+    "validation": {
+      "nameRequired": "名称为必填项",
+      "addressRequired": "地址为必填项",
+      "cityRequired": "城市为必填项",
+      "zipRequired": "邮政编码为必填项",
+      "phoneRequired": "电话为必填项",
+      "emailRequired": "电子邮箱为必填项",
+      "cuisineRequired": "菜系为必填项",
+      "siretRequired": "SIRET 为必填项",
+      "siretInvalid": "SIRET 必须正好为 14 位数字",
+      "zipInvalid": "邮政编码必须正好为 5 位数字",
+      "phoneInvalid": "格式无效。请使用 0612345678 或 +33612345678",
+      "hoursAllDays": "营业时间必须覆盖一周 7 天",
+      "hoursPeriodRequired": "每个营业日至少需包含一个时段",
+      "hoursStartEnd": "每个时段必须有开始和结束时间",
+      "hoursDifferent": "结束时间必须与开始时间不同",
+      "fixFieldsTitle": "缺少字段",
+      "fixFieldsMessage": "请修正标红的字段。"
+    },
+    "alerts": {
+      "permissionDeniedTitle": "权限被拒绝",
+      "photoPermissionMessage": "需要照片访问权限",
+      "imagePickError": "无法选择图片",
+      "errorTitle": "错误",
+      "locationPermissionMessage": "需要定位权限",
+      "locationError": "无法获取您的位置",
+      "successTitle": "成功",
+      "createSuccessMessage": "餐厅创建成功！\n当前状态：{{status}}\n餐券：{{vouchers}}",
+      "createError": "无法创建餐厅",
+      "validationError": "检测到验证错误——请检查标红的字段",
+      "stripeRequiredTitle": "Stripe 未启用",
+      "stripeRequired": "您的 Stripe 账户尚未激活。请先启用 Stripe，然后才能创建餐厅。"
+    }
+  },
+  "dashboard": {
+    "greeting": "您好，主厨！",
+    "open": "营业中",
+    "closed": "已打烊",
+    "quickActions": "快捷操作",
+    "recentOrders": "最近订单",
+    "seeAll": "查看全部",
+    "new": "新",
+    "noOrders": "暂无订单",
+    "noOrdersDesc": "最近的订单将显示在此处",
+    "table": "{{number}} 号桌",
+    "itemsCount_one": "{{count}} 件",
+    "itemsCount_other": "{{count}} 件",
+    "stats": {
+      "todayOrders": "今日订单",
+      "revenue": "营业额",
+      "pending": "待处理",
+      "avgOrder": "平均客单价",
+      "vsYesterday": "较昨日",
+      "toProcess": "待处理"
+    },
+    "actions": {
+      "orders": {
+        "title": "订单",
+        "subtitle": "管理订单"
+      },
+      "menu": {
+        "title": "菜单",
+        "subtitle": "编辑菜单"
+      },
+      "tables": {
+        "title": "餐桌",
+        "subtitle": "二维码"
+      },
+      "statistics": {
+        "title": "统计",
+        "subtitle": "分析"
+      },
+      "profile": {
+        "title": "个人资料",
+        "subtitle": "设置"
+      },
+      "support": {
+        "title": "支持",
+        "subtitle": "帮助与联系"
+      }
+    },
+    "toggle": {
+      "title": "更改状态",
+      "confirmOpen": "要营业您的餐厅吗？",
+      "confirmClose": "要打烊您的餐厅吗？",
+      "nowOpen": "您的餐厅现已营业。",
+      "nowClosed": "您的餐厅现已打烊。",
+      "error": "无法更改状态"
+    },
+    "refresh": {
+      "success": "数据刷新成功",
+      "error": "无法刷新数据"
+    }
+  },
+  "_comment": "REVIEW: traductions à valider par un locuteur natif (chinois simplifié).",
+  "common": {
+    "ok": "确定",
+    "cancel": "取消",
+    "save": "保存",
+    "delete": "删除",
+    "edit": "编辑",
+    "close": "关闭",
+    "back": "返回",
+    "next": "下一步",
+    "previous": "上一步",
+    "confirm": "确认",
+    "continue": "继续",
+    "retry": "重试",
+    "loading": "加载中…",
+    "search": "搜索",
+    "filter": "筛选",
+    "clear": "清除",
+    "select": "选择",
+    "selected": "已选",
+    "add": "添加",
+    "remove": "移除",
+    "yes": "是",
+    "no": "否",
+    "or": "或",
+    "and": "和",
+    "all": "全部",
+    "none": "无",
+    "more": "更多",
+    "less": "更少",
+    "share": "分享",
+    "copy": "复制",
+    "copied": "已复制",
+    "refresh": "刷新",
+    "submit": "提交",
+    "done": "完成",
+    "skip": "跳过",
+    "optional": "可选",
+    "required": "必填",
+    "available": "可用",
+    "unavailable": "不可用",
+    "comingSoon": "即将推出",
+    "error": "错误",
+    "success": "成功"
+  },
+  "nav": {
+    "home": "首页",
+    "menu": "菜单",
+    "orders": "订单",
+    "cart": "购物车",
+    "profile": "个人资料",
+    "settings": "设置",
+    "restaurants": "餐厅",
+    "dashboard": "仪表板",
+    "history": "历史",
+    "help": "帮助",
+    "logout": "退出登录",
+    "scanner": "扫码",
+    "stats": "统计"
+  },
+  "auth": {
+    "stripe": {
+      "title": "Stripe 配置",
+      "prepStatus": "正在准备您的 Stripe 配置...",
+      "validated": "您的 Stripe 账户已成功验证！",
+      "inProgress": "正在配置，可能需要几分钟...",
+      "stillChecking": "仍在验证中...",
+      "statusCheckError": "检查状态时出错。",
+      "statusFetchFail": "无法获取您的账户状态。",
+      "refreshFail": "无法刷新状态，请重试。",
+      "refreshFailShort": "无法刷新状态。",
+      "redirectNote": "正在自动跳转至仪表盘...",
+      "errorDetail": "错误详情",
+      "goToDashboard": "前往仪表盘",
+      "refreshStatus": "刷新状态",
+      "opening": "正在打开...",
+      "configureAccount": "配置我的 Stripe 账户",
+      "continueWithout": "跳过 Stripe 继续",
+      "paymentsDisabledPrefix": "在 Stripe 验证完成之前，",
+      "paymentsDisabledWord": "付款将保持",
+      "paymentsDisabledSuffix": "停用状态。",
+      "helpTitle": "需要帮助？",
+      "helpMessage": "如果您在配置 Stripe 账户时遇到困难，请随时联系我们。",
+      "contactUs": "联系我们",
+      "noUrl": "服务器未返回入驻 URL。",
+      "popupBlocked": "浏览器阻止了标签页的打开。请允许 eatquicker.fr 的弹出窗口。",
+      "cannotOpenBrowser": "无法打开 Stripe 浏览器。",
+      "cannotOpenPage": "无法打开 Stripe 页面。请检查您的网络连接后重试。"
+    },
+    "register": {
+      "title": "创建账户",
+      "tagline": "在餐桌上点餐",
+      "returnToBanner": "创建账户，验证后即可继续您的订单。",
+      "iAm": "我是：",
+      "roleClient": "顾客",
+      "roleRestaurateur": "餐厅经营者",
+      "fullName": "全名",
+      "siret": "SIRET 编号",
+      "termsPrefix": "我接受",
+      "termsCgu": "使用条款",
+      "termsAnd": "和",
+      "termsPrivacy": "隐私政策",
+      "emailCodeInfo": "验证码将发送至您的电子邮箱。",
+      "errors": {
+        "emailRequired": "请输入电子邮箱",
+        "emailInvalid": "邮箱格式无效",
+        "passwordRequired": "请输入密码",
+        "passwordMin": "至少 8 个字符",
+        "nameRequired": "请输入姓名",
+        "phoneRequired": "请输入电话号码",
+        "phoneInvalid": "格式无效（例如 +33612345678）",
+        "siretRequired": "请输入 SIRET",
+        "siretInvalid": "SIRET 必须为 14 位数字",
+        "acceptTerms": "您必须接受条款和条件",
+        "generic": "注册过程中发生错误"
+      }
+    },
+    "passwordHint": "至少 8 个字符，包含一个大写字母、一个数字和一个特殊字符",
+    "reset": {
+      "title": "新密码",
+      "step1": "1. 输入 6 位验证码",
+      "step2": "2. 设置新密码",
+      "newPasswordLabel": "新密码",
+      "submit": "重置密码",
+      "pwdMinLength": "密码至少需要 {{n}} 个字符。",
+      "pwdUpper": "密码必须至少包含一个大写字母。",
+      "pwdDigit": "密码必须至少包含一个数字。",
+      "pwdSpecial": "密码必须至少包含一个特殊字符。",
+      "codeIncompleteTitle": "验证码不完整",
+      "codeIncompleteMsg": "请输入您通过电子邮件收到的 6 位验证码。",
+      "invalidRequestTitle": "请求无效",
+      "invalidRequestMsg": "此请求已失效，请重新开始。",
+      "codeIncorrectTitle": "验证码错误",
+      "codeInvalidRemaining": "验证码无效，还剩 {{count}} 次尝试。",
+      "tooManyAttempts": "尝试次数过多，请重新获取验证码。",
+      "requestExpiredTitle": "请求已过期",
+      "requestExpiredMsg": "此请求已失效，请重新开始。",
+      "tooManyTitle": "尝试次数过多",
+      "tooManyMsg": "请重新获取验证码后再试。",
+      "genericError": "发生错误，请重试。",
+      "successTitle": "密码已修改",
+      "successMsg": "您的密码已成功重置。"
+    },
+    "forgot": {
+      "title": "忘记密码",
+      "subtitle": "请输入与您账户关联的电子邮箱，我们将向您发送重置密码的验证码。",
+      "cardLabel": "账户恢复",
+      "cardSubtitle": "请输入您 EatQuickeR 账户的电子邮箱。",
+      "sendCode": "发送验证码",
+      "backToPrefix": "返回",
+      "backToLogin": "登录",
+      "rateLimitTitle": "尝试次数过多",
+      "rateLimitMsg": "请稍候片刻后再试。",
+      "sendError": "无法发送验证码，请重试。",
+      "networkErrorTitle": "网络错误",
+      "networkErrorMsg": "请检查您的网络连接后重试。"
+    },
+    "verify": {
+      "title": "邮箱验证",
+      "sentTo": "验证码已发送至",
+      "returnToBanner": "验证邮箱以继续您的订单。",
+      "enterCode": "请输入 6 位验证码",
+      "expiresIn": "该验证码将在 {{minutes}} 分钟后失效",
+      "confirm": "确认邮箱",
+      "noCode": "没有收到验证码？",
+      "resend": "重新发送验证码",
+      "resendIn": "{{seconds}} 秒后重发",
+      "editEmail": "← 修改我的邮箱",
+      "sessionInvalid": "会话无效，请重新注册。",
+      "invalidCodeTitle": "验证码无效",
+      "invalidCodeMsg": "验证码错误，请重试。",
+      "accountCreatedTitle": "账户创建成功！",
+      "accountCreatedMsg": "欢迎来到 EatQuickeR 🎉",
+      "networkErrorTitle": "网络错误",
+      "networkErrorMsg": "发生错误，请重试。",
+      "resendError": "无法重新发送验证码。",
+      "codeResentTitle": "验证码已重新发送",
+      "codeResentMsg": "新验证码已发送至 {{email}}。"
+    },
+    "welcomeTitle": "很高兴见到你",
+    "welcomeSubtitle": "登录以继续",
+    "slogan": "服务于服务器的服务者",
+    "loginTitle": "登录",
+    "resumeOrderPrompt": "登录以从上次中断的地方继续您的订单。",
+    "validation": {
+      "emailRequired": "请输入邮箱",
+      "passwordRequired": "请输入密码",
+      "passwordMinLength": "至少 {{min}} 个字符",
+      "noAccountEmail": "该邮箱没有对应的账号"
+    },
+    "alerts": {
+      "accountNotFound": {
+        "title": "未找到账号",
+        "message": "没有与此邮箱关联的账号。"
+      },
+      "invalidCredentials": {
+        "title": "凭据无效",
+        "message": "邮箱或密码错误，请重试。"
+      },
+      "accessDenied": {
+        "title": "访问被拒绝",
+        "message": "您的账号无权登录，请联系客服。"
+      },
+      "tooManyAttempts": {
+        "title": "尝试次数过多",
+        "message": "登录尝试次数过多，请稍后再试。"
+      },
+      "networkError": {
+        "title": "连接错误",
+        "message": "请检查您的网络连接后重试。"
+      },
+      "serviceUnavailable": {
+        "title": "服务不可用",
+        "message": "服务暂时不可用，请稍后再试。"
+      },
+      "genericError": {
+        "title": "连接错误",
+        "message": "发生错误，请重试。"
+      },
+      "googlePlayUnavailable": {
+        "title": "Google Play 不可用",
+        "message": "此设备上无法使用 Google Play 服务。"
+      },
+      "googleLoginFailed": {
+        "title": "无法通过 Google 登录"
+      },
+      "comingSoon": {
+        "title": "即将推出",
+        "message": "Apple 登录即将推出。"
+      },
+      "sessionExpired": {
+        "title": "会话已过期",
+        "message": "您的会话已过期，请重新登录。"
+      }
+    },
+    "continueWithApple": "使用 Apple 继续",
+    "signIn": "登录",
+    "signUp": "注册",
+    "signOut": "退出登录",
+    "email": "电子邮件",
+    "password": "密码",
+    "passwordConfirm": "确认密码",
+    "forgotPassword": "忘记密码？",
+    "resetPassword": "重置密码",
+    "firstName": "名",
+    "lastName": "姓",
+    "phone": "电话",
+    "rememberMe": "记住我",
+    "reconnect": "重新登录",
+    "useAnotherAccount": "或使用其他账号",
+    "continueAsGuest": "以访客身份继续",
+    "continueWithGoogle": "使用 Google 继续",
+    "alreadyHaveAccount": "已有账户？",
+    "noAccount": "还没有账户？",
+    "verifyEmail": "验证您的电子邮件",
+    "verificationSent": "验证邮件已发送。",
+    "termsAccept": "我接受使用条款",
+    "privacyAccept": "我接受隐私政策"
+  },
+  "menu": {
+    "title": "菜单",
+    "categories": "分类",
+    "viewMenu": "查看菜单",
+    "allergens": "过敏原",
+    "ingredients": "配料",
+    "description": "描述",
+    "price": "价格",
+    "addToCart": "加入购物车",
+    "removeFromCart": "从购物车移除",
+    "outOfStock": "缺货",
+    "popular": "热门",
+    "new": "新品",
+    "spicy": "辣",
+    "vegetarian": "素食",
+    "vegan": "纯素",
+    "glutenFree": "无麸质",
+    "dailyMenu": "今日菜单",
+    "specialOffer": "特别优惠",
+    "language": "菜单语言",
+    "noItems": "暂无菜品",
+    "searchPlaceholder": "搜索菜品…"
+  },
+  "cart": {
+    "title": "购物车",
+    "empty": "您的购物车是空的",
+    "emptyHint": "添加菜品以开始您的订单。",
+    "backToMenu": "返回菜单",
+    "item_one": "{{count}} 件商品",
+    "item_other": "{{count}} 件商品",
+    "subtotal": "小计",
+    "tax": "税费",
+    "tip": "小费",
+    "total": "总计",
+    "checkout": "结账",
+    "quantity": "数量",
+    "specialInstructions": "特殊要求",
+    "specialInstructionsPlaceholder": "过敏、烹饪、不加洋葱…",
+    "table": "桌号",
+    "tableNumber": "{{number}} 号桌",
+    "titleWithCount": "购物车 ({{count}})",
+    "serviceFee": "服务费",
+    "collaborativeSession": "协作会话",
+    "scanToOrder": "扫码下单",
+    "scanToOrderDescription": "扫描二维码访问菜单",
+    "checkoutForGroup": "为团体下单",
+    "processing": "处理中…",
+    "hostOnlyCheckout": "仅团体发起人可下单。",
+    "formula": {
+      "incomplete": "套餐不完整",
+      "completeAction": "请完善您的套餐以提交订单。"
+    },
+    "clearConfirm": {
+      "title": "清空购物车",
+      "message": "确定要清空购物车吗？此操作无法撤销。",
+      "cta": "清空购物车"
+    },
+    "removeConfirm": {
+      "title": "移除商品",
+      "message": "要从购物车移除此商品吗？",
+      "cta": "移除"
+    },
+    "splitConfirm": {
+      "title": "为团体下单",
+      "message": "是否在参与者之间分账？每人可通过自己的手机支付各自部分。",
+      "split": "分账",
+      "payAll": "由我支付全部"
+    },
+    "feedback": {
+      "quantityUpdated": "数量已更新",
+      "itemRemoved": "商品已移除",
+      "cleared": "购物车已清空",
+      "emptyOnCheckout": "购物车为空，请添加商品后继续。",
+      "restaurantNotFound": "未找到餐厅，请重新扫描二维码。",
+      "orderPlaced": "下单成功！",
+      "orderPlacedSplit": "下单成功！正在分账…"
+    },
+    "errors": {
+      "quantityUpdate": "更新数量时出错",
+      "itemRemove": "移除商品时出错",
+      "cartClear": "清空购物车时出错",
+      "checkout": "准备订单时出错",
+      "groupOrder": "团体下单时出错"
+    },
+    "a11y": {
+      "itemImage": "{{name}} 的图片",
+      "itemRow": "{{name}}，数量 {{count}}，价格 {{price}}",
+      "removeItem": "移除商品",
+      "decrease": "减少数量",
+      "increase": "增加数量",
+      "currentQuantity": "当前数量：{{count}}",
+      "checkoutHint": "点击进入支付",
+      "formulaLockHint": "请完善您的套餐以提交订单",
+      "checkoutLabel": "下单总额 {{amount}}"
+    }
+  },
+  "order": {
+    "title": "订单",
+    "yourOrder": "您的订单",
+    "orderNumber": "订单号 {{number}}",
+    "status": {
+      "pending": "待处理",
+      "confirmed": "已确认",
+      "preparing": "准备中",
+      "ready": "已准备好",
+      "served": "已送达",
+      "completed": "已完成",
+      "cancelled": "已取消"
+    },
+    "placedAt": "下单时间：{{date}}",
+    "noOrders": "暂无订单",
+    "viewDetails": "查看详情",
+    "track": "追踪订单",
+    "rate": "评价订单",
+    "reorder": "再次订购",
+    "count_one": "{{count}} 个订单",
+    "count_other": "{{count}} 个订单",
+    "unpaidTitle_one": "您有 {{count}} 个未付订单",
+    "unpaidTitle_other": "您有 {{count}} 个未付订单",
+    "unpaidSubtitle": "请结清订单后再下新单",
+    "myOrders": "我的订单",
+    "tabs": {
+      "active": "进行中",
+      "history": "历史记录"
+    },
+    "fallbackRestaurant": "餐厅",
+    "todayAt": "今天 {{time}}",
+    "dineIn": "堂食",
+    "takeaway": "外带",
+    "paid": "已支付",
+    "paymentPending": "待支付",
+    "waitingTime": "预计等待时间：{{minutes}} 分钟",
+    "noActiveOrders": "暂无进行中的订单",
+    "noHistoryOrders": "暂无历史订单",
+    "scanPrompt": "扫描您餐桌的二维码即可下首单",
+    "orderNow": "立即点单",
+    "scanDescription": "通过扫描餐桌二维码访问菜单",
+    "scanQR": "扫描二维码",
+    "enterCode": "输入编码",
+    "clientOnly": "仅限客户访问",
+    "loadingOrders": "正在加载订单…",
+    "realtimeUnavailable": "实时通知不可用，请下拉刷新。",
+    "realtime": {
+      "on": "实时已开启",
+      "connecting": "连接中…",
+      "error": "连接错误",
+      "offline": "离线"
+    },
+    "statusLabels": {
+      "pending": "待处理",
+      "confirmed": "已确认",
+      "preparing": "准备中",
+      "ready": "已就绪",
+      "served": "已上菜",
+      "cancelled": "已取消"
+    }
+  },
+  "payment": {
+    "title": "支付",
+    "method": "支付方式",
+    "card": "银行卡",
+    "applePay": "Apple Pay",
+    "googlePay": "Google Pay",
+    "payNow": "立即支付",
+    "amount": "金额",
+    "processing": "处理中…",
+    "success": "支付成功",
+    "failed": "支付失败",
+    "splitPayment": "拆分账单",
+    "splitEqual": "平均拆分",
+    "splitByItem": "按菜品拆分",
+    "splitCustom": "自定义金额",
+    "minAmount": "最低金额为 {{amount}}",
+    "yourShare": "您的份额",
+    "receipt": "收据",
+    "downloadReceipt": "下载收据",
+    "itemFallback": "未命名商品",
+    "loadingOrder": "正在加载订单…",
+    "successHeader": "支付成功",
+    "successTitle": "支付已确认！",
+    "successOnline": "您的付款已成功处理。",
+    "successOnlineToast": "您的付款已确认。",
+    "successCash": "您的订单已确认。您将在餐厅付款。",
+    "receiptSentSuffix": "\n\n收据已通过电子邮件发送。",
+    "successTitleToast": "支付成功！",
+    "viewReceipt": "查看收据",
+    "backToOrder": "返回订单",
+    "summaryTitle": "订单摘要",
+    "orderNumber": "订单号",
+    "restaurant": "餐厅",
+    "table": "餐桌",
+    "editSplit": "编辑分摊",
+    "splitBill": "分摊账单",
+    "recommended": "推荐",
+    "tipTitle": "小费（可选）",
+    "tipCustomLabel": "自定义金额",
+    "receiptTitle": "收据",
+    "receiptOption": "通过电子邮件接收收据",
+    "total": "合计",
+    "subtotal": "小计",
+    "tipLabel": "小费",
+    "totalDue": "应付金额",
+    "processingBtn": "处理中…",
+    "payAmount": "支付 {{amount}}",
+    "confirmOrder": "确认订单",
+    "securityOnline": "🔒 通过 Stripe 安全支付 • ❤️ 支持开发者",
+    "securityCash": "💰 在餐厅付款",
+    "participantFallback": "参与者",
+    "initFailed": "无法初始化支付",
+    "stripeKeyMissing": "未配置 Stripe 公钥。请联系支持。",
+    "stripeKeyMissingTitle": "缺少 Stripe 配置",
+    "declined": "支付被拒绝",
+    "declinedTitle": "支付错误",
+    "emailInvalid": "请输入有效的电子邮箱地址，或关闭收据发送。",
+    "emailInvalidTitle": "邮箱无效",
+    "cashConfirmTitle": "现金支付",
+    "cashConfirmMsg": "您确认在餐厅现金支付吗？",
+    "cashConfirmFailed": "无法确认支付",
+    "amountTooLowTitle": "金额过低",
+    "portionTooLow": "此分摊金额（{{amount}}）低于 Stripe 的最低限额（0.50 €）。请让其他参与者将其份额与您的合并，或使用“全部支付”。",
+    "portionPaidComplete": "所有款项已支付。订单现已完成。",
+    "portionPaidRemaining": "您的份额已成功支付。还剩 {{count}} 份待支付。",
+    "portionFailed": "此份额的支付失败",
+    "allPaidAlready": "所有份额均已支付",
+    "infoTitle": "提示",
+    "remainingTooLow": "剩余金额（{{amount}}）低于 Stripe 的最低限额（0.50 €）。",
+    "payAllTitle": "支付所有剩余份额",
+    "payAllMsg": "您将为 {{count}} 份支付 {{amount}}。确认吗？",
+    "remainingFailed": "剩余份额的支付失败",
+    "methods": {
+      "onlineTitle": "银行卡",
+      "onlineDesc": "通过 Stripe 安全支付 • 支持开发者",
+      "onlineBadge": "即时",
+      "cashTitle": "在餐厅现金",
+      "cashDesc": "直接在餐桌付款",
+      "cashBadge": "可用"
+    },
+    "toast": {
+      "loadFailed": "无法加载订单",
+      "orderNotFound": "未找到订单"
+    },
+    "split": {
+      "itemsActivated": "已启用“按菜品”模式。每位参与者现在可以选择想要支付的商品。",
+      "dividedInto": "账单已分为 {{count}} 份。您现在可以支付您的份额。",
+      "createdTitle": "已创建分摊支付！",
+      "createError": "创建分摊支付时出错",
+      "claimFailed": "无法添加此商品",
+      "unclaimFailed": "无法移除此商品"
+    }
+  },
+  "session": {
+    "join": "加入餐桌",
+    "host": "主持人",
+    "participants_one": "{{count}} 位参与者",
+    "participants_other": "{{count}} 位参与者",
+    "yourName": "您的姓名",
+    "leaveSession": "退出会话",
+    "sessionEnded": "会话已结束",
+    "waitingForOthers": "等待其他用餐者…",
+    "tableLabel": "{{name}} · 第 {{table}} 桌",
+    "bannerCta": "点击继续",
+    "foundLabel": "已找到会话",
+    "foundCta": "点击加入",
+    "inactivityWarning": "⚠️ 会话不活跃 — {{time}} 后自动关闭",
+    "status": {
+      "active": "进行中",
+      "locked": "已锁定",
+      "payment": "待支付"
+    },
+    "errors": {
+      "emptyCode": "请输入会话代码。",
+      "notFound": "未找到此代码对应的会话。",
+      "inactive": "此会话已不再活跃。",
+      "invalidCode": "此代码无活跃会话。请检查后重试。",
+      "joinFailed": "无法加入此会话。",
+      "maybeGone": "会话可能已不可用。",
+      "rejected": "主持人拒绝了您的请求。",
+      "joinTitle": "无法加入"
+    },
+    "exit": {
+      "titleHost": "结束会话？",
+      "titleMember": "离开会话？",
+      "messageHost": "作为主持人，这将关闭所有参与者的会话。",
+      "messageMember": "您即将离开此协作会话。",
+      "ctaHost": "结束",
+      "ctaMember": "离开"
+    },
+    "completed": {
+      "title": "会话已结束",
+      "participantsLabel": "参与者 ({{count}})",
+      "totalLabel": "总计：{{amount}}",
+      "close": "关闭"
+    },
+    "codeModal": {
+      "title": "加入会话",
+      "description": "输入桌主持人分享的代码以加入当前会话。",
+      "placeholder": "例如：ABC123",
+      "cta": "加入会话"
+    },
+    "pending": {
+      "title": "等待批准",
+      "description": "主持人需要批准您的请求。\n通过后将自动跳转。",
+      "codeLabel": "会话代码"
+    },
+    "archive": {
+      "archived": "此会话已归档",
+      "archivingIn": "{{time}} 后归档",
+      "archivingSoonUrgent": "⚠️ {{time}} 后归档"
+    },
+    "joinModal": {
+      "chooseTitle": "在此桌点单",
+      "chooseSubtitle": "选择您的点单方式",
+      "rejoinExisting": {
+        "title": "重新加入当前会话",
+        "subtitle": "代码：{{code}} · {{count}} 位参与者"
+      },
+      "createGroup": {
+        "title": "创建群组会话",
+        "description": "与朋友一起点单，轻松分账"
+      },
+      "joinGroup": {
+        "title": "加入会话",
+        "description": "输入您的群组分享的代码"
+      },
+      "orderAlone": "独自点单",
+      "createTitle": "创建群组会话",
+      "hostNameLabel": "您的姓名",
+      "hostNamePlaceholder": "例如：张三",
+      "sessionTypeLabel": "会话类型",
+      "sessionType": {
+        "collaborative": {
+          "title": "协作式",
+          "desc": "所有人都能看到订单"
+        },
+        "individual": {
+          "title": "独立式",
+          "desc": "每个人单独点单"
+        }
+      },
+      "maxParticipantsLabel": "最大参与人数",
+      "requireApprovalLabel": "手动批准新参与者",
+      "back": "返回",
+      "createCta": "创建会话",
+      "joinTitle": "加入会话",
+      "codeLabel": "会话代码",
+      "codePlaceholder": "ABC123",
+      "verifyCta": "验证",
+      "previewTitle": "会话信息",
+      "previewHost": "主持人：",
+      "previewParticipants": "参与者：",
+      "sessionFullOrLocked": "⚠️ 此会话已满或已锁定",
+      "guestNameLabel": "您的姓名",
+      "guestNamePlaceholder": "例如：李四",
+      "joinCta": "加入",
+      "pendingDescription": "主持人需要批准您的请求。\n通过后将自动跳转。",
+      "feedback": {
+        "soloError": "无法启动独立点单。",
+        "fieldRequired": "必填字段",
+        "nameRequiredHost": "请输入您的姓名以创建会话。",
+        "nameRequiredGuest": "请输入您的姓名以加入会话。",
+        "invalidCode": "代码无效",
+        "invalidCodeDesc": "代码必须正好为 6 个字符。",
+        "codeNotFound": "未找到代码",
+        "codeNotFoundDesc": "没有活跃会话与此代码匹配。",
+        "sessionCreated": "会话已创建！",
+        "sessionCreatedDesc": "与朋友分享代码 {{code}}。",
+        "sessionCreateError": "无法创建会话。",
+        "welcome": "欢迎！",
+        "welcomeDesc": "您已成功加入会话。",
+        "joinError": "无法加入会话。",
+        "approved": "✅ 已接受！",
+        "approvedDesc": "主持人已将您接受加入会话。",
+        "rejected": "❌ 已拒绝",
+        "rejectedDesc": "主持人拒绝了您的请求。"
+      }
+    }
+  },
+  "profile": {
+    "title": "个人资料",
+    "myAccount": "我的账户",
+    "personalInfo": "个人信息",
+    "preferences": "偏好",
+    "language": "语言",
+    "appearance": "外观",
+    "notifications": "通知",
+    "paymentMethods": "支付方式",
+    "addresses": "地址",
+    "support": "帮助与支持",
+    "about": "关于",
+    "terms": "使用条款",
+    "privacy": "隐私政策",
+    "version": "版本 {{version}}",
+    "deleteAccount": "删除我的账户",
+    "signInPrompt": "登录以访问您的个人资料",
+    "defaultName": "用户",
+    "verified": "已验证",
+    "logoutConfirm": "确定要退出登录吗？",
+    "myActions": "我的操作",
+    "information": "信息",
+    "helpFaq": "帮助与常见问题",
+    "contactUs": "联系我们",
+    "personalData": "个人数据"
+  },
+  "theme": {
+    "title": "主题",
+    "light": "浅色",
+    "dark": "深色",
+    "system": "跟随系统"
+  },
+  "restaurant": {
+    "dashboard": "仪表板",
+    "myRestaurants": "我的餐厅",
+    "openNow": "营业中",
+    "closedNow": "已打烊",
+    "opensAt": "{{time}} 开门",
+    "closesAt": "{{time}} 关门",
+    "address": "地址",
+    "contact": "联系方式",
+    "hours": "营业时间",
+    "rating": "评分",
+    "reviews_one": "{{count}} 条评价",
+    "reviews_other": "{{count}} 条评价",
+    "menuManagement": "菜单管理",
+    "ordersManagement": "订单管理",
+    "staff": "员工",
+    "stats": "统计",
+    "revenue": "营业额",
+    "todayRevenue": "今日营业额",
+    "weekRevenue": "本周营业额",
+    "monthRevenue": "本月营业额"
+  },
+  "errors": {
+    "generic": "发生错误，请重试。",
+    "network": "网络错误，请检查您的连接。",
+    "unauthorized": "您需要登录才能继续。",
+    "forbidden": "操作不允许。",
+    "notFound": "未找到。",
+    "requiredField": "此字段为必填项。",
+    "invalidEmail": "无效的电子邮件地址。",
+    "passwordTooShort": "密码至少需要 {{min}} 个字符。",
+    "passwordMismatch": "密码不匹配。",
+    "invalidCredentials": "凭据无效。",
+    "serverError": "服务器错误，请稍后再试。",
+    "timeout": "服务器没有响应，请重试。"
+  },
+  "success": {
+    "saved": "已保存",
+    "deleted": "已删除",
+    "sent": "已发送",
+    "copied": "已复制到剪贴板"
+  },
+  "time": {
+    "now": "刚刚",
+    "minuteAgo_one": "{{count}} 分钟前",
+    "minuteAgo_other": "{{count}} 分钟前",
+    "hourAgo_one": "{{count}} 小时前",
+    "hourAgo_other": "{{count}} 小时前",
+    "dayAgo_one": "{{count}} 天前",
+    "dayAgo_other": "{{count}} 天前",
+    "today": "今天",
+    "yesterday": "昨天",
+    "tomorrow": "明天"
+  },
+  "legal": {
+    "document": {
+      "lastUpdate": "最后更新：{{date}}",
+      "acceptDefault": "我已阅读并接受",
+      "acceptTerms": "我已阅读并接受条款",
+      "acceptPrivacy": "我已阅读并接受政策",
+      "saveError": "保存时出错，请重试。"
+    },
+    "modal": {
+      "welcomeTitle": "欢迎使用 EatQuickeR",
+      "intro": "若要继续，请接受我们的法律文件。",
+      "termsName": "使用条款",
+      "privacyName": "隐私政策",
+      "viewDocument": "查看文件",
+      "acceptTermsLabel": "我接受使用条款",
+      "acceptPrivacyLabel": "我接受隐私政策",
+      "helpText": "点按“查看文件”，可在接受前先阅读文件。",
+      "acceptBoth": "请接受两份文件",
+      "saveError": "保存时出错，请重试。"
+    },
+    "copyright": "© {{year}} EatQuicker。保留所有权利。",
+    "termsShort": "条款",
+    "privacyShort": "隐私",
+    "noticeShort": "法律声明",
+    "downloadMyData": {
+      "cta": "下载我的数据",
+      "download": "下载",
+      "gdprNotice": "符合 GDPR 第 20 条的数据导出",
+      "confirmTitle": "数据导出",
+      "confirmMessage": "您要下载所有个人数据吗？\n\n包括：资料、订单、偏好和历史记录。",
+      "shareDialogTitle": "下载我的 EatQuickeR 数据",
+      "options": {
+        "title": "数据导出",
+        "message": "您希望如何接收数据？",
+        "direct": "直接下载",
+        "email": "通过电子邮件（48 小时内）"
+      },
+      "progress": {
+        "fetching": "获取数据中…",
+        "preparing": "准备文件中…",
+        "preparingShort": "准备中…",
+        "done": "导出完成！",
+        "sending": "发送请求中…"
+      },
+      "success": {
+        "title": "导出成功",
+        "message": "您的数据（{{size}} KB）已导出。\n\n现在可以保存或分享。",
+        "messageFallback": "您的数据已导出到：\n{{filename}}\n\n大小：{{size}} KB"
+      },
+      "email": {
+        "title": "邮件导出",
+        "confirmMessage": "您将在 48 小时内收到一封包含安全下载链接的邮件。\n\n继续？",
+        "successTitle": "请求已记录",
+        "successMessage": "将在 48 小时内向 {{email}} 发送包含您数据的邮件。"
+      },
+      "errors": {
+        "notLoggedIn": "您必须登录才能导出数据",
+        "rateLimit": "您已达到每日导出限制。请明天再试。",
+        "sessionExpired": "会话已过期，请重新登录。",
+        "forbidden": "您没有导出这些数据的权限。",
+        "serverError": "服务器错误，请稍后再试。",
+        "serviceUnavailable": "导出服务暂时不可用，请几分钟后再试。",
+        "generic": "无法下载您的数据，请重试。",
+        "connection": "连接错误，请检查网络连接。",
+        "emailRequestFailed": "无法记录您的请求，请重试。",
+        "emailPending": "您已有一个导出请求在处理中，请稍候。"
+      },
+      "a11y": {
+        "label": "下载我的个人数据",
+        "hint": "根据 GDPR 导出所有数据"
+      }
+    }
+  },
+  "home": {
+    "subtitle": "轻松点单",
+    "welcome": "您好，{{name}}！👋",
+    "welcomeSubtext": "今天准备好下单了吗？",
+    "quickActions": "快捷操作",
+    "actions": {
+      "myOrders": {
+        "title": "我的订单",
+        "subtitle": "跟踪您的订单"
+      },
+      "myCart": {
+        "title": "我的购物车",
+        "subtitle": "完成购买"
+      },
+      "joinSession": {
+        "title": "加入会话",
+        "subtitle": "输入分享代码"
+      }
+    }
+  },
+  "qrAccess": {
+    "title": "扫描您餐桌的二维码",
+    "description": "或手动输入代码",
+    "scanButton": "扫描二维码",
+    "codeButton": "输入代码",
+    "emptyCode": "请输入有效的代码。",
+    "invalidCodeTitle": "无效代码",
+    "errors": {
+      "notFound": "此代码不对应任何餐厅或餐桌。请核对代码或扫描二维码。",
+      "restaurantNotFound": "此代码不对应任何已注册餐厅。请核对二维码。",
+      "serverUnavailable": "无法验证此餐厅。请检查网络后重试。"
+    },
+    "modal": {
+      "title": "输入代码",
+      "description": "餐桌代码（如 R12T005）或 6 位会话共享代码。",
+      "placeholder": "如 R12T005 或 ABC123",
+      "confirm": "确认",
+      "verifying": "验证中…"
+    },
+    "account": {
+      "title": "是否使用账户？",
+      "hint": "账户可让您查看订单和发票。您也可直接进入菜单。",
+      "login": {
+        "title": "登录",
+        "desc": "我已有 EatQuickeR 账户"
+      },
+      "register": {
+        "title": "创建账户",
+        "desc": "快速注册以跟踪订单"
+      },
+      "or": "或",
+      "guestCta": "无需账户继续",
+      "guestHint": "您将直接进入菜单。下单时会要求姓名和电话号码。"
+    }
+  },
+  "qrScanner": {
+    "invalidTitle": "无效的二维码",
+    "invalidMessage": "此二维码与 EatQuickeR 餐厅不匹配\n\n扫描值：{{value}}",
+    "retry": "重试",
+    "instruction": "将摄像头对准餐厅二维码",
+    "permission": {
+      "title": "需要摄像头权限",
+      "description": "扫描二维码需要访问您的摄像头。",
+      "allow": "允许"
+    }
+  },
+  "restaurantNav": {
+    "home": "首页",
+    "restaurants": "餐厅",
+    "orders": "订单",
+    "menus": "菜单",
+    "dailyMenu": "每日菜单",
+    "dailyMenuShort": "今日",
+    "statistics": "统计",
+    "statisticsShort": "统计",
+    "qrcodes": "二维码",
+    "profile": "个人资料",
+    "accounting": "会计"
+  },
+  "restaurantProfile": {
+    "fallbackUserName": "用户",
+    "accountInfo": "账户信息",
+    "email": "邮箱",
+    "phone": "电话",
+    "accountType": "账户类型",
+    "siret": "SIRET",
+    "stripeStatus": "Stripe 状态",
+    "stripeValidated": "已验证",
+    "stripePending": "待处理",
+    "logout": "退出登录",
+    "logoutConfirmTitle": "退出登录",
+    "logoutConfirmMessage": "确定要退出登录吗？",
+    "role": {
+      "restaurateur": "餐厅经营者",
+      "client": "客户"
+    },
+    "feedback": {
+      "logoutFailed": "无法退出登录"
+    }
+  },
+  "restaurantsList": {
+    "subtitle_one": "{{count}} 个地点",
+    "subtitle_other": "{{count}} 个地点",
+    "overview": "概览",
+    "searchPlaceholder": "搜索餐厅…",
+    "loading": "加载中…",
+    "loadingFull": "加载餐厅中…",
+    "pagination": "第 {{current}} 页，共 {{total}} 页",
+    "activeFilters_one": "{{count}} 个活动筛选",
+    "activeFilters_other": "{{count}} 个活动筛选",
+    "clearFilters": "清除",
+    "viewMode": {
+      "list": "列表",
+      "grid": "网格"
+    },
+    "stats": {
+      "totalLabel_one": "餐厅",
+      "totalLabel_other": "餐厅",
+      "openLabel_one": "营业",
+      "openLabel_other": "营业",
+      "closedLabel_one": "关闭",
+      "closedLabel_other": "关闭"
+    },
+    "empty": {
+      "noResultTitle": "无结果",
+      "noResultDescription": "尝试修改搜索或调整筛选条件",
+      "noRestaurantTitle": "没有餐厅",
+      "noRestaurantDescription": "从添加您的第一家餐厅开始管理订单",
+      "addCta": "添加餐厅",
+      "howItWorks": "如何使用？"
+    },
+    "errors": {
+      "searchFailed": "无法搜索餐厅",
+      "reloadFailed": "无法重新加载餐厅",
+      "refreshFailed": "无法刷新列表",
+      "loadMoreFailed": "无法加载更多餐厅"
+    }
+  },
+  "restaurantOrders": {
+    "noRestaurantFound": "未找到餐厅",
+    "selectRestaurant": "选择餐厅",
+    "chooseRestaurant": "选择餐厅",
+    "orderTitle": "订单 {{number}}",
+    "todayAt": "今天 {{time}}",
+    "anonymousCustomer": "匿名客户",
+    "tableLabel": "{{number}} 号桌",
+    "estimatedTime": "预计时间：{{minutes}} 分钟",
+    "viewDetails": "查看详情",
+    "forbiddenMessage": "仅限餐厅经营者",
+    "itemsCount_one": "{{count}} 件",
+    "itemsCount_other": "{{count}} 件",
+    "orderType": {
+      "dineIn": "堂食",
+      "takeaway": "外带"
+    },
+    "paymentStatus": {
+      "paid": "已支付",
+      "unpaid": "未支付",
+      "unpaidShort": "未付"
+    },
+    "actions": {
+      "confirm": "确认",
+      "preparing": "准备中",
+      "ready": "准备完成",
+      "serve": "上菜",
+      "collect": "收款",
+      "archive": "归档",
+      "unarchive": "取消归档"
+    },
+    "filters": {
+      "all": "全部",
+      "served": "已上菜",
+      "cancelled": "已取消",
+      "archived": "归档"
+    },
+    "kanban": {
+      "emptyColumn": "没有内容",
+      "columns": {
+        "new": {
+          "title": "新订单",
+          "chip": "新订单",
+          "action": "开始"
+        },
+        "preparing": {
+          "title": "准备中",
+          "chip": "准备中",
+          "action": "标记完成"
+        },
+        "ready": {
+          "title": "已就绪",
+          "chip": "就绪",
+          "action": "已上菜"
+        }
+      }
+    },
+    "banner": {
+      "title": "服务进行中",
+      "titleWithName": "{{name}} — 服务进行中",
+      "pending": "待处理",
+      "tonight": "今晚",
+      "history": "历史",
+      "refresh": "刷新"
+    },
+    "history": {
+      "title": "订单历史",
+      "bulkArchive_one": "归档 {{count}} 个已完成订单",
+      "bulkArchive_other": "归档 {{count}} 个已完成订单",
+      "emptyTitle": "无订单",
+      "emptyArchived": "无归档订单",
+      "emptyCompleted": "暂无已完成订单"
+    },
+    "cancelConfirm": {
+      "title": "取消订单",
+      "message": "确定要取消订单 {{number}} 吗？",
+      "keep": "不，保留",
+      "confirm": "是，取消"
+    },
+    "paymentPrompt": {
+      "title": "标记为已支付",
+      "message": "哪种支付方式？",
+      "cash": "现金",
+      "card": "银行卡"
+    },
+    "archiveConfirm": {
+      "title": "归档已完成订单",
+      "message": "归档所有已上菜和已取消的订单？"
+    },
+    "loading": {
+      "restaurants": "加载餐厅中…",
+      "orders": "加载订单中…"
+    },
+    "feedback": {
+      "refreshFailed": "无法刷新订单",
+      "statusUpdateFailed": "无法更新订单状态",
+      "paidTitle": "已收款",
+      "paidMessage": "订单已标记为已支付",
+      "markPaidFailed": "无法将订单标记为已支付",
+      "archivedTitle": "成功",
+      "archivedMessage_one": "已归档 {{count}} 个订单",
+      "archivedMessage_other": "已归档 {{count}} 个订单",
+      "noneToArchiveTitle": "信息",
+      "noneToArchiveMessage": "没有要归档的订单",
+      "archiveFailed": "无法归档订单"
+    }
+  },
+  "restaurantDailyMenu": {
+    "today": "今天",
+    "close": "关闭",
+    "noRestaurantMessage": "没有可管理菜单的餐厅",
+    "createRestaurant": "创建我的餐厅",
+    "legend": {
+      "withMenu": "有菜单",
+      "inactiveMenu": "菜单未激活"
+    },
+    "manager": {
+      "duplicate": "复制",
+      "applied_one": "菜单已应用至 1 天",
+      "applied_other": "菜单已应用至 {{count}} 天",
+      "errors": {
+        "toggleItem": "无法修改菜品的可用状态",
+        "applyAllFailedTitle": "失败",
+        "applyAllFailed": "无法将菜单应用至所选日期",
+        "applyGeneric": "应用菜单时发生错误"
+      },
+      "partialApply": {
+        "title": "部分应用",
+        "message": "成功 {{succeeded}}，失败 {{failed}}"
+      },
+      "replaceDialog": {
+        "title": "替换现有菜单？",
+        "message_one": "所选 1 个日期已存在每日菜单。是否替换？",
+        "message_other": "所选 {{count}} 个日期已存在每日菜单。是否替换？",
+        "confirm": "替换"
+      },
+      "empty": {
+        "title": "此日期暂无菜单",
+        "subtitleToday": "创建每日菜单开始使用",
+        "subtitleDate": "为 {{date}} 创建菜单",
+        "cta": "创建菜单"
+      },
+      "stats": {
+        "dishes_one": "{{count}} 道菜",
+        "dishes_other": "{{count}} 道菜",
+        "available_one": "{{count}} 道可用",
+        "available_other": "{{count}} 道可用",
+        "formulaPrice": "{{price}} / 套餐"
+      },
+      "applyModal": {
+        "title": "应用至其他日期",
+        "source": "来源：{{date}}",
+        "selectAll": "全选",
+        "unselectAll": "取消全选",
+        "selectedCount_one": "已选 {{count}} 项",
+        "selectedCount_other": "已选 {{count}} 项",
+        "existingMenu": "已有菜单",
+        "apply": "应用",
+        "applyWithCount": "应用（{{count}}）"
+      }
+    }
+  },
+  "restaurantMenus": {
+    "title": "我的菜单",
+    "stats": {
+      "activeMenus_one": "激活菜单",
+      "activeMenus_other": "激活菜单",
+      "inactive_one": "{{count}} 个未激活",
+      "inactive_other": "{{count}} 个未激活",
+      "multiActive": "多个激活"
+    },
+    "info": {
+      "title": "💡 同一时间仅一个激活菜单",
+      "description": "当您激活一个菜单时,所有其他菜单将自动停用。仅激活菜单对客户可见。"
+    },
+    "help": {
+      "title": "开始使用 EatQuickeR",
+      "description": "创建您的第一个菜单,展示您的菜品并开始接收在线订单。",
+      "createFirstMenu": "创建我的第一个菜单",
+      "userGuide": "使用指南"
+    },
+    "switcher": {
+      "title": "切换餐厅"
+    },
+    "duplicate": {
+      "barButton": "获取菜单",
+      "pickSourceTitle": "选择源餐厅",
+      "pickMenusTitle": "选择菜单",
+      "emptySource": "此餐厅没有菜单",
+      "statusActive": "激活",
+      "statusInactive": "未激活",
+      "itemSummary_one": "{{count}} 道菜 · {{status}}",
+      "itemSummary_other": "{{count}} 道菜 · {{status}}",
+      "duplicating": "正在复制…",
+      "confirmSimple": "复制",
+      "confirmWithCount": "复制 ({{count}})",
+      "doneTitle": "复制完成",
+      "doneSuccess_one": "{{count}} 个菜单复制成功",
+      "doneSuccess_other": "{{count}} 个菜单复制成功",
+      "donePartial": "{{succeeded}} 个成功,{{failed}} 个失败",
+      "errorGeneric": "复制时出错"
+    },
+    "delete": {
+      "title": "确认删除",
+      "message": "确定要删除菜单 \"{{name}}\" 吗?\n\n此操作不可恢复。",
+      "confirm": "删除"
+    },
+    "feedback": {
+      "successTitle": "成功",
+      "loadFailed": "无法加载菜单",
+      "loadSourceFailed": "无法加载源菜单",
+      "menuEnabled": "菜单已激活(其他菜单已停用)",
+      "menuDisabled": "菜单已停用",
+      "toggleFailed": "无法修改菜单",
+      "toggleForbidden": "您没有权限修改此菜单",
+      "menuNotFound": "未找到菜单",
+      "menuDeleted": "菜单已删除",
+      "deleteFailed": "无法删除菜单"
+    },
+    "card": {
+      "items_one": "{{count}} 道菜",
+      "items_other": "{{count}} 道菜",
+      "available_one": "{{count}} 道可用",
+      "available_other": "{{count}} 道可用",
+      "active": "已启用",
+      "inactive": "已停用",
+      "updating": "更新中…",
+      "createdOn": "创建于",
+      "updatedOn": "更新于",
+      "enable": "启用",
+      "disable": "停用",
+      "inProgress": "进行中"
+    }
+  },
+  "restaurantStats": {
+    "title": "统计 — {{period}}",
+    "pickerTitle": "分析周期",
+    "chooseRestaurant": "选择餐厅",
+    "noRestaurantMessage": "您还没有餐厅",
+    "createFirstRestaurant": "创建我的第一个餐厅",
+    "salesCount_one": "{{formatted}} 笔销售",
+    "salesCount_other": "{{formatted}} 笔销售",
+    "periods": {
+      "thisWeek": "本周",
+      "thisMonth": "本月",
+      "last3Months": "过去 3 个月",
+      "last6Months": "过去 6 个月",
+      "thisYear": "今年"
+    },
+    "deltas": {
+      "vsPrevWeek": "对比上周",
+      "vsPrevMonth": "对比上月",
+      "vsPrev3Months": "对比之前 3 个月",
+      "vsPrev6Months": "对比之前 6 个月",
+      "vsPrevYear": "对比去年"
+    },
+    "kpi": {
+      "totalRevenue": "总收入",
+      "servedOrders": "已服务订单",
+      "avgOrder": "客单价"
+    },
+    "charts": {
+      "revenueByDay": "每日收入",
+      "topDishes": "热门菜品"
+    },
+    "daysShort": {
+      "monday": "周一",
+      "tuesday": "周二",
+      "wednesday": "周三",
+      "thursday": "周四",
+      "friday": "周五",
+      "saturday": "周六",
+      "sunday": "周日"
+    },
+    "empty": {
+      "noData": "无可用数据",
+      "description": "当您在此期间有订单后,统计数据将显示在此处。"
+    },
+    "errors": {
+      "loadFailed": "加载统计数据时出错。"
+    }
+  },
+  "restaurantHome": {
+    "greeting": {
+      "morning": "早上好",
+      "afternoon": "下午好",
+      "evening": "晚上好"
+    },
+    "subtitle": {
+      "restaurateur": "管理您的餐厅并优化业绩",
+      "client": "发现您附近最好的餐厅"
+    },
+    "restaurantFallback": "餐厅",
+    "unknownDate": "日期未知",
+    "loadingDashboard": "加载仪表板…",
+    "loadingOrders": "加载订单…",
+    "viewAll": "查看全部",
+    "stripeAlert": {
+      "validationRequired": {
+        "title": "需要验证账户",
+        "message": "点击此处设置您的 Stripe 账户并启用付款。"
+      },
+      "finalizeConnect": {
+        "title": "完成 Stripe 配置",
+        "allInactive": "您的餐厅都未接收在线付款。请配置 Stripe 以开始收款。",
+        "partial_one": "{{count}} 家餐厅未启用在线付款。",
+        "partial_other": "{{count}} 家餐厅未启用在线付款。"
+      }
+    },
+    "help": {
+      "title": "开始使用 EatQuickeR",
+      "description": "创建您的第一个餐厅,开始接收在线订单并发展业务。",
+      "createFirstRestaurant": "创建我的第一个餐厅"
+    },
+    "sections": {
+      "overview": "概览",
+      "yourRestaurants": "您的餐厅",
+      "recommendedRestaurants": "推荐餐厅",
+      "receivedOrders": "收到的订单",
+      "yourOrders": "您的订单",
+      "quickActions": "快捷操作"
+    },
+    "stats": {
+      "restaurantCount_one": "餐厅",
+      "restaurantCount_other": "餐厅",
+      "orderCount_one": "订单",
+      "orderCount_other": "订单",
+      "activeCount_one": "已激活",
+      "activeCount_other": "已激活"
+    },
+    "empty": {
+      "loading": "加载中…",
+      "loadingDescription": "正在加载餐厅…",
+      "errorPrefix": "错误:{{error}}",
+      "createFirstTitle": "创建您的第一个餐厅",
+      "validationRequiredTitle": "需要验证",
+      "noRestaurantTitle": "没有餐厅",
+      "startNowDescription": "立即开始接收在线订单。",
+      "validateStripeDescription": "验证您的 Stripe 账户以创建餐厅。",
+      "noRestaurantDescription": "目前没有可用的餐厅。",
+      "noOrderTitle": "没有订单",
+      "noOrderRestaurateur": "暂无收到的订单",
+      "noOrderClient": "您还没有下过订单"
+    },
+    "orderStatus": {
+      "pending": "待处理",
+      "confirmed": "已确认",
+      "preparing": "准备中",
+      "ready": "已就绪",
+      "served": "已上菜",
+      "delivered": "已配送",
+      "completed": "已完成",
+      "cancelled": "已取消"
+    },
+    "actions": {
+      "dailyMenu": {
+        "title": "每日菜单",
+        "description": "管理今日菜单"
+      },
+      "createRestaurant": {
+        "title": "创建餐厅",
+        "description": "新场所"
+      },
+      "qrCodes": {
+        "title": "桌台二维码",
+        "description": "生成和管理"
+      },
+      "manageMenus": {
+        "title": "管理菜单",
+        "description": "菜品和价格"
+      },
+      "viewOrders": {
+        "title": "查看订单",
+        "description": "管理和跟踪"
+      },
+      "statistics": {
+        "title": "统计",
+        "description": "业绩"
+      }
+    }
+  },
+  "restaurantQrCodes": {
+    "sizes": {
+      "small": "小 ({{count}}/页)",
+      "medium": "中 ({{count}}/页)",
+      "large": "大 ({{count}}/页)"
+    },
+    "generator": {
+      "sectionTitle": "二维码生成器",
+      "description": "为您的餐桌创建二维码,让客户扫描或输入手动代码以访问菜单。",
+      "restaurantLabel": "餐厅",
+      "selectPlaceholder": "选择餐厅"
+    },
+    "controls": {
+      "qrSize": "二维码大小",
+      "tablesCount": "桌台数量",
+      "tablesToAdd": "要添加的桌台数量",
+      "startNumber": "起始编号"
+    },
+    "warnings": {
+      "existingTables_one": "此餐厅已有 {{count}} 张桌台",
+      "existingTables_other": "此餐厅已有 {{count}} 张桌台"
+    },
+    "actions": {
+      "generate": "生成二维码",
+      "generating": "生成中…",
+      "addTables_one": "添加 {{count}} 张桌台",
+      "addTables_other": "添加 {{count}} 张桌台",
+      "replace": "替换",
+      "replaceAll": "替换所有桌台",
+      "print": "打印",
+      "printing": "打印中…",
+      "printAll": "打印全部",
+      "downloadPdf": "下载 PDF",
+      "downloading": "下载中…",
+      "preview": "预览",
+      "share": "分享",
+      "download": "下载"
+    },
+    "card": {
+      "tableTitle": "{{number}} 号桌",
+      "manualCodeLabel": "手动代码",
+      "instruction": "扫描二维码或输入手动代码"
+    },
+    "list": {
+      "title_one": "已生成 {{count}} 个二维码",
+      "title_other": "已生成 {{count}} 个二维码"
+    },
+    "empty": {
+      "title": "尚未生成二维码",
+      "message": "选择餐厅并指定桌台数量以开始"
+    },
+    "help": {
+      "title": "如何运作?",
+      "steps": "• 选择您的餐厅\n• 选择二维码大小\n• 指定桌台数量\n• 生成二维码\n• 打印或下载为 PDF\n• 您的客户可以扫描或输入手动代码"
+    },
+    "restaurantPicker": {
+      "title": "选择餐厅"
+    },
+    "conflicts": {
+      "replaceTitle": "确认替换",
+      "replaceMessage": "您确定要替换现有的桌台吗?\n\n此操作将:\n• 删除所有现有桌台\n• 创建 {{count}} 张新桌台(1 到 {{count}})\n\n此操作不可撤销。",
+      "conflictTitle": "检测到冲突",
+      "conflictMessage": "某些桌台已经存在这些编号。您想做什么?",
+      "moreOptions": "更多选项",
+      "optionsTitle": "可用选项",
+      "optionsMessage": "您可以加载现有桌台或选择另一个起始编号。",
+      "otherNumber": "其他编号",
+      "loadExisting": "加载现有"
+    },
+    "suggest": {
+      "title": "建议编号",
+      "message_one": "已有 {{count}} 张桌台(直到编号 {{max}})。\n\n从编号 {{suggested}} 开始?",
+      "message_other": "已有 {{count}} 张桌台(直到编号 {{max}})。\n\n从编号 {{suggested}} 开始?",
+      "choose": "选择其他",
+      "accept": "接受"
+    },
+    "feedback": {
+      "infoTitle": "信息",
+      "tablesAddedTitle": "桌台已添加",
+      "tablesAddedMessage_one": "成功添加 {{count}} 张桌台!",
+      "tablesAddedMessage_other": "成功添加 {{count}} 张桌台!",
+      "tablesCreatedTitle": "桌台已创建",
+      "tablesCreatedMessage_one": "成功创建 {{count}} 张桌台!",
+      "tablesCreatedMessage_other": "成功创建 {{count}} 张桌台!",
+      "replaceSuccessTitle": "替换成功",
+      "replaceSuccessMessage": "已删除 {{deleted}} 张桌台,并创建 {{created}} 张新桌台!",
+      "replaceCreatedMessage_one": "已创建 {{count}} 张桌台!",
+      "replaceCreatedMessage_other": "已创建 {{count}} 张桌台!",
+      "tablesLoadedTitle": "桌台已加载",
+      "tablesLoadedMessage_one": "已加载 {{count}} 张现有桌台。",
+      "tablesLoadedMessage_other": "已加载 {{count}} 张现有桌台。",
+      "noTableTitle": "没有桌台",
+      "noTableForRestaurant": "此餐厅未找到桌台。",
+      "noExistingStartsAt1": "未找到现有桌台。起始编号保持为 1。",
+      "noExistingCanStartAt1": "未找到现有桌台。您可以从编号 1 开始。",
+      "chooseNumberTitle": "选择编号",
+      "chooseNumberMessage": "使用 +/- 按钮调整起始编号,然后重新生成。",
+      "numberUpdatedTitle": "编号已更新",
+      "numberUpdatedMessage": "起始编号已更改为 {{number}}。"
+    },
+    "errors": {
+      "selectRestaurant": "请选择一个餐厅",
+      "generationFailed": "生成二维码时出错",
+      "replaceFailed": "替换桌台时出错",
+      "loadFailed": "无法加载现有桌台。",
+      "checkFailed": "无法验证现有桌台。",
+      "shareFailed": "无法分享此二维码。",
+      "printAllFailed": "无法打印二维码",
+      "printOneFailed": "无法打印二维码",
+      "pdfFailed": "无法生成 PDF",
+      "refreshFailed": "刷新失败。"
+    },
+    "share": {
+      "title": "二维码 - {{number}} 号桌",
+      "message": "{{number}} 号桌 - {{restaurant}}\n\n手动代码: {{code}}\n或扫描此二维码访问菜单!\n\n{{url}}"
+    },
+    "pdf": {
+      "tableLabel": "桌台",
+      "scanOrEnter": "扫描或输入"
+    }
+  },
+  "restaurantCard": {
+    "distanceKm": "{{distance}} 公里",
+    "walkingMinutes": "{{minutes}} 分钟"
+  },
+  "validationPending": {
+    "title": "资料正在审核中",
+    "stripeCompleted": "Stripe 设置已完成",
+    "stripePending": "Stripe 设置进行中",
+    "profileActivated": "资料已激活",
+    "profilePending": "资料等待激活",
+    "setupStripe": "设置 Stripe",
+    "contactSupport": "联系客服",
+    "infoDelay": "完成 Stripe 设置后，资料审核可能需要 1 至 3 个工作日。",
+    "supportEmailSubject": "餐厅老板资料审核帮助"
+  },
+  "restaurantSelector": {
+    "noRestaurantTitle": "您还没有任何餐厅",
+    "noRestaurantSubtitle": "创建您的第一家餐厅，开始管理菜单和订单。",
+    "createFirst": "创建我的第一家餐厅",
+    "chooseTitle": "选择一家餐厅",
+    "chooseHint": "请选择您要管理的餐厅。",
+    "selecting": "正在选择…"
+  },
+  "stripeCommission": {
+    "compact": {
+      "title": "平台佣金",
+      "description": "每笔银行卡支付将收取 {{percent}}% 的佣金。"
+    },
+    "title": "支付收费",
+    "subtitle": "适用于银行卡支付的条件",
+    "platform": {
+      "title": "EatQuickeR 佣金",
+      "description": "对于通过应用支付的每一笔订单，EatQuickeR 将按订单总额收取 {{percent}}% 的佣金。该佣金涵盖对接费用、平台运营以及技术支持。"
+    },
+    "stripe": {
+      "title": "Stripe 处理费用",
+      "description": "Stripe 银行费用按其标准费率应用。该费用会因客户所使用的银行卡类型而异。"
+    },
+    "example": {
+      "title": "{{amount}} 订单示例",
+      "orderAmount": "订单金额",
+      "platformFee": "EatQuickeR 佣金（{{percent}}%）",
+      "stripeFee": "Stripe 费用（估算）",
+      "netAmount": "实际到账金额"
+    },
+    "bullets": {
+      "autoDeduct": "佣金在支付时自动扣除",
+      "cashNoFee": "现金支付不收取佣金",
+      "directPayout": "您直接在银行账户中收到资金"
+    },
+    "acceptTerms": "我已阅读并接受收费条件"
+  },
+  "stripeAccount": {
+    "title": "Stripe 账户",
+    "checking": "正在检查状态…",
+    "errors": {
+      "fetch": "获取状态时出错",
+      "setup": "配置 Stripe 账户时出错"
+    },
+    "validated": {
+      "title": "账户已验证",
+      "description": "您的 Stripe 账户已验证，可以接收付款。",
+      "successMessage": "您现在可以激活餐厅并开始接收订单。"
+    },
+    "inProgress": {
+      "title": "配置进行中",
+      "description": "您的 Stripe 账户已存在，但需要完成配置。",
+      "action": "继续配置"
+    },
+    "notStarted": {
+      "title": "需要配置",
+      "description": "您需要配置 Stripe 账户才能接收付款。",
+      "action": "配置 Stripe"
+    },
+    "redirectDialog": {
+      "title": "跳转至 Stripe",
+      "message": "您将被跳转至 Stripe 以配置您的支付账户。"
+    },
+    "continueDialog": {
+      "title": "继续配置",
+      "message": "您将被跳转至 Stripe 以完成配置。"
+    },
+    "requirements": {
+      "title": "所需文件：",
+      "othersCount_one": "还有 {{count}} 项…",
+      "othersCount_other": "还有 {{count}} 项…"
+    },
+    "infoDelay": "提交全部所需文件后，账户验证可能需要 1 至 3 个工作日。"
+  },
+  "revenueCard": {
+    "title": "收入",
+    "defaultPeriod": "本月",
+    "details": "详情",
+    "netRevenue": "净收入",
+    "netRevenueEstimated": "预估净收入",
+    "ordersCount_one": "{{count}} 个订单",
+    "ordersCount_other": "{{count}} 个订单",
+    "grossRevenueTitle": "营业额（毛）",
+    "cardPayments": "银行卡支付",
+    "cashPayments": "现金支付",
+    "grossTotal": "毛总额",
+    "feesTitle": "费用与佣金",
+    "stripeFeesNote": "仅适用于银行卡支付。Stripe 费用将单独扣除。",
+    "platformCommissionLine": "EatQuickeR 佣金：{{amount}}",
+    "legendGross": "毛营业额：{{amount}}",
+    "legendCommission": "佣金：{{amount}}"
+  },
+  "openingHours": {
+    "title": "营业时间",
+    "subtitle": "为每周每天设置您的服务时间",
+    "quickPresets": "快速模板",
+    "open": "营业中",
+    "closed": "已关闭",
+    "start": "开始",
+    "end": "结束",
+    "apply": "应用",
+    "addPeriod": "添加时间段",
+    "serviceNamePlaceholder": "服务名称（例如：午餐）",
+    "tip1": "点击时间即可快速选择您的服务时间",
+    "tip2": "使用建议时间或自定义时间",
+    "timePicker": {
+      "title": "选择时间",
+      "ok": "确定",
+      "suggestedTimes": "建议时间",
+      "customTime": "自定义时间",
+      "hours": "小时",
+      "minutes": "分钟"
+    },
+    "presets": {
+      "continuous": {
+        "name": "全天服务"
+      },
+      "lunchDinner": {
+        "name": "午餐 + 晚餐"
+      },
+      "complete": {
+        "name": "完整"
+      }
+    },
+    "periodNames": {
+      "lunch": "午餐",
+      "dinner": "晚餐",
+      "breakfast": "早餐",
+      "service": "服务"
+    },
+    "confirmApplyPreset": {
+      "title": "应用模板",
+      "message": "将「{{name}}」应用于一周中的所有日子？"
+    },
+    "confirmCopyHours": {
+      "title": "复制时间",
+      "message": "将 {{day}} 的时间应用于所有工作日（周一至周五）？"
+    }
+  },
+  "statistics": {
+    "kpis": {
+      "title": "关键绩效指标",
+      "cancellationRate": "取消率",
+      "paymentRate": "支付率",
+      "availabilityRate": "菜品可用率",
+      "avgOrderValue": "客单价",
+      "perOrder": "每笔订单",
+      "serviceTime": "服务时长",
+      "avgTime": "平均时长",
+      "tableUsage": "餐桌利用率"
+    },
+    "qualifiers": {
+      "excellent": "优秀",
+      "toImprove": "需改进",
+      "veryGood": "非常好",
+      "toWatch": "需关注",
+      "optimal": "最佳",
+      "critical": "严重",
+      "toOptimize": "需优化"
+    },
+    "priorities": {
+      "high": "紧急",
+      "medium": "重要",
+      "low": "信息"
+    },
+    "recommendations": {
+      "title": "个性化建议"
+    },
+    "topDishes": {
+      "title": "最受欢迎的 5 道菜",
+      "dishStats": "{{orders}} 个订单 · {{revenue}} 营业额"
+    },
+    "underperforming": {
+      "title": "需优化的菜品",
+      "neverOrdered_one": "{{count}} 道菜从未被点过。可考虑下架或推广。",
+      "neverOrdered_other": "{{count}} 道菜从未被点过。可考虑下架或推广。",
+      "lowOrders": "点单量较低的菜品（最近 30 天）",
+      "onlyOrders_one": "仅 {{count}} 个订单",
+      "onlyOrders_other": "仅 {{count}} 个订单"
+    },
+    "revenue": {
+      "title": "收入分析",
+      "currentPeriod": "当前周期",
+      "previousPeriod": "上一周期",
+      "evolution": "变化",
+      "avgOrderValue": "客单价",
+      "perOrder": "每笔订单",
+      "ordersCount_one": "{{count}} 个订单",
+      "ordersCount_other": "{{count}} 个订单"
+    },
+    "peakHours": {
+      "title": "订单时段分布",
+      "peakSlots": "高峰时段",
+      "ordersCount_one": "{{count}} 个订单",
+      "ordersCount_other": "{{count}} 个订单"
+    },
+    "dailyPerformance": {
+      "title": "按星期统计的表现",
+      "bestDay": "最佳日",
+      "worstDay": "最差日"
+    }
+  },
+  "dailyMenuDisplay": {
+    "loading": "正在加载菜单…",
+    "completeFormula": "套餐",
+    "formulaHint": "每个分类 1 道菜 • {{price}} / 道",
+    "dishesCount_one": "{{count}} 道菜",
+    "dishesCount_other": "{{count}} 道菜",
+    "categoriesCount_one": "{{count}} 个分类",
+    "categoriesCount_other": "{{count}} 个分类"
+  },
+  "menuItem": {
+    "add": "添加",
+    "unavailable": "不可用",
+    "unavailableShort": "缺货"
+  },
+  "menuGrid": {
+    "otherCategory": "其他",
+    "defaultRestaurantName": "餐厅",
+    "groupToggle": "分组",
+    "filters": "筛选",
+    "viewModes": {
+      "list": "列表",
+      "grid": "网格",
+      "masonry": "瀑布流",
+      "table": "表格"
+    },
+    "table": {
+      "photo": "图片",
+      "name": "名称",
+      "description": "描述",
+      "price": "价格",
+      "action": "操作"
+    },
+    "stats": {
+      "availableShort_one": "{{count}} 可用",
+      "availableShort_other": "{{count}} 可用",
+      "availableLong_one": "{{count}} 道菜可用",
+      "availableLong_other": "{{count}} 道菜可用",
+      "photos_one": "{{count}} 张照片",
+      "photos_other": "{{count}} 张照片"
+    },
+    "accordion": {
+      "expandAll": "全部展开",
+      "collapseAll": "全部收起"
+    }
+  },
+  "formule": {
+    "title": "搭配您的套餐",
+    "sectionTitle": "套餐",
+    "compose": "搭配",
+    "basePrice": "套餐 {{price}}",
+    "required": "必选",
+    "optional": "可选",
+    "chooseOne": "请选择 1 道菜",
+    "chooseN": "请选择 {{count}} 道菜",
+    "addToCart": "加入购物车",
+    "quantity": "数量",
+    "incomplete": "请完成您的套餐",
+    "unavailable": "套餐暂不可用",
+    "empty": "此环节暂无可选菜品",
+    "loadError": "无法加载套餐",
+    "notFound": "未找到套餐",
+    "added": "套餐已加入购物车"
+  },
+  "menuItemForm": {
+    "newTitle": "新建菜品",
+    "editTitle": "编辑菜品",
+    "back": "返回",
+    "itemNotFound": "未找到菜品",
+    "loadingItem": "正在加载菜品...",
+    "sectionInfo": "信息",
+    "sectionPhoto": "菜品照片",
+    "sectionCategory": "分类",
+    "sectionDietAllergens": "饮食与过敏原",
+    "sectionAvailability": "可用状态",
+    "allergensTitle": "过敏原",
+    "allergensMultiSelect": "过敏原（多选）",
+    "dietaryTitle": "饮食选项",
+    "vatTitle": "增值税",
+    "vatType": "增值税类型",
+    "vatRateLabel": "税率：",
+    "nameLabel": "名称 *",
+    "description": "描述",
+    "priceLabel": "价格 (€) *",
+    "color": "颜色",
+    "iconEmoji": "图标（表情）",
+    "subcategoryOptional": "子分类（可选）",
+    "selectCategoryPlaceholder": "选择一个分类",
+    "selectSubcategoryPlaceholder": "选择一个子分类",
+    "selectSubcategory": "选择子分类",
+    "selectSubcategoryFirst": "请先选择分类",
+    "newCategory": "新建分类",
+    "newSubcategory": "新建子分类",
+    "createCategory": "创建分类",
+    "createSubcategory": "创建子分类",
+    "createNewCategory": "创建新分类",
+    "createNewSubcategory": "创建新子分类",
+    "categoryDescPlaceholder": "分类描述",
+    "subcategoryDescPlaceholder": "子分类描述",
+    "deleteCategoryTitle": "删除分类",
+    "deleteSubcategoryTitle": "删除子分类",
+    "deleteCategoryMessage": "删除“{{name}}”？所有关联菜品将失去其分类。",
+    "deleteSubcategoryMessage": "删除“{{name}}”？",
+    "vegetarian": "素食",
+    "vegetarianDesc": "无肉无鱼",
+    "vegan": "纯素",
+    "veganDesc": "无动物制品",
+    "glutenFree": "无麸质",
+    "glutenFreeDesc": "无小麦、黑麦、大麦",
+    "photoSelected": "已选择照片",
+    "noPhoto": "未选择照片",
+    "addPhotoHint": "添加照片让菜品更具吸引力",
+    "replace": "替换",
+    "photo": "照片",
+    "delete": "删除",
+    "choosePhoto": "选择照片",
+    "takePhoto": "拍照",
+    "availabilityNote": "可在菜单的菜品列表中更改可用状态",
+    "availableNow": "该菜品目前可供应",
+    "unavailableNow": "该菜品目前不可供应",
+    "create": "创建",
+    "saveChanges": "保存修改",
+    "updating": "正在更新...",
+    "creating": "正在创建...",
+    "createItem": "创建菜品",
+    "noAllergenSelected": "未选择过敏原",
+    "selectedCount": "已选 {{count}} 个",
+    "exDishNameAdd": "例如：招牌汉堡",
+    "descPlaceholderAdd": "描述您的菜品...",
+    "exCategoryName": "例如：前菜",
+    "exSubcategoryName": "例如：沙拉",
+    "exIcon": "例如：🍽️",
+    "exDishNameEdit": "例如：自制汉堡",
+    "descPlaceholderEdit": "描述您的菜品（食材、口味等）",
+    "exPrice": "例如：12.90",
+    "exCatName": "例如：主菜",
+    "exCatDesc": "例如：所有主菜",
+    "exCatIcon": "例如：🍽️",
+    "exSubName": "例如：汉堡",
+    "exSubDesc": "例如：特色汉堡",
+    "error": "错误",
+    "success": "成功",
+    "warning": "注意",
+    "nameRequired": "菜品名称为必填项",
+    "selectCategory": "请选择一个分类",
+    "selectCategoryFirst": "请先选择一个分类",
+    "pricePositive": "价格必须大于0",
+    "priceInvalid": "价格必须是有效数字",
+    "itemCreated": "菜品创建成功！",
+    "createError": "创建时出错",
+    "networkError": "网络错误：无法连接服务器",
+    "categoryMissing": "缺少分类",
+    "fieldMissing": "缺少字段",
+    "deleteItemError": "无法删除此项",
+    "authMissing": "缺少身份验证令牌。请重新登录。",
+    "genericError": "发生错误",
+    "loadItemError": "无法加载菜品",
+    "loadCategoriesError": "无法加载分类",
+    "loadSubcategoriesError": "无法加载子分类",
+    "categoryNameRequired": "分类名称为必填项",
+    "subcategoryNameRequired": "子分类名称为必填项",
+    "categoryCreated": "分类创建成功",
+    "subcategoryCreated": "子分类创建成功",
+    "categoryCreateError": "无法创建分类",
+    "subcategoryCreateError": "无法创建子分类",
+    "itemNotLoaded": "菜单项未加载",
+    "itemNotIdentified": "无法识别菜单项",
+    "photoSubtitle": "推荐用于吸引顾客",
+    "sectionInfoBase": "基本信息",
+    "categorySubtitle": "帮助顾客浏览菜单",
+    "mainCategory": "主分类 *",
+    "categoryLabel": "分类 *",
+    "selectCategoryTitle": "选择分类",
+    "categoryModalTitle": "分类",
+    "subcategoryModalTitle": "子分类",
+    "categoryEmpty": "暂无分类",
+    "subcategoryEmpty": "暂无子分类",
+    "iconShort": "图标（表情或短文本）",
+    "itemUpdated": "菜品更新成功",
+    "photoPermission": "请授予照片访问权限以继续。",
+    "cameraPermission": "请授予相机访问权限以继续。",
+    "permissionRequired": "需要权限",
+    "cancel": "取消",
+    "createCategoryAction": "创建分类",
+    "createSubcategoryAction": "创建子分类",
+    "serverError": "服务器错误：响应无效。请检查 API 地址。",
+    "createItemError": "创建菜品时出错",
+    "updateItemError": "无法更新菜品"
+  },
+  "menuForm": {
+    "editTitle": "编辑菜单",
+    "loading": "正在加载菜单...",
+    "notFound": "未找到菜单",
+    "nameLabel": "菜单名称 *",
+    "namePlaceholder": "菜单名称",
+    "save": "保存修改",
+    "updated": "菜单更新成功",
+    "activated": "菜单已成功启用（其他菜单已停用）",
+    "deactivated": "菜单已成功停用",
+    "toggleError": "无法更改可用状态",
+    "noPermission": "您没有编辑此菜单的权限",
+    "visibleStatus": "该菜单目前对顾客可见",
+    "hiddenStatus": "该菜单对顾客不可见",
+    "deactivate": "停用此菜单",
+    "activate": "启用此菜单",
+    "manageDishes": "管理菜品",
+    "actions": "操作",
+    "statistics": "统计",
+    "dishCount": "此菜单中有 {{count}} 道菜",
+    "statTotal": "总菜品\n数",
+    "statAvailable": "可供应\n菜品",
+    "statUnavailable": "不可供应\n菜品",
+    "nameRequired": "菜单名称为必填项",
+    "loadError": "无法加载菜单",
+    "saveError": "无法保存菜单",
+    "newTitle": "新建菜单",
+    "createTitle": "创建新菜单",
+    "createSubtitle": "通过创建主题菜单来组织您的菜品",
+    "required": "必填",
+    "namePlaceholderExample": "例如：2025春季菜单、节日菜单……",
+    "nameHint": "为特定时段创建菜单（季节、特别活动……）。",
+    "tip": "提示",
+    "tipBody": "为不同的季节、活动或特殊时段创建不同的菜单（例如\"春季菜单\"\"夏季菜单\"\"节日菜单\"）。",
+    "tipFeature1": "按季节启用/停用",
+    "tipFeature2": "按时段组织",
+    "tipFeature3": "仅可有一个活动菜单",
+    "createButton": "创建菜单",
+    "createdTitle": "菜单已创建",
+    "createdMessage": "您想现在添加菜品还是返回列表？",
+    "addDishes": "添加菜品",
+    "backToList": "返回列表",
+    "restaurantNotSpecified": "未指定餐厅",
+    "createError": "无法创建菜单"
+  },
+  "allergens": {
+    "gluten": {
+      "name": "麸质"
+    },
+    "crustaceans": {
+      "name": "甲壳类"
+    },
+    "eggs": {
+      "name": "蛋类"
+    },
+    "fish": {
+      "name": "鱼类"
+    },
+    "peanuts": {
+      "name": "花生"
+    },
+    "soy": {
+      "name": "大豆"
+    },
+    "milk": {
+      "name": "奶类"
+    },
+    "nuts": {
+      "name": "坚果"
+    },
+    "celery": {
+      "name": "芹菜"
+    },
+    "mustard": {
+      "name": "芥末"
+    },
+    "sesame": {
+      "name": "芝麻"
+    },
+    "sulfites": {
+      "name": "亚硫酸盐"
+    },
+    "lupin": {
+      "name": "羽扇豆"
+    },
+    "mollusks": {
+      "name": "软体动物"
+    }
+  },
+  "vatTypes": {
+    "FOOD": {
+      "name": "食品"
+    },
+    "DRINK_SOFT": {
+      "name": "软饮料"
+    },
+    "DRINK_ALCOHOL": {
+      "name": "酒精饮料"
+    },
+    "PACKAGED": {
+      "name": "预包装产品"
+    }
+  },
+  "menuBrowse": {
+    "searchPlaceholder": "搜索菜品...",
+    "filters": "筛选",
+    "resetFilters": "重置筛选",
+    "categories": "分类",
+    "subcategoriesCount": "子分类（{{count}}）",
+    "diet": "饮食",
+    "excludeAllergens": "排除过敏原",
+    "vegetarian": "素食",
+    "vegan": "纯素",
+    "glutenFree": "无麸质",
+    "addToCart": "添加",
+    "viewCart": "查看购物车",
+    "cartTitle": "您的购物车",
+    "cartEmpty": "您的购物车是空的。",
+    "itemsCount": "{{count}} 道菜",
+    "articlesCount": "{{count}} 件商品",
+    "qty": "数量",
+    "addedToCart": "已将“{{name}}”加入购物车",
+    "added": "已添加",
+    "removeItemTitle": "删除商品",
+    "removeItemMessage": "从购物车中删除“{{name}}”？",
+    "thisItem": "该商品",
+    "itemRemoved": "已从购物车删除商品",
+    "removed": "已删除",
+    "clearCartTitle": "清空购物车",
+    "clearCartMessage": "确定要清空购物车吗？",
+    "cartCleared": "您的购物车已清空。",
+    "cartLabel": "购物车",
+    "yes": "是",
+    "no": "否",
+    "confirmDeleteTitle": "确认删除"
+  },
+  "menuDetail": {
+    "addDish": "添加菜品",
+    "addDishShort": "+ 添加菜品",
+    "importPhoto": "通过照片导入",
+    "importMenuPhoto": "通过照片导入菜单",
+    "deleteDishTitle": "删除菜品",
+    "deleteDishMessage": "确定要删除“{{name}}”吗？\n\n此操作不可撤销。",
+    "cancel": "取消",
+    "hidden": "已隐藏",
+    "available": "可供应",
+    "unavailable": "不可供应",
+    "categoriesHeader": "分类",
+    "menuNotFound": "未找到菜单",
+    "menuNotFoundToast": "找不到此菜单",
+    "invalidMenuId": "菜单ID无效",
+    "toggleStatusError": "无法更改菜品状态",
+    "deleteDishError": "无法删除菜品",
+    "translationTimeout": "翻译耗时过长，请重试。",
+    "dishDeleted": "菜品“{{name}}”已删除",
+    "dishActivatedMsg": "菜品已成功启用",
+    "dishDeactivatedMsg": "菜品已成功停用",
+    "allAlreadyTranslated": "所有内容均已翻译。",
+    "translatedCount": "已将 {{count}} 个项目翻译成 {{langs}} 种语言。",
+    "translationDone": "翻译完成",
+    "translationFailed": "翻译失败。",
+    "timeout": "已超时",
+    "emptyMenuTitle": "此菜单中暂无菜品",
+    "emptyCategoryTitle": "此分类中暂无菜品",
+    "emptyMenuText": "添加第一道菜以开始。",
+    "emptyCategoryText": "为此分类添加菜品或选择其他分类。",
+    "translateButton": "翻译（{{count}}）",
+    "langsToTranslate": "要翻译的语言",
+    "onlyUntranslated": "仅会补全尚未翻译的内容。",
+    "menuPreview": "菜单预览",
+    "previewSubtitle": "以顾客看到的方式预览您的菜单。",
+    "reorderCategories": "重新排序分类",
+    "translateMenu": "翻译菜单",
+    "translatingProgress": "翻译中… {{progress}}%",
+    "translatingProgressLong": "正在翻译… {{progress}}%",
+    "previewPrefix": "预览：",
+    "restaurantMenuTitle": "餐厅菜单",
+    "uncategorized": "未分类",
+    "translationStartError": "无法启动翻译。",
+    "loadingCard": "正在加载菜单...",
+    "menuSubtitle": "{{name}} · {{available}}/{{total}} 可供应"
+  },
+  "dailyMenuForm": {
+    "titleLabel": "菜单标题",
+    "titlePlaceholder": "例如：今日菜单",
+    "descLabel": "描述（可选）",
+    "descPlaceholder": "例如：前菜+主菜+甜点",
+    "priceLabel": "菜单总价 (€) *",
+    "pricePlaceholder": "例如：19.90",
+    "generalInfo": "基本信息",
+    "dishSelection": "菜品选择",
+    "clientPriceHint": "顾客将支付此总价，并从您下方选择的菜品中每个分类选一道。",
+    "priceSummaryMulti": "{{count}} 个分类 · 每道菜 {{price}}€",
+    "priceSummarySingle": "1 道菜 {{price}}€",
+    "selectedDishes": "已选 {{count}} 道菜",
+    "categoriesSuffix": " · {{count}} 个分类",
+    "titleRequired": "菜单标题为必填项",
+    "priceRequiredTitle": "价格必填",
+    "priceRequiredMessage": "今日菜单的总价必须填写且为正数。",
+    "saving": "正在保存...",
+    "createTitle": "创建今日菜单",
+    "createButton": "创建菜单",
+    "created": "今日菜单创建成功",
+    "createError": "无法创建今日菜单",
+    "loadItemsError": "无法加载菜单的菜品",
+    "selectAtLeastOne": "请至少选择一道菜",
+    "editTitle": "编辑今日菜单",
+    "loadError": "无法加载今日菜单",
+    "invalidDishId": "菜品ID无效",
+    "dishAdded": "已将“{{name}}”加入今日菜单",
+    "alreadyPresentTitle": "已添加",
+    "alreadyPresent": "该菜品已在今日菜单中",
+    "addDishError": "无法添加此菜品",
+    "removeDishTitle": "移除此菜品？",
+    "removeDishMessage": "将从今日菜单中移除“{{name}}”。",
+    "removedTitle": "已移除",
+    "dishRemoved": "已移除“{{name}}”",
+    "removeDishError": "无法移除此菜品",
+    "updated": "今日菜单已更新",
+    "updateError": "无法更新菜单",
+    "confirmation": "确认",
+    "deleteMenuMessage": "确定要删除此今日菜单吗？",
+    "menuDeleted": "菜单删除成功",
+    "deleteMenuError": "无法删除菜单",
+    "loadingDishes": "正在加载菜品…",
+    "emptyDishesText": "您菜单上的所有菜品都已在此今日菜单中，或者您还没有创建菜品。请先向您的菜单添加菜品才能在此选择。",
+    "menuActive": "启用菜单",
+    "menuDishes": "菜单菜品",
+    "add": "添加",
+    "noDishesAvailable": "没有可添加的菜品。",
+    "removeFromMenuLabel": "从菜单中移除{{name}}",
+    "availableDishes": "{{count}} 道菜可供应"
+  },
+  "scanImport": {
+    "photosSection": "菜单照片",
+    "photoHint": "每页一张照片。页面顺序与下方顺序一致。",
+    "noPagesAdded": "未添加页面",
+    "gallery": "相册",
+    "translationLangs": "翻译语言",
+    "langsHint": "内容以法语提取。请选择要生成的其他语言（可选）。",
+    "submitButton": "开始导入（{{count}} 页）",
+    "maxPages": "每次导入最多 {{max}} 页。",
+    "onlySomeAdded": "仅添加了 {{count}} 页。",
+    "limitReached": "已达上限",
+    "cameraPermissionMsg": "请允许访问相机。",
+    "photosPermissionMsg": "请允许访问您的照片。",
+    "restaurantNotFound": "未找到餐厅。请从“菜单”标签返回。",
+    "addAtLeastOnePhoto": "请至少添加一张菜单照片。",
+    "noPhotoTitle": "无照片",
+    "importError": "无法开始导入。",
+    "readingCard": "正在读取您的菜单…",
+    "analyzeTitle": "菜单分析",
+    "translatingContent": "内容翻译",
+    "importMenu": "菜单导入",
+    "waitHint": "通常不到一分钟。您可以在此界面等待。",
+    "analysisFailed": "分析失败",
+    "processingFailed": "您的菜单处理未成功。",
+    "retry": "重试",
+    "menuImported": "菜单已导入",
+    "importDone": "导入完成",
+    "toReview": "待核对",
+    "reviewHint": "请核对价格和名称。导入后所有内容仍可编辑。",
+    "applyToMenu": "应用到我的菜单",
+    "viewMenu": "查看我的菜单",
+    "applyConfirm": "应用此导入？",
+    "alreadyApplied": "已应用",
+    "alreadyAppliedMsg": "此导入已添加到您的菜单。",
+    "applied": "已应用",
+    "unchanged": "未更改",
+    "dishName": "菜品名称",
+    "descOptional": "描述（可选）",
+    "price": "价格",
+    "priceToComplete": "价格待填写",
+    "categoryName": "分类名称",
+    "subcategoryName": "子分类名称",
+    "categoriesCreated": "已创建分类",
+    "categoriesReused": "已复用分类",
+    "subcategoriesCreated": "已创建子分类",
+    "dishesCreated": "已创建菜品",
+    "graphicGuide": "视觉规范",
+    "loadError": "加载失败。",
+    "retryError": "无法重试。",
+    "applyError": "应用失败。",
+    "analyzing": "分析中",
+    "reviewMenuTitle": "核对菜单",
+    "processingTimeout": "处理时间超出预期，请稍后重试。",
+    "apply": "应用",
+    "applyWarnMissingPrices": "{{count}} 道菜没有有效价格，将以 0,00 € 创建。仍要继续吗？",
+    "applySummary": "将向您的菜单添加 {{categories}} 个分类和 {{items}} 道菜。",
+    "headerTitle": "导入菜单",
+    "intro": "拍摄您的纸质菜单。AI 会自动识别类别、菜品和价格并进行翻译。在应用到您的菜单之前，您可以检查并更正所有内容。"
+  },
+  "checkout": {
+    "headerTitle": "完成订单",
+    "authRequired": "需要登录",
+    "authRequiredHint": "请选择您的点餐方式。",
+    "seeOptions": "查看选项",
+    "authGate": {
+      "titleSession": "登录以完成您的订单",
+      "titleSolo": "您想如何点餐？",
+      "subtitleSession": "协作会话正在进行中。请登录或创建账户以加入。",
+      "subtitleSolo": "登录以保存您的历史记录，或以访客身份继续。"
+    },
+    "session": {
+      "title": "协作会话",
+      "tableInfo": "餐桌 {{table}} • {{count}} 位参与者",
+      "youAre": "您是：{{name}}",
+      "hostSuffix": "（主持人）"
+    },
+    "details": {
+      "title": "订单详情",
+      "restaurant": "餐厅：{{name}}",
+      "restaurantFallback": "ID {{id}}",
+      "tableNumber": "餐桌号",
+      "table": "餐桌 {{number}}",
+      "tableUndefined": "未设置"
+    },
+    "info": {
+      "title": "您的信息",
+      "nameLabel": "姓名",
+      "namePlaceholder": "请输入您的姓名",
+      "notesLabel": "特殊要求（可选）",
+      "notesPlaceholder": "例如：不要洋葱、过敏…"
+    },
+    "summary": {
+      "title_one": "概要（{{count}} 件）",
+      "title_other": "概要（{{count}} 件）"
+    },
+    "submit": {
+      "submitting": "提交中…",
+      "placeGroupOrder": "下单",
+      "validateOrder": "确认订单"
+    },
+    "validation": {
+      "restaurantMissing": "未设置餐厅",
+      "tableRequired": "需要餐桌号",
+      "cartEmpty": "购物车为空",
+      "nameRequired": "需要姓名"
+    },
+    "toast": {
+      "orderPlacedTitle": "下单成功！",
+      "addedToSession": "您的订单已添加到协作会话。",
+      "sentToRestaurant": "您的订单已发送至餐厅。",
+      "orderAddedTitle": "订单已添加！",
+      "addedToSessionNumbered": "您的订单 #{{number}} 已添加到协作会话。",
+      "createFailed": "创建订单时出错"
+    }
+  },
+  "orderDetail": {
+    "headerTitle": "订单详情",
+    "loading": "正在加载详情…",
+    "error": {
+      "title": "哎呀！",
+      "notFound": "找不到此订单",
+      "loadFailed": "加载订单时出错",
+      "orderNotFound": "未找到订单"
+    },
+    "title": "订单 {{number}}",
+    "titleFallback": "#{{id}}",
+    "customerFallback": "匿名顾客",
+    "paid": "已支付",
+    "table": "餐桌 {{number}}",
+    "estimatedTime": "预计时间：{{minutes}} 分钟",
+    "notesLabel": "订单备注",
+    "itemsTitle": "已点商品",
+    "recap": "摘要",
+    "subtotal": "小计：",
+    "totalDue": "应付金额：",
+    "item": {
+      "fallbackName": "商品 #{{id}}",
+      "customized": "已定制",
+      "quantity": "数量：{{count}}",
+      "unitPrice": "单价：{{price}}€",
+      "specialInstructions": "特殊要求",
+      "customizations": "定制内容"
+    },
+    "timeline": {
+      "title": "订单追踪",
+      "created": "订单已创建",
+      "confirmed": "已确认",
+      "preparing": "准备中",
+      "ready": "已就绪",
+      "served": "已上菜"
+    },
+    "actions": {
+      "quickTitle": "快捷操作",
+      "confirm": "确认",
+      "startPreparing": "准备中",
+      "markReady": "已就绪",
+      "serve": "上菜",
+      "collect": "收款",
+      "receipt": "收据",
+      "cancel": "取消"
+    },
+    "cancelConfirm": {
+      "title": "取消订单",
+      "message": "确定要取消订单 #{{number}} 吗？此操作无法撤销。",
+      "keep": "不，保留",
+      "confirm": "是，取消"
+    },
+    "payModal": {
+      "title": "标记为已支付",
+      "question": "您想记录哪种支付方式？",
+      "cash": "现金",
+      "card": "刷卡"
+    },
+    "paidWithCash": "订单已标记为已支付（现金）",
+    "paidWithCard": "订单已标记为已支付（刷卡）",
+    "statusUpdated": "状态已更新：{{label}}",
+    "statusUpdateFailed": "无法更新状态",
+    "markPaidSuccess": "订单已标记为已支付",
+    "markPaidFailed": "无法标记为已支付",
+    "client": {
+      "payNow": "立即支付",
+      "viewReceipt": "查看收据"
+    }
+  },
+  "addOrder": {
+    "headerFallback": "点餐",
+    "loadingMenu": "正在加载菜单…",
+    "restaurantNotFound": "未找到餐厅",
+    "switch": "更改",
+    "table": "餐桌 {{number}}",
+    "categoryAll": "全部",
+    "noItems": "该分类暂无可用商品。",
+    "add": "添加",
+    "note": "备注：{{text}}",
+    "cartTitle_one": "您的订单（{{count}} 件）",
+    "cartTitle_other": "您的订单（{{count}} 件）",
+    "total": "合计：",
+    "clearCart": "清空购物车",
+    "orderInfo": "订单信息",
+    "form": {
+      "nameLabel": "您的姓名 *",
+      "namePlaceholder": "姓名",
+      "phoneLabel": "电话",
+      "phonePlaceholder": "06 12 34 56 78",
+      "tableLabel": "餐桌号 *",
+      "tablePlaceholder": "例如：12",
+      "notesLabel": "备注",
+      "notesPlaceholder": "过敏、要求…",
+      "paymentMethod": "支付方式"
+    },
+    "payment": {
+      "cash": "现金",
+      "card": "刷卡",
+      "online": "在线"
+    },
+    "submitting": "提交中…",
+    "toast": {
+      "loadMenusFailed": "无法加载菜单",
+      "addedToCart": "{{name}} 已加入购物车",
+      "addedTitle": "已添加",
+      "emptyCart": "请向订单中添加商品",
+      "emptyCartTitle": "购物车为空",
+      "nameRequired": "请输入您的姓名",
+      "missingInfoTitle": "信息缺失",
+      "tableRequired": "堂食订单需要餐桌号",
+      "orderConfirmed": "订单 {{number}} 已保存。合计：{{total}} €",
+      "orderConfirmedTitle": "订单已确认！",
+      "createFailed": "无法创建订单"
+    }
+  },
+  "guestCheckout": {
+    "headerTitle": "访客下单",
+    "tableLabel": "餐桌：{{number}}",
+    "tableUndetected": "⚠️ 未检测到餐桌 — 请重新扫描二维码",
+    "processing": "处理中…",
+    "submit": "下单 • {{total}} €",
+    "form": {
+      "nameLabel": "姓 / 名 *",
+      "namePlaceholder": "您的全名",
+      "phoneLabel": "电话 *",
+      "phonePlaceholder": "06 12 34 56 78",
+      "emailLabel": "邮箱（可选）",
+      "emailPlaceholder": "your@email.com"
+    },
+    "payment": {
+      "title": "支付方式",
+      "online": "在线支付",
+      "onlineHint": "通过 Stripe 刷卡",
+      "cashHint": "💰 您将在餐厅直接付款"
+    },
+    "consent": {
+      "pre": "我接受",
+      "link": "隐私政策",
+      "post": "和使用条款 *"
+    },
+    "toast": {
+      "nameRequired": "姓名为必填项",
+      "nameRequiredTitle": "缺少字段",
+      "phoneInvalid": "请输入有效的法国电话号码",
+      "phoneInvalidTitle": "电话号码无效",
+      "emailInvalid": "请输入有效的电子邮箱地址",
+      "emailInvalidTitle": "邮箱无效",
+      "consentRequired": "请接受隐私政策。",
+      "consentRequiredTitle": "需要同意",
+      "tableMissing": "未找到餐桌号。请重新扫描二维码。",
+      "tableMissingTitle": "缺少餐桌",
+      "paymentInitFailed": "无法初始化支付",
+      "processingOrder": "您的订单正在处理中。请查看您的订单。",
+      "paymentConfirmedTitle": "支付已确认",
+      "failed": "下单失败。请重试。",
+      "invalidItem": "无效的商品 ID：{{name}}",
+      "initError": "初始化错误：{{message}}",
+      "paymentError": "支付错误：{{message}}"
+    }
+  },
+  "authGate": {
+    "login": "登录",
+    "loginDesc": "找回历史记录，更快支付",
+    "register": "创建账户",
+    "registerDesc": "快速注册以追踪您的订单",
+    "guest": "以访客身份继续",
+    "guestHint": "您无需创建账户即可下单，只需提供姓名和电话号码。"
+  },
+  "clientMenu": {
+    "sessionEndedTitle": "会话已结束",
+    "sessionEndedMsg": "协作会话已关闭。",
+    "loadFailed": "无法加载菜单",
+    "alreadySelectedTitle": "已选择",
+    "alreadySelectedMsg": "{{name}} 已是您套餐的一部分",
+    "addedSharedTitle": "已加入共享购物车",
+    "addedTitle": "已加入购物车",
+    "addedMsg": "已添加 {{name}}",
+    "addSharedFailed": "无法加入共享购物车",
+    "removeItemFailed": "无法移除该商品",
+    "copyCodeFailed": "无法复制代码",
+    "approveFailed": "无法接受请求",
+    "rejectFailed": "无法拒绝请求",
+    "completeFormula": "请完成您的套餐以进入购物车。",
+    "formulaIncomplete": "套餐未完成",
+    "someone": "某人",
+    "loadingMenu": "正在加载菜单…",
+    "notFound": "未找到餐厅",
+    "table": "餐桌 {{number}}",
+    "welcome": "欢迎",
+    "splitTitle": "💳 账单支付",
+    "splitMsgAmount": "主持人已将账单（{{amount}}€）分成 {{count}} 份。请立即支付您的份额。",
+    "splitMsg": "主持人已将账单分成 {{count}} 份。请立即支付您的份额。",
+    "payMyShare": "支付我的份额",
+    "later": "稍后",
+    "backHome": "返回首页",
+    "newRequestTitle": "🔔 新请求",
+    "newRequestMsg": "{{name}} 想加入您的会话。",
+    "accept": "✅ 接受",
+    "reject": "❌ 拒绝",
+    "switchRestaurantTitle": "切换餐厅？",
+    "switchRestaurantMsg": "您要清空购物车吗？",
+    "activeSessionTitle": "此餐桌有进行中的会话",
+    "participantsCount_one": "{{count}} 位参与者",
+    "participantsCount_other": "{{count}} 位参与者",
+    "codeSuffix": " · 代码 {{code}}",
+    "join": "加入",
+    "sessionCode": "会话代码",
+    "chosen": "已选",
+    "chooseOne": "请选择 1 道菜",
+    "emptyDaily": "今日菜单暂无菜品",
+    "emptyCategory": "此分类暂无菜品",
+    "viewCart": "查看购物车",
+    "categoriesChosen_one": "已选 {{picked}}/{{total}} 个分类",
+    "categoriesChosen_other": "已选 {{picked}}/{{total}} 个分类",
+    "articlesCount_one": "{{count}} 件",
+    "articlesCount_other": "{{count}} 件",
+    "sessionTitle": "协作会话",
+    "shareCode": "分享代码",
+    "participants": "参与者（{{count}}）",
+    "anonymous": "匿名",
+    "statusPending": "待处理",
+    "statusActive": "活跃",
+    "statusLeft": "已离开",
+    "menuLanguage": "菜单语言",
+    "shareMessage": "🍽️ 来 {{name}} 和我一起吧！\n\n会话代码：{{code}}\n\n在 EatQuickeR 中输入此代码加入我的餐桌。",
+    "shareTitle": "加入我们的餐桌",
+    "formulaOfDay": "今日套餐",
+    "formulaSubtitleMulti": "每类 1 道菜 • {{count}} 个分类 • {{price}} / 道",
+    "formulaSubtitleSingle": "任选 1 道菜 • {{price}}",
+    "removeFromFormula": "从套餐中移除 {{name}}",
+    "removeItem": "移除 {{name}}",
+    "addOne": "添加一份 {{name}}",
+    "addToCartLabel": "将 {{name}} 加入购物车"
+  },
+  "splitPayment": {
+    "modeEqual": "账单在 {{count}} 人间平均分摊",
+    "modeCustom": "账单分成 {{count}} 份自定义金额",
+    "modeItems": "已为 {{count}} 人启用“按菜品”模式",
+    "configuredTitle": "已配置分摊",
+    "createFailed": "无法创建账单分摊",
+    "headerTitle": "分摊账单",
+    "groupOrder": "团体订单",
+    "yourPartPaid": "您的份额已成功支付。",
+    "backToSession": "返回会话",
+    "youAreHost": "您是主持人",
+    "splitInProgress": "账单分摊进行中",
+    "participantsPaid": "{{count}} 位参与者 • {{paid}} 位已支付",
+    "configurePrompt": "设置账单分摊",
+    "hostConfigureHint": "选择如何在参与者之间分摊付款。",
+    "guestWaitConfig": "主持人正在设置账单分摊。",
+    "loadingPortions": "正在加载份额…",
+    "enterAmounts": "请输入金额",
+    "perfectSplit": "完美分摊！",
+    "notEnoughParticipantsTitle": "参与者不足",
+    "notEnoughParticipantsMsg": "“按菜品”模式需要会话中至少有 2 位参与者。",
+    "minTwoPeople": "人数必须至少为 2",
+    "splitMismatch": "分摊金额与总额不符",
+    "minTwoPortions": "至少需要 2 份带金额的份额",
+    "totalToSplit": "待分摊总额",
+    "howToSplit": "如何分摊？",
+    "modeSingle": "单人支付",
+    "modeSingleDesc": "由一人支付",
+    "modeEqualLabel": "平均",
+    "modeEqualDesc": "所有人平均分摊",
+    "modeCustomLabel": "自定义",
+    "modeCustomDesc": "定制金额",
+    "modeItemsLabel": "按菜品",
+    "modeItemsDesc": "各自支付所点的",
+    "numberOfPeople": "人数",
+    "personN": "第 {{number}} 人",
+    "customAmounts": "自定义金额",
+    "addPerson": "添加一人",
+    "anonymous": "匿名",
+    "paidOn": "支付于 {{date}}",
+    "yourPart": "💳 您的份额",
+    "waiting": "⏳ 待处理",
+    "completedTitle": "🎉 支付完成！",
+    "completedMessage": "所有款项均已成功支付。",
+    "completedOn": "\n\n完成于 {{date}}",
+    "people": "人数",
+    "title": "分摊支付",
+    "equalSplit": "⚖️ 平均分摊",
+    "customSplit": "🎯 自定义金额",
+    "paidStat": "✅ 已付",
+    "remainingStat": "⏳ 剩余",
+    "peopleStat": "👥 人数",
+    "paymentsDetail": "📋 支付明细",
+    "edit": "编辑",
+    "payRest": "💳 支付剩余（{{amount}}）",
+    "payForOthersHint": "💡 您可以为尚未结清份额的其他人支付",
+    "payAllRest": "支付全部剩余"
+  },
+  "receipt": {
+    "loading": "正在加载小票…",
+    "noData": "暂无小票数据",
+    "ticketNumber": "小票号:",
+    "dateLabel": "日期:",
+    "tableLabel": "餐桌:",
+    "typeLabel": "类型:",
+    "dineIn": "堂食",
+    "takeaway": "外带",
+    "paymentLabel": "支付:",
+    "subtotalHT": "小计（不含税）:",
+    "vatTotal": "增值税合计:",
+    "subtotalTTC": "小计（含税）:",
+    "tip": "小费:",
+    "totalTTC": "总计（含税）:",
+    "thankYou": "感谢光临！",
+    "seeYouSoon": "期待再次光临",
+    "vatDetailTitle": "增值税明细",
+    "vatRate": "增值税 {{rate}}%",
+    "vatBaseHT": "不含税: {{amount}}",
+    "vatAmount": "增值税: {{amount}}",
+    "vatTotalTitle": "增值税合计",
+    "print": "打印",
+    "email": "邮件",
+    "download": "下载",
+    "share": "分享",
+    "emailModalTitle": "通过邮件发送小票",
+    "emailPlaceholder": "邮箱地址",
+    "sending": "发送中…",
+    "send": "发送",
+    "loadFailed": "无法加载小票",
+    "printFailed": "无法打印小票",
+    "emailInvalid": "请输入有效的邮箱地址",
+    "sentTo": "小票已发送至 {{email}}",
+    "successTitle": "成功",
+    "unknownError": "未知错误",
+    "sendFailed": "无法发送小票",
+    "shareFailed": "无法分享小票",
+    "savedSuccess": "小票保存成功",
+    "savedAs": "小票已保存：{{filename}}",
+    "downloadTitle": "下载",
+    "downloadFailed": "无法下载小票",
+    "method": {
+      "cash": "现金",
+      "card": "银行卡",
+      "online": "在线",
+      "credit": "信用",
+      "check": "支票",
+      "transfer": "转账"
+    }
+  },
+  "unpaidGate": {
+    "headerTitle": "访问受限",
+    "title": "待支付",
+    "message_one": "您有一笔未支付的订单。请先结清订单，才能访问菜单或下新订单。",
+    "message_other": "您有 {{count}} 笔未支付的订单。请先结清订单，才能访问菜单或下新订单。",
+    "unpaidBadge": "未支付",
+    "viewOrders": "查看我的订单"
+  },
+  "reorderCategories": {
+    "headerTitle": "重新排序分类",
+    "loadFailed": "无法加载分类。",
+    "savedTitle": "顺序已保存",
+    "savedMsg": "分类已重新排序。",
+    "saveFailed": "无法保存顺序。",
+    "noRestaurant": "未选择餐厅。请返回上一屏并选择一个餐厅。",
+    "intro": "此处选择的顺序决定了顾客菜单（菜单和每日菜单）中分类的显示顺序。",
+    "empty": "该餐厅暂无分类。",
+    "dishCount_one": "{{count}} 道菜",
+    "dishCount_other": "{{count}} 道菜",
+    "moveUp": "上移 {{name}}",
+    "moveDown": "下移 {{name}}",
+    "saving": "保存中…",
+    "save": "保存顺序"
+  },
+  "notif": {
+    "title": "通知",
+    "markAllShort": "全部已读",
+    "empty": "暂无通知",
+    "emptySubtitle": "您还没有收到任何通知。\n它们将显示在这里。",
+    "actionsTitle": "操作",
+    "actionsMessage": "您想做什么？",
+    "alreadyRead": "已读",
+    "markRead": "标记为已读",
+    "markAllTitle": "全部标记为已读",
+    "markAllMessage_one": "将 {{count}} 条通知标记为已读？",
+    "markAllMessage_other": "将 {{count}} 条通知标记为已读？",
+    "today": "今天",
+    "yesterday": "昨天"
+  },
+  "prefs": {
+    "title": "通知设置",
+    "loading": "正在加载设置…",
+    "saveFailed": "无法保存设置",
+    "permissionsTitle": "需要权限",
+    "permissionsMessage": "要接收通知，您必须在设备设置中允许通知。",
+    "disabledTitle": "通知已关闭",
+    "disabledSubtitle": "点按以开启通知",
+    "sectionOrders": "订单更新",
+    "sectionPayments": "支付",
+    "sectionRestaurateurs": "餐厅经营者",
+    "sectionMarketing": "营销",
+    "sectionDnd": "勿扰",
+    "sectionSound": "声音与振动",
+    "ordersTitle": "订单",
+    "ordersDesc": "状态、确认、准备",
+    "orderReadyTitle": "订单就绪",
+    "orderReadyDesc": "订单准备好时提醒您",
+    "paymentTitle": "支付确认",
+    "paymentDesc": "收据和支付确认",
+    "newOrdersTitle": "新订单",
+    "newOrdersDesc": "新订单提醒（餐厅经营者）",
+    "promoTitle": "促销优惠",
+    "promoDesc": "折扣和特别优惠",
+    "quietTitle": "免打扰时段",
+    "quietDesc": "在特定时段暂停通知",
+    "soundTitle": "声音",
+    "soundDesc": "收到时播放声音",
+    "vibrationTitle": "振动",
+    "vibrationDesc": "让设备振动",
+    "start": "开始",
+    "end": "结束",
+    "startTime": "开始时间",
+    "endTime": "结束时间",
+    "hour": "时",
+    "minutes": "分"
+  },
+  "help": {
+    "headerTitle": "入门指南",
+    "heroTitle": "欢迎使用 EatQuickeR",
+    "heroSubtitle": "按照本指南，几分钟内即可设置好您的餐厅。",
+    "allReadyTitle": "您的餐厅已就绪！",
+    "allReadySubtitle": "您已可以接收订单。把二维码放在餐桌上，剩下的交给 EatQuickeR。",
+    "statsCta": "统计",
+    "progressDone": "设置完成！",
+    "progressInProgress": "设置进行中",
+    "stepsCompleted": "已完成 {{completed}} / {{total}} 步",
+    "stepLabel": "第 {{current}} / {{total}} 步",
+    "steps": {
+      "stripe": {
+        "title": "启用支付",
+        "subtitle": "连接您的 Stripe 账户以接收付款。",
+        "doneLabel": "已启用 Stripe",
+        "s1": "从菜单打开您的个人资料",
+        "s2": "点按“设置 Stripe 支付”",
+        "s3": "填写 Stripe 注册表单",
+        "s4": "等待确认（几分钟）",
+        "tip": "此步骤只需完成一次。它让 EatQuickeR 能够每天向您结算收入。",
+        "cta": "设置 Stripe"
+      },
+      "restaurant": {
+        "title": "创建您的餐厅",
+        "subtitle": "添加您的店铺以开始接收订单。",
+        "doneLabel": "餐厅已创建",
+        "s1": "点按“创建餐厅”",
+        "s2": "输入店铺的名称和地址",
+        "s3": "添加一张吸引人的封面照片",
+        "s4": "填写您的联系电话",
+        "s5": "保存 — 您的餐厅已上线！",
+        "tip": "您可以用一个餐厅经营者账户创建多家餐厅。",
+        "cta": "创建我的餐厅"
+      },
+      "menu": {
+        "title": "创建您的菜单",
+        "subtitle": "将菜品整理成按类别划分的菜单。",
+        "doneLabel": "菜单已创建",
+        "s1": "前往“管理菜单”并创建菜单",
+        "s2": "添加类别（前菜、主菜、甜点…）",
+        "s3": "如有需要可创建子类别（肉类、鱼类…）",
+        "s4": "添加菜品并填写名称、价格和描述",
+        "s5": "为每道菜配上诱人的照片",
+        "tip": "为不同的季节或活动创建不同的菜单（夏季菜单、节日菜单…）。",
+        "cta": "管理菜单"
+      },
+      "items": {
+        "title": "添加您的菜品",
+        "subtitle": "用您所有的菜品和饮品丰富菜单。",
+        "doneLabel": "菜品已添加",
+        "s1": "在菜单中点按“+”添加菜品",
+        "s2": "设置名称、描述和价格",
+        "s3": "填写过敏原和选项（素食、纯素…）",
+        "s4": "启用该菜品以供下单",
+        "tip": "如果缺货，您可以实时启用/停用某道菜品。",
+        "cta": "查看我的菜单"
+      },
+      "qrcodes": {
+        "title": "生成二维码",
+        "subtitle": "为每张餐桌创建一个二维码，让顾客用智能手机点餐。",
+        "doneLabel": "二维码已生成",
+        "s1": "打开“餐桌二维码”并选择您的餐厅",
+        "s2": "填写餐桌数量和起始编号",
+        "s3": "每张餐桌获得一个二维码和一个唯一的手动码",
+        "s4": "打印二维码（A4 PDF 或单独分享）",
+        "s5": "摆放到餐桌上 — 准备就绪！",
+        "tip": "“全部打印”功能可一键生成包含所有二维码的 PDF。",
+        "cta": "生成二维码"
+      }
+    }
+  },
+  "gamifiedTracking": {
+    "estimatedTime": "预计时间",
+    "accuracy": "准确度",
+    "inProgress": "进行中...",
+    "progress": "进度",
+    "quality": "质量",
+    "preparation": "准备",
+    "efficiency": "效率",
+    "completion": "完成度",
+    "bonusActive": "奖励生效",
+    "distinctions": "成就",
+    "preparationSteps": "准备步骤",
+    "estimatedLabel": "预计:",
+    "remainingLabel": "剩余:",
+    "loading": "正在加载跟踪...",
+    "streakCount_one": "连续 {{count}} 笔订单",
+    "streakCount_other": "连续 {{count}} 笔订单",
+    "itemsCount_one": "{{count}} 件",
+    "itemsCount_other": "{{count}} 件"
+  }
+}

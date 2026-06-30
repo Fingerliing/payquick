@@ -172,28 +172,39 @@ class Order(models.Model):
         ]
 
     def calculate_vat_breakdown(self):
-        """Calcule la répartition de la TVA par taux"""
+        """Calcule la répartition de la TVA par taux.
+
+        Pour une ligne formule (kind='formule'), la TVA est ventilée au niveau
+        des composants (taux potentiellement mixtes : plat 10 %, vin 20 %...),
+        donc on descend dans `item.components` au lieu d'utiliser le taux de la
+        ligne (qui n'aurait pas de sens).
+        """
         vat_breakdown = {}
-        
+
+        def _add(rate, ttc, tva):
+            key = f"{(rate * 100):.1f}"
+            bucket = vat_breakdown.setdefault(key, {
+                'ht': Decimal('0.00'),
+                'tva': Decimal('0.00'),
+                'ttc': Decimal('0.00'),
+            })
+            bucket['ttc'] += ttc
+            bucket['tva'] += tva
+            bucket['ht'] += (ttc - tva)
+
         for item in self.items.all():
-            vat_key = f"{(item.vat_rate * 100):.1f}"
-            if vat_key not in vat_breakdown:
-                vat_breakdown[vat_key] = {
-                    'ht': Decimal('0.00'),
-                    'tva': Decimal('0.00'),
-                    'ttc': Decimal('0.00')
-                }
-            
-            item_ht = item.total_price / (1 + item.vat_rate)
-            vat_breakdown[vat_key]['ht'] += item_ht
-            vat_breakdown[vat_key]['tva'] += item.vat_amount
-            vat_breakdown[vat_key]['ttc'] += item.total_price
-        
+            if item.kind == 'formule':
+                for c in item.components.all():
+                    ttc = (c.allocated_price + c.extra_price) * item.quantity
+                    _add(c.vat_rate, ttc, c.vat_amount * item.quantity)
+            else:
+                _add(item.vat_rate, item.total_price, item.vat_amount)
+
         # Arrondir les valeurs
         for vat_rate in vat_breakdown:
             for key in vat_breakdown[vat_rate]:
                 vat_breakdown[vat_rate][key] = round(vat_breakdown[vat_rate][key], 2)
-        
+
         self.vat_details = vat_breakdown
         return vat_breakdown
     
@@ -408,8 +419,44 @@ class Order(models.Model):
 
 
 class OrderItem(models.Model):
+    KIND_CHOICES = [
+        ('dish', 'Plat à la carte'),
+        ('formule', 'Formule'),
+    ]
+
     order = models.ForeignKey('Order', related_name='items', on_delete=models.CASCADE)
-    menu_item = models.ForeignKey('MenuItem', on_delete=models.CASCADE)
+    kind = models.CharField(
+        max_length=10,
+        choices=KIND_CHOICES,
+        default='dish',
+        verbose_name="Type de ligne",
+    )
+
+    # kind='dish' -> le plat à la carte. NULL pour une formule (le détail des
+    # plats choisis vit dans les OrderItemComponent enfants).
+    menu_item = models.ForeignKey(
+        'MenuItem',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+
+    # kind='formule' -> la formule commandée + un libellé figé (snapshot) pour
+    # que la ligne reste lisible même si la formule est modifiée/supprimée ensuite.
+    formule = models.ForeignKey(
+        'Formule',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='order_items',
+        verbose_name="Formule",
+    )
+    label = models.CharField(
+        max_length=150,
+        blank=True,
+        verbose_name="Libellé figé (formule)",
+    )
+
     quantity = models.PositiveIntegerField()
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
     total_price = models.DecimalField(max_digits=10, decimal_places=2)
@@ -435,6 +482,18 @@ class OrderItem(models.Model):
     )
     
     def save(self, *args, **kwargs):
+        # ── Ligne formule ────────────────────────────────────────────────
+        # La TVA est ventilée au niveau des OrderItemComponent (taux mixtes
+        # possibles). On NE dérive rien d'un menu_item (NULL) et on NE recalcule
+        # PAS vat_amount : il a été fixé explicitement = somme des composants.
+        if self.kind == 'formule':
+            if self.vat_rate:
+                self.vat_rate = Decimal(str(self.vat_rate)).quantize(
+                    Decimal('0.001'), rounding=ROUND_HALF_UP
+                )
+            super().save(*args, **kwargs)
+            return
+
         # Récupérer le taux TVA du MenuItem avec arrondi
         if self.menu_item and not self.vat_rate:
             menu_vat_rate = self.menu_item.vat_rate or Decimal('0.10')
@@ -492,9 +551,57 @@ class OrderItem(models.Model):
             except (ValueError, TypeError):
                 raise ValidationError("Le taux de TVA doit être un nombre valide")
 
+    @property
+    def display_name(self):
+        """Libellé universel de la ligne (plat à la carte OU formule)."""
+        if self.kind == 'formule':
+            return self.label or (self.formule.name if self.formule else 'Formule')
+        return self.menu_item.name if self.menu_item else (self.label or 'Article supprimé')
+
     class Meta:
         verbose_name = "Article de commande"
         verbose_name_plural = "Articles de commande"
         
     def __str__(self):
-        return f"{self.menu_item.name} x{self.quantity} - {self.total_price}€"
+        return f"{self.display_name} x{self.quantity} - {self.total_price}€"
+
+
+class OrderItemComponent(models.Model):
+    """Un plat choisi dans un cran d'une formule, FIGÉ au moment de la commande.
+
+    Les libellés (course_name, menu_item_name) sont des snapshots : la
+    composition d'une formule peut changer après coup, mais une commande passée
+    doit rester immuable. La ventilation TVA (allocated_price + vat_*) est
+    calculée à la création par api.utils.formule_pricing.build_formule_components.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    order_item = models.ForeignKey(
+        'OrderItem',
+        on_delete=models.CASCADE,
+        related_name='components',
+    )
+
+    course_name = models.CharField(max_length=50, verbose_name="Cran")  # "Entrée"
+    menu_item = models.ForeignKey(
+        'MenuItem',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    menu_item_name = models.CharField(max_length=100)  # snapshot
+
+    # Supplément éventuel du plat (FormuleCourseItem.extra_price figé)
+    extra_price = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    # Part du prix de la formule attribuée à ce plat (base de la ventilation TVA)
+    allocated_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    vat_rate = models.DecimalField(max_digits=4, decimal_places=3, default=Decimal('0.100'))
+    vat_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    display_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        verbose_name = "Composant de formule"
+        verbose_name_plural = "Composants de formule"
+        ordering = ['order_item', 'display_order']
+
+    def __str__(self):
+        return f"{self.course_name}: {self.menu_item_name}"

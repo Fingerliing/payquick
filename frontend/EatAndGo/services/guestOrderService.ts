@@ -1,10 +1,13 @@
 import { apiClient } from "./api";
+import type { CreateFormuleInput } from "@/types/order";
 
 export type GuestItem = { menu_item_id: number; quantity: number; options?: any };
 export type GuestPreparePayload = {
   restaurant_id: number;
   table_number?: string;
   items: GuestItem[];
+  // Formules sélectionnées (même forme que le flux authentifié / CreateFormuleInput)
+  formules?: CreateFormuleInput[];
   customer_name: string;
   phone: string;
   email?: string;

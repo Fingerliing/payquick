@@ -4,6 +4,16 @@
  * Utilise @react-native-google-signin/google-signin (SDK natif) — meilleure UX
  * qu'OAuth via WebView, requiert un dev/standalone build (incompatible Expo Go).
  *
+ * IMPORTANT — Compatibilité Expo Go :
+ *   Le SDK Google embarque un TurboModule natif (`RNGoogleSignin`) qui n'existe
+ *   pas dans Expo Go. Importer le package au top-level fait crasher TOUTE
+ *   l'application au démarrage en Expo Go ("RNGoogleSignin could not be found").
+ *
+ *   Stratégie : on détecte l'environnement (Expo Go vs dev/standalone build) et
+ *   on charge le SDK *paresseusement* via `require()`. Ainsi le module est
+ *   importable partout, et le bouton "Continuer avec Google" reste désactivé
+ *   en Expo Go sans casser l'app.
+ *
  * Flux :
  *   1. configureGoogleSignIn() est appelé au démarrage de l'app (App layout)
  *   2. signInWithGoogle() ouvre la modal Google native et retourne l'idToken
@@ -15,13 +25,20 @@
  *   - iOS Client ID  → utilisé par `iosClientId` (signin iOS)
  *   Aucun Android Client ID à passer au SDK — il est implicite (Bundle ID + SHA-1).
  */
-import {
-  GoogleSignin,
-  isErrorWithCode,
-  isSuccessResponse,
-  statusCodes,
-} from '@react-native-google-signin/google-signin';
 import Constants from 'expo-constants';
+
+// ─── Détection environnement ────────────────────────────────────────────────
+
+/**
+ * True si l'app tourne dans Expo Go (où les modules natifs custom ne sont pas
+ * disponibles). En dev build ou standalone build, on a accès au SDK natif.
+ *
+ * - executionEnvironment === 'storeClient' → Expo Go
+ * - appOwnership === 'expo' → Expo Go (compat ancienne API)
+ */
+const isExpoGo =
+  Constants.executionEnvironment === 'storeClient' ||
+  (Constants as any).appOwnership === 'expo';
 
 // ─── Configuration ───────────────────────────────────────────────────────────
 
@@ -35,13 +52,69 @@ const IOS_CLIENT_ID =
 
 let isConfigured = false;
 
+// ─── Lazy holders pour le SDK natif ──────────────────────────────────────────
+// On ne charge le module qu'à la demande, et jamais en Expo Go.
+
+type GoogleSdk = {
+  GoogleSignin: any;
+  isErrorWithCode: (e: any) => boolean;
+  isSuccessResponse: (r: any) => boolean;
+  statusCodes: {
+    SIGN_IN_CANCELLED: string;
+    IN_PROGRESS: string;
+    PLAY_SERVICES_NOT_AVAILABLE: string;
+    [k: string]: string;
+  };
+};
+
+let sdkCache: GoogleSdk | null = null;
+let sdkLoadFailed = false;
+
+function loadGoogleSdk(): GoogleSdk | null {
+  if (isExpoGo) return null;
+  if (sdkCache) return sdkCache;
+  if (sdkLoadFailed) return null;
+
+  try {
+    // require() paresseux : pas exécuté tant que la fonction n'est pas appelée.
+    // Évite le crash au démarrage en Expo Go.
+    const mod = require('@react-native-google-signin/google-signin');
+    sdkCache = {
+      GoogleSignin: mod.GoogleSignin,
+      isErrorWithCode: mod.isErrorWithCode,
+      isSuccessResponse: mod.isSuccessResponse,
+      statusCodes: mod.statusCodes,
+    };
+    return sdkCache;
+  } catch (e) {
+    sdkLoadFailed = true;
+    console.warn(
+      '⚠️ @react-native-google-signin/google-signin indisponible ' +
+        '(Expo Go ou module natif manquant) :',
+      e
+    );
+    return null;
+  }
+}
+
 /**
  * Configure le SDK Google Sign-In.
  * À appeler une seule fois au démarrage de l'app (RootLayout / _layout.tsx).
  * Idempotent : appels multiples sont sans effet.
+ * No-op en Expo Go.
  */
 export function configureGoogleSignIn(): void {
   if (isConfigured) return;
+
+  if (isExpoGo) {
+    console.log(
+      'ℹ️ Google Sign-In désactivé dans Expo Go (nécessite un dev build ou un build standalone).'
+    );
+    return;
+  }
+
+  const sdk = loadGoogleSdk();
+  if (!sdk) return;
 
   if (!WEB_CLIENT_ID) {
     console.warn(
@@ -50,7 +123,7 @@ export function configureGoogleSignIn(): void {
     return;
   }
 
-  GoogleSignin.configure({
+  sdk.GoogleSignin.configure({
     webClientId: WEB_CLIENT_ID,
     iosClientId: IOS_CLIENT_ID, // optionnel sur Android, requis sur iOS
     scopes: ['email', 'profile'],
@@ -62,8 +135,10 @@ export function configureGoogleSignIn(): void {
   console.log('✅ Google Sign-In configuré');
 }
 
-/** True si la config a été tentée et les Client IDs sont présents. */
+/** True si la config a été tentée et les Client IDs sont présents. False en Expo Go. */
 export function isGoogleSignInAvailable(): boolean {
+  if (isExpoGo) return false;
+  if (sdkLoadFailed) return false;
   return Boolean(WEB_CLIENT_ID);
 }
 
@@ -78,7 +153,13 @@ export interface GoogleSignInResult {
 }
 
 export class GoogleSignInError extends Error {
-  code: 'CANCELLED' | 'IN_PROGRESS' | 'PLAY_SERVICES_UNAVAILABLE' | 'NO_ID_TOKEN' | 'UNKNOWN';
+  code:
+    | 'CANCELLED'
+    | 'IN_PROGRESS'
+    | 'PLAY_SERVICES_UNAVAILABLE'
+    | 'NO_ID_TOKEN'
+    | 'NOT_AVAILABLE'
+    | 'UNKNOWN';
 
   constructor(code: GoogleSignInError['code'], message: string) {
     super(message);
@@ -96,16 +177,33 @@ export class GoogleSignInError extends Error {
  * @throws GoogleSignInError si l'utilisateur annule, Play Services indisponible, etc.
  */
 export async function signInWithGoogle(): Promise<GoogleSignInResult> {
+  if (isExpoGo) {
+    throw new GoogleSignInError(
+      'NOT_AVAILABLE',
+      "Google Sign-In n'est pas disponible dans Expo Go. Utilisez un dev build."
+    );
+  }
+
+  const sdk = loadGoogleSdk();
+  if (!sdk) {
+    throw new GoogleSignInError(
+      'NOT_AVAILABLE',
+      'Module Google Sign-In introuvable. Rebuildez l\'application.'
+    );
+  }
+
   if (!isConfigured) {
     configureGoogleSignIn();
   }
 
   if (!isGoogleSignInAvailable()) {
     throw new GoogleSignInError(
-      'UNKNOWN',
-      'Google Sign-In n\'est pas configuré (Client IDs manquants).'
+      'NOT_AVAILABLE',
+      "Google Sign-In n'est pas configuré (Client IDs manquants)."
     );
   }
+
+  const { GoogleSignin, isErrorWithCode, isSuccessResponse, statusCodes } = sdk;
 
   try {
     // Vérification Play Services (Android) — no-op sur iOS
@@ -124,7 +222,7 @@ export async function signInWithGoogle(): Promise<GoogleSignInResult> {
     if (!idToken) {
       throw new GoogleSignInError(
         'NO_ID_TOKEN',
-        'Google n\'a pas retourné d\'idToken. Vérifiez la configuration du webClientId.'
+        "Google n'a pas retourné d'idToken. Vérifiez la configuration du webClientId."
       );
     }
 
@@ -152,7 +250,7 @@ export async function signInWithGoogle(): Promise<GoogleSignInResult> {
         case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
           throw new GoogleSignInError(
             'PLAY_SERVICES_UNAVAILABLE',
-            'Google Play Services n\'est pas disponible sur cet appareil.'
+            "Google Play Services n'est pas disponible sur cet appareil."
           );
         default:
           console.error('Google Sign-In error:', error);
@@ -177,14 +275,19 @@ export async function signInWithGoogle(): Promise<GoogleSignInResult> {
  * Déconnecte l'utilisateur de Google (révoque la session côté SDK Google).
  * À appeler dans le logout EatQuickeR si l'utilisateur s'est connecté via Google.
  * Ne lève pas d'exception : un échec de signOut Google ne doit pas bloquer le
- * logout principal.
+ * logout principal. No-op en Expo Go.
  */
 export async function signOutFromGoogle(): Promise<void> {
+  if (isExpoGo) return;
+
   try {
+    const sdk = loadGoogleSdk();
+    if (!sdk) return;
     if (!isConfigured) return;
-    const currentUser = await GoogleSignin.getCurrentUser();
+
+    const currentUser = await sdk.GoogleSignin.getCurrentUser();
     if (currentUser) {
-      await GoogleSignin.signOut();
+      await sdk.GoogleSignin.signOut();
     }
   } catch (error) {
     console.warn('⚠️ Erreur lors du signOut Google (ignorée):', error);

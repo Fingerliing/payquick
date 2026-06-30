@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'react-native';
@@ -35,7 +36,8 @@ import {
   useScreenType,
   getResponsiveValue,
   createResponsiveStyles,
-  COLORS,
+  useAppTheme,
+  type AppColors,
   SPACING,
   BORDER_RADIUS,
   COMPONENT_CONSTANTS,
@@ -44,7 +46,7 @@ import {
 import secureStorage from '@/utils/secureStorage';
 
 const getErrorMessage = (e: unknown): string =>
-  e instanceof Error ? e.message : 'Une erreur est survenue';
+  e instanceof Error ? e.message : '';
 
 const getAuthToken = async (): Promise<string | null> => {
   return await secureStorage.getItem('access_token');
@@ -83,6 +85,8 @@ export default function EditMenuItemScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { width } = useWindowDimensions();
   const screenType = useScreenType();
+  const { colors } = useAppTheme();
+  const { t } = useTranslation();
   const R = createResponsiveStyles(screenType);
   const insets = useSafeAreaInsets();
   const [photo, setPhoto] = useState<{ uri: string; name: string; type: string } | null>(null);
@@ -102,7 +106,7 @@ export default function EditMenuItemScreen() {
   );
   const hideToast = useCallback(() => setToast(p => ({ ...p, visible: false })), []);
 
-  const styles = useMemo(() => createStyles(screenType), [screenType]);
+  const styles = useMemo(() => createStyles(colors, screenType), [colors, screenType]);
 
   const layout = useMemo(() => ({
     containerPadding: getResponsiveValue(SPACING.container, screenType),
@@ -193,7 +197,7 @@ export default function EditMenuItemScreen() {
       }
     } catch (error) {
       console.error('loadMenuItem error:', error);
-      showToast('error', 'Impossible de charger le plat', 'Erreur');
+      showToast('error', t('menuItemForm.loadItemError'), t('menuItemForm.error'));
       router.back();
     } finally {
       setIsLoading(false);
@@ -216,7 +220,7 @@ export default function EditMenuItemScreen() {
       }
     } catch (e: unknown) {
       console.error('loadCategoriesForMenu error:', e);
-      showToast('error', 'Impossible de charger les catégories', 'Erreur');
+      showToast('error', t('menuItemForm.loadCategoriesError'), t('menuItemForm.error'));
     } finally {
       setLoadingCategories(false);
     }
@@ -237,7 +241,7 @@ export default function EditMenuItemScreen() {
     } catch (e: unknown) {
       console.error('loadSubCategories error:', e);
       setSubCategories([]);
-      showToast('error', 'Impossible de charger les sous-catégories', 'Erreur');
+      showToast('error', t('menuItemForm.loadSubcategoriesError'), t('menuItemForm.error'));
     }
   };
 
@@ -264,11 +268,11 @@ export default function EditMenuItemScreen() {
 
   const handleCreateCategory = async () => {
     if (!newCategoryName.trim()) {
-      showToast('warning', 'Le nom de la catégorie est requis', 'Attention');
+      showToast('warning', t('menuItemForm.categoryNameRequired'), t('menuItemForm.warning'));
       return;
     }
     if (!menuItem) {
-      showToast('error', 'Élément de menu non chargé', 'Erreur');
+      showToast('error', t('menuItemForm.itemNotLoaded'), t('menuItemForm.error'));
       return;
     }
 
@@ -290,20 +294,20 @@ export default function EditMenuItemScreen() {
       setNewCategoryDescription('');
       setNewCategoryIcon('');
       setNewCategoryColor(DEFAULT_CATEGORY_COLORS[0]);
-      showToast('success', 'Catégorie créée avec succès', 'Succès');
+      showToast('success', t('menuItemForm.categoryCreated'), t('menuItemForm.success'));
     } catch (e: unknown) {
       console.error('createCategory error:', e);
-      showToast('error', getErrorMessage(e) || 'Impossible de créer la catégorie', 'Erreur');
+      showToast('error', getErrorMessage(e) || t('menuItemForm.categoryCreateError'), t('menuItemForm.error'));
     }
   };
 
   const handleCreateSubCategory = async () => {
     if (!newSubCategoryName.trim()) {
-      showToast('warning', 'Le nom de la sous-catégorie est requis', 'Attention');
+      showToast('warning', t('menuItemForm.subcategoryNameRequired'), t('menuItemForm.warning'));
       return;
     }
     if (!selectedCategory) {
-      showToast('warning', "Veuillez d'abord sélectionner une catégorie", 'Attention');
+      showToast('warning', t('menuItemForm.selectCategoryFirst'), t('menuItemForm.warning'));
       return;
     }
     try {
@@ -319,28 +323,28 @@ export default function EditMenuItemScreen() {
       setShowCreateSubCategoryModal(false);
       setNewSubCategoryName('');
       setNewSubCategoryDescription('');
-      showToast('success', 'Sous-catégorie créée avec succès', 'Succès');
+      showToast('success', t('menuItemForm.subcategoryCreated'), t('menuItemForm.success'));
     } catch (e: unknown) {
       console.error('createSubCategory error:', e);
-      showToast('error', getErrorMessage(e) || 'Impossible de créer la sous-catégorie', 'Erreur');
+      showToast('error', getErrorMessage(e) || t('menuItemForm.subcategoryCreateError'), t('menuItemForm.error'));
     }
   };
 
   const handleUpdate = async () => {
     if (!name.trim()) {
-      showToast('warning', 'Le nom du plat est requis', 'Attention');
+      showToast('warning', t('menuItemForm.nameRequired'), t('menuItemForm.warning'));
       return;
     }
     if (!price.trim() || isNaN(Number(price))) {
-      showToast('warning', 'Le prix doit être un nombre valide', 'Attention');
+      showToast('warning', t('menuItemForm.priceInvalid'), t('menuItemForm.warning'));
       return;
     }
     if (!selectedCategory || !selectedCategory.id) {
-      showToast('warning', 'Veuillez sélectionner une catégorie', 'Attention');
+      showToast('warning', t('menuItemForm.selectCategory'), t('menuItemForm.warning'));
       return;
     }
     if (!id || !menuItem) {
-      showToast('error', 'Élément de menu non identifié', 'Erreur');
+      showToast('error', t('menuItemForm.itemNotIdentified'), t('menuItemForm.error'));
       return;
     }
 
@@ -379,7 +383,7 @@ export default function EditMenuItemScreen() {
 
         const token = await getAuthToken();
         if (!token) {
-          showToast('error', "Token d'authentification manquant", 'Erreur');
+          showToast('error', t('menuItemForm.authMissing'), t('menuItemForm.error'));
           return;
         }
 
@@ -402,11 +406,11 @@ export default function EditMenuItemScreen() {
         setMenuItem(updatedItem);
       }
 
-      showToast('success', 'Plat mis à jour avec succès', 'Succès');
+      showToast('success', t('menuItemForm.itemUpdated'), t('menuItemForm.success'));
       router.back();
     } catch (error: unknown) {
       console.error('handleUpdate error:', error);
-      showToast('error', getErrorMessage(error) || 'Impossible de mettre à jour le plat', 'Erreur');
+      showToast('error', getErrorMessage(error) || t('menuItemForm.updateItemError'), t('menuItemForm.error'));
     } finally {
       setIsUpdating(false);
     }
@@ -415,7 +419,7 @@ export default function EditMenuItemScreen() {
   const pickFromLibrary = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      showToast('warning', 'Donnez accès à vos photos pour continuer.', 'Permission requise');
+      showToast('warning', t('menuItemForm.photoPermission'), t('menuItemForm.permissionRequired'));
       return;
     }
 
@@ -456,7 +460,7 @@ export default function EditMenuItemScreen() {
   const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      showToast('warning', 'Donnez accès à la caméra pour continuer.', 'Permission requise');
+      showToast('warning', t('menuItemForm.cameraPermission'), t('menuItemForm.permissionRequired'));
       return;
     }
 
@@ -492,7 +496,7 @@ export default function EditMenuItemScreen() {
 
   const renderCategorySelector = () => (
     <View style={styles.section}>
-      <Text style={styles.label}>Catégorie *</Text>
+      <Text style={styles.label}>{t('menuItemForm.categoryLabel')}</Text>
       <TouchableOpacity
         onPress={() => setShowCategoryModal(true)}
         style={[styles.selector, selectedCategory && styles.selectorSelected]}
@@ -510,16 +514,16 @@ export default function EditMenuItemScreen() {
             </View>
           </>
         ) : (
-          <Text style={styles.placeholder}>Sélectionner une catégorie</Text>
+          <Text style={styles.placeholder}>{t('menuItemForm.selectCategoryTitle')}</Text>
         )}
-        <Ionicons name="chevron-down" size={20} color={COLORS.text.secondary} />
+        <Ionicons name="chevron-down" size={20} color={colors.text.secondary} />
       </TouchableOpacity>
     </View>
   );
 
   const renderSubCategorySelector = () => (
     <View style={styles.section}>
-      <Text style={styles.label}>Sous-catégorie (optionnel)</Text>
+      <Text style={styles.label}>{t('menuItemForm.subcategoryOptional')}</Text>
       <TouchableOpacity
         onPress={() => selectedCategory && setShowSubCategoryModal(true)}
         disabled={!selectedCategory}
@@ -538,10 +542,10 @@ export default function EditMenuItemScreen() {
           </View>
         ) : (
           <Text style={styles.placeholder}>
-            {selectedCategory ? 'Sélectionner une sous-catégorie' : "Sélectionnez d'abord une catégorie"}
+            {selectedCategory ? t('menuItemForm.selectSubcategory') : t('menuItemForm.selectSubcategoryFirst')}
           </Text>
         )}
-        <Ionicons name="chevron-down" size={20} color={COLORS.text.secondary} />
+        <Ionicons name="chevron-down" size={20} color={colors.text.secondary} />
       </TouchableOpacity>
     </View>
   );
@@ -557,13 +561,13 @@ export default function EditMenuItemScreen() {
           <Text style={styles.allergenIcon}>{a.icon}</Text>
           <View style={styles.selectorContent}>
             <Text style={[styles.allergenName, selected && styles.allergenNameSelected]}>
-              {a.name}
+              {t(`allergens.${a.id}.name`, a.name)}
             </Text>
             <Text style={[styles.allergenDescription, selected && styles.allergenDescriptionSelected]}>
               {a.description}
             </Text>
           </View>
-          {selected && <Ionicons name="checkmark-circle" size={20} color={COLORS.error} />}
+          {selected && <Ionicons name="checkmark-circle" size={20} color={colors.error} />}
         </TouchableOpacity>
       </View>
     );
@@ -594,14 +598,14 @@ export default function EditMenuItemScreen() {
   );
 
   if (isLoading) {
-    return <Loading fullScreen text="Chargement du plat..." />;
+    return <Loading fullScreen text={t('menuItemForm.loadingItem')} />;
   }
 
   if (!menuItem) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <Header
-          title="Modifier le plat"
+          title={t('menuItemForm.editTitle')}
           leftIcon="arrow-back"
           onLeftPress={() => router.back()}
           includeSafeArea={false}
@@ -619,15 +623,15 @@ export default function EditMenuItemScreen() {
           )}
         </View>
         <View style={[styles.emptyState, { padding: layout.containerPadding }]}>
-          <Ionicons name="restaurant-outline" size={64} color={COLORS.text.light} style={{ marginBottom: layout.contentSpacing }} />
+          <Ionicons name="restaurant-outline" size={64} color={colors.text.light} style={{ marginBottom: layout.contentSpacing }} />
           <Text style={[styles.emptyStateText, { marginBottom: layout.contentSpacing }]}>
-            Plat non trouvé
+            {t('menuItemForm.itemNotFound')}
           </Text>
           <Button
-            title="Retour"
+            title={t('menuItemForm.back')}
             onPress={() => router.back()}
             variant="outline"
-            leftIcon={<Ionicons name="arrow-back" size={20} color={COLORS.primary} />}
+            leftIcon={<Ionicons name="arrow-back" size={20} color={colors.primary} />}
           />
         </View>
       </View>
@@ -641,7 +645,7 @@ export default function EditMenuItemScreen() {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
       <Header
-        title="Modifier le plat"
+        title={t('menuItemForm.editTitle')}
         leftIcon="arrow-back"
         onLeftPress={() => router.back()}
         rightIcon="checkmark-outline"
@@ -677,25 +681,25 @@ export default function EditMenuItemScreen() {
 
           {/* Infos plat */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Informations</Text>
+            <Text style={styles.sectionTitle}>{t('menuItemForm.sectionInfo')}</Text>
             <Card style={styles.card}>
               <View style={styles.fieldGroup}>
                 <View>
-                  <Text style={styles.label}>Nom *</Text>
+                  <Text style={styles.label}>{t('menuItemForm.nameLabel')}</Text>
                   <Input
                     value={name}
                     onChangeText={setName}
-                    placeholder="Ex. Burger maison"
+                    placeholder={t('menuItemForm.exDishNameEdit')}
                     style={styles.input}
                   />
                 </View>
 
                 <View>
-                  <Text style={styles.label}>Description</Text>
+                  <Text style={styles.label}>{t('menuItemForm.description')}</Text>
                   <Input
                     value={description}
                     onChangeText={setDescription}
-                    placeholder="Décrivez votre plat (ingrédients, goût, etc.)"
+                    placeholder={t('menuItemForm.descPlaceholderEdit')}
                     style={[styles.input, styles.inputMultiline]}
                     multiline
                     numberOfLines={4}
@@ -703,11 +707,11 @@ export default function EditMenuItemScreen() {
                 </View>
 
                 <View>
-                  <Text style={styles.label}>Prix (€) *</Text>
+                  <Text style={styles.label}>{t('menuItemForm.priceLabel')}</Text>
                   <Input
                     value={price}
                     onChangeText={setPrice}
-                    placeholder="Ex. 12.90"
+                    placeholder={t('menuItemForm.exPrice')}
                     keyboardType="decimal-pad"
                     style={styles.input}
                   />
@@ -718,7 +722,7 @@ export default function EditMenuItemScreen() {
 
           {/* Photo du plat */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Photo du plat</Text>
+            <Text style={styles.sectionTitle}>{t('menuItemForm.sectionPhoto')}</Text>
             <Card style={styles.card}>
               {photo ? (
                 <View style={styles.fieldGroup}>
@@ -728,29 +732,29 @@ export default function EditMenuItemScreen() {
                     resizeMode="cover"
                   />
                   <Text style={styles.photoInfo}>
-                    Photo sélectionnée
+                    {t('menuItemForm.photoSelected')}
                   </Text>
                   <View style={styles.photoActions}>
                     <Button
-                      title="Remplacer"
+                      title={t('menuItemForm.replace')}
                       onPress={pickFromLibrary}
                       variant="secondary"
                       style={styles.photoButton}
                       leftIcon={<Ionicons name="images-outline" size={20} />}
                     />
                     <Button
-                      title="Photo"
+                      title={t('menuItemForm.photo')}
                       onPress={takePhoto}
                       variant="secondary"
                       style={styles.photoButton}
                       leftIcon={<Ionicons name="camera-outline" size={20} />}
                     />
                     <Button
-                      title="Supprimer"
+                      title={t('menuItemForm.delete')}
                       onPress={() => setPhoto(null)}
                       variant="destructive"
                       style={styles.photoButtonDelete}
-                      leftIcon={<Ionicons name="trash-outline" size={20} color={COLORS.error} />}
+                      leftIcon={<Ionicons name="trash-outline" size={20} color={colors.error} />}
                     />
                   </View>
                 </View>
@@ -758,21 +762,21 @@ export default function EditMenuItemScreen() {
                 <View style={styles.fieldGroup}>
                   <View style={styles.photoPlaceholder}>
                     <Text style={styles.photoPlaceholderIcon}>📷</Text>
-                    <Text style={styles.photoPlaceholderText}>Aucune photo sélectionnée</Text>
+                    <Text style={styles.photoPlaceholderText}>{t('menuItemForm.noPhoto')}</Text>
                     <Text style={styles.photoPlaceholderSubtext}>
-                      Ajoutez une photo pour rendre votre plat plus attrayant
+                      {t('menuItemForm.addPhotoHint')}
                     </Text>
                   </View>
                   <View style={styles.photoActions}>
                     <Button
-                      title="Choisir une photo"
+                      title={t('menuItemForm.choosePhoto')}
                       onPress={pickFromLibrary}
                       variant="primary"
                       style={styles.photoButton}
-                      leftIcon={<Ionicons name="images-outline" size={20} color={COLORS.text.inverse} />}
+                      leftIcon={<Ionicons name="images-outline" size={20} color={colors.text.inverse} />}
                     />
                     <Button
-                      title="Prendre une photo"
+                      title={t('menuItemForm.takePhoto')}
                       onPress={takePhoto}
                       variant="secondary"
                       style={styles.photoButton}
@@ -786,26 +790,26 @@ export default function EditMenuItemScreen() {
 
           {/* Catégorisation */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Catégorisation</Text>
+            <Text style={styles.sectionTitle}>{t('menuItemForm.sectionCategory')}</Text>
             {renderCategorySelector()}
             {renderSubCategorySelector()}
           </View>
 
           {/* Régimes & Allergènes */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Régimes & allergènes</Text>
+            <Text style={styles.sectionTitle}>{t('menuItemForm.sectionDietAllergens')}</Text>
             <Card style={styles.card}>
               <View style={styles.fieldGroup}>
-                {renderDietary('Végétarien', isVegetarian, setIsVegetarian, '🥗', COLORS.success, 'Sans viande ni poisson')}
-                {renderDietary('Vegan', isVegan, handleVeganToggle, '🌱', COLORS.primary, 'Aucun produit animal')}
-                {renderDietary('Sans gluten', isGlutenFree, handleGlutenFreeToggle, '🚫🌾', COLORS.warning, 'Sans ingrédients contenant du gluten')}
+                {renderDietary('Végétarien', isVegetarian, setIsVegetarian, '🥗', colors.success, 'Sans viande ni poisson')}
+                {renderDietary('Vegan', isVegan, handleVeganToggle, '🌱', colors.primary, 'Aucun produit animal')}
+                {renderDietary('Sans gluten', isGlutenFree, handleGlutenFreeToggle, '🚫🌾', colors.warning, 'Sans ingrédients contenant du gluten')}
               </View>
             </Card>
 
             <View style={styles.sectionSpacer} />
 
             <Card style={styles.card}>
-              <Text style={[styles.label, { marginBottom: 8 }]}>Allergènes (sélection multiple)</Text>
+              <Text style={[styles.label, { marginBottom: 8 }]}>{t('menuItemForm.allergensMultiSelect')}</Text>
               <View style={styles.allergenList}>
                 {ALLERGENS.map(renderAllergen)}
               </View>
@@ -814,7 +818,7 @@ export default function EditMenuItemScreen() {
 
           {/* État du plat */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Disponibilité</Text>
+            <Text style={styles.sectionTitle}>{t('menuItemForm.sectionAvailability')}</Text>
             <Card style={styles.card}>
               <View style={[
                 styles.statusContainer,
@@ -823,20 +827,20 @@ export default function EditMenuItemScreen() {
                 <Ionicons
                   name={menuItem.is_available ? "checkmark-circle" : "pause-circle"}
                   size={24}
-                  color={menuItem.is_available ? COLORS.success : COLORS.error}
+                  color={menuItem.is_available ? colors.success : colors.error}
                 />
                 <Text style={[
                   styles.statusText,
-                  { color: menuItem.is_available ? COLORS.success : COLORS.error }
+                  { color: menuItem.is_available ? colors.success : colors.error }
                 ]}>
                   {menuItem.is_available
-                    ? 'Ce plat est actuellement disponible'
-                    : 'Ce plat est actuellement indisponible'
+                    ? t('menuItemForm.availableNow')
+                    : t('menuItemForm.unavailableNow')
                   }
                 </Text>
               </View>
               <Text style={styles.statusNote}>
-                La disponibilité peut être modifiée depuis la liste des plats du menu
+                {t('menuItemForm.availabilityNote')}
               </Text>
             </Card>
           </View>
@@ -844,26 +848,26 @@ export default function EditMenuItemScreen() {
           {/* Boutons d'action */}
           <View style={styles.actionButtons}>
             <Button
-              title={isUpdating ? 'Mise à jour...' : 'Enregistrer les modifications'}
+              title={isUpdating ? t('menuItemForm.updating') : t('menuItemForm.saveChanges')}
               onPress={handleUpdate}
               disabled={isUpdating}
               variant="primary"
               fullWidth
               leftIcon={
                 isUpdating ? (
-                  <ActivityIndicator size="small" color={COLORS.text.inverse} style={styles.activityIndicator} />
+                  <ActivityIndicator size="small" color={colors.text.inverse} style={styles.activityIndicator} />
                 ) : (
-                  <Ionicons name="checkmark-circle-outline" size={20} color={COLORS.text.inverse} />
+                  <Ionicons name="checkmark-circle-outline" size={20} color={colors.text.inverse} />
                 )
               }
             />
 
             <Button
-              title="Annuler"
+              title={t('menuItemForm.cancel')}
               onPress={() => router.back()}
               variant="outline"
               fullWidth
-              leftIcon={<Ionicons name="close-outline" size={20} color={COLORS.primary} />}
+              leftIcon={<Ionicons name="close-outline" size={20} color={colors.primary} />}
             />
           </View>
 
@@ -878,14 +882,14 @@ export default function EditMenuItemScreen() {
           >
             <View style={styles.modalContainer}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Catégorie</Text>
+                <Text style={styles.modalTitle}>{t('menuItemForm.categoryModalTitle')}</Text>
                 <TouchableOpacity onPress={() => setShowCategoryModal(false)}>
-                  <Ionicons name="close" size={22} color={COLORS.text.secondary} />
+                  <Ionicons name="close" size={22} color={colors.text.secondary} />
                 </TouchableOpacity>
               </View>
               <ScrollView style={styles.modalContent} contentContainerStyle={styles.modalContentContainer} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                 {loadingCategories && <Text style={styles.placeholder}>Chargement...</Text>}
-                {!loadingCategories && categories.length === 0 && <Text style={styles.placeholder}>Aucune catégorie</Text>}
+                {!loadingCategories && categories.length === 0 && <Text style={styles.placeholder}>{t('menuItemForm.categoryEmpty')}</Text>}
                 <View style={styles.modalList}>
                   {categories.map(cat => (
                     <TouchableOpacity
@@ -899,13 +903,13 @@ export default function EditMenuItemScreen() {
                         {!!cat.description && <Text style={styles.description}>{cat.description}</Text>}
                       </View>
                       {selectedCategory?.id === cat.id && (
-                        <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
+                        <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
                       )}
                     </TouchableOpacity>
                   ))}
                 </View>
                 <View style={styles.modalSubmitButton}>
-                  <Button title="Créer une catégorie" onPress={() => setShowCreateCategoryModal(true)} variant="secondary" fullWidth />
+                  <Button title={t('menuItemForm.createCategoryAction')} onPress={() => setShowCreateCategoryModal(true)} variant="secondary" fullWidth />
                 </View>
               </ScrollView>
             </View>
@@ -922,24 +926,24 @@ export default function EditMenuItemScreen() {
           >
             <View style={styles.modalContainer}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Nouvelle catégorie</Text>
+                <Text style={styles.modalTitle}>{t('menuItemForm.newCategory')}</Text>
                 <TouchableOpacity onPress={() => setShowCreateCategoryModal(false)}>
-                  <Ionicons name="close" size={22} color={COLORS.text.secondary} />
+                  <Ionicons name="close" size={22} color={colors.text.secondary} />
                 </TouchableOpacity>
               </View>
               <ScrollView style={styles.modalContent} contentContainerStyle={styles.modalContentContainer} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                 <View style={styles.modalForm}>
                   <View>
-                    <Text style={styles.label}>Nom *</Text>
-                    <Input value={newCategoryName} onChangeText={setNewCategoryName} placeholder="Ex. Plats" />
+                    <Text style={styles.label}>{t('menuItemForm.nameLabel')}</Text>
+                    <Input value={newCategoryName} onChangeText={setNewCategoryName} placeholder={t('menuItemForm.exCatName')} />
                   </View>
                   <View>
-                    <Text style={styles.label}>Description</Text>
-                    <Input value={newCategoryDescription} onChangeText={setNewCategoryDescription} placeholder="Ex. Tous les plats principaux" />
+                    <Text style={styles.label}>{t('menuItemForm.description')}</Text>
+                    <Input value={newCategoryDescription} onChangeText={setNewCategoryDescription} placeholder={t('menuItemForm.exCatDesc')} />
                   </View>
                   <View>
-                    <Text style={styles.label}>Icône (emoji ou texte court)</Text>
-                    <Input value={newCategoryIcon} onChangeText={setNewCategoryIcon} placeholder="Ex. 🍽️" />
+                    <Text style={styles.label}>{t('menuItemForm.iconShort')}</Text>
+                    <Input value={newCategoryIcon} onChangeText={setNewCategoryIcon} placeholder={t('menuItemForm.exCatIcon')} />
                   </View>
                   <View>
                     <Text style={styles.label}>Couleur</Text>
@@ -948,14 +952,14 @@ export default function EditMenuItemScreen() {
                         <TouchableOpacity
                           key={c}
                           onPress={() => setNewCategoryColor(c)}
-                          style={[styles.colorSwatch, { backgroundColor: c, borderWidth: newCategoryColor === c ? 2 : 1, borderColor: newCategoryColor === c ? COLORS.primary : COLORS.border.light }]}
+                          style={[styles.colorSwatch, { backgroundColor: c, borderWidth: newCategoryColor === c ? 2 : 1, borderColor: newCategoryColor === c ? colors.primary : colors.border.light }]}
                         />
                       ))}
                     </View>
                   </View>
                 </View>
                 <View style={styles.modalSubmitButton}>
-                  <Button title="Créer" onPress={handleCreateCategory} fullWidth />
+                  <Button title={t('menuItemForm.create')} onPress={handleCreateCategory} fullWidth />
                 </View>
               </ScrollView>
             </View>
@@ -972,9 +976,9 @@ export default function EditMenuItemScreen() {
           >
             <View style={styles.modalContainer}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Sous-catégorie</Text>
+                <Text style={styles.modalTitle}>{t('menuItemForm.subcategoryModalTitle')}</Text>
                 <TouchableOpacity onPress={() => setShowSubCategoryModal(false)}>
-                  <Ionicons name="close" size={22} color={COLORS.text.secondary} />
+                  <Ionicons name="close" size={22} color={colors.text.secondary} />
                 </TouchableOpacity>
               </View>
               <ScrollView style={styles.modalContent} contentContainerStyle={styles.modalContentContainer} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
@@ -990,14 +994,14 @@ export default function EditMenuItemScreen() {
                         {!!sc.description && <Text style={styles.description}>{sc.description}</Text>}
                       </View>
                       {selectedSubCategory?.id === sc.id && (
-                        <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
+                        <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
                       )}
                     </TouchableOpacity>
                   ))}
-                  {subCategories.length === 0 && <Text style={styles.placeholder}>Aucune sous-catégorie</Text>}
+                  {subCategories.length === 0 && <Text style={styles.placeholder}>{t('menuItemForm.subcategoryEmpty')}</Text>}
                 </View>
                 <View style={styles.modalSubmitButton}>
-                  <Button title="Créer une sous-catégorie" onPress={() => setShowCreateSubCategoryModal(true)} variant="secondary" fullWidth />
+                  <Button title={t('menuItemForm.createSubcategoryAction')} onPress={() => setShowCreateSubCategoryModal(true)} variant="secondary" fullWidth />
                 </View>
               </ScrollView>
             </View>
@@ -1013,24 +1017,24 @@ export default function EditMenuItemScreen() {
           >
             <View style={styles.modalContainer}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Nouvelle sous-catégorie</Text>
+                <Text style={styles.modalTitle}>{t('menuItemForm.newSubcategory')}</Text>
                 <TouchableOpacity onPress={() => setShowCreateSubCategoryModal(false)}>
-                  <Ionicons name="close" size={22} color={COLORS.text.secondary} />
+                  <Ionicons name="close" size={22} color={colors.text.secondary} />
                 </TouchableOpacity>
               </View>
               <ScrollView style={styles.modalContent} contentContainerStyle={styles.modalContentContainer} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                 <View style={styles.modalForm}>
                   <View>
-                    <Text style={styles.label}>Nom *</Text>
-                    <Input value={newSubCategoryName} onChangeText={setNewSubCategoryName} placeholder="Ex. Burgers" />
+                    <Text style={styles.label}>{t('menuItemForm.nameLabel')}</Text>
+                    <Input value={newSubCategoryName} onChangeText={setNewSubCategoryName} placeholder={t('menuItemForm.exSubName')} />
                   </View>
                   <View>
-                    <Text style={styles.label}>Description</Text>
-                    <Input value={newSubCategoryDescription} onChangeText={setNewSubCategoryDescription} placeholder="Ex. Burgers spéciaux" />
+                    <Text style={styles.label}>{t('menuItemForm.description')}</Text>
+                    <Input value={newSubCategoryDescription} onChangeText={setNewSubCategoryDescription} placeholder={t('menuItemForm.exSubDesc')} />
                   </View>
                 </View>
                 <View style={styles.modalSubmitButton}>
-                  <Button title="Créer" onPress={handleCreateSubCategory} fullWidth />
+                  <Button title={t('menuItemForm.create')} onPress={handleCreateSubCategory} fullWidth />
                 </View>
               </ScrollView>
             </View>
@@ -1042,12 +1046,12 @@ export default function EditMenuItemScreen() {
 }
 
 // Styles
-const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop') => {
+const createStyles = (colors: AppColors, screenType: 'mobile' | 'tablet' | 'desktop') => {
   const gv = (token: any): number => getResponsiveValue(token, screenType) as number;
   return {
     container: {
       flex: 1 as const,
-      backgroundColor: COLORS.background,
+      backgroundColor: colors.background,
     },
     content: {
       flex: 1 as const,
@@ -1061,26 +1065,26 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop') => {
     sectionTitle: {
       fontSize: gv(TYPOGRAPHY.fontSize.xl),
       fontWeight: '700' as const,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       marginBottom: gv(SPACING.md),
     },
     card: {
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderRadius: BORDER_RADIUS.lg,
       borderWidth: 1,
-      borderColor: COLORS.border.light,
+      borderColor: colors.border.light,
       padding: gv(SPACING.lg),
     },
     label: {
       fontSize: gv(TYPOGRAPHY.fontSize.sm),
       fontWeight: '500' as const,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       marginBottom: 8,
     },
     input: {
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderWidth: 1,
-      borderColor: COLORS.border.default,
+      borderColor: colors.border.default,
       borderRadius: BORDER_RADIUS.md,
       paddingHorizontal: gv(SPACING.md),
       paddingVertical: 10,
@@ -1092,43 +1096,43 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop') => {
     selector: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderWidth: 1,
-      borderColor: COLORS.border.default,
+      borderColor: colors.border.default,
       borderRadius: BORDER_RADIUS.lg,
       padding: gv(SPACING.md),
       minHeight: COMPONENT_CONSTANTS.minTouchTarget,
       marginBottom: gv(SPACING.md),
     },
     selectorSelected: {
-      borderColor: COLORS.primary,
-      backgroundColor: COLORS.variants.primary[100],
+      borderColor: colors.primary,
+      backgroundColor: colors.variants.primary[100],
     },
     selectorDisabled: {
       opacity: 0.5,
-      backgroundColor: COLORS.border.light,
+      backgroundColor: colors.border.light,
     },
     placeholder: {
       fontSize: gv(TYPOGRAPHY.fontSize.base),
-      color: COLORS.text.light,
+      color: colors.text.light,
       flex: 1,
     },
     selectedText: {
       fontSize: gv(TYPOGRAPHY.fontSize.base),
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       fontWeight: '500' as const,
     },
     description: {
       fontSize: gv(TYPOGRAPHY.fontSize.xs),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       marginTop: 2,
     },
     dietaryOption: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderWidth: 1,
-      borderColor: COLORS.border.default,
+      borderColor: colors.border.default,
       borderRadius: BORDER_RADIUS.lg,
       padding: 12,
       minHeight: COMPONENT_CONSTANTS.minTouchTarget,
@@ -1146,16 +1150,16 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop') => {
     allergenButton: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderWidth: 1,
-      borderColor: COLORS.border.default,
+      borderColor: colors.border.default,
       borderRadius: BORDER_RADIUS.md,
       padding: 10,
       width: '100%' as const,
       minHeight: COMPONENT_CONSTANTS.minTouchTarget,
     },
     allergenButtonSelected: {
-      borderColor: COLORS.error,
+      borderColor: colors.error,
       backgroundColor: '#FEE2E2',
     },
 
@@ -1165,11 +1169,11 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop') => {
       height: gv(200),
       borderRadius: BORDER_RADIUS.md,
       borderWidth: 1,
-      borderColor: COLORS.border.light,
+      borderColor: colors.border.light,
     },
     photoInfo: {
       fontSize: gv(TYPOGRAPHY.fontSize.xs),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       textAlign: 'center' as const,
       fontStyle: 'italic' as const,
     },
@@ -1189,10 +1193,10 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop') => {
     photoPlaceholder: {
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
-      backgroundColor: COLORS.border.light,
+      backgroundColor: colors.border.light,
       borderRadius: BORDER_RADIUS.md,
       borderWidth: 2,
-      borderColor: COLORS.border.default,
+      borderColor: colors.border.default,
       borderStyle: 'dashed' as const,
       paddingVertical: gv(SPACING['3xl']),
       paddingHorizontal: gv(SPACING.lg),
@@ -1205,13 +1209,13 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop') => {
     photoPlaceholderText: {
       fontSize: gv(TYPOGRAPHY.fontSize.base),
       fontWeight: '500' as const,
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       textAlign: 'center' as const,
       marginBottom: gv(SPACING.xs),
     },
     photoPlaceholderSubtext: {
       fontSize: gv(TYPOGRAPHY.fontSize.sm),
-      color: COLORS.text.light,
+      color: colors.text.light,
       textAlign: 'center' as const,
       lineHeight: Math.round(gv(TYPOGRAPHY.fontSize.sm) * 1.4),
       maxWidth: 280,
@@ -1228,12 +1232,12 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop') => {
     statusAvailable: {
       backgroundColor: '#D1FAE5',
       borderWidth: 1,
-      borderColor: COLORS.success,
+      borderColor: colors.success,
     },
     statusUnavailable: {
       backgroundColor: '#FEE2E2',
       borderWidth: 1,
-      borderColor: COLORS.error,
+      borderColor: colors.error,
     },
     statusText: {
       fontSize: gv(TYPOGRAPHY.fontSize.base),
@@ -1243,7 +1247,7 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop') => {
     },
     statusNote: {
       fontSize: gv(TYPOGRAPHY.fontSize.xs),
-      color: COLORS.text.light,
+      color: colors.text.light,
       fontStyle: 'italic' as const,
     },
 
@@ -1255,7 +1259,7 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop') => {
 
     modalOverlay: {
       flex: 1 as const,
-      backgroundColor: COLORS.overlay,
+      backgroundColor: colors.overlay,
       justifyContent: 'flex-end' as const,
     },
     modalKAV: {
@@ -1263,7 +1267,7 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop') => {
       maxHeight: '90%' as const,
     },
     modalContainer: {
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderTopLeftRadius: BORDER_RADIUS['3xl'],
       borderTopRightRadius: BORDER_RADIUS['3xl'],
       overflow: 'hidden' as const,
@@ -1274,12 +1278,12 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop') => {
       justifyContent: 'space-between' as const,
       padding: gv(SPACING.container),
       borderBottomWidth: 1,
-      borderBottomColor: COLORS.border.light,
+      borderBottomColor: colors.border.light,
     },
     modalTitle: {
       fontSize: gv(TYPOGRAPHY.fontSize.lg),
       fontWeight: '600' as const,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
     },
     modalContent: {
       flexShrink: 1 as const,
@@ -1310,7 +1314,7 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop') => {
     },
     emptyStateText: {
       fontSize: gv(TYPOGRAPHY.fontSize.lg),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       textAlign: 'center' as const,
     },
 
@@ -1344,14 +1348,14 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop') => {
     allergenName: {
       fontSize: gv(TYPOGRAPHY.fontSize.sm),
       fontWeight: '500' as const,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
     },
     allergenNameSelected: {
-      color: COLORS.error,
+      color: colors.error,
     },
     allergenDescription: {
       fontSize: gv(TYPOGRAPHY.fontSize.xs),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
     },
     allergenDescriptionSelected: {
       color: '#B91C1C',
@@ -1371,11 +1375,11 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop') => {
     dietaryTitle: {
       fontSize: gv(TYPOGRAPHY.fontSize.base),
       fontWeight: '500' as const,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
     },
     dietaryDescription: {
       fontSize: gv(TYPOGRAPHY.fontSize.xs),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
     },
   };
 };

@@ -4,6 +4,7 @@ import secureStorage from '@/utils/secureStorage';
 import { router } from 'expo-router';
 import { ApiError, ApiResponse } from '../types/common';
 import { getTokenExpiresInMs, isTokenExpiringSoon } from '@/utils/jwt';
+import { API_BASE_URL } from '@/constants/config';
 
 // Clés de stockage (doit correspondre à AuthContext)
 const STORAGE_KEYS = {
@@ -46,8 +47,7 @@ class ApiClient {
   static _isOnLoginPage = false;
 
   constructor() {
-    this.baseURL = process.env.EXPO_PUBLIC_API_URL ||
-      (__DEV__ ? 'http://localhost:8000' : (() => { throw new Error('[EatQuickeR] EXPO_PUBLIC_API_URL non défini en production'); })());
+    this.baseURL = API_BASE_URL;
 
     this.client = axios.create({
       baseURL: this.baseURL,

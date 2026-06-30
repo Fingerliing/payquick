@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -11,6 +12,7 @@ import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Loading } from '@/components/ui/Loading';
 import { Alert as AppAlert } from '@/components/ui/Alert';
+import { FormulesManagerSection } from '@/components/menu/FormulesManagerSection';
 
 // Services & Types
 import { menuService } from '@/services/menuService';
@@ -21,7 +23,7 @@ import {
   useScreenType,
   getResponsiveValue,
   createResponsiveStyles,
-  COLORS,
+  useAppTheme,
   SPACING,
   BORDER_RADIUS,
   SHADOWS,
@@ -41,6 +43,8 @@ type LocalAlert = {
 export default function EditMenuScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const screenType = useScreenType();
+  const { colors } = useAppTheme();
+  const { t } = useTranslation();
   const styles = createResponsiveStyles(screenType);
   const insets = useSafeAreaInsets();
   
@@ -82,7 +86,7 @@ export default function EditMenuScreen() {
       setName(menuData.name || '');
     } catch (error) {
       console.error('Erreur lors du chargement du menu:', error);
-      pushAlert('error', 'Erreur', 'Impossible de charger le menu');
+      pushAlert('error', t('menuItemForm.error'), t('menuForm.loadError'));
       router.back();
     } finally {
       setIsLoading(false);
@@ -91,7 +95,7 @@ export default function EditMenuScreen() {
 
   const handleSave = async () => {
     if (!name.trim()) {
-      pushAlert('error', 'Erreur', 'Le nom du menu est requis');
+      pushAlert('error', t('menuItemForm.error'), t('menuForm.nameRequired'));
       return;
     }
 
@@ -105,10 +109,10 @@ export default function EditMenuScreen() {
       
       const updatedMenu = await menuService.updateMenu(parseInt(id), updateData);
       setMenu(updatedMenu);
-      pushAlert('success', 'Succès', 'Menu mis à jour avec succès');
+      pushAlert('success', t('menuItemForm.success'), t('menuForm.updated'));
     } catch (error) {
       console.error('Erreur lors de la sauvegarde:', error);
-      pushAlert('error', 'Erreur', 'Impossible de sauvegarder le menu');
+      pushAlert('error', t('menuItemForm.error'), t('menuForm.saveError'));
     } finally {
       setIsSaving(false);
     }
@@ -139,26 +143,26 @@ export default function EditMenuScreen() {
       const msg =
         result.message ||
         (result.is_available
-          ? 'Menu activé avec succès (les autres menus ont été désactivés)'
-          : 'Menu désactivé avec succès');
-      pushAlert('success', 'Succès', msg);
+          ? t('menuForm.activated')
+          : t('menuForm.deactivated'));
+      pushAlert('success', t('menuItemForm.success'), msg);
       
     } catch (error: any) {
       console.error('Erreur lors du toggle:', error);
       
       // Afficher un message d'erreur plus détaillé
-      let errorMessage = 'Impossible de modifier la disponibilité';
+      let errorMessage = t('menuForm.toggleError');
       if (error?.response?.status === 403) {
-        errorMessage = "Vous n'avez pas les permissions pour modifier ce menu";
+        errorMessage = t('menuForm.noPermission');
       } else if (error?.response?.status === 404) {
-        errorMessage = 'Menu non trouvé';
+        errorMessage = t('menuForm.notFound');
       } else if (error?.response?.data?.detail) {
         errorMessage = error.response.data.detail;
       } else if (error?.message) {
         errorMessage = error.message;
       }
       
-      pushAlert('error', 'Erreur', errorMessage);
+      pushAlert('error', t('menuItemForm.error'), errorMessage);
     } finally {
       setIsToggling(false);
     }
@@ -168,7 +172,7 @@ export default function EditMenuScreen() {
   const dynamicStyles = {
     container: {
       flex: 1,
-      backgroundColor: COLORS.background,
+      backgroundColor: colors.background,
       paddingBottom: insets.bottom, // SafeArea bottom
     },
     scrollContainer: {
@@ -183,7 +187,7 @@ export default function EditMenuScreen() {
     sectionTitle: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
       fontWeight: TYPOGRAPHY.fontWeight.semibold as any,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       marginBottom: getResponsiveValue(SPACING.md, screenType),
     },
     statusBadge: {
@@ -195,14 +199,14 @@ export default function EditMenuScreen() {
       marginBottom: getResponsiveValue(SPACING.md, screenType),
     },
     statusBadgeAvailable: {
-      backgroundColor: COLORS.variants.primary[100],
+      backgroundColor: colors.variants.primary[100],
       borderWidth: 1,
-      borderColor: COLORS.success,
+      borderColor: colors.success,
     },
     statusBadgeUnavailable: {
       backgroundColor: '#FEE2E2',
       borderWidth: 1,
-      borderColor: COLORS.error,
+      borderColor: colors.error,
     },
     statusText: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
@@ -211,17 +215,17 @@ export default function EditMenuScreen() {
       marginLeft: getResponsiveValue(SPACING.xs, screenType),
     },
     statusTextAvailable: {
-      color: COLORS.success,
+      color: colors.success,
     },
     statusTextUnavailable: {
-      color: COLORS.error,
+      color: colors.error,
     },
     inputContainer: {
       gap: getResponsiveValue(SPACING.md, screenType),
     },
     infoText: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       lineHeight: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType) * 1.4,
     },
     statisticsContainer: {
@@ -236,12 +240,12 @@ export default function EditMenuScreen() {
     statisticValue: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize['2xl'], screenType),
       fontWeight: TYPOGRAPHY.fontWeight.bold as any,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       marginBottom: getResponsiveValue(SPACING.xs, screenType),
     },
     statisticLabel: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
-      color: COLORS.text.light,
+      color: colors.text.light,
       textAlign: 'center' as const,
       lineHeight: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType) * 1.3,
     },
@@ -257,7 +261,7 @@ export default function EditMenuScreen() {
     },
     emptyStateText: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
-      color: COLORS.text.light,
+      color: colors.text.light,
       textAlign: 'center' as const,
       marginBottom: getResponsiveValue(SPACING.lg, screenType),
     },
@@ -265,9 +269,9 @@ export default function EditMenuScreen() {
       paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
       paddingTop: getResponsiveValue(SPACING.lg, screenType),
       paddingBottom: Math.max(getResponsiveValue(SPACING.lg, screenType), insets.bottom),
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderTopWidth: 1,
-      borderTopColor: COLORS.border.light,
+      borderTopColor: colors.border.light,
       ...SHADOWS.sm,
     },
     // Conteneur des alerts custom
@@ -279,14 +283,14 @@ export default function EditMenuScreen() {
   };
 
   if (isLoading) {
-    return <Loading fullScreen text="Chargement du menu..." />;
+    return <Loading fullScreen text={t('menuForm.loading')} />;
   }
 
   if (!menu) {
     return (
       <View style={dynamicStyles.container}>
         <Header 
-          title="Modifier le menu"
+          title={t('menuForm.editTitle')}
           leftIcon="arrow-back"
           onLeftPress={() => router.back()}
           includeSafeArea={true}
@@ -312,17 +316,17 @@ export default function EditMenuScreen() {
           <Ionicons 
             name="restaurant-outline" 
             size={64} 
-            color={COLORS.text.light} 
+            color={colors.text.light} 
             style={{ marginBottom: getResponsiveValue(SPACING.md, screenType) }}
           />
           <Text style={dynamicStyles.emptyStateText}>
-            Menu non trouvé
+            {t('menuForm.notFound')}
           </Text>
           <Button
-            title="Retour"
+            title={t('menuItemForm.back')}
             onPress={() => router.back()}
             variant="outline"
-            leftIcon={<Ionicons name="arrow-back" size={20} color={COLORS.primary} />}
+            leftIcon={<Ionicons name="arrow-back" size={20} color={colors.primary} />}
           />
         </View>
       </View>
@@ -337,7 +341,7 @@ export default function EditMenuScreen() {
   return (
     <View style={dynamicStyles.container}>
       <Header 
-        title="Modifier le menu"
+        title={t('menuForm.editTitle')}
         leftIcon="arrow-back"
         onLeftPress={() => router.back()}
         rightIcon="checkmark-outline"
@@ -374,15 +378,15 @@ export default function EditMenuScreen() {
             <Ionicons 
               name={menuAvailable ? "checkmark-circle" : "pause-circle"} 
               size={24} 
-              color={menuAvailable ? COLORS.success : COLORS.error} 
+              color={menuAvailable ? colors.success : colors.error} 
             />
             <Text style={[
               dynamicStyles.statusText,
               menuAvailable ? dynamicStyles.statusTextAvailable : dynamicStyles.statusTextUnavailable
             ]}>
               {menuAvailable
-                ? 'Ce menu est actuellement visible par les clients'
-                : "Ce menu n'est pas visible par les clients"}
+                ? t('menuForm.visibleStatus')
+                : t('menuForm.hiddenStatus')}
             </Text>
           </View>
         </Card>
@@ -395,8 +399,8 @@ export default function EditMenuScreen() {
           
           <View style={dynamicStyles.inputContainer}>
             <Input
-              label="Nom du menu *"
-              placeholder="Nom du menu"
+              label={t('menuForm.nameLabel')}
+              placeholder={t('menuForm.namePlaceholder')}
               value={name}
               onChangeText={setName}
               maxLength={100}
@@ -411,7 +415,7 @@ export default function EditMenuScreen() {
                 minute: '2-digit'
               })}
               {'\n'}
-              {totalItems} plat(s) dans ce menu
+              {t('menuForm.dishCount', { count: totalItems })}
             </Text>
           </View>
         </Card>
@@ -419,13 +423,13 @@ export default function EditMenuScreen() {
         {/* Actions sur le menu */}
         <Card style={dynamicStyles.cardSpacing}>
           <Text style={dynamicStyles.sectionTitle}>
-            Actions
+            {t('menuForm.actions')}
           </Text>
           
           <View style={dynamicStyles.buttonGroup}>
             {/* Toggle principal avec icône et style adaptatif */}
             <Button
-              title={menuAvailable ? 'Désactiver ce menu' : 'Activer ce menu'}
+              title={menuAvailable ? t('menuForm.deactivate') : t('menuForm.activate')}
               onPress={handleToggleAvailability}
               loading={isToggling}
               variant={menuAvailable ? 'destructive' : 'primary'}
@@ -434,25 +438,25 @@ export default function EditMenuScreen() {
                 isToggling ? (
                   <ActivityIndicator 
                     size="small" 
-                    color={COLORS.text.inverse} 
+                    color={colors.text.inverse} 
                     style={{ marginRight: -4 }} 
                   />
                 ) : (
                   <Ionicons 
                     name={menuAvailable ? 'pause-circle-outline' : 'play-circle-outline'} 
                     size={20} 
-                    color={COLORS.text.inverse} 
+                    color={colors.text.inverse} 
                   />
                 )
               }
             />
 
             <Button
-              title="Gérer les plats"
+              title={t('menuForm.manageDishes')}
               onPress={() => router.push(`/menu/${menu.id}` as any)}
               variant="outline"
               fullWidth
-              leftIcon={<Ionicons name="restaurant-outline" size={20} color={COLORS.primary} />}
+              leftIcon={<Ionicons name="restaurant-outline" size={20} color={colors.primary} />}
             />
           </View>
         </Card>
@@ -460,8 +464,8 @@ export default function EditMenuScreen() {
         {/* Statistiques du menu */}
         {totalItems > 0 && (
           <Card variant="premium" style={dynamicStyles.cardSpacing}>
-            <Text style={[dynamicStyles.sectionTitle, { color: COLORS.text.golden }]}>
-              Statistiques
+            <Text style={[dynamicStyles.sectionTitle, { color: colors.text.golden }]}>
+              {t('menuForm.statistics')}
             </Text>
             
             <View style={dynamicStyles.statisticsContainer}>
@@ -470,36 +474,41 @@ export default function EditMenuScreen() {
                   {totalItems}
                 </Text>
                 <Text style={dynamicStyles.statisticLabel}>
-                  Plats{'\n'}totaux
+                  {t('menuForm.statTotal')}
                 </Text>
               </View>
               
               <View style={dynamicStyles.statisticItem}>
-                <Text style={[dynamicStyles.statisticValue, { color: COLORS.success }]}>
+                <Text style={[dynamicStyles.statisticValue, { color: colors.success }]}>
                   {availableItems}
                 </Text>
                 <Text style={dynamicStyles.statisticLabel}>
-                  Plats{'\n'}disponibles
+                  {t('menuForm.statAvailable')}
                 </Text>
               </View>
               
               <View style={dynamicStyles.statisticItem}>
-                <Text style={[dynamicStyles.statisticValue, { color: COLORS.error }]}>
+                <Text style={[dynamicStyles.statisticValue, { color: colors.error }]}>
                   {unavailableItems}
                 </Text>
                 <Text style={dynamicStyles.statisticLabel}>
-                  Plats{'\n'}indisponibles
+                  {t('menuForm.statUnavailable')}
                 </Text>
               </View>
             </View>
           </Card>
+        )}
+
+        {/* Formules du restaurant (création / édition / activation) */}
+        {menu?.restaurant != null && (
+          <FormulesManagerSection restaurantId={menu.restaurant} />
         )}
       </ScrollView>
 
       {/* Actions fixes en bas avec SafeArea */}
       <View style={dynamicStyles.actionButtonsContainer}>
         <Button
-          title="Sauvegarder les modifications"
+          title={t('menuForm.save')}
           onPress={handleSave}
           loading={isSaving}
           variant="primary"
@@ -508,14 +517,14 @@ export default function EditMenuScreen() {
             isSaving ? (
               <ActivityIndicator 
                 size="small" 
-                color={COLORS.text.inverse} 
+                color={colors.text.inverse} 
                 style={{ marginRight: -4 }} 
               />
             ) : (
               <Ionicons 
                 name="checkmark-circle-outline" 
                 size={20} 
-                color={COLORS.text.inverse} 
+                color={colors.text.inverse} 
               />
             )
           }

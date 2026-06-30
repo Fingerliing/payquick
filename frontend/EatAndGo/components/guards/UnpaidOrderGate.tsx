@@ -14,11 +14,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUnpaidOrderGuard } from '@/hooks/useUnpaidOrderGuard';
 import { Header } from '@/components/ui/Header';
+import { useTranslation } from 'react-i18next';
 import { Loading } from '@/components/ui/Loading';
 import {
   useScreenType,
   getResponsiveValue,
-  COLORS,
+  useAppTheme,
   SPACING,
   BORDER_RADIUS,
   SHADOWS,
@@ -32,6 +33,8 @@ export function UnpaidOrderGate({ children }: UnpaidOrderGateProps) {
   const { hasUnpaid, unpaidOrders, isLoading } = useUnpaidOrderGuard();
   const screenType = useScreenType();
   const insets = useSafeAreaInsets();
+  const { colors: COLORS } = useAppTheme();
+  const { t } = useTranslation();
 
   // Pendant le premier check, laisser passer (UX fluide)
   if (isLoading && unpaidOrders.length === 0) {
@@ -47,7 +50,7 @@ export function UnpaidOrderGate({ children }: UnpaidOrderGateProps) {
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.background }}>
       <Header
-        title="Accès restreint"
+        title={t('unpaidGate.headerTitle')}
         leftIcon="arrow-back"
         onLeftPress={() => router.back()}
       />
@@ -89,7 +92,7 @@ export function UnpaidOrderGate({ children }: UnpaidOrderGateProps) {
             marginBottom: getResponsiveValue(SPACING.sm, screenType),
           }}
         >
-          Paiement en attente
+          {t('unpaidGate.title')}
         </Text>
 
         {/* Message */}
@@ -106,11 +109,7 @@ export function UnpaidOrderGate({ children }: UnpaidOrderGateProps) {
             maxWidth: 360,
           }}
         >
-          Vous avez{' '}
-          {unpaidOrders.length === 1
-            ? 'une commande impayée'
-            : `${unpaidOrders.length} commandes impayées`}
-          . Veuillez régler vos commandes avant de pouvoir accéder au menu ou passer une nouvelle commande.
+          {t('unpaidGate.message', { count: unpaidOrders.length })}
         </Text>
 
         {/* Liste des commandes impayées */}
@@ -130,7 +129,7 @@ export function UnpaidOrderGate({ children }: UnpaidOrderGateProps) {
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
-                backgroundColor: COLORS.surface.primary ?? COLORS.surface,
+                backgroundColor: COLORS.surface,
                 borderRadius: BORDER_RADIUS.lg,
                 padding: getResponsiveValue(SPACING.md, screenType),
                 marginBottom: getResponsiveValue(SPACING.sm, screenType),
@@ -183,7 +182,7 @@ export function UnpaidOrderGate({ children }: UnpaidOrderGateProps) {
                 }}
               >
                 <Text style={{ color: '#B91C1C', fontSize: 11, fontWeight: '600' }}>
-                  Impayée
+                  {t('unpaidGate.unpaidBadge')}
                 </Text>
               </View>
 
@@ -213,7 +212,7 @@ export function UnpaidOrderGate({ children }: UnpaidOrderGateProps) {
         >
           <Ionicons name="card-outline" size={20} color="#fff" />
           <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>
-            Voir mes commandes
+            {t('unpaidGate.viewOrders')}
           </Text>
         </Pressable>
 
@@ -232,7 +231,7 @@ export function UnpaidOrderGate({ children }: UnpaidOrderGateProps) {
               textDecorationLine: 'underline',
             }}
           >
-            Retour
+            {t('common.back')}
           </Text>
         </Pressable>
       </View>

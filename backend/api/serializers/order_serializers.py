@@ -1,5 +1,8 @@
 from rest_framework import serializers
-from api.models import Order, OrderItem, TableSession, MenuItem
+from api.models import (
+    Order, OrderItem, OrderItemComponent, TableSession, MenuItem,
+    Formule, FormuleCourse, FormuleCourseItem,
+)
 from django.utils import timezone
 from decimal import Decimal, InvalidOperation
 from django.db import transaction
@@ -13,25 +16,114 @@ from api.utils.daily_menu_pricing import (
     unit_price_for,
     validate_formula_completeness,
 )
+from api.utils.formule_pricing import build_formule_components
+
+
+class OrderItemComponentSerializer(serializers.ModelSerializer):
+    """Un plat choisi dans un cran d'une formule (lecture seule)."""
+    menu_item_image = serializers.SerializerMethodField()
+    allergen_display = serializers.SerializerMethodField()
+    dietary_tags = serializers.SerializerMethodField()
+
+    class Meta:
+        model = OrderItemComponent
+        fields = [
+            'id', 'course_name', 'menu_item', 'menu_item_name', 'menu_item_image',
+            'extra_price', 'allocated_price', 'vat_rate', 'vat_amount',
+            'allergen_display', 'dietary_tags', 'display_order',
+        ]
+
+    def get_menu_item_image(self, obj):
+        # URL absolue si possible (sinon carré gris côté React Native)
+        if not obj.menu_item or not getattr(obj.menu_item, 'image', None):
+            return None
+        try:
+            url = obj.menu_item.image.url
+        except ValueError:
+            return None
+        request = self.context.get('request')
+        return request.build_absolute_uri(url) if request else url
+
+    def get_allergen_display(self, obj):
+        return obj.menu_item.allergen_display if obj.menu_item else []
+
+    def get_dietary_tags(self, obj):
+        return obj.menu_item.dietary_tags if obj.menu_item else []
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
-    menu_item_name = serializers.CharField(source='menu_item.name', read_only=True)
-    menu_item_image = serializers.ImageField(source='menu_item.image', read_only=True)
-    menu_item_price = serializers.DecimalField(source='menu_item.price', max_digits=10, decimal_places=2, read_only=True)
-    category = serializers.CharField(source='menu_item.category', read_only=True)
-    allergen_display = serializers.ReadOnlyField(source='menu_item.allergen_display')
-    dietary_tags = serializers.ReadOnlyField(source='menu_item.dietary_tags')
+    kind = serializers.CharField(read_only=True)
+    display_name = serializers.CharField(read_only=True)  # property du modèle
+
+    # Champs "plat" — null-safe quand kind='formule' (menu_item NULL)
+    menu_item_name = serializers.SerializerMethodField()
+    menu_item_image = serializers.SerializerMethodField()
+    menu_item_price = serializers.SerializerMethodField()
+    category = serializers.SerializerMethodField()
+    allergen_display = serializers.SerializerMethodField()
+    dietary_tags = serializers.SerializerMethodField()
+
+    # Champs "formule"
+    formule = serializers.PrimaryKeyRelatedField(read_only=True)
+    label = serializers.CharField(read_only=True)
+    components = OrderItemComponentSerializer(many=True, read_only=True)
 
     class Meta:
         model = OrderItem
         fields = [
-            'id', 'menu_item', 'menu_item_name', 'menu_item_image', 'menu_item_price',
-            'category', 'quantity', 'unit_price', 'total_price', 'customizations',
-            'special_instructions', 'allergen_display', 'dietary_tags', 'created_at'
+            'id', 'kind', 'display_name',
+            'menu_item', 'menu_item_name', 'menu_item_image', 'menu_item_price', 'category',
+            'formule', 'label', 'components',
+            'quantity', 'unit_price', 'total_price', 'customizations',
+            'special_instructions', 'allergen_display', 'dietary_tags',
+            'vat_rate', 'vat_amount', 'created_at',
         ]
         # 👉 Le serveur calcule les prix : ne pas accepter depuis le client
         read_only_fields = ['id', 'unit_price', 'total_price', 'created_at']
+
+    # ── Champs "plat" null-safe ──────────────────────────────────────────
+    def get_menu_item_name(self, obj):
+        if obj.menu_item:
+            return obj.menu_item.name
+        return obj.label or None
+
+    def get_menu_item_image(self, obj):
+        if not obj.menu_item or not getattr(obj.menu_item, 'image', None):
+            return None
+        try:
+            url = obj.menu_item.image.url
+        except ValueError:
+            return None
+        request = self.context.get('request')
+        return request.build_absolute_uri(url) if request else url
+
+    def get_menu_item_price(self, obj):
+        return obj.menu_item.price if obj.menu_item else None
+
+    def get_category(self, obj):
+        if obj.menu_item and obj.menu_item.category:
+            return str(obj.menu_item.category)
+        return None
+
+    def get_allergen_display(self, obj):
+        # Formule → UNION des allergènes de tous les composants (sécurité client).
+        if obj.kind == 'formule':
+            seen = []
+            for c in obj.components.all():
+                if not c.menu_item:
+                    continue
+                for a in c.menu_item.allergen_display:
+                    if a not in seen:
+                        seen.append(a)
+            return seen
+        return obj.menu_item.allergen_display if obj.menu_item else []
+
+    def get_dietary_tags(self, obj):
+        # Formule → INTERSECTION : un tag n'est vrai que si TOUS les plats l'ont.
+        if obj.kind == 'formule':
+            sets = [set(c.menu_item.dietary_tags) for c in obj.components.all() if c.menu_item]
+            return list(set.intersection(*sets)) if sets else []
+        return obj.menu_item.dietary_tags if obj.menu_item else []
 
     def validate_quantity(self, value):
         if value <= 0:
@@ -65,8 +157,19 @@ class OrderCreateSerializer(serializers.ModelSerializer):
     items = serializers.ListField(
         child=serializers.DictField(),
         write_only=True,
-        allow_empty=False,
-        help_text="Liste des items"
+        required=False,
+        default=list,
+        allow_empty=True,
+        help_text="Liste des items à la carte"
+    )
+
+    formules = serializers.ListField(
+        child=serializers.DictField(),
+        write_only=True,
+        required=False,
+        default=list,
+        allow_empty=True,
+        help_text="Formules sélectionnées (1 OrderItem par formule)"
     )
 
     user = serializers.PrimaryKeyRelatedField(
@@ -79,7 +182,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         model = Order
         fields = [
             'restaurant', 'order_type', 'table_number', 'customer_name',
-            'phone', 'payment_method', 'notes', 'items', 'user',
+            'phone', 'payment_method', 'notes', 'items', 'formules', 'user',
             'table_session_id'
         ]
         extra_kwargs = {
@@ -116,7 +219,8 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         le client paierait la somme des prix de carte au lieu du prix annoncé.
         """
         if not value:
-            raise serializers.ValidationError("Au moins un item requis")
+            # Une commande peut ne contenir QUE des formules (cf. validate()).
+            return []
 
         validated_items = []
         restaurant_id = self.initial_data.get('restaurant')
@@ -205,10 +309,107 @@ class OrderCreateSerializer(serializers.ModelSerializer):
 
         return validated_items
 
+    def validate_formules(self, value):
+        """Valide chaque formule sélectionnée et résout les objets.
+
+        Retourne une structure normalisée prête pour create() :
+            [{ 'formule': Formule, 'quantity': int,
+               'chosen': [{ 'course': FormuleCourse, 'menu_item': MenuItem,
+                            'extra_price': Decimal }] }]
+        """
+        if not value:
+            return []
+
+        restaurant_id = self.initial_data.get('restaurant')
+        normalized = []
+
+        for idx, f in enumerate(value):
+            formule_id = f.get('formule')
+            if not formule_id:
+                raise serializers.ValidationError(f"Formule {idx}: champ 'formule' requis")
+
+            try:
+                formule = (
+                    Formule.objects
+                    .prefetch_related('courses__items__menu_item')
+                    .get(id=formule_id, restaurant_id=restaurant_id, is_active=True)
+                )
+            except Formule.DoesNotExist:
+                raise serializers.ValidationError(
+                    f"Formule {idx}: introuvable, inactive, ou hors de ce restaurant"
+                )
+
+            try:
+                quantity = int(f.get('quantity', 1))
+            except (TypeError, ValueError):
+                raise serializers.ValidationError(f"Formule {idx}: quantity doit être un entier")
+            if quantity <= 0 or quantity > 50:
+                raise serializers.ValidationError(f"Formule {idx}: quantity entre 1 et 50")
+
+            courses = list(formule.courses.all())
+            courses_by_id = {str(c.id): c for c in courses}
+            picked = {str(c.id): [] for c in courses}
+            chosen = []
+
+            for sel in f.get('selections', []):
+                course = courses_by_id.get(str(sel.get('course')))
+                if not course:
+                    raise serializers.ValidationError(
+                        f"Formule {idx}: cran inconnu pour cette formule"
+                    )
+                eligible = {
+                    ci.menu_item_id: ci
+                    for ci in course.items.all()
+                    if ci.is_available and ci.menu_item and ci.menu_item.is_available
+                }
+                try:
+                    mi_id = int(sel.get('menu_item'))
+                except (TypeError, ValueError):
+                    raise serializers.ValidationError(
+                        f"Formule {idx}: menu_item doit être un entier"
+                    )
+                course_item = eligible.get(mi_id)
+                if not course_item:
+                    raise serializers.ValidationError(
+                        f"Formule {idx}: plat indisponible dans le cran « {course.name} »"
+                    )
+                picked[str(course.id)].append(course_item)
+                chosen.append({
+                    'course': course,
+                    'menu_item': course_item.menu_item,
+                    'extra_price': course_item.extra_price,
+                })
+
+            # min/max + crans obligatoires
+            for course in courses:
+                n = len(picked[str(course.id)])
+                if course.is_required and n < course.min_choices:
+                    raise serializers.ValidationError(
+                        f"Formule {idx}: « {course.name} » nécessite au moins "
+                        f"{course.min_choices} choix"
+                    )
+                if n > course.max_choices:
+                    raise serializers.ValidationError(
+                        f"Formule {idx}: « {course.name} » accepte au plus "
+                        f"{course.max_choices} choix"
+                    )
+
+            normalized.append({'formule': formule, 'quantity': quantity, 'chosen': chosen})
+
+        return normalized
+
+    def validate(self, attrs):
+        if not attrs.get('items') and not attrs.get('formules'):
+            raise serializers.ValidationError(
+                "La commande doit contenir au moins un item ou une formule."
+            )
+        return attrs
+
     @transaction.atomic
     def create(self, validated_data):
         """Création de la commande avec gestion client améliorée"""
-        items_data = validated_data.pop('items')
+        items_data = validated_data.pop('items', [])
+        formules_data = validated_data.pop('formules', [])
 
         request = self.context.get('request')
         if request and request.user.is_authenticated:
@@ -219,30 +420,29 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         import uuid
         validated_data['order_number'] = str(uuid.uuid4())[:8].upper()
 
-        subtotal = sum(item['total_price'] for item in items_data)
-        # Les prix sont TTC : TVA = TTC - (TTC / 1.1) pour un taux de 10%
-        tax_amount = subtotal - (subtotal / Decimal('1.1')).quantize(Decimal('0.01'))
-        total_amount = subtotal
-
+        # Montants provisoires : recalculés depuis les lignes réelles plus bas.
         validated_data.update({
-            'subtotal': subtotal,
-            'tax_amount': tax_amount,
-            'total_amount': total_amount,
+            'subtotal': Decimal('0.00'),
+            'tax_amount': Decimal('0.00'),
+            'total_amount': Decimal('0.00'),
             'status': 'pending',
             'payment_status': 'pending'
         })
 
+        total_lines = len(items_data) + sum(f['quantity'] for f in formules_data)
         estimated_ready_time = timezone.now() + timezone.timedelta(
-            minutes=15 + (len(items_data) * 5)
+            minutes=15 + (total_lines * 5)
         )
         validated_data['estimated_ready_time'] = estimated_ready_time.time()
 
         order = Order.objects.create(**validated_data)
 
+        # ── Lignes à la carte ────────────────────────────────────────────
         for item_data in items_data:
             try:
                 OrderItem.objects.create(
                     order=order,
+                    kind='dish',
                     menu_item=item_data['menu_item'],
                     quantity=item_data['quantity'],
                     customizations=item_data['customizations'],
@@ -255,6 +455,43 @@ class OrderCreateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     f"Erreur lors de la création de l'item {item_data['menu_item'].name}: {str(e)}"
                 )
+
+        # ── Lignes formule (1 OrderItem + N OrderItemComponent) ──────────
+        for f in formules_data:
+            formule = f['formule']
+            quantity = f['quantity']
+            unit_price, comps = build_formule_components(formule, f['chosen'])
+            line_vat = sum(c['vat_amount'] for c in comps) * quantity
+
+            line = OrderItem.objects.create(
+                order=order,
+                kind='formule',
+                menu_item=None,
+                formule=formule,
+                label=formule.name,
+                quantity=quantity,
+                unit_price=unit_price,
+                total_price=(unit_price * quantity).quantize(Decimal('0.01')),
+                vat_amount=line_vat.quantize(Decimal('0.01')),
+            )
+            OrderItemComponent.objects.bulk_create([
+                OrderItemComponent(order_item=line, **c) for c in comps
+            ])
+
+        # ── Recalcul des totaux depuis les lignes réelles ────────────────
+        # subtotal = somme TTC ; tax = somme des TVA (taux mixtes corrects via
+        # la ventilation par composant pour les formules).
+        order.refresh_from_db()
+        subtotal = order.items.aggregate(s=Sum('total_price'))['s'] or Decimal('0.00')
+        order.calculate_vat_breakdown()  # remplit order.vat_details
+        tax_amount = sum(
+            (Decimal(str(b['tva'])) for b in order.vat_details.values()),
+            Decimal('0.00')
+        )
+        order.subtotal = subtotal
+        order.tax_amount = tax_amount
+        order.total_amount = subtotal
+        order.save(update_fields=['subtotal', 'tax_amount', 'total_amount', 'vat_details'])
 
         if order.table_session_id:
             try:
@@ -327,7 +564,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             'status', 'status_display', 'payment_status', 'payment_status_display',
             'payment_method', 'payment_method_display', 'subtotal', 'tax_amount', 'total_amount',
             'estimated_ready_time', 'ready_at', 'served_at', 'notes', 'items',
-            'can_be_cancelled', 'preparation_time', 'created_at', 'updated_at'
+            'can_be_cancelled', 'preparation_time', 'vat_details', 'created_at', 'updated_at'
         ]
 
     def get_customer_display(self, obj):

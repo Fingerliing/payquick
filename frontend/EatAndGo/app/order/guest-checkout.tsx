@@ -1,16 +1,17 @@
-import { useState, useEffect } from "react";
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  Switch, 
-  TouchableOpacity, 
+import React, { useState, useEffect, useMemo } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  Switch,
+  TouchableOpacity,
   ActivityIndicator,
   ScrollView,
   KeyboardAvoidingView,
-  Platform
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 import { prepareGuestOrder, confirmGuestCash, getDraftStatus } from "@/services/guestOrderService";
 import { initPaymentSheet, presentPaymentSheet } from "@stripe/stripe-react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -20,9 +21,14 @@ import { QRSessionUtils } from "@/utils/qrSessionUtils";
 import { Header } from "@/components/ui/Header";
 import { Card } from "@/components/ui/Card";
 import { Alert as InlineAlert } from "@/components/ui/Alert";
+import { useAppTheme, type AppColors } from "@/utils/designSystem";
 
 export default function GuestCheckoutScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   const { restaurantId, tableNumber: tableNumberParam, sessionId } = useLocalSearchParams<{
     restaurantId: string;
     tableNumber?: string;
@@ -85,8 +91,8 @@ export default function GuestCheckoutScreen() {
 
   if (cart.items.length === 0) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-        <Header title="Commande invité" leftIcon="arrow-back" onLeftPress={() => router.back()} />
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <Header title={t('guestCheckout.headerTitle')} leftIcon="arrow-back" onLeftPress={() => router.back()} />
         <View style={{ paddingHorizontal: 16, marginTop: 8, zIndex: 10 }}>
           {toast.visible && (
             <InlineAlert
@@ -99,36 +105,45 @@ export default function GuestCheckoutScreen() {
           )}
         </View>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 16 }}>
-          <Text style={{ fontSize: 16, color: '#666', textAlign: 'center', marginBottom: 16 }}>
-            Votre panier est vide
+          <Text style={{ fontSize: 16, color: colors.text.secondary, textAlign: 'center', marginBottom: 16 }}>
+            {t('cart.empty')}
           </Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={() => router.back()}
-            style={[styles.btn, { backgroundColor: '#FF6B35' }]}
+            style={[styles.btn, { backgroundColor: colors.primary }]}
           >
-            <Text style={{ color: "#fff", fontWeight: "600" }}>Retour au menu</Text>
+            <Text style={{ color: colors.text.inverse, fontWeight: "600" }}>{t('cart.backToMenu')}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
   }
 
-  const items = cart.items.map((item) => {
-    const menuItemId = Number(item.menuItemId || item.id);
-    if (isNaN(menuItemId)) {
-      throw new Error(`ID d'article invalide: ${item.name}`);
-    }
-    return {
-      menu_item_id: menuItemId,
-      quantity: item.quantity,
-      options: item.customizations || undefined,
-    };
-  });
+  // Lignes plat à la carte uniquement (les formules sont routées à part).
+  const items = cart.items
+    .filter((it) => it.kind !== 'formule')
+    .map((item) => {
+      const menuItemId = Number(item.menuItemId || item.id);
+      if (isNaN(menuItemId)) {
+        throw new Error(t('guestCheckout.toast.invalidItem', { name: item.name }));
+      }
+      return {
+        menu_item_id: menuItemId,
+        quantity: item.quantity,
+        options: item.customizations || undefined,
+      };
+    });
+
+  // Lignes formule : on transmet le payload backend déjà construit (CreateFormuleInput),
+  // en faisant primer la quantité de la ligne panier.
+  const formules = cart.items
+    .filter((it) => it.kind === 'formule' && it.formule)
+    .map((it) => ({ ...it.formule!, quantity: it.quantity }));
 
   async function pollUntilOrder(draftId: string): Promise<number | null> {
     const started = Date.now();
     const timeout = 30000;
-    
+
     while (Date.now() - started < timeout) {
       await new Promise(r => setTimeout(r, 2000));
       try {
@@ -143,50 +158,52 @@ export default function GuestCheckoutScreen() {
 
   async function onSubmit() {
     if (!name.trim()) {
-      showToast("error", "Le nom est requis", "Champs manquants");
+      showToast("error", t('guestCheckout.toast.nameRequired'), t('guestCheckout.toast.nameRequiredTitle'));
       return;
     }
-    
+
     if (!validatePhone(phone)) {
-      showToast("error", "Veuillez saisir un numéro de téléphone français valide", "Téléphone invalide");
+      showToast("error", t('guestCheckout.toast.phoneInvalid'), t('guestCheckout.toast.phoneInvalidTitle'));
       return;
     }
-    
+
     if (email && !validateEmail(email)) {
-      showToast("error", "Veuillez saisir une adresse email valide", "Email invalide");
+      showToast("error", t('guestCheckout.toast.emailInvalid'), t('guestCheckout.toast.emailInvalidTitle'));
       return;
     }
-    
+
     if (!consent) {
-      showToast("warning", "Veuillez accepter la politique de confidentialité.", "Consentement requis");
+      showToast("warning", t('guestCheckout.toast.consentRequired'), t('guestCheckout.toast.consentRequiredTitle'));
       return;
     }
 
     // ✅ FIX : vérifier que le tableNumber est bien résolu avant de soumettre
     if (!resolvedTableNumber) {
-      showToast("error", "Numéro de table introuvable. Veuillez scanner à nouveau le QR code.", "Table manquante");
+      showToast("error", t('guestCheckout.toast.tableMissing'), t('guestCheckout.toast.tableMissingTitle'));
       return;
     }
 
     try {
       for (const item of cart.items) {
+        if (item.kind === 'formule') continue; // les formules n'ont pas de menu_item_id
         const menuItemId = Number(item.menuItemId || item.id);
         if (isNaN(menuItemId)) {
-          throw new Error(`ID d'article invalide pour: ${item.name}`);
+          throw new Error(t('guestCheckout.toast.invalidItem', { name: item.name }));
         }
       }
     } catch (error: any) {
-      showToast("error", error.message, "Erreur");
+      showToast("error", error.message, t('common.error'));
       return;
     }
 
     setLoading(true);
-    
+
     try {
       const payload = {
         restaurant_id: Number(restaurantId),
         table_number: resolvedTableNumber, // ✅ FIX : utiliser resolvedTableNumber
         items,
+        formules,
         customer_name: name.trim(),
         phone: phone.replace(/[\s.-]/g, ''),
         email: email.trim() || undefined,
@@ -204,7 +221,7 @@ export default function GuestCheckoutScreen() {
       }
 
       if (!resp.payment_intent_client_secret) {
-        throw new Error("Impossible d'initialiser le paiement");
+        throw new Error(t('guestCheckout.toast.paymentInitFailed'));
       }
 
       const { error: initError } = await initPaymentSheet({
@@ -218,39 +235,44 @@ export default function GuestCheckoutScreen() {
       });
 
       if (initError) {
-        throw new Error(`Erreur d'initialisation: ${initError.message}`);
+        throw new Error(t('guestCheckout.toast.initError', { message: initError.message }));
       }
 
       const { error: presentError } = await presentPaymentSheet();
-      
+
       if (presentError) {
-        throw new Error(`Erreur de paiement: ${presentError.message}`);
+        throw new Error(t('guestCheckout.toast.paymentError', { message: presentError.message }));
       }
 
       const orderId = await pollUntilOrder(resp.draft_order_id);
       clearCart();
-      
+
       if (orderId) {
         router.replace({ pathname: "/order/[id]", params: { id: String(orderId) } });
       } else {
-        showToast("success", "Votre commande est en cours de traitement. Consultez vos commandes.", "Paiement confirmé");
+        showToast("success", t('guestCheckout.toast.processingOrder'), t('guestCheckout.toast.paymentConfirmedTitle'));
         router.replace("/orders" as any);
       }
-      
+
     } catch (error: any) {
       console.error('Guest checkout error:', error);
-      showToast("error", error?.message ?? "Échec de la commande. Veuillez réessayer.", "Erreur");
+      showToast("error", error?.message ?? t('guestCheckout.toast.failed'), t('common.error'));
     } finally {
       setLoading(false);
     }
   }
 
+  // Surfaces theme-aware pour le mode de paiement
+  const onlineHighlightBg = isDark ? 'rgba(30, 42, 120, 0.25)' : '#EEF2FF';
+  const cashInfoBg = isDark ? 'rgba(245, 158, 11, 0.12)' : '#FFF9E6';
+  const cashInfoText = isDark ? colors.warning : '#8B5A00';
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-      <Header 
-        title="Commande invité" 
-        leftIcon="arrow-back" 
-        onLeftPress={() => router.back()} 
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <Header
+        title={t('guestCheckout.headerTitle')}
+        leftIcon="arrow-back"
+        onLeftPress={() => router.back()}
       />
 
       <View style={{ paddingHorizontal: 16, marginTop: 8, zIndex: 10 }}>
@@ -264,108 +286,111 @@ export default function GuestCheckoutScreen() {
           />
         )}
       </View>
-      
-      <KeyboardAvoidingView 
+
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
         <ScrollView contentContainerStyle={{ padding: 16 }}>
-          
+
           <Card style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 12 }}>
-              Votre commande
+            <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 12, color: colors.text.primary }}>
+              {t('order.yourOrder')}
             </Text>
-            <Text style={{ fontSize: 14, color: '#666', marginBottom: 8 }}>
-              {cart.itemCount} {cart.itemCount > 1 ? 'articles' : 'article'} • {cart.total.toFixed(2)} €
+            <Text style={{ fontSize: 14, color: colors.text.secondary, marginBottom: 8 }}>
+              {t('cart.item', { count: cart.itemCount })} • {cart.total.toFixed(2)} €
             </Text>
             {/* ✅ FIX : afficher resolvedTableNumber */}
             {resolvedTableNumber ? (
-              <Text style={{ fontSize: 14, color: '#666' }}>
-                Table : {resolvedTableNumber}
+              <Text style={{ fontSize: 14, color: colors.text.secondary }}>
+                {t('guestCheckout.tableLabel', { number: resolvedTableNumber })}
               </Text>
             ) : (
-              <Text style={{ fontSize: 14, color: '#E53935' }}>
-                ⚠️ Table non détectée — veuillez scanner à nouveau le QR code
+              <Text style={{ fontSize: 14, color: colors.error }}>
+                {t('guestCheckout.tableUndetected')}
               </Text>
             )}
           </Card>
 
           <Card style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 12 }}>
-              Vos informations
+            <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 12, color: colors.text.primary }}>
+              {t('checkout.info.title')}
             </Text>
-            
-            <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 8 }}>
-              Nom / Prénom *
+
+            <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 8, color: colors.text.primary }}>
+              {t('guestCheckout.form.nameLabel')}
             </Text>
-            <TextInput 
-              placeholder="Votre nom complet" 
-              value={name} 
-              onChangeText={setName} 
+            <TextInput
+              placeholder={t('guestCheckout.form.namePlaceholder')}
+              placeholderTextColor={colors.text.light}
+              value={name}
+              onChangeText={setName}
               style={[styles.input, { marginBottom: 16 }]}
               autoCapitalize="words"
             />
-            
-            <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 8 }}>
-              Téléphone *
+
+            <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 8, color: colors.text.primary }}>
+              {t('guestCheckout.form.phoneLabel')}
             </Text>
-            <TextInput 
-              placeholder="06 12 34 56 78" 
-              keyboardType="phone-pad" 
-              value={phone} 
-              onChangeText={setPhone} 
+            <TextInput
+              placeholder={t('guestCheckout.form.phonePlaceholder')}
+              placeholderTextColor={colors.text.light}
+              keyboardType="phone-pad"
+              value={phone}
+              onChangeText={setPhone}
               style={[styles.input, { marginBottom: 16 }]}
             />
-            
-            <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 8 }}>
-              Email (optionnel)
+
+            <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 8, color: colors.text.primary }}>
+              {t('guestCheckout.form.emailLabel')}
             </Text>
-            <TextInput 
-              placeholder="votre@email.com" 
-              keyboardType="email-address" 
-              value={email} 
-              onChangeText={setEmail} 
+            <TextInput
+              placeholder={t('guestCheckout.form.emailPlaceholder')}
+              placeholderTextColor={colors.text.light}
+              keyboardType="email-address"
+              value={email}
+              onChangeText={setEmail}
               style={[styles.input, { marginBottom: 0 }]}
               autoCapitalize="none"
             />
           </Card>
 
           <Card style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 12 }}>
-              Mode de paiement
+            <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 12, color: colors.text.primary }}>
+              {t('guestCheckout.payment.title')}
             </Text>
-            
-            <View style={{ 
-              flexDirection: "row", 
-              alignItems: "center", 
+
+            <View style={{
+              flexDirection: "row",
+              alignItems: "center",
               justifyContent: "space-between",
-              backgroundColor: method === "online" ? '#FFF3F0' : 'transparent',
+              backgroundColor: method === "online" ? onlineHighlightBg : 'transparent',
               padding: 12,
               borderRadius: 8,
               marginBottom: 8
             }}>
               <View>
-                <Text style={{ fontSize: 16, fontWeight: '500' }}>Paiement en ligne</Text>
-                <Text style={{ fontSize: 12, color: '#666' }}>Carte bancaire via Stripe</Text>
+                <Text style={{ fontSize: 16, fontWeight: '500', color: colors.text.primary }}>{t('guestCheckout.payment.online')}</Text>
+                <Text style={{ fontSize: 12, color: colors.text.secondary }}>{t('guestCheckout.payment.onlineHint')}</Text>
               </View>
-              <Switch 
-                value={method === "online"} 
+              <Switch
+                value={method === "online"}
                 onValueChange={(v) => setMethod(v ? "online" : "cash")}
-                trackColor={{ false: '#f0f0f0', true: '#FF6B35' }}
-                thumbColor="#fff"
+                trackColor={{ false: colors.border.default, true: colors.primary }}
+                thumbColor={colors.surface}
               />
             </View>
-            
+
             {method === "cash" && (
-              <View style={{ 
-                backgroundColor: '#FFF9E6', 
-                padding: 12, 
+              <View style={{
+                backgroundColor: cashInfoBg,
+                padding: 12,
                 borderRadius: 8,
                 borderLeftWidth: 3,
-                borderLeftColor: '#FFB800'
+                borderLeftColor: colors.warning
               }}>
-                <Text style={{ fontSize: 14, color: '#8B5A00' }}>
-                  💰 Vous paierez directement au restaurant
+                <Text style={{ fontSize: 14, color: cashInfoText }}>
+                  {t('guestCheckout.payment.cashHint')}
                 </Text>
               </View>
             )}
@@ -373,26 +398,29 @@ export default function GuestCheckoutScreen() {
 
           <Card style={{ marginBottom: 24 }}>
             <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
-              <Switch 
-                value={consent} 
+              <Switch
+                value={consent}
                 onValueChange={setConsent}
-                trackColor={{ false: '#f0f0f0', true: '#FF6B35' }}
-                thumbColor="#fff"
+                trackColor={{ false: colors.border.default, true: colors.primary }}
+                thumbColor={colors.surface}
               />
-              <Text style={{ flex: 1, fontSize: 14, lineHeight: 20 }}>
-                J'accepte la <Text style={{ color: '#FF6B35', textDecorationLine: 'underline' }}>
-                politique de confidentialité</Text> et les conditions d'utilisation *
+              <Text style={{ flex: 1, fontSize: 14, lineHeight: 20, color: colors.text.primary }}>
+                {t('guestCheckout.consent.pre')}
+                <Text style={{ color: colors.primary, textDecorationLine: 'underline' }}>
+                  {t('guestCheckout.consent.link')}
+                </Text>
+                {t('guestCheckout.consent.post')}
               </Text>
             </View>
           </Card>
 
-          <TouchableOpacity 
-            disabled={loading} 
-            onPress={onSubmit} 
+          <TouchableOpacity
+            disabled={loading}
+            onPress={onSubmit}
             style={[
               styles.btn,
-              { 
-                backgroundColor: loading ? '#ccc' : '#FF6B35',
+              {
+                backgroundColor: loading ? colors.border.dark : colors.primary,
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -400,32 +428,35 @@ export default function GuestCheckoutScreen() {
               }
             ]}
           >
-            {loading && <ActivityIndicator color="#fff" />}
-            <Text style={{ color: "#fff", fontWeight: "600", fontSize: 16 }}>
-              {loading ? "Traitement..." : `Valider la commande • ${cart.total.toFixed(2)} €`}
+            {loading && <ActivityIndicator color={colors.text.inverse} />}
+            <Text style={{ color: colors.text.inverse, fontWeight: "600", fontSize: 16 }}>
+              {loading
+                ? t('guestCheckout.processing')
+                : t('guestCheckout.submit', { total: cart.total.toFixed(2) })}
             </Text>
           </TouchableOpacity>
-          
+
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-const styles = {
-  input: { 
-    borderWidth: 1, 
-    borderColor: "#ddd", 
-    borderRadius: 10, 
+const makeStyles = (colors: AppColors) => ({
+  input: {
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    borderRadius: 10,
     padding: 12,
-    backgroundColor: '#fff',
-    fontSize: 16
+    backgroundColor: colors.surface,
+    fontSize: 16,
+    color: colors.text.primary,
   },
-  btn: { 
-    backgroundColor: "#FF6B35", 
-    padding: 16, 
-    borderRadius: 12, 
-    alignItems: "center",
-    minHeight: 52
+  btn: {
+    backgroundColor: colors.primary,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: "center" as const,
+    minHeight: 52,
   },
-} as const;
+});

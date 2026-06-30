@@ -5,6 +5,7 @@ import type {
   OrderDetail,
   CreateOrderRequest,
   CreateOrderItemInput,
+  CreateFormuleInput,
 } from '../types/order';
 import { isValidCreateOrderRequest } from '../types/order';
 import type { OrderSearchFilters, ListResponse } from '../types/common';
@@ -57,8 +58,25 @@ export class ClientOrderService {
     }
 
     try {
-      // Convertir les items du panier au format attendu par le backend
-      const validatedItems: CreateOrderItemInput[] = args.items.map((item, index) => {
+      // Séparer les lignes "plat à la carte" des lignes "formule".
+      // Une ligne formule (kind === 'formule') porte son propre payload backend
+      // (item.formule) ; on la route vers `formules[]` plutôt que `items[]`.
+      const validatedItems: CreateOrderItemInput[] = [];
+      const formules: CreateFormuleInput[] = [];
+
+      args.items.forEach((item, index) => {
+        // ── Ligne formule ──────────────────────────────────────────────
+        if (item.kind === 'formule' && item.formule) {
+          const qty = Number(item.quantity);
+          formules.push({
+            ...item.formule,
+            // La quantité de la ligne panier fait foi.
+            quantity: !isNaN(qty) && qty > 0 ? qty : (item.formule.quantity || 1),
+          });
+          return;
+        }
+
+        // ── Ligne plat à la carte ──────────────────────────────────────
         // 🔧 FIX: Debug de la structure des items
         console.log(`Processing item ${index}:`, {
           id: item.id,
@@ -69,7 +87,7 @@ export class ClientOrderService {
 
         // Extraire l'ID du menu item
         let menuItemId: number;
-        
+
         if (typeof item.menuItemId === 'string' || typeof item.menuItemId === 'number') {
           menuItemId = typeof item.menuItemId === 'string' ? parseInt(item.menuItemId, 10) : item.menuItemId;
         } else if (typeof item.id === 'string' || typeof item.id === 'number') {
@@ -77,11 +95,11 @@ export class ClientOrderService {
         } else {
           throw new Error(`Item at index ${index}: missing valid menu item ID. Available fields: ${Object.keys(item)}`);
         }
-        
+
         if (isNaN(menuItemId) || menuItemId <= 0) {
           throw new Error(`Item at index ${index}: invalid menu item ID "${menuItemId}"`);
         }
-        
+
         const quantity = Number(item.quantity);
         if (isNaN(quantity) || quantity <= 0) {
           throw new Error(`Item at index ${index}: invalid quantity "${item.quantity}"`);
@@ -89,14 +107,14 @@ export class ClientOrderService {
 
         // Construire l'objet sans unit_price
         // Le backend récupérera le prix depuis la base de données
-        return {
+        validatedItems.push({
           menu_item: menuItemId,
           quantity: quantity,
           customizations: item.customizations || {},
           special_instructions: item.specialInstructions || "",
-        };
+        });
       });
-      
+
       // 🔧 FIX: Construire le payload avec gestion conditionnelle de table_number
       const payload: CreateOrderRequest = {
         restaurant: restaurantId,
@@ -108,6 +126,11 @@ export class ClientOrderService {
         items: validatedItems,
       };
 
+      // N'envoyer `formules` que si présent (rétrocompat backend).
+      if (formules.length > 0) {
+        payload.formules = formules;
+      }
+
       // Ajouter table_number seulement si nécessaire
       if (args.order_type === 'dine_in') {
         payload.table_number = tableNumber.trim();
@@ -115,7 +138,6 @@ export class ClientOrderService {
 
       // 🔧 FIX: Validation améliorée avec debug
       console.log('🔍 Validating payload structure...');
-      console.log('Items count:', payload.items.length);
       console.log('Restaurant ID:', payload.restaurant);
       console.log('Order type:', payload.order_type);
       

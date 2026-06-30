@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
-  COLORS,
+  useAppTheme,
   TYPOGRAPHY,
   SPACING,
   BORDER_RADIUS,
@@ -56,12 +56,12 @@ export const Input = forwardRef<TextInput, InputProps>(({
 }, ref) => {
   const [isFocused, setIsFocused] = useState(false);
   const screenType = useScreenType();
+  const { colors, isDark } = useAppTheme();
   const internalRef = useRef<TextInput>(null);
   const containerRef = useRef<View>(null);
 
   const resolvedRef = (ref as React.RefObject<TextInput>) || internalRef;
 
-  // Utilise la prop explicite en priorité, sinon le contexte fourni par KeyboardScrollView
   const contextScrollRef = useKeyboardScrollRef();
   const scrollRef = scrollRefProp ?? contextScrollRef;
 
@@ -94,6 +94,12 @@ export const Input = forwardRef<TextInput, InputProps>(({
     onBlur?.(e);
   };
 
+  // Bordure au repos : dorée en mode dark, neutre en mode clair.
+  // Pour ajuster le ton d'or, remplacer colors.secondary par :
+  //   - colors.border.golden            → or vieilli, plus discret (#8B6F1F)
+  //   - 'rgba(212, 175, 55, 0.45)'      → or signature adouci (entre-deux)
+  const restingBorderColor = isDark ? colors.secondary : colors.border.light;
+
   const containerStyle: ViewStyle = {
     width: fullWidth ? '100%' : undefined,
     marginBottom: getResponsiveValue(SPACING.md, screenType),
@@ -102,7 +108,7 @@ export const Input = forwardRef<TextInput, InputProps>(({
   const labelStyle: TextStyle = {
     fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
     fontWeight: TYPOGRAPHY.fontWeight.medium,
-    color: hasError ? COLORS.error : COLORS.text.primary,
+    color: hasError ? colors.error : colors.text.primary,
     marginBottom: getResponsiveValue(SPACING.xs, screenType),
   };
 
@@ -111,12 +117,12 @@ export const Input = forwardRef<TextInput, InputProps>(({
     alignItems: 'center',
     borderWidth: 1.5,
     borderRadius: BORDER_RADIUS.lg,
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderColor: hasError
-      ? COLORS.error
+      ? colors.error
       : isFocused
-        ? COLORS.primary
-        : COLORS.border.light,
+        ? colors.primary
+        : restingBorderColor,
     paddingHorizontal: getResponsiveValue(SPACING.md, screenType),
     paddingVertical: getResponsiveValue(SPACING.sm, screenType),
     minHeight: getResponsiveValue({ mobile: 48, tablet: 52, desktop: 56 }, screenType),
@@ -125,7 +131,7 @@ export const Input = forwardRef<TextInput, InputProps>(({
   const textInputStyle: TextStyle = {
     flex: 1,
     fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     paddingVertical: 0,
     marginLeft: leftIcon ? getResponsiveValue(SPACING.sm, screenType) : 0,
     marginRight: rightIcon ? getResponsiveValue(SPACING.sm, screenType) : 0,
@@ -133,15 +139,15 @@ export const Input = forwardRef<TextInput, InputProps>(({
   };
 
   const iconColor = hasError
-    ? COLORS.error
+    ? colors.error
     : isFocused
-      ? COLORS.primary
-      : COLORS.text.light;
+      ? colors.primary
+      : colors.text.light;
 
   const messageStyle: TextStyle = {
     fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
     marginTop: getResponsiveValue(SPACING.xs, screenType),
-    color: hasError ? COLORS.error : COLORS.text.light,
+    color: hasError ? colors.error : colors.text.light,
   };
 
   return (
@@ -149,7 +155,7 @@ export const Input = forwardRef<TextInput, InputProps>(({
       {label && variant === 'default' && (
         <Text style={labelStyle}>
           {label}
-          {required && <Text style={{ color: COLORS.error }}> *</Text>}
+          {required && <Text style={{ color: colors.error }}> *</Text>}
         </Text>
       )}
 
@@ -161,7 +167,7 @@ export const Input = forwardRef<TextInput, InputProps>(({
         <TextInput
           ref={resolvedRef}
           style={textInputStyle}
-          placeholderTextColor={COLORS.text.light}
+          placeholderTextColor={colors.text.light}
           onFocus={handleFocus}
           onBlur={handleBlur}
           {...props}

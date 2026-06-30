@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS } from '@/utils/designSystem';
+import { useAppTheme, type AppColors } from '@/utils/designSystem';
+import { useTranslation } from 'react-i18next';
 import type { OrderTrackingResponse, PreparationStage, CategoryProgress } from '@/services/orderTrackingService';
 
 interface Props {
@@ -21,6 +22,9 @@ interface Props {
 }
 
 export default function GamifiedOrderTracking({ orderId, onRefresh, trackingData }: Props) {
+  const { colors: COLORS } = useAppTheme();
+  const styles = useMemo(() => createStyles(COLORS), [COLORS]);
+  const { t } = useTranslation();
   const [refreshing, setRefreshing] = useState(false);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   
@@ -100,7 +104,7 @@ export default function GamifiedOrderTracking({ orderId, onRefresh, trackingData
           <View style={styles.predictionHeader}>
             <Ionicons name="time" size={24} color="#fff" />
             <View style={styles.predictionContent}>
-              <Text style={styles.predictionTitle}>Temps Estimé</Text>
+              <Text style={styles.predictionTitle}>{t('gamifiedTracking.estimatedTime')}</Text>
               {completion_prediction.estimated_remaining_minutes !== undefined && (
                 <Text style={styles.predictionTime}>
                   ~{Math.ceil(completion_prediction.estimated_remaining_minutes)} min
@@ -117,7 +121,7 @@ export default function GamifiedOrderTracking({ orderId, onRefresh, trackingData
           
           {completion_prediction.confidence !== undefined && (
             <View style={styles.confidenceContainer}>
-              <Text style={styles.confidenceLabel}>Précision</Text>
+              <Text style={styles.confidenceLabel}>{t('gamifiedTracking.accuracy')}</Text>
               <View style={styles.confidenceBar}>
                 <View 
                   style={[
@@ -209,7 +213,7 @@ export default function GamifiedOrderTracking({ orderId, onRefresh, trackingData
                 {stage.icon} {stage.label}
               </Text>
               {stage.in_progress && (
-                <Text style={styles.stageStatus}>En cours...</Text>
+                <Text style={styles.stageStatus}>{t('gamifiedTracking.inProgress')}</Text>
               )}
             </View>
           </View>
@@ -268,7 +272,7 @@ export default function GamifiedOrderTracking({ orderId, onRefresh, trackingData
           {/* Barre de progression */}
           <View style={styles.progressBarContainer}>
             <View style={styles.progressHeader}>
-              <Text style={styles.progressLabel}>Progression</Text>
+              <Text style={styles.progressLabel}>{t('gamifiedTracking.progress')}</Text>
               <View style={styles.tierBadge}>
                 <Text style={styles.tierText}>{gamification.progress_tier.name}</Text>
               </View>
@@ -304,7 +308,7 @@ export default function GamifiedOrderTracking({ orderId, onRefresh, trackingData
           <View style={styles.metricsGrid}>
             <View style={styles.metricItem}>
               <Ionicons name="speedometer" size={16} color="rgba(255,255,255,0.8)" />
-              <Text style={styles.metricLabel}>Qualité</Text>
+              <Text style={styles.metricLabel}>{t('gamifiedTracking.quality')}</Text>
               <Text style={styles.metricValue}>
                 {gamification.performance_metrics.experience_quality}
               </Text>
@@ -312,7 +316,7 @@ export default function GamifiedOrderTracking({ orderId, onRefresh, trackingData
             
             <View style={styles.metricItem}>
               <Ionicons name="restaurant" size={16} color="rgba(255,255,255,0.8)" />
-              <Text style={styles.metricLabel}>Préparation</Text>
+              <Text style={styles.metricLabel}>{t('gamifiedTracking.preparation')}</Text>
               <Text style={styles.metricValue}>
                 {gamification.performance_metrics.preparation_quality}
               </Text>
@@ -321,7 +325,7 @@ export default function GamifiedOrderTracking({ orderId, onRefresh, trackingData
             {gamification.performance_metrics.time_efficiency && (
               <View style={styles.metricItem}>
                 <Ionicons name="time" size={16} color="rgba(255,255,255,0.8)" />
-                <Text style={styles.metricLabel}>Efficacité</Text>
+                <Text style={styles.metricLabel}>{t('gamifiedTracking.efficiency')}</Text>
                 <Text style={styles.metricValue}>
                   {Math.round(gamification.performance_metrics.time_efficiency)}%
                 </Text>
@@ -330,7 +334,7 @@ export default function GamifiedOrderTracking({ orderId, onRefresh, trackingData
             
             <View style={styles.metricItem}>
               <Ionicons name="checkmark-circle" size={16} color="rgba(255,255,255,0.8)" />
-              <Text style={styles.metricLabel}>Complétion</Text>
+              <Text style={styles.metricLabel}>{t('gamifiedTracking.completion')}</Text>
               <Text style={styles.metricValue}>
                 {Math.round(gamification.performance_metrics.completion_rate)}%
               </Text>
@@ -342,11 +346,11 @@ export default function GamifiedOrderTracking({ orderId, onRefresh, trackingData
             <View style={styles.streakContainer}>
               <Ionicons name="flame" size={20} color="#FF6B35" />
               <Text style={styles.streakText}>
-                Série de {gamification.streak_data.current_streak} commande{gamification.streak_data.current_streak > 1 ? 's' : ''}
+                {t('gamifiedTracking.streakCount', { count: gamification.streak_data.current_streak })}
               </Text>
               {gamification.streak_data.bonus_active && (
                 <View style={styles.bonusBadge}>
-                  <Text style={styles.bonusText}>Bonus actif</Text>
+                  <Text style={styles.bonusText}>{t('gamifiedTracking.bonusActive')}</Text>
                 </View>
               )}
             </View>
@@ -402,7 +406,7 @@ export default function GamifiedOrderTracking({ orderId, onRefresh, trackingData
       <View style={styles.badgesSection}>
         <View style={styles.badgesHeader}>
           <Ionicons name="shield-checkmark" size={22} color={COLORS.primary} />
-          <Text style={styles.sectionTitle}>Distinctions</Text>
+          <Text style={styles.sectionTitle}>{t('gamifiedTracking.distinctions')}</Text>
           <View style={styles.badgeCount}>
             <Text style={styles.badgeCountText}>{trackingData.gamification.badges.length}</Text>
           </View>
@@ -499,7 +503,7 @@ export default function GamifiedOrderTracking({ orderId, onRefresh, trackingData
                 <Text style={styles.categoryName}>{category.category}</Text>
                 <View style={styles.categoryMetadata}>
                   <Text style={styles.categoryItemsCount}>
-                    {category.items_count} article{category.items_count > 1 ? 's' : ''}
+                    {t('gamifiedTracking.itemsCount', { count: category.items_count })}
                   </Text>
                   <View style={styles.complexityIndicator}>
                     <Ionicons 
@@ -548,7 +552,7 @@ export default function GamifiedOrderTracking({ orderId, onRefresh, trackingData
               {/* Étapes de préparation */}
               {category.preparation_stages && (
                 <View style={styles.preparationSection}>
-                  <Text style={styles.preparationTitle}>Étapes de préparation</Text>
+                  <Text style={styles.preparationTitle}>{t('gamifiedTracking.preparationSteps')}</Text>
                   {renderPreparationStages(category.preparation_stages)}
                 </View>
               )}
@@ -577,14 +581,14 @@ export default function GamifiedOrderTracking({ orderId, onRefresh, trackingData
           <View style={styles.timeInfo}>
             <View style={styles.timeItem}>
               <Ionicons name="time-outline" size={16} color={COLORS.text.secondary} />
-              <Text style={styles.timeLabel}>Estimé:</Text>
+              <Text style={styles.timeLabel}>{t('gamifiedTracking.estimatedLabel')}</Text>
               <Text style={styles.timeValue}>{category.estimated_time_minutes} min</Text>
             </View>
             
             {category.time_remaining_minutes > 0 && (
               <View style={styles.timeItem}>
                 <Ionicons name="hourglass-outline" size={16} color={COLORS.warning} />
-                <Text style={styles.timeLabel}>Restant:</Text>
+                <Text style={styles.timeLabel}>{t('gamifiedTracking.remainingLabel')}</Text>
                 <Text style={[styles.timeValue, { color: COLORS.warning }]}>
                   ~{Math.round(category.time_remaining_minutes)} min
                 </Text>
@@ -609,7 +613,7 @@ export default function GamifiedOrderTracking({ orderId, onRefresh, trackingData
         <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
           <Ionicons name="restaurant" size={48} color={COLORS.primary} />
         </Animated.View>
-        <Text style={styles.loadingText}>Chargement du suivi...</Text>
+        <Text style={styles.loadingText}>{t('gamifiedTracking.loading')}</Text>
       </View>
     );
   }
@@ -650,7 +654,7 @@ export default function GamifiedOrderTracking({ orderId, onRefresh, trackingData
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (COLORS: AppColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,

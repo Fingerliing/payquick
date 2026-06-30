@@ -57,7 +57,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         if hasattr(user, 'restaurateur_profile'):
             return Order.objects.filter(
                 restaurant__owner=user.restaurateur_profile
-            ).select_related('restaurant', 'user').prefetch_related('items__menu_item')
+            ).select_related('restaurant', 'user').prefetch_related('items__menu_item', 'items__components__menu_item')
 
         # Si client connecté, voir ses commandes
         elif user.is_authenticated:
@@ -397,7 +397,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         active_orders = self.get_queryset().filter(
             restaurant_id=restaurant_id,
             status__in=['pending', 'confirmed', 'preparing', 'ready']
-        ).select_related('restaurant').prefetch_related('items__menu_item')
+        ).select_related('restaurant').prefetch_related('items__menu_item', 'items__components__menu_item')
 
         # Grouper par table
         tables = {}

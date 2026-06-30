@@ -16,10 +16,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { useTranslation } from 'react-i18next';
 import {
   useScreenType,
   getResponsiveValue,
-  COLORS,
+  useAppTheme,
   SPACING,
   BORDER_RADIUS,
   SHADOWS,
@@ -90,6 +91,8 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
   const screenType = useScreenType();
   const insets = useSafeAreaInsets();
   const totalWithTip = totalAmount + tipAmount;
+  const { colors: COLORS } = useAppTheme();
+  const { t } = useTranslation();
 
   // Styles définis avec typage explicite (styles conservés identiques)
   const modalStyle: ViewStyle = {
@@ -430,10 +433,10 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
 
   // Validation améliorée avec tolérance de 0.01€ (comme le backend)
   const customValidation = useMemo(() => {
-    if (customTotal === 0) return { isValid: false, message: 'Veuillez saisir les montants' };
+    if (customTotal === 0) return { isValid: false, message: t('splitPayment.enterAmounts') };
     
     if (amountsMatch(customTotal, totalWithTip)) {
-      return { isValid: true, message: 'Répartition parfaite !' };
+      return { isValid: true, message: t('splitPayment.perfectSplit') };
     }
     
     const difference = Math.abs(customTotal - totalWithTip);
@@ -469,8 +472,8 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
     if (mode === 'items') {
       if (!knownParticipants || knownParticipants.length < 2) {
         Alert.alert(
-          'Participants insuffisants',
-          'Le mode "Par plat" nécessite au moins 2 participants dans la session.',
+          t('splitPayment.notEnoughParticipantsTitle'),
+          t('splitPayment.notEnoughParticipantsMsg'),
         );
         return;
       }
@@ -486,31 +489,31 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
     if (mode === 'equal') {
       const people = parseInt(numberOfPeople) || 1;
       if (people < 2) {
-        Alert.alert('Erreur', 'Le nombre de personnes doit être au moins 2');
+        Alert.alert(t('common.error'), t('splitPayment.minTwoPeople'));
         return;
       }
 
       const portions: CreatePortionInput[] = equalPortions.map((amount, i) => ({
-        name: `Personne ${i + 1}`,
+        name: t('splitPayment.personN', { number: i + 1 }),
         amount,
       }));
 
       onConfirm(mode, portions);
     } else if (mode === 'custom') {
       if (!customValidation.isValid) {
-        Alert.alert('Erreur', 'La répartition ne correspond pas au montant total');
+        Alert.alert(t('common.error'), t('splitPayment.splitMismatch'));
         return;
       }
 
       const portions: CreatePortionInput[] = customPortions
         .filter(p => parseAmount(p.amount) > 0)
         .map((p, i) => ({
-          name: p.name.trim() || `Personne ${i + 1}`,
+          name: p.name.trim() || t('splitPayment.personN', { number: i + 1 }),
           amount: parseAmount(p.amount),
         }));
 
       if (portions.length < 2) {
-        Alert.alert('Erreur', 'Il faut au moins 2 portions avec un montant');
+        Alert.alert(t('common.error'), t('splitPayment.minTwoPortions'));
         return;
       }
 
@@ -566,7 +569,7 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
         <View style={headerStyle}>
           <View style={headerContentStyle}>
             <View style={{ flex: 1 }}>
-              <Text style={headerTitleStyle}>Diviser la note</Text>
+              <Text style={headerTitleStyle}>{t('payment.splitBill')}</Text>
               <Text style={headerSubtitleStyle}>
                 Choisissez comment répartir le paiement
               </Text>
@@ -619,31 +622,31 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
           {/* Total avec effet visuel amélioré */}
           <Card style={totalCardStyle}>
             <View style={totalRowStyle}>
-              <Text style={totalLabelStyle}>Sous-total</Text>
+              <Text style={totalLabelStyle}>{t('payment.subtotal')}</Text>
               <Text style={totalValueStyle}>{formatCurrency(totalAmount)}</Text>
             </View>
             {tipAmount > 0 && (
               <View style={totalRowStyle}>
-                <Text style={totalLabelStyle}>Pourboire</Text>
+                <Text style={totalLabelStyle}>{t('payment.tipLabel')}</Text>
                 <Text style={totalValueStyle}>{formatCurrency(tipAmount)}</Text>
               </View>
             )}
             <View style={grandTotalRowStyle}>
-              <Text style={totalLabelStyle}>Total à diviser</Text>
+              <Text style={totalLabelStyle}>{t('splitPayment.totalToSplit')}</Text>
               <Text style={grandTotalStyle}>{formatCurrency(totalWithTip)}</Text>
             </View>
           </Card>
 
           {/* Sélection du mode avec design amélioré */}
           <Card style={{ marginBottom: getResponsiveValue(SPACING.xl, screenType) }}>
-            <Text style={sectionTitleStyle}>Comment diviser ?</Text>
+            <Text style={sectionTitleStyle}>{t('splitPayment.howToSplit')}</Text>
             
             <View style={modeGridStyle}>
-              {renderModeButton('none', 'Paiement unique', 'person', 'Une seule personne paie')}
-              {renderModeButton('equal', 'Équitable', 'people', 'Parts égales pour tous')}
-              {renderModeButton('custom', 'Personnalisé', 'calculator', 'Montants sur mesure')}
+              {renderModeButton('none', t('splitPayment.modeSingle'), 'person', t('splitPayment.modeSingleDesc'))}
+              {renderModeButton('equal', t('splitPayment.modeEqualLabel'), 'people', t('splitPayment.modeEqualDesc'))}
+              {renderModeButton('custom', t('splitPayment.modeCustomLabel'), 'calculator', t('splitPayment.modeCustomDesc'))}
               {!!knownParticipants && knownParticipants.length >= 2 &&
-                renderModeButton('items', 'Par plat', 'restaurant', 'Chacun paie ce qu\'il a pris')}
+                renderModeButton('items', t('splitPayment.modeItemsLabel'), 'restaurant', t('splitPayment.modeItemsDesc'))}
             </View>
           </Card>
 
@@ -651,7 +654,7 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
           {mode === 'equal' && (
             <Card style={{ gap: getResponsiveValue(SPACING.md, screenType) }}>
               <View style={{ gap: getResponsiveValue(SPACING.sm, screenType) }}>
-                <Text style={inputLabelStyle}>Nombre de personnes</Text>
+                <Text style={inputLabelStyle}>{t('splitPayment.numberOfPeople')}</Text>
                 <View>
                   <TextInput
                     style={numberInputStyle}
@@ -673,13 +676,13 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
                   <View style={{ gap: getResponsiveValue(SPACING.xs, screenType) }}>
                     {equalPortions.map((amount, index) => (
                       <View key={index} style={portionItemStyle}>
-                        <Text style={portionNameStyle}>Personne {index + 1}</Text>
+                        <Text style={portionNameStyle}>{t('splitPayment.personN', { number: index + 1 })}</Text>
                         <Text style={portionAmountStyle}>{formatCurrency(amount)}</Text>
                       </View>
                     ))}
                     
                     <View style={[portionItemStyle, { backgroundColor: COLORS.primary + '08', borderWidth: 1, borderColor: COLORS.primary + '20' }]}>
-                      <Text style={[portionNameStyle, { fontWeight: TYPOGRAPHY.fontWeight.bold }]}>Total</Text>
+                      <Text style={[portionNameStyle, { fontWeight: TYPOGRAPHY.fontWeight.bold }]}>{t('payment.total')}</Text>
                       <Text style={[portionAmountStyle, { color: COLORS.primary }]}>
                         {formatCurrency(equalPortions.reduce((sum, amount) => sum + amount, 0))}
                       </Text>
@@ -693,7 +696,7 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
           {/* Division personnalisée avec validation améliorée */}
           {mode === 'custom' && (
             <Card style={{ gap: getResponsiveValue(SPACING.md, screenType) }}>
-              <Text style={sectionTitleStyle}>Montants personnalisés</Text>
+              <Text style={sectionTitleStyle}>{t('splitPayment.customAmounts')}</Text>
               
               {customPortions.map((portion, index) => (
                 <View key={index} style={customPortionItemStyle}>
@@ -706,7 +709,7 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
                       style={customInputStyle}
                       value={portion.name}
                       onChangeText={(text) => updateCustomPortion(index, 'name', text)}
-                      placeholder={`Personne ${index + 1}`}
+                      placeholder={t('splitPayment.personN', { number: index + 1 })}
                       placeholderTextColor={COLORS.text.light}
                       maxLength={20}
                     />
@@ -738,7 +741,7 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
                 activeOpacity={0.7}
               >
                 <Ionicons name="add-circle" size={iconSize + 4} color={COLORS.text.secondary} />
-                <Text style={addButtonTextStyle}>Ajouter une personne</Text>
+                <Text style={addButtonTextStyle}>{t('splitPayment.addPerson')}</Text>
               </TouchableOpacity>
 
               {/* Validation avec tolérance améliorée */}
@@ -808,12 +811,12 @@ export const SplitPaymentModal: React.FC<SplitPaymentModalProps> = ({
         {/* Actions avec design amélioré */}
         <View style={actionsContainerStyle}>
           <Button
-            title="Annuler"
+            title={t('common.cancel')}
             onPress={onClose}
             variant="outline"
           />
           <Button
-            title={mode === 'none' ? 'Paiement unique' : 'Diviser la note'}
+            title={mode === 'none' ? t('splitPayment.modeSingle') : t('payment.splitBill')}
             onPress={handleConfirm}
             disabled={!canConfirm}
           />

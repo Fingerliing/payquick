@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode, useRef } from 'react';
 import secureStorage from '@/utils/secureStorage';
 import { API_BASE_URL } from '../constants/config';
 import { router } from 'expo-router';
@@ -297,6 +297,92 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const canCreateRestaurant = user?.permissions?.can_create_restaurant || false;
   const canManageOrders = user?.permissions?.can_manage_orders || false;
 
+  // ── Navigation sécurisée (poll-and-retry jusqu'au mount du navigator) ─
+  // Workaround pour l'erreur "Attempted to navigate before mounting the
+  // Root Layout component". Au démarrage, l'AuthProvider peut tenter une
+  // navigation avant que <Stack>/<Tabs>/<Slot> du root layout ne soit
+  // monté (race condition).
+  //
+  // Stratégie : on tente directement le router.replace. Si ça throw avec
+  // "not ready", on stocke l'intention et on démarre un polling court qui
+  // re-tente toutes les 50ms jusqu'à succès (ou abandon après 5s).
+  //
+  // On ne se fie PAS à useRootNavigationState : selon la structure des
+  // providers et le moment du render, son `.key` peut rester undefined
+  // alors que le navigator est réellement prêt. Le try/catch sur le
+  // comportement réel du router est la seule source de vérité fiable.
+  //
+  // Si plusieurs safeNavigate sont appelés avant le ready, seul le dernier
+  // l'emporte (la dernière intention de navigation gagne).
+  const pendingNavigationRef = useRef<(() => void) | null>(null);
+  const flushIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const flushAttemptsRef = useRef(0);
+
+  const MAX_FLUSH_ATTEMPTS = 100; // 100 × 50ms = 5s avant abandon
+  const FLUSH_INTERVAL_MS = 50;
+
+  const stopFlushPoll = () => {
+    if (flushIntervalRef.current) {
+      clearInterval(flushIntervalRef.current);
+      flushIntervalRef.current = null;
+    }
+    flushAttemptsRef.current = 0;
+  };
+
+  const startFlushPoll = () => {
+    if (flushIntervalRef.current) return; // déjà en cours
+    flushAttemptsRef.current = 0;
+
+    flushIntervalRef.current = setInterval(() => {
+      const fn = pendingNavigationRef.current;
+      if (!fn) {
+        stopFlushPoll();
+        return;
+      }
+
+      flushAttemptsRef.current += 1;
+      if (flushAttemptsRef.current > MAX_FLUSH_ATTEMPTS) {
+        console.warn(
+          `⏰ Navigation différée abandonnée après ${MAX_FLUSH_ATTEMPTS} tentatives (5s) — root navigator jamais prêt`,
+        );
+        pendingNavigationRef.current = null;
+        stopFlushPoll();
+        return;
+      }
+
+      try {
+        fn();
+        pendingNavigationRef.current = null;
+        stopFlushPoll();
+        console.log(
+          `🧭 Navigation différée exécutée après ${flushAttemptsRef.current} tentative(s)`,
+        );
+      } catch {
+        // pas encore prêt, on retente au prochain tick
+      }
+    }, FLUSH_INTERVAL_MS);
+  };
+
+  const safeNavigate = (fn: () => void) => {
+    try {
+      fn();
+    } catch (error: any) {
+      const msg = String(error?.message || '');
+      if (msg.includes('before mounting') || msg.includes('Root Layout')) {
+        console.log('⏳ Root navigator pas prêt, navigation différée (polling)');
+        pendingNavigationRef.current = fn;
+        startFlushPoll();
+      } else {
+        console.error('❌ Erreur de navigation:', error);
+      }
+    }
+  };
+
+  // Cleanup au démontage : stoppe le polling si le provider est démonté
+  useEffect(() => {
+    return () => stopFlushPoll();
+  }, []);
+
   // Navigation améliorée avec délai et vérifications
   const navigateByRole = (u?: User) => {
     const target = u ?? user;
@@ -309,16 +395,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       if (target.role === 'client') {
         console.log('👤 Redirection vers client');
-        router.replace('/(client)');
+        safeNavigate(() => router.replace('/(client)'));
       } else if (target.role === 'restaurateur') {
         console.log('🍽️ Redirection vers restaurateur');
-        router.replace('/(restaurant)');
+        safeNavigate(() => router.replace('/(restaurant)'));
       } else {
         console.log('❓ Rôle inconnu:', target.role);
       }
     } catch (error) {
       console.error('❌ Erreur de navigation:', error);
-      setTimeout(() => router.replace('/(restaurant)'), 100);
+      safeNavigate(() => router.replace('/(restaurant)'));
     }
   };
 
@@ -458,7 +544,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             navigateByRole(parsedUser);
           } else {
             console.log('⚠️ Utilisateur sans rôle défini, redirection vers login');
-            router.replace('/(auth)/login');
+            safeNavigate(() => router.replace('/(auth)/login'));
           }
         }, 200);
         
@@ -484,12 +570,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         console.log('🔓 Aucune authentification trouvée');
         // S'assurer qu'on est sur la page de login
-        router.replace('/(auth)/login');
+        safeNavigate(() => router.replace('/(auth)/login'));
       }
     } catch (error) {
       console.error('❌ Erreur lors de la vérification de l\'authentification:', error);
       await clearAuthData();
-      router.replace('/(auth)/login');
+      safeNavigate(() => router.replace('/(auth)/login'));
     } finally {
       setIsLoading(false);
     }
@@ -665,12 +751,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLastError(null);
       console.log('✅ Déconnexion locale réussie');
       
-      router.replace('/(auth)/login');
+      safeNavigate(() => router.replace('/(auth)/login'));
     } catch (error) {
       console.error('❌ Erreur lors de la déconnexion:', error);
       // Même en cas d'erreur, essayer de nettoyer et rediriger
       setUser(null);
-      router.replace('/(auth)/login');
+      safeNavigate(() => router.replace('/(auth)/login'));
     }
   };
   

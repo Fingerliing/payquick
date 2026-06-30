@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   TouchableOpacity,
   Text,
@@ -8,14 +8,14 @@ import {
   TouchableOpacityProps,
   View,
 } from 'react-native';
-import { 
-  COLORS, 
-  TYPOGRAPHY, 
-  SPACING, 
-  BORDER_RADIUS, 
-  SHADOWS,
+import {
+  useAppTheme,
+  makeShadows,
+  TYPOGRAPHY,
+  SPACING,
+  BORDER_RADIUS,
   useScreenType,
-  getResponsiveValue 
+  getResponsiveValue,
 } from '@/utils/designSystem';
 
 interface ButtonProps extends Omit<TouchableOpacityProps, 'style'> {
@@ -44,6 +44,8 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const screenType = useScreenType();
+  const { colors } = useAppTheme();
+  const shadows = useMemo(() => makeShadows(colors), [colors]);
   const isDisabled = disabled || loading;
 
   // Fonction pour sécuriser le texte
@@ -104,11 +106,11 @@ export const Button: React.FC<ButtonProps> = ({
         return {
           container: {
             ...baseStyle,
-            backgroundColor: COLORS.primary,
-            ...SHADOWS.sm,
+            backgroundColor: colors.primary,
+            ...shadows.sm,
           },
-          text: { 
-            color: COLORS.text.inverse,
+          text: {
+            color: colors.text.inverse,
             fontSize: sizeStyles.fontSize,
             fontWeight: sizeStyles.fontWeight,
           },
@@ -118,11 +120,12 @@ export const Button: React.FC<ButtonProps> = ({
         return {
           container: {
             ...baseStyle,
-            backgroundColor: COLORS.secondary,
-            ...SHADOWS.sm,
+            backgroundColor: colors.secondary,
+            ...shadows.sm,
           },
-          text: { 
-            color: COLORS.text.primary,
+          text: {
+            // L'or est très contrasté → texte foncé dans les deux thèmes
+            color: '#1E2A78',
             fontSize: sizeStyles.fontSize,
             fontWeight: sizeStyles.fontWeight,
           },
@@ -134,10 +137,10 @@ export const Button: React.FC<ButtonProps> = ({
             ...baseStyle,
             backgroundColor: 'transparent',
             borderWidth: 1.5,
-            borderColor: COLORS.primary,
+            borderColor: colors.primary,
           },
-          text: { 
-            color: COLORS.primary,
+          text: {
+            color: colors.primary,
             fontSize: sizeStyles.fontSize,
             fontWeight: sizeStyles.fontWeight,
           },
@@ -149,8 +152,8 @@ export const Button: React.FC<ButtonProps> = ({
             ...baseStyle,
             backgroundColor: 'transparent',
           },
-          text: { 
-            color: COLORS.primary,
+          text: {
+            color: colors.primary,
             fontSize: sizeStyles.fontSize,
             fontWeight: sizeStyles.fontWeight,
           },
@@ -162,10 +165,10 @@ export const Button: React.FC<ButtonProps> = ({
             ...baseStyle,
             backgroundColor: 'transparent',
             borderWidth: 1.5,
-            borderColor: COLORS.error,
+            borderColor: colors.error,
           },
-          text: { 
-            color: COLORS.error,
+          text: {
+            color: colors.error,
             fontSize: sizeStyles.fontSize,
             fontWeight: sizeStyles.fontWeight,
           },
@@ -174,8 +177,8 @@ export const Button: React.FC<ButtonProps> = ({
       default:
         return {
           container: baseStyle,
-          text: { 
-            color: COLORS.text.primary,
+          text: {
+            color: colors.text.primary,
             fontSize: sizeStyles.fontSize,
             fontWeight: sizeStyles.fontWeight,
           },
@@ -185,7 +188,7 @@ export const Button: React.FC<ButtonProps> = ({
 
   const styles = getVariantStyles();
   const spacingSm = getResponsiveValue(SPACING.sm, screenType);
-  
+
   const containerStyle: ViewStyle = {
     ...styles.container,
     width: fullWidth ? '100%' : undefined,
@@ -200,17 +203,13 @@ export const Button: React.FC<ButtonProps> = ({
     ...(textStyleProp || {}),
   };
 
-  // Fonction pour rendre le contenu du bouton de manière sécurisée
   const renderContent = () => {
     if (loading) {
       return (
-        <ActivityIndicator 
-          size="small" 
-          color={styles.text.color}
-        />
+        <ActivityIndicator size="small" color={styles.text.color} />
       );
     }
-  
+
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
         {leftIcon && (
@@ -218,13 +217,11 @@ export const Button: React.FC<ButtonProps> = ({
             {leftIcon}
           </View>
         )}
-        
+
         {title && (
-          <Text style={textStyle}>
-            {safeText(title)}
-          </Text>
+          <Text style={textStyle}>{safeText(title)}</Text>
         )}
-        
+
         {rightIcon && (
           <View style={{ marginLeft: title ? spacingSm : 0 }}>
             {rightIcon}
@@ -233,7 +230,7 @@ export const Button: React.FC<ButtonProps> = ({
       </View>
     );
   };
-  
+
   return (
     <TouchableOpacity
       style={containerStyle}

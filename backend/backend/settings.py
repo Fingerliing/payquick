@@ -219,6 +219,12 @@ else:
         "BLACKLIST_AFTER_ROTATION": True,
     }
 
+AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "api.validators.CustomPasswordValidator"},
+]
+
 SPECTACULAR_SETTINGS = {
     'TITLE': 'EatQuickeR API',
     'DESCRIPTION': 'SaaS Restaurant Backend',

@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { KeyboardScrollView } from '@/components/ui/KeyboardScrollView';
 import { useLocalSearchParams, router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'react-native';
@@ -34,7 +35,8 @@ import {
   useScreenType,
   getResponsiveValue,
   createResponsiveStyles,
-  COLORS,
+  useAppTheme,
+  type AppColors,
   SPACING,
   BORDER_RADIUS,
   COMPONENT_CONSTANTS,
@@ -81,6 +83,8 @@ export default function AddMenuItemScreen() {
   const { menuId, restaurantId } = useLocalSearchParams<{ menuId: string; restaurantId: string }>();
   const { width } = useWindowDimensions();
   const screenType = useScreenType();
+  const { colors } = useAppTheme();
+  const { t } = useTranslation();
   const R = createResponsiveStyles(screenType);
   const insets = useSafeAreaInsets();
   const [photo, setPhoto] = useState<{ uri: string; name: string; type: string } | null>(null);
@@ -102,7 +106,7 @@ export default function AddMenuItemScreen() {
   const hideToast = useCallback(() => setToast(p => ({ ...p, visible: false })), []);
 
   // Responsive styles instance
-  const styles = useMemo(() => createStyles(screenType, insets), [screenType, insets.top]);
+  const styles = useMemo(() => createStyles(colors, screenType, insets), [colors, screenType, insets.top]);
 
   // Layout config
   const layout = useMemo(() => ({
@@ -182,7 +186,7 @@ export default function AddMenuItemScreen() {
       setCategories(res.categories || []);
     } catch (e: any) {
       console.error('loadCategories error:', e);
-      showToast('error', 'Impossible de charger les catégories', 'Erreur');
+      showToast('error', t('menuItemForm.loadCategoriesError'), t('menuItemForm.error'));
     } finally {
       setLoadingCategories(false);
     }
@@ -195,7 +199,7 @@ export default function AddMenuItemScreen() {
     } catch (e: any) {
       console.error('loadSubCategories error:', e);
       setSubCategories([]);
-      showToast('error', 'Impossible de charger les sous-catégories', 'Erreur');
+      showToast('error', t('menuItemForm.loadSubcategoriesError'), t('menuItemForm.error'));
     }
   };
 
@@ -220,7 +224,7 @@ export default function AddMenuItemScreen() {
 
   const handleCreateCategory = async () => {
     if (!newCategoryName.trim()) {
-      showToast('warning', 'Le nom de la catégorie est requis', 'Attention');
+      showToast('warning', t('menuItemForm.categoryNameRequired'), t('menuItemForm.warning'));
       return;
     }
     if (!restaurantId) return;
@@ -239,15 +243,15 @@ export default function AddMenuItemScreen() {
       setNewCategoryDescription('');
       setNewCategoryIcon('');
       setNewCategoryColor(DEFAULT_CATEGORY_COLORS[0]);
-      showToast('success', 'Catégorie créée avec succès');
+      showToast('success', t('menuItemForm.categoryCreated'));
     } catch (e: any) {
-      showToast('error', 'Erreur lors de la création de la catégorie');
+      showToast('error', t('menuItemForm.categoryCreateError'));
     }
   };
 
   const handleCreateSubCategory = async () => {
     if (!newSubCategoryName.trim() || !selectedCategory?.id) {
-      showToast('warning', 'Le nom de la sous-catégorie est requis', 'Attention');
+      showToast('warning', t('menuItemForm.subcategoryNameRequired'), t('menuItemForm.warning'));
       return;
     }
     try {
@@ -262,16 +266,16 @@ export default function AddMenuItemScreen() {
       setShowCreateSubCategoryModal(false);
       setNewSubCategoryName('');
       setNewSubCategoryDescription('');
-      showToast('success', 'Sous-catégorie créée avec succès');
+      showToast('success', t('menuItemForm.subcategoryCreated'));
     } catch (e: any) {
-      showToast('error', 'Erreur lors de la création de la sous-catégorie');
+      showToast('error', t('menuItemForm.subcategoryCreateError'));
     }
   };
 
   const handleDeleteCategory = (category: MenuCategory) => {
     setConfirm({
-      title: 'Supprimer la catégorie',
-      message: `Supprimer "${category.name}" ? Tous les articles associés perdront leur catégorie.`,
+      title: t('menuItemForm.deleteCategoryTitle'),
+      message: t('menuItemForm.deleteCategoryMessage', { name: category.name }),
       danger: true,
       onConfirm: async () => {
         await categoryService.deleteCategory(category.id);
@@ -287,8 +291,8 @@ export default function AddMenuItemScreen() {
 
   const handleDeleteSubCategory = (sub: MenuSubCategory) => {
     setConfirm({
-      title: 'Supprimer la sous-catégorie',
-      message: `Supprimer "${sub.name}" ?`,
+      title: t('menuItemForm.deleteSubcategoryTitle'),
+      message: t('menuItemForm.deleteSubcategoryMessage', { name: sub.name }),
       danger: true,
       onConfirm: async () => {
         await categoryService.deleteSubCategory(sub.id);
@@ -337,15 +341,15 @@ export default function AddMenuItemScreen() {
 
   const handleCreate = async () => {
     if (!name.trim()) {
-      showToast('warning', 'Le nom du plat est requis', 'Champ manquant');
+      showToast('warning', t('menuItemForm.nameRequired'), t('menuItemForm.fieldMissing'));
       return;
     }
     if (!price || parseFloat(price) <= 0) {
-      showToast('warning', 'Le prix doit être supérieur à 0', 'Prix invalide');
+      showToast('warning', t('menuItemForm.pricePositive'), t('menuItemForm.priceInvalid'));
       return;
     }
     if (!selectedCategory) {
-      showToast('warning', 'Veuillez sélectionner une catégorie', 'Catégorie manquante');
+      showToast('warning', t('menuItemForm.selectCategory'), t('menuItemForm.categoryMissing'));
       return;
     }
 
@@ -415,7 +419,7 @@ export default function AddMenuItemScreen() {
         
         try {
           const errorJson = JSON.parse(errorText);
-          throw new Error(errorJson.message || 'Erreur lors de la création');
+          throw new Error(errorJson.message || t('menuItemForm.createError'));
         } catch {
           throw new Error(`Erreur ${response.status}: ${errorText}`);
         }
@@ -424,18 +428,18 @@ export default function AddMenuItemScreen() {
       const result = await response.json();
       console.log('Create response:', result);
 
-      showToast('success', 'Article créé avec succès !');
+      showToast('success', t('menuItemForm.itemCreated'));
       setTimeout(() => router.back(), 1000);
     } catch (e: any) {
       console.error('handleCreate error:', e);
       
       // Meilleure identification de l'erreur
       if (e.message?.includes('JSON Parse error')) {
-        showToast('error', 'Erreur serveur : réponse invalide. Vérifiez l\'URL de l\'API.');
+        showToast('error', t('menuItemForm.serverError'));
       } else if (e.message?.includes('Network request failed')) {
-        showToast('error', 'Erreur réseau : impossible de contacter le serveur');
+        showToast('error', t('menuItemForm.networkError'));
       } else {
-        showToast('error', e.message || 'Erreur lors de la création de l\'article');
+        showToast('error', e.message || t('menuItemForm.createItemError'));
       }
     } finally {
       setIsCreating(false);
@@ -447,7 +451,7 @@ export default function AddMenuItemScreen() {
   return (
     <View style={styles.container}>
       <Header 
-        title="Nouvel article" 
+        title={t('menuItemForm.newTitle')} 
         showBackButton
         rightActions={[
           {
@@ -482,8 +486,8 @@ export default function AddMenuItemScreen() {
         {/* Photo Section - Premium Design */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>📸 Photo du plat</Text>
-            <Text style={styles.sectionSubtitle}>Recommandé pour attirer vos clients</Text>
+            <Text style={styles.sectionTitle}>📸 {t('menuItemForm.sectionPhoto')}</Text>
+            <Text style={styles.sectionSubtitle}>{t('menuItemForm.photoSubtitle')}</Text>
           </View>
           <View style={styles.photoCard}>
             {photo ? (
@@ -501,7 +505,7 @@ export default function AddMenuItemScreen() {
             ) : (
               <View style={styles.photoPlaceholder}>
                 <View style={styles.photoPlaceholderIcon}>
-                  <Ionicons name="camera-outline" size={48} color={COLORS.text.golden} />
+                  <Ionicons name="camera-outline" size={48} color={colors.text.golden} />
                 </View>
                 <Text style={styles.photoPlaceholderTitle}>Ajoutez une photo</Text>
                 <Text style={styles.photoPlaceholderSubtext}>
@@ -509,11 +513,11 @@ export default function AddMenuItemScreen() {
                 </Text>
                 <View style={styles.photoButtonsRow}>
                   <TouchableOpacity style={styles.photoButton} onPress={handlePickImage}>
-                    <Ionicons name="images-outline" size={20} color={COLORS.primary} />
+                    <Ionicons name="images-outline" size={20} color={colors.primary} />
                     <Text style={styles.photoButtonText}>Galerie</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.photoButton} onPress={handleTakePhoto}>
-                    <Ionicons name="camera-outline" size={20} color={COLORS.primary} />
+                    <Ionicons name="camera-outline" size={20} color={colors.primary} />
                     <Text style={styles.photoButtonText}>Appareil photo</Text>
                   </TouchableOpacity>
                 </View>
@@ -525,7 +529,7 @@ export default function AddMenuItemScreen() {
         {/* Basic Info Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>📝 Informations de base</Text>
+            <Text style={styles.sectionTitle}>📝 {t('menuItemForm.sectionInfoBase')}</Text>
           </View>
           <View style={styles.infoCard}>
             <View style={styles.inputGroup}>
@@ -533,17 +537,17 @@ export default function AddMenuItemScreen() {
               <Input
                 value={name}
                 onChangeText={setName}
-                placeholder="Ex: Burger Signature"
+                placeholder={t('menuItemForm.exDishNameAdd')}
                 style={styles.input}
               />
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Description</Text>
+              <Text style={styles.label}>{t('menuItemForm.description')}</Text>
               <Input
                 value={description}
                 onChangeText={setDescription}
-                placeholder="Décrivez votre plat..."
+                placeholder={t('menuItemForm.descPlaceholderAdd')}
                 multiline
                 numberOfLines={3}
                 style={[styles.input, styles.inputMultiline]}
@@ -571,12 +575,12 @@ export default function AddMenuItemScreen() {
         {/* Category Section - Visual Cards */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>🏷️ Catégorisation</Text>
-            <Text style={styles.sectionSubtitle}>Aidez vos clients à naviguer dans le menu</Text>
+            <Text style={styles.sectionTitle}>🏷️ {t('menuItemForm.sectionCategory')}</Text>
+            <Text style={styles.sectionSubtitle}>{t('menuItemForm.categorySubtitle')}</Text>
           </View>
 
           <View style={styles.categoryCard}>
-            <Text style={styles.categoryLabel}>Catégorie principale *</Text>
+            <Text style={styles.categoryLabel}>{t('menuItemForm.mainCategory')}</Text>
             <TouchableOpacity
               style={[
                 styles.categorySelector,
@@ -595,15 +599,15 @@ export default function AddMenuItemScreen() {
                       <Text style={styles.categorySelectorDesc}>{selectedCategory.description}</Text>
                     )}
                   </View>
-                  <Ionicons name="chevron-forward" size={20} color={COLORS.text.secondary} />
+                  <Ionicons name="chevron-forward" size={20} color={colors.text.secondary} />
                 </View>
               ) : (
                 <View style={styles.categorySelectorContent}>
                   <View style={styles.categoryIconPlaceholder}>
-                    <Ionicons name="folder-outline" size={24} color={COLORS.text.secondary} />
+                    <Ionicons name="folder-outline" size={24} color={colors.text.secondary} />
                   </View>
-                  <Text style={styles.placeholderText}>Sélectionnez une catégorie</Text>
-                  <Ionicons name="chevron-forward" size={20} color={COLORS.text.secondary} />
+                  <Text style={styles.placeholderText}>{t('menuItemForm.selectCategoryPlaceholder')}</Text>
+                  <Ionicons name="chevron-forward" size={20} color={colors.text.secondary} />
                 </View>
               )}
             </TouchableOpacity>
@@ -611,7 +615,7 @@ export default function AddMenuItemScreen() {
             {selectedCategory && (
               <>
                 <View style={styles.divider} />
-                <Text style={styles.categoryLabel}>Sous-catégorie (optionnel)</Text>
+                <Text style={styles.categoryLabel}>{t('menuItemForm.subcategoryOptional')}</Text>
                 <TouchableOpacity
                   style={[
                     styles.categorySelector,
@@ -621,7 +625,7 @@ export default function AddMenuItemScreen() {
                 >
                   {selectedSubCategory ? (
                     <View style={styles.categorySelectorContent}>
-                      <View style={[styles.categoryIcon, { backgroundColor: COLORS.variants.primary[100] }]}>
+                      <View style={[styles.categoryIcon, { backgroundColor: colors.variants.primary[100] }]}>
                         <Text style={styles.categoryIconText}>📂</Text>
                       </View>
                       <View style={styles.categorySelectorText}>
@@ -630,15 +634,15 @@ export default function AddMenuItemScreen() {
                           <Text style={styles.categorySelectorDesc}>{selectedSubCategory.description}</Text>
                         )}
                       </View>
-                      <Ionicons name="chevron-forward" size={20} color={COLORS.text.secondary} />
+                      <Ionicons name="chevron-forward" size={20} color={colors.text.secondary} />
                     </View>
                   ) : (
                     <View style={styles.categorySelectorContent}>
                       <View style={styles.categoryIconPlaceholder}>
-                        <Ionicons name="folder-open-outline" size={24} color={COLORS.text.secondary} />
+                        <Ionicons name="folder-open-outline" size={24} color={colors.text.secondary} />
                       </View>
-                      <Text style={styles.placeholderText}>Sélectionnez une sous-catégorie</Text>
-                      <Ionicons name="chevron-forward" size={20} color={COLORS.text.secondary} />
+                      <Text style={styles.placeholderText}>{t('menuItemForm.selectSubcategoryPlaceholder')}</Text>
+                      <Ionicons name="chevron-forward" size={20} color={colors.text.secondary} />
                     </View>
                   )}
                 </TouchableOpacity>
@@ -650,7 +654,7 @@ export default function AddMenuItemScreen() {
         {/* VAT Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>💰 TVA</Text>
+            <Text style={styles.sectionTitle}>💰 {t('menuItemForm.vatTitle')}</Text>
           </View>
           <TouchableOpacity
             style={styles.vatCard}
@@ -660,23 +664,23 @@ export default function AddMenuItemScreen() {
               <Text style={styles.vatIcon}>{selectedVat?.icon}</Text>
             </View>
             <View style={styles.vatInfo}>
-              <Text style={styles.vatName}>{selectedVat?.name}</Text>
+              <Text style={styles.vatName}>{t(`vatTypes.${selectedVat?.id}.name`, selectedVat?.name ?? '')}</Text>
               <Text style={styles.vatRate}>
-                Taux : {selectedVat ? (selectedVat.rate * 100).toFixed(1) : '0'}%
+                {t('menuItemForm.vatRateLabel')} {selectedVat ? (selectedVat.rate * 100).toFixed(1) : '0'}%
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={COLORS.text.secondary} />
+            <Ionicons name="chevron-forward" size={20} color={colors.text.secondary} />
           </TouchableOpacity>
         </View>
 
         {/* Allergens Section - Compact Badges */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>⚠️ Allergènes</Text>
+            <Text style={styles.sectionTitle}>⚠️ {t('menuItemForm.allergensTitle')}</Text>
             <Text style={styles.sectionSubtitle}>
               {selectedAllergens.length > 0 
-                ? `${selectedAllergens.length} sélectionné${selectedAllergens.length > 1 ? 's' : ''}`
-                : 'Aucun allergène sélectionné'}
+                ? t('menuItemForm.selectedCount', { count: selectedAllergens.length })
+                : t('menuItemForm.noAllergenSelected')}
             </Text>
           </View>
           <View style={styles.allergenCard}>
@@ -694,7 +698,7 @@ export default function AddMenuItemScreen() {
                       styles.allergenBadgeName,
                       selected && styles.allergenBadgeNameSelected
                     ]}>
-                      {allergen.name}
+                      {t(`allergens.${allergen.id}.name`, allergen.name)}
                     </Text>
                     {selected && (
                       <View style={styles.allergenBadgeCheck}>
@@ -711,7 +715,7 @@ export default function AddMenuItemScreen() {
         {/* Dietary Options Section - Modern Pills */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>🌱 Options diététiques</Text>
+            <Text style={styles.sectionTitle}>🌱 {t('menuItemForm.dietaryTitle')}</Text>
           </View>
           <View style={styles.dietaryCard}>
             <TouchableOpacity
@@ -724,13 +728,13 @@ export default function AddMenuItemScreen() {
                   styles.dietaryPillTitle,
                   isVegetarian && styles.dietaryPillTitleActive
                 ]}>
-                  Végétarien
+                  {t('menuItemForm.vegetarian')}
                 </Text>
                 <Text style={[
                   styles.dietaryPillDesc,
                   isVegetarian && styles.dietaryPillDescActive
                 ]}>
-                  Sans viande ni poisson
+                  {t('menuItemForm.vegetarianDesc')}
                 </Text>
               </View>
               <View style={[
@@ -751,13 +755,13 @@ export default function AddMenuItemScreen() {
                   styles.dietaryPillTitle,
                   isVegan && styles.dietaryPillTitleActive
                 ]}>
-                  Végan
+                  {t('menuItemForm.vegan')}
                 </Text>
                 <Text style={[
                   styles.dietaryPillDesc,
                   isVegan && styles.dietaryPillDescActive
                 ]}>
-                  Sans produits animaux
+                  {t('menuItemForm.veganDesc')}
                 </Text>
               </View>
               <View style={[
@@ -778,13 +782,13 @@ export default function AddMenuItemScreen() {
                   styles.dietaryPillTitle,
                   isGlutenFree && styles.dietaryPillTitleActive
                 ]}>
-                  Sans gluten
+                  {t('menuItemForm.glutenFree')}
                 </Text>
                 <Text style={[
                   styles.dietaryPillDesc,
                   isGlutenFree && styles.dietaryPillDescActive
                 ]}>
-                  Sans blé, seigle, orge
+                  {t('menuItemForm.glutenFreeDesc')}
                 </Text>
               </View>
               <View style={[
@@ -800,7 +804,7 @@ export default function AddMenuItemScreen() {
         {/* Bottom Create Button */}
         <View style={styles.bottomButtonContainer}>
           <Button
-            title={isCreating ? 'Création en cours...' : 'Créer l\'article'}
+            title={isCreating ? t('menuItemForm.creating') : t('menuItemForm.createItem')}
             onPress={handleCreate}
             variant="primary"
             disabled={isCreating || !name.trim() || !price.trim()}
@@ -832,9 +836,9 @@ export default function AddMenuItemScreen() {
             layout.modalMaxWidth ? { maxWidth: layout.modalMaxWidth, alignSelf: 'center' as const, width: '100%' as const } : undefined
           ]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Sélectionner une catégorie</Text>
+              <Text style={styles.modalTitle}>{t('menuItemForm.selectCategoryTitle')}</Text>
               <TouchableOpacity onPress={() => setShowCategoryModal(false)}>
-                <Ionicons name="close" size={24} color={COLORS.text.primary} />
+                <Ionicons name="close" size={24} color={colors.text.primary} />
               </TouchableOpacity>
             </View>
             <ScrollView 
@@ -864,14 +868,14 @@ export default function AddMenuItemScreen() {
                     )}
                   </View>
                   {selectedCategory?.id === cat.id && (
-                    <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />
+                    <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
                   )}
                   <TouchableOpacity
                     onPress={() => handleDeleteCategory(cat)}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     style={{ marginLeft: 4, padding: 4 }}
                   >
-                    <Ionicons name="trash-outline" size={18} color={COLORS.error} />
+                    <Ionicons name="trash-outline" size={18} color={colors.error} />
                   </TouchableOpacity>
                 </TouchableOpacity>
               ))}
@@ -882,8 +886,8 @@ export default function AddMenuItemScreen() {
                   setShowCreateCategoryModal(true);
                 }}
               >
-                <Ionicons name="add-circle-outline" size={24} color={COLORS.primary} />
-                <Text style={styles.modalCreateButtonText}>Créer une nouvelle catégorie</Text>
+                <Ionicons name="add-circle-outline" size={24} color={colors.primary} />
+                <Text style={styles.modalCreateButtonText}>{t('menuItemForm.createNewCategory')}</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -912,9 +916,9 @@ export default function AddMenuItemScreen() {
             layout.modalMaxWidth ? { maxWidth: layout.modalMaxWidth, alignSelf: 'center' as const, width: '100%' as const } : undefined
           ]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Sélectionner une sous-catégorie</Text>
+              <Text style={styles.modalTitle}>{t('menuItemForm.selectSubcategory')}</Text>
               <TouchableOpacity onPress={() => setShowSubCategoryModal(false)}>
-                <Ionicons name="close" size={24} color={COLORS.text.primary} />
+                <Ionicons name="close" size={24} color={colors.text.primary} />
               </TouchableOpacity>
             </View>
             <ScrollView 
@@ -934,7 +938,7 @@ export default function AddMenuItemScreen() {
                     setShowSubCategoryModal(false);
                   }}
                 >
-                  <View style={[styles.modalItemIcon, { backgroundColor: COLORS.variants.primary[100] }]}>
+                  <View style={[styles.modalItemIcon, { backgroundColor: colors.variants.primary[100] }]}>
                     <Text style={styles.modalItemIconText}>📂</Text>
                   </View>
                   <View style={styles.modalItemText}>
@@ -944,14 +948,14 @@ export default function AddMenuItemScreen() {
                     )}
                   </View>
                   {selectedSubCategory?.id === sub.id && (
-                    <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />
+                    <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
                   )}
                   <TouchableOpacity
                     onPress={() => handleDeleteSubCategory(sub)}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     style={{ marginLeft: 4, padding: 4 }}
                   >
-                    <Ionicons name="trash-outline" size={18} color={COLORS.error} />
+                    <Ionicons name="trash-outline" size={18} color={colors.error} />
                   </TouchableOpacity>
                 </TouchableOpacity>
               ))}
@@ -962,8 +966,8 @@ export default function AddMenuItemScreen() {
                   setShowCreateSubCategoryModal(true);
                 }}
               >
-                <Ionicons name="add-circle-outline" size={24} color={COLORS.primary} />
-                <Text style={styles.modalCreateButtonText}>Créer une nouvelle sous-catégorie</Text>
+                <Ionicons name="add-circle-outline" size={24} color={colors.primary} />
+                <Text style={styles.modalCreateButtonText}>{t('menuItemForm.createNewSubcategory')}</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -992,9 +996,9 @@ export default function AddMenuItemScreen() {
             layout.modalMaxWidth ? { maxWidth: layout.modalMaxWidth, alignSelf: 'center' as const, width: '100%' as const } : undefined
           ]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Type de TVA</Text>
+              <Text style={styles.modalTitle}>{t('menuItemForm.vatType')}</Text>
               <TouchableOpacity onPress={() => setShowVatTypeModal(false)}>
-                <Ionicons name="close" size={24} color={COLORS.text.primary} />
+                <Ionicons name="close" size={24} color={colors.text.primary} />
               </TouchableOpacity>
             </View>
             <ScrollView 
@@ -1018,13 +1022,13 @@ export default function AddMenuItemScreen() {
                     <Text style={styles.modalItemIconText}>{vat.icon}</Text>
                   </View>
                   <View style={styles.modalItemText}>
-                    <Text style={styles.modalItemName}>{vat.name}</Text>
+                    <Text style={styles.modalItemName}>{t(`vatTypes.${vat.id}.name`, vat.name)}</Text>
                     <Text style={styles.modalItemDesc}>
-                      {vat.description} • Taux : {(vat.rate * 100).toFixed(1)}%
+                      {vat.description} • {t('menuItemForm.vatRateLabel')} {(vat.rate * 100).toFixed(1)}%
                     </Text>
                   </View>
                   {selectedVatType === vat.id && (
-                    <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />
+                    <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
                   )}
                 </TouchableOpacity>
               ))}
@@ -1055,9 +1059,9 @@ export default function AddMenuItemScreen() {
             layout.modalMaxWidth ? { maxWidth: layout.modalMaxWidth, alignSelf: 'center' as const, width: '100%' as const } : undefined
           ]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Nouvelle catégorie</Text>
+              <Text style={styles.modalTitle}>{t('menuItemForm.newCategory')}</Text>
               <TouchableOpacity onPress={() => setShowCreateCategoryModal(false)}>
-                <Ionicons name="close" size={24} color={COLORS.text.primary} />
+                <Ionicons name="close" size={24} color={colors.text.primary} />
               </TouchableOpacity>
             </View>
             <ScrollView
@@ -1067,35 +1071,35 @@ export default function AddMenuItemScreen() {
               showsVerticalScrollIndicator={false}
             >
               <View style={styles.modalInputGroup}>
-                <Text style={styles.modalLabel}>Nom *</Text>
+                <Text style={styles.modalLabel}>{t('menuItemForm.nameLabel')}</Text>
                 <Input
                   value={newCategoryName}
                   onChangeText={setNewCategoryName}
-                  placeholder="Ex: Entrées"
+                  placeholder={t('menuItemForm.exCategoryName')}
                   style={styles.modalInput}
                 />
               </View>
               <View style={styles.modalInputGroup}>
-                <Text style={styles.modalLabel}>Description</Text>
+                <Text style={styles.modalLabel}>{t('menuItemForm.description')}</Text>
                 <Input
                   value={newCategoryDescription}
                   onChangeText={setNewCategoryDescription}
-                  placeholder="Description de la catégorie"
+                  placeholder={t('menuItemForm.categoryDescPlaceholder')}
                   multiline
                   style={styles.modalInput}
                 />
               </View>
               <View style={styles.modalInputGroup}>
-                <Text style={styles.modalLabel}>Icône (émoji)</Text>
+                <Text style={styles.modalLabel}>{t('menuItemForm.iconEmoji')}</Text>
                 <Input
                   value={newCategoryIcon}
                   onChangeText={setNewCategoryIcon}
-                  placeholder="Ex: 🍽️"
+                  placeholder={t('menuItemForm.exIcon')}
                   style={styles.modalInput}
                 />
               </View>
               <View style={styles.modalInputGroup}>
-                <Text style={styles.modalLabel}>Couleur</Text>
+                <Text style={styles.modalLabel}>{t('menuItemForm.color')}</Text>
                 <View style={styles.colorGrid}>
                   {DEFAULT_CATEGORY_COLORS.map(color => (
                     <TouchableOpacity
@@ -1117,7 +1121,7 @@ export default function AddMenuItemScreen() {
             </ScrollView>
             <View style={styles.modalFooter}>
               <Button
-                title="Créer la catégorie"
+                title={t('menuItemForm.createCategory')}
                 onPress={handleCreateCategory}
                 variant="primary"
                 fullWidth
@@ -1149,9 +1153,9 @@ export default function AddMenuItemScreen() {
             layout.modalMaxWidth ? { maxWidth: layout.modalMaxWidth, alignSelf: 'center' as const, width: '100%' as const } : undefined
           ]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Nouvelle sous-catégorie</Text>
+              <Text style={styles.modalTitle}>{t('menuItemForm.newSubcategory')}</Text>
               <TouchableOpacity onPress={() => setShowCreateSubCategoryModal(false)}>
-                <Ionicons name="close" size={24} color={COLORS.text.primary} />
+                <Ionicons name="close" size={24} color={colors.text.primary} />
               </TouchableOpacity>
             </View>
             <ScrollView
@@ -1161,20 +1165,20 @@ export default function AddMenuItemScreen() {
               showsVerticalScrollIndicator={false}
             >
               <View style={styles.modalInputGroup}>
-                <Text style={styles.modalLabel}>Nom *</Text>
+                <Text style={styles.modalLabel}>{t('menuItemForm.nameLabel')}</Text>
                 <Input
                   value={newSubCategoryName}
                   onChangeText={setNewSubCategoryName}
-                  placeholder="Ex: Salades"
+                  placeholder={t('menuItemForm.exSubcategoryName')}
                   style={styles.modalInput}
                 />
               </View>
               <View style={styles.modalInputGroup}>
-                <Text style={styles.modalLabel}>Description</Text>
+                <Text style={styles.modalLabel}>{t('menuItemForm.description')}</Text>
                 <Input
                   value={newSubCategoryDescription}
                   onChangeText={setNewSubCategoryDescription}
-                  placeholder="Description de la sous-catégorie"
+                  placeholder={t('menuItemForm.subcategoryDescPlaceholder')}
                   multiline
                   style={styles.modalInput}
                 />
@@ -1182,7 +1186,7 @@ export default function AddMenuItemScreen() {
             </ScrollView>
             <View style={styles.modalFooter}>
               <Button
-                title="Créer la sous-catégorie"
+                title={t('menuItemForm.createSubcategory')}
                 onPress={handleCreateSubCategory}
                 variant="primary"
                 fullWidth
@@ -1221,7 +1225,7 @@ export default function AddMenuItemScreen() {
                     try {
                       await action();
                     } catch {
-                      showToast('error', 'Impossible de supprimer cet élément', 'Erreur');
+                      showToast('error', t('menuItemForm.deleteItemError'), t('menuItemForm.error'));
                     }
                   },
                 }}
@@ -1239,13 +1243,13 @@ export default function AddMenuItemScreen() {
 }
 
 // Styles - Modern & Premium Design
-const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', insets: { top: number; bottom: number; left: number; right: number }) => {
+const createStyles = (colors: AppColors, screenType: 'mobile' | 'tablet' | 'desktop', insets: { top: number; bottom: number; left: number; right: number }) => {
   const gv = (token: any): number => getResponsiveValue(token, screenType) as number;
   
   return {
     container: {
       flex: 1 as const,
-      backgroundColor: COLORS.background,
+      backgroundColor: colors.background,
     },
     content: {
       flex: 1 as const,
@@ -1262,17 +1266,17 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', insets: { top
     sectionTitle: {
       fontSize: gv(TYPOGRAPHY.fontSize.xl),
       fontWeight: '700' as const,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       marginBottom: 4,
     },
     sectionSubtitle: {
       fontSize: gv(TYPOGRAPHY.fontSize.sm),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
     },
 
     // Photo Section - Premium
     photoCard: {
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderRadius: BORDER_RADIUS.xl,
       overflow: 'hidden' as const,
       ...SHADOWS.card,
@@ -1300,16 +1304,16 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', insets: { top
       paddingVertical: gv(SPACING['3xl']),
       paddingHorizontal: gv(SPACING.xl),
       alignItems: 'center' as const,
-      backgroundColor: COLORS.goldenSurface,
+      backgroundColor: colors.goldenSurface,
       borderWidth: 2,
-      borderColor: COLORS.border.golden,
+      borderColor: colors.border.golden,
       borderStyle: 'dashed' as const,
     },
     photoPlaceholderIcon: {
       width: 80,
       height: 80,
       borderRadius: 40,
-      backgroundColor: COLORS.variants.secondary[100],
+      backgroundColor: colors.variants.secondary[100],
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
       marginBottom: gv(SPACING.md),
@@ -1317,12 +1321,12 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', insets: { top
     photoPlaceholderTitle: {
       fontSize: gv(TYPOGRAPHY.fontSize.lg),
       fontWeight: '600' as const,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       marginBottom: 4,
     },
     photoPlaceholderSubtext: {
       fontSize: gv(TYPOGRAPHY.fontSize.sm),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       marginBottom: gv(SPACING.lg),
     },
     photoButtonsRow: {
@@ -1335,20 +1339,20 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', insets: { top
       gap: 8,
       paddingHorizontal: gv(SPACING.lg),
       paddingVertical: gv(SPACING.md),
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderRadius: BORDER_RADIUS.lg,
       borderWidth: 1,
-      borderColor: COLORS.border.default,
+      borderColor: colors.border.default,
     },
     photoButtonText: {
       fontSize: gv(TYPOGRAPHY.fontSize.base),
       fontWeight: '500' as const,
-      color: COLORS.primary,
+      color: colors.primary,
     },
 
     // Info Card
     infoCard: {
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderRadius: BORDER_RADIUS.xl,
       padding: gv(SPACING.lg),
       ...SHADOWS.card,
@@ -1359,18 +1363,18 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', insets: { top
     label: {
       fontSize: gv(TYPOGRAPHY.fontSize.sm),
       fontWeight: '600' as const,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       marginBottom: 8,
     },
     input: {
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderWidth: 1.5,
-      borderColor: COLORS.border.default,
+      borderColor: colors.border.default,
       borderRadius: BORDER_RADIUS.lg,
       paddingHorizontal: gv(SPACING.md),
       paddingVertical: 12,
       fontSize: gv(TYPOGRAPHY.fontSize.base),
-      color: COLORS.text.primary,
+      color: colors.text.primary,
     },
     inputMultiline: {
       minHeight: 90,
@@ -1382,20 +1386,20 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', insets: { top
     },
     priceInput: {
       flex: 1,
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderWidth: 1.5,
-      borderColor: COLORS.border.default,
+      borderColor: colors.border.default,
       borderRadius: BORDER_RADIUS.lg,
       paddingHorizontal: gv(SPACING.md),
       paddingVertical: 12,
       fontSize: gv(TYPOGRAPHY.fontSize.lg),
       fontWeight: '600' as const,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
     },
     priceSymbol: {
       position: 'absolute' as const,
       right: 16,
-      backgroundColor: COLORS.variants.secondary[100],
+      backgroundColor: colors.variants.secondary[100],
       paddingHorizontal: 12,
       paddingVertical: 6,
       borderRadius: BORDER_RADIUS.md,
@@ -1403,12 +1407,12 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', insets: { top
     priceSymbolText: {
       fontSize: gv(TYPOGRAPHY.fontSize.lg),
       fontWeight: '700' as const,
-      color: COLORS.text.golden,
+      color: colors.text.golden,
     },
 
     // Category Section - Visual Cards
     categoryCard: {
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderRadius: BORDER_RADIUS.xl,
       padding: gv(SPACING.lg),
       ...SHADOWS.card,
@@ -1416,20 +1420,20 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', insets: { top
     categoryLabel: {
       fontSize: gv(TYPOGRAPHY.fontSize.sm),
       fontWeight: '600' as const,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       marginBottom: gv(SPACING.sm),
     },
     categorySelector: {
-      backgroundColor: COLORS.background,
+      backgroundColor: colors.background,
       borderWidth: 1.5,
-      borderColor: COLORS.border.default,
+      borderColor: colors.border.default,
       borderRadius: BORDER_RADIUS.lg,
       padding: gv(SPACING.md),
       minHeight: 70,
     },
     categorySelectorSelected: {
-      borderColor: COLORS.primary,
-      backgroundColor: COLORS.variants.primary[50],
+      borderColor: colors.primary,
+      backgroundColor: colors.variants.primary[50],
     },
     categorySelectorContent: {
       flexDirection: 'row' as const,
@@ -1450,7 +1454,7 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', insets: { top
       width: 48,
       height: 48,
       borderRadius: BORDER_RADIUS.lg,
-      backgroundColor: COLORS.border.light,
+      backgroundColor: colors.border.light,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
     },
@@ -1460,21 +1464,21 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', insets: { top
     categorySelectorName: {
       fontSize: gv(TYPOGRAPHY.fontSize.base),
       fontWeight: '600' as const,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       marginBottom: 2,
     },
     categorySelectorDesc: {
       fontSize: gv(TYPOGRAPHY.fontSize.xs),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
     },
     placeholderText: {
       flex: 1,
       fontSize: gv(TYPOGRAPHY.fontSize.base),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
     },
     divider: {
       height: 1,
-      backgroundColor: COLORS.border.light,
+      backgroundColor: colors.border.light,
       marginVertical: gv(SPACING.lg),
     },
 
@@ -1482,7 +1486,7 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', insets: { top
     vatCard: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderRadius: BORDER_RADIUS.xl,
       padding: gv(SPACING.lg),
       ...SHADOWS.card,
@@ -1491,7 +1495,7 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', insets: { top
       width: 56,
       height: 56,
       borderRadius: BORDER_RADIUS.lg,
-      backgroundColor: COLORS.variants.secondary[100],
+      backgroundColor: colors.variants.secondary[100],
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
       marginRight: gv(SPACING.md),
@@ -1505,17 +1509,17 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', insets: { top
     vatName: {
       fontSize: gv(TYPOGRAPHY.fontSize.base),
       fontWeight: '600' as const,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       marginBottom: 2,
     },
     vatRate: {
       fontSize: gv(TYPOGRAPHY.fontSize.sm),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
     },
 
     // Allergen Section - Compact Badges
     allergenCard: {
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderRadius: BORDER_RADIUS.xl,
       padding: gv(SPACING.lg),
       ...SHADOWS.card,
@@ -1531,14 +1535,14 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', insets: { top
       gap: 6,
       paddingHorizontal: 12,
       paddingVertical: 8,
-      backgroundColor: COLORS.background,
+      backgroundColor: colors.background,
       borderWidth: 1.5,
-      borderColor: COLORS.border.default,
+      borderColor: colors.border.default,
       borderRadius: BORDER_RADIUS.full,
     },
     allergenBadgeSelected: {
       backgroundColor: '#FEF2F2',
-      borderColor: COLORS.error,
+      borderColor: colors.error,
     },
     allergenBadgeIcon: {
       fontSize: 16,
@@ -1546,16 +1550,16 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', insets: { top
     allergenBadgeName: {
       fontSize: gv(TYPOGRAPHY.fontSize.sm),
       fontWeight: '500' as const,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
     },
     allergenBadgeNameSelected: {
-      color: COLORS.error,
+      color: colors.error,
     },
     allergenBadgeCheck: {
       width: 18,
       height: 18,
       borderRadius: 9,
-      backgroundColor: COLORS.error,
+      backgroundColor: colors.error,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
       marginLeft: 2,
@@ -1563,7 +1567,7 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', insets: { top
 
     // Dietary Options - Modern Pills
     dietaryCard: {
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderRadius: BORDER_RADIUS.xl,
       padding: gv(SPACING.lg),
       gap: 12,
@@ -1573,9 +1577,9 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', insets: { top
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
       padding: gv(SPACING.md),
-      backgroundColor: COLORS.background,
+      backgroundColor: colors.background,
       borderWidth: 1.5,
-      borderColor: COLORS.border.default,
+      borderColor: colors.border.default,
       borderRadius: BORDER_RADIUS.lg,
     },
     dietaryPillVegetarian: {
@@ -1600,7 +1604,7 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', insets: { top
     dietaryPillTitle: {
       fontSize: gv(TYPOGRAPHY.fontSize.base),
       fontWeight: '600' as const,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       marginBottom: 2,
     },
     dietaryPillTitleActive: {
@@ -1608,7 +1612,7 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', insets: { top
     },
     dietaryPillDesc: {
       fontSize: gv(TYPOGRAPHY.fontSize.xs),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
     },
     dietaryPillDescActive: {
       color: '#059669',
@@ -1618,8 +1622,8 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', insets: { top
       height: 28,
       borderRadius: 14,
       borderWidth: 2,
-      borderColor: COLORS.border.default,
-      backgroundColor: COLORS.surface,
+      borderColor: colors.border.default,
+      backgroundColor: colors.surface,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
     },
@@ -1642,7 +1646,7 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', insets: { top
       }),
     },
     modalContainer: {
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderTopLeftRadius: BORDER_RADIUS['2xl'],
       borderTopRightRadius: BORDER_RADIUS['2xl'],
       maxHeight: '85%' as const,
@@ -1654,12 +1658,12 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', insets: { top
       justifyContent: 'space-between' as const,
       padding: gv(SPACING.lg),
       borderBottomWidth: 1,
-      borderBottomColor: COLORS.border.light,
+      borderBottomColor: colors.border.light,
     },
     modalTitle: {
       fontSize: gv(TYPOGRAPHY.fontSize.lg),
       fontWeight: '700' as const,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
     },
     modalContent: {
       padding: gv(SPACING.lg),
@@ -1669,22 +1673,22 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', insets: { top
       alignItems: 'center' as const,
       gap: 12,
       padding: gv(SPACING.md),
-      backgroundColor: COLORS.background,
+      backgroundColor: colors.background,
       borderWidth: 1,
-      borderColor: COLORS.border.default,
+      borderColor: colors.border.default,
       borderRadius: BORDER_RADIUS.lg,
       marginBottom: 12,
     },
     modalItemSelected: {
-      backgroundColor: COLORS.variants.primary[50],
-      borderColor: COLORS.primary,
+      backgroundColor: colors.variants.primary[50],
+      borderColor: colors.primary,
       borderWidth: 2,
     },
     modalItemIcon: {
       width: 48,
       height: 48,
       borderRadius: BORDER_RADIUS.lg,
-      backgroundColor: COLORS.border.light,
+      backgroundColor: colors.border.light,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
     },
@@ -1697,21 +1701,21 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', insets: { top
     modalItemName: {
       fontSize: gv(TYPOGRAPHY.fontSize.base),
       fontWeight: '600' as const,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       marginBottom: 2,
     },
     modalItemDesc: {
       fontSize: gv(TYPOGRAPHY.fontSize.xs),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
     },
     modalCreateButton: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
       gap: 12,
       padding: gv(SPACING.md),
-      backgroundColor: COLORS.variants.primary[50],
+      backgroundColor: colors.variants.primary[50],
       borderWidth: 1.5,
-      borderColor: COLORS.primary,
+      borderColor: colors.primary,
       borderRadius: BORDER_RADIUS.lg,
       borderStyle: 'dashed' as const,
       marginTop: 8,
@@ -1719,7 +1723,7 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', insets: { top
     modalCreateButtonText: {
       fontSize: gv(TYPOGRAPHY.fontSize.base),
       fontWeight: '600' as const,
-      color: COLORS.primary,
+      color: colors.primary,
     },
     modalInputGroup: {
       marginBottom: gv(SPACING.lg),
@@ -1727,18 +1731,18 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', insets: { top
     modalLabel: {
       fontSize: gv(TYPOGRAPHY.fontSize.sm),
       fontWeight: '600' as const,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       marginBottom: 8,
     },
     modalInput: {
-      backgroundColor: COLORS.background,
+      backgroundColor: colors.background,
       borderWidth: 1.5,
-      borderColor: COLORS.border.default,
+      borderColor: colors.border.default,
       borderRadius: BORDER_RADIUS.lg,
       paddingHorizontal: gv(SPACING.md),
       paddingVertical: 12,
       fontSize: gv(TYPOGRAPHY.fontSize.base),
-      color: COLORS.text.primary,
+      color: colors.text.primary,
     },
     colorGrid: {
       flexDirection: 'row' as const,
@@ -1765,8 +1769,8 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', insets: { top
       padding: gv(SPACING.lg),
       paddingBottom: insets.bottom || gv(SPACING.lg),
       borderTopWidth: 1,
-      borderTopColor: COLORS.border.light,
-      backgroundColor: COLORS.surface,
+      borderTopColor: colors.border.light,
+      backgroundColor: colors.surface,
     },
 
     // Bottom Button

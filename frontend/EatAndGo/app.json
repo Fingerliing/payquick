@@ -33,8 +33,9 @@
       "versionCode": 11,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#1E3A5F"
+        "backgroundColor": "#0C1219"
       },
+      "edgeToEdgeEnabled": true,
       "package": "fr.fingerliing.EatQuickeR",
       "googleServicesFile": "./google-services.json",
       "intentFilters": [
@@ -59,6 +60,16 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
+      [
+        "expo-local-authentication",
+        { "faceIDPermission": "Autorisez $(PRODUCT_NAME) à utiliser Face ID pour vous reconnecter." }
+      ],
+      [
+        "expo-navigation-bar",
+        {
+          "enforceContrast": false
+        }
+      ],
       [
         "expo-notifications",
         {

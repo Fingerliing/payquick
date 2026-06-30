@@ -3,7 +3,8 @@
  * Affiche un indicateur visuel du nombre de notifications non lues
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
+import { useAppTheme, type AppColors } from '@/utils/designSystem';
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -19,6 +20,14 @@ const COLORS = {
   badge: '#EF4444',
   badgeText: '#FFFFFF',
 };
+
+const makeColors = (c: AppColors, isDark: boolean) => ({
+  primary: c.text.primary,
+  gold: '#D4AF37',
+  badge: '#EF4444',
+  badgeText: '#FFFFFF',
+  surface: c.surface,
+});
 
 // =============================================================================
 // TYPES
@@ -57,13 +66,17 @@ interface NotificationBadgeProps {
 
 export function NotificationBadge({
   size = 24,
-  color = COLORS.primary,
+  color,
   dotOnly = false,
   onPress,
   style,
 }: NotificationBadgeProps) {
   const router = useRouter();
   const unreadCount = useUnreadNotificationCount();
+  const { colors, isDark } = useAppTheme();
+  const COLORS = useMemo(() => makeColors(colors, isDark), [colors, isDark]);
+  const styles = useMemo(() => createStyles(COLORS), [COLORS]);
+  const iconColor = color ?? COLORS.primary;
 
   const handlePress = () => {
     if (onPress) {
@@ -83,7 +96,7 @@ export function NotificationBadge({
       activeOpacity={0.7}
       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
     >
-      <Ionicons name="notifications-outline" size={size} color={color} />
+      <Ionicons name="notifications-outline" size={size} color={iconColor} />
       
       {unreadCount > 0 && (
         <View style={[
@@ -112,11 +125,15 @@ interface NotificationHeaderButtonProps {
   tintColor?: string;
 }
 
-export function NotificationHeaderButton({ tintColor = COLORS.primary }: NotificationHeaderButtonProps) {
+export function NotificationHeaderButton({ tintColor }: NotificationHeaderButtonProps) {
+  const { colors, isDark } = useAppTheme();
+  const COLORS = useMemo(() => makeColors(colors, isDark), [colors, isDark]);
+  const styles = useMemo(() => createStyles(COLORS), [COLORS]);
+  const resolvedTint = tintColor ?? COLORS.primary;
   return (
     <NotificationBadge
       size={26}
-      color={tintColor}
+      color={resolvedTint}
       style={styles.headerButton}
     />
   );
@@ -134,6 +151,9 @@ interface NotificationTabIconProps {
 
 export function NotificationTabIcon({ focused, color, size }: NotificationTabIconProps) {
   const unreadCount = useUnreadNotificationCount();
+  const { colors, isDark } = useAppTheme();
+  const COLORS = useMemo(() => makeColors(colors, isDark), [colors, isDark]);
+  const styles = useMemo(() => createStyles(COLORS), [COLORS]);
 
   return (
     <View style={styles.tabIconContainer}>
@@ -172,6 +192,9 @@ export function NotificationDot({
   style,
 }: NotificationDotProps) {
   const unreadCount = useUnreadNotificationCount();
+  const { colors, isDark } = useAppTheme();
+  const COLORS = useMemo(() => makeColors(colors, isDark), [colors, isDark]);
+  const styles = useMemo(() => createStyles(COLORS), [COLORS]);
   
   if (!visible || unreadCount === 0) return null;
 
@@ -207,6 +230,9 @@ export function NotificationCount({
   textStyle,
 }: NotificationCountProps) {
   const unreadCount = useUnreadNotificationCount();
+  const { colors, isDark } = useAppTheme();
+  const COLORS = useMemo(() => makeColors(colors, isDark), [colors, isDark]);
+  const styles = useMemo(() => createStyles(COLORS), [COLORS]);
 
   if (unreadCount === 0 && !showZero) return null;
 
@@ -223,7 +249,7 @@ export function NotificationCount({
 // STYLES
 // =============================================================================
 
-const styles = StyleSheet.create({
+const createStyles = (COLORS: ReturnType<typeof makeColors>) => StyleSheet.create({
   // Badge principal
   container: {
     position: 'relative',
@@ -241,7 +267,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 5,
     borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderColor: COLORS.surface,
   },
   badgeDot: {
     minWidth: 10,

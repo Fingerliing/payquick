@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -13,21 +13,60 @@ import {
   Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { format, addDays } from 'date-fns';
-import { fr } from 'date-fns/locale';
-import { dailyMenuService, DailyMenu, DailyMenuItem } from '@/services/dailyMenuService';
+import { format, addDays, type Locale } from 'date-fns';
 import {
-  COLORS,
+  fr as dfFR,
+  enUS as dfEN,
+  es as dfES,
+  eu as dfEU,
+  de as dfDE,
+  it as dfIT,
+  pt as dfPT,
+  nl as dfNL,
+  zhCN as dfZH,
+  ja as dfJA,
+  arSA as dfAR,
+} from 'date-fns/locale';
+import { useTranslation } from 'react-i18next';
+
+import { dailyMenuService, DailyMenu, DailyMenuItem } from '@/services/dailyMenuService';
+import { useResponsive } from '@/utils/responsive';
+import { Alert as AppAlert, AlertWithAction } from '@/components/ui/Alert';
+import {
+  useAppTheme,
+  makeShadows,
   TYPOGRAPHY,
   SPACING,
   BORDER_RADIUS,
-  SHADOWS,
   useScreenType,
   getResponsiveValue,
+  type AppColors,
 } from '@/utils/designSystem';
-import { useResponsive } from '@/utils/responsive';
-import { Alert as AppAlert, AlertWithAction } from '@/components/ui/Alert';
 
+// ──────────────────────────────────────────────────────────────────────────
+// Mapping i18n.language → locale date-fns
+// (À extraire dans @/utils/dateLocale si réutilisé ailleurs.)
+// ──────────────────────────────────────────────────────────────────────────
+const DATE_FNS_LOCALES: Record<string, Locale> = {
+  fr: dfFR,
+  en: dfEN,
+  es: dfES,
+  eu: dfEU,
+  de: dfDE,
+  it: dfIT,
+  pt: dfPT,
+  nl: dfNL,
+  zh: dfZH,
+  ja: dfJA,
+  ar: dfAR,
+};
+
+const getDateFnsLocale = (lang: string): Locale =>
+  DATE_FNS_LOCALES[lang] ?? dfFR;
+
+// ──────────────────────────────────────────────────────────────────────────
+// Types
+// ──────────────────────────────────────────────────────────────────────────
 interface Props {
   restaurantId: string;
   selectedDate?: Date;
@@ -59,9 +98,12 @@ type ConfirmState = {
   danger?: boolean;
 } | null;
 
-// Nombre de jours proposés dans la modale (à partir du lendemain de la date sélectionnée)
+// Nombre de jours proposés dans la modale (à partir du lendemain)
 const APPLY_RANGE_DAYS = 14;
 
+// ──────────────────────────────────────────────────────────────────────────
+// Composant principal
+// ──────────────────────────────────────────────────────────────────────────
 export const DailyMenuManager: React.FC<Props> = ({
   restaurantId,
   selectedDate = new Date(),
@@ -70,13 +112,44 @@ export const DailyMenuManager: React.FC<Props> = ({
   onNavigateToEdit,
   onMenuUpdated,
 }) => {
+  const { t, i18n } = useTranslation();
+  const { colors, isDark } = useAppTheme();
+  const screenType = useScreenType();
+  const responsive = useResponsive();
+
+  const styles = useMemo(
+    () => createStyles(colors, isDark, screenType, responsive),
+    [colors, isDark, screenType, responsive],
+  );
+
+  // Locale date-fns dérivée de la langue active
+  const dateLocale = useMemo(() => getDateFnsLocale(i18n.language), [i18n.language]);
+
+  // Formatage devise localisé (utilisé pour le prix de formule)
+  const currencyFormatter = useMemo(() => {
+    try {
+      return new Intl.NumberFormat(i18n.language, {
+        style: 'currency',
+        currency: 'EUR',
+      });
+    } catch {
+      return null;
+    }
+  }, [i18n.language]);
+
+  const formatCurrency = (amount: number): string => {
+    if (currencyFormatter) return currencyFormatter.format(amount);
+    return `${amount.toFixed(2)} €`;
+  };
+
+  // ── State ────────────────────────────────────────────────────────────
   const [dailyMenu, setDailyMenu] = useState<DailyMenu | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isTogglingItem, setIsTogglingItem] = useState<string | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
-  // ─── États pour la modale "Appliquer à d'autres jours" ─────────────────────
+  // Modale "Appliquer à d'autres jours"
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [applyCandidates, setApplyCandidates] = useState<Date[]>([]);
   const [selectedTargets, setSelectedTargets] = useState<Set<string>>(new Set());
@@ -84,14 +157,11 @@ export const DailyMenuManager: React.FC<Props> = ({
   const [isLoadingCandidates, setIsLoadingCandidates] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
 
-  // ─── Alertes custom (toast + confirm) ──────────────────────────────────────
+  // Alertes custom (toast + confirm)
   const [toast, setToast] = useState<ToastState>(null);
   const [confirm, setConfirm] = useState<ConfirmState>(null);
 
-  const screenType = useScreenType();
-  const responsive = useResponsive();
-  const styles = createStyles(screenType, responsive);
-
+  // ── Chargement ───────────────────────────────────────────────────────
   useEffect(() => {
     loadDailyMenu();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -107,7 +177,7 @@ export const DailyMenuManager: React.FC<Props> = ({
       if (responsive.isDesktop && menu?.items_by_category) {
         setExpandedCategories(new Set(menu.items_by_category.map((cat: any) => cat.name)));
       }
-    } catch (error) {
+    } catch {
       setDailyMenu(null);
     } finally {
       setIsLoading(false);
@@ -128,11 +198,11 @@ export const DailyMenuManager: React.FC<Props> = ({
       await dailyMenuService.quickToggleItem(dailyMenu.id, itemId);
       await loadDailyMenu();
       onMenuUpdated?.();
-    } catch (error) {
+    } catch {
       setToast({
         variant: 'error',
-        title: 'Erreur',
-        message: "Impossible de modifier la disponibilité du plat",
+        title: t('common.error'),
+        message: t('restaurantDailyMenu.manager.errors.toggleItem'),
       });
     } finally {
       setIsTogglingItem(null);
@@ -149,15 +219,10 @@ export const DailyMenuManager: React.FC<Props> = ({
     setExpandedCategories(newExpanded);
   };
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // Appliquer le menu du jour courant à d'autres jours
-  // ──────────────────────────────────────────────────────────────────────────
-
+  // ── Appliquer le menu courant à d'autres jours ───────────────────────
   const openApplyToOtherDays = async () => {
     if (!dailyMenu) return;
 
-    // Génère les `APPLY_RANGE_DAYS` jours suivants à partir du lendemain de
-    // la date du menu source.
     const start = addDays(selectedDate, 1);
     const dates: Date[] = [];
     for (let i = 0; i < APPLY_RANGE_DAYS; i++) {
@@ -169,8 +234,6 @@ export const DailyMenuManager: React.FC<Props> = ({
     setShowApplyModal(true);
     setIsLoadingCandidates(true);
 
-    // Précharge les menus existants sur la plage pour afficher un badge
-    // "Menu existant" et avertir l'utilisateur avant remplacement.
     try {
       const startDate = format(dates[0], 'yyyy-MM-dd');
       const endDate = format(dates[dates.length - 1], 'yyyy-MM-dd');
@@ -181,13 +244,10 @@ export const DailyMenuManager: React.FC<Props> = ({
       );
       const map: Record<string, string> = {};
       (existing || []).forEach((m: any) => {
-        // L'API renvoie la date au format 'yyyy-MM-dd'
         if (m?.date) map[m.date] = m.id;
       });
       setExistingByDate(map);
     } catch {
-      // En cas d'échec on continue : l'utilisateur sera juste prévenu via le
-      // 409 au moment d'appliquer.
       setExistingByDate({});
     } finally {
       setIsLoadingCandidates(false);
@@ -195,7 +255,7 @@ export const DailyMenuManager: React.FC<Props> = ({
   };
 
   const toggleTargetDate = (dateKey: string) => {
-    setSelectedTargets(prev => {
+    setSelectedTargets((prev) => {
       const next = new Set(prev);
       if (next.has(dateKey)) {
         next.delete(dateKey);
@@ -207,7 +267,7 @@ export const DailyMenuManager: React.FC<Props> = ({
   };
 
   const selectAllCandidates = () => {
-    setSelectedTargets(new Set(applyCandidates.map(d => format(d, 'yyyy-MM-dd'))));
+    setSelectedTargets(new Set(applyCandidates.map((d) => format(d, 'yyyy-MM-dd'))));
   };
 
   const clearSelection = () => {
@@ -217,18 +277,17 @@ export const DailyMenuManager: React.FC<Props> = ({
   const confirmApplyToDates = () => {
     if (!dailyMenu || selectedTargets.size === 0) return;
 
-    const conflicts = Array.from(selectedTargets).filter(d => !!existingByDate[d]);
+    const conflicts = Array.from(selectedTargets).filter((d) => !!existingByDate[d]);
 
     if (conflicts.length > 0) {
       setConfirm({
-        title: 'Remplacer les menus existants ?',
-        message:
-          conflicts.length === 1
-            ? `Un menu du jour existe déjà pour 1 des dates sélectionnées. Voulez-vous le remplacer ?`
-            : `Un menu du jour existe déjà pour ${conflicts.length} des dates sélectionnées. Voulez-vous les remplacer ?`,
+        title: t('restaurantDailyMenu.manager.replaceDialog.title'),
+        message: t('restaurantDailyMenu.manager.replaceDialog.message', {
+          count: conflicts.length,
+        }),
         onConfirm: () => doApplyToDates(true),
-        confirmText: 'Remplacer',
-        cancelText: 'Annuler',
+        confirmText: t('restaurantDailyMenu.manager.replaceDialog.confirm'),
+        cancelText: t('common.cancel'),
         danger: true,
       });
       return;
@@ -245,13 +304,13 @@ export const DailyMenuManager: React.FC<Props> = ({
     try {
       const targets = Array.from(selectedTargets);
       const results = await Promise.allSettled(
-        targets.map(dateKey =>
+        targets.map((dateKey) =>
           dailyMenuService.duplicateMenu(dailyMenu.id, dateKey, force),
         ),
       );
 
-      const succeeded = results.filter(r => r.status === 'fulfilled').length;
-      const failed = results.filter(r => r.status === 'rejected').length;
+      const succeeded = results.filter((r) => r.status === 'fulfilled').length;
+      const failed = results.filter((r) => r.status === 'rejected').length;
 
       setShowApplyModal(false);
       setSelectedTargets(new Set());
@@ -259,23 +318,23 @@ export const DailyMenuManager: React.FC<Props> = ({
       if (failed === 0) {
         setToast({
           variant: 'success',
-          title: 'Succès',
-          message:
-            succeeded === 1
-              ? 'Menu appliqué à 1 jour'
-              : `Menu appliqué à ${succeeded} jours`,
+          title: t('common.success'),
+          message: t('restaurantDailyMenu.manager.applied', { count: succeeded }),
         });
       } else if (succeeded === 0) {
         setToast({
           variant: 'error',
-          title: 'Échec',
-          message: "Impossible d'appliquer le menu aux dates sélectionnées",
+          title: t('restaurantDailyMenu.manager.errors.applyAllFailedTitle'),
+          message: t('restaurantDailyMenu.manager.errors.applyAllFailed'),
         });
       } else {
         setToast({
           variant: 'warning',
-          title: 'Application partielle',
-          message: `${succeeded} réussi${succeeded > 1 ? 's' : ''}, ${failed} échoué${failed > 1 ? 's' : ''}`,
+          title: t('restaurantDailyMenu.manager.partialApply.title'),
+          message: t('restaurantDailyMenu.manager.partialApply.message', {
+            succeeded,
+            failed,
+          }),
         });
       }
 
@@ -283,18 +342,15 @@ export const DailyMenuManager: React.FC<Props> = ({
     } catch {
       setToast({
         variant: 'error',
-        title: 'Erreur',
-        message: "Une erreur est survenue lors de l'application du menu",
+        title: t('common.error'),
+        message: t('restaurantDailyMenu.manager.errors.applyGeneric'),
       });
     } finally {
       setIsApplying(false);
     }
   };
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // Rendu des items
-  // ──────────────────────────────────────────────────────────────────────────
-
+  // ── Rendu des items ──────────────────────────────────────────────────
   const renderMenuItem = ({ item }: { item: DailyMenuItem }) => (
     <View style={styles.itemRow} collapsable={false}>
       <View style={styles.itemLeft}>
@@ -302,9 +358,14 @@ export const DailyMenuManager: React.FC<Props> = ({
           value={item.is_available}
           onValueChange={() => toggleItemAvailability(item.id)}
           disabled={isTogglingItem === item.id}
-          trackColor={{ false: COLORS.border.default, true: COLORS.variants.secondary[400] }}
-          thumbColor={item.is_available ? COLORS.variants.secondary[500] : COLORS.text.light}
-          ios_backgroundColor={COLORS.border.default}
+          trackColor={{
+            false: colors.border.default,
+            true: colors.variants.secondary[400],
+          }}
+          thumbColor={
+            item.is_available ? colors.variants.secondary[500] : colors.text.light
+          }
+          ios_backgroundColor={colors.border.default}
         />
       </View>
 
@@ -314,7 +375,11 @@ export const DailyMenuManager: React.FC<Props> = ({
         </Text>
         {!!item.special_note && (
           <Text style={styles.specialNote}>
-            <Ionicons name="information-circle" size={12} color={COLORS.text.secondary} />{' '}
+            <Ionicons
+              name="information-circle"
+              size={12}
+              color={colors.text.secondary}
+            />{' '}
             {item.special_note}
           </Text>
         )}
@@ -323,7 +388,11 @@ export const DailyMenuManager: React.FC<Props> = ({
       {/* ⚠️ Plus de prix par plat : la formule fixe le prix global du menu. */}
 
       {isTogglingItem === item.id && (
-        <ActivityIndicator size="small" color={COLORS.variants.secondary[500]} style={styles.loader} />
+        <ActivityIndicator
+          size="small"
+          color={colors.variants.secondary[500]}
+          style={styles.loader}
+        />
       )}
     </View>
   );
@@ -331,27 +400,45 @@ export const DailyMenuManager: React.FC<Props> = ({
   const renderCategorySection = (category: any, categoryIndex: number) => {
     const isExpanded = expandedCategories.has(category.name);
     const itemCount = category.items.length;
-    const availableCount = category.items.filter((i: DailyMenuItem) => i.is_available).length;
+    const availableCount = category.items.filter(
+      (i: DailyMenuItem) => i.is_available,
+    ).length;
 
     return (
-      <View key={`section::${categoryIndex}::${category.name}`} style={styles.categorySection} collapsable={false}>
-        <TouchableOpacity style={styles.categoryHeader} onPress={() => toggleCategory(category.name)} activeOpacity={0.7}>
+      <View
+        key={`section::${categoryIndex}::${category.name}`}
+        style={styles.categorySection}
+        collapsable={false}
+      >
+        <TouchableOpacity
+          style={styles.categoryHeader}
+          onPress={() => toggleCategory(category.name)}
+          activeOpacity={0.7}
+        >
           <View style={styles.categoryTitleContainer}>
             <Text style={styles.categoryTitle}>{category.name}</Text>
             {itemCount > 0 && (
               <View style={styles.categoryBadge}>
-                <Text style={styles.categoryBadgeText}>{availableCount}/{itemCount}</Text>
+                <Text style={styles.categoryBadgeText}>
+                  {availableCount}/{itemCount}
+                </Text>
               </View>
             )}
           </View>
-          <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={20} color={COLORS.text.secondary} />
+          <Ionicons
+            name={isExpanded ? 'chevron-up' : 'chevron-down'}
+            size={20}
+            color={colors.text.secondary}
+          />
         </TouchableOpacity>
 
         {isExpanded && (
           <FlatList
             data={category.items}
             renderItem={renderMenuItem}
-            keyExtractor={(item, index) => `${category.name}::${item.id}::${index}`}
+            keyExtractor={(item, index) =>
+              `${category.name}::${item.id}::${index}`
+            }
             scrollEnabled={false}
             removeClippedSubviews={false}
             contentContainerStyle={styles.categoryItems}
@@ -362,22 +449,36 @@ export const DailyMenuManager: React.FC<Props> = ({
   };
 
   const renderEmptyState = () => {
-    const isDateToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+    const isDateToday =
+      format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
 
     return (
       <View style={styles.noMenuContainer}>
         <View style={styles.emptyStateContent}>
-          <Ionicons name="restaurant-outline" size={48} color={COLORS.text.secondary} />
-          <Text style={styles.noMenuTitle}>Aucun menu pour cette date</Text>
+          <Ionicons
+            name="restaurant-outline"
+            size={48}
+            color={colors.text.secondary}
+          />
+          <Text style={styles.noMenuTitle}>
+            {t('restaurantDailyMenu.manager.empty.title')}
+          </Text>
           <Text style={styles.noMenuSubtitle}>
             {isDateToday
-              ? "Créez le menu du jour pour commencer"
-              : `Créez un menu pour le ${format(selectedDate, 'dd MMMM yyyy', { locale: fr })}`}
+              ? t('restaurantDailyMenu.manager.empty.subtitleToday')
+              : t('restaurantDailyMenu.manager.empty.subtitleDate', {
+                  date: format(selectedDate, 'dd MMMM yyyy', { locale: dateLocale }),
+                })}
           </Text>
-          <TouchableOpacity style={styles.createButton} onPress={() => onNavigateToCreate(selectedDate)}>
+          <TouchableOpacity
+            style={styles.createButton}
+            onPress={() => onNavigateToCreate(selectedDate)}
+          >
             <View style={styles.createButtonContent}>
-              <Ionicons name="add-circle" size={20} color={COLORS.surface} />
-              <Text style={styles.createButtonText}>Créer le menu</Text>
+              <Ionicons name="add-circle" size={20} color={colors.text.inverse} />
+              <Text style={styles.createButtonText}>
+                {t('restaurantDailyMenu.manager.empty.cta')}
+              </Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -385,19 +486,17 @@ export const DailyMenuManager: React.FC<Props> = ({
     );
   };
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // Rendu de la modale "Appliquer à d'autres jours"
-  // ──────────────────────────────────────────────────────────────────────────
-
+  // ── Modale "Appliquer à d'autres jours" ──────────────────────────────
   const renderApplyModal = () => {
     const allSelected =
       applyCandidates.length > 0 &&
-      applyCandidates.every(d => selectedTargets.has(format(d, 'yyyy-MM-dd')));
+      applyCandidates.every((d) => selectedTargets.has(format(d, 'yyyy-MM-dd')));
 
     return (
       <Modal
         visible={showApplyModal}
         transparent
+        statusBarTranslucent
         animationType="fade"
         onRequestClose={() => !isApplying && setShowApplyModal(false)}
       >
@@ -405,13 +504,22 @@ export const DailyMenuManager: React.FC<Props> = ({
           style={styles.modalOverlay}
           onPress={() => !isApplying && setShowApplyModal(false)}
         >
-          <Pressable style={styles.applyModal} onPress={(e) => e.stopPropagation()}>
+          <Pressable
+            style={styles.applyModal}
+            onPress={(e) => e.stopPropagation()}
+          >
             {/* Header */}
             <View style={styles.applyModalHeader}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.applyModalTitle}>Appliquer à d'autres jours</Text>
+                <Text style={styles.applyModalTitle}>
+                  {t('restaurantDailyMenu.manager.applyModal.title')}
+                </Text>
                 <Text style={styles.applyModalSubtitle}>
-                  Source : {format(selectedDate, 'EEEE d MMMM', { locale: fr })}
+                  {t('restaurantDailyMenu.manager.applyModal.source', {
+                    date: format(selectedDate, 'EEEE d MMMM', {
+                      locale: dateLocale,
+                    }),
+                  })}
                 </Text>
               </View>
               <TouchableOpacity
@@ -419,37 +527,46 @@ export const DailyMenuManager: React.FC<Props> = ({
                 disabled={isApplying}
                 style={styles.applyModalClose}
               >
-                <Ionicons name="close" size={24} color={COLORS.text.primary} />
+                <Ionicons name="close" size={24} color={colors.text.primary} />
               </TouchableOpacity>
             </View>
 
-            {/* Barre d'actions rapides */}
+            {/* Actions rapides */}
             <View style={styles.applyQuickActions}>
               <TouchableOpacity
                 onPress={allSelected ? clearSelection : selectAllCandidates}
                 disabled={isLoadingCandidates || isApplying}
               >
                 <Text style={styles.applyQuickActionText}>
-                  {allSelected ? 'Tout désélectionner' : 'Tout sélectionner'}
+                  {allSelected
+                    ? t('restaurantDailyMenu.manager.applyModal.unselectAll')
+                    : t('restaurantDailyMenu.manager.applyModal.selectAll')}
                 </Text>
               </TouchableOpacity>
               <Text style={styles.applySelectionCount}>
-                {selectedTargets.size} sélectionné{selectedTargets.size > 1 ? 's' : ''}
+                {t('restaurantDailyMenu.manager.applyModal.selectedCount', {
+                  count: selectedTargets.size,
+                })}
               </Text>
             </View>
 
-            {/* Liste des dates candidates */}
+            {/* Liste des dates */}
             {isLoadingCandidates ? (
               <View style={styles.applyLoading}>
-                <ActivityIndicator size="small" color={COLORS.variants.secondary[500]} />
+                <ActivityIndicator
+                  size="small"
+                  color={colors.variants.secondary[500]}
+                />
               </View>
             ) : (
               <ScrollView
                 style={styles.applyList}
-                contentContainerStyle={{ paddingBottom: getResponsiveValue(SPACING.sm, screenType) }}
+                contentContainerStyle={{
+                  paddingBottom: getResponsiveValue(SPACING.sm, screenType),
+                }}
                 showsVerticalScrollIndicator={false}
               >
-                {applyCandidates.map(date => {
+                {applyCandidates.map((date) => {
                   const key = format(date, 'yyyy-MM-dd');
                   const isSelected = selectedTargets.has(key);
                   const hasMenu = !!existingByDate[key];
@@ -457,7 +574,10 @@ export const DailyMenuManager: React.FC<Props> = ({
                   return (
                     <TouchableOpacity
                       key={key}
-                      style={[styles.applyDateRow, isSelected && styles.applyDateRowSelected]}
+                      style={[
+                        styles.applyDateRow,
+                        isSelected && styles.applyDateRowSelected,
+                      ]}
                       onPress={() => toggleTargetDate(key)}
                       activeOpacity={0.7}
                       disabled={isApplying}
@@ -469,22 +589,30 @@ export const DailyMenuManager: React.FC<Props> = ({
                         ]}
                       >
                         {isSelected && (
-                          <Ionicons name="checkmark" size={16} color={COLORS.surface} />
+                          <Ionicons
+                            name="checkmark"
+                            size={16}
+                            color={colors.text.inverse}
+                          />
                         )}
                       </View>
 
                       <View style={styles.applyDateInfo}>
                         <Text style={styles.applyDateLabel}>
-                          {format(date, 'EEEE d MMMM', { locale: fr })}
+                          {format(date, 'EEEE d MMMM', { locale: dateLocale })}
                         </Text>
                         {hasMenu && (
                           <View style={styles.applyConflictBadge}>
                             <Ionicons
                               name="alert-circle-outline"
                               size={12}
-                              color={COLORS.warning}
+                              color={colors.warning}
                             />
-                            <Text style={styles.applyConflictText}>Menu existant</Text>
+                            <Text style={styles.applyConflictText}>
+                              {t(
+                                'restaurantDailyMenu.manager.applyModal.existingMenu',
+                              )}
+                            </Text>
                           </View>
                         )}
                       </View>
@@ -501,7 +629,7 @@ export const DailyMenuManager: React.FC<Props> = ({
                 onPress={() => setShowApplyModal(false)}
                 disabled={isApplying}
               >
-                <Text style={styles.applyCancelText}>Annuler</Text>
+                <Text style={styles.applyCancelText}>{t('common.cancel')}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -514,11 +642,14 @@ export const DailyMenuManager: React.FC<Props> = ({
                 disabled={selectedTargets.size === 0 || isApplying}
               >
                 {isApplying ? (
-                  <ActivityIndicator size="small" color={COLORS.surface} />
+                  <ActivityIndicator size="small" color={colors.text.inverse} />
                 ) : (
                   <Text style={styles.applyConfirmText}>
-                    Appliquer
-                    {selectedTargets.size > 0 ? ` (${selectedTargets.size})` : ''}
+                    {selectedTargets.size > 0
+                      ? t('restaurantDailyMenu.manager.applyModal.applyWithCount', {
+                          count: selectedTargets.size,
+                        })
+                      : t('restaurantDailyMenu.manager.applyModal.apply')}
                   </Text>
                 )}
               </TouchableOpacity>
@@ -529,14 +660,11 @@ export const DailyMenuManager: React.FC<Props> = ({
     );
   };
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // Rendu principal
-  // ──────────────────────────────────────────────────────────────────────────
-
+  // ── Rendu principal ──────────────────────────────────────────────────
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.variants.secondary[500]} />
+        <ActivityIndicator size="large" color={colors.variants.secondary[500]} />
       </View>
     );
   }
@@ -558,14 +686,18 @@ export const DailyMenuManager: React.FC<Props> = ({
       {!dailyMenu ? (
         <ScrollView
           style={styles.container}
-          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
+          refreshControl={
+            <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
+          }
         >
           {renderEmptyState()}
         </ScrollView>
       ) : (
         <ScrollView
           style={styles.container}
-          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
+          refreshControl={
+            <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
+          }
         >
           <View style={styles.header}>
             <View style={styles.actionsContainer}>
@@ -573,12 +705,25 @@ export const DailyMenuManager: React.FC<Props> = ({
                 style={styles.actionButton}
                 onPress={() => onNavigateToEdit(dailyMenu.id)}
               >
-                <Ionicons name="create-outline" size={20} color={COLORS.text.primary} />
-                <Text style={styles.actionButtonText}>Modifier</Text>
+                <Ionicons
+                  name="create-outline"
+                  size={20}
+                  color={colors.text.primary}
+                />
+                <Text style={styles.actionButtonText}>{t('common.edit')}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.actionButton} onPress={openApplyToOtherDays}>
-                <Ionicons name="copy-outline" size={20} color={COLORS.text.primary} />
-                <Text style={styles.actionButtonText}>Dupliquer</Text>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={openApplyToOtherDays}
+              >
+                <Ionicons
+                  name="copy-outline"
+                  size={20}
+                  color={colors.text.primary}
+                />
+                <Text style={styles.actionButtonText}>
+                  {t('restaurantDailyMenu.manager.duplicate')}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -592,26 +737,49 @@ export const DailyMenuManager: React.FC<Props> = ({
 
             <View style={styles.statsCard}>
               <View style={styles.statItem}>
-                <Ionicons name="restaurant-outline" size={16} color={COLORS.text.secondary} />
-                <Text style={styles.statsText}>{totalItems} plats</Text>
+                <Ionicons
+                  name="restaurant-outline"
+                  size={16}
+                  color={colors.text.secondary}
+                />
+                <Text style={styles.statsText}>
+                  {t('restaurantDailyMenu.manager.stats.dishes', { count: totalItems })}
+                </Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Ionicons name="checkmark-circle-outline" size={16} color={COLORS.success} />
-                <Text style={styles.statsText}>{availableItems} disponibles</Text>
+                <Ionicons
+                  name="checkmark-circle-outline"
+                  size={16}
+                  color={colors.success}
+                />
+                <Text style={styles.statsText}>
+                  {t('restaurantDailyMenu.manager.stats.available', {
+                    count: availableItems,
+                  })}
+                </Text>
               </View>
               {!!dailyMenu.special_price && (
                 <>
                   <View style={styles.statDivider} />
                   <View style={styles.statItem}>
-                    <Ionicons name="pricetag-outline" size={16} color={COLORS.text.golden} />
+                    <Ionicons
+                      name="pricetag-outline"
+                      size={16}
+                      color={colors.text.golden}
+                    />
                     <Text
                       style={[
                         styles.statsText,
-                        { color: COLORS.text.golden, fontWeight: TYPOGRAPHY.fontWeight.semibold },
+                        {
+                          color: colors.text.golden,
+                          fontWeight: TYPOGRAPHY.fontWeight.semibold,
+                        },
                       ]}
                     >
-                      {Number(dailyMenu.special_price).toFixed(2)}€ / formule
+                      {t('restaurantDailyMenu.manager.stats.formulaPrice', {
+                        price: formatCurrency(Number(dailyMenu.special_price)),
+                      })}
                     </Text>
                   </View>
                 </>
@@ -627,16 +795,12 @@ export const DailyMenuManager: React.FC<Props> = ({
         </ScrollView>
       )}
 
-      {/* Modale "Appliquer à d'autres jours" */}
+      {/* Modale */}
       {renderApplyModal()}
 
-      {/* ─── Zone d'alertes custom ───────────────────────────────────────── */}
-      {/* Toast (auto dismiss & swipe) */}
+      {/* Toast */}
       {toast && (
-        <View
-          pointerEvents="box-none"
-          style={styles.alertOverlay}
-        >
+        <View pointerEvents="box-none" style={styles.alertOverlay}>
           <AppAlert
             variant={toast.variant}
             title={toast.title}
@@ -648,12 +812,9 @@ export const DailyMenuManager: React.FC<Props> = ({
         </View>
       )}
 
-      {/* Confirmation (pas d'auto dismiss) */}
+      {/* Confirmation */}
       {confirm && (
-        <View
-          pointerEvents="box-none"
-          style={styles.alertOverlay}
-        >
+        <View pointerEvents="box-none" style={styles.alertOverlay}>
           <AlertWithAction
             variant={confirm.danger ? 'warning' : 'info'}
             title={confirm.title}
@@ -661,12 +822,12 @@ export const DailyMenuManager: React.FC<Props> = ({
             onDismiss={() => setConfirm(null)}
             autoDismiss={false}
             primaryButton={{
-              text: confirm.confirmText || 'Confirmer',
+              text: confirm.confirmText || t('common.confirm'),
               onPress: () => confirm.onConfirm(),
               variant: confirm.danger ? 'danger' : 'primary',
             }}
             secondaryButton={{
-              text: confirm.cancelText || 'Annuler',
+              text: confirm.cancelText || t('common.cancel'),
               onPress: () => setConfirm(null),
             }}
           />
@@ -676,24 +837,36 @@ export const DailyMenuManager: React.FC<Props> = ({
   );
 };
 
-const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: any) => {
+// ──────────────────────────────────────────────────────────────────────────
+// STYLES (fabrique theme-aware)
+// ──────────────────────────────────────────────────────────────────────────
+const createStyles = (
+  colors: AppColors,
+  isDark: boolean,
+  screenType: 'mobile' | 'tablet' | 'desktop',
+  responsive: any,
+) => {
+  const shadows = makeShadows(colors);
+
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: COLORS.background,
+      backgroundColor: colors.background,
     },
     loadingContainer: {
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
-      backgroundColor: COLORS.background,
+      backgroundColor: colors.background,
     },
     header: {
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       paddingVertical: getResponsiveValue(SPACING.md, screenType),
       paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
       marginBottom: getResponsiveValue(SPACING.md, screenType),
-      ...SHADOWS.sm,
+      borderBottomWidth: isDark ? StyleSheet.hairlineWidth : 0,
+      borderBottomColor: isDark ? 'rgba(212, 175, 55, 0.12)' : 'transparent',
+      ...shadows.sm,
     },
     actionsContainer: {
       flexDirection: 'row',
@@ -704,14 +877,14 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
       alignItems: 'center',
       paddingVertical: getResponsiveValue(SPACING.sm, screenType),
       paddingHorizontal: getResponsiveValue(SPACING.md, screenType),
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderRadius: BORDER_RADIUS.md,
       borderWidth: 1,
-      borderColor: COLORS.border.default,
+      borderColor: colors.border.default,
     },
     actionButtonText: {
       marginLeft: getResponsiveValue(SPACING.xs, screenType),
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
     },
     menuContent: {
@@ -720,14 +893,14 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
       paddingBottom: getResponsiveValue(SPACING.xl, screenType),
     },
     descriptionCard: {
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderRadius: BORDER_RADIUS.md,
       padding: getResponsiveValue(SPACING.md, screenType),
       borderLeftWidth: 3,
-      borderLeftColor: COLORS.primary,
+      borderLeftColor: colors.primary,
     },
     menuDescription: {
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
       fontStyle: 'italic',
     },
@@ -735,12 +908,12 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderRadius: BORDER_RADIUS.md,
       padding: getResponsiveValue(SPACING.md, screenType),
       gap: getResponsiveValue(SPACING.md, screenType),
       borderWidth: 1,
-      borderColor: COLORS.border.light,
+      borderColor: isDark ? 'rgba(212, 175, 55, 0.12)' : colors.border.light,
     },
     statItem: {
       flexDirection: 'row',
@@ -750,21 +923,21 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
     statDivider: {
       width: 1,
       height: 20,
-      backgroundColor: COLORS.border.light,
+      backgroundColor: colors.border.light,
     },
     statsText: {
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
     },
     categoriesGrid: {
       gap: getResponsiveValue(SPACING.md, screenType),
     },
     categorySection: {
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderRadius: BORDER_RADIUS.lg,
       overflow: 'hidden',
       borderWidth: 1,
-      borderColor: COLORS.border.light,
+      borderColor: isDark ? 'rgba(212, 175, 55, 0.12)' : colors.border.light,
       marginBottom: getResponsiveValue(SPACING.md, screenType),
     },
     categoryHeader: {
@@ -772,7 +945,7 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
       justifyContent: 'space-between',
       alignItems: 'center',
       padding: getResponsiveValue(SPACING.md, screenType),
-      backgroundColor: COLORS.goldenSurface,
+      backgroundColor: colors.goldenSurface,
     },
     categoryTitleContainer: {
       flexDirection: 'row',
@@ -782,11 +955,11 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
     categoryTitle: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.md, screenType),
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
     },
     categoryBadge: {
       marginLeft: getResponsiveValue(SPACING.sm, screenType),
-      backgroundColor: COLORS.variants.secondary[200],
+      backgroundColor: colors.variants.secondary[200],
       paddingHorizontal: getResponsiveValue(SPACING.sm, screenType),
       paddingVertical: 2,
       borderRadius: BORDER_RADIUS.full,
@@ -794,7 +967,7 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
     categoryBadgeText: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
       fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: COLORS.variants.secondary[700],
+      color: colors.variants.secondary[700],
     },
     categoryItems: {
       paddingHorizontal: getResponsiveValue(SPACING.sm, screenType),
@@ -803,9 +976,9 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
     itemRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderBottomWidth: 1,
-      borderBottomColor: COLORS.border.light,
+      borderBottomColor: colors.border.light,
       paddingVertical: getResponsiveValue(SPACING.sm, screenType),
     },
     itemLeft: {
@@ -818,61 +991,28 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
       paddingRight: getResponsiveValue(SPACING.sm, screenType),
     },
     itemName: {
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
     },
     itemDisabled: {
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       textDecorationLine: 'line-through',
     },
     specialNote: {
       marginTop: 2,
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
-    },
-    priceContainer: {
-      minWidth: 90,
-      alignItems: 'flex-end',
-      paddingRight: getResponsiveValue(SPACING.md, screenType),
-    },
-    itemPrice: {
-      color: COLORS.text.primary,
-      fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    },
-    discountContainer: {
-      alignItems: 'flex-end',
-    },
-    originalPrice: {
-      textDecorationLine: 'line-through',
-      color: COLORS.text.secondary,
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
-    },
-    specialPrice: {
-      color: COLORS.success,
-      fontWeight: TYPOGRAPHY.fontWeight.bold,
-    },
-    discountBadge: {
-      backgroundColor: COLORS.warning + '20',
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-      borderRadius: BORDER_RADIUS.sm,
-      marginTop: 2,
-    },
-    discountText: {
-      color: COLORS.warning,
-      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
-      fontWeight: TYPOGRAPHY.fontWeight.semibold,
     },
     loader: {
       marginRight: getResponsiveValue(SPACING.md, screenType),
     },
     noMenuContainer: {
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderRadius: BORDER_RADIUS.lg,
       margin: getResponsiveValue(SPACING.container, screenType),
       overflow: 'hidden',
       borderWidth: 1,
-      borderColor: COLORS.border.light,
+      borderColor: isDark ? 'rgba(212, 175, 55, 0.12)' : colors.border.light,
     },
     emptyStateContent: {
       alignItems: 'center',
@@ -882,19 +1022,19 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
     noMenuTitle: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xl, screenType),
       fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: COLORS.primary,
+      color: colors.primary,
     },
     noMenuSubtitle: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       textAlign: 'center',
     },
     createButton: {
       marginTop: getResponsiveValue(SPACING.sm, screenType),
       borderRadius: BORDER_RADIUS.lg,
       overflow: 'hidden',
-      backgroundColor: COLORS.primary,
-      ...SHADOWS.button,
+      backgroundColor: colors.primary,
+      ...shadows.button,
     },
     createButtonContent: {
       flexDirection: 'row',
@@ -904,27 +1044,30 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
       paddingHorizontal: getResponsiveValue(SPACING.lg, screenType),
     },
     createButtonText: {
-      color: COLORS.surface,
+      color: colors.text.inverse,
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
     },
 
-    // ─── Modale "Appliquer à d'autres jours" ──────────────────────────────
+    // ─── Modale "Appliquer à d'autres jours" ──────────────────────────
     modalOverlay: {
       flex: 1,
+      // Overlay sombre stable dans les 2 modes
       backgroundColor: 'rgba(0, 0, 0, 0.5)',
       justifyContent: 'center',
       alignItems: 'center',
       padding: getResponsiveValue(SPACING.lg, screenType),
     },
     applyModal: {
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderRadius: BORDER_RADIUS.xl,
       width: responsive.isMobile ? '100%' : '80%',
       maxWidth: 480,
       maxHeight: '85%',
       overflow: 'hidden',
-      ...SHADOWS.xl,
+      borderWidth: isDark ? StyleSheet.hairlineWidth : 0,
+      borderColor: isDark ? 'rgba(212, 175, 55, 0.12)' : 'transparent',
+      ...shadows.xl,
     },
     applyModalHeader: {
       flexDirection: 'row',
@@ -936,12 +1079,12 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
     applyModalTitle: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
       fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: COLORS.primary,
+      color: colors.primary,
     },
     applyModalSubtitle: {
       marginTop: 2,
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       textTransform: 'capitalize',
     },
     applyModalClose: {
@@ -954,16 +1097,16 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
       paddingHorizontal: getResponsiveValue(SPACING.lg, screenType),
       paddingVertical: getResponsiveValue(SPACING.sm, screenType),
       borderBottomWidth: 1,
-      borderBottomColor: COLORS.border.light,
+      borderBottomColor: colors.border.light,
     },
     applyQuickActionText: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      color: COLORS.variants.secondary[700],
+      color: colors.variants.secondary[700],
     },
     applySelectionCount: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
     },
     applyLoading: {
       paddingVertical: getResponsiveValue(SPACING.xl, screenType),
@@ -985,30 +1128,32 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
       borderColor: 'transparent',
     },
     applyDateRowSelected: {
-      backgroundColor: COLORS.variants.secondary[100],
-      borderColor: COLORS.variants.secondary[300],
+      backgroundColor: isDark
+        ? 'rgba(212, 175, 55, 0.10)'
+        : colors.variants.secondary[100],
+      borderColor: colors.variants.secondary[300],
     },
     applyCheckbox: {
       width: 22,
       height: 22,
       borderRadius: BORDER_RADIUS.sm,
       borderWidth: 2,
-      borderColor: COLORS.border.default,
+      borderColor: colors.border.default,
       alignItems: 'center',
       justifyContent: 'center',
       marginRight: getResponsiveValue(SPACING.sm, screenType),
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
     },
     applyCheckboxSelected: {
-      backgroundColor: COLORS.variants.secondary[500],
-      borderColor: COLORS.variants.secondary[500],
+      backgroundColor: colors.variants.secondary[500],
+      borderColor: colors.variants.secondary[500],
     },
     applyDateInfo: {
       flex: 1,
     },
     applyDateLabel: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       textTransform: 'capitalize',
     },
     applyConflictBadge: {
@@ -1019,7 +1164,7 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
     },
     applyConflictText: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
-      color: COLORS.warning,
+      color: colors.warning,
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
     },
     applyFooter: {
@@ -1029,7 +1174,7 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
       paddingHorizontal: getResponsiveValue(SPACING.lg, screenType),
       paddingVertical: getResponsiveValue(SPACING.md, screenType),
       borderTopWidth: 1,
-      borderTopColor: COLORS.border.light,
+      borderTopColor: colors.border.light,
     },
     applyCancelButton: {
       paddingVertical: getResponsiveValue(SPACING.sm, screenType),
@@ -1038,11 +1183,11 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
     },
     applyCancelText: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       fontWeight: TYPOGRAPHY.fontWeight.medium,
     },
     applyConfirmButton: {
-      backgroundColor: COLORS.primary,
+      backgroundColor: colors.primary,
       paddingVertical: getResponsiveValue(SPACING.sm, screenType),
       paddingHorizontal: getResponsiveValue(SPACING.lg, screenType),
       borderRadius: BORDER_RADIUS.md,
@@ -1055,11 +1200,11 @@ const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', responsive: a
     },
     applyConfirmText: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
-      color: COLORS.surface,
+      color: colors.text.inverse,
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
     },
 
-    // ─── Overlay alertes custom (toast + confirm) ─────────────────────────
+    // ─── Overlay alertes custom (toast + confirm) ─────────────────────
     alertOverlay: {
       position: 'absolute',
       left: 16,

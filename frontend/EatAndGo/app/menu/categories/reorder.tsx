@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import { Header } from '@/components/ui/Header';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Alert as AppAlert } from '@/components/ui/Alert';
+import { useTranslation } from 'react-i18next';
 
 // Services & Types
 import { categoryService } from '@/services/categoryService';
@@ -24,7 +25,8 @@ import { useRestaurant } from '@/contexts/RestaurantContext';
 
 // Design system
 import {
-  COLORS,
+  useAppTheme,
+  type AppColors,
   TYPOGRAPHY,
   SPACING,
   BORDER_RADIUS,
@@ -50,7 +52,9 @@ export default function ReorderCategoriesScreen() {
 
   const screenType = useScreenType();
   const insets = useSafeAreaInsets();
-  const styles = createStyles(screenType, insets);
+  const { colors: COLORS } = useAppTheme();
+  const { t } = useTranslation();
+  const styles = useMemo(() => createStyles(COLORS, screenType, insets), [COLORS, screenType, insets]);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -92,7 +96,7 @@ export default function ReorderCategoriesScreen() {
       setCategories(list);
       setHasChanges(false);
     } catch {
-      pushAlert('error', 'Erreur', 'Impossible de charger les catégories.');
+      pushAlert('error', t('common.error'), t('reorderCategories.loadFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -141,12 +145,12 @@ export default function ReorderCategoriesScreen() {
       await categoryService.reorderCategories(payload);
       pushAlert(
         'success',
-        'Ordre enregistré',
-        'Les catégories ont été réorganisées.',
+        t('reorderCategories.savedTitle'),
+        t('reorderCategories.savedMsg'),
         () => router.back()
       );
     } catch {
-      pushAlert('error', 'Erreur', "Impossible d'enregistrer l'ordre.");
+      pushAlert('error', t('common.error'), t('reorderCategories.saveFailed'));
     } finally {
       setIsSaving(false);
     }
@@ -155,11 +159,11 @@ export default function ReorderCategoriesScreen() {
   if (!restaurantId) {
     return (
       <View style={styles.container}>
-        <Header title="Réorganiser les catégories" showBackButton />
+        <Header title={t('reorderCategories.headerTitle')} showBackButton />
         <View style={styles.empty}>
           <Ionicons name="alert-circle-outline" size={48} color={COLORS.text.light} />
           <Text style={styles.emptyText}>
-            Aucun restaurant sélectionné. Retournez à l'écran précédent et sélectionnez un restaurant.
+            {t('reorderCategories.noRestaurant')}
           </Text>
         </View>
       </View>
@@ -169,7 +173,7 @@ export default function ReorderCategoriesScreen() {
   if (isLoading) {
     return (
       <View style={styles.container}>
-        <Header title="Réorganiser les catégories" showBackButton />
+        <Header title={t('reorderCategories.headerTitle')} showBackButton />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.variants.secondary[500]} />
         </View>
@@ -179,7 +183,7 @@ export default function ReorderCategoriesScreen() {
 
   return (
     <View style={styles.container}>
-      <Header title="Réorganiser les catégories" showBackButton />
+      <Header title={t('reorderCategories.headerTitle')} showBackButton />
 
       {alerts.length > 0 && (
         <View style={styles.alertsContainer}>
@@ -205,8 +209,7 @@ export default function ReorderCategoriesScreen() {
           <View style={styles.introRow}>
             <Ionicons name="information-circle" size={20} color={COLORS.text.golden} />
             <Text style={styles.introText}>
-              L'ordre choisi ici détermine l'ordre d'affichage des catégories
-              sur le menu côté client (carte et menu du jour).
+              {t('reorderCategories.intro')}
             </Text>
           </View>
         </Card>
@@ -215,7 +218,7 @@ export default function ReorderCategoriesScreen() {
           <View style={styles.empty}>
             <Ionicons name="restaurant-outline" size={48} color={COLORS.text.light} />
             <Text style={styles.emptyText}>
-              Aucune catégorie pour ce restaurant.
+              {t('reorderCategories.empty')}
             </Text>
           </View>
         ) : (
@@ -236,7 +239,7 @@ export default function ReorderCategoriesScreen() {
                       <Text style={styles.categoryName}>{cat.name}</Text>
                       {!!cat.total_menu_items_count && (
                         <Text style={styles.categoryMeta}>
-                          {cat.total_menu_items_count} plat{cat.total_menu_items_count > 1 ? 's' : ''}
+                          {t('reorderCategories.dishCount', { count: cat.total_menu_items_count })}
                         </Text>
                       )}
                     </View>
@@ -247,7 +250,7 @@ export default function ReorderCategoriesScreen() {
                       disabled={isFirst}
                       style={[styles.arrowButton, isFirst && styles.arrowButtonDisabled]}
                       hitSlop={4}
-                      accessibilityLabel={`Monter ${cat.name}`}
+                      accessibilityLabel={t('reorderCategories.moveUp', { name: cat.name })}
                     >
                       <Ionicons
                         name="chevron-up"
@@ -260,7 +263,7 @@ export default function ReorderCategoriesScreen() {
                       disabled={isLast}
                       style={[styles.arrowButton, isLast && styles.arrowButtonDisabled]}
                       hitSlop={4}
-                      accessibilityLabel={`Descendre ${cat.name}`}
+                      accessibilityLabel={t('reorderCategories.moveDown', { name: cat.name })}
                     >
                       <Ionicons
                         name="chevron-down"
@@ -278,7 +281,7 @@ export default function ReorderCategoriesScreen() {
 
       <View style={styles.footer}>
         <Button
-          title={isSaving ? 'Enregistrement...' : 'Enregistrer l\'ordre'}
+          title={isSaving ? t('reorderCategories.saving') : t('reorderCategories.save')}
           onPress={handleSave}
           loading={isSaving}
           disabled={isSaving || categories.length === 0}
@@ -291,7 +294,7 @@ export default function ReorderCategoriesScreen() {
   );
 }
 
-const createStyles = (screenType: 'mobile' | 'tablet' | 'desktop', insets: any) => {
+const createStyles = (COLORS: AppColors, screenType: 'mobile' | 'tablet' | 'desktop', insets: any) => {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: COLORS.background },
     loadingContainer: {

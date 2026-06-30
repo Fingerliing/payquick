@@ -1,6 +1,18 @@
+// ⚠️ Ces deux imports DOIVENT rester les premiers du fichier.
+//   1) intl-pluralrules : polyfill Intl.PluralRules requis par i18next sous Hermes
+//   2) @/i18n            : initialisation i18next (effet de bord)
+import 'intl-pluralrules';
+import '@/i18n';
+
 import React, { useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 import { router, SplashScreen, Stack } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import * as NavigationBar from 'expo-navigation-bar';
+import * as SystemUI from 'expo-system-ui';
+
+import { ThemeProvider } from '@/contexts/ThemeContext';
+import { LanguageProvider } from '@/contexts/LanguageContext';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { RestaurantProvider } from '@/contexts/RestaurantContext';
 import { ComptabiliteProvider } from '@/contexts/ComptabiliteContext';
@@ -12,10 +24,33 @@ import { NotificationProvider as SessionNotificationProvider } from '@/component
 import { NotificationProvider as PushNotificationProvider } from '@/contexts/NotificationContext';
 import { SessionProvider } from '@/contexts/SessionContext';
 import { configureGoogleSignIn } from '@/services/googleAuthService';
+import { useAppTheme } from '@/utils/designSystem';
 
 try {
   SplashScreen.preventAutoHideAsync();
 } catch {
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Pilote la barre de navigation Android (boutons) + le fond de fenêtre
+// derrière les barres système, en fonction du thème courant.
+// Doit être monté SOUS ThemeProvider pour pouvoir lire useAppTheme().
+// ────────────────────────────────────────────────────────────────────────────
+function SystemBarsManager() {
+  const { colors, isDark } = useAppTheme();
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+
+    // Fond de fenêtre derrière les barres système (edge-to-edge) :
+    // c'est lui qui rend la zone de la barre de nav "bleu nuit" en dark.
+    SystemUI.setBackgroundColorAsync(colors.background);
+
+    // Icônes des boutons : clairs sur fond navy, sombres en mode clair.
+    NavigationBar.setButtonStyleAsync(isDark ? 'light' : 'dark');
+  }, [isDark, colors.background]);
+
+  return null;
 }
 
 function SplashScreenManager({ children }: { children: React.ReactNode }) {
@@ -54,30 +89,42 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <LegalAcceptanceProvider>
-        <AuthProvider>
-          <RestaurantProvider>
-            <ComptabiliteProvider>
-              <OrderProvider>
-                <SessionProvider>
-                  <SplashScreenManager>
-                    <CartProvider>
-                      <PushNotificationProvider>
-                        <SessionNotificationProvider>
-                          <Stack screenOptions={{ headerShown: false }}>
-                            <Stack.Screen name="+not-found" />
-                          </Stack>
-                          <FirstLaunchLegalModal />
-                        </SessionNotificationProvider>
-                      </PushNotificationProvider>
-                    </CartProvider>
-                  </SplashScreenManager>
-                </SessionProvider>
-              </OrderProvider>
-            </ComptabiliteProvider>
-          </RestaurantProvider>
-        </AuthProvider>
-      </LegalAcceptanceProvider>
+      {/*
+        ThemeProvider et LanguageProvider sont placés au plus haut niveau
+        (juste sous SafeAreaProvider) pour que TOUS les écrans, modales et
+        FirstLaunchLegalModal puissent lire le thème courant via useAppTheme()
+        et les traductions via useTranslation().
+      */}
+      <ThemeProvider>
+        {/* Synchronise la barre de nav Android avec le thème (Android uniquement) */}
+        <SystemBarsManager />
+        <LanguageProvider>
+          <LegalAcceptanceProvider>
+            <AuthProvider>
+              <RestaurantProvider>
+                <ComptabiliteProvider>
+                  <OrderProvider>
+                    <SessionProvider>
+                      <SplashScreenManager>
+                        <CartProvider>
+                          <PushNotificationProvider>
+                            <SessionNotificationProvider>
+                              <Stack screenOptions={{ headerShown: false }}>
+                                <Stack.Screen name="+not-found" />
+                              </Stack>
+                              <FirstLaunchLegalModal />
+                            </SessionNotificationProvider>
+                          </PushNotificationProvider>
+                        </CartProvider>
+                      </SplashScreenManager>
+                    </SessionProvider>
+                  </OrderProvider>
+                </ComptabiliteProvider>
+              </RestaurantProvider>
+            </AuthProvider>
+          </LegalAcceptanceProvider>
+        </LanguageProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

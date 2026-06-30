@@ -1,5 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password as django_validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from api.models import ClientProfile, RestaurateurProfile, Restaurant, Order, Menu
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -12,6 +14,25 @@ import phonenumbers
 from django.db import transaction
 
 logger = logging.getLogger(__name__)
+
+
+def validate_password_strength(password, *, username=None, first_name=None):
+    """
+    Applique AUTH_PASSWORD_VALIDATORS (longueur, mots de passe courants,
+    CustomPasswordValidator) et la similarité avec les attributs utilisateur,
+    puis convertit l'erreur Django en erreur DRF rattachée au champ `password`.
+
+    On construit un User transitoire (non sauvegardé) pour que
+    UserAttributeSimilarityValidator rejette un mot de passe trop proche de
+    l'email ou du nom. Appelé depuis `validate()` car username/nom n'y sont
+    disponibles de façon fiable qu'au niveau objet (après validation des champs).
+    """
+    transient_user = User(username=username or "", first_name=first_name or "")
+    try:
+        django_validate_password(password, user=transient_user)
+    except DjangoValidationError as exc:
+        # `exc.messages` agrège déjà les messages de tous les validateurs.
+        raise serializers.ValidationError({"password": list(exc.messages)})
 
 class RegisterSerializer(serializers.Serializer):
     username = serializers.EmailField(
@@ -45,14 +66,15 @@ class RegisterSerializer(serializers.Serializer):
                 raise serializers.ValidationError({
                     "telephone": "Le téléphone est obligatoire pour les clients."
                 })
-        
-        return data
 
-    def validate_password(self, value):
-        """Validation du mot de passe"""
-        if len(value) < 8:
-            raise serializers.ValidationError("Le mot de passe doit contenir au moins 8 caractères.")
-        return value
+        # Politique de robustesse du mot de passe (AUTH_PASSWORD_VALIDATORS).
+        validate_password_strength(
+            data.get("password", ""),
+            username=data.get("username"),
+            first_name=data.get("nom"),
+        )
+
+        return data
 
     def validate_nom(self, value):
         """Validation du nom"""
@@ -539,7 +561,14 @@ class InitiateRegistrationSerializer(serializers.Serializer):
                 raise serializers.ValidationError({
                     'siret': 'Le SIRET est obligatoire pour les restaurateurs.'
                 })
-        
+
+        # Politique de robustesse du mot de passe (AUTH_PASSWORD_VALIDATORS).
+        validate_password_strength(
+            data.get('password', ''),
+            username=data.get('username'),
+            first_name=data.get('nom'),
+        )
+
         return data
     
     def validate_telephone(self, value):

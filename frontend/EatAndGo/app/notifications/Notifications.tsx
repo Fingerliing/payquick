@@ -1,4 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
+import { useAppTheme, type AppColors } from '@/utils/designSystem';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -35,6 +37,22 @@ const COLORS = {
   info: '#3B82F6',
 };
 
+const makeColors = (c: AppColors, isDark: boolean) => ({
+  primary: c.primary,
+  gold: '#D4AF37',
+  background: c.background,
+  cardBg: c.surface,
+  text: c.text.primary,
+  textSecondary: c.text.secondary,
+  textMuted: c.text.light,
+  border: c.border.light,
+  unread: isDark ? 'rgba(30, 42, 120, 0.25)' : '#EFF6FF',
+  success: '#22C55E',
+  warning: '#F59E0B',
+  error: '#EF4444',
+  info: '#3B82F6',
+});
+
 // Icônes par type de notification
 const NOTIFICATION_ICONS: Record<string, { name: string; color: string }> = {
   order_created: { name: 'receipt-outline', color: COLORS.info },
@@ -70,25 +88,29 @@ function NotificationItem({
   onMarkRead,
   onDelete,
 }: NotificationItemProps) {
+  const { colors, isDark } = useAppTheme();
+  const COLORS = useMemo(() => makeColors(colors, isDark), [colors, isDark]);
+  const styles = useMemo(() => createStyles(COLORS), [COLORS]);
+  const { t } = useTranslation();
   const iconConfig = NOTIFICATION_ICONS[notification.notification_type] || NOTIFICATION_ICONS.system;
 
   const handleLongPress = () => {
     Alert.alert(
-      'Actions',
-      'Que voulez-vous faire ?',
+      t('notif.actionsTitle'),
+      t('notif.actionsMessage'),
       [
         {
-          text: notification.is_read ? 'Déjà lu' : 'Marquer comme lu',
+          text: notification.is_read ? t('notif.alreadyRead') : t('notif.markRead'),
           onPress: () => !notification.is_read && onMarkRead(notification.id),
           style: notification.is_read ? 'cancel' : 'default',
         },
         {
-          text: 'Supprimer',
+          text: t('common.delete'),
           onPress: () => onDelete(notification.id),
           style: 'destructive',
         },
         {
-          text: 'Annuler',
+          text: t('common.cancel'),
           style: 'cancel',
         },
       ]
@@ -150,6 +172,10 @@ function NotificationItem({
 // =============================================================================
 
 export default function NotificationsScreen() {
+  const { colors, isDark } = useAppTheme();
+  const COLORS = useMemo(() => makeColors(colors, isDark), [colors, isDark]);
+  const styles = useMemo(() => createStyles(COLORS), [COLORS]);
+  const { t, i18n } = useTranslation();
   const router = useRouter();
   const {
     notifications,
@@ -215,12 +241,12 @@ export default function NotificationsScreen() {
     if (unreadCount === 0) return;
 
     Alert.alert(
-      'Tout marquer comme lu',
-      `Marquer ${unreadCount} notification${unreadCount > 1 ? 's' : ''} comme lue${unreadCount > 1 ? 's' : ''} ?`,
+      t('notif.markAllTitle'),
+      t('notif.markAllMessage', { count: unreadCount }),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Confirmer',
+          text: t('common.confirm'),
           onPress: markAllAsRead,
         },
       ]
@@ -250,11 +276,11 @@ export default function NotificationsScreen() {
       let title = '';
 
       if (date.toDateString() === today.toDateString()) {
-        title = "Aujourd'hui";
+        title = t('notif.today');
       } else if (date.toDateString() === yesterday.toDateString()) {
-        title = 'Hier';
+        title = t('notif.yesterday');
       } else {
-        title = date.toLocaleDateString('fr-FR', {
+        title = date.toLocaleDateString(i18n.language, {
           weekday: 'long',
           day: 'numeric',
           month: 'long',
@@ -289,13 +315,13 @@ export default function NotificationsScreen() {
         >
           <Ionicons name="arrow-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Notifications</Text>
+        <Text style={styles.headerTitle}>{t('notif.title')}</Text>
         {unreadCount > 0 && (
           <TouchableOpacity
             style={styles.markAllButton}
             onPress={handleMarkAllRead}
           >
-            <Text style={styles.markAllText}>Tout lire</Text>
+            <Text style={styles.markAllText}>{t('notif.markAllShort')}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -332,11 +358,8 @@ export default function NotificationsScreen() {
       <View style={styles.emptyIconContainer}>
         <Ionicons name="notifications-off-outline" size={64} color={COLORS.textMuted} />
       </View>
-      <Text style={styles.emptyTitle}>Aucune notification</Text>
-      <Text style={styles.emptyText}>
-        Vous n'avez pas encore reçu de notifications.{'\n'}
-        Elles apparaîtront ici.
-      </Text>
+      <Text style={styles.emptyTitle}>{t('notif.empty')}</Text>
+      <Text style={styles.emptyText}>{t('notif.emptySubtitle')}</Text>
     </View>
   );
 
@@ -347,7 +370,7 @@ export default function NotificationsScreen() {
         {renderHeader()}
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Chargement...</Text>
+          <Text style={styles.loadingText}>{t('common.loading')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -385,7 +408,7 @@ export default function NotificationsScreen() {
 // STYLES
 // =============================================================================
 
-const styles = StyleSheet.create({
+const createStyles = (COLORS: ReturnType<typeof makeColors>) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,

@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
@@ -27,7 +28,8 @@ import { MenuItem } from '@/types/menu';
 
 // Design System
 import {
-  COLORS,
+  useAppTheme,
+  type AppColors,
   TYPOGRAPHY,
   SPACING,
   BORDER_RADIUS,
@@ -59,9 +61,11 @@ export default function CreateDailyMenuScreen() {
     selectedDate?: string;
   }>();
   const screenType = useScreenType();
+  const { colors } = useAppTheme();
+  const { t } = useTranslation();
   const responsive = useResponsive();
   const insets = useSafeAreaInsets();
-  const styles = createStyles(screenType, responsive, insets);
+  const styles = createStyles(colors, screenType, responsive, insets);
 
   const initialDate = selectedDateParam ? new Date(selectedDateParam) : new Date();
 
@@ -111,7 +115,7 @@ export default function CreateDailyMenuScreen() {
       setExpandedCategories(categories);
     } catch (error) {
       console.error('Erreur lors du chargement des plats:', error);
-      pushAlert('error', 'Erreur', 'Impossible de charger les plats du menu');
+      pushAlert('error', t('menuItemForm.error'), t('dailyMenuForm.loadItemsError'));
     } finally {
       setIsLoading(false);
     }
@@ -150,21 +154,21 @@ export default function CreateDailyMenuScreen() {
 
   const handleSave = async () => {
     if (!title.trim()) {
-      pushAlert('error', 'Erreur', 'Le titre du menu est requis');
+      pushAlert('error', t('menuItemForm.error'), t('dailyMenuForm.titleRequired'));
       return;
     }
 
     if (!specialPrice || parseFloat(specialPrice) <= 0) {
       pushAlert(
         'error',
-        'Prix requis',
-        'Le prix total du menu du jour doit être renseigné et strictement positif.'
+        t('dailyMenuForm.priceRequiredTitle'),
+        t('dailyMenuForm.priceRequiredMessage')
       );
       return;
     }
 
     if (selectedItems.size === 0) {
-      pushAlert('error', 'Erreur', 'Veuillez sélectionner au moins un plat');
+      pushAlert('error', t('menuItemForm.error'), t('dailyMenuForm.selectAtLeastOne'));
       return;
     }
 
@@ -190,16 +194,16 @@ export default function CreateDailyMenuScreen() {
 
       await dailyMenuService.createDailyMenu(menuData);
 
-      pushAlert('success', 'Succès', 'Le menu du jour a été créé avec succès', () => router.back());
+      pushAlert('success', t('menuItemForm.success'), t('dailyMenuForm.created'), () => router.back());
     } catch (error: any) {
       console.error('Erreur lors de la création du menu:', error);
       pushAlert(
         'error',
-        'Erreur',
+        t('menuItemForm.error'),
         error?.response?.data?.message ||
           error?.response?.data?.special_price?.[0] ||
           error?.response?.data?.detail ||
-          'Impossible de créer le menu du jour'
+          t('dailyMenuForm.createError')
       );
     } finally {
       setIsSaving(false);
@@ -247,9 +251,9 @@ export default function CreateDailyMenuScreen() {
 
         <View style={styles.menuItemRight}>
           {isSelected ? (
-            <Ionicons name="checkmark-circle" size={24} color={COLORS.success} />
+            <Ionicons name="checkmark-circle" size={24} color={colors.success} />
           ) : (
-            <Ionicons name="ellipse-outline" size={24} color={COLORS.text.light} />
+            <Ionicons name="ellipse-outline" size={24} color={colors.text.light} />
           )}
         </View>
       </TouchableOpacity>
@@ -259,14 +263,14 @@ export default function CreateDailyMenuScreen() {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.variants.secondary[500]} />
+        <ActivityIndicator size="large" color={colors.variants.secondary[500]} />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <Header title="Créer un menu du jour" showBackButton />
+      <Header title={t('dailyMenuForm.createTitle')} showBackButton />
 
       {alerts.length > 0 && (
         <View style={styles.alertsContainer}>
@@ -289,59 +293,58 @@ export default function CreateDailyMenuScreen() {
         showsVerticalScrollIndicator={!responsive.isMobile}
       >
         <Card variant="premium" style={styles.formCard}>
-          <Text style={styles.sectionTitle}>Informations générales</Text>
+          <Text style={styles.sectionTitle}>{t('dailyMenuForm.generalInfo')}</Text>
 
           <Input
-            label="Titre du menu"
+            label={t('dailyMenuForm.titleLabel')}
             value={title}
             onChangeText={setTitle}
-            placeholder="Ex: Menu du jour"
+            placeholder={t('dailyMenuForm.titlePlaceholder')}
             leftIcon="restaurant"
           />
 
           <Input
-            label="Description (optionnel)"
+            label={t('dailyMenuForm.descLabel')}
             value={description}
             onChangeText={setDescription}
-            placeholder="Ex: Entrée + Plat + Dessert"
+            placeholder={t('dailyMenuForm.descPlaceholder')}
             multiline
             numberOfLines={3}
             leftIcon="document-text"
           />
 
           <Input
-            label="Prix total du menu (€) *"
+            label={t('dailyMenuForm.priceLabel')}
             value={specialPrice}
             onChangeText={setSpecialPrice}
             keyboardType="numeric"
-            placeholder="Ex: 19.90"
+            placeholder={t('dailyMenuForm.pricePlaceholder')}
             leftIcon="pricetag"
           />
 
           {/* Aperçu de la formule en direct */}
           {!!pricePerCategory && categoriesCount > 0 && (
             <View style={styles.formulaPreview}>
-              <Ionicons name="information-circle" size={16} color={COLORS.text.golden} />
+              <Ionicons name="information-circle" size={16} color={colors.text.golden} />
               <Text style={styles.formulaPreviewText}>
                 {categoriesCount > 1
-                  ? `${categoriesCount} catégories • ${pricePerCategory}€ par plat`
-                  : `1 plat à ${pricePerCategory}€`}
+                  ? t('dailyMenuForm.priceSummaryMulti', { count: categoriesCount, price: pricePerCategory })
+                  : t('dailyMenuForm.priceSummarySingle', { price: pricePerCategory })}
               </Text>
             </View>
           )}
 
           <Text style={styles.helperText}>
-            Le client paiera ce prix total. Il choisit un plat par catégorie parmi
-            ceux que vous sélectionnez ci-dessous.
+            {t('dailyMenuForm.clientPriceHint')}
           </Text>
         </Card>
 
         <Card variant="surface" style={styles.selectionCard}>
-          <Text style={styles.sectionTitle}>Sélection des plats</Text>
+          <Text style={styles.sectionTitle}>{t('dailyMenuForm.dishSelection')}</Text>
           <Text style={styles.selectionSubtitle}>
-            {selectedItems.size} plat{selectedItems.size > 1 ? 's' : ''} sélectionné
+            {t('dailyMenuForm.selectedDishes', { count: selectedItems.size })}
             {selectedItems.size > 1 ? 's' : ''}
-            {categoriesCount > 0 && ` • ${categoriesCount} catégorie${categoriesCount > 1 ? 's' : ''}`}
+            {categoriesCount > 0 && t('dailyMenuForm.categoriesSuffix', { count: categoriesCount })}
           </Text>
 
           {Object.entries(itemsByCategory).map(([category, items]) => {
@@ -365,7 +368,7 @@ export default function CreateDailyMenuScreen() {
                   <Ionicons
                     name={isExpanded ? 'chevron-up' : 'chevron-down'}
                     size={20}
-                    color={COLORS.text.secondary}
+                    color={colors.text.secondary}
                   />
                 </TouchableOpacity>
 
@@ -382,13 +385,13 @@ export default function CreateDailyMenuScreen() {
 
       <View style={styles.footer}>
         <Button
-          title={isSaving ? 'Enregistrement...' : 'Créer le menu'}
+          title={isSaving ? t('dailyMenuForm.saving') : t('dailyMenuForm.createButton')}
           onPress={handleSave}
           loading={isSaving}
           disabled={isSaving}
           variant="primary"
           fullWidth
-          leftIcon={<Ionicons name="checkmark-circle" size={20} color={COLORS.surface} />}
+          leftIcon={<Ionicons name="checkmark-circle" size={20} color={colors.surface} />}
         />
       </View>
     </View>
@@ -396,17 +399,18 @@ export default function CreateDailyMenuScreen() {
 }
 
 const createStyles = (
+  colors: AppColors,
   screenType: 'mobile' | 'tablet' | 'desktop',
   _responsive: any,
   insets: any
 ) => {
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: COLORS.background },
+    container: { flex: 1, backgroundColor: colors.background },
     loadingContainer: {
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
-      backgroundColor: COLORS.background,
+      backgroundColor: colors.background,
     },
     alertsContainer: {
       paddingHorizontal: getResponsiveValue(SPACING.container, screenType),
@@ -423,32 +427,32 @@ const createStyles = (
     sectionTitle: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
       fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       marginBottom: getResponsiveValue(SPACING.md, screenType),
     },
     selectionSubtitle: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       marginBottom: getResponsiveValue(SPACING.md, screenType),
     },
     formulaPreview: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: getResponsiveValue(SPACING.xs, screenType),
-      backgroundColor: COLORS.goldenSurface,
+      backgroundColor: colors.goldenSurface,
       padding: getResponsiveValue(SPACING.sm, screenType),
       borderRadius: BORDER_RADIUS.md,
       marginTop: getResponsiveValue(SPACING.sm, screenType),
     },
     formulaPreviewText: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
-      color: COLORS.text.golden,
+      color: colors.text.golden,
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
       flex: 1,
     },
     helperText: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       marginTop: getResponsiveValue(SPACING.sm, screenType),
       fontStyle: 'italic',
     },
@@ -459,7 +463,7 @@ const createStyles = (
       justifyContent: 'space-between',
       paddingVertical: getResponsiveValue(SPACING.sm, screenType),
       borderBottomWidth: 1,
-      borderBottomColor: COLORS.border.light,
+      borderBottomColor: colors.border.light,
     },
     categoryTitleContainer: {
       flexDirection: 'row',
@@ -469,10 +473,10 @@ const createStyles = (
     categoryTitle: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.md, screenType),
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
     },
     categoryBadge: {
-      backgroundColor: COLORS.variants.secondary[500],
+      backgroundColor: colors.variants.secondary[500],
       paddingHorizontal: getResponsiveValue(SPACING.sm, screenType),
       paddingVertical: 2,
       borderRadius: BORDER_RADIUS.full,
@@ -480,7 +484,7 @@ const createStyles = (
     categoryBadgeText: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xs, screenType),
       fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: COLORS.surface,
+      color: colors.surface,
     },
     categoryItems: {
       paddingTop: getResponsiveValue(SPACING.sm, screenType),
@@ -491,23 +495,23 @@ const createStyles = (
       alignItems: 'center',
       padding: getResponsiveValue(SPACING.md, screenType),
       borderRadius: BORDER_RADIUS.md,
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderWidth: 1,
-      borderColor: COLORS.border.light,
+      borderColor: colors.border.light,
     },
     menuItemSelected: {
-      borderColor: COLORS.success,
-      backgroundColor: COLORS.success + '10',
+      borderColor: colors.success,
+      backgroundColor: colors.success + '10',
     },
     menuItemInfo: { flex: 1, paddingRight: getResponsiveValue(SPACING.sm, screenType) },
     menuItemName: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
     },
     menuItemDescription: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       marginTop: 2,
     },
     menuItemRight: {
@@ -517,9 +521,9 @@ const createStyles = (
     footer: {
       padding: getResponsiveValue(SPACING.container, screenType),
       paddingBottom: Math.max(insets?.bottom ?? 0, 20),
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderTopWidth: 1,
-      borderTopColor: COLORS.border.light,
+      borderTopColor: colors.border.light,
     },
   });
 };

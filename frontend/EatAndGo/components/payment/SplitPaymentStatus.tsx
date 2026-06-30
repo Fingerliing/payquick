@@ -9,11 +9,12 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { useTranslation } from 'react-i18next';
 import {
   useScreenType,
   getResponsiveValue,
   createResponsiveStyles,
-  COLORS,
+  useAppTheme,
   SPACING,
   BORDER_RADIUS,
   SHADOWS,
@@ -40,6 +41,8 @@ export const SplitPaymentStatus: React.FC<SplitPaymentStatusProps> = ({
 }) => {
   const screenType = useScreenType();
   const styles = createResponsiveStyles(screenType);
+  const { colors: COLORS } = useAppTheme();
+  const { t, i18n } = useTranslation();
 
   const formatCurrency = (amount: number | string) => `${safeParseFloat(amount).toFixed(2)} €`;
 
@@ -443,7 +446,7 @@ export const SplitPaymentStatus: React.FC<SplitPaymentStatusProps> = ({
         
         <View style={customStyles.portionInfo}>
           <Text style={customStyles.portionName}>
-            {portion.name || 'Anonyme'}
+            {portion.name || t('splitPayment.anonymous')}
           </Text>
           <Text style={customStyles.portionAmount}>
             {formatCurrency(portion.amount)}
@@ -455,21 +458,16 @@ export const SplitPaymentStatus: React.FC<SplitPaymentStatusProps> = ({
             isCurrent && customStyles.portionStatusCurrent,
             isPending && customStyles.portionStatusPending,
           ]}>
-            {isPaid && `Payé le ${new Date(portion.paidAt!).toLocaleString('fr-FR', { 
-              day: '2-digit', 
-              month: '2-digit', 
-              hour: '2-digit', 
-              minute: '2-digit' 
-            })}`}
-            {isCurrent && '💳 Votre part'}
-            {isPending && '⏳ En attente'}
+            {isPaid && t('splitPayment.paidOn', { date: new Date(portion.paidAt!).toLocaleString(i18n.language, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) })}
+            {isCurrent && t('splitPayment.yourPart')}
+            {isPending && t('splitPayment.waiting')}
           </Text>
         </View>
         
         {isCurrent && !isPaid && (
           <View style={customStyles.portionAction}>
             <Button
-              title={`Payer ${formatCurrency(portion.amount)}`}
+              title={t('payment.payAmount', { amount: formatCurrency(portion.amount) })}
               onPress={() => onPayPortion(portion.id)}
               size="sm"
               disabled={isProcessing}
@@ -491,18 +489,12 @@ export const SplitPaymentStatus: React.FC<SplitPaymentStatusProps> = ({
         </View>
         
         <Text style={customStyles.completedTitle}>
-          🎉 Paiement terminé !
+          {t('splitPayment.completedTitle')}
         </Text>
         
         <Text style={customStyles.completedMessage}>
-          Tous les paiements ont été effectués avec succès.
-          {session.completedAt && `\n\nTerminé le ${new Date(session.completedAt).toLocaleString('fr-FR', {
-            weekday: 'long',
-            day: '2-digit',
-            month: 'long',
-            hour: '2-digit',
-            minute: '2-digit'
-          })}`}
+          {t('splitPayment.completedMessage')}
+          {session.completedAt && t('splitPayment.completedOn', { date: new Date(session.completedAt).toLocaleString(i18n.language, { weekday: 'long', day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' }) })}
         </Text>
 
         <View style={customStyles.completedStats}>
@@ -510,14 +502,14 @@ export const SplitPaymentStatus: React.FC<SplitPaymentStatusProps> = ({
             <Text style={customStyles.completedStatValue}>
               {formatCurrency(safeParseFloat(session.totalAmount) + safeParseFloat(session.tipAmount))}
             </Text>
-            <Text style={customStyles.completedStatLabel}>Total</Text>
+            <Text style={customStyles.completedStatLabel}>{t('payment.total')}</Text>
           </View>
           
           <View style={customStyles.completedStat}>
             <Text style={customStyles.completedStatValue}>
               {session.portions.length}
             </Text>
-            <Text style={customStyles.completedStatLabel}>Personnes</Text>
+            <Text style={customStyles.completedStatLabel}>{t('splitPayment.people')}</Text>
           </View>
         </View>
       </Card>
@@ -539,10 +531,10 @@ export const SplitPaymentStatus: React.FC<SplitPaymentStatusProps> = ({
           
           <View style={customStyles.progressTitleContainer}>
             <Text style={customStyles.progressTitle}>
-              Paiement divisé
+              {t('splitPayment.title')}
             </Text>
             <Text style={customStyles.progressSubtitle}>
-              {session.splitType === 'equal' ? '⚖️ Répartition équitable' : '🎯 Montants personnalisés'}
+              {session.splitType === 'equal' ? t('splitPayment.equalSplit') : t('splitPayment.customSplit')}
             </Text>
           </View>
           
@@ -556,17 +548,17 @@ export const SplitPaymentStatus: React.FC<SplitPaymentStatusProps> = ({
         <View style={customStyles.progressStats}>
           <View style={customStyles.progressStat}>
             <Text style={customStyles.progressStatValue}>{formatCurrency(totalPaid)}</Text>
-            <Text style={customStyles.progressStatLabel}>✅ Payé</Text>
+            <Text style={customStyles.progressStatLabel}>{t('splitPayment.paidStat')}</Text>
           </View>
           
           <View style={customStyles.progressStat}>
             <Text style={customStyles.progressStatValue}>{formatCurrency(totalRemaining)}</Text>
-            <Text style={customStyles.progressStatLabel}>⏳ Restant</Text>
+            <Text style={customStyles.progressStatLabel}>{t('splitPayment.remainingStat')}</Text>
           </View>
           
           <View style={customStyles.progressStat}>
             <Text style={customStyles.progressStatValue}>{paidPortions.length}/{session.portions.length}</Text>
-            <Text style={customStyles.progressStatLabel}>👥 Personnes</Text>
+            <Text style={customStyles.progressStatLabel}>{t('splitPayment.peopleStat')}</Text>
           </View>
         </View>
       </Card>
@@ -575,7 +567,7 @@ export const SplitPaymentStatus: React.FC<SplitPaymentStatusProps> = ({
       <Card style={customStyles.portionsSection}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: getResponsiveValue(SPACING.sm, screenType) }}>
           <Text style={[customStyles.portionsTitle, { marginBottom: 0, flex: 1, textAlign: 'center' }]}>
-            📋 Détail des paiements
+            {t('splitPayment.paymentsDetail')}
           </Text>
           {onEditSplit && (
             <TouchableOpacity
@@ -594,9 +586,7 @@ export const SplitPaymentStatus: React.FC<SplitPaymentStatusProps> = ({
               activeOpacity={0.7}
             >
               <Ionicons name="options-outline" size={16} color={COLORS.primary} />
-              <Text style={{ fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType), fontWeight: TYPOGRAPHY.fontWeight.semibold, color: COLORS.primary }}>
-                Modifier
-              </Text>
+              <Text style={{ fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType), fontWeight: TYPOGRAPHY.fontWeight.semibold, color: COLORS.primary }}>{t('splitPayment.edit')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -610,7 +600,7 @@ export const SplitPaymentStatus: React.FC<SplitPaymentStatusProps> = ({
       {unpaidPortions.length > 1 && onPayAllRemaining && (
         <Card style={customStyles.globalActionsCard}>
           <Button
-            title={`💳 Payer le reste (${formatCurrency(totalRemaining)})`}
+            title={t('splitPayment.payRest', { amount: formatCurrency(totalRemaining) })}
             onPress={onPayAllRemaining}
             disabled={isProcessing}
             loading={isProcessing}
@@ -620,7 +610,7 @@ export const SplitPaymentStatus: React.FC<SplitPaymentStatusProps> = ({
           />
           
           <Text style={customStyles.globalActionHint}>
-            💡 Vous pouvez payer pour les autres personnes qui n'ont pas encore réglé leur part
+            {t('splitPayment.payForOthersHint')}
           </Text>
         </Card>
       )}

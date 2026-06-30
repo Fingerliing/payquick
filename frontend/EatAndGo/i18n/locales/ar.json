@@ -1,0 +1,2872 @@
+{
+  "addRestaurant": {
+    "title": "إضافة مطعم",
+    "image": {
+      "section": "صورة الغلاف",
+      "choose": "اختر صورة",
+      "formatHint": "يُنصح بنسبة 16:9"
+    },
+    "sections": {
+      "basicInfo": "معلومات أساسية",
+      "contact": "جهة الاتصال",
+      "location": "العنوان والموقع الجغرافي",
+      "mealVouchers": "قسائم الطعام",
+      "legal": "معلومات قانونية"
+    },
+    "fields": {
+      "name": "اسم المطعم *",
+      "namePlaceholder": "مثال: La Bonne Table",
+      "description": "الوصف",
+      "descriptionPlaceholder": "وصف موجز لمنشأتك",
+      "cuisineType": "نوع المطبخ *",
+      "priceRange": "نطاق الأسعار",
+      "phone": "الهاتف *",
+      "email": "البريد الإلكتروني *",
+      "website": "الموقع الإلكتروني",
+      "address": "العنوان *",
+      "city": "المدينة *",
+      "cityPlaceholder": "باريس",
+      "postalCode": "الرمز البريدي *",
+      "siret": "رقم SIRET *",
+      "siretPlaceholder": "12345678901234",
+      "raisonSociale": "الاسم التجاري",
+      "raisonSocialePlaceholder": "مثال: SARL Restaurant Chez Paul"
+    },
+    "cuisines": {
+      "french": "فرنسي",
+      "italian": "إيطالي",
+      "asian": "آسيوي",
+      "mexican": "مكسيكي",
+      "indian": "هندي",
+      "american": "أمريكي",
+      "mediterranean": "متوسطي",
+      "japanese": "ياباني",
+      "chinese": "صيني",
+      "thai": "تايلندي",
+      "other": "أخرى"
+    },
+    "priceRanges": {
+      "eco": "اقتصادي",
+      "moderate": "متوسط",
+      "expensive": "مرتفع",
+      "luxury": "فاخر"
+    },
+    "mealVouchers": {
+      "accept": "قبول قسائم الطعام",
+      "providers": "Swile، Edenred، Up…",
+      "legalInfoTitle": "معلومات قانونية",
+      "legalLimit": "الحد القانوني: 19 يورو لكل شخص في اليوم",
+      "legalUsage": "الاستخدام: من الإثنين إلى السبت (باستثناء الأحد والعطلات الرسمية، إلا في حالات استثنائية)",
+      "legalProducts": "المنتجات المؤهلة: الأطعمة الجاهزة للاستهلاك الفوري",
+      "customInfoLabel": "المعلومات المعروضة للعملاء",
+      "customInfoPlaceholder": "مثال: مقبولة من الإثنين إلى السبت، بحد أقصى 19 يورو",
+      "accepted": "مقبولة",
+      "notAccepted": "غير مقبولة",
+      "titleAccepted": "قسائم الطعام مقبولة",
+      "titleNotAccepted": "قسائم الطعام غير مقبولة",
+      "defaultInfo": "تُقبل قسائم الطعام وفقًا للشروط القانونية"
+    },
+    "status": {
+      "closedNow": "مغلق حاليًا",
+      "period": "الفترة: {{start}} - {{end}}",
+      "nextOpening": "الفتح التالي: {{time}}"
+    },
+    "submit": {
+      "create": "إنشاء المطعم",
+      "creating": "جارٍ الإنشاء…",
+      "processing": "جارٍ المعالجة…"
+    },
+    "validation": {
+      "nameRequired": "الاسم مطلوب",
+      "addressRequired": "العنوان مطلوب",
+      "cityRequired": "المدينة مطلوبة",
+      "zipRequired": "الرمز البريدي مطلوب",
+      "phoneRequired": "الهاتف مطلوب",
+      "emailRequired": "البريد الإلكتروني مطلوب",
+      "cuisineRequired": "المطبخ مطلوب",
+      "siretRequired": "رقم SIRET مطلوب",
+      "siretInvalid": "يجب أن يحتوي SIRET على 14 رقمًا بالضبط",
+      "zipInvalid": "يجب أن يحتوي الرمز البريدي على 5 أرقام بالضبط",
+      "phoneInvalid": "تنسيق غير صالح. استخدم 0612345678 أو +33612345678",
+      "hoursAllDays": "يجب أن تغطي ساعات العمل أيام الأسبوع السبعة",
+      "hoursPeriodRequired": "يجب أن يحتوي كل يوم عمل على فترة واحدة على الأقل",
+      "hoursStartEnd": "يجب أن يكون لكل فترة وقت بدء ووقت انتهاء",
+      "hoursDifferent": "يجب أن يختلف وقت الانتهاء عن وقت البدء",
+      "fixFieldsTitle": "حقول ناقصة",
+      "fixFieldsMessage": "يُرجى تصحيح الحقول المميزة بالأحمر."
+    },
+    "alerts": {
+      "permissionDeniedTitle": "تم رفض الإذن",
+      "photoPermissionMessage": "يلزم إذن الوصول إلى الصور",
+      "imagePickError": "تعذّر تحديد الصورة",
+      "errorTitle": "خطأ",
+      "locationPermissionMessage": "يلزم إذن تحديد الموقع",
+      "locationError": "تعذّر تحديد موقعك",
+      "successTitle": "نجاح",
+      "createSuccessMessage": "تم إنشاء المطعم بنجاح!\nالحالة الحالية: {{status}}\nقسائم الطعام: {{vouchers}}",
+      "createError": "تعذّر إنشاء المطعم",
+      "validationError": "تم اكتشاف أخطاء في التحقق - تحقق من الحقول المميزة بالأحمر",
+      "stripeRequiredTitle": "Stripe غير مُفعّل",
+      "stripeRequired": "حساب Stripe الخاص بك غير مُفعّل بعد. فعّل Stripe لتتمكن من إنشاء مطعم."
+    }
+  },
+  "dashboard": {
+    "greeting": "مرحبًا، أيها الطاهي!",
+    "open": "مفتوح",
+    "closed": "مغلق",
+    "quickActions": "إجراءات سريعة",
+    "recentOrders": "الطلبات الأخيرة",
+    "seeAll": "عرض الكل",
+    "new": "جديد",
+    "noOrders": "لا توجد طلبات",
+    "noOrdersDesc": "ستظهر الطلبات الأخيرة هنا",
+    "table": "طاولة {{number}}",
+    "itemsCount_one": "{{count}} عنصر",
+    "itemsCount_other": "{{count}} عناصر",
+    "stats": {
+      "todayOrders": "طلبات اليوم",
+      "revenue": "الإيرادات",
+      "pending": "قيد الانتظار",
+      "avgOrder": "متوسط الطلب",
+      "vsYesterday": "مقارنةً بالأمس",
+      "toProcess": "بانتظار المعالجة"
+    },
+    "actions": {
+      "orders": {
+        "title": "الطلبات",
+        "subtitle": "إدارة الطلبات"
+      },
+      "menu": {
+        "title": "القائمة",
+        "subtitle": "تعديل القائمة"
+      },
+      "tables": {
+        "title": "الطاولات",
+        "subtitle": "رموز QR"
+      },
+      "statistics": {
+        "title": "الإحصائيات",
+        "subtitle": "التحليلات"
+      },
+      "profile": {
+        "title": "الملف الشخصي",
+        "subtitle": "الإعدادات"
+      },
+      "support": {
+        "title": "الدعم",
+        "subtitle": "المساعدة والتواصل"
+      }
+    },
+    "toggle": {
+      "title": "تغيير الحالة",
+      "confirmOpen": "هل تريد فتح مطعمك؟",
+      "confirmClose": "هل تريد إغلاق مطعمك؟",
+      "nowOpen": "مطعمك الآن مفتوح.",
+      "nowClosed": "مطعمك الآن مغلق.",
+      "error": "تعذّر تغيير الحالة"
+    },
+    "refresh": {
+      "success": "تم تحديث البيانات بنجاح",
+      "error": "تعذّر تحديث البيانات"
+    }
+  },
+  "_comment": "REVIEW: traduction arabe à valider par un locuteur natif (registre MSA - arabe standard moderne). Direction RTL gérée automatiquement.",
+  "common": {
+    "ok": "موافق",
+    "cancel": "إلغاء",
+    "save": "حفظ",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "close": "إغلاق",
+    "back": "رجوع",
+    "next": "التالي",
+    "previous": "السابق",
+    "confirm": "تأكيد",
+    "continue": "متابعة",
+    "retry": "إعادة المحاولة",
+    "loading": "جارٍ التحميل…",
+    "search": "بحث",
+    "filter": "تصفية",
+    "clear": "مسح",
+    "select": "تحديد",
+    "selected": "محدد",
+    "add": "إضافة",
+    "remove": "إزالة",
+    "yes": "نعم",
+    "no": "لا",
+    "or": "أو",
+    "and": "و",
+    "all": "الكل",
+    "none": "لا شيء",
+    "more": "المزيد",
+    "less": "أقل",
+    "share": "مشاركة",
+    "copy": "نسخ",
+    "copied": "تم النسخ",
+    "refresh": "تحديث",
+    "submit": "إرسال",
+    "done": "تم",
+    "skip": "تخطي",
+    "optional": "اختياري",
+    "required": "مطلوب",
+    "available": "متوفر",
+    "unavailable": "غير متوفر",
+    "comingSoon": "قريبًا",
+    "error": "خطأ",
+    "success": "نجاح"
+  },
+  "nav": {
+    "home": "الرئيسية",
+    "menu": "القائمة",
+    "orders": "الطلبات",
+    "cart": "السلة",
+    "profile": "الملف الشخصي",
+    "settings": "الإعدادات",
+    "restaurants": "المطاعم",
+    "dashboard": "لوحة التحكم",
+    "history": "السجل",
+    "help": "مساعدة",
+    "logout": "تسجيل الخروج",
+    "scanner": "مسح",
+    "stats": "إحصاءات"
+  },
+  "auth": {
+    "stripe": {
+      "title": "إعداد Stripe",
+      "prepStatus": "جارٍ تحضير إعداد Stripe الخاص بك...",
+      "validated": "تم التحقّق من حساب Stripe الخاص بك بنجاح!",
+      "inProgress": "الإعداد قيد التنفيذ. قد يستغرق ذلك بضع دقائق...",
+      "stillChecking": "لا يزال التحقّق جاريًا...",
+      "statusCheckError": "حدث خطأ أثناء التحقّق من الحالة.",
+      "statusFetchFail": "تعذّر استرجاع حالة حسابك.",
+      "refreshFail": "تعذّر تحديث الحالة. حاول مرة أخرى.",
+      "refreshFailShort": "تعذّر تحديث الحالة.",
+      "redirectNote": "جارٍ إعادة التوجيه تلقائيًا إلى لوحة التحكّم...",
+      "errorDetail": "تفاصيل الخطأ",
+      "goToDashboard": "الانتقال إلى لوحة التحكّم",
+      "refreshStatus": "تحديث الحالة",
+      "opening": "جارٍ الفتح...",
+      "configureAccount": "إعداد حساب Stripe الخاص بي",
+      "continueWithout": "المتابعة بدون Stripe",
+      "paymentsDisabledPrefix": "ستبقى المدفوعات",
+      "paymentsDisabledWord": "معطّلة",
+      "paymentsDisabledSuffix": "حتى يكتمل التحقّق من Stripe.",
+      "helpTitle": "هل تحتاج إلى مساعدة؟",
+      "helpMessage": "إذا واجهت صعوبات أثناء إعداد حساب Stripe الخاص بك، فلا تتردّد في التواصل معنا.",
+      "contactUs": "تواصل معنا",
+      "noUrl": "لم يُرجع الخادم أي عنوان URL للإعداد.",
+      "popupBlocked": "حظر المتصفّح فتح علامة التبويب. اسمح بالنوافذ المنبثقة لـ eatquicker.fr.",
+      "cannotOpenBrowser": "تعذّر فتح متصفّح Stripe.",
+      "cannotOpenPage": "تعذّر فتح صفحة Stripe. تحقّق من اتصالك وحاول مرة أخرى."
+    },
+    "register": {
+      "title": "إنشاء حساب",
+      "tagline": "اطلب من الطاولة",
+      "returnToBanner": "أنشئ حسابك لاستئناف طلبك بعد التحقّق.",
+      "iAm": "أنا:",
+      "roleClient": "عميل",
+      "roleRestaurateur": "صاحب مطعم",
+      "fullName": "الاسم الكامل",
+      "siret": "رقم SIRET",
+      "termsPrefix": "أوافق على",
+      "termsCgu": "شروط الاستخدام",
+      "termsAnd": "و",
+      "termsPrivacy": "سياسة الخصوصية",
+      "emailCodeInfo": "سيتم إرسال رمز تحقّق إلى بريدك الإلكتروني.",
+      "errors": {
+        "emailRequired": "البريد الإلكتروني مطلوب",
+        "emailInvalid": "صيغة البريد الإلكتروني غير صالحة",
+        "passwordRequired": "كلمة المرور مطلوبة",
+        "passwordMin": "8 أحرف على الأقل",
+        "nameRequired": "الاسم مطلوب",
+        "phoneRequired": "رقم الهاتف مطلوب",
+        "phoneInvalid": "تنسيق غير صالح (مثال: +33612345678)",
+        "siretRequired": "رقم SIRET مطلوب",
+        "siretInvalid": "يجب أن يتكوّن SIRET من 14 رقمًا",
+        "acceptTerms": "يجب أن توافق على الشروط والأحكام",
+        "generic": "حدث خطأ أثناء التسجيل"
+      }
+    },
+    "passwordHint": "8 أحرف على الأقل، مع حرف كبير ورقم ورمز خاص",
+    "reset": {
+      "title": "كلمة مرور جديدة",
+      "step1": "1. أدخل الرمز المكوّن من 6 أرقام",
+      "step2": "2. اختر كلمة مرور جديدة",
+      "newPasswordLabel": "كلمة المرور الجديدة",
+      "submit": "إعادة تعيين كلمة المرور",
+      "pwdMinLength": "يجب أن تتكوّن كلمة المرور من {{n}} أحرف على الأقل.",
+      "pwdUpper": "يجب أن تحتوي كلمة المرور على حرف كبير واحد على الأقل.",
+      "pwdDigit": "يجب أن تحتوي كلمة المرور على رقم واحد على الأقل.",
+      "pwdSpecial": "يجب أن تحتوي كلمة المرور على رمز خاص واحد على الأقل.",
+      "codeIncompleteTitle": "رمز غير مكتمل",
+      "codeIncompleteMsg": "يرجى إدخال الرمز المكوّن من 6 أرقام الذي تلقّيته عبر البريد الإلكتروني.",
+      "invalidRequestTitle": "طلب غير صالح",
+      "invalidRequestMsg": "لم يعد هذا الطلب صالحًا. يرجى البدء من جديد.",
+      "codeIncorrectTitle": "رمز غير صحيح",
+      "codeInvalidRemaining": "رمز غير صالح. تبقّى {{count}} محاولة.",
+      "tooManyAttempts": "محاولات كثيرة جدًا. يرجى طلب رمز جديد.",
+      "requestExpiredTitle": "انتهت صلاحية الطلب",
+      "requestExpiredMsg": "لم يعد هذا الطلب صالحًا. يرجى البدء من جديد.",
+      "tooManyTitle": "محاولات كثيرة جدًا",
+      "tooManyMsg": "يرجى طلب رمز جديد والمحاولة مرة أخرى.",
+      "genericError": "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
+      "successTitle": "تم تغيير كلمة المرور",
+      "successMsg": "تمت إعادة تعيين كلمة المرور بنجاح."
+    },
+    "forgot": {
+      "title": "نسيت كلمة المرور",
+      "subtitle": "أدخل البريد الإلكتروني المرتبط بحسابك. سنرسل لك رمزًا لإعادة تعيين كلمة المرور.",
+      "cardLabel": "استعادة الحساب",
+      "cardSubtitle": "أدخل البريد الإلكتروني لحسابك على EatQuickeR.",
+      "sendCode": "إرسال الرمز",
+      "backToPrefix": "العودة إلى",
+      "backToLogin": "تسجيل الدخول",
+      "rateLimitTitle": "محاولات كثيرة جدًا",
+      "rateLimitMsg": "يرجى الانتظار لحظات قبل المحاولة مرة أخرى.",
+      "sendError": "تعذّر إرسال الرمز. يرجى المحاولة مرة أخرى.",
+      "networkErrorTitle": "خطأ في الشبكة",
+      "networkErrorMsg": "تحقّق من اتصالك وحاول مرة أخرى."
+    },
+    "verify": {
+      "title": "تأكيد البريد الإلكتروني",
+      "sentTo": "تم إرسال الرمز إلى",
+      "returnToBanner": "أكّد بريدك الإلكتروني لاستئناف طلبك.",
+      "enterCode": "أدخل الرمز المكوّن من 6 أرقام",
+      "expiresIn": "تنتهي صلاحية هذا الرمز خلال {{minutes}} دقائق",
+      "confirm": "تأكيد البريد الإلكتروني",
+      "noCode": "لم يصلك الرمز؟",
+      "resend": "إعادة إرسال الرمز",
+      "resendIn": "إعادة الإرسال خلال {{seconds}} ث",
+      "editEmail": "← تعديل بريدي الإلكتروني",
+      "sessionInvalid": "جلسة غير صالحة. يرجى إعادة بدء التسجيل.",
+      "invalidCodeTitle": "رمز غير صالح",
+      "invalidCodeMsg": "رمز غير صحيح. يرجى المحاولة مرة أخرى.",
+      "accountCreatedTitle": "تم إنشاء الحساب!",
+      "accountCreatedMsg": "مرحبًا بك في EatQuickeR 🎉",
+      "networkErrorTitle": "خطأ في الشبكة",
+      "networkErrorMsg": "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
+      "resendError": "تعذّر إعادة إرسال الرمز.",
+      "codeResentTitle": "تمت إعادة إرسال الرمز",
+      "codeResentMsg": "تم إرسال رمز جديد إلى {{email}}."
+    },
+    "welcomeTitle": "سعداء برؤيتك",
+    "welcomeSubtitle": "سجّل الدخول للمتابعة",
+    "slogan": "خادمٌ في خدمة الخوادم",
+    "loginTitle": "تسجيل الدخول",
+    "resumeOrderPrompt": "سجّل الدخول لاستئناف طلبك من حيث توقفت.",
+    "validation": {
+      "emailRequired": "البريد الإلكتروني مطلوب",
+      "passwordRequired": "كلمة المرور مطلوبة",
+      "passwordMinLength": "{{min}} أحرف على الأقل",
+      "noAccountEmail": "لا يوجد حساب بهذا البريد الإلكتروني"
+    },
+    "alerts": {
+      "accountNotFound": {
+        "title": "الحساب غير موجود",
+        "message": "لا يوجد حساب مرتبط بهذا البريد الإلكتروني."
+      },
+      "invalidCredentials": {
+        "title": "بيانات اعتماد غير صالحة",
+        "message": "البريد الإلكتروني أو كلمة المرور غير صحيحة. حاول مرة أخرى."
+      },
+      "accessDenied": {
+        "title": "تم رفض الوصول",
+        "message": "حسابك غير مصرّح له بتسجيل الدخول. تواصل مع الدعم."
+      },
+      "tooManyAttempts": {
+        "title": "محاولات كثيرة جدًا",
+        "message": "محاولات تسجيل دخول كثيرة جدًا. حاول مرة أخرى بعد قليل."
+      },
+      "networkError": {
+        "title": "خطأ في الاتصال",
+        "message": "تحقّق من اتصالك بالإنترنت وحاول مرة أخرى."
+      },
+      "serviceUnavailable": {
+        "title": "الخدمة غير متوفرة",
+        "message": "الخدمة غير متوفرة مؤقتًا. حاول مرة أخرى لاحقًا."
+      },
+      "genericError": {
+        "title": "خطأ في الاتصال",
+        "message": "حدث خطأ ما. حاول مرة أخرى."
+      },
+      "googlePlayUnavailable": {
+        "title": "Google Play غير متوفر",
+        "message": "خدمات Google Play غير متوفرة على هذا الجهاز."
+      },
+      "googleLoginFailed": {
+        "title": "تعذّر تسجيل الدخول عبر Google"
+      },
+      "comingSoon": {
+        "title": "قريبًا",
+        "message": "سيتوفّر تسجيل الدخول عبر Apple قريبًا."
+      },
+      "sessionExpired": {
+        "title": "انتهت الجلسة",
+        "message": "انتهت صلاحية جلستك. سجّل الدخول مرة أخرى."
+      }
+    },
+    "continueWithApple": "المتابعة باستخدام Apple",
+    "signIn": "تسجيل الدخول",
+    "signUp": "إنشاء حساب",
+    "signOut": "تسجيل الخروج",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "passwordConfirm": "تأكيد كلمة المرور",
+    "forgotPassword": "هل نسيت كلمة المرور؟",
+    "resetPassword": "إعادة تعيين كلمة المرور",
+    "firstName": "الاسم الأول",
+    "lastName": "الاسم العائلي",
+    "phone": "الهاتف",
+    "rememberMe": "تذكرني",
+    "reconnect": "تسجيل الدخول مجددًا",
+    "useAnotherAccount": "أو حساب آخر",
+    "continueAsGuest": "المتابعة كضيف",
+    "continueWithGoogle": "المتابعة باستخدام Google",
+    "alreadyHaveAccount": "هل لديك حساب بالفعل؟",
+    "noAccount": "ليس لديك حساب؟",
+    "verifyEmail": "تحقق من بريدك الإلكتروني",
+    "verificationSent": "تم إرسال بريد إلكتروني للتحقق.",
+    "termsAccept": "أوافق على شروط الاستخدام",
+    "privacyAccept": "أوافق على سياسة الخصوصية"
+  },
+  "menu": {
+    "title": "القائمة",
+    "categories": "الفئات",
+    "viewMenu": "عرض القائمة",
+    "allergens": "مسببات الحساسية",
+    "ingredients": "المكونات",
+    "description": "الوصف",
+    "price": "السعر",
+    "addToCart": "إضافة إلى السلة",
+    "removeFromCart": "إزالة من السلة",
+    "outOfStock": "نفد المخزون",
+    "popular": "شائع",
+    "new": "جديد",
+    "spicy": "حار",
+    "vegetarian": "نباتي",
+    "vegan": "نباتي صرف",
+    "glutenFree": "خالٍ من الغلوتين",
+    "dailyMenu": "قائمة اليوم",
+    "specialOffer": "عرض خاص",
+    "language": "لغة القائمة",
+    "noItems": "لا توجد أطباق متاحة",
+    "searchPlaceholder": "ابحث عن طبق…"
+  },
+  "cart": {
+    "title": "السلة",
+    "empty": "سلتك فارغة",
+    "emptyHint": "أضف أطباقًا لبدء طلبك.",
+    "backToMenu": "العودة إلى القائمة",
+    "item_one": "{{count}} عنصر",
+    "item_other": "{{count}} عناصر",
+    "subtotal": "المجموع الفرعي",
+    "tax": "الضرائب",
+    "tip": "إكرامية",
+    "total": "الإجمالي",
+    "checkout": "إتمام الطلب",
+    "quantity": "الكمية",
+    "specialInstructions": "تعليمات خاصة",
+    "specialInstructionsPlaceholder": "حساسية، درجة الطهي، بدون بصل…",
+    "table": "الطاولة",
+    "tableNumber": "طاولة رقم {{number}}",
+    "titleWithCount": "السلة ({{count}})",
+    "serviceFee": "رسوم الخدمة",
+    "collaborativeSession": "جلسة تعاونية",
+    "scanToOrder": "امسح للطلب",
+    "scanToOrderDescription": "امسح رمز QR للوصول إلى القائمة",
+    "checkoutForGroup": "الطلب للمجموعة",
+    "processing": "جارٍ المعالجة…",
+    "hostOnlyCheckout": "يمكن للمضيف فقط تنفيذ طلب المجموعة.",
+    "formula": {
+      "incomplete": "القائمة غير مكتملة",
+      "completeAction": "أكمل قائمتك لتنفيذ الطلب."
+    },
+    "clearConfirm": {
+      "title": "إفراغ السلة",
+      "message": "هل أنت متأكد من إفراغ السلة؟ لا يمكن التراجع عن هذا الإجراء.",
+      "cta": "إفراغ السلة"
+    },
+    "removeConfirm": {
+      "title": "إزالة المنتج",
+      "message": "هل تريد إزالة هذا المنتج من السلة؟",
+      "cta": "إزالة"
+    },
+    "splitConfirm": {
+      "title": "الطلب للمجموعة",
+      "message": "هل تريد تقسيم الفاتورة بين المشاركين؟ يمكن لكل شخص دفع حصته من هاتفه.",
+      "split": "تقسيم الفاتورة",
+      "payAll": "سأدفع الكل"
+    },
+    "feedback": {
+      "quantityUpdated": "تم تحديث الكمية",
+      "itemRemoved": "تمت إزالة المنتج",
+      "cleared": "تم إفراغ السلة",
+      "emptyOnCheckout": "سلتك فارغة. أضف منتجات للمتابعة.",
+      "restaurantNotFound": "لم يتم العثور على المطعم. يرجى مسح رمز QR مجددًا.",
+      "orderPlaced": "تم تنفيذ الطلب بنجاح!",
+      "orderPlacedSplit": "تم تنفيذ الطلب! جارٍ تقسيم الفاتورة…"
+    },
+    "errors": {
+      "quantityUpdate": "خطأ في تحديث الكمية",
+      "itemRemove": "خطأ في إزالة المنتج",
+      "cartClear": "خطأ في إفراغ السلة",
+      "checkout": "خطأ في تحضير الطلب",
+      "groupOrder": "خطأ في طلب المجموعة"
+    },
+    "a11y": {
+      "itemImage": "صورة {{name}}",
+      "itemRow": "{{name}}، الكمية {{count}}، السعر {{price}}",
+      "removeItem": "إزالة المنتج",
+      "decrease": "تقليل الكمية",
+      "increase": "زيادة الكمية",
+      "currentQuantity": "الكمية الحالية: {{count}}",
+      "checkoutHint": "انقر للانتقال إلى الدفع",
+      "formulaLockHint": "أكمل قائمتك لتنفيذ الطلب",
+      "checkoutLabel": "اطلب بإجمالي {{amount}}"
+    }
+  },
+  "order": {
+    "title": "الطلب",
+    "yourOrder": "طلبك",
+    "orderNumber": "طلب رقم {{number}}",
+    "status": {
+      "pending": "قيد الانتظار",
+      "confirmed": "مؤكد",
+      "preparing": "قيد التحضير",
+      "ready": "جاهز",
+      "served": "تم التقديم",
+      "completed": "مكتمل",
+      "cancelled": "ملغى"
+    },
+    "placedAt": "تم الطلب في {{date}}",
+    "noOrders": "لا توجد طلبات حاليًا",
+    "viewDetails": "عرض التفاصيل",
+    "track": "تتبع الطلب",
+    "rate": "تقييم الطلب",
+    "reorder": "إعادة الطلب",
+    "count_one": "{{count}} طلب",
+    "count_other": "{{count}} طلبات",
+    "unpaidTitle_one": "لديك طلب غير مدفوع",
+    "unpaidTitle_other": "لديك {{count}} طلبات غير مدفوعة",
+    "unpaidSubtitle": "يرجى تسوية طلباتك للتمكن من الطلب مجددًا",
+    "myOrders": "طلباتي",
+    "tabs": {
+      "active": "نشطة",
+      "history": "السجل"
+    },
+    "fallbackRestaurant": "مطعم",
+    "todayAt": "اليوم في {{time}}",
+    "dineIn": "في المكان",
+    "takeaway": "سفري",
+    "paid": "مدفوع",
+    "paymentPending": "الدفع معلّق",
+    "waitingTime": "وقت الانتظار المقدّر: {{minutes}} دقيقة",
+    "noActiveOrders": "لا توجد طلبات نشطة",
+    "noHistoryOrders": "لا توجد طلبات سابقة",
+    "scanPrompt": "امسح رمز QR الخاص بطاولتك لإجراء طلبك الأول",
+    "orderNow": "اطلب الآن",
+    "scanDescription": "ادخل إلى القائمة عبر مسح رمز QR الخاص بالطاولة",
+    "scanQR": "مسح رمز QR",
+    "enterCode": "إدخال الرمز",
+    "clientOnly": "مخصص للزبائن فقط",
+    "loadingOrders": "جارٍ تحميل طلباتك…",
+    "realtimeUnavailable": "إشعارات الوقت الحقيقي غير متاحة. اسحب للتحديث.",
+    "realtime": {
+      "on": "الوقت الحقيقي مفعّل",
+      "connecting": "جارٍ الاتصال…",
+      "error": "خطأ في الاتصال",
+      "offline": "غير متصل"
+    },
+    "statusLabels": {
+      "pending": "قيد الانتظار",
+      "confirmed": "مؤكد",
+      "preparing": "قيد التحضير",
+      "ready": "جاهز",
+      "served": "تم التقديم",
+      "cancelled": "ملغى"
+    }
+  },
+  "payment": {
+    "title": "الدفع",
+    "method": "طريقة الدفع",
+    "card": "بطاقة بنكية",
+    "applePay": "Apple Pay",
+    "googlePay": "Google Pay",
+    "payNow": "ادفع الآن",
+    "amount": "المبلغ",
+    "processing": "جارٍ المعالجة…",
+    "success": "تم الدفع بنجاح",
+    "failed": "فشل الدفع",
+    "splitPayment": "تقسيم الفاتورة",
+    "splitEqual": "تقسيم بالتساوي",
+    "splitByItem": "تقسيم حسب الطبق",
+    "splitCustom": "مبلغ مخصص",
+    "minAmount": "الحد الأدنى للمبلغ هو {{amount}}",
+    "yourShare": "حصتك",
+    "receipt": "الإيصال",
+    "downloadReceipt": "تنزيل الإيصال",
+    "itemFallback": "عنصر بدون اسم",
+    "loadingOrder": "جارٍ تحميل الطلب…",
+    "successHeader": "تم الدفع بنجاح",
+    "successTitle": "تم تأكيد الدفع!",
+    "successOnline": "تمت معالجة دفعتك بنجاح.",
+    "successOnlineToast": "تم تأكيد دفعتك.",
+    "successCash": "تم تأكيد طلبك. ستدفع في المطعم.",
+    "receiptSentSuffix": "\n\nتم إرسال إيصالك عبر البريد الإلكتروني.",
+    "successTitleToast": "تم الدفع بنجاح!",
+    "viewReceipt": "عرض الإيصال",
+    "backToOrder": "العودة إلى الطلب",
+    "summaryTitle": "ملخّص الطلب",
+    "orderNumber": "رقم الطلب",
+    "restaurant": "المطعم",
+    "table": "الطاولة",
+    "editSplit": "تعديل التقسيم",
+    "splitBill": "تقسيم الفاتورة",
+    "recommended": "موصى به",
+    "tipTitle": "إكرامية (اختياري)",
+    "tipCustomLabel": "مبلغ حر",
+    "receiptTitle": "الإيصال",
+    "receiptOption": "استلام الإيصال عبر البريد الإلكتروني",
+    "total": "الإجمالي",
+    "subtotal": "المجموع الفرعي",
+    "tipLabel": "إكرامية",
+    "totalDue": "المبلغ المستحق",
+    "processingBtn": "جارٍ المعالجة…",
+    "payAmount": "ادفع {{amount}}",
+    "confirmOrder": "تأكيد الطلب",
+    "securityOnline": "🔒 دفع آمن عبر Stripe • ❤️ يدعم المطوّر",
+    "securityCash": "💰 الدفع في المطعم",
+    "participantFallback": "مشارك",
+    "initFailed": "تعذّر تهيئة الدفع",
+    "stripeKeyMissing": "مفتاح Stripe العام غير مُهيَّأ. تواصل مع الدعم.",
+    "stripeKeyMissingTitle": "إعداد Stripe مفقود",
+    "declined": "تم رفض الدفع",
+    "declinedTitle": "خطأ في الدفع",
+    "emailInvalid": "يرجى إدخال عنوان بريد إلكتروني صالح أو إيقاف إرسال الإيصال.",
+    "emailInvalidTitle": "بريد غير صالح",
+    "cashConfirmTitle": "الدفع نقدًا",
+    "cashConfirmMsg": "هل تؤكّد الدفع نقدًا في المطعم؟",
+    "cashConfirmFailed": "تعذّر تأكيد الدفع",
+    "amountTooLowTitle": "المبلغ منخفض جدًا",
+    "portionTooLow": "مبلغ هذه الحصة ({{amount}}) أقل من الحد الأدنى المقبول من Stripe (0.50 €). اطلب من مشارك آخر دمج حصته مع حصتك، أو استخدم «دفع الكل».",
+    "portionPaidComplete": "تمت جميع المدفوعات. الطلب الآن مكتمل.",
+    "portionPaidRemaining": "تم دفع حصتك بنجاح. تبقّى {{count}} حصة للدفع.",
+    "portionFailed": "فشل دفع هذه الحصة",
+    "allPaidAlready": "جميع الحصص مدفوعة بالفعل",
+    "infoTitle": "معلومة",
+    "remainingTooLow": "المبلغ المتبقّي ({{amount}}) أقل من الحد الأدنى المقبول من Stripe (0.50 €).",
+    "payAllTitle": "دفع جميع الحصص المتبقّية",
+    "payAllMsg": "ستدفع {{amount}} مقابل {{count}} حصة. هل تؤكّد؟",
+    "remainingFailed": "فشل دفع الحصص المتبقّية",
+    "methods": {
+      "onlineTitle": "بطاقة",
+      "onlineDesc": "دفع آمن عبر Stripe • يساعد المطوّر",
+      "onlineBadge": "فوري",
+      "cashTitle": "نقدًا في المطعم",
+      "cashDesc": "ادفع مباشرة على طاولتك",
+      "cashBadge": "متاح"
+    },
+    "toast": {
+      "loadFailed": "تعذّر تحميل الطلب",
+      "orderNotFound": "الطلب غير موجود"
+    },
+    "split": {
+      "itemsActivated": "تم تفعيل وضع «حسب الطبق». يمكن لكل مشارك الآن اختيار العناصر التي يريد دفعها.",
+      "dividedInto": "تم تقسيم الفاتورة إلى {{count}} حصص. يمكنك الآن دفع حصتك.",
+      "createdTitle": "تم إنشاء الدفع المقسّم!",
+      "createError": "حدث خطأ أثناء إنشاء الدفع المقسّم",
+      "claimFailed": "تعذّرت إضافة هذا العنصر",
+      "unclaimFailed": "تعذّرت إزالة هذا العنصر"
+    }
+  },
+  "session": {
+    "join": "الانضمام إلى الطاولة",
+    "host": "المضيف",
+    "participants_one": "{{count}} مشارك",
+    "participants_other": "{{count}} مشاركون",
+    "yourName": "اسمك",
+    "leaveSession": "مغادرة الجلسة",
+    "sessionEnded": "انتهت الجلسة",
+    "waitingForOthers": "في انتظار باقي الضيوف…",
+    "tableLabel": "{{name}} · طاولة {{table}}",
+    "bannerCta": "انقر للاستئناف",
+    "foundLabel": "تم العثور على الجلسة",
+    "foundCta": "انقر للانضمام",
+    "inactivityWarning": "⚠️ جلسة غير نشطة — إغلاق تلقائي خلال {{time}}",
+    "status": {
+      "active": "نشطة",
+      "locked": "مقفلة",
+      "payment": "الدفع معلّق"
+    },
+    "errors": {
+      "emptyCode": "يرجى إدخال رمز الجلسة.",
+      "notFound": "لم يتم العثور على جلسة بهذا الرمز.",
+      "inactive": "هذه الجلسة لم تعد نشطة.",
+      "invalidCode": "لا توجد جلسة نشطة بهذا الرمز. تحقق وحاول مرة أخرى.",
+      "joinFailed": "تعذّر الانضمام إلى هذه الجلسة.",
+      "maybeGone": "قد لا تكون الجلسة متاحة بعد الآن.",
+      "rejected": "رفض المضيف طلبك.",
+      "joinTitle": "تعذّر الانضمام"
+    },
+    "exit": {
+      "titleHost": "إنهاء الجلسة؟",
+      "titleMember": "مغادرة الجلسة؟",
+      "messageHost": "بصفتك المضيف، سيؤدي ذلك إلى إغلاق الجلسة لجميع المشاركين.",
+      "messageMember": "أنت على وشك مغادرة هذه الجلسة التعاونية.",
+      "ctaHost": "إنهاء",
+      "ctaMember": "مغادرة"
+    },
+    "completed": {
+      "title": "انتهت الجلسة",
+      "participantsLabel": "المشاركون ({{count}})",
+      "totalLabel": "المجموع: {{amount}}",
+      "close": "إغلاق"
+    },
+    "codeModal": {
+      "title": "الانضمام إلى جلسة",
+      "description": "أدخل الرمز الذي شاركه مضيف الطاولة للانضمام إلى الجلسة الحالية.",
+      "placeholder": "مثال: ABC123",
+      "cta": "الانضمام إلى الجلسة"
+    },
+    "pending": {
+      "title": "في انتظار الموافقة",
+      "description": "يجب على المضيف التحقق من طلبك.\nسيتم توجيهك تلقائيًا بمجرد القبول.",
+      "codeLabel": "رمز الجلسة"
+    },
+    "archive": {
+      "archived": "تم أرشفة هذه الجلسة",
+      "archivingIn": "الأرشفة خلال {{time}}",
+      "archivingSoonUrgent": "⚠️ الأرشفة خلال {{time}}"
+    },
+    "joinModal": {
+      "chooseTitle": "الطلب على هذه الطاولة",
+      "chooseSubtitle": "اختر طريقة الطلب",
+      "rejoinExisting": {
+        "title": "استئناف الجلسة الحالية",
+        "subtitle": "الرمز: {{code}} · {{count}} مشارك"
+      },
+      "createGroup": {
+        "title": "إنشاء جلسة جماعية",
+        "description": "اطلب مع الأصدقاء وقسّم الفاتورة بسهولة"
+      },
+      "joinGroup": {
+        "title": "الانضمام إلى جلسة",
+        "description": "أدخل الرمز الذي شاركته مجموعتك"
+      },
+      "orderAlone": "الطلب بمفردي",
+      "createTitle": "إنشاء جلسة جماعية",
+      "hostNameLabel": "اسمك",
+      "hostNamePlaceholder": "مثال: أحمد",
+      "sessionTypeLabel": "نوع الجلسة",
+      "sessionType": {
+        "collaborative": {
+          "title": "تعاونية",
+          "desc": "الجميع يرى الطلبات"
+        },
+        "individual": {
+          "title": "فردية",
+          "desc": "كل شخص يطلب بشكل منفصل"
+        }
+      },
+      "maxParticipantsLabel": "الحد الأقصى لعدد المشاركين",
+      "requireApprovalLabel": "الموافقة يدويًا على المشاركين الجدد",
+      "back": "رجوع",
+      "createCta": "إنشاء جلسة",
+      "joinTitle": "الانضمام إلى جلسة",
+      "codeLabel": "رمز الجلسة",
+      "codePlaceholder": "ABC123",
+      "verifyCta": "تحقق",
+      "previewTitle": "معلومات الجلسة",
+      "previewHost": "المضيف:",
+      "previewParticipants": "المشاركون:",
+      "sessionFullOrLocked": "⚠️ هذه الجلسة ممتلئة أو مقفلة",
+      "guestNameLabel": "اسمك",
+      "guestNamePlaceholder": "مثال: فاطمة",
+      "joinCta": "انضمام",
+      "pendingDescription": "يجب على مضيف الجلسة الموافقة على طلبك.\nسيتم توجيهك تلقائيًا بعد القبول.",
+      "feedback": {
+        "soloError": "تعذّر بدء الطلب الفردي.",
+        "fieldRequired": "حقل مطلوب",
+        "nameRequiredHost": "يرجى إدخال اسمك لإنشاء الجلسة.",
+        "nameRequiredGuest": "يرجى إدخال اسمك للانضمام إلى الجلسة.",
+        "invalidCode": "رمز غير صالح",
+        "invalidCodeDesc": "يجب أن يتكون الرمز من 6 أحرف بالضبط.",
+        "codeNotFound": "الرمز غير موجود",
+        "codeNotFoundDesc": "لا توجد جلسة نشطة تطابق هذا الرمز.",
+        "sessionCreated": "تم إنشاء الجلسة!",
+        "sessionCreatedDesc": "شارك الرمز {{code}} مع أصدقائك.",
+        "sessionCreateError": "تعذّر إنشاء الجلسة.",
+        "welcome": "مرحبًا!",
+        "welcomeDesc": "تم الانضمام إلى الجلسة بنجاح.",
+        "joinError": "تعذّر الانضمام إلى الجلسة.",
+        "approved": "✅ تم القبول!",
+        "approvedDesc": "قبلك المضيف في الجلسة.",
+        "rejected": "❌ مرفوض",
+        "rejectedDesc": "رفض المضيف طلبك."
+      }
+    }
+  },
+  "profile": {
+    "title": "الملف الشخصي",
+    "myAccount": "حسابي",
+    "personalInfo": "المعلومات الشخصية",
+    "preferences": "التفضيلات",
+    "language": "اللغة",
+    "appearance": "المظهر",
+    "notifications": "الإشعارات",
+    "paymentMethods": "وسائل الدفع",
+    "addresses": "العناوين",
+    "support": "المساعدة والدعم",
+    "about": "حول التطبيق",
+    "terms": "شروط الاستخدام",
+    "privacy": "سياسة الخصوصية",
+    "version": "الإصدار {{version}}",
+    "deleteAccount": "حذف حسابي",
+    "signInPrompt": "سجّل الدخول للوصول إلى ملفك الشخصي",
+    "defaultName": "مستخدم",
+    "verified": "موثّق",
+    "logoutConfirm": "هل أنت متأكد من تسجيل الخروج؟",
+    "myActions": "إجراءاتي",
+    "information": "معلومات",
+    "helpFaq": "المساعدة والأسئلة الشائعة",
+    "contactUs": "اتصل بنا",
+    "personalData": "البيانات الشخصية"
+  },
+  "theme": {
+    "title": "السمة",
+    "light": "فاتح",
+    "dark": "داكن",
+    "system": "النظام"
+  },
+  "restaurant": {
+    "dashboard": "لوحة التحكم",
+    "myRestaurants": "مطاعمي",
+    "openNow": "مفتوح",
+    "closedNow": "مغلق",
+    "opensAt": "يفتح عند {{time}}",
+    "closesAt": "يغلق عند {{time}}",
+    "address": "العنوان",
+    "contact": "اتصال",
+    "hours": "ساعات العمل",
+    "rating": "التقييم",
+    "reviews_one": "{{count}} تقييم",
+    "reviews_other": "{{count}} تقييمات",
+    "menuManagement": "إدارة القائمة",
+    "ordersManagement": "إدارة الطلبات",
+    "staff": "الفريق",
+    "stats": "الإحصائيات",
+    "revenue": "الإيرادات",
+    "todayRevenue": "إيرادات اليوم",
+    "weekRevenue": "إيرادات الأسبوع",
+    "monthRevenue": "إيرادات الشهر"
+  },
+  "errors": {
+    "generic": "حدث خطأ. يرجى إعادة المحاولة.",
+    "network": "خطأ في الشبكة. تحقق من اتصالك.",
+    "unauthorized": "يجب تسجيل الدخول للمتابعة.",
+    "forbidden": "إجراء غير مسموح به.",
+    "notFound": "المورد غير موجود.",
+    "requiredField": "هذا الحقل مطلوب.",
+    "invalidEmail": "عنوان البريد الإلكتروني غير صالح.",
+    "passwordTooShort": "يجب أن تحتوي كلمة المرور على {{min}} أحرف على الأقل.",
+    "passwordMismatch": "كلمتا المرور غير متطابقتين.",
+    "invalidCredentials": "بيانات الاعتماد غير صحيحة.",
+    "serverError": "خطأ في الخادم. يرجى إعادة المحاولة لاحقًا.",
+    "timeout": "الخادم لا يستجيب. أعد المحاولة."
+  },
+  "success": {
+    "saved": "تم الحفظ",
+    "deleted": "تم الحذف",
+    "sent": "تم الإرسال",
+    "copied": "تم النسخ إلى الحافظة"
+  },
+  "time": {
+    "now": "الآن",
+    "minuteAgo_one": "منذ {{count}} دقيقة",
+    "minuteAgo_other": "منذ {{count}} دقائق",
+    "hourAgo_one": "منذ {{count}} ساعة",
+    "hourAgo_other": "منذ {{count}} ساعات",
+    "dayAgo_one": "منذ {{count}} يوم",
+    "dayAgo_other": "منذ {{count}} أيام",
+    "today": "اليوم",
+    "yesterday": "أمس",
+    "tomorrow": "غدًا"
+  },
+  "legal": {
+    "document": {
+      "lastUpdate": "آخر تحديث: {{date}}",
+      "acceptDefault": "لقد قرأت وأوافق",
+      "acceptTerms": "لقد قرأت شروط الاستخدام وأوافق عليها",
+      "acceptPrivacy": "لقد قرأت السياسة وأوافق عليها",
+      "saveError": "حدث خطأ أثناء الحفظ. يرجى المحاولة مرة أخرى."
+    },
+    "modal": {
+      "welcomeTitle": "مرحبًا بك في EatQuickeR",
+      "intro": "للمتابعة، يرجى قبول مستنداتنا القانونية.",
+      "termsName": "شروط الاستخدام",
+      "privacyName": "سياسة الخصوصية",
+      "viewDocument": "عرض المستند",
+      "acceptTermsLabel": "أوافق على شروط الاستخدام",
+      "acceptPrivacyLabel": "أوافق على سياسة الخصوصية",
+      "helpText": "يمكنك الاطّلاع على المستندات قبل قبولها بالضغط على «عرض المستند».",
+      "acceptBoth": "يرجى قبول كلا المستندين",
+      "saveError": "حدث خطأ أثناء الحفظ. يرجى المحاولة مرة أخرى."
+    },
+    "copyright": "© {{year}} EatQuicker. جميع الحقوق محفوظة.",
+    "termsShort": "الشروط",
+    "privacyShort": "الخصوصية",
+    "noticeShort": "إشعار قانوني",
+    "downloadMyData": {
+      "cta": "تنزيل بياناتي",
+      "download": "تنزيل",
+      "gdprNotice": "تصدير متوافق مع GDPR (المادة 20)",
+      "confirmTitle": "تصدير البيانات",
+      "confirmMessage": "هل تريد تنزيل جميع بياناتك الشخصية؟\n\nيتضمن: الملف الشخصي، الطلبات، التفضيلات، والسجل.",
+      "shareDialogTitle": "تنزيل بيانات EatQuickeR الخاصة بي",
+      "options": {
+        "title": "تصدير البيانات",
+        "message": "كيف تريد استلام بياناتك؟",
+        "direct": "تنزيل مباشر",
+        "email": "عبر البريد الإلكتروني (خلال 48 ساعة)"
+      },
+      "progress": {
+        "fetching": "جارٍ جلب البيانات…",
+        "preparing": "جارٍ تحضير الملف…",
+        "preparingShort": "جارٍ التحضير…",
+        "done": "اكتمل التصدير!",
+        "sending": "جارٍ إرسال الطلب…"
+      },
+      "success": {
+        "title": "نجح التصدير",
+        "message": "تم تصدير بياناتك ({{size}} كيلوبايت).\n\nيمكنك الآن حفظها أو مشاركتها.",
+        "messageFallback": "تم تصدير بياناتك إلى:\n{{filename}}\n\nالحجم: {{size}} كيلوبايت"
+      },
+      "email": {
+        "title": "تصدير عبر البريد الإلكتروني",
+        "confirmMessage": "ستتلقى بريدًا إلكترونيًا برابط تنزيل آمن خلال 48 ساعة.\n\nالمتابعة؟",
+        "successTitle": "تم تسجيل الطلب",
+        "successMessage": "سيتم إرسال بريد إلكتروني إلى {{email}} خلال 48 ساعة يحتوي على بياناتك."
+      },
+      "errors": {
+        "notLoggedIn": "يجب تسجيل الدخول لتصدير بياناتك",
+        "rateLimit": "لقد وصلت إلى الحد اليومي للتصدير. حاول غدًا.",
+        "sessionExpired": "انتهت صلاحية جلستك. يرجى تسجيل الدخول مرة أخرى.",
+        "forbidden": "ليس لديك إذن لتصدير هذه البيانات.",
+        "serverError": "خطأ في الخادم. حاول مرة أخرى بعد قليل.",
+        "serviceUnavailable": "خدمة التصدير غير متوفرة مؤقتًا. حاول بعد بضع دقائق.",
+        "generic": "تعذّر تنزيل بياناتك. حاول مرة أخرى.",
+        "connection": "خطأ في الاتصال. تحقق من اتصالك بالإنترنت.",
+        "emailRequestFailed": "تعذّر تسجيل طلبك. حاول مرة أخرى.",
+        "emailPending": "لديك طلب تصدير قيد المعالجة بالفعل. يرجى الانتظار."
+      },
+      "a11y": {
+        "label": "تنزيل بياناتي الشخصية",
+        "hint": "تصدير جميع بياناتك وفقًا لـ GDPR"
+      }
+    }
+  },
+  "home": {
+    "subtitle": "اطلب بسهولة",
+    "welcome": "مرحبًا {{name}}! 👋",
+    "welcomeSubtext": "هل أنت مستعد للطلب اليوم؟",
+    "quickActions": "إجراءات سريعة",
+    "actions": {
+      "myOrders": {
+        "title": "طلباتي",
+        "subtitle": "تابع طلباتك"
+      },
+      "myCart": {
+        "title": "سلتي",
+        "subtitle": "أكمل عملية الشراء"
+      },
+      "joinSession": {
+        "title": "الانضمام إلى جلسة",
+        "subtitle": "أدخل رمز المشاركة"
+      }
+    }
+  },
+  "qrAccess": {
+    "title": "امسح رمز QR الخاص بطاولتك",
+    "description": "أو أدخل الرمز يدويًا",
+    "scanButton": "مسح QR",
+    "codeButton": "إدخال الرمز",
+    "emptyCode": "يرجى إدخال رمز صالح.",
+    "invalidCodeTitle": "رمز غير صالح",
+    "errors": {
+      "notFound": "هذا الرمز لا يتطابق مع أي مطعم أو طاولة. تحقق من الرمز أو امسح رمز QR.",
+      "restaurantNotFound": "هذا الرمز لا يتطابق مع أي مطعم مسجل. تحقق من رمز QR.",
+      "serverUnavailable": "تعذّر التحقق من هذا المطعم. تحقق من اتصالك وحاول مجددًا."
+    },
+    "modal": {
+      "title": "إدخال رمز",
+      "description": "رمز الطاولة (مثل R12T005) أو رمز جلسة مشترك من 6 أحرف.",
+      "placeholder": "مثل R12T005 أو ABC123",
+      "confirm": "تأكيد",
+      "verifying": "جارٍ التحقق…"
+    },
+    "account": {
+      "title": "هل تريد استخدام حساب؟",
+      "hint": "يتيح لك الحساب العثور على طلباتك وفواتيرك. يمكنك أيضًا الوصول إلى القائمة مباشرة.",
+      "login": {
+        "title": "تسجيل الدخول",
+        "desc": "لدي حساب EatQuickeR بالفعل"
+      },
+      "register": {
+        "title": "إنشاء حساب",
+        "desc": "تسجيل سريع لمتابعة طلباتك"
+      },
+      "or": "أو",
+      "guestCta": "المتابعة بدون حساب",
+      "guestHint": "تصل فورًا إلى القائمة. سيُطلب منك الاسم ورقم الهاتف عند الطلب."
+    }
+  },
+  "qrScanner": {
+    "invalidTitle": "رمز QR غير صالح",
+    "invalidMessage": "لا يتطابق رمز QR هذا مع أي مطعم EatQuickeR\n\nالقيمة الممسوحة: {{value}}",
+    "retry": "إعادة المحاولة",
+    "instruction": "وجّه الكاميرا نحو رمز QR الخاص بالمطعم",
+    "permission": {
+      "title": "مطلوب الوصول إلى الكاميرا",
+      "description": "لمسح رموز QR، نحتاج إلى الوصول إلى الكاميرا.",
+      "allow": "السماح"
+    }
+  },
+  "restaurantNav": {
+    "home": "الرئيسية",
+    "restaurants": "المطاعم",
+    "orders": "الطلبات",
+    "menus": "القوائم",
+    "dailyMenu": "قائمة اليوم",
+    "dailyMenuShort": "اليوم",
+    "statistics": "الإحصائيات",
+    "statisticsShort": "إحص.",
+    "qrcodes": "رموز QR",
+    "profile": "الملف الشخصي",
+    "accounting": "المحاسبة"
+  },
+  "restaurantProfile": {
+    "fallbackUserName": "مستخدم",
+    "accountInfo": "معلومات الحساب",
+    "email": "البريد الإلكتروني",
+    "phone": "الهاتف",
+    "accountType": "نوع الحساب",
+    "siret": "SIRET",
+    "stripeStatus": "حالة Stripe",
+    "stripeValidated": "مُحقّق",
+    "stripePending": "قيد الانتظار",
+    "logout": "تسجيل الخروج",
+    "logoutConfirmTitle": "تسجيل الخروج",
+    "logoutConfirmMessage": "هل أنت متأكد من تسجيل الخروج؟",
+    "role": {
+      "restaurateur": "صاحب مطعم",
+      "client": "عميل"
+    },
+    "feedback": {
+      "logoutFailed": "تعذّر تسجيل الخروج"
+    }
+  },
+  "restaurantsList": {
+    "subtitle_one": "موقع واحد",
+    "subtitle_other": "{{count}} مواقع",
+    "overview": "نظرة عامة",
+    "searchPlaceholder": "ابحث عن مطعم…",
+    "loading": "جارٍ التحميل…",
+    "loadingFull": "جارٍ تحميل المطاعم…",
+    "pagination": "الصفحة {{current}} من {{total}}",
+    "activeFilters_one": "مرشح واحد نشط",
+    "activeFilters_other": "{{count}} مرشحات نشطة",
+    "clearFilters": "مسح",
+    "viewMode": {
+      "list": "قائمة",
+      "grid": "شبكة"
+    },
+    "stats": {
+      "totalLabel_one": "مطعم",
+      "totalLabel_other": "مطاعم",
+      "openLabel_one": "مفتوح",
+      "openLabel_other": "مفتوحة",
+      "closedLabel_one": "مغلق",
+      "closedLabel_other": "مغلقة"
+    },
+    "empty": {
+      "noResultTitle": "لا توجد نتائج",
+      "noResultDescription": "حاول تعديل البحث أو ضبط المرشحات",
+      "noRestaurantTitle": "لا توجد مطاعم",
+      "noRestaurantDescription": "ابدأ بإضافة مطعمك الأول لإدارة الطلبات",
+      "addCta": "إضافة مطعم",
+      "howItWorks": "كيف يعمل؟"
+    },
+    "errors": {
+      "searchFailed": "تعذّر البحث في المطاعم",
+      "reloadFailed": "تعذّر إعادة تحميل المطاعم",
+      "refreshFailed": "تعذّر تحديث القائمة",
+      "loadMoreFailed": "تعذّر تحميل المزيد من المطاعم"
+    }
+  },
+  "restaurantOrders": {
+    "noRestaurantFound": "لم يتم العثور على مطعم",
+    "selectRestaurant": "اختر مطعمًا",
+    "chooseRestaurant": "اختر مطعمًا",
+    "orderTitle": "الطلب {{number}}",
+    "todayAt": "اليوم في {{time}}",
+    "anonymousCustomer": "عميل مجهول",
+    "tableLabel": "الطاولة {{number}}",
+    "estimatedTime": "الوقت المقدر: {{minutes}} دقيقة",
+    "viewDetails": "عرض التفاصيل",
+    "forbiddenMessage": "مخصص لأصحاب المطاعم",
+    "itemsCount_one": "عنصر واحد",
+    "itemsCount_other": "{{count}} عناصر",
+    "orderType": {
+      "dineIn": "في المكان",
+      "takeaway": "سفري"
+    },
+    "paymentStatus": {
+      "paid": "مدفوع",
+      "unpaid": "غير مدفوع",
+      "unpaidShort": "غير مدفوع"
+    },
+    "actions": {
+      "confirm": "تأكيد",
+      "preparing": "قيد التحضير",
+      "ready": "جاهز",
+      "serve": "تقديم",
+      "collect": "تحصيل",
+      "archive": "أرشفة",
+      "unarchive": "إلغاء الأرشفة"
+    },
+    "filters": {
+      "all": "الكل",
+      "served": "مقدمة",
+      "cancelled": "ملغاة",
+      "archived": "الأرشيف"
+    },
+    "kanban": {
+      "emptyColumn": "لا شيء هنا",
+      "columns": {
+        "new": {
+          "title": "جديدة",
+          "chip": "جديد",
+          "action": "بدء"
+        },
+        "preparing": {
+          "title": "قيد التحضير",
+          "chip": "قيد التحضير",
+          "action": "تعليم كجاهز"
+        },
+        "ready": {
+          "title": "جاهزة",
+          "chip": "جاهز",
+          "action": "مُقدّم"
+        }
+      }
+    },
+    "banner": {
+      "title": "الخدمة جارية",
+      "titleWithName": "{{name}} — الخدمة جارية",
+      "pending": "قيد الانتظار",
+      "tonight": "الليلة",
+      "history": "السجل",
+      "refresh": "تحديث"
+    },
+    "history": {
+      "title": "سجل الطلبات",
+      "bulkArchive_one": "أرشفة طلب مكتمل واحد",
+      "bulkArchive_other": "أرشفة {{count}} طلبات مكتملة",
+      "emptyTitle": "لا توجد طلبات",
+      "emptyArchived": "لا توجد طلبات مؤرشفة",
+      "emptyCompleted": "لا توجد طلبات مكتملة حتى الآن"
+    },
+    "cancelConfirm": {
+      "title": "إلغاء الطلب",
+      "message": "هل تريد فعلاً إلغاء الطلب {{number}}؟",
+      "keep": "لا، احتفظ",
+      "confirm": "نعم، إلغاء"
+    },
+    "paymentPrompt": {
+      "title": "تعليم كمدفوع",
+      "message": "ما هي طريقة الدفع؟",
+      "cash": "نقدًا",
+      "card": "بطاقة"
+    },
+    "archiveConfirm": {
+      "title": "أرشفة الطلبات المكتملة",
+      "message": "أرشفة جميع الطلبات المقدمة والملغاة؟"
+    },
+    "loading": {
+      "restaurants": "جارٍ تحميل المطاعم…",
+      "orders": "جارٍ تحميل الطلبات…"
+    },
+    "feedback": {
+      "refreshFailed": "تعذّر تحديث الطلبات",
+      "statusUpdateFailed": "تعذّر تحديث حالة الطلب",
+      "paidTitle": "تم التحصيل",
+      "paidMessage": "تم تعليم الطلب كمدفوع",
+      "markPaidFailed": "تعذّر تعليم الطلب كمدفوع",
+      "archivedTitle": "تم",
+      "archivedMessage_one": "تم أرشفة طلب واحد",
+      "archivedMessage_other": "تم أرشفة {{count}} طلبات",
+      "noneToArchiveTitle": "معلومة",
+      "noneToArchiveMessage": "لا توجد طلبات للأرشفة",
+      "archiveFailed": "تعذّرت أرشفة الطلبات"
+    }
+  },
+  "restaurantDailyMenu": {
+    "today": "اليوم",
+    "close": "إغلاق",
+    "noRestaurantMessage": "لا يوجد مطعم لإدارة القوائم",
+    "createRestaurant": "إنشاء مطعمي",
+    "legend": {
+      "withMenu": "مع قائمة",
+      "inactiveMenu": "قائمة غير نشطة"
+    },
+    "manager": {
+      "duplicate": "تكرار",
+      "applied_one": "تم تطبيق القائمة على يوم واحد",
+      "applied_other": "تم تطبيق القائمة على {{count}} أيام",
+      "errors": {
+        "toggleItem": "تعذر تعديل توفر الطبق",
+        "applyAllFailedTitle": "فشل",
+        "applyAllFailed": "تعذر تطبيق القائمة على التواريخ المحددة",
+        "applyGeneric": "حدث خطأ أثناء تطبيق القائمة"
+      },
+      "partialApply": {
+        "title": "تطبيق جزئي",
+        "message": "{{succeeded}} ناجحة، {{failed}} فاشلة"
+      },
+      "replaceDialog": {
+        "title": "هل تريد استبدال القوائم الموجودة؟",
+        "message_one": "توجد بالفعل قائمة يوم لتاريخ واحد من التواريخ المحددة. هل تريد استبدالها؟",
+        "message_other": "توجد بالفعل قوائم يوم لـ {{count}} من التواريخ المحددة. هل تريد استبدالها؟",
+        "confirm": "استبدال"
+      },
+      "empty": {
+        "title": "لا توجد قائمة لهذا التاريخ",
+        "subtitleToday": "أنشئ قائمة اليوم للبدء",
+        "subtitleDate": "أنشئ قائمة لـ {{date}}",
+        "cta": "إنشاء القائمة"
+      },
+      "stats": {
+        "dishes_one": "{{count}} طبق",
+        "dishes_other": "{{count}} أطباق",
+        "available_one": "{{count}} متاح",
+        "available_other": "{{count}} متاحة",
+        "formulaPrice": "{{price}} / قائمة"
+      },
+      "applyModal": {
+        "title": "تطبيق على أيام أخرى",
+        "source": "المصدر: {{date}}",
+        "selectAll": "تحديد الكل",
+        "unselectAll": "إلغاء تحديد الكل",
+        "selectedCount_one": "{{count}} محدد",
+        "selectedCount_other": "{{count}} محددة",
+        "existingMenu": "قائمة موجودة",
+        "apply": "تطبيق",
+        "applyWithCount": "تطبيق ({{count}})"
+      }
+    }
+  },
+  "restaurantMenus": {
+    "title": "قوائمي",
+    "stats": {
+      "activeMenus_one": "قائمة نشطة",
+      "activeMenus_other": "قوائم نشطة",
+      "inactive_one": "غير نشط واحد",
+      "inactive_other": "{{count}} غير نشطة",
+      "multiActive": "متعدد النشطة"
+    },
+    "info": {
+      "title": "💡 قائمة نشطة واحدة فقط في كل مرة",
+      "description": "عند تفعيل قائمة، يتم إلغاء تفعيل جميع القوائم الأخرى تلقائيًا. ستظهر للعملاء القائمة النشطة فقط."
+    },
+    "help": {
+      "title": "ابدأ مع EatQuickeR",
+      "description": "أنشئ قائمتك الأولى لإبراز أطباقك والبدء في استقبال الطلبات عبر الإنترنت.",
+      "createFirstMenu": "إنشاء قائمتي الأولى",
+      "userGuide": "دليل الاستخدام"
+    },
+    "switcher": {
+      "title": "تغيير المطعم"
+    },
+    "duplicate": {
+      "barButton": "استرداد القوائم",
+      "pickSourceTitle": "اختر المطعم المصدر",
+      "pickMenusTitle": "حدد القوائم",
+      "emptySource": "لا توجد قوائم في هذا المطعم",
+      "statusActive": "نشط",
+      "statusInactive": "غير نشط",
+      "itemSummary_one": "طبق واحد · {{status}}",
+      "itemSummary_other": "{{count}} أطباق · {{status}}",
+      "duplicating": "جارٍ التكرار…",
+      "confirmSimple": "تكرار",
+      "confirmWithCount": "تكرار ({{count}})",
+      "doneTitle": "اكتمل التكرار",
+      "doneSuccess_one": "تم تكرار قائمة واحدة بنجاح",
+      "doneSuccess_other": "تم تكرار {{count}} قوائم بنجاح",
+      "donePartial": "{{succeeded}} نجحت، {{failed}} فشلت",
+      "errorGeneric": "خطأ أثناء التكرار"
+    },
+    "delete": {
+      "title": "تأكيد الحذف",
+      "message": "هل أنت متأكد من حذف القائمة \"{{name}}\"؟\n\nهذا الإجراء لا يمكن التراجع عنه.",
+      "confirm": "حذف"
+    },
+    "feedback": {
+      "successTitle": "نجاح",
+      "loadFailed": "تعذّر تحميل القوائم",
+      "loadSourceFailed": "تعذّر تحميل القوائم المصدر",
+      "menuEnabled": "تم تفعيل القائمة بنجاح (تم إلغاء تفعيل القوائم الأخرى)",
+      "menuDisabled": "تم إلغاء تفعيل القائمة بنجاح",
+      "toggleFailed": "تعذّر تعديل القائمة",
+      "toggleForbidden": "ليس لديك إذن لتعديل هذه القائمة",
+      "menuNotFound": "لم يتم العثور على القائمة",
+      "menuDeleted": "تم حذف القائمة بنجاح",
+      "deleteFailed": "تعذّر حذف القائمة"
+    },
+    "card": {
+      "items_one": "{{count}} طبق",
+      "items_other": "{{count}} أطباق",
+      "available_one": "{{count}} متاح",
+      "available_other": "{{count}} متاحة",
+      "active": "نشط",
+      "inactive": "غير نشط",
+      "updating": "جارٍ التحديث…",
+      "createdOn": "تم الإنشاء في",
+      "updatedOn": "تم التعديل في",
+      "enable": "تفعيل",
+      "disable": "تعطيل",
+      "inProgress": "قيد التنفيذ"
+    }
+  },
+  "restaurantStats": {
+    "title": "الإحصائيات — {{period}}",
+    "pickerTitle": "فترة التحليل",
+    "chooseRestaurant": "اختر مطعمًا",
+    "noRestaurantMessage": "ليس لديك مطعم بعد",
+    "createFirstRestaurant": "إنشاء مطعمي الأول",
+    "salesCount_one": "{{formatted}} عملية بيع",
+    "salesCount_other": "{{formatted}} عمليات بيع",
+    "periods": {
+      "thisWeek": "هذا الأسبوع",
+      "thisMonth": "هذا الشهر",
+      "last3Months": "آخر 3 أشهر",
+      "last6Months": "آخر 6 أشهر",
+      "thisYear": "هذا العام"
+    },
+    "deltas": {
+      "vsPrevWeek": "مقارنة بالأسبوع السابق",
+      "vsPrevMonth": "مقارنة بالشهر السابق",
+      "vsPrev3Months": "مقارنة بالـ 3 أشهر السابقة",
+      "vsPrev6Months": "مقارنة بالـ 6 أشهر السابقة",
+      "vsPrevYear": "مقارنة بالعام السابق"
+    },
+    "kpi": {
+      "totalRevenue": "إجمالي الإيرادات",
+      "servedOrders": "الطلبات المقدمة",
+      "avgOrder": "متوسط الطلب"
+    },
+    "charts": {
+      "revenueByDay": "الإيرادات اليومية",
+      "topDishes": "أفضل الأطباق"
+    },
+    "daysShort": {
+      "monday": "الإثن",
+      "tuesday": "الثلا",
+      "wednesday": "الأرب",
+      "thursday": "الخمي",
+      "friday": "الجمع",
+      "saturday": "السبت",
+      "sunday": "الأحد"
+    },
+    "empty": {
+      "noData": "لا توجد بيانات متاحة",
+      "description": "ستظهر الإحصائيات هنا بمجرد وجود طلبات في هذه الفترة."
+    },
+    "errors": {
+      "loadFailed": "خطأ أثناء تحميل الإحصائيات."
+    }
+  },
+  "restaurantHome": {
+    "greeting": {
+      "morning": "صباح الخير",
+      "afternoon": "مساء الخير",
+      "evening": "مساء الخير"
+    },
+    "subtitle": {
+      "restaurateur": "أدر مطاعمك وحسّن أداءك",
+      "client": "اكتشف أفضل المطاعم بالقرب منك"
+    },
+    "restaurantFallback": "مطعم",
+    "unknownDate": "تاريخ غير معروف",
+    "loadingDashboard": "جارٍ تحميل لوحة التحكم…",
+    "loadingOrders": "جارٍ تحميل الطلبات…",
+    "viewAll": "عرض الكل",
+    "stripeAlert": {
+      "validationRequired": {
+        "title": "مطلوب التحقق من الحساب",
+        "message": "انقر هنا لإعداد حساب Stripe وتفعيل المدفوعات."
+      },
+      "finalizeConnect": {
+        "title": "أكمل إعداد Stripe",
+        "allInactive": "لا يقبل أي من مطاعمك المدفوعات عبر الإنترنت. قم بإعداد Stripe لبدء التحصيل.",
+        "partial_one": "مطعم واحد بدون تفعيل الدفع عبر الإنترنت.",
+        "partial_other": "{{count}} مطاعم بدون تفعيل الدفع عبر الإنترنت."
+      }
+    },
+    "help": {
+      "title": "ابدأ مع EatQuickeR",
+      "description": "أنشئ مطعمك الأول لبدء استقبال الطلبات عبر الإنترنت وتطوير نشاطك.",
+      "createFirstRestaurant": "إنشاء مطعمي الأول"
+    },
+    "sections": {
+      "overview": "نظرة عامة",
+      "yourRestaurants": "مطاعمك",
+      "recommendedRestaurants": "مطاعم مقترحة",
+      "receivedOrders": "الطلبات المستلمة",
+      "yourOrders": "طلباتك",
+      "quickActions": "إجراءات سريعة"
+    },
+    "stats": {
+      "restaurantCount_one": "مطعم",
+      "restaurantCount_other": "مطاعم",
+      "orderCount_one": "طلب",
+      "orderCount_other": "طلبات",
+      "activeCount_one": "نشط",
+      "activeCount_other": "نشطة"
+    },
+    "empty": {
+      "loading": "جارٍ التحميل…",
+      "loadingDescription": "جارٍ تحميل المطاعم…",
+      "errorPrefix": "خطأ: {{error}}",
+      "createFirstTitle": "أنشئ مطعمك الأول",
+      "validationRequiredTitle": "مطلوب التحقق",
+      "noRestaurantTitle": "لا توجد مطاعم",
+      "startNowDescription": "ابدأ الآن في تلقي الطلبات عبر الإنترنت.",
+      "validateStripeDescription": "تحقق من حساب Stripe لإنشاء مطاعمك.",
+      "noRestaurantDescription": "لا يوجد مطعم متاح حاليًا.",
+      "noOrderTitle": "لا توجد طلبات",
+      "noOrderRestaurateur": "لم يتم استلام أي طلب بعد",
+      "noOrderClient": "لم تقم بأي طلب بعد"
+    },
+    "orderStatus": {
+      "pending": "قيد الانتظار",
+      "confirmed": "مؤكد",
+      "preparing": "قيد التحضير",
+      "ready": "جاهز",
+      "served": "مُقدّم",
+      "delivered": "تم التسليم",
+      "completed": "مكتمل",
+      "cancelled": "ملغى"
+    },
+    "actions": {
+      "dailyMenu": {
+        "title": "قائمة اليوم",
+        "description": "إدارة قائمة اليوم"
+      },
+      "createRestaurant": {
+        "title": "إنشاء مطعم",
+        "description": "موقع جديد"
+      },
+      "qrCodes": {
+        "title": "رموز QR للطاولات",
+        "description": "إنشاء وإدارة"
+      },
+      "manageMenus": {
+        "title": "إدارة القوائم",
+        "description": "الأطباق والأسعار"
+      },
+      "viewOrders": {
+        "title": "عرض الطلبات",
+        "description": "الإدارة والتتبع"
+      },
+      "statistics": {
+        "title": "الإحصائيات",
+        "description": "الأداء"
+      }
+    }
+  },
+  "restaurantQrCodes": {
+    "sizes": {
+      "small": "صغير ({{count}}/صفحة)",
+      "medium": "متوسط ({{count}}/صفحة)",
+      "large": "كبير ({{count}}/صفحة)"
+    },
+    "generator": {
+      "sectionTitle": "مولّد رموز QR",
+      "description": "أنشئ رموز QR لطاولاتك واسمح للعملاء بالمسح الضوئي أو إدخال رمز يدوي للوصول إلى القائمة.",
+      "restaurantLabel": "المطعم",
+      "selectPlaceholder": "اختر مطعمًا"
+    },
+    "controls": {
+      "qrSize": "حجم رمز QR",
+      "tablesCount": "عدد الطاولات",
+      "tablesToAdd": "عدد الطاولات المراد إضافتها",
+      "startNumber": "رقم البداية"
+    },
+    "warnings": {
+      "existingTables_one": "توجد طاولة واحدة بالفعل لهذا المطعم",
+      "existingTables_other": "توجد {{count}} طاولات بالفعل لهذا المطعم"
+    },
+    "actions": {
+      "generate": "إنشاء رموز QR",
+      "generating": "جارٍ الإنشاء…",
+      "addTables_one": "إضافة طاولة واحدة",
+      "addTables_other": "إضافة {{count}} طاولات",
+      "replace": "استبدال",
+      "replaceAll": "استبدال جميع الطاولات",
+      "print": "طباعة",
+      "printing": "جارٍ الطباعة…",
+      "printAll": "طباعة الكل",
+      "downloadPdf": "تنزيل PDF",
+      "downloading": "جارٍ التنزيل…",
+      "preview": "معاينة",
+      "share": "مشاركة",
+      "download": "تنزيل"
+    },
+    "card": {
+      "tableTitle": "الطاولة {{number}}",
+      "manualCodeLabel": "الرمز اليدوي",
+      "instruction": "امسح رمز QR أو أدخل الرمز اليدوي"
+    },
+    "list": {
+      "title_one": "تم إنشاء رمز QR واحد",
+      "title_other": "تم إنشاء {{count}} رموز QR"
+    },
+    "empty": {
+      "title": "لم يتم إنشاء أي رمز QR",
+      "message": "اختر مطعمًا وحدد عدد الطاولات للبدء"
+    },
+    "help": {
+      "title": "كيف يعمل؟",
+      "steps": "• اختر مطعمك\n• حدد حجم رموز QR\n• حدد عدد الطاولات\n• أنشئ رموز QR\n• اطبعها أو نزّلها بصيغة PDF\n• سيتمكن عملاؤك من المسح أو إدخال الرمز اليدوي"
+    },
+    "restaurantPicker": {
+      "title": "اختر مطعمًا"
+    },
+    "conflicts": {
+      "replaceTitle": "تأكيد الاستبدال",
+      "replaceMessage": "هل تريد فعلاً استبدال الطاولات الموجودة؟\n\nسيؤدي هذا الإجراء إلى:\n• حذف جميع الطاولات الموجودة\n• إنشاء {{count}} طاولات جديدة (من 1 إلى {{count}})\n\nهذا الإجراء لا يمكن التراجع عنه.",
+      "conflictTitle": "تم اكتشاف تعارض",
+      "conflictMessage": "توجد بعض الطاولات بالفعل بهذه الأرقام. ما الذي تريد فعله؟",
+      "moreOptions": "خيارات إضافية",
+      "optionsTitle": "الخيارات المتاحة",
+      "optionsMessage": "يمكنك تحميل الطاولات الموجودة أو اختيار رقم بداية آخر.",
+      "otherNumber": "رقم آخر",
+      "loadExisting": "تحميل الموجودة"
+    },
+    "suggest": {
+      "title": "الرقم المقترح",
+      "message_one": "توجد بالفعل طاولة واحدة (حتى الرقم {{max}}).\n\nالبدء من الرقم {{suggested}}؟",
+      "message_other": "توجد بالفعل {{count}} طاولات (حتى الرقم {{max}}).\n\nالبدء من الرقم {{suggested}}؟",
+      "choose": "اختر آخر",
+      "accept": "قبول"
+    },
+    "feedback": {
+      "infoTitle": "معلومات",
+      "tablesAddedTitle": "تمت إضافة الطاولات",
+      "tablesAddedMessage_one": "تمت إضافة طاولة واحدة بنجاح!",
+      "tablesAddedMessage_other": "تمت إضافة {{count}} طاولات بنجاح!",
+      "tablesCreatedTitle": "تم إنشاء الطاولات",
+      "tablesCreatedMessage_one": "تم إنشاء طاولة واحدة بنجاح!",
+      "tablesCreatedMessage_other": "تم إنشاء {{count}} طاولات بنجاح!",
+      "replaceSuccessTitle": "الاستبدال ناجح",
+      "replaceSuccessMessage": "تم حذف {{deleted}} طاولة وإنشاء {{created}} طاولة جديدة!",
+      "replaceCreatedMessage_one": "تم إنشاء طاولة واحدة!",
+      "replaceCreatedMessage_other": "تم إنشاء {{count}} طاولات!",
+      "tablesLoadedTitle": "تم تحميل الطاولات",
+      "tablesLoadedMessage_one": "تم تحميل طاولة موجودة واحدة.",
+      "tablesLoadedMessage_other": "تم تحميل {{count}} طاولات موجودة.",
+      "noTableTitle": "لا توجد طاولات",
+      "noTableForRestaurant": "لم يتم العثور على طاولات لهذا المطعم.",
+      "noExistingStartsAt1": "لم يتم العثور على طاولات موجودة. يبقى رقم البداية 1.",
+      "noExistingCanStartAt1": "لم يتم العثور على طاولات موجودة. يمكنك البدء من الرقم 1.",
+      "chooseNumberTitle": "اختر رقمًا",
+      "chooseNumberMessage": "استخدم أزرار +/- لضبط رقم البداية، ثم أنشئ مرة أخرى.",
+      "numberUpdatedTitle": "تم تحديث الرقم",
+      "numberUpdatedMessage": "تم تغيير رقم البداية إلى {{number}}."
+    },
+    "errors": {
+      "selectRestaurant": "يرجى اختيار مطعم",
+      "generationFailed": "خطأ في إنشاء رموز QR",
+      "replaceFailed": "خطأ في استبدال الطاولات",
+      "loadFailed": "تعذّر تحميل الطاولات الموجودة.",
+      "checkFailed": "تعذّر التحقق من الطاولات الموجودة.",
+      "shareFailed": "تعذّر مشاركة رمز QR هذا.",
+      "printAllFailed": "تعذّر طباعة رموز QR",
+      "printOneFailed": "تعذّر طباعة رمز QR",
+      "pdfFailed": "تعذّر إنشاء PDF",
+      "refreshFailed": "فشل التحديث."
+    },
+    "share": {
+      "title": "رمز QR - الطاولة {{number}}",
+      "message": "الطاولة {{number}} - {{restaurant}}\n\nالرمز اليدوي: {{code}}\nأو امسح رمز QR هذا للوصول إلى القائمة!\n\n{{url}}"
+    },
+    "pdf": {
+      "tableLabel": "الطاولة",
+      "scanOrEnter": "امسح أو أدخل"
+    }
+  },
+  "restaurantCard": {
+    "distanceKm": "{{distance}} كم",
+    "walkingMinutes": "{{minutes}} د"
+  },
+  "validationPending": {
+    "title": "الملف الشخصي قيد التحقق",
+    "stripeCompleted": "تم إكمال إعداد Stripe",
+    "stripePending": "إعداد Stripe قيد التنفيذ",
+    "profileActivated": "تم تفعيل الملف الشخصي",
+    "profilePending": "الملف الشخصي في انتظار التفعيل",
+    "setupStripe": "إعداد Stripe",
+    "contactSupport": "اتصل بالدعم",
+    "infoDelay": "قد يستغرق التحقق من ملفك الشخصي من 1 إلى 3 أيام عمل بعد إكمال إعداد Stripe.",
+    "supportEmailSubject": "مساعدة في التحقق من ملف صاحب المطعم"
+  },
+  "restaurantSelector": {
+    "noRestaurantTitle": "ليس لديك أي مطعم بعد",
+    "noRestaurantSubtitle": "أنشئ مطعمك الأول لبدء إدارة القوائم والطلبات.",
+    "createFirst": "إنشاء مطعمي الأول",
+    "chooseTitle": "اختر مطعمًا",
+    "chooseHint": "اختر المطعم الذي تريد إدارته.",
+    "selecting": "جارٍ التحديد…"
+  },
+  "stripeCommission": {
+    "compact": {
+      "title": "عمولة المنصة",
+      "description": "تُخصم عمولة قدرها {{percent}}% من كل عملية دفع بالبطاقة."
+    },
+    "title": "تسعير المدفوعات",
+    "subtitle": "الشروط المطبقة على المدفوعات بالبطاقة",
+    "platform": {
+      "title": "عمولة EatQuickeR",
+      "description": "لكل طلب يتم دفعه عبر التطبيق، تأخذ EatQuickeR عمولة قدرها {{percent}}% من المبلغ الإجمالي. تغطي هذه العمولة رسوم الربط وإدارة المنصة والدعم التقني."
+    },
+    "stripe": {
+      "title": "رسوم معالجة Stripe",
+      "description": "تُطبَّق رسوم Stripe البنكية وفقًا لجدول أسعارها القياسي. قد تختلف هذه الرسوم حسب نوع البطاقة التي يستخدمها العميل."
+    },
+    "example": {
+      "title": "مثال لطلب بقيمة {{amount}}",
+      "orderAmount": "مبلغ الطلب",
+      "platformFee": "عمولة EatQuickeR ({{percent}}%)",
+      "stripeFee": "رسوم Stripe (تقديرية)",
+      "netAmount": "صافي المبلغ المستلم"
+    },
+    "bullets": {
+      "autoDeduct": "تُخصم العمولة تلقائيًا عند الدفع",
+      "cashNoFee": "المدفوعات النقدية غير خاضعة للعمولة",
+      "directPayout": "تستلم أموالك مباشرة على حسابك البنكي"
+    },
+    "acceptTerms": "لقد قرأت وأقبل شروط التسعير"
+  },
+  "stripeAccount": {
+    "title": "حساب Stripe",
+    "checking": "جارٍ التحقق من الحالة…",
+    "errors": {
+      "fetch": "خطأ أثناء جلب الحالة",
+      "setup": "خطأ أثناء إعداد حساب Stripe"
+    },
+    "validated": {
+      "title": "تم التحقق من الحساب",
+      "description": "تم التحقق من حساب Stripe الخاص بك وهو جاهز لاستلام المدفوعات.",
+      "successMessage": "يمكنك الآن تفعيل مطاعمك والبدء في استلام الطلبات."
+    },
+    "inProgress": {
+      "title": "الإعداد قيد التنفيذ",
+      "description": "حساب Stripe الخاص بك موجود لكنه يحتاج إلى الإنهاء.",
+      "action": "متابعة الإعداد"
+    },
+    "notStarted": {
+      "title": "الإعداد مطلوب",
+      "description": "يجب عليك إعداد حساب Stripe لاستلام المدفوعات.",
+      "action": "إعداد Stripe"
+    },
+    "redirectDialog": {
+      "title": "إعادة التوجيه إلى Stripe",
+      "message": "ستتم إعادة توجيهك إلى Stripe لإعداد حساب الدفع الخاص بك."
+    },
+    "continueDialog": {
+      "title": "متابعة الإعداد",
+      "message": "ستتم إعادة توجيهك إلى Stripe لإتمام إعدادك."
+    },
+    "requirements": {
+      "title": "المستندات المطلوبة:",
+      "othersCount_one": "و {{count}} آخر…",
+      "othersCount_other": "و {{count}} آخرون…"
+    },
+    "infoDelay": "قد تستغرق عملية التحقق من حسابك من يوم إلى ٣ أيام عمل بعد تقديم جميع المستندات المطلوبة."
+  },
+  "revenueCard": {
+    "title": "الإيرادات",
+    "defaultPeriod": "هذا الشهر",
+    "details": "التفاصيل",
+    "netRevenue": "الإيراد الصافي",
+    "netRevenueEstimated": "الإيراد الصافي المقدر",
+    "ordersCount_one": "{{count}} طلب",
+    "ordersCount_other": "{{count}} طلبات",
+    "grossRevenueTitle": "الإيرادات الإجمالية",
+    "cardPayments": "المدفوعات بالبطاقة",
+    "cashPayments": "المدفوعات النقدية",
+    "grossTotal": "الإجمالي الكلي",
+    "feesTitle": "الرسوم والعمولات",
+    "stripeFeesNote": "ينطبق فقط على المدفوعات بالبطاقة. تُخصم رسوم Stripe بشكل منفصل.",
+    "platformCommissionLine": "عمولة EatQuickeR: {{amount}}",
+    "legendGross": "الإيرادات الإجمالية: {{amount}}",
+    "legendCommission": "العمولة: {{amount}}"
+  },
+  "openingHours": {
+    "title": "ساعات العمل",
+    "subtitle": "حدّد ساعات الخدمة لكل يوم من أيام الأسبوع",
+    "quickPresets": "قوالب سريعة",
+    "open": "مفتوح",
+    "closed": "مغلق",
+    "start": "البداية",
+    "end": "النهاية",
+    "apply": "تطبيق",
+    "addPeriod": "إضافة نطاق زمني",
+    "serviceNamePlaceholder": "اسم الخدمة (مثل: الغداء)",
+    "tip1": "اضغط على الساعات لاختيار ساعات الخدمة بسهولة",
+    "tip2": "استخدم الساعات المقترحة أو حدّد ساعات مخصصة",
+    "timePicker": {
+      "title": "اختر الوقت",
+      "ok": "موافق",
+      "suggestedTimes": "أوقات مقترحة",
+      "customTime": "وقت مخصص",
+      "hours": "ساعات",
+      "minutes": "دقائق"
+    },
+    "presets": {
+      "continuous": {
+        "name": "خدمة متواصلة"
+      },
+      "lunchDinner": {
+        "name": "الغداء + العشاء"
+      },
+      "complete": {
+        "name": "كامل"
+      }
+    },
+    "periodNames": {
+      "lunch": "الغداء",
+      "dinner": "العشاء",
+      "breakfast": "الإفطار",
+      "service": "الخدمة"
+    },
+    "confirmApplyPreset": {
+      "title": "تطبيق القالب",
+      "message": "تطبيق «{{name}}» على جميع أيام الأسبوع؟"
+    },
+    "confirmCopyHours": {
+      "title": "نسخ الساعات",
+      "message": "تطبيق ساعات {{day}} على جميع أيام العمل (الإثنين–الجمعة)؟"
+    }
+  },
+  "statistics": {
+    "kpis": {
+      "title": "مؤشرات الأداء الرئيسية",
+      "cancellationRate": "معدل الإلغاء",
+      "paymentRate": "معدل الدفع",
+      "availabilityRate": "توفر الأطباق",
+      "avgOrderValue": "متوسط قيمة الطلب",
+      "perOrder": "لكل طلب",
+      "serviceTime": "وقت الخدمة",
+      "avgTime": "متوسط الوقت",
+      "tableUsage": "استخدام الطاولات"
+    },
+    "qualifiers": {
+      "excellent": "ممتاز",
+      "toImprove": "بحاجة للتحسين",
+      "veryGood": "جيد جدًا",
+      "toWatch": "بحاجة للمراقبة",
+      "optimal": "مثالي",
+      "critical": "حرج",
+      "toOptimize": "بحاجة للتحسين"
+    },
+    "priorities": {
+      "high": "عاجل",
+      "medium": "مهم",
+      "low": "معلومة"
+    },
+    "recommendations": {
+      "title": "توصيات مخصصة"
+    },
+    "topDishes": {
+      "title": "أكثر 5 أطباق طلبًا",
+      "dishStats": "{{orders}} طلب • {{revenue}} إيرادات"
+    },
+    "underperforming": {
+      "title": "أطباق تحتاج إلى تحسين",
+      "neverOrdered_one": "{{count}} طبق لم يُطلب أبدًا. فكّر في إزالته أو الترويج له.",
+      "neverOrdered_other": "{{count}} أطباق لم تُطلب أبدًا. فكّر في إزالتها أو الترويج لها.",
+      "lowOrders": "أطباق قليلة الطلب (آخر 30 يومًا)",
+      "onlyOrders_one": "طلب واحد فقط",
+      "onlyOrders_other": "{{count}} طلبات فقط"
+    },
+    "revenue": {
+      "title": "تحليل الإيرادات",
+      "currentPeriod": "الفترة الحالية",
+      "previousPeriod": "الفترة السابقة",
+      "evolution": "التطور",
+      "avgOrderValue": "متوسط قيمة الطلب",
+      "perOrder": "لكل طلب",
+      "ordersCount_one": "{{count}} طلب",
+      "ordersCount_other": "{{count}} طلبات"
+    },
+    "peakHours": {
+      "title": "توزيع الطلبات حسب الساعة",
+      "peakSlots": "أوقات الذروة",
+      "ordersCount_one": "{{count}} طلب",
+      "ordersCount_other": "{{count}} طلبات"
+    },
+    "dailyPerformance": {
+      "title": "الأداء حسب يوم الأسبوع",
+      "bestDay": "أفضل يوم",
+      "worstDay": "أضعف يوم"
+    }
+  },
+  "dailyMenuDisplay": {
+    "loading": "جارٍ تحميل القائمة…",
+    "completeFormula": "قائمة كاملة",
+    "formulaHint": "طبق واحد لكل فئة • {{price}} / طبق",
+    "dishesCount_one": "{{count}} طبق",
+    "dishesCount_other": "{{count}} أطباق",
+    "categoriesCount_one": "{{count}} فئة",
+    "categoriesCount_other": "{{count}} فئات"
+  },
+  "menuItem": {
+    "add": "إضافة",
+    "unavailable": "غير متاح",
+    "unavailableShort": "غير متاح"
+  },
+  "menuGrid": {
+    "otherCategory": "أخرى",
+    "defaultRestaurantName": "المطعم",
+    "groupToggle": "تجميع",
+    "filters": "تصفية",
+    "viewModes": {
+      "list": "قائمة",
+      "grid": "شبكة",
+      "masonry": "فسيفساء",
+      "table": "جدول"
+    },
+    "table": {
+      "photo": "صورة",
+      "name": "الاسم",
+      "description": "الوصف",
+      "price": "السعر",
+      "action": "إجراء"
+    },
+    "stats": {
+      "availableShort_one": "{{count}} متاح",
+      "availableShort_other": "{{count}} متاحة",
+      "availableLong_one": "{{count}} طبق متاح",
+      "availableLong_other": "{{count}} أطباق متاحة",
+      "photos_one": "صورة واحدة",
+      "photos_other": "{{count}} صور"
+    },
+    "accordion": {
+      "expandAll": "توسيع الكل",
+      "collapseAll": "طي الكل"
+    }
+  },
+  "formule": {
+    "title": "كوّن وجبتك",
+    "sectionTitle": "وجباتنا",
+    "compose": "تكوين",
+    "basePrice": "وجبة بسعر {{price}}",
+    "required": "إلزامي",
+    "optional": "اختياري",
+    "chooseOne": "اختر طبقًا واحدًا",
+    "chooseN": "اختر {{count}} أطباق",
+    "addToCart": "أضف إلى السلة",
+    "quantity": "الكمية",
+    "incomplete": "أكمل وجبتك",
+    "unavailable": "الوجبة غير متوفرة حاليًا",
+    "empty": "لا يوجد طبق متاح في هذا الصنف",
+    "loadError": "تعذّر تحميل الوجبة",
+    "notFound": "الوجبة غير موجودة",
+    "added": "تمت إضافة الوجبة إلى السلة"
+  },
+  "menuItemForm": {
+    "newTitle": "عنصر جديد",
+    "editTitle": "تعديل الطبق",
+    "back": "رجوع",
+    "itemNotFound": "لم يُعثر على الطبق",
+    "loadingItem": "جارٍ تحميل الطبق...",
+    "sectionInfo": "المعلومات",
+    "sectionPhoto": "صورة الطبق",
+    "sectionCategory": "التصنيف",
+    "sectionDietAllergens": "الحميات والمواد المسببة للحساسية",
+    "sectionAvailability": "التوفر",
+    "allergensTitle": "مسببات الحساسية",
+    "allergensMultiSelect": "مسببات الحساسية (اختيار متعدد)",
+    "dietaryTitle": "خيارات غذائية",
+    "vatTitle": "ضريبة القيمة المضافة",
+    "vatType": "نوع الضريبة",
+    "vatRateLabel": "النسبة:",
+    "nameLabel": "الاسم *",
+    "description": "الوصف",
+    "priceLabel": "السعر (€) *",
+    "color": "اللون",
+    "iconEmoji": "أيقونة (إيموجي)",
+    "subcategoryOptional": "فئة فرعية (اختياري)",
+    "selectCategoryPlaceholder": "اختر فئة",
+    "selectSubcategoryPlaceholder": "اختر فئة فرعية",
+    "selectSubcategory": "اختيار فئة فرعية",
+    "selectSubcategoryFirst": "اختر فئة أولاً",
+    "newCategory": "فئة جديدة",
+    "newSubcategory": "فئة فرعية جديدة",
+    "createCategory": "إنشاء الفئة",
+    "createSubcategory": "إنشاء الفئة الفرعية",
+    "createNewCategory": "إنشاء فئة جديدة",
+    "createNewSubcategory": "إنشاء فئة فرعية جديدة",
+    "categoryDescPlaceholder": "وصف الفئة",
+    "subcategoryDescPlaceholder": "وصف الفئة الفرعية",
+    "deleteCategoryTitle": "حذف الفئة",
+    "deleteSubcategoryTitle": "حذف الفئة الفرعية",
+    "deleteCategoryMessage": "حذف «{{name}}»؟ ستفقد جميع العناصر المرتبطة فئتها.",
+    "deleteSubcategoryMessage": "حذف «{{name}}»؟",
+    "vegetarian": "نباتي",
+    "vegetarianDesc": "بدون لحم أو سمك",
+    "vegan": "نباتي صرف",
+    "veganDesc": "بدون منتجات حيوانية",
+    "glutenFree": "خالٍ من الغلوتين",
+    "glutenFreeDesc": "بدون قمح أو شعير أو جاودار",
+    "photoSelected": "تم اختيار الصورة",
+    "noPhoto": "لم يتم اختيار صورة",
+    "addPhotoHint": "أضف صورة لجعل طبقك أكثر جاذبية",
+    "replace": "استبدال",
+    "photo": "صورة",
+    "delete": "حذف",
+    "choosePhoto": "اختيار صورة",
+    "takePhoto": "التقاط صورة",
+    "availabilityNote": "يمكن تغيير التوفر من قائمة أطباق القائمة",
+    "availableNow": "هذا الطبق متوفر حاليًا",
+    "unavailableNow": "هذا الطبق غير متوفر حاليًا",
+    "create": "إنشاء",
+    "saveChanges": "حفظ التغييرات",
+    "updating": "جارٍ التحديث...",
+    "creating": "جارٍ الإنشاء...",
+    "createItem": "إنشاء العنصر",
+    "noAllergenSelected": "لم يتم اختيار مسبب حساسية",
+    "selectedCount": "{{count}} محدد",
+    "exDishNameAdd": "مثال: برغر مميز",
+    "descPlaceholderAdd": "صف طبقك...",
+    "exCategoryName": "مثال: المقبلات",
+    "exSubcategoryName": "مثال: السلطات",
+    "exIcon": "مثال: 🍽️",
+    "exDishNameEdit": "مثال: برغر منزلي",
+    "descPlaceholderEdit": "صف طبقك (المكونات، المذاق، إلخ)",
+    "exPrice": "مثال: 12.90",
+    "exCatName": "مثال: الأطباق",
+    "exCatDesc": "مثال: جميع الأطباق الرئيسية",
+    "exCatIcon": "مثال: 🍽️",
+    "exSubName": "مثال: البرغر",
+    "exSubDesc": "مثال: برغر خاص",
+    "error": "خطأ",
+    "success": "نجاح",
+    "warning": "تنبيه",
+    "nameRequired": "اسم الطبق مطلوب",
+    "selectCategory": "يرجى اختيار فئة",
+    "selectCategoryFirst": "يرجى اختيار فئة أولاً",
+    "pricePositive": "يجب أن يكون السعر أكبر من 0",
+    "priceInvalid": "يجب أن يكون السعر رقمًا صالحًا",
+    "itemCreated": "تم إنشاء العنصر بنجاح!",
+    "createError": "حدث خطأ أثناء الإنشاء",
+    "networkError": "خطأ في الشبكة: تعذّر الوصول إلى الخادم",
+    "categoryMissing": "الفئة مفقودة",
+    "fieldMissing": "حقل مفقود",
+    "deleteItemError": "تعذّر حذف هذا العنصر",
+    "authMissing": "رمز المصادقة مفقود. يرجى تسجيل الدخول مرة أخرى.",
+    "genericError": "حدث خطأ",
+    "loadItemError": "تعذّر تحميل الطبق",
+    "loadCategoriesError": "تعذّر تحميل الفئات",
+    "loadSubcategoriesError": "تعذّر تحميل الفئات الفرعية",
+    "categoryNameRequired": "اسم الفئة مطلوب",
+    "subcategoryNameRequired": "اسم الفئة الفرعية مطلوب",
+    "categoryCreated": "تم إنشاء الفئة بنجاح",
+    "subcategoryCreated": "تم إنشاء الفئة الفرعية بنجاح",
+    "categoryCreateError": "تعذّر إنشاء الفئة",
+    "subcategoryCreateError": "تعذّر إنشاء الفئة الفرعية",
+    "itemNotLoaded": "عنصر القائمة غير محمّل",
+    "itemNotIdentified": "عنصر القائمة غير محدد",
+    "photoSubtitle": "موصى به لجذب عملائك",
+    "sectionInfoBase": "المعلومات الأساسية",
+    "categorySubtitle": "ساعد عملاءك على تصفح القائمة",
+    "mainCategory": "الفئة الرئيسية *",
+    "categoryLabel": "الفئة *",
+    "selectCategoryTitle": "اختيار فئة",
+    "categoryModalTitle": "الفئة",
+    "subcategoryModalTitle": "فئة فرعية",
+    "categoryEmpty": "لا توجد فئة",
+    "subcategoryEmpty": "لا توجد فئة فرعية",
+    "iconShort": "أيقونة (إيموجي أو نص قصير)",
+    "itemUpdated": "تم تحديث الطبق بنجاح",
+    "photoPermission": "امنح الوصول إلى صورك للمتابعة.",
+    "cameraPermission": "امنح الوصول إلى الكاميرا للمتابعة.",
+    "permissionRequired": "الإذن مطلوب",
+    "cancel": "إلغاء",
+    "createCategoryAction": "إنشاء فئة",
+    "createSubcategoryAction": "إنشاء فئة فرعية",
+    "serverError": "خطأ في الخادم: استجابة غير صالحة. تحقق من عنوان API.",
+    "createItemError": "حدث خطأ أثناء إنشاء العنصر",
+    "updateItemError": "تعذّر تحديث الطبق"
+  },
+  "menuForm": {
+    "editTitle": "تعديل القائمة",
+    "loading": "جارٍ تحميل القائمة...",
+    "notFound": "لم يُعثر على القائمة",
+    "nameLabel": "اسم القائمة *",
+    "namePlaceholder": "اسم القائمة",
+    "save": "حفظ التغييرات",
+    "updated": "تم تحديث القائمة بنجاح",
+    "activated": "تم تفعيل القائمة بنجاح (تم إلغاء تفعيل القوائم الأخرى)",
+    "deactivated": "تم إلغاء تفعيل القائمة بنجاح",
+    "toggleError": "تعذّر تغيير التوفر",
+    "noPermission": "ليس لديك إذن لتعديل هذه القائمة",
+    "visibleStatus": "هذه القائمة مرئية حاليًا للعملاء",
+    "hiddenStatus": "هذه القائمة غير مرئية للعملاء",
+    "deactivate": "إلغاء تفعيل هذه القائمة",
+    "activate": "تفعيل هذه القائمة",
+    "manageDishes": "إدارة الأطباق",
+    "actions": "إجراءات",
+    "statistics": "إحصائيات",
+    "dishCount": "{{count}} طبق في هذه القائمة",
+    "statTotal": "إجمالي\nالأطباق",
+    "statAvailable": "أطباق\nمتوفرة",
+    "statUnavailable": "أطباق\nغير متوفرة",
+    "nameRequired": "اسم القائمة مطلوب",
+    "loadError": "تعذّر تحميل القائمة",
+    "saveError": "تعذّر حفظ القائمة",
+    "newTitle": "قائمة جديدة",
+    "createTitle": "إنشاء قائمة جديدة",
+    "createSubtitle": "نظّم أطباقك بإنشاء قوائم مواضيعية",
+    "required": "مطلوب",
+    "namePlaceholderExample": "مثال: قائمة الربيع 2025، قائمة الأعياد...",
+    "nameHint": "أنشئ قائمة لفترة محددة (موسم، مناسبة خاصة...).",
+    "tip": "نصيحة",
+    "tipBody": "أنشئ قوائم مختلفة لمواسمك أو مناسباتك أو فتراتك الخاصة (مثل: \"قائمة الربيع\"، \"قائمة الصيف\"، \"قائمة الأعياد\").",
+    "tipFeature1": "تفعيل/إلغاء حسب الموسم",
+    "tipFeature2": "تنظيم حسب الفترة",
+    "tipFeature3": "قائمة واحدة نشطة فقط",
+    "createButton": "إنشاء القائمة",
+    "createdTitle": "تم إنشاء القائمة",
+    "createdMessage": "هل تريد إضافة أطباق الآن أم العودة إلى القائمة؟",
+    "addDishes": "إضافة أطباق",
+    "backToList": "العودة إلى القائمة",
+    "restaurantNotSpecified": "لم يُحدَّد المطعم",
+    "createError": "تعذّر إنشاء القائمة"
+  },
+  "allergens": {
+    "gluten": {
+      "name": "الغلوتين"
+    },
+    "crustaceans": {
+      "name": "القشريات"
+    },
+    "eggs": {
+      "name": "البيض"
+    },
+    "fish": {
+      "name": "الأسماك"
+    },
+    "peanuts": {
+      "name": "الفول السوداني"
+    },
+    "soy": {
+      "name": "الصويا"
+    },
+    "milk": {
+      "name": "الحليب"
+    },
+    "nuts": {
+      "name": "المكسرات"
+    },
+    "celery": {
+      "name": "الكرفس"
+    },
+    "mustard": {
+      "name": "الخردل"
+    },
+    "sesame": {
+      "name": "السمسم"
+    },
+    "sulfites": {
+      "name": "الكبريتات"
+    },
+    "lupin": {
+      "name": "الترمس"
+    },
+    "mollusks": {
+      "name": "الرخويات"
+    }
+  },
+  "vatTypes": {
+    "FOOD": {
+      "name": "الطعام"
+    },
+    "DRINK_SOFT": {
+      "name": "مشروبات غير كحولية"
+    },
+    "DRINK_ALCOHOL": {
+      "name": "مشروبات كحولية"
+    },
+    "PACKAGED": {
+      "name": "منتجات معبأة مسبقًا"
+    }
+  },
+  "menuBrowse": {
+    "searchPlaceholder": "البحث عن طبق...",
+    "filters": "عوامل التصفية",
+    "resetFilters": "إعادة تعيين عوامل التصفية",
+    "categories": "الفئات",
+    "subcategoriesCount": "الفئات الفرعية ({{count}})",
+    "diet": "النظام الغذائي",
+    "excludeAllergens": "استبعاد مسببات الحساسية",
+    "vegetarian": "نباتي",
+    "vegan": "نباتي صرف",
+    "glutenFree": "خالٍ من الغلوتين",
+    "addToCart": "إضافة",
+    "viewCart": "عرض السلة",
+    "cartTitle": "سلتك",
+    "cartEmpty": "سلتك فارغة.",
+    "itemsCount": "{{count}} طبق",
+    "articlesCount": "{{count}} عنصر",
+    "qty": "الكمية",
+    "addedToCart": "تمت إضافة «{{name}}» إلى السلة",
+    "added": "تمت الإضافة",
+    "removeItemTitle": "إزالة العنصر",
+    "removeItemMessage": "إزالة «{{name}}» من السلة؟",
+    "thisItem": "هذا العنصر",
+    "itemRemoved": "تمت إزالة العنصر من السلة",
+    "removed": "تمت الإزالة",
+    "clearCartTitle": "إفراغ السلة",
+    "clearCartMessage": "هل أنت متأكد من إفراغ سلتك؟",
+    "cartCleared": "تم إفراغ سلتك.",
+    "cartLabel": "السلة",
+    "yes": "نعم",
+    "no": "لا",
+    "confirmDeleteTitle": "تأكيد الحذف"
+  },
+  "menuDetail": {
+    "addDish": "إضافة طبق",
+    "addDishShort": "+ إضافة طبق",
+    "importPhoto": "استيراد بالصورة",
+    "importMenuPhoto": "استيراد قائمة بالصورة",
+    "deleteDishTitle": "حذف الطبق",
+    "deleteDishMessage": "هل أنت متأكد من حذف «{{name}}»؟\n\nهذا الإجراء لا يمكن التراجع عنه.",
+    "cancel": "إلغاء",
+    "hidden": "مخفي",
+    "available": "متوفر",
+    "unavailable": "غير متوفر",
+    "categoriesHeader": "الفئات",
+    "menuNotFound": "لم يُعثر على القائمة",
+    "menuNotFoundToast": "تعذّر العثور على هذه القائمة",
+    "invalidMenuId": "معرّف القائمة غير صالح",
+    "toggleStatusError": "تعذّر تغيير حالة الطبق",
+    "deleteDishError": "تعذّر حذف الطبق",
+    "translationTimeout": "تستغرق الترجمة وقتًا طويلاً. حاول مرة أخرى.",
+    "dishDeleted": "تم حذف الطبق «{{name}}»",
+    "dishActivatedMsg": "تم تفعيل الطبق بنجاح",
+    "dishDeactivatedMsg": "تم إلغاء تفعيل الطبق بنجاح",
+    "allAlreadyTranslated": "كان كل شيء مترجمًا بالفعل.",
+    "translatedCount": "تمت ترجمة {{count}} عنصر إلى {{langs}} لغة.",
+    "translationDone": "اكتملت الترجمة",
+    "translationFailed": "فشلت الترجمة.",
+    "timeout": "انتهت المهلة",
+    "emptyMenuTitle": "لا توجد أطباق في هذه القائمة",
+    "emptyCategoryTitle": "لا توجد أطباق في هذه الفئة",
+    "emptyMenuText": "أضف طبقك الأول للبدء.",
+    "emptyCategoryText": "أضف طبقًا إلى هذه الفئة أو اختر فئة أخرى.",
+    "translateButton": "ترجمة ({{count}})",
+    "langsToTranslate": "اللغات المراد ترجمتها",
+    "onlyUntranslated": "سيُكمَّل فقط ما لم يُترجَم بعد.",
+    "menuPreview": "معاينة القائمة",
+    "previewSubtitle": "شاهد قائمتك كما سيراها العميل.",
+    "reorderCategories": "إعادة ترتيب الفئات",
+    "translateMenu": "ترجمة القائمة",
+    "translatingProgress": "جارٍ الترجمة… {{progress}}٪",
+    "translatingProgressLong": "الترجمة جارية… {{progress}}٪",
+    "previewPrefix": "معاينة:",
+    "restaurantMenuTitle": "قائمة المطعم",
+    "uncategorized": "بدون فئة",
+    "translationStartError": "تعذّر بدء الترجمة.",
+    "loadingCard": "جارٍ تحميل القائمة...",
+    "menuSubtitle": "{{name}} · {{available}}/{{total}} متوفر"
+  },
+  "dailyMenuForm": {
+    "titleLabel": "عنوان القائمة",
+    "titlePlaceholder": "مثال: قائمة اليوم",
+    "descLabel": "الوصف (اختياري)",
+    "descPlaceholder": "مثال: مقبلات + طبق رئيسي + حلوى",
+    "priceLabel": "السعر الإجمالي للقائمة (€) *",
+    "pricePlaceholder": "مثال: 19.90",
+    "generalInfo": "معلومات عامة",
+    "dishSelection": "اختيار الأطباق",
+    "clientPriceHint": "سيدفع العميل هذا السعر الإجمالي. يختار طبقًا واحدًا لكل فئة من بين ما تحدده أدناه.",
+    "priceSummaryMulti": "{{count}} فئة • {{price}}€ لكل طبق",
+    "priceSummarySingle": "طبق واحد بـ {{price}}€",
+    "selectedDishes": "{{count}} طبق محدد",
+    "categoriesSuffix": " • {{count}} فئة",
+    "titleRequired": "عنوان القائمة مطلوب",
+    "priceRequiredTitle": "السعر مطلوب",
+    "priceRequiredMessage": "يجب إدخال السعر الإجمالي لقائمة اليوم وأن يكون موجبًا تمامًا.",
+    "saving": "جارٍ الحفظ...",
+    "createTitle": "إنشاء قائمة اليوم",
+    "createButton": "إنشاء القائمة",
+    "created": "تم إنشاء قائمة اليوم بنجاح",
+    "createError": "تعذّر إنشاء قائمة اليوم",
+    "loadItemsError": "تعذّر تحميل أطباق القائمة",
+    "selectAtLeastOne": "يرجى اختيار طبق واحد على الأقل",
+    "editTitle": "تعديل قائمة اليوم",
+    "loadError": "تعذّر تحميل قائمة اليوم",
+    "invalidDishId": "معرّف الطبق غير صالح",
+    "dishAdded": "تمت إضافة «{{name}}» إلى قائمة اليوم",
+    "alreadyPresentTitle": "موجود بالفعل",
+    "alreadyPresent": "هذا الطبق موجود بالفعل في قائمة اليوم",
+    "addDishError": "تعذّر إضافة هذا الطبق",
+    "removeDishTitle": "إزالة هذا الطبق؟",
+    "removeDishMessage": "ستتم إزالة «{{name}}» من قائمة اليوم.",
+    "removedTitle": "تمت الإزالة",
+    "dishRemoved": "تمت إزالة «{{name}}»",
+    "removeDishError": "تعذّر إزالة هذا الطبق",
+    "updated": "تم تحديث قائمة اليوم",
+    "updateError": "تعذّر تحديث القائمة",
+    "confirmation": "تأكيد",
+    "deleteMenuMessage": "هل أنت متأكد من حذف قائمة اليوم هذه؟",
+    "menuDeleted": "تم حذف القائمة بنجاح",
+    "deleteMenuError": "تعذّر حذف القائمة",
+    "loadingDishes": "جارٍ تحميل الأطباق…",
+    "emptyDishesText": "إمّا أن جميع أطباق قائمتك موجودة بالفعل في قائمة اليوم هذه، أو أنك لم تُنشئ أي أطباق بعد. أضف أطباقًا إلى قائمتك أولاً لتتمكن من اختيارها هنا.",
+    "menuActive": "قائمة نشطة",
+    "menuDishes": "أطباق القائمة",
+    "add": "إضافة",
+    "noDishesAvailable": "لا توجد أطباق لإضافتها.",
+    "removeFromMenuLabel": "إزالة {{name}} من القائمة",
+    "availableDishes": "{{count}} طبق متوفر"
+  },
+  "scanImport": {
+    "photosSection": "صور القائمة",
+    "photoHint": "صورة واحدة لكل صفحة. يتوافق ترتيب الصفحات مع الترتيب أدناه.",
+    "noPagesAdded": "لم تُضف أي صفحة",
+    "gallery": "المعرض",
+    "translationLangs": "لغات الترجمة",
+    "langsHint": "يُستخرج المحتوى بالفرنسية. اختر اللغات الإضافية المراد إنشاؤها (اختياري).",
+    "submitButton": "بدء الاستيراد ({{count}} صفحة)",
+    "maxPages": "الحد الأقصى {{max}} صفحة لكل استيراد.",
+    "onlySomeAdded": "تمت إضافة {{count}} صفحة فقط.",
+    "limitReached": "تم بلوغ الحد",
+    "cameraPermissionMsg": "اسمح بالوصول إلى الكاميرا.",
+    "photosPermissionMsg": "اسمح بالوصول إلى صورك.",
+    "restaurantNotFound": "لم يُعثر على المطعم. ارجع عبر علامة التبويب القوائم.",
+    "addAtLeastOnePhoto": "أضف صورة واحدة على الأقل لقائمتك.",
+    "noPhotoTitle": "لا توجد صورة",
+    "importError": "تعذّر بدء الاستيراد.",
+    "readingCard": "جارٍ قراءة قائمتك…",
+    "analyzeTitle": "تحليل القائمة",
+    "translatingContent": "ترجمة المحتوى",
+    "importMenu": "استيراد القائمة",
+    "waitHint": "عادةً ما يستغرق ذلك أقل من دقيقة. يمكنك الانتظار في هذه الشاشة.",
+    "analysisFailed": "فشل التحليل",
+    "processingFailed": "لم تكتمل معالجة قائمتك.",
+    "retry": "إعادة المحاولة",
+    "menuImported": "تم استيراد القائمة",
+    "importDone": "اكتمل الاستيراد",
+    "toReview": "للمراجعة",
+    "reviewHint": "راجع الأسعار والأسماء. يبقى كل شيء قابلاً للتعديل بعد الاستيراد.",
+    "applyToMenu": "تطبيق على قائمتي",
+    "viewMenu": "عرض قائمتي",
+    "applyConfirm": "تطبيق الاستيراد؟",
+    "alreadyApplied": "تم التطبيق بالفعل",
+    "alreadyAppliedMsg": "تمت إضافة هذا الاستيراد إلى قائمتك بالفعل.",
+    "applied": "مُطبَّقة",
+    "unchanged": "دون تغيير",
+    "dishName": "اسم الطبق",
+    "descOptional": "الوصف (اختياري)",
+    "price": "السعر",
+    "priceToComplete": "سعر يجب إكماله",
+    "categoryName": "اسم الفئة",
+    "subcategoryName": "اسم الفئة الفرعية",
+    "categoriesCreated": "الفئات المنشأة",
+    "categoriesReused": "الفئات المعاد استخدامها",
+    "subcategoriesCreated": "الفئات الفرعية المنشأة",
+    "dishesCreated": "الأطباق المنشأة",
+    "graphicGuide": "الدليل الجرافيكي",
+    "loadError": "تعذّر التحميل.",
+    "retryError": "تعذّرت إعادة المحاولة.",
+    "applyError": "فشل التطبيق.",
+    "analyzing": "جارٍ التحليل",
+    "reviewMenuTitle": "مراجعة القائمة",
+    "processingTimeout": "تستغرق المعالجة وقتًا أطول من المتوقع. حاول لاحقًا.",
+    "apply": "تطبيق",
+    "applyWarnMissingPrices": "{{count}} طبق ليس له سعر صالح وسيتم إنشاؤه بسعر 0,00 €. المتابعة على أي حال؟",
+    "applySummary": "ستتم إضافة {{categories}} فئة و {{items}} طبق إلى قائمتك.",
+    "headerTitle": "استيراد قائمة",
+    "intro": "صوّر قائمتك الورقية. يكتشف الذكاء الاصطناعي تلقائيًا الفئات والأطباق والأسعار ويترجمها. يمكنك مراجعة كل شيء وتصحيحه قبل تطبيقه على قائمتك."
+  },
+  "checkout": {
+    "headerTitle": "إتمام الطلب",
+    "authRequired": "تسجيل الدخول مطلوب",
+    "authRequiredHint": "اختر طريقة الطلب.",
+    "seeOptions": "عرض الخيارات",
+    "authGate": {
+      "titleSession": "سجّل الدخول لإتمام طلبك",
+      "titleSolo": "كيف تريد أن تطلب؟",
+      "subtitleSession": "هناك جلسة تعاونية جارية. سجّل الدخول أو أنشئ حسابًا للانضمام.",
+      "subtitleSolo": "سجّل الدخول للاحتفاظ بسجلّك أو تابع كضيف."
+    },
+    "session": {
+      "title": "جلسة تعاونية",
+      "tableInfo": "الطاولة {{table}} • {{count}} مشارك",
+      "youAre": "أنت: {{name}}",
+      "hostSuffix": " (المضيف)"
+    },
+    "details": {
+      "title": "تفاصيل الطلب",
+      "restaurant": "المطعم: {{name}}",
+      "restaurantFallback": "المعرّف {{id}}",
+      "tableNumber": "رقم الطاولة",
+      "table": "الطاولة {{number}}",
+      "tableUndefined": "غير محدّد"
+    },
+    "info": {
+      "title": "بياناتك",
+      "nameLabel": "الاسم",
+      "namePlaceholder": "أدخل اسمك",
+      "notesLabel": "تعليمات خاصة (اختياري)",
+      "notesPlaceholder": "مثال: بدون بصل، حساسية…"
+    },
+    "summary": {
+      "title_one": "الملخّص ({{count}} عنصر)",
+      "title_other": "الملخّص ({{count}} عناصر)"
+    },
+    "submit": {
+      "submitting": "جارٍ الإرسال…",
+      "placeGroupOrder": "إرسال الطلب",
+      "validateOrder": "تأكيد الطلب"
+    },
+    "validation": {
+      "restaurantMissing": "لم يتم تحديد المطعم",
+      "tableRequired": "رقم الطاولة مطلوب",
+      "cartEmpty": "السلة فارغة",
+      "nameRequired": "الاسم مطلوب"
+    },
+    "toast": {
+      "orderPlacedTitle": "تم إرسال الطلب!",
+      "addedToSession": "تمت إضافة طلبك إلى الجلسة التعاونية.",
+      "sentToRestaurant": "تم إرسال طلبك إلى المطعم.",
+      "orderAddedTitle": "تمت إضافة الطلب!",
+      "addedToSessionNumbered": "تمت إضافة طلبك رقم {{number}} إلى الجلسة التعاونية.",
+      "createFailed": "حدث خطأ أثناء إنشاء الطلب"
+    }
+  },
+  "orderDetail": {
+    "headerTitle": "تفاصيل الطلب",
+    "loading": "جارٍ تحميل التفاصيل…",
+    "error": {
+      "title": "عذرًا!",
+      "notFound": "تعذّر العثور على هذا الطلب",
+      "loadFailed": "حدث خطأ أثناء تحميل الطلب",
+      "orderNotFound": "الطلب غير موجود"
+    },
+    "title": "الطلب {{number}}",
+    "titleFallback": "#{{id}}",
+    "customerFallback": "عميل مجهول",
+    "paid": "مدفوع",
+    "table": "الطاولة {{number}}",
+    "estimatedTime": "الوقت المقدّر: {{minutes}} دقيقة",
+    "notesLabel": "ملاحظات الطلب",
+    "itemsTitle": "العناصر المطلوبة",
+    "recap": "الملخّص",
+    "subtotal": "المجموع الفرعي:",
+    "totalDue": "المبلغ المستحق:",
+    "item": {
+      "fallbackName": "العنصر رقم {{id}}",
+      "customized": "مخصّص",
+      "quantity": "الكمية: {{count}}",
+      "unitPrice": "سعر الوحدة: {{price}}€",
+      "specialInstructions": "تعليمات خاصة",
+      "customizations": "التخصيصات"
+    },
+    "timeline": {
+      "title": "تتبّع الطلب",
+      "created": "تم إنشاء الطلب",
+      "confirmed": "مؤكَّد",
+      "preparing": "قيد التحضير",
+      "ready": "جاهز",
+      "served": "تم التقديم"
+    },
+    "actions": {
+      "quickTitle": "إجراءات سريعة",
+      "confirm": "تأكيد",
+      "startPreparing": "قيد التحضير",
+      "markReady": "جاهز",
+      "serve": "تقديم",
+      "collect": "تحصيل",
+      "receipt": "الإيصال",
+      "cancel": "إلغاء"
+    },
+    "cancelConfirm": {
+      "title": "إلغاء الطلب",
+      "message": "هل تريد فعلاً إلغاء الطلب رقم {{number}}؟ هذا الإجراء لا يمكن التراجع عنه.",
+      "keep": "لا، الاحتفاظ",
+      "confirm": "نعم، إلغاء"
+    },
+    "payModal": {
+      "title": "تعليم كمدفوع",
+      "question": "ما طريقة الدفع التي تريد تسجيلها؟",
+      "cash": "نقدًا",
+      "card": "بطاقة"
+    },
+    "paidWithCash": "تم تعليم الطلب كمدفوع (نقدًا)",
+    "paidWithCard": "تم تعليم الطلب كمدفوع (بطاقة)",
+    "statusUpdated": "تم تحديث الحالة: {{label}}",
+    "statusUpdateFailed": "تعذّر تحديث الحالة",
+    "markPaidSuccess": "تم تعليم الطلب كمدفوع",
+    "markPaidFailed": "تعذّر تعليمه كمدفوع",
+    "client": {
+      "payNow": "ادفع الآن",
+      "viewReceipt": "عرض الإيصال"
+    }
+  },
+  "addOrder": {
+    "headerFallback": "اطلب",
+    "loadingMenu": "جارٍ تحميل القائمة…",
+    "restaurantNotFound": "المطعم غير موجود",
+    "switch": "تغيير",
+    "table": "الطاولة {{number}}",
+    "categoryAll": "الكل",
+    "noItems": "لا توجد عناصر متاحة في هذه الفئة.",
+    "add": "إضافة",
+    "note": "ملاحظة: {{text}}",
+    "cartTitle_one": "طلبك ({{count}} عنصر)",
+    "cartTitle_other": "طلبك ({{count}} عناصر)",
+    "total": "الإجمالي:",
+    "clearCart": "إفراغ السلة",
+    "orderInfo": "معلومات الطلب",
+    "form": {
+      "nameLabel": "اسمك *",
+      "namePlaceholder": "الاسم الكامل",
+      "phoneLabel": "الهاتف",
+      "phonePlaceholder": "06 12 34 56 78",
+      "tableLabel": "رقم الطاولة *",
+      "tablePlaceholder": "مثال: 12",
+      "notesLabel": "ملاحظات",
+      "notesPlaceholder": "الحساسية، التعليمات…",
+      "paymentMethod": "طريقة الدفع"
+    },
+    "payment": {
+      "cash": "نقدًا",
+      "card": "بطاقة",
+      "online": "عبر الإنترنت"
+    },
+    "submitting": "جارٍ التحقق…",
+    "toast": {
+      "loadMenusFailed": "تعذّر تحميل القوائم",
+      "addedToCart": "تمت إضافة {{name}} إلى السلة",
+      "addedTitle": "تمت الإضافة",
+      "emptyCart": "أضف عناصر إلى طلبك",
+      "emptyCartTitle": "السلة فارغة",
+      "nameRequired": "يرجى إدخال اسمك",
+      "missingInfoTitle": "معلومات ناقصة",
+      "tableRequired": "رقم الطاولة مطلوب لطلب داخل المطعم",
+      "orderConfirmed": "تم حفظ الطلب {{number}}. الإجمالي: {{total}} €",
+      "orderConfirmedTitle": "تم تأكيد الطلب!",
+      "createFailed": "تعذّر إنشاء الطلب"
+    }
+  },
+  "guestCheckout": {
+    "headerTitle": "طلب كضيف",
+    "tableLabel": "الطاولة: {{number}}",
+    "tableUndetected": "⚠️ لم يتم اكتشاف الطاولة — يرجى مسح رمز QR مرة أخرى",
+    "processing": "جارٍ المعالجة…",
+    "submit": "إرسال الطلب • {{total}} €",
+    "form": {
+      "nameLabel": "الاسم / اللقب *",
+      "namePlaceholder": "اسمك الكامل",
+      "phoneLabel": "الهاتف *",
+      "phonePlaceholder": "06 12 34 56 78",
+      "emailLabel": "البريد الإلكتروني (اختياري)",
+      "emailPlaceholder": "your@email.com"
+    },
+    "payment": {
+      "title": "طريقة الدفع",
+      "online": "الدفع عبر الإنترنت",
+      "onlineHint": "بطاقة عبر Stripe",
+      "cashHint": "💰 ستدفع مباشرة في المطعم"
+    },
+    "consent": {
+      "pre": "أوافق على ",
+      "link": "سياسة الخصوصية",
+      "post": " وشروط الاستخدام *"
+    },
+    "toast": {
+      "nameRequired": "الاسم مطلوب",
+      "nameRequiredTitle": "حقول ناقصة",
+      "phoneInvalid": "يرجى إدخال رقم هاتف فرنسي صالح",
+      "phoneInvalidTitle": "هاتف غير صالح",
+      "emailInvalid": "يرجى إدخال عنوان بريد إلكتروني صالح",
+      "emailInvalidTitle": "بريد غير صالح",
+      "consentRequired": "يرجى قبول سياسة الخصوصية.",
+      "consentRequiredTitle": "الموافقة مطلوبة",
+      "tableMissing": "رقم الطاولة غير موجود. يرجى مسح رمز QR مرة أخرى.",
+      "tableMissingTitle": "الطاولة مفقودة",
+      "paymentInitFailed": "تعذّر تهيئة الدفع",
+      "processingOrder": "تتم معالجة طلبك. تحقّق من طلباتك.",
+      "paymentConfirmedTitle": "تم تأكيد الدفع",
+      "failed": "فشل الطلب. يرجى المحاولة مرة أخرى.",
+      "invalidItem": "معرّف عنصر غير صالح: {{name}}",
+      "initError": "خطأ في التهيئة: {{message}}",
+      "paymentError": "خطأ في الدفع: {{message}}"
+    }
+  },
+  "authGate": {
+    "login": "تسجيل الدخول",
+    "loginDesc": "استرجع سجلّك وادفع بشكل أسرع",
+    "register": "إنشاء حساب",
+    "registerDesc": "تسجيل سريع لتتبّع طلباتك",
+    "guest": "المتابعة كضيف",
+    "guestHint": "يمكنك الطلب دون إنشاء حساب، فقط بتقديم اسم ورقم هاتف."
+  },
+  "clientMenu": {
+    "sessionEndedTitle": "انتهت الجلسة",
+    "sessionEndedMsg": "تم إغلاق الجلسة التعاونية.",
+    "loadFailed": "تعذّر تحميل القائمة",
+    "alreadySelectedTitle": "محدّد بالفعل",
+    "alreadySelectedMsg": "{{name}} جزء من قائمتك بالفعل",
+    "addedSharedTitle": "تمت الإضافة إلى السلة المشتركة",
+    "addedTitle": "تمت الإضافة إلى السلة",
+    "addedMsg": "تمت إضافة {{name}}",
+    "addSharedFailed": "تعذّرت الإضافة إلى السلة المشتركة",
+    "removeItemFailed": "تعذّرت إزالة العنصر",
+    "copyCodeFailed": "تعذّر نسخ الرمز",
+    "approveFailed": "تعذّر قبول الطلب",
+    "rejectFailed": "تعذّر رفض الطلب",
+    "completeFormula": "أكمل قائمتك للوصول إلى السلة.",
+    "formulaIncomplete": "القائمة غير مكتملة",
+    "someone": "شخص ما",
+    "loadingMenu": "جارٍ تحميل القائمة…",
+    "notFound": "المطعم غير موجود",
+    "table": "الطاولة {{number}}",
+    "welcome": "مرحبًا",
+    "splitTitle": "💳 دفع الفاتورة",
+    "splitMsgAmount": "قسّم المضيف الفاتورة ({{amount}}€) إلى {{count}} حصص. ادفع حصتك الآن.",
+    "splitMsg": "قسّم المضيف الفاتورة إلى {{count}} حصص. ادفع حصتك الآن.",
+    "payMyShare": "ادفع حصتي",
+    "later": "لاحقًا",
+    "backHome": "العودة إلى الرئيسية",
+    "newRequestTitle": "🔔 طلب جديد",
+    "newRequestMsg": "يريد {{name}} الانضمام إلى جلستك.",
+    "accept": "✅ قبول",
+    "reject": "❌ رفض",
+    "switchRestaurantTitle": "تغيير المطعم؟",
+    "switchRestaurantMsg": "هل تريد إفراغ سلتك؟",
+    "activeSessionTitle": "جلسة نشطة على هذه الطاولة",
+    "participantsCount_one": "{{count}} مشارك",
+    "participantsCount_other": "{{count}} مشاركون",
+    "codeSuffix": " · الرمز {{code}}",
+    "join": "انضمام",
+    "sessionCode": "رمز الجلسة",
+    "chosen": "مختار",
+    "chooseOne": "اختر طبقًا واحدًا",
+    "emptyDaily": "لا أطباق في قائمة اليوم",
+    "emptyCategory": "لا أطباق في هذه الفئة",
+    "viewCart": "عرض السلة",
+    "categoriesChosen_one": "تم اختيار {{picked}}/{{total}} فئة",
+    "categoriesChosen_other": "تم اختيار {{picked}}/{{total}} فئات",
+    "articlesCount_one": "{{count}} عنصر",
+    "articlesCount_other": "{{count}} عناصر",
+    "sessionTitle": "جلسة تعاونية",
+    "shareCode": "رمز المشاركة",
+    "participants": "المشاركون ({{count}})",
+    "anonymous": "مجهول",
+    "statusPending": "قيد الانتظار",
+    "statusActive": "نشط",
+    "statusLeft": "غادر",
+    "menuLanguage": "لغة القائمة",
+    "shareMessage": "🍽️ انضم إليّ في {{name}}!\n\nرمز الجلسة: {{code}}\n\nأدخل هذا الرمز في EatQuickeR للانضمام إلى طاولتي.",
+    "shareTitle": "انضم إلى طاولتنا",
+    "formulaOfDay": "قائمة اليوم",
+    "formulaSubtitleMulti": "طبق واحد لكل فئة • {{count}} فئات • {{price}} / طبق",
+    "formulaSubtitleSingle": "طبق واحد للاختيار • {{price}}",
+    "removeFromFormula": "إزالة {{name}} من القائمة",
+    "removeItem": "إزالة {{name}}",
+    "addOne": "إضافة {{name}} واحد",
+    "addToCartLabel": "إضافة {{name}} إلى السلة"
+  },
+  "splitPayment": {
+    "modeEqual": "تم تقسيم الفاتورة بالتساوي بين {{count}} أشخاص",
+    "modeCustom": "تم تقسيم الفاتورة إلى {{count}} حصص مخصّصة",
+    "modeItems": "تم تفعيل وضع «حسب الطبق» لـ {{count}} شخص/أشخاص",
+    "configuredTitle": "تم إعداد التقسيم",
+    "createFailed": "تعذّر إنشاء تقسيم الفاتورة",
+    "headerTitle": "تقسيم الفاتورة",
+    "groupOrder": "طلب جماعي",
+    "yourPartPaid": "تم دفع حصتك بنجاح.",
+    "backToSession": "العودة إلى الجلسة",
+    "youAreHost": "أنت المضيف",
+    "splitInProgress": "تقسيم الفاتورة قيد التنفيذ",
+    "participantsPaid": "{{count}} مشارك • {{paid}} دفعوا",
+    "configurePrompt": "قم بإعداد تقسيم الفاتورة",
+    "hostConfigureHint": "اختر كيفية تقسيم الدفع بين المشاركين.",
+    "guestWaitConfig": "المضيف يقوم بإعداد تقسيم الفاتورة.",
+    "loadingPortions": "جارٍ تحميل الحصص…",
+    "enterAmounts": "يرجى إدخال المبالغ",
+    "perfectSplit": "تقسيم مثالي!",
+    "notEnoughParticipantsTitle": "عدد المشاركين غير كافٍ",
+    "notEnoughParticipantsMsg": "يتطلّب وضع «حسب الطبق» مشاركَين على الأقل في الجلسة.",
+    "minTwoPeople": "يجب أن يكون عدد الأشخاص 2 على الأقل",
+    "splitMismatch": "التقسيم لا يطابق المبلغ الإجمالي",
+    "minTwoPortions": "يلزم وجود حصتين على الأقل بمبلغ",
+    "totalToSplit": "الإجمالي المراد تقسيمه",
+    "howToSplit": "كيف تقسّم؟",
+    "modeSingle": "دفعة واحدة",
+    "modeSingleDesc": "يدفع شخص واحد",
+    "modeEqualLabel": "بالتساوي",
+    "modeEqualDesc": "حصص متساوية للجميع",
+    "modeCustomLabel": "مخصّص",
+    "modeCustomDesc": "مبالغ حسب الطلب",
+    "modeItemsLabel": "حسب الطبق",
+    "modeItemsDesc": "كل شخص يدفع ما طلبه",
+    "numberOfPeople": "عدد الأشخاص",
+    "personN": "الشخص {{number}}",
+    "customAmounts": "مبالغ مخصّصة",
+    "addPerson": "إضافة شخص",
+    "anonymous": "مجهول",
+    "paidOn": "دُفع في {{date}}",
+    "yourPart": "💳 حصتك",
+    "waiting": "⏳ قيد الانتظار",
+    "completedTitle": "🎉 اكتمل الدفع!",
+    "completedMessage": "تمت جميع المدفوعات بنجاح.",
+    "completedOn": "\n\nاكتمل في {{date}}",
+    "people": "أشخاص",
+    "title": "دفع مقسّم",
+    "equalSplit": "⚖️ تقسيم متساوٍ",
+    "customSplit": "🎯 مبالغ مخصّصة",
+    "paidStat": "✅ مدفوع",
+    "remainingStat": "⏳ متبقٍّ",
+    "peopleStat": "👥 أشخاص",
+    "paymentsDetail": "📋 تفاصيل المدفوعات",
+    "edit": "تعديل",
+    "payRest": "💳 دفع الباقي ({{amount}})",
+    "payForOthersHint": "💡 يمكنك الدفع عن الآخرين الذين لم يسدّدوا حصتهم بعد",
+    "payAllRest": "دفع كل الباقي"
+  },
+  "receipt": {
+    "loading": "جارٍ تحميل الإيصال…",
+    "noData": "لا توجد بيانات إيصال متاحة",
+    "ticketNumber": "رقم الإيصال:",
+    "dateLabel": "التاريخ:",
+    "tableLabel": "الطاولة:",
+    "typeLabel": "النوع:",
+    "dineIn": "في المكان",
+    "takeaway": "للأخذ",
+    "paymentLabel": "الدفع:",
+    "subtotalHT": "المجموع الفرعي (بدون ضريبة):",
+    "vatTotal": "إجمالي الضريبة:",
+    "subtotalTTC": "المجموع الفرعي (شامل الضريبة):",
+    "tip": "البقشيش:",
+    "totalTTC": "الإجمالي (شامل الضريبة):",
+    "thankYou": "شكرًا لزيارتكم!",
+    "seeYouSoon": "إلى اللقاء",
+    "vatDetailTitle": "تفصيل الضريبة",
+    "vatRate": "ضريبة {{rate}}%",
+    "vatBaseHT": "الصافي: {{amount}}",
+    "vatAmount": "الضريبة: {{amount}}",
+    "vatTotalTitle": "إجمالي الضريبة",
+    "print": "طباعة",
+    "email": "بريد إلكتروني",
+    "download": "تنزيل",
+    "share": "مشاركة",
+    "emailModalTitle": "إرسال الإيصال عبر البريد الإلكتروني",
+    "emailPlaceholder": "عنوان البريد الإلكتروني",
+    "sending": "جارٍ الإرسال…",
+    "send": "إرسال",
+    "loadFailed": "تعذّر تحميل الإيصال",
+    "printFailed": "تعذّرت طباعة الإيصال",
+    "emailInvalid": "يرجى إدخال عنوان بريد إلكتروني صالح",
+    "sentTo": "تم إرسال الإيصال إلى {{email}}",
+    "successTitle": "تم بنجاح",
+    "unknownError": "خطأ غير معروف",
+    "sendFailed": "تعذّر إرسال الإيصال",
+    "shareFailed": "تعذّرت مشاركة الإيصال",
+    "savedSuccess": "تم حفظ الإيصال بنجاح",
+    "savedAs": "تم حفظ الإيصال: {{filename}}",
+    "downloadTitle": "تنزيل",
+    "downloadFailed": "تعذّر تنزيل الإيصال",
+    "method": {
+      "cash": "نقدًا",
+      "card": "بطاقة",
+      "online": "عبر الإنترنت",
+      "credit": "ائتمان",
+      "check": "شيك",
+      "transfer": "تحويل"
+    }
+  },
+  "unpaidGate": {
+    "headerTitle": "وصول مقيّد",
+    "title": "الدفع معلّق",
+    "message_one": "لديك طلب واحد غير مدفوع. يرجى تسوية طلباتك قبل أن تتمكن من الوصول إلى القائمة أو تقديم طلب جديد.",
+    "message_other": "لديك {{count}} طلبات غير مدفوعة. يرجى تسوية طلباتك قبل أن تتمكن من الوصول إلى القائمة أو تقديم طلب جديد.",
+    "unpaidBadge": "غير مدفوع",
+    "viewOrders": "عرض طلباتي"
+  },
+  "reorderCategories": {
+    "headerTitle": "إعادة ترتيب الفئات",
+    "loadFailed": "تعذّر تحميل الفئات.",
+    "savedTitle": "تم حفظ الترتيب",
+    "savedMsg": "تمت إعادة ترتيب الفئات.",
+    "saveFailed": "تعذّر حفظ الترتيب.",
+    "noRestaurant": "لم يتم اختيار مطعم. عُد إلى الشاشة السابقة واختر مطعمًا.",
+    "intro": "يحدّد الترتيب المختار هنا ترتيب عرض الفئات في قائمة العميل (القائمة وقائمة اليوم).",
+    "empty": "لا توجد فئات لهذا المطعم.",
+    "dishCount_one": "طبق {{count}}",
+    "dishCount_other": "{{count}} أطباق",
+    "moveUp": "تحريك {{name}} لأعلى",
+    "moveDown": "تحريك {{name}} لأسفل",
+    "saving": "جارٍ الحفظ…",
+    "save": "حفظ الترتيب"
+  },
+  "notif": {
+    "title": "الإشعارات",
+    "markAllShort": "قراءة الكل",
+    "empty": "لا إشعارات",
+    "emptySubtitle": "لم تتلقَّ أي إشعارات بعد.\nستظهر هنا.",
+    "actionsTitle": "إجراءات",
+    "actionsMessage": "ماذا تريد أن تفعل؟",
+    "alreadyRead": "مقروء",
+    "markRead": "وضع علامة مقروء",
+    "markAllTitle": "وضع علامة مقروء على الكل",
+    "markAllMessage_one": "وضع علامة مقروء على {{count}} إشعار؟",
+    "markAllMessage_other": "وضع علامة مقروء على {{count}} إشعارات؟",
+    "today": "اليوم",
+    "yesterday": "أمس"
+  },
+  "prefs": {
+    "title": "تفضيلات الإشعارات",
+    "loading": "جارٍ تحميل التفضيلات…",
+    "saveFailed": "تعذّر حفظ التفضيل",
+    "permissionsTitle": "الأذونات مطلوبة",
+    "permissionsMessage": "لتلقّي الإشعارات، يجب السماح بالإشعارات في إعدادات جهازك.",
+    "disabledTitle": "الإشعارات معطّلة",
+    "disabledSubtitle": "اضغط لتفعيل الإشعارات",
+    "sectionOrders": "تحديثات الطلبات",
+    "sectionPayments": "المدفوعات",
+    "sectionRestaurateurs": "أصحاب المطاعم",
+    "sectionMarketing": "التسويق",
+    "sectionDnd": "عدم الإزعاج",
+    "sectionSound": "الصوت والاهتزاز",
+    "ordersTitle": "الطلبات",
+    "ordersDesc": "الحالة، التأكيد، التحضير",
+    "orderReadyTitle": "الطلب جاهز",
+    "orderReadyDesc": "احصل على تنبيه عندما يكون طلبك جاهزًا",
+    "paymentTitle": "تأكيد الدفع",
+    "paymentDesc": "الإيصالات وتأكيدات الدفع",
+    "newOrdersTitle": "طلبات جديدة",
+    "newOrdersDesc": "تنبيهات الطلبات الجديدة (أصحاب المطاعم)",
+    "promoTitle": "عروض ترويجية",
+    "promoDesc": "خصومات وعروض خاصة",
+    "quietTitle": "ساعات الهدوء",
+    "quietDesc": "إيقاف الإشعارات مؤقتًا خلال ساعات معينة",
+    "soundTitle": "الصوت",
+    "soundDesc": "تشغيل صوت عند الاستلام",
+    "vibrationTitle": "الاهتزاز",
+    "vibrationDesc": "جعل الجهاز يهتز",
+    "start": "البداية",
+    "end": "النهاية",
+    "startTime": "وقت البدء",
+    "endTime": "وقت الانتهاء",
+    "hour": "الساعة",
+    "minutes": "الدقائق"
+  },
+  "help": {
+    "headerTitle": "دليل البدء",
+    "heroTitle": "مرحبًا بك في EatQuickeR",
+    "heroSubtitle": "اتبع هذا الدليل لإعداد مطعمك في بضع دقائق.",
+    "allReadyTitle": "مطعمك جاهز للعمل!",
+    "allReadySubtitle": "أنت جاهز لاستقبال الطلبات. شارك رموز QR على طاولاتك ودع EatQuickeR يتولى الباقي.",
+    "statsCta": "الإحصاءات",
+    "progressDone": "اكتمل الإعداد!",
+    "progressInProgress": "الإعداد جارٍ",
+    "stepsCompleted": "اكتمل {{completed}} / {{total}} خطوات",
+    "stepLabel": "الخطوة {{current}} من {{total}}",
+    "steps": {
+      "stripe": {
+        "title": "تفعيل المدفوعات",
+        "subtitle": "اربط حساب Stripe لاستقبال المدفوعات.",
+        "doneLabel": "تم تفعيل Stripe",
+        "s1": "افتح ملفك الشخصي من القائمة",
+        "s2": "اضغط على \"إعداد مدفوعات Stripe\"",
+        "s3": "املأ نموذج التسجيل في Stripe",
+        "s4": "انتظر التأكيد (بضع دقائق)",
+        "tip": "هذه الخطوة مطلوبة مرة واحدة فقط. تتيح لـ EatQuickeR تحويل إيراداتك إليك يوميًا.",
+        "cta": "إعداد Stripe"
+      },
+      "restaurant": {
+        "title": "إنشاء مطعمك",
+        "subtitle": "أضف منشأتك لبدء استقبال الطلبات.",
+        "doneLabel": "تم إنشاء المطعم",
+        "s1": "اضغط على \"إنشاء مطعم\"",
+        "s2": "أدخل اسم منشأتك وعنوانها",
+        "s3": "أضف صورة غلاف جذابة",
+        "s4": "أدخل رقم هاتف التواصل",
+        "s5": "احفظ — مطعمك على الإنترنت الآن!",
+        "tip": "يمكنك إنشاء عدة مطاعم من حساب صاحب مطعم واحد.",
+        "cta": "إنشاء مطعمي"
+      },
+      "menu": {
+        "title": "إنشاء قائمتك",
+        "subtitle": "نظّم أطباقك في قائمة مرتّبة حسب الفئات.",
+        "doneLabel": "تم إنشاء القائمة",
+        "s1": "انتقل إلى \"إدارة القوائم\" وأنشئ قائمة",
+        "s2": "أضف فئات (مقبلات، أطباق رئيسية، حلويات…)",
+        "s3": "أنشئ فئات فرعية عند الحاجة (لحوم، أسماك…)",
+        "s4": "أضف أطباقك مع الاسم والسعر والوصف",
+        "s5": "ضع صورة شهية لكل طبق",
+        "tip": "أنشئ قوائم مختلفة لمواسمك أو مناسباتك (قائمة الصيف، قائمة الأعياد…).",
+        "cta": "إدارة القوائم"
+      },
+      "items": {
+        "title": "إضافة أطباقك",
+        "subtitle": "أثرِ قائمتك بكل أطباقك ومشروباتك.",
+        "doneLabel": "تمت إضافة الأطباق",
+        "s1": "في قائمتك، اضغط على \"+\" لإضافة طبق",
+        "s2": "حدّد الاسم والوصف والسعر",
+        "s3": "أدخل مسببات الحساسية والخيارات (نباتي، نباتي صرف…)",
+        "s4": "فعّل الطبق ليصبح متاحًا للطلب",
+        "tip": "يمكنك تفعيل/تعطيل طبق في الوقت الفعلي إذا نفد المخزون.",
+        "cta": "عرض قوائمي"
+      },
+      "qrcodes": {
+        "title": "إنشاء رموز QR",
+        "subtitle": "أنشئ رمز QR لكل طاولة ليتمكن عملاؤك من الطلب عبر هواتفهم.",
+        "doneLabel": "تم إنشاء رموز QR",
+        "s1": "افتح \"رموز QR للطاولات\" واختر مطعمك",
+        "s2": "حدّد عدد الطاولات ورقم البداية",
+        "s3": "تحصل كل طاولة على رمز QR ورمز يدوي فريد",
+        "s4": "اطبع رموز QR (PDF بحجم A4 أو مشاركة فردية)",
+        "s5": "ضعها على طاولاتك — كل شيء جاهز!",
+        "tip": "تنشئ ميزة \"طباعة الكل\" ملف PDF بجميع رموز QR بنقرة واحدة.",
+        "cta": "إنشاء رموز QR"
+      }
+    }
+  },
+  "gamifiedTracking": {
+    "estimatedTime": "الوقت المقدّر",
+    "accuracy": "الدقة",
+    "inProgress": "جارٍ...",
+    "progress": "التقدّم",
+    "quality": "الجودة",
+    "preparation": "التحضير",
+    "efficiency": "الكفاءة",
+    "completion": "الإنجاز",
+    "bonusActive": "المكافأة مُفعّلة",
+    "distinctions": "الإنجازات",
+    "preparationSteps": "خطوات التحضير",
+    "estimatedLabel": "المقدّر:",
+    "remainingLabel": "المتبقّي:",
+    "loading": "جارٍ تحميل التتبّع...",
+    "streakCount_one": "سلسلة من {{count}} طلب",
+    "streakCount_other": "سلسلة من {{count}} طلبات",
+    "itemsCount_one": "{{count}} عنصر",
+    "itemsCount_other": "{{count}} عناصر"
+  }
+}

@@ -22,6 +22,10 @@ import { Card } from '@/components/ui/Card';
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS } from '@/styles/tokens';
 import { useResponsive } from '@/utils/responsive';
 import { Alert as CustomAlert } from '@/components/ui/Alert';
+import { useTranslation } from 'react-i18next';
+import { useAppTheme } from '@/utils/designSystem';
+import { HeaderActionsBar } from '@/components/common/HeaderActions';
+import { quickAuthService } from '@/services/quickAuthService';
 
 const APP_LOGO = require('@/assets/images/logo.png');
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -40,6 +44,14 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Partial<LoginFormData>>({});
 
+  // ── Reconnexion 1-clic (biométrie + identifiants mémorisés) ──────────────
+  // `rememberMe` : choix opt-in de mémoriser les identifiants après login.
+  // `hasQuickAuth` : des identifiants sont déjà mémorisés → on affiche le bouton.
+  // `savedEmail` : email mémorisé, affiché sous le bouton de reconnexion rapide.
+  const [rememberMe, setRememberMe] = useState(false);
+  const [hasQuickAuth, setHasQuickAuth] = useState(false);
+  const [savedEmail, setSavedEmail] = useState<string | null>(null);
+
   // ÉTAT POUR L'ALERTE PERSONNALISÉE
   const [customAlert, setCustomAlert] = useState<{
     variant?: 'success' | 'error' | 'warning' | 'info';
@@ -48,6 +60,8 @@ export default function LoginScreen() {
   } | null>(null);
   
   const { login, googleLogin } = useAuth();
+  const { t } = useTranslation();
+  const { colors, isDark } = useAppTheme();
   const { isMobile, isTablet, isSmallScreen, getSpacing, getFontSize, getResponsiveValue } = useResponsive();
   const insets = useSafeAreaInsets();
 
@@ -68,6 +82,28 @@ export default function LoginScreen() {
     return () => { ApiClient._isOnLoginPage = false; };
   }, []);
 
+  // ── Initialisation reconnexion rapide ────────────────────────────────────
+  // Au montage : détecte des identifiants mémorisés, pré-remplit l'email et
+  // pré-coche "Se souvenir de moi" pour ne pas perdre le réglage au re-login.
+  useEffect(() => {
+    (async () => {
+      try {
+        const enabled = await quickAuthService.isEnabled();
+        setHasQuickAuth(enabled);
+        setRememberMe(enabled);
+        const email = await quickAuthService.getSavedEmail();
+        if (email) {
+          setSavedEmail(email);
+          // Ne pré-remplit que si le champ est encore vide (évite d'écraser une
+          // saisie en cours après un remontage).
+          setFormData(prev => (prev.email ? prev : { ...prev, email }));
+        }
+      } catch (e) {
+        console.warn('⚠️ Init reconnexion rapide échouée:', e);
+      }
+    })();
+  }, []);
+
   // VALIDATION
   const validateForm = useCallback((): boolean => {
     const newErrors: Partial<LoginFormData> = {};
@@ -75,21 +111,21 @@ export default function LoginScreen() {
     // Email validation
     const email = formData.email.trim();
     if (!email) {
-      newErrors.email = 'Email requis';
+      newErrors.email = t('auth.validation.emailRequired');
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      newErrors.email = 'Format d\'email invalide';
+      newErrors.email = t('auth.validation.emailInvalid');
     }
     
     // Password validation
     if (!formData.password) {
-      newErrors.password = 'Mot de passe requis';
+      newErrors.password = t('auth.validation.passwordRequired');
     } else if (formData.password.length < 6) {
-      newErrors.password = 'Minimum 6 caractères';
+      newErrors.password = t('auth.validation.passwordMinLength', { min: 6 });
     }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [formData.email, formData.password]);
+  }, [formData.email, formData.password, t]);
 
   const handleLoginError = (error: any) => {
     console.error('Login error:', error);
@@ -111,8 +147,8 @@ export default function LoginScreen() {
       code === 'USER_NOT_FOUND' ||
       /user.*not.*found|no.*user|aucun.*utilisateur|unknown.*user|ressource.*non.*trouv|no.*account.*found/.test(serverMessage)
     ) {
-      setErrors(prev => ({ ...prev, email: 'Aucun compte avec cet email' }));
-      show('error', 'Compte introuvable', 'Aucun compte associé à cet email.');
+      setErrors(prev => ({ ...prev, email: t('auth.validation.noAccountEmail') }));
+      show('error', t('auth.alerts.accountNotFound.title'), t('auth.alerts.accountNotFound.message'));
       return;
     }
 
@@ -122,7 +158,7 @@ export default function LoginScreen() {
       /no.*active.*account|identifiant.*invalide|invalid.*credential|wrong.*password|invalid.*password|bad.*credentials|mot.*de.*passe.*(incorrect|invalide|erron)|donn.*es.*invalide|erreur.*lors.*connexion/.test(serverMessage)
     ) {
       setErrors(prev => ({ ...prev, email: ' ', password: ' ' }));
-      show('error', 'Identifiants invalides', 'Email ou mot de passe incorrect. Veuillez réessayer.');
+      show('error', t('auth.alerts.invalidCredentials.title'), t('auth.alerts.invalidCredentials.message'));
       return;
     }
 
@@ -131,7 +167,7 @@ export default function LoginScreen() {
       code === 'ACCOUNT_DISABLED' ||
       /compte.*d.sactiv|account.*disabled|acc.s.*refus|permissions.*insuffisantes|profil.*restaurateur.*doit/.test(serverMessage)
     ) {
-      show('warning', 'Accès refusé', 'Votre compte n\'est pas autorisé à se connecter. Contactez le support.');
+      show('warning', t('auth.alerts.accessDenied.title'), t('auth.alerts.accessDenied.message'));
       return;
     }
 
@@ -140,7 +176,7 @@ export default function LoginScreen() {
       code === 'RATE_LIMITED' ||
       /trop.*tentatives|too.*many.*requests|rate.*limit/.test(serverMessage)
     ) {
-      show('warning', 'Trop de tentatives', 'Trop de tentatives de connexion. Réessayez dans quelques instants.');
+      show('warning', t('auth.alerts.tooManyAttempts.title'), t('auth.alerts.tooManyAttempts.message'));
       return;
     }
 
@@ -149,7 +185,7 @@ export default function LoginScreen() {
       code === 'NETWORK_ERROR' ||
       /network.*error|connexion.*impossible|failed.*fetch|r.seau.*indisponible/.test(serverMessage)
     ) {
-      show('warning', 'Erreur de connexion', 'Vérifiez votre connexion internet et réessayez.');
+      show('warning', t('auth.alerts.networkError.title'), t('auth.alerts.networkError.message'));
       return;
     }
 
@@ -157,11 +193,11 @@ export default function LoginScreen() {
       (typeof status === 'number' && status >= 500) ||
       /erreur.*serveur|service.*indisponible|server.*error|internal.*error/.test(serverMessage)
     ) {
-      show('error', 'Service indisponible', 'Le service est temporairement indisponible. Réessayez plus tard.');
+      show('error', t('auth.alerts.serviceUnavailable.title'), t('auth.alerts.serviceUnavailable.message'));
       return;
     }
 
-    show('error', 'Erreur de connexion', error?.response?.data?.detail || error?.response?.data?.message || error?.message || 'Une erreur est survenue. Veuillez réessayer.');
+    show('error', t('auth.alerts.genericError.title'), error?.response?.data?.detail || error?.response?.data?.message || error?.message || t('auth.alerts.genericError.message'));
   };
 
   // SOUMISSION AVEC FEEDBACK
@@ -175,6 +211,23 @@ export default function LoginScreen() {
         username: formData.email.trim().toLowerCase(),
         password: formData.password,
       });
+
+      // ── Mémorisation des identifiants pour la reconnexion 1-clic ─────────
+      // Opt-in via "Se souvenir de moi". Stockage Keychain/Keystore
+      // (expo-secure-store), lecture future protégée par gate biométrique.
+      // Best-effort : un échec de stockage ne doit pas casser le login.
+      try {
+        if (rememberMe) {
+          await quickAuthService.saveCredentials(
+            formData.email.trim().toLowerCase(),
+            formData.password,
+          );
+        } else {
+          await quickAuthService.clearCredentials();
+        }
+      } catch (storageError) {
+        console.warn('⚠️ Mémorisation des identifiants échouée:', storageError);
+      }
 
       // ── Override de la navigation par défaut si `returnTo` est présent ──
       // AuthContext.login() appelle navigateByRole() qui redirige vers
@@ -197,7 +250,45 @@ export default function LoginScreen() {
     } finally {
       setLoading(false);
     }
-  }, [formData, login, validateForm, returnTo]);
+  }, [formData, login, validateForm, returnTo, rememberMe]);
+
+  // RECONNEXION 1-CLIC — gate biométrique puis login avec identifiants mémorisés
+  const handleQuickReconnect = useCallback(async () => {
+    setErrors({});
+    setLoading(true);
+    try {
+      const creds = await quickAuthService.quickReconnect();
+      // null = annulation utilisateur / biométrie échouée / pas d'identifiants.
+      // On reste silencieux : l'utilisateur peut saisir manuellement en dessous.
+      if (!creds) return;
+
+      await login({ username: creds.email, password: creds.password });
+
+      // Même override de navigation que handleSubmit si on vient d'un AuthGate.
+      if (returnTo) {
+        setTimeout(() => {
+          try {
+            router.replace(returnTo as any);
+          } catch (navError) {
+            console.warn('⚠️ Redirection returnTo échouée, fallback:', navError);
+          }
+        }, 50);
+      }
+    } catch (error: any) {
+      // Identifiants mémorisés devenus invalides (mot de passe changé côté serveur)
+      // → on purge pour ne pas reproposer un 1-clic voué à l'échec.
+      const status = error?.response?.status ?? error?.status;
+      if (status === 401 || status === 400) {
+        await quickAuthService.clearCredentials();
+        setHasQuickAuth(false);
+        setSavedEmail(null);
+        setRememberMe(false);
+      }
+      handleLoginError(error);
+    } finally {
+      setLoading(false);
+    }
+  }, [login, returnTo]);
 
   // HELPERS
   const updateFormData = useCallback((field: keyof LoginFormData) => 
@@ -243,16 +334,16 @@ export default function LoginScreen() {
       if (error?.code === 'PLAY_SERVICES_UNAVAILABLE') {
         setCustomAlert({
           variant: 'warning',
-          title: 'Google Play indisponible',
-          message: 'Google Play Services n\'est pas disponible sur cet appareil.',
+          title: t('auth.alerts.googlePlayUnavailable.title'),
+          message: t('auth.alerts.googlePlayUnavailable.message'),
         });
         return;
       }
 
       setCustomAlert({
         variant: 'error',
-        title: 'Connexion Google impossible',
-        message: error?.message || 'Une erreur est survenue. Veuillez réessayer.',
+        title: t('auth.alerts.googleLoginFailed.title'),
+        message: error?.message || t('auth.alerts.genericError.message'),
       });
     } finally {
       setLoading(false);
@@ -262,8 +353,8 @@ export default function LoginScreen() {
   const handleAppleLogin = useCallback(() => {
     setCustomAlert({
       variant: 'info',
-      title: 'Bientôt disponible',
-      message: 'La connexion Apple sera disponible prochainement',
+      title: t('auth.alerts.comingSoon.title'),
+      message: t('auth.alerts.comingSoon.message'),
     });
   }, []);
 
@@ -283,8 +374,8 @@ export default function LoginScreen() {
     if (params.reason === 'session_expired') {
       setCustomAlert({
         variant: 'warning',
-        title: 'Session expirée',
-        message: 'Votre session a expiré. Veuillez vous reconnecter.',
+        title: t('auth.alerts.sessionExpired.title'),
+        message: t('auth.alerts.sessionExpired.message'),
       });
       // Nettoyer le param pour éviter les re-triggers au remontage
       // (returnTo est conservé pour qu'il survive au nettoyage de `reason`)
@@ -296,19 +387,19 @@ export default function LoginScreen() {
   const styles = {
     container: {
       flex: 1,
-      backgroundColor: '#F9FAFB',
+      backgroundColor: colors.background,
     },
     
     contentContainer: {
       flex: 1,
-      backgroundColor: '#F9FAFB',
+      backgroundColor: colors.background,
     },
     
     header: {
       height: insets.top + getSpacing(
-        Math.min(screenHeight * 0.20, 160),
         Math.min(screenHeight * 0.22, 180),
-        Math.min(screenHeight * 0.22, 180)
+        Math.min(screenHeight * 0.24, 200),
+        Math.min(screenHeight * 0.24, 200)
       ),
       position: 'relative' as const,
       overflow: 'hidden' as const,
@@ -362,6 +453,14 @@ export default function LoginScreen() {
       paddingTop: insets.top + getSpacing(SPACING.md, SPACING.lg),
       zIndex: 1,
     },
+
+    // Boutons thème + langue, ancrés en haut à droite du header (au-dessus du dégradé)
+    headerActions: {
+      position: 'absolute' as const,
+      top: insets.top + getSpacing(SPACING.sm, SPACING.md),
+      right: getSpacing(SPACING.lg, SPACING.xl),
+      zIndex: 10,
+    },
     
     logoImageContainer: {
       width: getResponsiveValue(64, 72, 80),
@@ -409,6 +508,19 @@ export default function LoginScreen() {
       textAlign: 'center' as const,
       paddingHorizontal: getSpacing(SPACING.sm, SPACING.md),
     },
+
+    headerSlogan: {
+      fontSize: getFontSize(12, 13, 14),
+      fontStyle: 'italic' as const,
+      fontWeight: TYPOGRAPHY.fontWeight.medium,
+      color: COLORS.secondary,
+      textAlign: 'center' as const,
+      marginTop: getSpacing(SPACING.sm, SPACING.md),
+      letterSpacing: 0.3,
+      textShadowColor: 'rgba(0, 0, 0, 0.3)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 2,
+    },
     
     scrollViewContainer: {
       flexGrow: 1,
@@ -426,7 +538,7 @@ export default function LoginScreen() {
     formTitle: {
       fontSize: getFontSize(22, 26, 30),
       fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: '#1E2A78',
+      color: colors.text.primary,
       textAlign: 'center' as const,
       marginBottom: getSpacing(SPACING.lg, SPACING.xl),
     },
@@ -437,14 +549,8 @@ export default function LoginScreen() {
     },
     
     socialButton: {
-      backgroundColor: '#FFFFFF',
-      borderWidth: 1.5,
-      borderColor: '#E5E7EB',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.05,
-      shadowRadius: 4,
-      elevation: 2,
+      // Couleurs gérées par le variant "outline" du Button (theme-aware).
+      // On ne force plus le fond/bordure ici pour suivre light/dark.
     },
     
     divider: {
@@ -456,15 +562,15 @@ export default function LoginScreen() {
     dividerLine: {
       flex: 1,
       height: 1,
-      backgroundColor: '#E5E7EB',
+      backgroundColor: colors.border.default,
     },
     
     dividerText: {
       fontSize: TYPOGRAPHY.fontSize.sm,
-      color: '#6B7280',
+      color: colors.text.secondary,
       paddingHorizontal: SPACING.md,
       fontWeight: TYPOGRAPHY.fontWeight.medium,
-      backgroundColor: '#F9FAFB',
+      backgroundColor: 'transparent',
     },
     
     inputContainer: {
@@ -478,22 +584,58 @@ export default function LoginScreen() {
       marginTop: SPACING.sm,
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
     },
+
+    // Reconnexion 1-clic
+    quickAuthSection: {
+      marginBottom: getSpacing(SPACING.sm, SPACING.md),
+      gap: SPACING.xs,
+    },
+    quickAuthEmail: {
+      fontSize: 13,
+      color: colors.text.secondary,
+      textAlign: 'center' as const,
+      marginTop: SPACING.xs,
+    },
+
+    // Case "Se souvenir de moi"
+    rememberRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 8,
+      marginTop: SPACING.sm,
+      alignSelf: 'flex-start' as const,
+      paddingVertical: SPACING.xs,
+    },
+    checkbox: {
+      width: 22,
+      height: 22,
+      borderRadius: 6,
+      borderWidth: 2,
+      borderColor: colors.border.default,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      backgroundColor: 'transparent',
+    },
+    checkboxChecked: {
+      backgroundColor: COLORS.secondary,
+      borderColor: COLORS.secondary,
+    },
+    rememberText: {
+      fontSize: getFontSize(14, 15, 16),
+      color: colors.text.primary,
+      fontWeight: TYPOGRAPHY.fontWeight.medium,
+    },
     
     submitButton: {
+      // Fond/ombre gérés par le variant "primary" du Button (theme-aware).
       marginTop: getSpacing(SPACING.lg, SPACING.xl),
-      backgroundColor: '#1E2A78',
-      shadowColor: '#1E2A78',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 8,
-      elevation: 6,
     },
     
     footer: {
       paddingVertical: getSpacing(SPACING.lg, SPACING.xl),
       paddingBottom: Math.max(insets.bottom, getSpacing(SPACING.lg, SPACING.xl)),
       alignItems: 'center' as const,
-      backgroundColor: '#F9FAFB',
+      backgroundColor: colors.background,
     },
     
     registerLink: {
@@ -533,7 +675,7 @@ export default function LoginScreen() {
     returnToBannerText: {
       flex: 1,
       fontSize: 13,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       lineHeight: 18,
     },
   } as const;
@@ -562,7 +704,9 @@ export default function LoginScreen() {
       {/* HEADER AVEC LOGO */}
       <View style={styles.header}>
         <LinearGradient
-          colors={['#1E2A78', '#2D3E8F', '#3B4BA3']}
+          colors={isDark
+            ? ['#0E1330', '#161E47', '#1E2A78']
+            : ['#1E2A78', '#2D3E8F', '#3B4BA3']}
           style={styles.headerGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -572,14 +716,10 @@ export default function LoginScreen() {
         <View style={styles.headerPattern} />
         <View style={styles.headerPattern2} />
 
-        {/* Back (optionnel) */}
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => router.back()}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
+        {/* Switch thème + langue, comme sur les espaces client / restaurant */}
+        <View style={styles.headerActions}>
+          <HeaderActionsBar />
+        </View>
 
         {/* Contenu centré */}
         <View style={styles.headerContent}>
@@ -590,8 +730,9 @@ export default function LoginScreen() {
               resizeMode="cover"
             />
           </View>
-          <Text style={styles.headerTitle}>Ravis de vous voir</Text>
-          <Text style={styles.headerSubtitle}>Connectez-vous pour continuer</Text>
+          <Text style={styles.headerTitle}>{t('auth.welcomeTitle')}</Text>
+          <Text style={styles.headerSubtitle}>{t('auth.welcomeSubtitle')}</Text>
+          <Text style={styles.headerSlogan}>{t('auth.slogan')}</Text>
         </View>
       </View>
 
@@ -609,22 +750,50 @@ export default function LoginScreen() {
             bounces={false}
           >
             <Card style={styles.formCard} variant="elevated" padding="xl">
-              <Text style={styles.formTitle}>Connexion</Text>
+              <Text style={styles.formTitle}>{t('auth.loginTitle')}</Text>
 
               {/* Bandeau d'info si on revient d'un AuthGate (returnTo défini) */}
               {returnTo && (
                 <View style={styles.returnToBanner}>
                   <Ionicons name="information-circle" size={18} color={COLORS.secondary} />
                   <Text style={styles.returnToBannerText}>
-                    Connectez-vous pour reprendre votre commande là où vous l'aviez laissée.
+                    {t('auth.resumeOrderPrompt')}
                   </Text>
                 </View>
               )}
               
+              {/* RECONNEXION 1-CLIC — visible uniquement si identifiants mémorisés */}
+              {hasQuickAuth && (
+                <View style={styles.quickAuthSection}>
+                  <Button
+                    title={t('auth.reconnect')}
+                    onPress={handleQuickReconnect}
+                    loading={loading}
+                    disabled={loading}
+                    variant="primary"
+                    size={isSmallScreen ? 'sm' : (isMobile ? 'md' : 'lg')}
+                    fullWidth
+                    leftIcon={
+                      <Ionicons name="finger-print" size={20} color={COLORS.text.inverse} />
+                    }
+                  />
+                  {savedEmail && (
+                    <Text style={styles.quickAuthEmail} numberOfLines={1}>
+                      {savedEmail}
+                    </Text>
+                  )}
+                  <View style={styles.divider}>
+                    <View style={styles.dividerLine} />
+                    <Text style={styles.dividerText}>{t('auth.useAnotherAccount')}</Text>
+                    <View style={styles.dividerLine} />
+                  </View>
+                </View>
+              )}
+
               {/* SOCIAL LOGIN SECTION */}
               <View style={styles.socialSection}>
                 <Button
-                  title="Continuer avec Google"
+                  title={t('auth.continueWithGoogle')}
                   variant="outline"
                   leftIcon={
                     <Ionicons name="logo-google" size={20} color="#EA4335" />
@@ -651,14 +820,14 @@ export default function LoginScreen() {
               {/* DIVIDER */}
               <View style={styles.divider}>
                 <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>ou</Text>
+                <Text style={styles.dividerText}>{t('common.or')}</Text>
                 <View style={styles.dividerLine} />
               </View>
 
               {/* FORMULAIRE */}
               <View style={styles.inputContainer}>
                 <Input
-                  label="Email"
+                  label={t('auth.email')}
                   placeholder="votre@email.com"
                   value={formData.email}
                   onChangeText={(text) => {
@@ -676,7 +845,7 @@ export default function LoginScreen() {
                 />
 
                 <Input
-                  label="Mot de passe"
+                  label={t('auth.password')}
                   placeholder="••••••••"
                   value={formData.password}
                   onChangeText={(text) => {
@@ -695,18 +864,34 @@ export default function LoginScreen() {
                 />
               </View>
 
+              {/* SE SOUVENIR DE MOI — opt-in pour la reconnexion 1-clic */}
+              <TouchableOpacity
+                style={styles.rememberRow}
+                onPress={() => setRememberMe(prev => !prev)}
+                activeOpacity={0.7}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: rememberMe }}
+              >
+                <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
+                  {rememberMe && (
+                    <Ionicons name="checkmark" size={14} color={COLORS.text.inverse} />
+                  )}
+                </View>
+                <Text style={styles.rememberText}>{t('auth.rememberMe')}</Text>
+              </TouchableOpacity>
+
               <TouchableOpacity 
                 onPress={handleForgotPassword}
                 activeOpacity={0.7}
               >
                 <Text style={styles.forgotPassword}>
-                  Mot de passe oublié ?
+                  {t('auth.forgotPassword')}
                 </Text>
               </TouchableOpacity>
 
               {/* BOUTON DE CONNEXION */}
               <Button
-                title="Se connecter"
+                title={t('auth.signIn')}
                 onPress={handleSubmit}
                 loading={loading}
                 disabled={loading || !formData.email.trim() || !formData.password}
@@ -731,7 +916,7 @@ export default function LoginScreen() {
               activeOpacity={0.7}
             >
               <Text style={styles.registerLink}>
-                Pas encore de compte ? S'inscrire
+                {`${t('auth.noAccount')} ${t('auth.signUp')}`}
               </Text>
             </TouchableOpacity>
           </View>

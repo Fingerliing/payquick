@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo, ReactNode } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import type { Cart, CartItem, CartContextType } from "@/types/cart";
+import type { Cart, CartItem, CartContextType, AddFormulePayload } from "@/types/cart";
 import { tableOrderService, TableOrdersResponse, OrderWithTableInfo } from "@/services/tableOrderService";
 import { CreateOrderRequest } from "@/types/order";
 
@@ -337,6 +337,38 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     });
   }, []);
 
+  // Ajout d'une formule configurée : TOUJOURS une nouvelle ligne (deux formules
+  // identiques restent séparées ; on ne passe pas par la fusion de addToCart).
+  const addFormuleToCart = useCallback((p: AddFormulePayload) => {
+    setCart(prev => {
+      const shouldReset = prev.restaurantId && prev.restaurantId !== p.restaurantId;
+      const base = shouldReset ? emptyCart() : prev;
+
+      const newItem: CartItem = {
+        id: `formule-${p.formule.formule}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        kind: 'formule',
+        menuItemId: 0,
+        name: p.name,
+        price: p.unitPrice,
+        quantity: p.quantity,
+        restaurantId: p.restaurantId,
+        restaurantName: p.restaurantName,
+        // On force la quantité du payload backend = quantité de la ligne panier.
+        formule: { ...p.formule, quantity: p.quantity },
+        formuleSummary: p.summary,
+      };
+
+      console.log(`➕ Formule ajoutée: ${newItem.name} (×${p.quantity})`);
+
+      return calculateTotals({
+        ...base,
+        restaurantId: p.restaurantId ?? base.restaurantId,
+        restaurantName: p.restaurantName ?? base.restaurantName,
+        items: [...base.items, newItem],
+      });
+    });
+  }, []);
+
   const removeFromCart: CartContextType["removeFromCart"] = useCallback((itemId) => {
     setCart(prev => {
       const newItems = prev.items.filter(it => it.id !== itemId);
@@ -367,6 +399,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     // Méthodes existantes
     cart,
     addToCart,
+    addFormuleToCart,
     removeFromCart,
     updateQuantity,
     clearCart,
@@ -394,7 +427,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     getItemCount, isCartForRestaurant, setTableNumber, initializeFromQRSession,
     getQRSessionData, updateTableFromQR, qrSessionData, tableOrders,
     isLoadingTableOrders, tableOrdersError, refreshTableOrders,
-    hasActiveTableOrders, canAddOrderToTable, addOrderToTable
+    hasActiveTableOrders, canAddOrderToTable, addOrderToTable, addFormuleToCart
   ]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

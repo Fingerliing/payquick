@@ -19,12 +19,14 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 
 import {
-  COLORS,
+  useAppTheme,
+  type AppColors,
   SPACING,
   TYPOGRAPHY,
   BORDER_RADIUS,
@@ -52,6 +54,8 @@ type ToastState = {
 export default function MenuScanCaptureScreen() {
   const insets = useSafeAreaInsets();
   const screenType = useScreenType();
+  const { colors } = useAppTheme();
+  const { t } = useTranslation();
   const { restaurantId, menuId } = useLocalSearchParams<{
     restaurantId?: string;
     menuId?: string;
@@ -82,7 +86,7 @@ export default function MenuScanCaptureScreen() {
       setPhotos((prev) => {
         const room = MAX_PAGES - prev.length;
         if (room <= 0) {
-          notify('warning', `Maximum ${MAX_PAGES} pages par import.`, 'Limite atteinte');
+          notify('warning', t('scanImport.maxPages', { max: MAX_PAGES }), t('scanImport.limitReached'));
           return prev;
         }
         const accepted = uris.slice(0, room).map((uri, i) => ({
@@ -90,7 +94,7 @@ export default function MenuScanCaptureScreen() {
           key: `${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}`,
         }));
         if (uris.length > room) {
-          notify('warning', `Seules ${room} page(s) ont été ajoutées.`, 'Limite atteinte');
+          notify('warning', t('scanImport.onlySomeAdded', { count: room }), t('scanImport.limitReached'));
         }
         return [...prev, ...accepted];
       });
@@ -101,7 +105,7 @@ export default function MenuScanCaptureScreen() {
   const handleTakePhoto = useCallback(async () => {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (perm.status !== 'granted') {
-      notify('warning', "Autorisez l'accès à l'appareil photo.", 'Permission requise');
+      notify('warning', t('scanImport.cameraPermissionMsg'), t('menuItemForm.permissionRequired'));
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
@@ -116,7 +120,7 @@ export default function MenuScanCaptureScreen() {
   const handlePickFromLibrary = useCallback(async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (perm.status !== 'granted') {
-      notify('warning', "Autorisez l'accès à vos photos.", 'Permission requise');
+      notify('warning', t('scanImport.photosPermissionMsg'), t('menuItemForm.permissionRequired'));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -157,11 +161,11 @@ export default function MenuScanCaptureScreen() {
 
   const handleSubmit = useCallback(async () => {
     if (!restaurantId) {
-      notify('error', "Restaurant introuvable. Repassez par l'onglet Menus.", 'Erreur');
+      notify('error', t('scanImport.restaurantNotFound'), t('menuItemForm.error'));
       return;
     }
     if (photos.length === 0) {
-      notify('warning', 'Ajoutez au moins une photo de votre carte.', 'Aucune photo');
+      notify('warning', t('scanImport.addAtLeastOnePhoto'), t('scanImport.noPhotoTitle'));
       return;
     }
 
@@ -176,13 +180,13 @@ export default function MenuScanCaptureScreen() {
       // L'écran de relecture suit l'avancement du traitement.
       router.replace(`/menu/scan/review/${job.id}`);
     } catch (error: any) {
-      notify('error', error?.message || "Impossible de lancer l'import.", 'Erreur');
+      notify('error', error?.message || t('scanImport.importError'), t('menuItemForm.error'));
       setSubmitting(false);
     }
   }, [restaurantId, photos, languages, notify]);
 
   // ── Styles dépendant du responsive ──────────────────────────────────────
-  const styles = useMemo(() => createStyles(screenType), [screenType]);
+  const styles = useMemo(() => createStyles(colors, screenType), [colors, screenType]);
 
   return (
     <View style={styles.root}>
@@ -193,10 +197,10 @@ export default function MenuScanCaptureScreen() {
           hitSlop={10}
           style={styles.headerButton}
         >
-          <Ionicons name="arrow-back" size={24} color={COLORS.text.primary} />
+          <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>
-          Importer une carte
+          {t('scanImport.headerTitle')}
         </Text>
         <View style={styles.headerButton} />
       </View>
@@ -211,30 +215,28 @@ export default function MenuScanCaptureScreen() {
         {/* Introduction */}
         <View style={styles.introCard}>
           <View style={styles.introIcon}>
-            <Ionicons name="sparkles" size={22} color={COLORS.variants.secondary[600]} />
+            <Ionicons name="sparkles" size={22} color={colors.variants.secondary[600]} />
           </View>
           <Text style={styles.introText}>
-            Photographiez votre carte papier. L'IA détecte automatiquement les
-            catégories, les plats, les prix et les traduit. Vous pourrez tout
-            relire et corriger avant de l'appliquer à votre menu.
+            {t('scanImport.intro')}
           </Text>
         </View>
 
         {/* Section photos */}
         <Text style={styles.sectionTitle}>
-          Photos de la carte{' '}
+          {t('scanImport.photosSection')}{' '}
           <Text style={styles.sectionCount}>
             ({photos.length}/{MAX_PAGES})
           </Text>
         </Text>
         <Text style={styles.sectionHint}>
-          Une photo par page. L'ordre des pages correspond à l'ordre ci-dessous.
+          {t('scanImport.photoHint')}
         </Text>
 
         {photos.length === 0 ? (
           <View style={styles.emptyPhotos}>
-            <Ionicons name="camera-outline" size={40} color={COLORS.text.light} />
-            <Text style={styles.emptyPhotosText}>Aucune page ajoutée</Text>
+            <Ionicons name="camera-outline" size={40} color={colors.text.light} />
+            <Text style={styles.emptyPhotosText}>{t('scanImport.noPagesAdded')}</Text>
           </View>
         ) : (
           <View style={styles.photoList}>
@@ -254,7 +256,7 @@ export default function MenuScanCaptureScreen() {
                     <Ionicons
                       name="chevron-up"
                       size={20}
-                      color={index === 0 ? COLORS.text.light : COLORS.primary}
+                      color={index === 0 ? colors.text.light : colors.primary}
                     />
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -268,8 +270,8 @@ export default function MenuScanCaptureScreen() {
                       size={20}
                       color={
                         index === photos.length - 1
-                          ? COLORS.text.light
-                          : COLORS.primary
+                          ? colors.text.light
+                          : colors.primary
                       }
                     />
                   </TouchableOpacity>
@@ -278,7 +280,7 @@ export default function MenuScanCaptureScreen() {
                     hitSlop={6}
                     style={styles.photoActionBtn}
                   >
-                    <Ionicons name="trash-outline" size={20} color={COLORS.error} />
+                    <Ionicons name="trash-outline" size={20} color={colors.error} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -294,25 +296,24 @@ export default function MenuScanCaptureScreen() {
             activeOpacity={0.8}
           >
             <Ionicons name="camera" size={20} color="#FFFFFF" />
-            <Text style={styles.addButtonPrimaryText}>Prendre une photo</Text>
+            <Text style={styles.addButtonPrimaryText}>{t('menuItemForm.takePhoto')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.addButton, styles.addButtonSecondary]}
             onPress={handlePickFromLibrary}
             activeOpacity={0.8}
           >
-            <Ionicons name="images-outline" size={20} color={COLORS.primary} />
-            <Text style={styles.addButtonSecondaryText}>Galerie</Text>
+            <Ionicons name="images-outline" size={20} color={colors.primary} />
+            <Text style={styles.addButtonSecondaryText}>{t('scanImport.gallery')}</Text>
           </TouchableOpacity>
         </View>
 
         {/* Section langues */}
         <Text style={[styles.sectionTitle, { marginTop: sp('xl') }]}>
-          Langues de traduction
+          {t('scanImport.translationLangs')}
         </Text>
         <Text style={styles.sectionHint}>
-          Le contenu est extrait en français. Choisissez les langues
-          supplémentaires à générer (optionnel).
+          {t('scanImport.langsHint')}
         </Text>
         <View style={styles.languageGrid}>
           {SUPPORTED_SCAN_LANGUAGES.map((lang) => {
@@ -331,7 +332,7 @@ export default function MenuScanCaptureScreen() {
                   <Ionicons
                     name="checkmark-circle"
                     size={16}
-                    color={COLORS.primary}
+                    color={colors.primary}
                   />
                 )}
                 <Text
@@ -364,8 +365,7 @@ export default function MenuScanCaptureScreen() {
             <>
               <Ionicons name="sparkles" size={20} color="#FFFFFF" />
               <Text style={styles.submitButtonText}>
-                Lancer l'import ({photos.length} page
-                {photos.length > 1 ? 's' : ''})
+                {t('scanImport.submitButton', { count: photos.length })}
               </Text>
             </>
           )}
@@ -400,7 +400,7 @@ export default function MenuScanCaptureScreen() {
 // ─────────────────────────────────────────────────────────────────────────────
 // Styles
 // ─────────────────────────────────────────────────────────────────────────────
-function createStyles(screenType: 'mobile' | 'tablet' | 'desktop') {
+function createStyles(colors: AppColors, screenType: 'mobile' | 'tablet' | 'desktop') {
   const sp = (key: keyof typeof SPACING) =>
     getResponsiveValue(SPACING[key], screenType);
   const fs = (key: keyof typeof TYPOGRAPHY.fontSize) =>
@@ -409,7 +409,7 @@ function createStyles(screenType: 'mobile' | 'tablet' | 'desktop') {
   return StyleSheet.create({
     root: {
       flex: 1,
-      backgroundColor: COLORS.background,
+      backgroundColor: colors.background,
     },
     header: {
       flexDirection: 'row',
@@ -417,9 +417,9 @@ function createStyles(screenType: 'mobile' | 'tablet' | 'desktop') {
       justifyContent: 'space-between',
       paddingHorizontal: sp('container'),
       paddingBottom: sp('sm'),
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderBottomWidth: 1,
-      borderBottomColor: COLORS.border.light,
+      borderBottomColor: colors.border.light,
     },
     headerButton: {
       width: 40,
@@ -432,15 +432,15 @@ function createStyles(screenType: 'mobile' | 'tablet' | 'desktop') {
       textAlign: 'center',
       fontSize: fs('lg'),
       fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
     },
     introCard: {
       flexDirection: 'row',
       gap: sp('md'),
-      backgroundColor: COLORS.variants.secondary[50],
+      backgroundColor: colors.variants.secondary[50],
       borderRadius: BORDER_RADIUS.xl,
       borderWidth: 1,
-      borderColor: COLORS.border.golden,
+      borderColor: colors.border.golden,
       padding: sp('lg'),
       marginBottom: sp('xl'),
     },
@@ -448,30 +448,30 @@ function createStyles(screenType: 'mobile' | 'tablet' | 'desktop') {
       width: 40,
       height: 40,
       borderRadius: 20,
-      backgroundColor: COLORS.variants.secondary[100],
+      backgroundColor: colors.variants.secondary[100],
       alignItems: 'center',
       justifyContent: 'center',
     },
     introText: {
       flex: 1,
       fontSize: fs('sm'),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       lineHeight: fs('sm') * 1.5,
     },
     sectionTitle: {
       fontSize: fs('lg'),
       fontWeight: TYPOGRAPHY.fontWeight.bold,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
       marginBottom: sp('xs'),
     },
     sectionCount: {
       fontSize: fs('base'),
       fontWeight: TYPOGRAPHY.fontWeight.normal,
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
     },
     sectionHint: {
       fontSize: fs('sm'),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       marginBottom: sp('md'),
       lineHeight: fs('sm') * 1.5,
     },
@@ -479,16 +479,16 @@ function createStyles(screenType: 'mobile' | 'tablet' | 'desktop') {
       alignItems: 'center',
       justifyContent: 'center',
       paddingVertical: sp('2xl'),
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderRadius: BORDER_RADIUS.lg,
       borderWidth: 1,
       borderStyle: 'dashed',
-      borderColor: COLORS.border.default,
+      borderColor: colors.border.default,
     },
     emptyPhotosText: {
       marginTop: sp('sm'),
       fontSize: fs('sm'),
-      color: COLORS.text.light,
+      color: colors.text.light,
     },
     photoList: {
       gap: sp('sm'),
@@ -496,7 +496,7 @@ function createStyles(screenType: 'mobile' | 'tablet' | 'desktop') {
     photoRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderRadius: BORDER_RADIUS.lg,
       padding: sp('sm'),
       ...SHADOWS.sm,
@@ -505,7 +505,7 @@ function createStyles(screenType: 'mobile' | 'tablet' | 'desktop') {
       width: 56,
       height: 56,
       borderRadius: BORDER_RADIUS.md,
-      backgroundColor: COLORS.border.light,
+      backgroundColor: colors.border.light,
     },
     photoInfo: {
       flex: 1,
@@ -514,7 +514,7 @@ function createStyles(screenType: 'mobile' | 'tablet' | 'desktop') {
     photoLabel: {
       fontSize: fs('base'),
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      color: COLORS.text.primary,
+      color: colors.text.primary,
     },
     photoActions: {
       flexDirection: 'row',
@@ -542,7 +542,7 @@ function createStyles(screenType: 'mobile' | 'tablet' | 'desktop') {
       borderRadius: BORDER_RADIUS.lg,
     },
     addButtonPrimary: {
-      backgroundColor: COLORS.primary,
+      backgroundColor: colors.primary,
     },
     addButtonPrimaryText: {
       color: '#FFFFFF',
@@ -550,12 +550,12 @@ function createStyles(screenType: 'mobile' | 'tablet' | 'desktop') {
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
     },
     addButtonSecondary: {
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderWidth: 1.5,
-      borderColor: COLORS.primary,
+      borderColor: colors.primary,
     },
     addButtonSecondaryText: {
-      color: COLORS.primary,
+      color: colors.primary,
       fontSize: fs('sm'),
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
     },
@@ -571,29 +571,29 @@ function createStyles(screenType: 'mobile' | 'tablet' | 'desktop') {
       paddingVertical: sp('sm'),
       paddingHorizontal: sp('md'),
       borderRadius: BORDER_RADIUS.full,
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderWidth: 1.5,
-      borderColor: COLORS.border.default,
+      borderColor: colors.border.default,
     },
     languageChipSelected: {
-      backgroundColor: COLORS.variants.primary[50],
-      borderColor: COLORS.primary,
+      backgroundColor: colors.variants.primary[50],
+      borderColor: colors.primary,
     },
     languageChipText: {
       fontSize: fs('sm'),
-      color: COLORS.text.secondary,
+      color: colors.text.secondary,
       fontWeight: TYPOGRAPHY.fontWeight.medium,
     },
     languageChipTextSelected: {
-      color: COLORS.primary,
+      color: colors.primary,
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
     },
     footer: {
       paddingHorizontal: sp('container'),
       paddingTop: sp('md'),
-      backgroundColor: COLORS.surface,
+      backgroundColor: colors.surface,
       borderTopWidth: 1,
-      borderTopColor: COLORS.border.light,
+      borderTopColor: colors.border.light,
     },
     submitButton: {
       flexDirection: 'row',
@@ -602,12 +602,12 @@ function createStyles(screenType: 'mobile' | 'tablet' | 'desktop') {
       gap: sp('sm'),
       paddingVertical: sp('md'),
       borderRadius: BORDER_RADIUS.lg,
-      backgroundColor: COLORS.primary,
+      backgroundColor: colors.primary,
       minHeight: 52,
       ...SHADOWS.md,
     },
     submitButtonDisabled: {
-      backgroundColor: COLORS.text.light,
+      backgroundColor: colors.text.light,
       ...SHADOWS.none,
     },
     submitButtonText: {

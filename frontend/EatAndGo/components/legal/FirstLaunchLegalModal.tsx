@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Modal,
   View,
@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, usePathname } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import {
   markLegalAsRead,
   checkLegalUpdates,
@@ -22,7 +23,13 @@ import {
 import { useLegalAcceptance } from '@/contexts/LegalAcceptanceContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { legalService } from '@/services/legalService';
-import { COLORS, BORDER_RADIUS, SHADOWS, TYPOGRAPHY } from '@/utils/designSystem';
+import {
+  useAppTheme,
+  makeShadows,
+  BORDER_RADIUS,
+  TYPOGRAPHY,
+  type AppColors,
+} from '@/utils/designSystem';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -43,6 +50,10 @@ const isLegalPath = (pathname: string | null | undefined): boolean => {
 export function FirstLaunchLegalModal() {
   const router = useRouter();
   const pathname = usePathname();
+  const { t } = useTranslation();
+  const { colors, isDark } = useAppTheme();
+  const shadows = useMemo(() => makeShadows(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows]);
   const [visible, setVisible] = useState(false);
   const [shouldShow, setShouldShow] = useState(false);
   const { isAuthenticated } = useAuth();
@@ -169,7 +180,7 @@ export function FirstLaunchLegalModal() {
       setVisible(false);
     } catch (error) {
       console.error('❌ Erreur:', error);
-      alert('Erreur lors de la sauvegarde. Veuillez réessayer.');
+      alert(t('legal.modal.saveError'));
     }
   };
 
@@ -188,7 +199,7 @@ export function FirstLaunchLegalModal() {
         <View style={styles.modalCard}>
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.title}>Bienvenue sur EatQuickeR</Text>
+            <Text style={styles.title}>{t('legal.modal.welcomeTitle')}</Text>
           </View>
 
           {/* Content */}
@@ -198,14 +209,14 @@ export function FirstLaunchLegalModal() {
               showsVerticalScrollIndicator={false}
             >
               <Text style={styles.description}>
-                Pour continuer, veuillez accepter nos documents légaux.
+                {t('legal.modal.intro')}
               </Text>
 
               {/* CGU Section */}
               <View style={styles.documentSection}>
                 <View style={styles.documentHeader}>
-                  <Ionicons name="document-text" size={22} color={COLORS.primary} />
-                  <Text style={styles.documentName}>Conditions Générales d'Utilisation</Text>
+                  <Ionicons name="document-text" size={22} color={colors.primary} />
+                  <Text style={styles.documentName}>{t('legal.modal.termsName')}</Text>
                 </View>
 
                 <TouchableOpacity
@@ -213,9 +224,9 @@ export function FirstLaunchLegalModal() {
                   onPress={openTerms}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="eye-outline" size={18} color={COLORS.primary} />
-                  <Text style={styles.viewDocumentText}>Consulter le document</Text>
-                  <Ionicons name="chevron-forward" size={18} color={COLORS.primary} />
+                  <Ionicons name="eye-outline" size={18} color={colors.primary} />
+                  <Text style={styles.viewDocumentText}>{t('legal.modal.viewDocument')}</Text>
+                  <Ionicons name="chevron-forward" size={18} color={colors.primary} />
                 </TouchableOpacity>
 
                 {/* Checkbox cliquable directement */}
@@ -226,11 +237,11 @@ export function FirstLaunchLegalModal() {
                 >
                   <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked]}>
                     {termsAccepted && (
-                      <Ionicons name="checkmark" size={18} color={COLORS.text.inverse} />
+                      <Ionicons name="checkmark" size={18} color={colors.text.inverse} />
                     )}
                   </View>
                   <Text style={styles.checkboxLabel}>
-                    J'accepte les Conditions Générales d'Utilisation
+                    {t('legal.modal.acceptTermsLabel')}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -238,8 +249,8 @@ export function FirstLaunchLegalModal() {
               {/* Privacy Section */}
               <View style={styles.documentSection}>
                 <View style={styles.documentHeader}>
-                  <Ionicons name="shield-checkmark" size={22} color={COLORS.primary} />
-                  <Text style={styles.documentName}>Politique de Confidentialité</Text>
+                  <Ionicons name="shield-checkmark" size={22} color={colors.primary} />
+                  <Text style={styles.documentName}>{t('legal.modal.privacyName')}</Text>
                 </View>
 
                 <TouchableOpacity
@@ -247,9 +258,9 @@ export function FirstLaunchLegalModal() {
                   onPress={openPrivacy}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="eye-outline" size={18} color={COLORS.primary} />
-                  <Text style={styles.viewDocumentText}>Consulter le document</Text>
-                  <Ionicons name="chevron-forward" size={18} color={COLORS.primary} />
+                  <Ionicons name="eye-outline" size={18} color={colors.primary} />
+                  <Text style={styles.viewDocumentText}>{t('legal.modal.viewDocument')}</Text>
+                  <Ionicons name="chevron-forward" size={18} color={colors.primary} />
                 </TouchableOpacity>
 
                 {/* Checkbox cliquable directement */}
@@ -260,20 +271,20 @@ export function FirstLaunchLegalModal() {
                 >
                   <View style={[styles.checkbox, privacyAccepted && styles.checkboxChecked]}>
                     {privacyAccepted && (
-                      <Ionicons name="checkmark" size={18} color={COLORS.text.inverse} />
+                      <Ionicons name="checkmark" size={18} color={colors.text.inverse} />
                     )}
                   </View>
                   <Text style={styles.checkboxLabel}>
-                    J'accepte la Politique de Confidentialité
+                    {t('legal.modal.acceptPrivacyLabel')}
                   </Text>
                 </TouchableOpacity>
               </View>
 
               {/* Help text */}
               <View style={styles.helpBox}>
-                <Ionicons name="information-circle" size={20} color={COLORS.text.secondary} />
+                <Ionicons name="information-circle" size={20} color={colors.text.secondary} />
                 <Text style={styles.helpText}>
-                  Vous pouvez consulter les documents avant de les accepter en cliquant sur "Consulter le document"
+                  {t('legal.modal.helpText')}
                 </Text>
               </View>
             </ScrollView>
@@ -288,7 +299,7 @@ export function FirstLaunchLegalModal() {
               activeOpacity={0.8}
             >
               <Text style={[styles.acceptButtonText, !canAccept && styles.acceptButtonTextDisabled]}>
-                {canAccept ? 'Continuer' : 'Acceptez les deux documents'}
+                {canAccept ? t('common.continue') : t('legal.modal.acceptBoth')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -298,160 +309,161 @@ export function FirstLaunchLegalModal() {
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: COLORS.overlay,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 10,
-  },
-  modalCard: {
-    width: '100%',
-    maxWidth: 500,
-    minHeight: SCREEN_HEIGHT * 0.7,
-    maxHeight: SCREEN_HEIGHT - 40,
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS['3xl'],
-    overflow: 'hidden',
-    ...SHADOWS.xl,
-  },
-  header: {
-    paddingVertical: 20,
-    paddingHorizontal: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border.default,
-    backgroundColor: COLORS.surface,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.primary,
-    textAlign: 'center',
-  },
-  content: {
-    flex: 1,
-    minHeight: 400,
-  },
-  scrollContent: {
-    padding: 24,
-    flexGrow: 1,
-  },
-  description: {
-    fontSize: 15,
-    color: COLORS.text.secondary,
-    lineHeight: 22,
-    marginBottom: 24,
-    textAlign: 'center',
-  },
-  documentSection: {
-    backgroundColor: COLORS.background,
-    borderRadius: BORDER_RADIUS.xl,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: COLORS.border.default,
-  },
-  documentHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    gap: 10,
-  },
-  documentName: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.primary,
-  },
-  viewDocumentButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: BORDER_RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-    marginBottom: 12,
-    gap: 8,
-  },
-  viewDocumentText: {
-    flex: 1,
-    fontSize: 15,
-    color: COLORS.primary,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
-  },
-  checkboxRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: BORDER_RADIUS.md,
-    borderWidth: 2,
-    borderColor: COLORS.border.dark,
-    backgroundColor: COLORS.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  checkboxChecked: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  checkboxLabel: {
-    fontSize: 15,
-    color: COLORS.text.primary,
-    flex: 1,
-  },
-  helpBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: COLORS.border.light,
-    padding: 12,
-    borderRadius: BORDER_RADIUS.lg,
-    marginTop: 8,
-  },
-  helpText: {
-    flex: 1,
-    fontSize: 13,
-    color: COLORS.text.secondary,
-  },
-  footer: {
-    padding: 16,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 16,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border.default,
-    backgroundColor: COLORS.surface,
-  },
-  acceptButton: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: 16,
-    borderRadius: BORDER_RADIUS.xl,
-    alignItems: 'center',
-    ...SHADOWS.button,
-  },
-  acceptButtonDisabled: {
-    backgroundColor: COLORS.border.default,
-    ...Platform.select({
-      ios: {
-        shadowOpacity: 0,
-      },
-      android: {
-        elevation: 0,
-      },
-    }),
-  },
-  acceptButtonText: {
-    color: COLORS.text.inverse,
-    fontSize: 16,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-  },
-  acceptButtonTextDisabled: {
-    color: COLORS.text.light,
-  },
-});
+const createStyles = (colors: AppColors, shadows: ReturnType<typeof makeShadows>) =>
+  StyleSheet.create({
+    overlay: {
+      flex: 1,
+      backgroundColor: colors.overlay,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 10,
+    },
+    modalCard: {
+      width: '100%',
+      maxWidth: 500,
+      minHeight: SCREEN_HEIGHT * 0.7,
+      maxHeight: SCREEN_HEIGHT - 40,
+      backgroundColor: colors.surface,
+      borderRadius: BORDER_RADIUS['3xl'],
+      overflow: 'hidden',
+      ...shadows.xl,
+    },
+    header: {
+      paddingVertical: 20,
+      paddingHorizontal: 24,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border.default,
+      backgroundColor: colors.surface,
+    },
+    title: {
+      fontSize: 22,
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      color: colors.text.primary,
+      textAlign: 'center',
+    },
+    content: {
+      flex: 1,
+      minHeight: 400,
+    },
+    scrollContent: {
+      padding: 24,
+      flexGrow: 1,
+    },
+    description: {
+      fontSize: 15,
+      color: colors.text.secondary,
+      lineHeight: 22,
+      marginBottom: 24,
+      textAlign: 'center',
+    },
+    documentSection: {
+      backgroundColor: colors.background,
+      borderRadius: BORDER_RADIUS.xl,
+      padding: 16,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: colors.border.default,
+    },
+    documentHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 12,
+      gap: 10,
+    },
+    documentName: {
+      flex: 1,
+      fontSize: 16,
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      color: colors.text.primary,
+    },
+    viewDocumentButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: BORDER_RADIUS.lg,
+      borderWidth: 1,
+      borderColor: colors.primary,
+      marginBottom: 12,
+      gap: 8,
+    },
+    viewDocumentText: {
+      flex: 1,
+      fontSize: 15,
+      color: colors.primary,
+      fontWeight: TYPOGRAPHY.fontWeight.medium,
+    },
+    checkboxRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 8,
+    },
+    checkbox: {
+      width: 24,
+      height: 24,
+      borderRadius: BORDER_RADIUS.md,
+      borderWidth: 2,
+      borderColor: colors.border.dark,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 12,
+    },
+    checkboxChecked: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    checkboxLabel: {
+      fontSize: 15,
+      color: colors.text.primary,
+      flex: 1,
+    },
+    helpBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      backgroundColor: colors.border.light,
+      padding: 12,
+      borderRadius: BORDER_RADIUS.lg,
+      marginTop: 8,
+    },
+    helpText: {
+      flex: 1,
+      fontSize: 13,
+      color: colors.text.secondary,
+    },
+    footer: {
+      padding: 16,
+      paddingBottom: Platform.OS === 'ios' ? 34 : 16,
+      borderTopWidth: 1,
+      borderTopColor: colors.border.default,
+      backgroundColor: colors.surface,
+    },
+    acceptButton: {
+      backgroundColor: colors.primary,
+      paddingVertical: 16,
+      borderRadius: BORDER_RADIUS.xl,
+      alignItems: 'center',
+      ...shadows.button,
+    },
+    acceptButtonDisabled: {
+      backgroundColor: colors.border.default,
+      ...Platform.select({
+        ios: {
+          shadowOpacity: 0,
+        },
+        android: {
+          elevation: 0,
+        },
+      }),
+    },
+    acceptButtonText: {
+      color: colors.text.inverse,
+      fontSize: 16,
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    },
+    acceptButtonTextDisabled: {
+      color: colors.text.light,
+    },
+  });

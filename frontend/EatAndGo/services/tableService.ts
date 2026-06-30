@@ -80,7 +80,7 @@ class TableService {
       const tables = Array.isArray((response as any).tables)
         ? (response as any).tables
         : [];
-      return tables.map(this.normalizeTableData);
+      return tables.map((t: any) => this.normalizeTableData(t));
     } catch (error: any) {
       if (error.response?.status === 404) {
         return []; // aucune table pour ce restaurant
@@ -200,8 +200,6 @@ class TableService {
    * Normalise les données de table pour le frontend
    */
   private normalizeTableData(table: any): Table {
-    const baseUrl = process.env.EXPO_PUBLIC_API_URL || window.location.origin;
-    
     return {
       id: String(table.id),
       number: table.number,

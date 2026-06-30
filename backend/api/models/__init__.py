@@ -35,6 +35,13 @@ from .menu_models import (
     DailyMenuTemplateItem
 )
 
+# Formules (offres à prix fixe : entrée + plat + dessert)
+from .formule_models import (
+    Formule,
+    FormuleCourse,
+    FormuleCourseItem
+)
+
 # Tables
 from .table_models import Table
 
@@ -42,7 +49,8 @@ from .table_models import Table
 from .order_models import (
     OrderManager,
     Order,
-    OrderItem
+    OrderItem,
+    OrderItemComponent
 )
 
 # Collaborative Sessions
@@ -131,6 +139,11 @@ __all__ = [
     'DailyMenuTemplate',
     'DailyMenuTemplateItem',
 
+    # Formules
+    'Formule',
+    'FormuleCourse',
+    'FormuleCourseItem',
+
     # Tables
     'Table',
 
@@ -138,6 +151,7 @@ __all__ = [
     'OrderManager',
     'Order',
     'OrderItem',
+    'OrderItemComponent',
 
     # Collaborative Sessions
     'ActiveSessionManager',

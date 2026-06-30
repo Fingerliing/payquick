@@ -1,12 +1,12 @@
 import React from 'react';
 import { View, Text, ViewStyle, TextStyle } from 'react-native';
-import { 
-  COLORS, 
-  TYPOGRAPHY, 
-  SPACING, 
+import {
+  useAppTheme,
+  TYPOGRAPHY,
+  SPACING,
   BORDER_RADIUS,
   useScreenType,
-  getResponsiveValue 
+  getResponsiveValue,
 } from '@/utils/designSystem';
 
 interface BadgeProps {
@@ -23,39 +23,40 @@ export const Badge: React.FC<BadgeProps> = ({
   style,
 }) => {
   const screenType = useScreenType();
+  const { colors, isDark } = useAppTheme();
 
   // COULEURS PAR VARIANTE
   const getVariantStyles = () => {
     switch (variant) {
       case 'primary':
         return {
-          backgroundColor: COLORS.variants.primary[100],
-          textColor: COLORS.primary,
+          backgroundColor: colors.variants.primary[100],
+          textColor: isDark ? colors.variants.primary[800] : colors.primary,
         };
       case 'secondary':
         return {
-          backgroundColor: COLORS.variants.secondary[100],
-          textColor: COLORS.variants.secondary[700],
+          backgroundColor: colors.variants.secondary[100],
+          textColor: colors.variants.secondary[700],
         };
       case 'success':
         return {
-          backgroundColor: '#DCFCE7', // Vert pâle (à ajouter au design system si utilisé souvent)
-          textColor: COLORS.success,
+          backgroundColor: isDark ? '#0F2E20' : '#DCFCE7',
+          textColor: colors.success,
         };
       case 'warning':
         return {
-          backgroundColor: COLORS.variants.secondary[200],
-          textColor: COLORS.warning,
+          backgroundColor: colors.variants.secondary[200],
+          textColor: colors.warning,
         };
       case 'error':
         return {
-          backgroundColor: '#FEE2E2', // Rouge pâle (à ajouter au design system si utilisé souvent)
-          textColor: COLORS.error,
+          backgroundColor: isDark ? '#3A1418' : '#FEE2E2',
+          textColor: colors.error,
         };
       default:
         return {
-          backgroundColor: COLORS.border.light,
-          textColor: COLORS.text.secondary,
+          backgroundColor: colors.border.light,
+          textColor: colors.text.secondary,
         };
     }
   };
