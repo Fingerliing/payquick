@@ -1,4 +1,6 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import { useAppTheme, type AppColors } from '@/utils/designSystem';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -34,6 +36,20 @@ const COLORS = {
   switchTrackActive: '#1E3A5F',
   success: '#22C55E',
 };
+
+const makeColors = (c: AppColors, isDark: boolean) => ({
+  primary: c.primary,
+  gold: '#D4AF37',
+  background: c.background,
+  cardBg: c.surface,
+  text: c.text.primary,
+  textSecondary: c.text.secondary,
+  textMuted: c.text.light,
+  border: c.border.light,
+  switchTrack: c.border.light,
+  switchTrackActive: c.primary,
+  success: '#22C55E',
+});
 
 // Générer les heures pour le picker
 const HOURS = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
@@ -77,6 +93,10 @@ function TimePickerModal({
   currentValue,
   title,
 }: TimePickerModalProps) {
+  const { colors, isDark } = useAppTheme();
+  const COLORS = useMemo(() => makeColors(colors, isDark), [colors, isDark]);
+  const pickerStyles = useMemo(() => createPickerStyles(COLORS), [COLORS]);
+  const { t } = useTranslation();
   const [selectedHour, setSelectedHour] = useState('22');
   const [selectedMinute, setSelectedMinute] = useState('00');
 
@@ -110,7 +130,7 @@ function TimePickerModal({
           <View style={pickerStyles.pickersRow}>
             {/* Heures */}
             <View style={pickerStyles.pickerColumn}>
-              <Text style={pickerStyles.pickerLabel}>Heure</Text>
+              <Text style={pickerStyles.pickerLabel}>{t('prefs.hour')}</Text>
               <FlatList
                 data={HOURS}
                 keyExtractor={(item) => item}
@@ -147,7 +167,7 @@ function TimePickerModal({
 
             {/* Minutes */}
             <View style={pickerStyles.pickerColumn}>
-              <Text style={pickerStyles.pickerLabel}>Minutes</Text>
+              <Text style={pickerStyles.pickerLabel}>{t('prefs.minutes')}</Text>
               <FlatList
                 data={MINUTES}
                 keyExtractor={(item) => item}
@@ -185,10 +205,10 @@ function TimePickerModal({
           {/* Actions */}
           <View style={pickerStyles.actions}>
             <TouchableOpacity style={pickerStyles.cancelButton} onPress={onClose}>
-              <Text style={pickerStyles.cancelButtonText}>Annuler</Text>
+              <Text style={pickerStyles.cancelButtonText}>{t('common.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={pickerStyles.confirmButton} onPress={handleConfirm}>
-              <Text style={pickerStyles.confirmButtonText}>Confirmer</Text>
+              <Text style={pickerStyles.confirmButtonText}>{t('common.confirm')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -197,7 +217,7 @@ function TimePickerModal({
   );
 }
 
-const pickerStyles = StyleSheet.create({
+const createPickerStyles = (COLORS: ReturnType<typeof makeColors>) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -306,6 +326,9 @@ const pickerStyles = StyleSheet.create({
 // =============================================================================
 
 function Section({ title, children }: SectionProps) {
+  const { colors, isDark } = useAppTheme();
+  const COLORS = useMemo(() => makeColors(colors, isDark), [colors, isDark]);
+  const styles = useMemo(() => createStyles(COLORS), [COLORS]);
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{title}</Text>
@@ -316,17 +339,21 @@ function Section({ title, children }: SectionProps) {
 
 function PreferenceItem({
   icon,
-  iconColor = COLORS.primary,
+  iconColor,
   title,
   description,
   value,
   onValueChange,
   disabled = false,
 }: PreferenceItemProps) {
+  const { colors, isDark } = useAppTheme();
+  const COLORS = useMemo(() => makeColors(colors, isDark), [colors, isDark]);
+  const styles = useMemo(() => createStyles(COLORS), [COLORS]);
+  const resolvedIconColor = iconColor ?? COLORS.primary;
   return (
     <View style={[styles.preferenceItem, disabled && styles.preferenceItemDisabled]}>
-      <View style={[styles.preferenceIcon, { backgroundColor: `${iconColor}15` }]}>
-        <Ionicons name={icon as any} size={22} color={iconColor} />
+      <View style={[styles.preferenceIcon, { backgroundColor: `${resolvedIconColor}15` }]}>
+        <Ionicons name={icon as any} size={22} color={resolvedIconColor} />
       </View>
       <View style={styles.preferenceContent}>
         <Text style={styles.preferenceTitle}>{title}</Text>
@@ -348,6 +375,10 @@ function PreferenceItem({
 // =============================================================================
 
 export default function NotificationPreferencesScreen() {
+  const { colors, isDark } = useAppTheme();
+  const COLORS = useMemo(() => makeColors(colors, isDark), [colors, isDark]);
+  const styles = useMemo(() => createStyles(COLORS), [COLORS]);
+  const { t } = useTranslation();
   const router = useRouter();
   const {
     preferences,
@@ -383,7 +414,7 @@ export default function NotificationPreferencesScreen() {
       } catch (error) {
         // Restaurer la valeur précédente en cas d'erreur
         setLocalPrefs((prev) => prev ? { ...prev, [key]: localPrefs[key] } : null);
-        Alert.alert('Erreur', 'Impossible de sauvegarder la préférence');
+        Alert.alert(t('common.error'), t('prefs.saveFailed'));
       } finally {
         setIsSaving(false);
       }
@@ -396,8 +427,8 @@ export default function NotificationPreferencesScreen() {
     const granted = await requestPermissions();
     if (!granted) {
       Alert.alert(
-        'Permissions requises',
-        'Pour recevoir des notifications, vous devez autoriser les notifications dans les paramètres de votre appareil.',
+        t('prefs.permissionsTitle'),
+        t('prefs.permissionsMessage'),
         [
           { text: 'OK', style: 'default' },
         ]
@@ -417,7 +448,7 @@ export default function NotificationPreferencesScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Chargement des préférences...</Text>
+          <Text style={styles.loadingText}>{t('prefs.loading')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -430,7 +461,7 @@ export default function NotificationPreferencesScreen() {
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Préférences de notification</Text>
+        <Text style={styles.headerTitle}>{t('prefs.title')}</Text>
         {isSaving && <ActivityIndicator size="small" color={COLORS.primary} />}
       </View>
 
@@ -446,78 +477,76 @@ export default function NotificationPreferencesScreen() {
               <Ionicons name="warning" size={24} color="#F59E0B" />
             </View>
             <View style={styles.permissionContent}>
-              <Text style={styles.permissionTitle}>Notifications désactivées</Text>
-              <Text style={styles.permissionText}>
-                Appuyez pour activer les notifications
-              </Text>
+              <Text style={styles.permissionTitle}>{t('prefs.disabledTitle')}</Text>
+              <Text style={styles.permissionText}>{t('prefs.disabledSubtitle')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
           </TouchableOpacity>
         )}
 
         {/* Commandes */}
-        <Section title="Commandes">
+        <Section title={t('prefs.ordersTitle')}>
           <PreferenceItem
             icon="receipt-outline"
             iconColor="#3B82F6"
-            title="Mises à jour des commandes"
-            description="Statut, confirmation, préparation"
+            title={t('prefs.sectionOrders')}
+            description={t('prefs.ordersDesc')}
             value={localPrefs.order_updates}
             onValueChange={(v) => handlePreferenceChange('order_updates', v)}
           />
           <PreferenceItem
             icon="fast-food"
             iconColor="#22C55E"
-            title="Commande prête"
-            description="Soyez alerté quand votre commande est prête"
+            title={t('prefs.orderReadyTitle')}
+            description={t('prefs.orderReadyDesc')}
             value={localPrefs.order_ready}
             onValueChange={(v) => handlePreferenceChange('order_ready', v)}
           />
         </Section>
 
         {/* Paiements */}
-        <Section title="Paiements">
+        <Section title={t('prefs.sectionPayments')}>
           <PreferenceItem
             icon="card-outline"
             iconColor="#8B5CF6"
-            title="Confirmation de paiement"
-            description="Reçus et confirmations de paiement"
+            title={t('prefs.paymentTitle')}
+            description={t('prefs.paymentDesc')}
             value={localPrefs.payment_received}
             onValueChange={(v) => handlePreferenceChange('payment_received', v)}
           />
         </Section>
 
         {/* Restaurateurs */}
-        <Section title="Restaurateurs">
+        <Section title={t('prefs.sectionRestaurateurs')}>
           <PreferenceItem
             icon="restaurant-outline"
             iconColor="#EF4444"
-            title="Nouvelles commandes"
-            description="Alertes pour les nouvelles commandes (restaurateurs)"
+            title={t('prefs.newOrdersTitle')}
+            description={t('prefs.newOrdersDesc')}
             value={localPrefs.new_orders}
             onValueChange={(v) => handlePreferenceChange('new_orders', v)}
           />
         </Section>
 
         {/* Marketing */}
-        <Section title="Marketing">
+        <Section title={t('prefs.sectionMarketing')}>
           <PreferenceItem
             icon="pricetag-outline"
             iconColor={COLORS.gold}
-            title="Offres promotionnelles"
-            description="Réductions et offres spéciales"
+            title={t('prefs.promoTitle')}
+            description={t('prefs.promoDesc')}
             value={localPrefs.promotions}
             onValueChange={(v) => handlePreferenceChange('promotions', v)}
           />
         </Section>
 
         {/* Heures silencieuses */}
-        <Section title="Heures silencieuses">
+        <Section title={t('prefs.quietTitle')}>
           <PreferenceItem
             icon="moon-outline"
             iconColor="#6366F1"
-            title="Ne pas déranger"
-            description="Suspendre les notifications pendant certaines heures"
+            title={t('prefs.sectionDnd')}
+            description={t('prefs.quietDesc')}
             value={localPrefs.quiet_hours_enabled}
             onValueChange={(v) => handlePreferenceChange('quiet_hours_enabled', v)}
           />
@@ -528,7 +557,7 @@ export default function NotificationPreferencesScreen() {
                 style={styles.timeButton}
                 onPress={() => setShowStartPicker(true)}
               >
-                <Text style={styles.timeLabel}>Début</Text>
+                <Text style={styles.timeLabel}>{t('prefs.start')}</Text>
                 <Text style={styles.timeValue}>
                   {formatTime(localPrefs.quiet_hours_start)}
                 </Text>
@@ -542,7 +571,7 @@ export default function NotificationPreferencesScreen() {
                 style={styles.timeButton}
                 onPress={() => setShowEndPicker(true)}
               >
-                <Text style={styles.timeLabel}>Fin</Text>
+                <Text style={styles.timeLabel}>{t('prefs.end')}</Text>
                 <Text style={styles.timeValue}>
                   {formatTime(localPrefs.quiet_hours_end)}
                 </Text>
@@ -552,20 +581,20 @@ export default function NotificationPreferencesScreen() {
         </Section>
 
         {/* Son et vibration */}
-        <Section title="Son et vibration">
+        <Section title={t('prefs.sectionSound')}>
           <PreferenceItem
             icon="volume-high-outline"
             iconColor="#0EA5E9"
-            title="Son"
-            description="Jouer un son à la réception"
+            title={t('prefs.soundTitle')}
+            description={t('prefs.soundDesc')}
             value={localPrefs.sound_enabled}
             onValueChange={(v) => handlePreferenceChange('sound_enabled', v)}
           />
           <PreferenceItem
             icon="phone-portrait-outline"
             iconColor="#14B8A6"
-            title="Vibration"
-            description="Faire vibrer l'appareil"
+            title={t('prefs.vibrationTitle')}
+            description={t('prefs.vibrationDesc')}
             value={localPrefs.vibration_enabled}
             onValueChange={(v) => handlePreferenceChange('vibration_enabled', v)}
           />
@@ -581,7 +610,7 @@ export default function NotificationPreferencesScreen() {
         onClose={() => setShowStartPicker(false)}
         onSelect={(time) => handlePreferenceChange('quiet_hours_start', time)}
         currentValue={localPrefs.quiet_hours_start}
-        title="Heure de début"
+        title={t('prefs.startTime')}
       />
 
       <TimePickerModal
@@ -589,7 +618,7 @@ export default function NotificationPreferencesScreen() {
         onClose={() => setShowEndPicker(false)}
         onSelect={(time) => handlePreferenceChange('quiet_hours_end', time)}
         currentValue={localPrefs.quiet_hours_end}
-        title="Heure de fin"
+        title={t('prefs.endTime')}
       />
     </SafeAreaView>
   );
@@ -599,7 +628,7 @@ export default function NotificationPreferencesScreen() {
 // STYLES
 // =============================================================================
 
-const styles = StyleSheet.create({
+const createStyles = (COLORS: ReturnType<typeof makeColors>) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,8 @@ import { menuService } from '@/services/menuService';
 import { tableService } from '@/services/tableService';
 import {
   COLORS,
+  useAppTheme,
+  type AppColors,
   SPACING,
   BORDER_RADIUS,
   SHADOWS,
@@ -26,6 +28,7 @@ import {
   useScreenType,
   getResponsiveValue,
 } from '@/utils/designSystem';
+import { useTranslation } from 'react-i18next';
 
 // Android layout animations
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -62,94 +65,96 @@ const STEPS: WizardStep[] = [
     number: 1,
     icon: 'card',
     accentColor: '#6D28D9',
-    title: 'Activer les paiements',
-    subtitle: 'Connectez votre compte Stripe pour recevoir des paiements.',
-    doneLabel: 'Stripe activé',
+    title: 'help.steps.stripe.title',
+    subtitle: 'help.steps.stripe.subtitle',
+    doneLabel: 'help.steps.stripe.doneLabel',
     substeps: [
-      { icon: 'person-circle', text: 'Accédez à votre profil depuis le menu' },
-      { icon: 'card', text: 'Appuyez sur "Configurer les paiements Stripe"' },
-      { icon: 'document-text', text: 'Remplissez le formulaire d\'inscription Stripe' },
-      { icon: 'checkmark-circle', text: 'Attendez la confirmation (quelques minutes)' },
+      { icon: 'person-circle', text: 'help.steps.stripe.s1' },
+      { icon: 'card', text: 'help.steps.stripe.s2' },
+      { icon: 'document-text', text: 'help.steps.stripe.s3' },
+      { icon: 'checkmark-circle', text: 'help.steps.stripe.s4' },
     ],
-    tip: 'Cette étape est requise une seule fois. Elle permet à EatQuickeR de vous reverser vos revenus quotidiennement.',
-    cta: { label: 'Configurer Stripe', route: '/profile', icon: 'card' },
+    tip: 'help.steps.stripe.tip',
+    cta: { label: 'help.steps.stripe.cta', route: '/profile', icon: 'card' },
   },
   {
     id: 'restaurant',
     number: 2,
     icon: 'restaurant',
     accentColor: COLORS.primary,
-    title: 'Créer votre restaurant',
-    subtitle: 'Ajoutez votre établissement pour commencer à recevoir des commandes.',
-    doneLabel: 'Restaurant créé',
+    title: 'help.steps.restaurant.title',
+    subtitle: 'help.steps.restaurant.subtitle',
+    doneLabel: 'help.steps.restaurant.doneLabel',
     substeps: [
-      { icon: 'add-circle', text: 'Appuyez sur "Créer un restaurant"' },
-      { icon: 'text', text: 'Saisissez le nom et l\'adresse de votre établissement' },
-      { icon: 'image', text: 'Ajoutez une photo de couverture attrayante' },
-      { icon: 'call', text: 'Renseignez votre numéro de téléphone de contact' },
-      { icon: 'save', text: 'Enregistrez — votre restaurant est en ligne !' },
+      { icon: 'add-circle', text: 'help.steps.restaurant.s1' },
+      { icon: 'text', text: 'help.steps.restaurant.s2' },
+      { icon: 'image', text: 'help.steps.restaurant.s3' },
+      { icon: 'call', text: 'help.steps.restaurant.s4' },
+      { icon: 'save', text: 'help.steps.restaurant.s5' },
     ],
-    tip: 'Vous pouvez créer plusieurs restaurants depuis un seul compte restaurateur.',
-    cta: { label: 'Créer mon restaurant', route: '/restaurant/add', icon: 'add-circle' },
+    tip: 'help.steps.restaurant.tip',
+    cta: { label: 'help.steps.restaurant.cta', route: '/restaurant/add', icon: 'add-circle' },
   },
   {
     id: 'menu',
     number: 3,
     icon: 'book',
     accentColor: '#7C3AED',
-    title: 'Créer votre menu',
-    subtitle: 'Organisez vos plats dans un menu structuré par catégories.',
-    doneLabel: 'Menu créé',
+    title: 'help.steps.menu.title',
+    subtitle: 'help.steps.menu.subtitle',
+    doneLabel: 'help.steps.menu.doneLabel',
     substeps: [
-      { icon: 'albums', text: 'Allez dans "Gérer les menus" et créez un menu' },
-      { icon: 'list', text: 'Ajoutez des catégories (Entrées, Plats, Desserts...)' },
-      { icon: 'layers', text: 'Créez des sous-catégories si besoin (Viandes, Poissons...)' },
-      { icon: 'fast-food', text: 'Ajoutez vos plats avec nom, prix et description' },
-      { icon: 'image', text: 'Illustrez chaque plat avec une photo appétissante' },
+      { icon: 'albums', text: 'help.steps.menu.s1' },
+      { icon: 'list', text: 'help.steps.menu.s2' },
+      { icon: 'layers', text: 'help.steps.menu.s3' },
+      { icon: 'fast-food', text: 'help.steps.menu.s4' },
+      { icon: 'image', text: 'help.steps.menu.s5' },
     ],
-    tip: 'Créez différents menus pour vos saisons ou événements (Menu Été, Menu des Fêtes...).',
-    cta: { label: 'Gérer les menus', route: '/(restaurant)/menu', icon: 'book' },
+    tip: 'help.steps.menu.tip',
+    cta: { label: 'help.steps.menu.cta', route: '/(restaurant)/menu', icon: 'book' },
   },
   {
     id: 'items',
     number: 4,
     icon: 'fast-food',
     accentColor: '#DC2626',
-    title: 'Ajouter vos plats',
-    subtitle: 'Enrichissez votre menu avec tous vos plats et boissons.',
-    doneLabel: 'Plats ajoutés',
+    title: 'help.steps.items.title',
+    subtitle: 'help.steps.items.subtitle',
+    doneLabel: 'help.steps.items.doneLabel',
     substeps: [
-      { icon: 'add', text: 'Dans votre menu, appuyez sur "+" pour ajouter un plat' },
-      { icon: 'pricetag', text: 'Définissez le nom, la description et le prix' },
-      { icon: 'leaf', text: 'Renseignez les allergènes et options (végétarien, vegan...)' },
-      { icon: 'toggle', text: 'Activez le plat pour le rendre disponible à la commande' },
+      { icon: 'add', text: 'help.steps.items.s1' },
+      { icon: 'pricetag', text: 'help.steps.items.s2' },
+      { icon: 'leaf', text: 'help.steps.items.s3' },
+      { icon: 'toggle', text: 'help.steps.items.s4' },
     ],
-    tip: 'Vous pouvez activer/désactiver un plat en temps réel si vous êtes en rupture.',
-    cta: { label: 'Voir mes menus', route: '/(restaurant)/menu', icon: 'fast-food' },
+    tip: 'help.steps.items.tip',
+    cta: { label: 'help.steps.items.cta', route: '/(restaurant)/menu', icon: 'fast-food' },
   },
   {
     id: 'qrcodes',
     number: 5,
     icon: 'qr-code',
     accentColor: '#059669',
-    title: 'Générer les QR Codes',
-    subtitle: 'Créez un QR code par table pour que vos clients commandent depuis leur smartphone.',
-    doneLabel: 'QR Codes générés',
+    title: 'help.steps.qrcodes.title',
+    subtitle: 'help.steps.qrcodes.subtitle',
+    doneLabel: 'help.steps.qrcodes.doneLabel',
     substeps: [
-      { icon: 'grid', text: 'Ouvrez "QR Codes Tables" et sélectionnez votre restaurant' },
-      { icon: 'add-circle', text: 'Indiquez le nombre de tables et le numéro de départ' },
-      { icon: 'qr-code', text: 'Chaque table reçoit un QR code et un code manuel unique' },
-      { icon: 'print', text: 'Imprimez les QR codes (PDF A4 ou partage individuel)' },
-      { icon: 'phone-portrait', text: 'Disposez les sur vos tables — c\'est prêt !' },
+      { icon: 'grid', text: 'help.steps.qrcodes.s1' },
+      { icon: 'add-circle', text: 'help.steps.qrcodes.s2' },
+      { icon: 'qr-code', text: 'help.steps.qrcodes.s3' },
+      { icon: 'print', text: 'help.steps.qrcodes.s4' },
+      { icon: 'phone-portrait', text: 'help.steps.qrcodes.s5' },
     ],
-    tip: 'La fonction "Tout imprimer" génère un PDF avec tous les QR codes en un seul clic.',
-    cta: { label: 'Générer les QR Codes', route: '/(restaurant)/qrcodes', icon: 'qr-code' },
+    tip: 'help.steps.qrcodes.tip',
+    cta: { label: 'help.steps.qrcodes.cta', route: '/(restaurant)/qrcodes', icon: 'qr-code' },
   },
 ];
 
 // ─── Badge numéroté / coché ───────────────────────────────────────────────────
 
 function StepBadge({ step, status, size = 44 }: { step: WizardStep; status: StepStatus; size?: number }) {
+  const { colors: COLORS } = useAppTheme();
+  const badgeStyles = useMemo(() => createBadgeStyles(COLORS), [COLORS]);
   if (status === 'done') {
     return (
       <View style={[badgeStyles.base, { width: size, height: size, borderRadius: size / 2, backgroundColor: COLORS.success + '20', borderColor: COLORS.success }]}>
@@ -171,7 +176,7 @@ function StepBadge({ step, status, size = 44 }: { step: WizardStep; status: Step
   );
 }
 
-const badgeStyles = StyleSheet.create({
+const createBadgeStyles = (COLORS: AppColors) => StyleSheet.create({
   base: { borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   number: { fontWeight: TYPOGRAPHY.fontWeight.bold, color: COLORS.text.secondary },
 });
@@ -179,19 +184,22 @@ const badgeStyles = StyleSheet.create({
 // ─── Carte étape terminée ─────────────────────────────────────────────────────
 
 function DoneStepCard({ step }: { step: WizardStep }) {
+  const { colors: COLORS } = useAppTheme();
+  const doneStyles = useMemo(() => createDoneStyles(COLORS), [COLORS]);
+  const { t } = useTranslation();
   return (
     <View style={doneStyles.card}>
       <StepBadge step={step} status="done" size={36} />
       <View style={doneStyles.textWrap}>
-        <Text style={doneStyles.title}>{step.title}</Text>
-        <Text style={doneStyles.label}>{step.doneLabel}</Text>
+        <Text style={doneStyles.title}>{t(step.title)}</Text>
+        <Text style={doneStyles.label}>{t(step.doneLabel)}</Text>
       </View>
       <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
     </View>
   );
 }
 
-const doneStyles = StyleSheet.create({
+const createDoneStyles = (COLORS: AppColors) => StyleSheet.create({
   card: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: COLORS.surface, borderRadius: BORDER_RADIUS.xl,
@@ -206,19 +214,22 @@ const doneStyles = StyleSheet.create({
 // ─── Carte étape verrouillée ──────────────────────────────────────────────────
 
 function LockedStepCard({ step }: { step: WizardStep }) {
+  const { colors: COLORS } = useAppTheme();
+  const lockedStyles = useMemo(() => createLockedStyles(COLORS), [COLORS]);
+  const { t } = useTranslation();
   return (
     <View style={lockedStyles.card}>
       <StepBadge step={step} status="locked" size={36} />
       <View style={{ flex: 1 }}>
-        <Text style={lockedStyles.title}>{step.title}</Text>
-        <Text style={lockedStyles.subtitle}>{step.subtitle}</Text>
+        <Text style={lockedStyles.title}>{t(step.title)}</Text>
+        <Text style={lockedStyles.subtitle}>{t(step.subtitle)}</Text>
       </View>
       <Ionicons name="lock-closed" size={16} color={COLORS.text.light} />
     </View>
   );
 }
 
-const lockedStyles = StyleSheet.create({
+const createLockedStyles = (COLORS: AppColors) => StyleSheet.create({
   card: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: COLORS.surface, borderRadius: BORDER_RADIUS.xl,
@@ -232,6 +243,9 @@ const lockedStyles = StyleSheet.create({
 // ─── Carte étape active ───────────────────────────────────────────────────────
 
 function ActiveStepCard({ step, gv }: { step: WizardStep; gv: (t: any) => number }) {
+  const { colors: COLORS } = useAppTheme();
+  const activeStyles = useMemo(() => createActiveStyles(COLORS), [COLORS]);
+  const { t } = useTranslation();
   return (
     <View style={{ marginBottom: 10 }}>
       <View style={[activeStyles.card, { borderColor: step.accentColor + '70', shadowColor: step.accentColor }]}>
@@ -244,10 +258,10 @@ function ActiveStepCard({ step, gv }: { step: WizardStep; gv: (t: any) => number
               <Text style={activeStyles.badgePillText}>ÉTAPE EN COURS</Text>
             </View>
             <Text style={[activeStyles.title, { fontSize: gv(TYPOGRAPHY.fontSize.lg) }]}>
-              {step.title}
+              {t(step.title)}
             </Text>
             <Text style={[activeStyles.subtitle, { fontSize: gv(TYPOGRAPHY.fontSize.sm) }]}>
-              {step.subtitle}
+              {t(step.subtitle)}
             </Text>
           </View>
         </View>
@@ -272,7 +286,7 @@ function ActiveStepCard({ step, gv }: { step: WizardStep; gv: (t: any) => number
                   <Ionicons name={sub.icon as any} size={14} color={step.accentColor} />
                 </View>
                 <Text style={[activeStyles.subText, { fontSize: gv(TYPOGRAPHY.fontSize.sm) }]}>
-                  {sub.text}
+                  {t(sub.text)}
                 </Text>
               </View>
             </View>
@@ -282,7 +296,7 @@ function ActiveStepCard({ step, gv }: { step: WizardStep; gv: (t: any) => number
           <View style={[activeStyles.tip, { borderColor: step.accentColor + '40', backgroundColor: step.accentColor + '08' }]}>
             <Ionicons name="bulb" size={16} color={step.accentColor} style={{ flexShrink: 0, marginTop: 1 }} />
             <Text style={[activeStyles.tipText, { fontSize: gv(TYPOGRAPHY.fontSize.sm), color: step.accentColor }]}>
-              {step.tip}
+              {t(step.tip)}
             </Text>
           </View>
 
@@ -294,7 +308,7 @@ function ActiveStepCard({ step, gv }: { step: WizardStep; gv: (t: any) => number
           >
             <Ionicons name={step.cta.icon as any} size={18} color="#FFF" />
             <Text style={[activeStyles.ctaText, { fontSize: gv(TYPOGRAPHY.fontSize.base) }]}>
-              {step.cta.label}
+              {t(step.cta.label)}
             </Text>
             <Ionicons name="arrow-forward" size={16} color="#FFF" />
           </TouchableOpacity>
@@ -304,7 +318,7 @@ function ActiveStepCard({ step, gv }: { step: WizardStep; gv: (t: any) => number
   );
 }
 
-const activeStyles = StyleSheet.create({
+const createActiveStyles = (COLORS: AppColors) => StyleSheet.create({
   card: {
     backgroundColor: COLORS.surface,
     borderRadius: BORDER_RADIUS['2xl'],
@@ -360,6 +374,9 @@ const activeStyles = StyleSheet.create({
 // ─── Carte "Tout est prêt" ────────────────────────────────────────────────────
 
 function AllDoneCard({ gv }: { gv: (t: any) => number }) {
+  const { colors: COLORS } = useAppTheme();
+  const allDoneStyles = useMemo(() => createAllDoneStyles(COLORS), [COLORS]);
+  const { t } = useTranslation();
   return (
     <View style={{ marginBottom: 20 }}>
       <View style={allDoneStyles.card}>
@@ -367,10 +384,10 @@ function AllDoneCard({ gv }: { gv: (t: any) => number }) {
           <Text style={{ fontSize: 46 }}>🎉</Text>
         </View>
         <Text style={[allDoneStyles.title, { fontSize: gv(TYPOGRAPHY.fontSize['2xl']) }]}>
-          Votre restaurant est opérationnel !
+          {t('help.allReadyTitle')}
         </Text>
         <Text style={[allDoneStyles.subtitle, { fontSize: gv(TYPOGRAPHY.fontSize.base) }]}>
-          Vous êtes prêt à recevoir des commandes. Partagez vos QR codes sur vos tables et laissez EatQuickeR faire le reste.
+          {t('help.allReadySubtitle')}
         </Text>
         <View style={allDoneStyles.row}>
           <TouchableOpacity
@@ -379,7 +396,7 @@ function AllDoneCard({ gv }: { gv: (t: any) => number }) {
             activeOpacity={0.85}
           >
             <Ionicons name="receipt" size={17} color="#FFF" />
-            <Text style={allDoneStyles.btnText}>Commandes</Text>
+            <Text style={allDoneStyles.btnText}>{t('nav.orders')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[allDoneStyles.btn, { backgroundColor: COLORS.secondary }]}
@@ -387,7 +404,7 @@ function AllDoneCard({ gv }: { gv: (t: any) => number }) {
             activeOpacity={0.85}
           >
             <Ionicons name="stats-chart" size={17} color="#FFF" />
-            <Text style={allDoneStyles.btnText}>Statistiques</Text>
+            <Text style={allDoneStyles.btnText}>{t('help.statsCta')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -395,7 +412,7 @@ function AllDoneCard({ gv }: { gv: (t: any) => number }) {
   );
 }
 
-const allDoneStyles = StyleSheet.create({
+const createAllDoneStyles = (COLORS: AppColors) => StyleSheet.create({
   card: {
     backgroundColor: COLORS.goldenSurface, borderRadius: BORDER_RADIUS['2xl'],
     borderWidth: 2, borderColor: COLORS.border.golden,
@@ -419,6 +436,9 @@ const allDoneStyles = StyleSheet.create({
 // ─── Barre de progression ─────────────────────────────────────────────────────
 
 function ProgressBar({ completedCount, total, gv }: { completedCount: number; total: number; gv: (t: any) => number }) {
+  const { colors: COLORS } = useAppTheme();
+  const progressStyles = useMemo(() => createProgressStyles(COLORS), [COLORS]);
+  const { t } = useTranslation();
   const progress = completedCount / total;
   const allDone = completedCount === total;
 
@@ -427,10 +447,10 @@ function ProgressBar({ completedCount, total, gv }: { completedCount: number; to
       <View style={progressStyles.header}>
         <View>
           <Text style={[progressStyles.title, { fontSize: gv(TYPOGRAPHY.fontSize.base) }]}>
-            {allDone ? 'Configuration terminée !' : 'Configuration en cours'}
+            {allDone ? t('help.progressDone') : t('help.progressInProgress')}
           </Text>
           <Text style={[progressStyles.subtitle, { fontSize: gv(TYPOGRAPHY.fontSize.sm) }]}>
-            {completedCount} / {total} étapes complétées
+            {t('help.stepsCompleted', { completed: completedCount, total })}
           </Text>
         </View>
         <View style={[progressStyles.pctBadge, { backgroundColor: allDone ? COLORS.success + '20' : COLORS.primary + '15' }]}>
@@ -479,7 +499,7 @@ function ProgressBar({ completedCount, total, gv }: { completedCount: number; to
   );
 }
 
-const progressStyles = StyleSheet.create({
+const createProgressStyles = (COLORS: AppColors) => StyleSheet.create({
   card: {
     backgroundColor: COLORS.surface, borderRadius: BORDER_RADIUS['2xl'],
     borderWidth: 1, borderColor: COLORS.border.default, ...SHADOWS.sm, marginBottom: 20,
@@ -504,6 +524,9 @@ const progressStyles = StyleSheet.create({
 // ─── Écran principal ──────────────────────────────────────────────────────────
 
 export default function HelpScreen() {
+  const { colors: COLORS } = useAppTheme();
+  const styles = useMemo(() => createStyles(COLORS), [COLORS]);
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const screenType = useScreenType();
   const gv = useCallback((token: any) => getResponsiveValue(token, screenType) as number, [screenType]);
@@ -593,7 +616,7 @@ export default function HelpScreen() {
 
   return (
     <View style={styles.container}>
-      <Header title="Guide de démarrage" />
+      <Header title={t('help.headerTitle')} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -609,10 +632,10 @@ export default function HelpScreen() {
         <View style={[styles.hero, { marginBottom: gv(SPACING.lg) }]}>
           <View style={styles.heroLeft}>
             <Text style={[styles.heroTitle, { fontSize: gv(TYPOGRAPHY.fontSize.xl) }]}>
-              Bienvenue sur EatQuickeR
+              {t('help.heroTitle')}
             </Text>
             <Text style={[styles.heroSubtitle, { fontSize: gv(TYPOGRAPHY.fontSize.sm) }]}>
-              Suivez ce guide pour configurer votre restaurant en quelques minutes.
+              {t('help.heroSubtitle')}
             </Text>
           </View>
           <View style={styles.heroEmoji}>
@@ -630,7 +653,7 @@ export default function HelpScreen() {
         {!allDone && !loadingProgress && (
           <>
             <Text style={[styles.sectionLabel, { fontSize: gv(TYPOGRAPHY.fontSize.sm), marginBottom: gv(SPACING.md) }]}>
-              ÉTAPE {completedCount + 1} SUR {STEPS.length}
+              {t('help.stepLabel', { current: completedCount + 1, total: STEPS.length })}
             </Text>
 
             {STEPS.map((step, i) => {
@@ -673,7 +696,7 @@ export default function HelpScreen() {
 
 // ─── Styles globaux ───────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const createStyles = (COLORS: AppColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   scrollContent: { paddingTop: 16 },
   hero: {

@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { useAppTheme, type AppColors } from '@/utils/designSystem';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -50,27 +52,20 @@ import { STRIPE_PUBLISHABLE_KEY } from '@/constants/config';
 const STRIPE_MIN_AMOUNT_EUR = 0.50;
 
 // ==== Design System
-const COLORS = {
-  primary: '#1E2A78',
-  secondary: '#FFC845',
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444',
-  background: '#F8FAFC',
-  surface: '#FFFFFF',
-  surfaceSecondary: '#F1F5F9',
-  text: {
-    primary: '#0F172A',
-    secondary: '#475569',
-    light: '#64748B',
-  },
-  border: {
-    light: '#E2E8F0',
-    medium: '#CBD5E1',
-  },
-  shadow: 'rgba(15, 23, 42, 0.08)',
-  overlay: 'rgba(15, 23, 42, 0.5)',
-};
+const makeColors = (c: AppColors, isDark: boolean) => ({
+  primary: c.primary,
+  secondary: c.secondary,
+  success: c.success,
+  warning: c.warning,
+  error: c.error,
+  background: c.background,
+  surface: c.surface,
+  surfaceSecondary: c.border.light,
+  text: { primary: c.text.primary, secondary: c.text.secondary, light: c.text.light },
+  border: { light: c.border.light, medium: c.border.dark },
+  shadow: c.shadow.default,
+  overlay: c.overlay,
+});
 
 const BREAKPOINTS = { mobile: 0, tablet: 768, desktop: 1024 };
 
@@ -97,7 +92,7 @@ const isValidEmail = (email: string): boolean => {
   return /^(?:[^\s@]+@[^\s@]+\.[^\s@]+)$/i.test(email.trim());
 };
 
-const getItemName = (item: OrderItem): string => item.menu_item_name || 'Article sans nom';
+const getItemName = (item: OrderItem): string => item.menu_item_name || '';
 
 export default function SplitPaymentScreen() {
   const { orderId } = useLocalSearchParams<{ orderId: string }>();
@@ -106,6 +101,9 @@ export default function SplitPaymentScreen() {
   const { session, participantId, isHost } = useSession();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const screenType = useScreenType();
+  const { colors, isDark } = useAppTheme();
+  const COLORS = useMemo(() => makeColors(colors, isDark), [colors, isDark]);
+  const { t } = useTranslation();
 
   const {
     alertState, showAlert, hideAlert,
@@ -130,7 +128,7 @@ export default function SplitPaymentScreen() {
       setOrder(data);
     } catch (error) {
       console.error('Error loading order:', error);
-      showError("Impossible de charger la commande", "Erreur");
+      showError(t('payment.toast.loadFailed'), t('common.error'));
     }
   }, [orderId]);
 
@@ -192,7 +190,7 @@ export default function SplitPaymentScreen() {
           || p.user?.first_name
           || p.user?.email
           || p.name
-          || 'Participant',
+          || t('payment.participantFallback'),
       }));
   }, [session?.participants]);
 
@@ -251,14 +249,14 @@ export default function SplitPaymentScreen() {
       }
 
       const modeLabel = mode === 'equal'
-        ? `Note divisée équitablement entre ${portions.length} personnes`
+        ? t('splitPayment.modeEqual', { count: portions.length })
         : mode === 'custom'
-          ? `Note divisée en ${portions.length} parts personnalisées`
-          : `Mode "par plat" activé pour ${portions.length} personne(s)`;
-      showSuccess(modeLabel, 'Division configurée');
+          ? t('splitPayment.modeCustom', { count: portions.length })
+          : t('splitPayment.modeItems', { count: portions.length });
+      showSuccess(modeLabel, t('splitPayment.configuredTitle'));
     } catch (error) {
       console.error('Error creating split session:', error);
-      showError('Impossible de créer la division de la note', 'Erreur');
+      showError(t('splitPayment.createFailed'), t('common.error'));
     } finally {
       setProcessing(false);
     }
@@ -277,7 +275,7 @@ export default function SplitPaymentScreen() {
       setSplitSession(updated);
     } catch (error: any) {
       console.error('Error claiming item:', error);
-      showError(error?.message || "Impossible d'ajouter cet article", 'Erreur');
+      showError(error?.message || t('payment.split.claimFailed'), t('common.error'));
     } finally {
       setProcessing(false);
     }
@@ -294,7 +292,7 @@ export default function SplitPaymentScreen() {
       setSplitSession(updated);
     } catch (error: any) {
       console.error('Error unclaiming item:', error);
-      showError(error?.message || "Impossible de retirer cet article", 'Erreur');
+      showError(error?.message || t('payment.split.unclaimFailed'), t('common.error'));
     } finally {
       setProcessing(false);
     }
@@ -310,17 +308,16 @@ export default function SplitPaymentScreen() {
     const portion = splitSession?.portions.find((p) => p.id === portionId);
     if (portion && portion.amount < STRIPE_MIN_AMOUNT_EUR) {
       showError(
-        `Le montant de cette part (${portion.amount.toFixed(2)} €) est inférieur au minimum accepté par Stripe (0,50 €). ` +
-        `Demandez à un autre participant de combiner sa part avec la vôtre, ou utilisez « Tout payer ».`,
-        'Montant trop faible'
+        t('payment.portionTooLow', { amount: `${portion.amount.toFixed(2)} €` }),
+        t('payment.amountTooLowTitle')
       );
       return;
     }
 
     if (!STRIPE_PUBLISHABLE_KEY) {
       showError(
-        "La clé publique Stripe n'est pas configurée.",
-        'Configuration Stripe manquante'
+        t('payment.stripeKeyMissing'),
+        t('payment.stripeKeyMissingTitle')
       );
       return;
     }
@@ -333,7 +330,7 @@ export default function SplitPaymentScreen() {
       );
 
       const { error: initError } = await initPaymentSheet({
-        merchantDisplayName: order.restaurant_name || 'Restaurant',
+        merchantDisplayName: order.restaurant_name || t('order.fallbackRestaurant'),
         paymentIntentClientSecret: paymentData.client_secret,
         allowsDelayedPaymentMethods: false,
         defaultBillingDetails: { email: customerEmail || undefined },
@@ -349,7 +346,7 @@ export default function SplitPaymentScreen() {
       });
 
       if (initError) {
-        showError("Impossible d'initialiser le paiement", "Erreur");
+        showError(t('payment.initFailed'), t('common.error'));
         setProcessing(false);
         return;
       }
@@ -361,8 +358,8 @@ export default function SplitPaymentScreen() {
           console.log('Payment canceled by user');
         } else {
           showError(
-            (paymentError as any).message || 'Paiement refusé',
-            'Erreur de paiement'
+            (paymentError as any).message || t('payment.declined'),
+            t('payment.declinedTitle')
           );
         }
         setProcessing(false);
@@ -398,18 +395,18 @@ export default function SplitPaymentScreen() {
         clearCart();
         setPaymentSuccess(true);
         showSuccess(
-          'Tous les paiements ont été effectués. La commande est maintenant complète.',
-          'Paiement réussi !'
+          t('payment.portionPaidComplete'),
+          t('payment.successTitleToast')
         );
       } else {
         showSuccess(
-          `Votre part a été payée avec succès. Il reste ${completionStatus.remainingPortions} portion(s) à payer.`,
-          'Paiement réussi !'
+          t('payment.portionPaidRemaining', { count: completionStatus.remainingPortions }),
+          t('payment.successTitleToast')
         );
       }
     } catch (error) {
       console.error('Error paying portion:', error);
-      showError('Le paiement de cette portion a échoué', 'Erreur');
+      showError(t('payment.portionFailed'), t('common.error'));
     } finally {
       setProcessing(false);
     }
@@ -422,15 +419,15 @@ export default function SplitPaymentScreen() {
 
     if (!STRIPE_PUBLISHABLE_KEY) {
       showError(
-        "La clé publique Stripe n'est pas configurée.",
-        'Configuration Stripe manquante'
+        t('payment.stripeKeyMissing'),
+        t('payment.stripeKeyMissingTitle')
       );
       return;
     }
 
     const unpaidPortions = splitSession.portions.filter((p: any) => !p.isPaid);
     if (unpaidPortions.length === 0) {
-      showInfo('Toutes les portions sont déjà payées', 'Information');
+      showInfo(t('payment.allPaidAlready'), t('payment.infoTitle'));
       return;
     }
 
@@ -438,8 +435,8 @@ export default function SplitPaymentScreen() {
     const remainingTotal = unpaidPortions.reduce((sum, p) => sum + p.amount, 0);
     if (remainingTotal < STRIPE_MIN_AMOUNT_EUR) {
       showError(
-        `Le montant restant (${remainingTotal.toFixed(2)} €) est inférieur au minimum accepté par Stripe (0,50 €).`,
-        'Montant trop faible'
+        t('payment.remainingTooLow', { amount: `${remainingTotal.toFixed(2)} €` }),
+        t('payment.amountTooLowTitle')
       );
       return;
     }
@@ -451,7 +448,7 @@ export default function SplitPaymentScreen() {
       );
 
       const { error: initError } = await initPaymentSheet({
-        merchantDisplayName: order.restaurant_name || 'Restaurant',
+        merchantDisplayName: order.restaurant_name || t('order.fallbackRestaurant'),
         paymentIntentClientSecret: paymentData.client_secret,
         allowsDelayedPaymentMethods: false,
         defaultBillingDetails: { email: customerEmail || undefined },
@@ -467,7 +464,7 @@ export default function SplitPaymentScreen() {
       });
 
       if (initError) {
-        showError("Impossible d'initialiser le paiement", "Erreur");
+        showError(t('payment.initFailed'), t('common.error'));
         setProcessing(false);
         return;
       }
@@ -479,8 +476,8 @@ export default function SplitPaymentScreen() {
           console.log('Payment canceled by user');
         } else {
           showError(
-            (paymentError as any).message || 'Paiement refusé',
-            'Erreur de paiement'
+            (paymentError as any).message || t('payment.declined'),
+            t('payment.declinedTitle')
           );
         }
         setProcessing(false);
@@ -516,7 +513,7 @@ export default function SplitPaymentScreen() {
       );
     } catch (error) {
       console.error('Error paying remaining:', error);
-      showError('Le paiement des portions restantes a échoué', 'Erreur');
+      showError(t('payment.remainingFailed'), t('common.error'));
     } finally {
       setProcessing(false);
     }
@@ -524,7 +521,7 @@ export default function SplitPaymentScreen() {
 
   // ── Render ─────────────────────────────────────────────────────────────
 
-  const styles = createStyles(screenType);
+  const styles = useMemo(() => createStyles(COLORS, screenType), [COLORS, screenType]);
 
   // Montants pour le modal
   const orderTotal = safeParseAmount(order?.total_amount);
@@ -533,10 +530,10 @@ export default function SplitPaymentScreen() {
   if (loading) {
     return (
       <View style={styles.container}>
-        <Header title="Division de la note" leftIcon="arrow-back" onLeftPress={() => router.back()} />
+        <Header title={t('splitPayment.headerTitle')} leftIcon="arrow-back" onLeftPress={() => router.back()} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Chargement...</Text>
+          <Text style={styles.loadingText}>{t('common.loading')}</Text>
         </View>
       </View>
     );
@@ -545,25 +542,25 @@ export default function SplitPaymentScreen() {
   if (paymentSuccess) {
     return (
       <View style={styles.container}>
-        <Header title="Paiement réussi" />
+        <Header title={t('payment.successHeader')} />
         <View style={styles.successContainer}>
           <View style={styles.successIcon}>
             <Ionicons name="checkmark-circle" size={80} color={COLORS.success} />
           </View>
-          <Text style={styles.successTitle}>Paiement confirmé !</Text>
+          <Text style={styles.successTitle}>{t('payment.successTitle')}</Text>
           <Text style={styles.successMessage}>
-            Votre part a été payée avec succès.
+            {t('splitPayment.yourPartPaid')}
           </Text>
           <View style={styles.successActions}>
             <Button
-              title="Retour à la commande"
+              title={t('payment.backToOrder')}
               onPress={() => router.replace(`/order/${orderId}`)}
               fullWidth
               style={styles.primaryButton}
             />
             {session?.id && (
               <Button
-                title="Retour à la session"
+                title={t('splitPayment.backToSession')}
                 onPress={() => router.replace('/session' as any)}
                 variant="outline"
                 fullWidth
@@ -584,7 +581,7 @@ export default function SplitPaymentScreen() {
     <StripeProvider publishableKey={STRIPE_PUBLISHABLE_KEY}>
       <View style={styles.container}>
         <Header
-          title="Division de la note"
+          title={t('splitPayment.headerTitle')}
           leftIcon="arrow-back"
           onLeftPress={() => router.back()}
         />
@@ -613,26 +610,26 @@ export default function SplitPaymentScreen() {
           <Card style={styles.card}>
             <View style={styles.cardHeader}>
               <Ionicons name="receipt-outline" size={24} color={COLORS.primary} />
-              <Text style={styles.cardTitle}>Commande groupée</Text>
+              <Text style={styles.cardTitle}>{t('splitPayment.groupOrder')}</Text>
             </View>
 
             <View style={styles.orderInfo}>
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>N° Commande</Text>
+                <Text style={styles.infoLabel}>{t('payment.orderNumber')}</Text>
                 <Text style={styles.infoValue}>{order?.order_number}</Text>
               </View>
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Restaurant</Text>
+                <Text style={styles.infoLabel}>{t('payment.restaurant')}</Text>
                 <Text style={styles.infoValue}>{order?.restaurant_name}</Text>
               </View>
               {!!order?.table_number && (
                 <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Table</Text>
+                  <Text style={styles.infoLabel}>{t('payment.table')}</Text>
                   <Text style={styles.infoValue}>{order.table_number}</Text>
                 </View>
               )}
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Total</Text>
+                <Text style={styles.infoLabel}>{t('payment.total')}</Text>
                 <Text style={[styles.infoValue, { color: COLORS.secondary, fontWeight: '700' }]}>
                   {formatCurrency(order?.total_amount)}
                 </Text>
@@ -645,7 +642,7 @@ export default function SplitPaymentScreen() {
                 <View key={`${item.id ?? index}`} style={styles.orderItem}>
                   <View style={styles.itemInfo}>
                     <Text style={styles.itemQuantity}>{item.quantity}×</Text>
-                    <Text style={styles.itemName}>{getItemName(item)}</Text>
+                    <Text style={styles.itemName}>{getItemName(item) || t('payment.itemFallback')}</Text>
                   </View>
                   <Text style={styles.itemPrice}>
                     {formatCurrency(item.total_price)}
@@ -661,14 +658,12 @@ export default function SplitPaymentScreen() {
               <Ionicons name="people" size={20} color={COLORS.primary} />
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <Text style={styles.bannerTitle}>
-                  {isHost ? 'Vous êtes l\'hôte' : 'Division de la note en cours'}
+                  {isHost ? t('splitPayment.youAreHost') : t('splitPayment.splitInProgress')}
                 </Text>
                 <Text style={styles.bannerSubtitle}>
                   {splitSession
-                    ? `${splitSession.portions.length} participant(s) • ${
-                        splitSession.portions.filter((p: any) => p.isPaid).length
-                      } payé(s)`
-                    : 'Chargement des portions...'}
+                    ? t('splitPayment.participantsPaid', { count: splitSession.portions.length, paid: splitSession.portions.filter((p: any) => p.isPaid).length })
+                    : t('splitPayment.loadingPortions')}
                 </Text>
               </View>
 
@@ -705,16 +700,16 @@ export default function SplitPaymentScreen() {
               <View style={styles.emptyState}>
                 <Ionicons name="options-outline" size={40} color={COLORS.primary} />
                 <Text style={styles.emptyText}>
-                  Configurez la division de la note
+                  {t('splitPayment.configurePrompt')}
                 </Text>
                 <Text style={styles.emptySubtext}>
                   {isHost
-                    ? 'Choisissez comment répartir le paiement entre les participants.'
-                    : 'L\'hôte est en train de configurer la division de la note.'}
+                    ? t('splitPayment.hostConfigureHint')
+                    : t('splitPayment.guestWaitConfig')}
                 </Text>
                 {isHost && (
                   <Button
-                    title="Diviser la note"
+                    title={t('payment.splitBill')}
                     onPress={() => setShowSplitModal(true)}
                     leftIcon={<Ionicons name="cut-outline" size={18} color={COLORS.surface} />}
                     style={{ marginTop: 16, borderRadius: 12 }}
@@ -740,7 +735,7 @@ export default function SplitPaymentScreen() {
 }
 
 // ==== Styles
-function createStyles(screenType: 'mobile' | 'tablet' | 'desktop') {
+function createStyles(COLORS: ReturnType<typeof makeColors>, screenType: 'mobile' | 'tablet' | 'desktop') {
   const isTabletOrLarger = screenType !== 'mobile';
 
   return StyleSheet.create({

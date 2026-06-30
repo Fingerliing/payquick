@@ -2,7 +2,9 @@ import React from 'react';
 import { View, TouchableOpacity, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, TYPOGRAPHY, SPACING, SHADOWS } from '@/styles/tokens';
+import { TYPOGRAPHY, SPACING, SHADOWS } from '@/styles/tokens';
+import { useAppTheme } from '@/utils/designSystem';
+import { useTranslation } from 'react-i18next';
 import { useResponsive } from '@/utils/responsive';
 
 interface TabBarProps {
@@ -14,6 +16,8 @@ interface TabBarProps {
 export const TabBar: React.FC<TabBarProps> = ({ state, descriptors, navigation }) => {
   const insets = useSafeAreaInsets();
   const { isMobile, getSpacing } = useResponsive();
+  const { colors } = useAppTheme();
+  const { t } = useTranslation();
 
   const getTabIcon = (routeName: string, focused: boolean) => {
     let iconName: keyof typeof Ionicons.glyphMap;
@@ -43,11 +47,11 @@ export const TabBar: React.FC<TabBarProps> = ({ state, descriptors, navigation }
 
   const getTabLabel = (routeName: string) => {
     switch (routeName) {
-      case 'dashboard': return 'Accueil';
-      case 'orders': return 'Commandes';
-      case 'menu': return 'Menu';
-      case 'analytics': return 'Stats';
-      case 'profile': return 'Profil';
+      case 'dashboard': return t('nav.home');
+      case 'orders': return t('nav.orders');
+      case 'menu': return t('nav.menu');
+      case 'analytics': return t('nav.stats');
+      case 'profile': return t('nav.profile');
       default: return routeName;
     }
   };
@@ -55,13 +59,13 @@ export const TabBar: React.FC<TabBarProps> = ({ state, descriptors, navigation }
   return (
     <View style={{
       flexDirection: 'row',
-      backgroundColor: COLORS.surface.primary,
+      backgroundColor: colors.surface,
       paddingBottom: insets.bottom,
       paddingTop: getSpacing(SPACING.sm, SPACING.md),
       paddingHorizontal: getSpacing(SPACING.sm, SPACING.md),
       ...SHADOWS.lg,
       borderTopWidth: 1,
-      borderTopColor: COLORS.border.light,
+      borderTopColor: colors.border.light,
     }}>
       {state.routes.map((route: any, index: number) => {
         const { options } = descriptors[route.key];
@@ -101,14 +105,14 @@ export const TabBar: React.FC<TabBarProps> = ({ state, descriptors, navigation }
               <Ionicons
                 name={getTabIcon(route.name, isFocused)}
                 size={isMobile ? 22 : 24}
-                color={isFocused ? COLORS.primary : COLORS.text.tertiary}
+                color={isFocused ? colors.primary : colors.text.light}
               />
               
               {isMobile && (
                 <Text style={{
                   fontSize: 10,
                   fontWeight: isFocused ? TYPOGRAPHY.fontWeight.semibold : TYPOGRAPHY.fontWeight.normal,
-                  color: isFocused ? COLORS.primary : COLORS.text.tertiary,
+                  color: isFocused ? colors.primary : colors.text.light,
                   marginTop: 2,
                 }}>
                   {getTabLabel(route.name)}

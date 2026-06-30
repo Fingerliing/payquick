@@ -11,6 +11,8 @@
  *   articles ne sont pas encore attribués, et les boutons de paiement.
  */
 import React, { useMemo } from 'react';
+import { useAppTheme, type AppColors } from '@/utils/designSystem';
+import { useTranslation } from 'react-i18next';
 import { View, Text, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '@/components/ui/Card';
@@ -18,18 +20,20 @@ import { Button } from '@/components/ui/Button';
 import { SplitPaymentSession, SplitPaymentPortion } from '@/types/splitPayment';
 import type { OrderDetail, OrderItem } from '@/types/order';
 
-const COLORS = {
-  primary: '#1E2A78',
-  secondary: '#FFC845',
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444',
-  background: '#F8FAFC',
-  surface: '#FFFFFF',
-  surfaceSecondary: '#F1F5F9',
-  text: { primary: '#0F172A', secondary: '#475569', light: '#64748B' },
-  border: { light: '#E2E8F0', medium: '#CBD5E1' },
-};
+const makeColors = (c: AppColors, isDark: boolean) => ({
+  primary: c.primary,
+  secondary: c.secondary,
+  success: c.success,
+  warning: c.warning,
+  error: c.error,
+  background: c.background,
+  surface: c.surface,
+  surfaceSecondary: c.border.light,
+  text: { primary: c.text.primary, secondary: c.text.secondary, light: c.text.light },
+  border: { light: c.border.light, medium: c.border.dark },
+  shadow: c.shadow.default,
+  overlay: c.overlay,
+});
 
 interface ItemSplitSelectorProps {
   order: OrderDetail;
@@ -48,7 +52,7 @@ interface ItemSplitSelectorProps {
 
 const formatCurrency = (value: number): string => `${(value ?? 0).toFixed(2)} €`;
 
-const getItemName = (item: OrderItem): string => item.menu_item_name || 'Article sans nom';
+const getItemName = (item: OrderItem): string => item.menu_item_name || '';
 
 const getItemImage = (item: OrderItem): string | undefined =>
   (item as any).menu_item_image || (item as any).image || undefined;
@@ -64,6 +68,9 @@ export const ItemSplitSelector: React.FC<ItemSplitSelectorProps> = ({
   onPayPortion,
   onPayAllRemaining,
 }) => {
+  const { colors, isDark } = useAppTheme();
+  const COLORS = useMemo(() => makeColors(colors, isDark), [colors, isDark]);
+  const { t } = useTranslation();
   const items = order.items || [];
   const portions = session.portions || [];
 
@@ -187,7 +194,7 @@ export const ItemSplitSelector: React.FC<ItemSplitSelectorProps> = ({
                     fontWeight: isSelected ? '700' : '500',
                     color: isSelected ? COLORS.primary : COLORS.text.primary,
                   }}>
-                    {p.name || 'Anonyme'}
+                    {p.name || t('splitPayment.anonymous')}
                     {isPaid ? ' ✓' : ''}
                   </Text>
                 </TouchableOpacity>
@@ -288,7 +295,7 @@ export const ItemSplitSelector: React.FC<ItemSplitSelectorProps> = ({
                             fontWeight: '600',
                             color: c.id === currentUserPortionId ? COLORS.surface : COLORS.text.secondary,
                           }}>
-                            {c.name || 'Anonyme'}
+                            {c.name || t('splitPayment.anonymous')}
                           </Text>
                         </View>
                       ))}
@@ -345,7 +352,7 @@ export const ItemSplitSelector: React.FC<ItemSplitSelectorProps> = ({
                   fontWeight: p.id === currentUserPortionId ? '700' : '500',
                   color: COLORS.text.primary,
                 }}>
-                  {p.name || 'Anonyme'}
+                  {p.name || t('splitPayment.anonymous')}
                   {p.id === currentUserPortionId ? ' (vous)' : ''}
                 </Text>
               </View>
@@ -367,7 +374,7 @@ export const ItemSplitSelector: React.FC<ItemSplitSelectorProps> = ({
           <Button
             title={
               isProcessing
-                ? 'Traitement…'
+                ? t('payment.processingBtn')
                 : unclaimedCount > 0
                   ? `Payer ma part (${formatCurrency(myPortion.amount)}) — bloqué`
                   : `Payer ma part — ${formatCurrency(myPortion.amount)}`
@@ -387,7 +394,7 @@ export const ItemSplitSelector: React.FC<ItemSplitSelectorProps> = ({
 
         {otherUnpaidExist && (
           <Button
-            title="Payer tout le reste"
+            title={t('splitPayment.payAllRest')}
             onPress={onPayAllRemaining}
             disabled={isProcessing || unclaimedCount > 0}
             variant="outline"
