@@ -109,7 +109,7 @@ export default function MenuScanCaptureScreen() {
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       quality: 0.9,
     });
     if (!result.canceled && result.assets?.length) {
@@ -118,13 +118,10 @@ export default function MenuScanCaptureScreen() {
   }, [addPhotos, notify]);
 
   const handlePickFromLibrary = useCallback(async () => {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (perm.status !== 'granted') {
-      notify('warning', t('scanImport.photosPermissionMsg'), t('menuItemForm.permissionRequired'));
-      return;
-    }
+    // Photo picker système : pas de requestMediaLibraryPermissionsAsync
+    // (READ_MEDIA_* bloqué pour conformité Google Play).
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'], // MediaTypeOptions.Images déprécié SDK 54
       allowsMultipleSelection: true,
       selectionLimit: MAX_PAGES,
       quality: 0.9,

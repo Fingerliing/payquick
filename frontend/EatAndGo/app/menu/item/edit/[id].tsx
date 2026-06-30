@@ -417,14 +417,11 @@ export default function EditMenuItemScreen() {
   };
 
   const pickFromLibrary = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      showToast('warning', t('menuItemForm.photoPermission'), t('menuItemForm.permissionRequired'));
-      return;
-    }
-
+    // Photo picker système : pas de requestMediaLibraryPermissionsAsync
+    // (READ_MEDIA_* bloqué pour conformité Google Play). La sélection
+    // explicite de l'utilisateur via le picker fait office de consentement.
     const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'], // MediaTypeOptions.Images déprécié SDK 54
       allowsEditing: true,
       quality: 0.8,
     });
