@@ -35,6 +35,10 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#0C1219"
       },
+      "blockedPermissions": [
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO"
+      ],
       "edgeToEdgeEnabled": true,
       "package": "fr.fingerliing.EatQuickeR",
       "googleServicesFile": "./google-services.json",

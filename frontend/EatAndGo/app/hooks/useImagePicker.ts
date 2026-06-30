@@ -17,15 +17,9 @@ export const useImagePicker = (initialImage?: string): UseImagePickerReturn => {
   const pickFromLibrary = async () => {
     try {
       setLoading(true);
-      
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission refusée', 'Nous avons besoin de la permission pour accéder à vos photos');
-        return;
-      }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [16, 9],
         quality: 0.8,
@@ -46,10 +40,12 @@ export const useImagePicker = (initialImage?: string): UseImagePickerReturn => {
   const pickFromCamera = async () => {
     try {
       setLoading(true);
-      
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission refusée', 'Nous avons besoin de la permission pour accéder à l\'appareil photo');
+        Alert.alert(
+          'Permission refusée',
+          "Nous avons besoin de la permission pour accéder à l'appareil photo",
+        );
         return;
       }
 
