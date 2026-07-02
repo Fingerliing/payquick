@@ -53,7 +53,10 @@
               "pathPrefix": "/t/"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -66,7 +69,9 @@
       "expo-secure-store",
       [
         "expo-local-authentication",
-        { "faceIDPermission": "Autorisez $(PRODUCT_NAME) à utiliser Face ID pour vous reconnecter." }
+        {
+          "faceIDPermission": "Autorisez $(PRODUCT_NAME) à utiliser Face ID pour vous reconnecter."
+        }
       ],
       [
         "expo-navigation-bar",
@@ -109,7 +114,18 @@
           "photosPermission": "EatQuickeR a besoin d'accéder à vos photos pour personnaliser votre profil ou ajouter une image à un plat.",
           "cameraPermission": "EatQuickeR utilise l'appareil photo pour prendre une photo de profil ou d'un plat."
         }
-      ]
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ],
+      "@react-native-community/datetimepicker",
+      "expo-font",
+      "expo-web-browser"
     ],
     "extra": {
       "apiUrl": "https://api.eatquicker.fr",
