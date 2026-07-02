@@ -6,7 +6,8 @@ import '@/i18n';
 
 import React, { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
-import { router, SplashScreen, Stack } from 'expo-router';
+import { router, Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as NavigationBar from 'expo-navigation-bar';
 import * as SystemUI from 'expo-system-ui';
@@ -25,9 +26,17 @@ import { NotificationProvider as PushNotificationProvider } from '@/contexts/Not
 import { SessionProvider } from '@/contexts/SessionContext';
 import { configureGoogleSignIn } from '@/services/googleAuthService';
 import { useAppTheme } from '@/utils/designSystem';
+import SplashIntro from '@/components/intro/SplashIntro';
 
 try {
   SplashScreen.preventAutoHideAsync();
+} catch {
+}
+
+// Transition douce (fade) quand on masque le splash natif, pour éviter
+// un cut brutal juste avant que SplashIntro prenne le relais.
+try {
+  SplashScreen.setOptions({ duration: 250, fade: true });
 } catch {
 }
 
@@ -56,6 +65,8 @@ function SystemBarsManager() {
 function SplashScreenManager({ children }: { children: React.ReactNode }) {
   const { isLoading: authLoading } = useAuth();
   const [hasTimeout, setHasTimeout] = useState(false);
+  const [nativeSplashHidden, setNativeSplashHidden] = useState(false);
+  const [introDone, setIntroDone] = useState(false);
 
   // Timeout de sécurité de 5 secondes
   useEffect(() => {
@@ -68,14 +79,29 @@ function SplashScreenManager({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // Cacher le splash screen si l'auth est chargée OU si on a timeout
-    if (!authLoading || hasTimeout) {
-      console.log(`📱 Masquage du splash screen - Auth chargée: ${!authLoading}, Timeout: ${hasTimeout}`);
-      SplashScreen.hideAsync().catch(() => {
-        // console.error('Erreur lors du masquage du splash screen:', error);
-      });
+    // Masquer le splash natif dès que l'auth est chargée OU qu'on a timeout.
+    // On ne le fait qu'une fois (nativeSplashHidden garde l'idempotence).
+    if ((!authLoading || hasTimeout) && !nativeSplashHidden) {
+      console.log(`📱 Masquage du splash natif - Auth chargée: ${!authLoading}, Timeout: ${hasTimeout}`);
+      SplashScreen.hideAsync()
+        .catch(() => {
+          // console.error('Erreur lors du masquage du splash screen:', error);
+        })
+        .finally(() => setNativeSplashHidden(true));
     }
-  }, [authLoading, hasTimeout]);
+  }, [authLoading, hasTimeout, nativeSplashHidden]);
+
+  // Le splash natif (statique, géré par l'OS) est encore visible :
+  // on ne monte rien par-dessus.
+  if (!nativeSplashHidden) {
+    return null;
+  }
+
+  // Splash natif masqué → on enchaîne sur l'intro animée avant de monter
+  // le reste de l'app (Stack, providers de contenu, etc.).
+  if (!introDone) {
+    return <SplashIntro onFinish={() => setIntroDone(true)} />;
+  }
 
   return <>{children}</>;
 }
