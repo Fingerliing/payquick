@@ -5,6 +5,7 @@ from django.db import models
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 from datetime import timedelta
@@ -157,6 +158,7 @@ class Order(models.Model):
     vat_details = models.JSONField(
         default=dict,
         blank=True,
+        encoder=DjangoJSONEncoder,
         verbose_name="Détail TVA par taux",
         help_text='{"10": {"ht": 45.45, "tva": 4.55, "ttc": 50}, ...}'
     )
