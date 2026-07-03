@@ -33,7 +33,7 @@ const STAGE_SIZE = RING_SIZE + 40;
 const RING_RADIUS = RING_SIZE / 2 - 2;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
-const LOGO_SOURCE = require('../assets/images/splash-icon.png');
+const LOGO_SOURCE = require('@/assets/images/splash-icon.png');
 
 // Centre un élément carré de `size` au milieu d'un conteneur STAGE_SIZE x STAGE_SIZE
 function centeredBox(size: number) {
@@ -275,7 +275,7 @@ export default function SplashIntro({ onFinish, holdMs = 300 }: SplashIntroProps
   }));
 
   return (
-    <Animated.View style={[StyleSheet.absoluteFill, rootStyle]} pointerEvents="none">
+    <Animated.View style={[StyleSheet.absoluteFill, rootStyle]}>
       <LinearGradient
         colors={[NAVY_DARK, NAVY_BRAND]}
         start={{ x: 0.15, y: 0 }}

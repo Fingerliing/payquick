@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useRef, ReactNode } from 'react';
 import { Restaurant } from '@/types/restaurant';
 import { Table } from '@/types/table'
 import { SearchFilters, PaginatedResponse } from '@/types/common';
@@ -209,12 +209,31 @@ const extractRestaurantData = (response: any): { restaurants: Restaurant[], pagi
   };
 };
 
+// Détecte une réponse throttlée par DRF (429, ou message "Requête ralentie" /
+// "Throttled" côté anglais brut non traduit). Utilisé pour éviter de vider
+// la liste affichée et de spammer l'API sur une simple limite temporaire.
+const isThrottleError = (error: any): boolean => {
+  const status = error?.response?.status ?? error?.status;
+  if (status === 429) return true;
+  const msg: string = error?.message ?? '';
+  return /ralentie|throttled/i.test(msg);
+};
+
 export const RestaurantContext = createContext<RestaurantContextType | undefined>(undefined);
 
 export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(restaurantReducer, initialState);
   
   const { userRole, isAuthenticated } = useAuth();
+
+  // Anti-rafale : absorbe les doubles appels de React StrictMode / Fast Refresh
+  // (remount complet du provider) sans changer le comportement pour de vrais
+  // appels distincts (bouton refresh, changement de filtre, etc.).
+  const publicFetchInFlightRef = useRef(false);
+  const lastPublicFetchAtRef = useRef(0);
+  const privateFetchInFlightRef = useRef(false);
+  const lastPrivateFetchAtRef = useRef(0);
+  const MIN_FETCH_INTERVAL_MS = 1500;
 
   useEffect(() => {
   }, [state.restaurants, state.isLoading, state.error, state.isPublicMode]);
@@ -234,6 +253,17 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
   // ============================================================================
 
   const loadPublicRestaurants = async (filters?: SearchFilters, page = 1) => {
+    const now = Date.now();
+    if (publicFetchInFlightRef.current) {
+      return; // un appel est déjà en cours, on ne double pas
+    }
+    if (now - lastPublicFetchAtRef.current < MIN_FETCH_INTERVAL_MS) {
+      // Rafale trop rapprochée (remount StrictMode/Fast Refresh typiquement) : on ignore.
+      return;
+    }
+    publicFetchInFlightRef.current = true;
+    lastPublicFetchAtRef.current = now;
+
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
@@ -260,10 +290,18 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
       }
       
     } catch (error: any) {
-      console.error('RestaurantContext: Public load error:', error?.message ?? error);
-      dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors du chargement des restaurants' });
-      dispatch({ type: 'SET_RESTAURANTS', payload: [] });
+      if (isThrottleError(error)) {
+        // Limite temporaire côté backend : on ne vide pas la liste déjà affichée
+        // et on ne pollue pas les logs avec une "ERROR" — c'est attendu, pas un bug.
+        console.warn('RestaurantContext: requête publique throttlée, réessai plus tard');
+        dispatch({ type: 'SET_ERROR', payload: null });
+      } else {
+        console.error('RestaurantContext: Public load error:', error?.message ?? error);
+        dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors du chargement des restaurants' });
+        dispatch({ type: 'SET_RESTAURANTS', payload: [] });
+      }
     } finally {
+      publicFetchInFlightRef.current = false;
       dispatch({ type: 'SET_LOADING', payload: false });
     }
   };
@@ -315,6 +353,16 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
     if (userRole !== 'restaurateur') {
       return loadPublicRestaurants(filters, page);
     }
+
+    const now = Date.now();
+    if (privateFetchInFlightRef.current) {
+      return;
+    }
+    if (now - lastPrivateFetchAtRef.current < MIN_FETCH_INTERVAL_MS) {
+      return;
+    }
+    privateFetchInFlightRef.current = true;
+    lastPrivateFetchAtRef.current = now;
   
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
@@ -362,6 +410,12 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
         
         return; // Sortir sans afficher d'erreur
       }
+
+      if (isThrottleError(error)) {
+        console.warn('RestaurantContext: requête privée throttlée, réessai plus tard');
+        dispatch({ type: 'SET_ERROR', payload: null });
+        return;
+      }
       
       console.error('RestaurantContext: Private load error:', error?.message ?? error);
       
@@ -369,6 +423,7 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
       dispatch({ type: 'SET_ERROR', payload: error.message || 'Erreur lors du chargement des restaurants' });
       dispatch({ type: 'SET_RESTAURANTS', payload: [] });
     } finally {
+      privateFetchInFlightRef.current = false;
       dispatch({ type: 'SET_LOADING', payload: false });
     }
   };

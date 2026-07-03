@@ -62,7 +62,7 @@ function SystemBarsManager() {
   return null;
 }
 
-function SplashScreenManager({ children }: { children: React.ReactNode }) {
+function SplashOverlay() {
   const { isLoading: authLoading } = useAuth();
   const [hasTimeout, setHasTimeout] = useState(false);
   const [nativeSplashHidden, setNativeSplashHidden] = useState(false);
@@ -79,8 +79,6 @@ function SplashScreenManager({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // Masquer le splash natif dès que l'auth est chargée OU qu'on a timeout.
-    // On ne le fait qu'une fois (nativeSplashHidden garde l'idempotence).
     if ((!authLoading || hasTimeout) && !nativeSplashHidden) {
       console.log(`📱 Masquage du splash natif - Auth chargée: ${!authLoading}, Timeout: ${hasTimeout}`);
       SplashScreen.hideAsync()
@@ -91,19 +89,15 @@ function SplashScreenManager({ children }: { children: React.ReactNode }) {
     }
   }, [authLoading, hasTimeout, nativeSplashHidden]);
 
-  // Le splash natif (statique, géré par l'OS) est encore visible :
-  // on ne monte rien par-dessus.
-  if (!nativeSplashHidden) {
+  if (!nativeSplashHidden || introDone) {
     return null;
   }
 
-  // Splash natif masqué → on enchaîne sur l'intro animée avant de monter
-  // le reste de l'app (Stack, providers de contenu, etc.).
-  if (!introDone) {
-    return <SplashIntro onFinish={() => setIntroDone(true)} />;
-  }
-
-  return <>{children}</>;
+  // IMPORTANT : overlay flottant au-dessus du Stack déjà monté, pas un gate.
+  // Le root navigator d'expo-router doit rester monté dès le départ pour que
+  // AuthContext.checkAuth() puisse naviguer sans race condition ("before
+  // mounting Root Layout") — c'était la cause de la boucle précédente.
+  return <SplashIntro onFinish={() => setIntroDone(true)} />;
 }
 
 export default function RootLayout() {
@@ -131,18 +125,18 @@ export default function RootLayout() {
                 <ComptabiliteProvider>
                   <OrderProvider>
                     <SessionProvider>
-                      <SplashScreenManager>
-                        <CartProvider>
-                          <PushNotificationProvider>
-                            <SessionNotificationProvider>
-                              <Stack screenOptions={{ headerShown: false }}>
-                                <Stack.Screen name="+not-found" />
-                              </Stack>
-                              <FirstLaunchLegalModal />
-                            </SessionNotificationProvider>
-                          </PushNotificationProvider>
-                        </CartProvider>
-                      </SplashScreenManager>
+                      <CartProvider>
+                        <PushNotificationProvider>
+                          <SessionNotificationProvider>
+                            <Stack screenOptions={{ headerShown: false }}>
+                              <Stack.Screen name="+not-found" />
+                            </Stack>
+                            <FirstLaunchLegalModal />
+                            {/* Overlay flottant, ne bloque jamais le montage du Stack ci-dessus */}
+                            <SplashOverlay />
+                          </SessionNotificationProvider>
+                        </PushNotificationProvider>
+                      </CartProvider>
                     </SessionProvider>
                   </OrderProvider>
                 </ComptabiliteProvider>
