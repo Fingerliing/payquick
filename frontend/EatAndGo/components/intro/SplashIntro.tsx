@@ -108,7 +108,7 @@ interface SplashIntroProps {
 }
 
 export default function SplashIntro({ onFinish, holdMs = 300 }: SplashIntroProps) {
-  const rootOpacity = useSharedValue(0);
+  const rootOpacity = useSharedValue(1);
 
   const ringProgress = useSharedValue(0);
   const ringSpin = useSharedValue(0);
@@ -129,7 +129,6 @@ export default function SplashIntro({ onFinish, holdMs = 300 }: SplashIntroProps
 
   // ── Timeline (ms, relatif au montage) ──────────────────────────────
   const T = {
-    fadeIn: 300,
     ringDelay: 150,
     ringDuration: 700,
     logoDelay: 350,
@@ -225,16 +224,14 @@ export default function SplashIntro({ onFinish, holdMs = 300 }: SplashIntroProps
       withTiming(0.4, { duration: T.taglineDuration, easing: Easing.out(Easing.cubic) })
     );
 
-    // Fondu d'entrée puis, après la pause, fondu de sortie qui déclenche onFinish
-    // exactement à la fin de l'animation — pas de timer arbitraire.
-    rootOpacity.value = withSequence(
-      withTiming(1, { duration: T.fadeIn, easing: Easing.out(Easing.quad) }),
-      withDelay(
-        exitStart - T.fadeIn,
-        withTiming(0, { duration: exitDuration, easing: Easing.in(Easing.quad) }, (finished) => {
-          if (finished) runOnJS(onFinish)();
-        })
-      )
+    // Opaque dès le montage (voir useSharedValue(1) plus haut) — après la
+    // pause, fondu de sortie qui déclenche onFinish exactement à la fin de
+    // l'animation, pas de timer arbitraire.
+    rootOpacity.value = withDelay(
+      exitStart,
+      withTiming(0, { duration: exitDuration, easing: Easing.in(Easing.quad) }, (finished) => {
+        if (finished) runOnJS(onFinish)();
+      })
     );
 
     return () => clearTimeout(hapticTimer);
@@ -363,7 +360,7 @@ export default function SplashIntro({ onFinish, holdMs = 300 }: SplashIntroProps
 
         {/* Tagline */}
         <Animated.Text style={[styles.tagline, taglineStyle]}>
-          Commandez ensemble, en un scan
+          Un serveur au service des serveurs
         </Animated.Text>
       </View>
     </Animated.View>

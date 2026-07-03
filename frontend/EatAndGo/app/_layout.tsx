@@ -4,7 +4,7 @@
 import 'intl-pluralrules';
 import '@/i18n';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import { router, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -65,7 +65,7 @@ function SystemBarsManager() {
 function SplashOverlay() {
   const { isLoading: authLoading } = useAuth();
   const [hasTimeout, setHasTimeout] = useState(false);
-  const [nativeSplashHidden, setNativeSplashHidden] = useState(false);
+  const nativeHideRequestedRef = useRef(false);
   const [introDone, setIntroDone] = useState(false);
 
   // Timeout de sécurité de 5 secondes
@@ -79,24 +79,25 @@ function SplashOverlay() {
   }, []);
 
   useEffect(() => {
-    if ((!authLoading || hasTimeout) && !nativeSplashHidden) {
+    // Ne déclenche hideAsync() qu'une seule fois, dès que prêt.
+    if ((!authLoading || hasTimeout) && !nativeHideRequestedRef.current) {
+      nativeHideRequestedRef.current = true;
       console.log(`📱 Masquage du splash natif - Auth chargée: ${!authLoading}, Timeout: ${hasTimeout}`);
-      SplashScreen.hideAsync()
-        .catch(() => {
-          // console.error('Erreur lors du masquage du splash screen:', error);
-        })
-        .finally(() => setNativeSplashHidden(true));
+      SplashScreen.hideAsync().catch(() => {
+        // console.error('Erreur lors du masquage du splash screen:', error);
+      });
     }
-  }, [authLoading, hasTimeout, nativeSplashHidden]);
+  }, [authLoading, hasTimeout]);
 
-  if (!nativeSplashHidden || introDone) {
+  if (introDone) {
     return null;
   }
 
-  // IMPORTANT : overlay flottant au-dessus du Stack déjà monté, pas un gate.
-  // Le root navigator d'expo-router doit rester monté dès le départ pour que
-  // AuthContext.checkAuth() puisse naviguer sans race condition ("before
-  // mounting Root Layout") — c'était la cause de la boucle précédente.
+  // IMPORTANT : monté dès le premier rendu, PAS seulement après hideAsync().
+  // SplashIntro est donc déjà peint (et opaque) sous le splash natif avant
+  // même que celui-ci commence à s'effacer — aucune fenêtre où le Stack en
+  // dessous pourrait apparaître entre la disparition du splash natif et le
+  // montage de l'overlay JS.
   return <SplashIntro onFinish={() => setIntroDone(true)} />;
 }
 
