@@ -2867,5 +2867,55 @@
     "streakCount_other": "Série de {{count}} commandes",
     "itemsCount_one": "{{count}} article",
     "itemsCount_other": "{{count}} articles"
+  },
+  "directory": {
+    "title": "Restaurants partenaires",
+    "searchPlaceholder": "Rechercher un restaurant…",
+    "filterCity": "Ville",
+    "filterCuisine": "Cuisine",
+    "all": "Toutes",
+    "nearby": "Autour de moi",
+    "activateNearby": "Activer « autour de moi »",
+    "new": "Nouveau",
+    "emptyCity": "Aucun restaurant partenaire à {{city}} pour le moment.",
+    "emptySearch": "Aucun restaurant ne correspond à votre recherche.",
+    "resultCount_one": "{{count}} restaurant",
+    "resultCount_other": "{{count}} restaurants"
+  },
+  "reviews": {
+    "yourReview": "Votre avis",
+    "verifiedPurchase": "Achat vérifié",
+    "verified": "Vérifié",
+    "publish": "Publier mon avis",
+    "commentPlaceholder": "Partagez votre expérience (facultatif)…",
+    "selectRating": "Sélectionnez une note.",
+    "submitError": "L'envoi de votre avis a échoué.",
+    "alreadyReviewed": "Vous avez déjà noté ce restaurant. Merci !",
+    "onlyCustomers": "Seuls les clients ayant commandé ici peuvent laisser un avis.",
+    "empty": "Aucun avis pour le moment. Soyez le premier !",
+    "starRating": "Noter {{value}} sur 5",
+    "moderation": {
+      "title": "Avis clients",
+      "notAuthorized": "Vous n'êtes pas autorisé à modérer ce restaurant.",
+      "loadError": "Chargement des avis impossible.",
+      "empty": "Aucun avis pour le moment.",
+      "hide": "Masquer",
+      "show": "Réafficher",
+      "statsVisible_one": "{{count}} visible",
+      "statsVisible_other": "{{count}} visibles",
+      "statsHidden_one": "{{count}} masqué",
+      "statsHidden_other": "{{count}} masqués"
+    }
+  },
+  "siret": {
+    "verifyFill": "Vérifier via l'INSEE et remplir",
+    "invalidFormat": "Le SIRET doit contenir 14 chiffres.",
+    "notFound": "SIRET introuvable ou service indisponible.",
+    "establishmentFound": "Établissement trouvé"
+  },
+  "restaurantMap": {
+    "seeMenu": "Voir le menu",
+    "notRatedYet": "Pas encore noté",
+    "empty": "Aucun restaurant à afficher sur la carte."
   }
 }

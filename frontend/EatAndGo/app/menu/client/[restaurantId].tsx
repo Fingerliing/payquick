@@ -45,6 +45,7 @@ import { SessionJoinModal } from '@/components/session/SessionJoinModal';
 import { Loading } from '@/components/ui/Loading';
 import { Alert as InlineAlert, AlertWithAction } from '@/components/ui/Alert';
 import { UnpaidOrderGate } from '@/components/guards/UnpaidOrderGate';
+import { RestaurantReviews } from '@/components/restaurant/RestaurantReviews';
 
 // Types
 import { Menu, MenuItem } from '@/types/menu';
@@ -248,6 +249,7 @@ const [activeSessionOnTable, setActiveSessionOnTable] = useState<any>(null);
 // ─── Langue d'affichage du menu (multilingue) ──────────────────────────────
 const [lang, setLang] = useState<string>('fr');
 const [showLanguagePicker, setShowLanguagePicker] = useState(false);
+const [showReviewsModal, setShowReviewsModal] = useState(false);
 const [availableLanguages, setAvailableLanguages] =
   useState<MenuLanguage[]>(MENU_LANGUAGES.slice(0, 1));
 
@@ -1124,6 +1126,28 @@ const handleOrderAloneFromMenu = useCallback(() => {
           )}
         </View>
 
+
+        {/* ─── Accès aux avis du restaurant ─────────────────────────── */}
+        {restaurant && (
+          <Pressable
+            onPress={() => setShowReviewsModal(true)}
+            style={({ pressed }) => [{
+              flexDirection: "row", alignItems: "center", gap: 8,
+              marginHorizontal: 16, marginTop: 8, marginBottom: 4,
+              paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12,
+              backgroundColor: colors.secondary + "14",
+              borderWidth: 1, borderColor: colors.secondary + "33",
+            }, pressed && { opacity: 0.9 }]}
+          >
+            <Ionicons name="star" size={16} color={colors.secondary} />
+            <Text style={{ flex: 1, fontSize: 13, fontWeight: "600", color: colors.text.primary }}>
+              {restaurant.rating
+                ? `${Number(restaurant.rating).toFixed(1)} · ${t("clientMenu.seeReviews", "Voir les avis")}`
+                : t("clientMenu.seeReviews", "Voir les avis")}
+            </Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.text.secondary} />
+          </Pressable>
+        )}
         {/* ─── Bandeau session active sur la table (hors session courante) ── */}
         {activeSessionOnTable && !effectiveSessionId && (
           <Pressable
@@ -1423,6 +1447,42 @@ const handleOrderAloneFromMenu = useCallback(() => {
           onOrderAlone={handleOrderAloneFromMenu}
         />
       )}
+
+      {/* Modal — Avis du restaurant */}
+      <Modal
+        visible={showReviewsModal}
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={() => setShowReviewsModal(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end" }}>
+          <View style={{
+            backgroundColor: colors.surface,
+            borderTopLeftRadius: 20, borderTopRightRadius: 20,
+            maxHeight: "85%", paddingTop: 12,
+          }}>
+            <View style={{
+              flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+              paddingHorizontal: 16, paddingBottom: 12,
+            }}>
+              <Text style={{ fontSize: 18, fontWeight: "700", color: colors.text.primary }}>
+                {t("clientMenu.reviewsTitle", "Avis")}
+              </Text>
+              <Pressable onPress={() => setShowReviewsModal(false)} hitSlop={8}>
+                <Ionicons name="close" size={24} color={colors.text.secondary} />
+              </Pressable>
+            </View>
+            <ScrollView
+              style={{ paddingHorizontal: 16 }}
+              contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+              keyboardShouldPersistTaps="handled"
+            >
+              <RestaurantReviews restaurantId={restaurantId} />
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       {/* Sélecteur de langue du menu */}
       <Modal

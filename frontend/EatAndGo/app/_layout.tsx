@@ -9,6 +9,7 @@ import { Platform } from 'react-native';
 import { router, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import * as NavigationBar from 'expo-navigation-bar';
 import * as SystemUI from 'expo-system-ui';
 
@@ -110,6 +111,7 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
+      <KeyboardProvider>
       {/*
         ThemeProvider et LanguageProvider sont placés au plus haut niveau
         (juste sous SafeAreaProvider) pour que TOUS les écrans, modales et
@@ -146,6 +148,7 @@ export default function RootLayout() {
           </LegalAcceptanceProvider>
         </LanguageProvider>
       </ThemeProvider>
+      </KeyboardProvider>
     </SafeAreaProvider>
   );
 }

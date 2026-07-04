@@ -2867,5 +2867,55 @@
     "streakCount_other": "Racha de {{count}} pedidos",
     "itemsCount_one": "{{count}} artículo",
     "itemsCount_other": "{{count}} artículos"
+  },
+  "directory": {
+    "title": "Restaurantes asociados",
+    "searchPlaceholder": "Buscar un restaurante…",
+    "filterCity": "Ciudad",
+    "filterCuisine": "Cocina",
+    "all": "Todas",
+    "nearby": "Cerca de mí",
+    "activateNearby": "Activar «cerca de mí»",
+    "new": "Nuevo",
+    "emptyCity": "Aún no hay restaurantes asociados en {{city}}.",
+    "emptySearch": "Ningún restaurante coincide con tu búsqueda.",
+    "resultCount_one": "{{count}} restaurante",
+    "resultCount_other": "{{count}} restaurantes"
+  },
+  "reviews": {
+    "yourReview": "Tu opinión",
+    "verifiedPurchase": "Compra verificada",
+    "verified": "Verificado",
+    "publish": "Publicar mi opinión",
+    "commentPlaceholder": "Comparte tu experiencia (opcional)…",
+    "selectRating": "Selecciona una valoración.",
+    "submitError": "No se pudo enviar tu opinión.",
+    "alreadyReviewed": "Ya has valorado este restaurante. ¡Gracias!",
+    "onlyCustomers": "Solo los clientes que han pedido aquí pueden dejar una opinión.",
+    "empty": "Aún no hay opiniones. ¡Sé el primero!",
+    "starRating": "Valorar {{value}} de 5",
+    "moderation": {
+      "title": "Opiniones de clientes",
+      "notAuthorized": "No tienes permiso para moderar este restaurante.",
+      "loadError": "No se pudieron cargar las opiniones.",
+      "empty": "Aún no hay opiniones.",
+      "hide": "Ocultar",
+      "show": "Mostrar",
+      "statsVisible_one": "{{count}} visible",
+      "statsVisible_other": "{{count}} visibles",
+      "statsHidden_one": "{{count}} oculta",
+      "statsHidden_other": "{{count}} ocultas"
+    }
+  },
+  "siret": {
+    "verifyFill": "Verificar con el INSEE y rellenar",
+    "invalidFormat": "El SIRET debe contener 14 dígitos.",
+    "notFound": "SIRET no encontrado o servicio no disponible.",
+    "establishmentFound": "Establecimiento encontrado"
+  },
+  "restaurantMap": {
+    "seeMenu": "Ver menú",
+    "notRatedYet": "Sin valoraciones aún",
+    "empty": "No hay restaurantes que mostrar en el mapa."
   }
 }

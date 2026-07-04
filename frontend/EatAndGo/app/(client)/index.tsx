@@ -10,11 +10,11 @@ import {
   ActivityIndicator,
   Modal,
   TextInput,
-  KeyboardAvoidingView,
   TouchableWithoutFeedback,
   Keyboard,
   TouchableOpacity,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
@@ -1087,6 +1087,28 @@ export default function ClientHome() {
   // l'accent pour rester cohérents avec le thème.
   // Mémoizé pour propager les changements de thème aux Pressable enfants.
   const quickActions = useMemo(() => [
+    ...(!hasActiveSession && !hasCompletedSession && !serverSession
+      ? [{
+          id: 'join-session',
+          icon: 'people-outline',
+          title: t('home.actions.joinSession.title'),
+          subtitle: t('home.actions.joinSession.subtitle'),
+          route: null,
+          iconBg: isDark ? 'rgba(99, 102, 241, 0.18)' : '#EEF2FF',
+          iconColor: SESSION_INDIGO,
+          onPress: handleOpenCodeModal,
+        }]
+      : []),
+    {
+      id: 'restaurants',
+      icon: 'restaurant-outline',
+      title: t('home.actions.discoverRestaurants.title', 'Restaurants partenaires'),
+      subtitle: t('home.actions.discoverRestaurants.subtitle', 'Parcourez et trouvez autour de vous'),
+      route: '/restaurant/directory',
+      iconBg: isDark ? 'rgba(30, 42, 120, 0.18)' : colors.variants.primary[50],
+      iconColor: colors.primary,
+      onPress: () => router.push('/restaurant/directory' as any),
+    },
     {
       id: 'orders',
       icon: 'receipt-outline',
@@ -1107,18 +1129,6 @@ export default function ClientHome() {
       iconColor: colors.success,
       onPress: () => router.push('/(client)/cart' as any),
     },
-    ...(!hasActiveSession && !hasCompletedSession && !serverSession
-      ? [{
-          id: 'join-session',
-          icon: 'people-outline',
-          title: t('home.actions.joinSession.title'),
-          subtitle: t('home.actions.joinSession.subtitle'),
-          route: null,
-          iconBg: isDark ? 'rgba(99, 102, 241, 0.18)' : '#EEF2FF',
-          iconColor: SESSION_INDIGO,
-          onPress: handleOpenCodeModal,
-        }]
-      : []),
   ], [colors, isDark, t, hasActiveSession, hasCompletedSession, serverSession]);
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -1462,11 +1472,15 @@ export default function ClientHome() {
         visible={codeModalVisible}
         transparent
         animationType="slide"
+        statusBarTranslucent
         onRequestClose={handleCloseCodeModal}
       >
         <TouchableWithoutFeedback onPress={handleCloseCodeModal}>
           <View style={viewStyles.modalOverlay}>
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <KeyboardAvoidingView
+              style={{ flex: 1, justifyContent: 'flex-end' }}
+              behavior="padding"
+            >
               <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                 <View style={viewStyles.modalSheet}>
                   <View style={viewStyles.modalHandle} />

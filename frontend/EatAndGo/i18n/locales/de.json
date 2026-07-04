@@ -2867,5 +2867,55 @@
     "streakCount_other": "Serie von {{count}} Bestellungen",
     "itemsCount_one": "{{count}} Artikel",
     "itemsCount_other": "{{count}} Artikel"
+  },
+  "directory": {
+    "title": "Partnerrestaurants",
+    "searchPlaceholder": "Restaurant suchen…",
+    "filterCity": "Stadt",
+    "filterCuisine": "Küche",
+    "all": "Alle",
+    "nearby": "In meiner Nähe",
+    "activateNearby": "„In meiner Nähe“ aktivieren",
+    "new": "Neu",
+    "emptyCity": "Noch keine Partnerrestaurants in {{city}}.",
+    "emptySearch": "Kein Restaurant entspricht deiner Suche.",
+    "resultCount_one": "{{count}} Restaurant",
+    "resultCount_other": "{{count}} Restaurants"
+  },
+  "reviews": {
+    "yourReview": "Deine Bewertung",
+    "verifiedPurchase": "Verifizierter Kauf",
+    "verified": "Verifiziert",
+    "publish": "Bewertung veröffentlichen",
+    "commentPlaceholder": "Teile deine Erfahrung (optional)…",
+    "selectRating": "Wähle eine Bewertung.",
+    "submitError": "Bewertung konnte nicht gesendet werden.",
+    "alreadyReviewed": "Du hast dieses Restaurant bereits bewertet. Danke!",
+    "onlyCustomers": "Nur Kunden, die hier bestellt haben, können eine Bewertung abgeben.",
+    "empty": "Noch keine Bewertungen. Sei der Erste!",
+    "starRating": "{{value}} von 5 bewerten",
+    "moderation": {
+      "title": "Kundenbewertungen",
+      "notAuthorized": "Du bist nicht berechtigt, dieses Restaurant zu moderieren.",
+      "loadError": "Bewertungen können nicht geladen werden.",
+      "empty": "Noch keine Bewertungen.",
+      "hide": "Ausblenden",
+      "show": "Einblenden",
+      "statsVisible_one": "{{count}} sichtbar",
+      "statsVisible_other": "{{count}} sichtbar",
+      "statsHidden_one": "{{count}} ausgeblendet",
+      "statsHidden_other": "{{count}} ausgeblendet"
+    }
+  },
+  "siret": {
+    "verifyFill": "Über INSEE prüfen und ausfüllen",
+    "invalidFormat": "Die SIRET muss 14 Ziffern enthalten.",
+    "notFound": "SIRET nicht gefunden oder Dienst nicht verfügbar.",
+    "establishmentFound": "Betrieb gefunden"
+  },
+  "restaurantMap": {
+    "seeMenu": "Menü ansehen",
+    "notRatedYet": "Noch nicht bewertet",
+    "empty": "Keine Restaurants auf der Karte anzuzeigen."
   }
 }
