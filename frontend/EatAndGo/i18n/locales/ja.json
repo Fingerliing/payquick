@@ -830,7 +830,14 @@
     "information": "情報",
     "helpFaq": "ヘルプ・FAQ",
     "contactUs": "お問い合わせ",
-    "personalData": "個人データ"
+    "personalData": "個人データ",
+    "editName": {
+      "title": "名前を編集",
+      "placeholder": "お名前",
+      "tooShort": "名前は2文字以上で入力してください。",
+      "tooLong": "名前は30文字以内で入力してください。",
+      "error": "名前を更新できませんでした。もう一度お試しください。"
+    }
   },
   "theme": {
     "title": "テーマ",

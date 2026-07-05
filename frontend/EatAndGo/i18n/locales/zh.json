@@ -830,7 +830,14 @@
     "information": "信息",
     "helpFaq": "帮助与常见问题",
     "contactUs": "联系我们",
-    "personalData": "个人数据"
+    "personalData": "个人数据",
+    "editName": {
+      "title": "编辑我的姓名",
+      "placeholder": "您的名字",
+      "tooShort": "姓名必须至少包含2个字符。",
+      "tooLong": "姓名不能超过30个字符。",
+      "error": "无法更新姓名，请重试。"
+    }
   },
   "theme": {
     "title": "主题",

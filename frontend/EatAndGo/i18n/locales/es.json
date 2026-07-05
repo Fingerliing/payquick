@@ -829,7 +829,14 @@
     "information": "Información",
     "helpFaq": "Ayuda y FAQ",
     "contactUs": "Contáctanos",
-    "personalData": "Datos personales"
+    "personalData": "Datos personales",
+    "editName": {
+      "title": "Editar mi nombre",
+      "placeholder": "Tu nombre",
+      "tooShort": "El nombre debe tener al menos 2 caracteres.",
+      "tooLong": "El nombre no puede superar los 30 caracteres.",
+      "error": "No se pudo actualizar el nombre. Inténtalo de nuevo."
+    }
   },
   "theme": {
     "title": "Tema",

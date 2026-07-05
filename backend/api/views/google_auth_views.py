@@ -105,6 +105,38 @@ def _verify_google_id_token(token: str):
     return idinfo
 
 
+# ─── Extraction du prénom depuis le payload Google ───────────────────────────
+
+def _extract_given_name(idinfo: dict) -> str:
+    """
+    Retourne le PRÉNOM (et seulement le prénom) à partir du payload Google.
+
+    Ordre de priorité :
+      1. `given_name` — c'est le champ dédié au prénom dans le payload OIDC,
+         à utiliser en priorité.
+      2. Si absent (profils incomplets, certains comptes Google Workspace
+         gérés par un admin qui n'a renseigné qu'un champ "nom complet"),
+         on retombe sur `name`, mais on ne prend QUE le premier "mot" —
+         jamais la chaîne complète. Sans ce découpage, `name` (qui peut être
+         un nom de famille seul, ou "Prénom Nom" complet) se retrouvait
+         stocké tel quel dans `User.first_name`, d'où le bug où le nom de
+         famille apparaissait à la place du prénom.
+      3. Si rien n'est exploitable, chaîne vide (le compte reste sans
+         prénom plutôt que d'hériter d'une valeur incorrecte).
+    """
+    given_name = (idinfo.get('given_name') or '').strip()
+    if given_name:
+        return given_name
+
+    full_name = (idinfo.get('name') or '').strip()
+    if full_name:
+        # On ne garde que le premier "mot" : approximation raisonnable du
+        # prénom, mais surtout jamais le nom complet ni le nom de famille.
+        return full_name.split(' ')[0]
+
+    return ''
+
+
 # ─── Recherche du User existant par email ────────────────────────────────────
 
 def _find_existing_user_by_email(email: str):
@@ -227,7 +259,7 @@ class GoogleLoginView(APIView):
             )
 
         google_sub = idinfo.get('sub')  # identifiant unique Google (stable)
-        given_name = idinfo.get('given_name') or idinfo.get('name') or ''
+        given_name = _extract_given_name(idinfo)
 
         try:
             with transaction.atomic():
@@ -246,6 +278,20 @@ class GoogleLoginView(APIView):
                         logger.info(
                             f"ClientProfile créé pour le compte existant {user.username} "
                             f"(sans profil préalable)"
+                        )
+
+                    # Si le compte n'a jamais eu de prénom enregistré (créé
+                    # avant ce correctif, ou compte historique sans nom), on
+                    # le complète avec la valeur (corrigée) tirée de Google.
+                    # On ne touche jamais à un first_name déjà renseigné pour
+                    # ne pas écraser une valeur que l'utilisateur aurait pu
+                    # modifier manuellement depuis.
+                    if not user.first_name and given_name:
+                        user.first_name = given_name[:30]
+                        user.save(update_fields=['first_name'])
+                        logger.info(
+                            f"first_name complété pour le compte existant "
+                            f"id={user.id} ('{given_name}')"
                         )
 
                     logger.info(

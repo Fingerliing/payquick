@@ -830,7 +830,14 @@
     "information": "Informazioa",
     "helpFaq": "Laguntza eta FAQ",
     "contactUs": "Jarri gurekin harremanetan",
-    "personalData": "Datu pertsonalak"
+    "personalData": "Datu pertsonalak",
+    "editName": {
+      "title": "Nire izena editatu",
+      "placeholder": "Zure izena",
+      "tooShort": "Izenak gutxienez 2 karaktere izan behar ditu.",
+      "tooLong": "Izenak ezin ditu 30 karaktere baino gehiago izan.",
+      "error": "Ezin izan da izena eguneratu. Saiatu berriro."
+    }
   },
   "theme": {
     "title": "Itxura",

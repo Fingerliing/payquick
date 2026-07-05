@@ -829,7 +829,14 @@
     "information": "Informatie",
     "helpFaq": "Help & FAQ",
     "contactUs": "Contact",
-    "personalData": "Persoonlijke gegevens"
+    "personalData": "Persoonlijke gegevens",
+    "editName": {
+      "title": "Mijn naam bewerken",
+      "placeholder": "Je voornaam",
+      "tooShort": "De naam moet minstens 2 tekens bevatten.",
+      "tooLong": "De naam mag niet langer zijn dan 30 tekens.",
+      "error": "Kan de naam niet bijwerken. Probeer het opnieuw."
+    }
   },
   "theme": {
     "title": "Thema",
