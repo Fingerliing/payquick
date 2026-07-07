@@ -1010,7 +1010,10 @@ export default function PaymentScreen() {
   }
 
   return (
-    <StripeProvider publishableKey={STRIPE_PUBLISHABLE_KEY}>
+    <StripeProvider
+      publishableKey={STRIPE_PUBLISHABLE_KEY}
+      merchantIdentifier="merchant.fr.fingerliing.EatQuickeR"
+    >
       <View style={styles.container}>
         <Header title={t('payment.title')} leftIcon="arrow-back" onLeftPress={() => router.back()} />
 
