@@ -341,7 +341,12 @@ export default function RestaurantDirectoryScreen() {
 
   return (
     <View style={styles.root}>
-      <Header title={t('directory.title')} includeSafeArea />
+      <Header
+        title={t('directory.title')}
+        leftIcon="arrow-back"
+        onLeftPress={() => router.back()}
+        includeSafeArea
+      />
 
       {renderFilters()}
 

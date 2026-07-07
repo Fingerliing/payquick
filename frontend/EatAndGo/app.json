@@ -63,6 +63,14 @@
       "expo-router",
       "expo-secure-store",
       [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ],
+      [
         "expo-local-authentication",
         {
           "faceIDPermission": "Autorisez $(PRODUCT_NAME) à utiliser Face ID pour vous reconnecter."

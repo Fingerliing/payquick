@@ -1139,8 +1139,8 @@ export default function ClientHome() {
     <View style={viewStyles.container}>
       <StatusBar
         barStyle={isDark ? 'light-content' : 'dark-content'}
-        backgroundColor={colors.background}
-        translucent={false}
+        backgroundColor="transparent"
+        translucent
       />
 
       <ScrollView
