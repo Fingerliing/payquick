@@ -334,6 +334,8 @@ export default function SplitPaymentScreen() {
         paymentIntentClientSecret: paymentData.client_secret,
         allowsDelayedPaymentMethods: false,
         defaultBillingDetails: { email: customerEmail || undefined },
+        applePay: { merchantCountryCode: 'FR' },
+        googlePay: { merchantCountryCode: 'FR', testEnv: false },
         appearance: {
           colors: {
             primary: COLORS.primary,
@@ -452,6 +454,8 @@ export default function SplitPaymentScreen() {
         paymentIntentClientSecret: paymentData.client_secret,
         allowsDelayedPaymentMethods: false,
         defaultBillingDetails: { email: customerEmail || undefined },
+        applePay: { merchantCountryCode: 'FR' },
+        googlePay: { merchantCountryCode: 'FR', testEnv: false },
         appearance: {
           colors: {
             primary: COLORS.primary,
