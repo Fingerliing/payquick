@@ -33,6 +33,7 @@ import {
 } from '@/utils/designSystem';
 import { MultiPeriodHoursEditor } from '@/components/restaurant/OpeningHoursEditor';
 import { Alert as InlineAlert } from '@/components/ui/Alert';
+import { RestaurantReviewsModeration } from '@/components/restaurant/RestaurantReviewsModeration';
 
 // Hook personnalisé pour la gestion de l'édition
 const useRestaurantEditing = (restaurant: any) => {
@@ -1806,6 +1807,12 @@ const RestaurantDetailPage = () => {
               <Ionicons name="chevron-forward" size={20} color={COLORS.text.secondary} />
             </TouchableOpacity>
           </View>
+        </Card>
+
+        {/* Avis clients (modération) */}
+        <Card style={dynamicStyles.card}>
+          <Text style={dynamicStyles.sectionTitleWithDivider}>Avis clients</Text>
+          <RestaurantReviewsModeration restaurantId={id} />
         </Card>
 
         {/* Zone de danger */}

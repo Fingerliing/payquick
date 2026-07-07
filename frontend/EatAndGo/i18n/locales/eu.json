@@ -830,7 +830,14 @@
     "information": "Informazioa",
     "helpFaq": "Laguntza eta FAQ",
     "contactUs": "Jarri gurekin harremanetan",
-    "personalData": "Datu pertsonalak"
+    "personalData": "Datu pertsonalak",
+    "editName": {
+      "title": "Nire izena editatu",
+      "placeholder": "Zure izena",
+      "tooShort": "Izenak gutxienez 2 karaktere izan behar ditu.",
+      "tooLong": "Izenak ezin ditu 30 karaktere baino gehiago izan.",
+      "error": "Ezin izan da izena eguneratu. Saiatu berriro."
+    }
   },
   "theme": {
     "title": "Itxura",
@@ -2868,5 +2875,55 @@
     "streakCount_other": "{{count}} eskaerako bolada",
     "itemsCount_one": "{{count}} artikulu",
     "itemsCount_other": "{{count}} artikulu"
+  },
+  "directory": {
+    "title": "Jatetxe bazkideak",
+    "searchPlaceholder": "Bilatu jatetxe bat…",
+    "filterCity": "Hiria",
+    "filterCuisine": "Sukaldaritza",
+    "all": "Guztiak",
+    "nearby": "Nire inguruan",
+    "activateNearby": "Gaitu «nire inguruan»",
+    "new": "Berria",
+    "emptyCity": "Oraindik ez dago jatetxe bazkiderik {{city}} hirian.",
+    "emptySearch": "Ez dago zure bilaketarekin bat datorren jatetxerik.",
+    "resultCount_one": "{{count}} jatetxe",
+    "resultCount_other": "{{count}} jatetxe"
+  },
+  "reviews": {
+    "yourReview": "Zure iritzia",
+    "verifiedPurchase": "Erosketa egiaztatua",
+    "verified": "Egiaztatua",
+    "publish": "Argitaratu nire iritzia",
+    "commentPlaceholder": "Partekatu zure esperientzia (aukerakoa)…",
+    "selectRating": "Hautatu balorazio bat.",
+    "submitError": "Zure iritzia bidaltzeak huts egin du.",
+    "alreadyReviewed": "Jatetxe hau dagoeneko baloratu duzu. Eskerrik asko!",
+    "onlyCustomers": "Hemen eskatu duten bezeroek soilik utz dezakete iritzia.",
+    "empty": "Oraindik ez dago iritzirik. Izan lehena!",
+    "starRating": "Baloratu {{value}} / 5",
+    "moderation": {
+      "title": "Bezeroen iritziak",
+      "notAuthorized": "Ez duzu jatetxe hau moderatzeko baimenik.",
+      "loadError": "Ezin izan dira iritziak kargatu.",
+      "empty": "Oraindik ez dago iritzirik.",
+      "hide": "Ezkutatu",
+      "show": "Erakutsi",
+      "statsVisible_one": "{{count}} ikusgai",
+      "statsVisible_other": "{{count}} ikusgai",
+      "statsHidden_one": "{{count}} ezkutatuta",
+      "statsHidden_other": "{{count}} ezkutatuta"
+    }
+  },
+  "siret": {
+    "verifyFill": "Egiaztatu INSEE bidez eta bete",
+    "invalidFormat": "SIRET zenbakiak 14 digitu izan behar ditu.",
+    "notFound": "SIRET ez da aurkitu edo zerbitzua ez dago erabilgarri.",
+    "establishmentFound": "Establezimendua aurkitu da"
+  },
+  "restaurantMap": {
+    "seeMenu": "Ikusi menua",
+    "notRatedYet": "Baloratu gabe oraindik",
+    "empty": "Ez dago jatetxerik mapan erakusteko."
   }
 }

@@ -3,6 +3,7 @@ from django.urls import path
 from api.views.auth_views import (
     RegisterView,
     MeView,
+    UpdateProfileView,
     LoginView,
     InitiateRegistrationView,
     VerifyRegistrationView,
@@ -29,6 +30,7 @@ urlpatterns = [
     # Login + profil
     path('login/', LoginView.as_view(), name='login'),
     path('me/', MeView.as_view(), name='me'),
+    path('profile/', UpdateProfileView.as_view(), name='update-profile'),
 
     # Connexion sociale
     path('google/', GoogleLoginView.as_view(), name='google-login'),

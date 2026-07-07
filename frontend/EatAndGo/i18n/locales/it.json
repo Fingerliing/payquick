@@ -829,7 +829,14 @@
     "information": "Informazioni",
     "helpFaq": "Aiuto e FAQ",
     "contactUs": "Contattaci",
-    "personalData": "Dati personali"
+    "personalData": "Dati personali",
+    "editName": {
+      "title": "Modifica il mio nome",
+      "placeholder": "Il tuo nome",
+      "tooShort": "Il nome deve contenere almeno 2 caratteri.",
+      "tooLong": "Il nome non può superare i 30 caratteri.",
+      "error": "Impossibile aggiornare il nome. Riprova."
+    }
   },
   "theme": {
     "title": "Tema",
@@ -2867,5 +2874,55 @@
     "streakCount_other": "Serie di {{count}} ordini",
     "itemsCount_one": "{{count}} articolo",
     "itemsCount_other": "{{count}} articoli"
+  },
+  "directory": {
+    "title": "Ristoranti partner",
+    "searchPlaceholder": "Cerca un ristorante…",
+    "filterCity": "Città",
+    "filterCuisine": "Cucina",
+    "all": "Tutte",
+    "nearby": "Vicino a me",
+    "activateNearby": "Attiva «vicino a me»",
+    "new": "Nuovo",
+    "emptyCity": "Ancora nessun ristorante partner a {{city}}.",
+    "emptySearch": "Nessun ristorante corrisponde alla tua ricerca.",
+    "resultCount_one": "{{count}} ristorante",
+    "resultCount_other": "{{count}} ristoranti"
+  },
+  "reviews": {
+    "yourReview": "La tua recensione",
+    "verifiedPurchase": "Acquisto verificato",
+    "verified": "Verificato",
+    "publish": "Pubblica la mia recensione",
+    "commentPlaceholder": "Condividi la tua esperienza (facoltativo)…",
+    "selectRating": "Seleziona una valutazione.",
+    "submitError": "Invio della recensione non riuscito.",
+    "alreadyReviewed": "Hai già recensito questo ristorante. Grazie!",
+    "onlyCustomers": "Solo i clienti che hanno ordinato qui possono lasciare una recensione.",
+    "empty": "Ancora nessuna recensione. Sii il primo!",
+    "starRating": "Vota {{value}} su 5",
+    "moderation": {
+      "title": "Recensioni dei clienti",
+      "notAuthorized": "Non sei autorizzato a moderare questo ristorante.",
+      "loadError": "Impossibile caricare le recensioni.",
+      "empty": "Ancora nessuna recensione.",
+      "hide": "Nascondi",
+      "show": "Mostra",
+      "statsVisible_one": "{{count}} visibile",
+      "statsVisible_other": "{{count}} visibili",
+      "statsHidden_one": "{{count}} nascosta",
+      "statsHidden_other": "{{count}} nascoste"
+    }
+  },
+  "siret": {
+    "verifyFill": "Verifica tramite INSEE e compila",
+    "invalidFormat": "Il SIRET deve contenere 14 cifre.",
+    "notFound": "SIRET non trovato o servizio non disponibile.",
+    "establishmentFound": "Struttura trovata"
+  },
+  "restaurantMap": {
+    "seeMenu": "Vedi menu",
+    "notRatedYet": "Non ancora valutato",
+    "empty": "Nessun ristorante da mostrare sulla mappa."
   }
 }

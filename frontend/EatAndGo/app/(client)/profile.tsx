@@ -5,8 +5,11 @@ import {
   ScrollView,
   Pressable,
   Modal,
+  TextInput,
+  Platform,
   useWindowDimensions,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -253,7 +256,7 @@ function PillBadge({
 export default function ClientProfileScreen() {
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
-  const { user, logout, isClient } = useAuth();
+  const { user, logout, isClient, updateProfile } = useAuth();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const screenType = useScreenType();
@@ -262,6 +265,53 @@ export default function ClientProfileScreen() {
   const { isLoading: ordersLoading, pagination } = useClientOrders();
 
   const [showLogoutAlert, setShowLogoutAlert] = useState(false);
+
+  // ── Édition du nom ────────────────────────────────────────────────────────
+  const [showEditNameModal, setShowEditNameModal] = useState(false);
+  const [nameInput, setNameInput] = useState('');
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [isSavingName, setIsSavingName] = useState(false);
+
+  const openEditNameModal = () => {
+    setNameInput(user?.first_name || '');
+    setNameError(null);
+    setShowEditNameModal(true);
+  };
+
+  const closeEditNameModal = () => {
+    if (isSavingName) return; // évite de fermer pendant l'enregistrement
+    setShowEditNameModal(false);
+  };
+
+  const handleSaveName = async () => {
+    const trimmed = nameInput.trim();
+
+    if (trimmed.length < 2) {
+      setNameError(t('profile.editName.tooShort'));
+      return;
+    }
+    if (trimmed.length > 30) {
+      setNameError(t('profile.editName.tooLong'));
+      return;
+    }
+
+    // Pas de changement réel → on ferme simplement
+    if (trimmed === user?.first_name) {
+      setShowEditNameModal(false);
+      return;
+    }
+
+    setNameError(null);
+    setIsSavingName(true);
+    try {
+      await updateProfile(trimmed);
+      setShowEditNameModal(false);
+    } catch (error: any) {
+      setNameError(error?.message || t('profile.editName.error'));
+    } finally {
+      setIsSavingName(false);
+    }
+  };
 
   const shadows = useMemo(() => makeShadows(colors), [colors]);
 
@@ -413,18 +463,41 @@ export default function ClientProfileScreen() {
                 width: layoutConfig.isTabletOrLarger ? undefined : '100%',
               }}
             >
-              {/* Nom */}
-              <Text
+              {/* Nom + bouton d'édition */}
+              <View
                 style={{
-                  fontSize: getResponsiveValue({ mobile: 22, tablet: 26, desktop: 30 }, screenType),
-                  fontWeight: TYPOGRAPHY.fontWeight.bold,
-                  color: colors.text.primary,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
                   marginBottom: 2,
-                  textAlign: layoutConfig.isTabletOrLarger ? 'left' : 'center',
+                  justifyContent: layoutConfig.isTabletOrLarger ? 'flex-start' : 'center',
                 }}
               >
-                {user.first_name || t('profile.defaultName')}
-              </Text>
+                <Text
+                  style={{
+                    fontSize: getResponsiveValue({ mobile: 22, tablet: 26, desktop: 30 }, screenType),
+                    fontWeight: TYPOGRAPHY.fontWeight.bold,
+                    color: colors.text.primary,
+                    textAlign: layoutConfig.isTabletOrLarger ? 'left' : 'center',
+                  }}
+                >
+                  {user.first_name || t('profile.defaultName')}
+                </Text>
+                <Pressable
+                  onPress={openEditNameModal}
+                  hitSlop={10}
+                  style={({ pressed }) => ({
+                    opacity: pressed ? 0.6 : 1,
+                    padding: 4,
+                  })}
+                >
+                  <Ionicons
+                    name="pencil"
+                    size={getResponsiveValue({ mobile: 16, tablet: 18, desktop: 20 }, screenType)}
+                    color={colors.text.secondary}
+                  />
+                </Pressable>
+              </View>
 
               {/* Email */}
               <Text
@@ -680,6 +753,118 @@ export default function ClientProfileScreen() {
             />
           </View>
         </View>
+      </Modal>
+
+      {/* ── Modal édition du nom ───────────────────────────────────────── */}
+      <Modal
+        transparent
+        visible={showEditNameModal}
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={closeEditNameModal}
+      >
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: colors.overlay,
+              justifyContent: 'center',
+              alignItems: 'center',
+              paddingHorizontal: getResponsiveValue(SPACING.xl, screenType),
+            }}
+          >
+            <View
+              style={{
+                width: '100%',
+                maxWidth: getResponsiveValue(
+                  { mobile: 360, tablet: 420, desktop: 460 },
+                  screenType
+                ),
+              }}
+            >
+              <Card padding="card">
+                <Text
+                  style={{
+                    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.lg, screenType),
+                    fontWeight: TYPOGRAPHY.fontWeight.bold,
+                    color: colors.text.primary,
+                    marginBottom: getResponsiveValue(SPACING.md, screenType),
+                  }}
+                >
+                  {t('profile.editName.title')}
+                </Text>
+
+                <TextInput
+                  value={nameInput}
+                  onChangeText={(text) => {
+                    setNameInput(text);
+                    if (nameError) setNameError(null);
+                  }}
+                  placeholder={t('profile.editName.placeholder')}
+                  placeholderTextColor={colors.text.secondary + '80'}
+                  autoFocus
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                  maxLength={30}
+                  editable={!isSavingName}
+                  returnKeyType="done"
+                  onSubmitEditing={handleSaveName}
+                  style={{
+                    borderWidth: 1,
+                    borderColor: nameError ? colors.error : colors.border.light,
+                    borderRadius: BORDER_RADIUS.md,
+                    paddingHorizontal: getResponsiveValue(SPACING.md, screenType),
+                    paddingVertical: getResponsiveValue(SPACING.sm, screenType),
+                    fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
+                    color: colors.text.primary,
+                    backgroundColor: colors.background,
+                  }}
+                />
+
+                {nameError && (
+                  <Text
+                    style={{
+                      color: colors.error,
+                      fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
+                      marginTop: getResponsiveValue(SPACING.xs, screenType),
+                    }}
+                  >
+                    {nameError}
+                  </Text>
+                )}
+
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    gap: getResponsiveValue(SPACING.sm, screenType),
+                    marginTop: getResponsiveValue(SPACING.lg, screenType),
+                  }}
+                >
+                  <Button
+                    title={t('common.cancel')}
+                    onPress={closeEditNameModal}
+                    variant="secondary"
+                    fullWidth
+                    disabled={isSavingName}
+                    style={{ flex: 1 }}
+                  />
+                  <Button
+                    title={t('common.save')}
+                    onPress={handleSaveName}
+                    variant="primary"
+                    fullWidth
+                    loading={isSavingName}
+                    disabled={isSavingName || nameInput.trim().length < 2}
+                    style={{ flex: 1 }}
+                  />
+                </View>
+              </Card>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <LegalFooter />

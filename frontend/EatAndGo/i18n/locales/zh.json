@@ -830,7 +830,14 @@
     "information": "信息",
     "helpFaq": "帮助与常见问题",
     "contactUs": "联系我们",
-    "personalData": "个人数据"
+    "personalData": "个人数据",
+    "editName": {
+      "title": "编辑我的姓名",
+      "placeholder": "您的名字",
+      "tooShort": "姓名必须至少包含2个字符。",
+      "tooLong": "姓名不能超过30个字符。",
+      "error": "无法更新姓名，请重试。"
+    }
   },
   "theme": {
     "title": "主题",
@@ -2868,5 +2875,55 @@
     "streakCount_other": "连续 {{count}} 笔订单",
     "itemsCount_one": "{{count}} 件",
     "itemsCount_other": "{{count}} 件"
+  },
+  "directory": {
+    "title": "合作餐厅",
+    "searchPlaceholder": "搜索餐厅…",
+    "filterCity": "城市",
+    "filterCuisine": "菜系",
+    "all": "全部",
+    "nearby": "附近",
+    "activateNearby": "开启「附近」",
+    "new": "新",
+    "emptyCity": "{{city}}暂无合作餐厅。",
+    "emptySearch": "没有符合搜索条件的餐厅。",
+    "resultCount_one": "{{count}} 家餐厅",
+    "resultCount_other": "{{count}} 家餐厅"
+  },
+  "reviews": {
+    "yourReview": "您的评价",
+    "verifiedPurchase": "已验证购买",
+    "verified": "已验证",
+    "publish": "发布我的评价",
+    "commentPlaceholder": "分享您的体验（可选）…",
+    "selectRating": "请选择评分。",
+    "submitError": "评价提交失败。",
+    "alreadyReviewed": "您已评价过这家餐厅。谢谢！",
+    "onlyCustomers": "只有在此下过单的顾客才能发表评价。",
+    "empty": "暂无评价。抢先评价吧！",
+    "starRating": "评分 {{value}}（满分5）",
+    "moderation": {
+      "title": "顾客评价",
+      "notAuthorized": "您无权管理此餐厅。",
+      "loadError": "无法加载评价。",
+      "empty": "暂无评价。",
+      "hide": "隐藏",
+      "show": "显示",
+      "statsVisible_one": "{{count}} 条可见",
+      "statsVisible_other": "{{count}} 条可见",
+      "statsHidden_one": "{{count}} 条隐藏",
+      "statsHidden_other": "{{count}} 条隐藏"
+    }
+  },
+  "siret": {
+    "verifyFill": "通过 INSEE 验证并填写",
+    "invalidFormat": "SIRET 必须为14位数字。",
+    "notFound": "未找到 SIRET 或服务不可用。",
+    "establishmentFound": "已找到机构"
+  },
+  "restaurantMap": {
+    "seeMenu": "查看菜单",
+    "notRatedYet": "暂无评分",
+    "empty": "地图上没有可显示的餐厅。"
   }
 }

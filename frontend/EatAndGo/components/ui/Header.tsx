@@ -10,6 +10,7 @@ import {
   StatusBar,
   Modal,
   FlatList,
+  LayoutChangeEvent,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -123,6 +124,25 @@ export const Header: React.FC<HeaderProps> = (props) => {
   const insets = useSafeAreaInsets();
   const headerHeight = COMPONENT_CONSTANTS.headerHeight[screenType];
 
+  // ── Mesure des zones gauche/droite pour un centrage réel du titre ─────
+  // Les deux zones ont des largeurs variables (0, 1, 2 ou 3 icônes...).
+  // On mesure chacune via onLayout et on prend la plus large des deux comme
+  // marge symétrique de la zone titre : ainsi le titre reste pile au centre
+  // de l'écran, quelle que soit l'asymétrie gauche/droite.
+  const MIN_SIDE = 52;
+  const [sideWidths, setSideWidths] = useState({ left: MIN_SIDE, right: MIN_SIDE });
+
+  const handleLeftLayout = (e: LayoutChangeEvent) => {
+    const w = Math.ceil(e.nativeEvent.layout.width);
+    setSideWidths((prev) => (prev.left === w ? prev : { ...prev, left: w }));
+  };
+  const handleRightLayout = (e: LayoutChangeEvent) => {
+    const w = Math.ceil(e.nativeEvent.layout.width);
+    setSideWidths((prev) => (prev.right === w ? prev : { ...prev, right: w }));
+  };
+
+  const sideMargin = Math.max(sideWidths.left, sideWidths.right, MIN_SIDE);
+
   // ── Animations ────────────────────────────────────────────────────────
   const titleOpacity = useRef(new Animated.Value(0)).current;
   const titleY       = useRef(new Animated.Value(10)).current;
@@ -218,7 +238,7 @@ export const Header: React.FC<HeaderProps> = (props) => {
           ]}
         >
           {/* Gauche */}
-          <View style={styles.side}>
+          <View style={styles.side} onLayout={handleLeftLayout}>
             {(showBackButton || leftIcon) && (
               <IconButton
                 icon={(leftIcon || 'arrow-back') as keyof typeof Ionicons.glyphMap}
@@ -231,8 +251,15 @@ export const Header: React.FC<HeaderProps> = (props) => {
             )}
           </View>
 
-          {/* Centre */}
-          <View style={styles.center}>
+          {/* Centre : positionné en absolu sur toute la largeur du header pour un
+              centrage réel à l'écran. `sideMargin` = largeur mesurée de la zone
+              gauche/droite la plus large, appliquée symétriquement des deux
+              côtés → le titre reste pile au milieu du header, icônes comprises.
+              pointerEvents="none" laisse passer les taps vers les boutons en dessous. */}
+          <View
+            style={[styles.centerAbsolute, { left: sideMargin, right: sideMargin }]}
+            pointerEvents="none"
+          >
             <Animated.Text
               numberOfLines={1}
               accessibilityRole="header"
@@ -251,7 +278,7 @@ export const Header: React.FC<HeaderProps> = (props) => {
           </View>
 
           {/* Droite : ordre = langue → thème → autres actions/icon → logout/right */}
-          <View style={[styles.side, styles.sideRight]}>
+          <View style={[styles.side, styles.sideRight]} onLayout={handleRightLayout}>
             {showLanguageSwitcher && <HeaderLanguageButton palette={palette} />}
             {showThemeSwitcher && <HeaderThemeButton palette={palette} />}
             {showLogout && logoutPosition === 'right' && (
@@ -610,9 +637,10 @@ const createStyles = (palette: HeaderPalette) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
+      position: 'relative',
     },
     side: {
-      width: 52,
+      minWidth: 52,
       alignItems: 'flex-start',
       justifyContent: 'center',
     },
@@ -622,14 +650,27 @@ const createStyles = (palette: HeaderPalette) =>
       justifyContent: 'flex-end',
       gap: 6,
       // Le côté droit doit pouvoir s'étendre quand on a 2-3 boutons (langue + thème + action)
-      width: 'auto',
+      minWidth: 52,
       flexShrink: 0,
     },
+    // Conservé pour compat éventuelle (non utilisé par le Header lui-même,
+    // le titre utilise désormais `centerAbsolute` ci-dessous).
     center: {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: 8,
+    },
+    // Centrage réel à l'écran : occupe toute la largeur du header. `left`/`right`
+    // sont fournis dynamiquement en inline style (= largeur mesurée de la zone
+    // gauche/droite la plus large) pour que le titre reste pile au centre,
+    // icônes comprises, quelle que soit l'asymétrie gauche/droite.
+    centerAbsolute: {
+      position: 'absolute',
+      top: 0,
+      bottom: 0,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     title: {
       fontWeight: '800',

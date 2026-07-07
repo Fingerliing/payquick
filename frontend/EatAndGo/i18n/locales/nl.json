@@ -829,7 +829,14 @@
     "information": "Informatie",
     "helpFaq": "Help & FAQ",
     "contactUs": "Contact",
-    "personalData": "Persoonlijke gegevens"
+    "personalData": "Persoonlijke gegevens",
+    "editName": {
+      "title": "Mijn naam bewerken",
+      "placeholder": "Je voornaam",
+      "tooShort": "De naam moet minstens 2 tekens bevatten.",
+      "tooLong": "De naam mag niet langer zijn dan 30 tekens.",
+      "error": "Kan de naam niet bijwerken. Probeer het opnieuw."
+    }
   },
   "theme": {
     "title": "Thema",
@@ -2867,5 +2874,55 @@
     "streakCount_other": "Reeks van {{count}} bestellingen",
     "itemsCount_one": "{{count}} item",
     "itemsCount_other": "{{count}} items"
+  },
+  "directory": {
+    "title": "Partnerrestaurants",
+    "searchPlaceholder": "Zoek een restaurant…",
+    "filterCity": "Stad",
+    "filterCuisine": "Keuken",
+    "all": "Alle",
+    "nearby": "Bij mij in de buurt",
+    "activateNearby": "‘Bij mij in de buurt’ inschakelen",
+    "new": "Nieuw",
+    "emptyCity": "Nog geen partnerrestaurants in {{city}}.",
+    "emptySearch": "Geen restaurant komt overeen met je zoekopdracht.",
+    "resultCount_one": "{{count}} restaurant",
+    "resultCount_other": "{{count}} restaurants"
+  },
+  "reviews": {
+    "yourReview": "Jouw beoordeling",
+    "verifiedPurchase": "Geverifieerde aankoop",
+    "verified": "Geverifieerd",
+    "publish": "Mijn beoordeling plaatsen",
+    "commentPlaceholder": "Deel je ervaring (optioneel)…",
+    "selectRating": "Selecteer een beoordeling.",
+    "submitError": "Verzenden van je beoordeling mislukt.",
+    "alreadyReviewed": "Je hebt dit restaurant al beoordeeld. Bedankt!",
+    "onlyCustomers": "Alleen klanten die hier hebben besteld, kunnen een beoordeling achterlaten.",
+    "empty": "Nog geen beoordelingen. Wees de eerste!",
+    "starRating": "Geef {{value}} van 5",
+    "moderation": {
+      "title": "Klantbeoordelingen",
+      "notAuthorized": "Je hebt geen toestemming om dit restaurant te modereren.",
+      "loadError": "Kan beoordelingen niet laden.",
+      "empty": "Nog geen beoordelingen.",
+      "hide": "Verbergen",
+      "show": "Tonen",
+      "statsVisible_one": "{{count}} zichtbaar",
+      "statsVisible_other": "{{count}} zichtbaar",
+      "statsHidden_one": "{{count}} verborgen",
+      "statsHidden_other": "{{count}} verborgen"
+    }
+  },
+  "siret": {
+    "verifyFill": "Verifiëren via INSEE en invullen",
+    "invalidFormat": "Het SIRET moet 14 cijfers bevatten.",
+    "notFound": "SIRET niet gevonden of dienst niet beschikbaar.",
+    "establishmentFound": "Vestiging gevonden"
+  },
+  "restaurantMap": {
+    "seeMenu": "Menu bekijken",
+    "notRatedYet": "Nog niet beoordeeld",
+    "empty": "Geen restaurant om op de kaart te tonen."
   }
 }

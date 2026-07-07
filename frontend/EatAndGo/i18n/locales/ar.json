@@ -830,7 +830,14 @@
     "information": "معلومات",
     "helpFaq": "المساعدة والأسئلة الشائعة",
     "contactUs": "اتصل بنا",
-    "personalData": "البيانات الشخصية"
+    "personalData": "البيانات الشخصية",
+    "editName": {
+      "title": "تعديل اسمي",
+      "placeholder": "اسمك",
+      "tooShort": "يجب أن يحتوي الاسم على حرفين على الأقل.",
+      "tooLong": "لا يمكن أن يتجاوز الاسم 30 حرفًا.",
+      "error": "تعذّر تحديث الاسم. حاول مرة أخرى."
+    }
   },
   "theme": {
     "title": "السمة",
@@ -2868,5 +2875,55 @@
     "streakCount_other": "سلسلة من {{count}} طلبات",
     "itemsCount_one": "{{count}} عنصر",
     "itemsCount_other": "{{count}} عناصر"
+  },
+  "directory": {
+    "title": "المطاعم الشريكة",
+    "searchPlaceholder": "ابحث عن مطعم…",
+    "filterCity": "المدينة",
+    "filterCuisine": "المطبخ",
+    "all": "الكل",
+    "nearby": "بالقرب مني",
+    "activateNearby": "تفعيل «بالقرب مني»",
+    "new": "جديد",
+    "emptyCity": "لا توجد مطاعم شريكة في {{city}} بعد.",
+    "emptySearch": "لا يوجد مطعم يطابق بحثك.",
+    "resultCount_one": "{{count}} مطعم",
+    "resultCount_other": "{{count}} مطاعم"
+  },
+  "reviews": {
+    "yourReview": "تقييمك",
+    "verifiedPurchase": "شراء موثّق",
+    "verified": "موثّق",
+    "publish": "نشر تقييمي",
+    "commentPlaceholder": "شارك تجربتك (اختياري)…",
+    "selectRating": "اختر تقييمًا.",
+    "submitError": "فشل إرسال تقييمك.",
+    "alreadyReviewed": "لقد قيّمت هذا المطعم بالفعل. شكرًا!",
+    "onlyCustomers": "يمكن فقط للعملاء الذين طلبوا هنا ترك تقييم.",
+    "empty": "لا توجد تقييمات بعد. كن أول من يقيّم!",
+    "starRating": "قيّم {{value}} من 5",
+    "moderation": {
+      "title": "تقييمات العملاء",
+      "notAuthorized": "ليس لديك صلاحية لإدارة هذا المطعم.",
+      "loadError": "تعذّر تحميل التقييمات.",
+      "empty": "لا توجد تقييمات بعد.",
+      "hide": "إخفاء",
+      "show": "إظهار",
+      "statsVisible_one": "{{count}} ظاهر",
+      "statsVisible_other": "{{count}} ظاهرة",
+      "statsHidden_one": "{{count}} مخفي",
+      "statsHidden_other": "{{count}} مخفية"
+    }
+  },
+  "siret": {
+    "verifyFill": "التحقق عبر INSEE والتعبئة",
+    "invalidFormat": "يجب أن يتكوّن رقم SIRET من 14 رقمًا.",
+    "notFound": "رقم SIRET غير موجود أو الخدمة غير متاحة.",
+    "establishmentFound": "تم العثور على المنشأة"
+  },
+  "restaurantMap": {
+    "seeMenu": "عرض القائمة",
+    "notRatedYet": "لم يُقيّم بعد",
+    "empty": "لا توجد مطاعم لعرضها على الخريطة."
   }
 }

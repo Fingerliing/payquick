@@ -6,11 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/images/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#1E3A5F"
-    },
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -102,30 +97,14 @@
         }
       ],
       [
-        "expo-camera",
+        "expo-splash-screen",
         {
-          "cameraPermission": "EatQuickeR utilise l'appareil photo pour scanner les QR codes de table.",
-          "recordAudioAndroid": false
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#0C1219"
         }
-      ],
-      [
-        "expo-image-picker",
-        {
-          "photosPermission": "EatQuickeR a besoin d'accéder à vos photos pour personnaliser votre profil ou ajouter une image à un plat.",
-          "cameraPermission": "EatQuickeR utilise l'appareil photo pour prendre une photo de profil ou d'un plat."
-        }
-      ],
-      [
-        "expo-build-properties",
-        {
-          "ios": {
-            "useFrameworks": "static"
-          }
-        }
-      ],
-      "@react-native-community/datetimepicker",
-      "expo-font",
-      "expo-web-browser"
+      ]
     ],
     "extra": {
       "apiUrl": "https://api.eatquicker.fr",

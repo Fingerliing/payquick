@@ -111,6 +111,11 @@ from .ai_menu_models import (
     SUPPORTED_LANGUAGES, SOURCE_LANGUAGE, DEFAULT_TARGET_LANGUAGES,
 )
 
+# Reviews
+from .review_models import (
+    RestaurantReview
+)
+
 __all__ = [
     # Validators
     'validate_siret',
@@ -198,4 +203,7 @@ __all__ = [
     'SUPPORTED_LANGUAGES',
     'SOURCE_LANGUAGE',
     'DEFAULT_TARGET_LANGUAGES',
+
+    # Reviews
+    'RestaurantReview',
 ]

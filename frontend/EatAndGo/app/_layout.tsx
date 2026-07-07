@@ -4,10 +4,12 @@
 import 'intl-pluralrules';
 import '@/i18n';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
-import { router, SplashScreen, Stack } from 'expo-router';
+import { router, Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import * as NavigationBar from 'expo-navigation-bar';
 import * as SystemUI from 'expo-system-ui';
 
@@ -25,9 +27,17 @@ import { NotificationProvider as PushNotificationProvider } from '@/contexts/Not
 import { SessionProvider } from '@/contexts/SessionContext';
 import { configureGoogleSignIn } from '@/services/googleAuthService';
 import { useAppTheme } from '@/utils/designSystem';
+import SplashIntro from '@/components/intro/SplashIntro';
 
 try {
   SplashScreen.preventAutoHideAsync();
+} catch {
+}
+
+// Transition douce (fade) quand on masque le splash natif, pour éviter
+// un cut brutal juste avant que SplashIntro prenne le relais.
+try {
+  SplashScreen.setOptions({ duration: 250, fade: true });
 } catch {
 }
 
@@ -53,9 +63,11 @@ function SystemBarsManager() {
   return null;
 }
 
-function SplashScreenManager({ children }: { children: React.ReactNode }) {
+function SplashOverlay() {
   const { isLoading: authLoading } = useAuth();
   const [hasTimeout, setHasTimeout] = useState(false);
+  const nativeHideRequestedRef = useRef(false);
+  const [introDone, setIntroDone] = useState(false);
 
   // Timeout de sécurité de 5 secondes
   useEffect(() => {
@@ -68,16 +80,26 @@ function SplashScreenManager({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // Cacher le splash screen si l'auth est chargée OU si on a timeout
-    if (!authLoading || hasTimeout) {
-      console.log(`📱 Masquage du splash screen - Auth chargée: ${!authLoading}, Timeout: ${hasTimeout}`);
+    // Ne déclenche hideAsync() qu'une seule fois, dès que prêt.
+    if ((!authLoading || hasTimeout) && !nativeHideRequestedRef.current) {
+      nativeHideRequestedRef.current = true;
+      console.log(`📱 Masquage du splash natif - Auth chargée: ${!authLoading}, Timeout: ${hasTimeout}`);
       SplashScreen.hideAsync().catch(() => {
         // console.error('Erreur lors du masquage du splash screen:', error);
       });
     }
   }, [authLoading, hasTimeout]);
 
-  return <>{children}</>;
+  if (introDone) {
+    return null;
+  }
+
+  // IMPORTANT : monté dès le premier rendu, PAS seulement après hideAsync().
+  // SplashIntro est donc déjà peint (et opaque) sous le splash natif avant
+  // même que celui-ci commence à s'effacer — aucune fenêtre où le Stack en
+  // dessous pourrait apparaître entre la disparition du splash natif et le
+  // montage de l'overlay JS.
+  return <SplashIntro onFinish={() => setIntroDone(true)} />;
 }
 
 export default function RootLayout() {
@@ -89,6 +111,7 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
+      <KeyboardProvider>
       {/*
         ThemeProvider et LanguageProvider sont placés au plus haut niveau
         (juste sous SafeAreaProvider) pour que TOUS les écrans, modales et
@@ -105,18 +128,18 @@ export default function RootLayout() {
                 <ComptabiliteProvider>
                   <OrderProvider>
                     <SessionProvider>
-                      <SplashScreenManager>
-                        <CartProvider>
-                          <PushNotificationProvider>
-                            <SessionNotificationProvider>
-                              <Stack screenOptions={{ headerShown: false }}>
-                                <Stack.Screen name="+not-found" />
-                              </Stack>
-                              <FirstLaunchLegalModal />
-                            </SessionNotificationProvider>
-                          </PushNotificationProvider>
-                        </CartProvider>
-                      </SplashScreenManager>
+                      <CartProvider>
+                        <PushNotificationProvider>
+                          <SessionNotificationProvider>
+                            <Stack screenOptions={{ headerShown: false }}>
+                              <Stack.Screen name="+not-found" />
+                            </Stack>
+                            <FirstLaunchLegalModal />
+                            {/* Overlay flottant, ne bloque jamais le montage du Stack ci-dessus */}
+                            <SplashOverlay />
+                          </SessionNotificationProvider>
+                        </PushNotificationProvider>
+                      </CartProvider>
                     </SessionProvider>
                   </OrderProvider>
                 </ComptabiliteProvider>
@@ -125,6 +148,7 @@ export default function RootLayout() {
           </LegalAcceptanceProvider>
         </LanguageProvider>
       </ThemeProvider>
+      </KeyboardProvider>
     </SafeAreaProvider>
   );
 }

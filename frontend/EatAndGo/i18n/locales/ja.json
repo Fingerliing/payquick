@@ -830,7 +830,14 @@
     "information": "情報",
     "helpFaq": "ヘルプ・FAQ",
     "contactUs": "お問い合わせ",
-    "personalData": "個人データ"
+    "personalData": "個人データ",
+    "editName": {
+      "title": "名前を編集",
+      "placeholder": "お名前",
+      "tooShort": "名前は2文字以上で入力してください。",
+      "tooLong": "名前は30文字以内で入力してください。",
+      "error": "名前を更新できませんでした。もう一度お試しください。"
+    }
   },
   "theme": {
     "title": "テーマ",
@@ -2868,5 +2875,55 @@
     "streakCount_other": "{{count}} 件連続の注文",
     "itemsCount_one": "{{count}} 品",
     "itemsCount_other": "{{count}} 品"
+  },
+  "directory": {
+    "title": "提携レストラン",
+    "searchPlaceholder": "レストランを検索…",
+    "filterCity": "都市",
+    "filterCuisine": "料理",
+    "all": "すべて",
+    "nearby": "現在地周辺",
+    "activateNearby": "「現在地周辺」を有効にする",
+    "new": "新着",
+    "emptyCity": "{{city}}にはまだ提携レストランがありません。",
+    "emptySearch": "検索に一致するレストランがありません。",
+    "resultCount_one": "{{count}} 件のレストラン",
+    "resultCount_other": "{{count}} 件のレストラン"
+  },
+  "reviews": {
+    "yourReview": "あなたのレビュー",
+    "verifiedPurchase": "購入確認済み",
+    "verified": "確認済み",
+    "publish": "レビューを投稿",
+    "commentPlaceholder": "体験を共有してください（任意）…",
+    "selectRating": "評価を選択してください。",
+    "submitError": "レビューの送信に失敗しました。",
+    "alreadyReviewed": "このレストランはすでに評価済みです。ありがとうございます！",
+    "onlyCustomers": "ここで注文したお客様のみレビューを投稿できます。",
+    "empty": "まだレビューがありません。最初のレビューを投稿しましょう！",
+    "starRating": "5段階中 {{value}} で評価",
+    "moderation": {
+      "title": "お客様のレビュー",
+      "notAuthorized": "このレストランを管理する権限がありません。",
+      "loadError": "レビューを読み込めません。",
+      "empty": "まだレビューがありません。",
+      "hide": "非表示",
+      "show": "表示",
+      "statsVisible_one": "{{count}} 件表示",
+      "statsVisible_other": "{{count}} 件表示",
+      "statsHidden_one": "{{count}} 件非表示",
+      "statsHidden_other": "{{count}} 件非表示"
+    }
+  },
+  "siret": {
+    "verifyFill": "INSEE で確認して入力",
+    "invalidFormat": "SIRET は14桁で入力してください。",
+    "notFound": "SIRET が見つからないか、サービスを利用できません。",
+    "establishmentFound": "事業所が見つかりました"
+  },
+  "restaurantMap": {
+    "seeMenu": "メニューを見る",
+    "notRatedYet": "未評価",
+    "empty": "地図に表示するレストランがありません。"
   }
 }

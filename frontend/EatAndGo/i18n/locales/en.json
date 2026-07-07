@@ -829,7 +829,14 @@
     "information": "Information",
     "helpFaq": "Help & FAQ",
     "contactUs": "Contact us",
-    "personalData": "Personal data"
+    "personalData": "Personal data",
+    "editName": {
+      "title": "Edit my name",
+      "placeholder": "Your first name",
+      "tooShort": "The name must contain at least 2 characters.",
+      "tooLong": "The name cannot exceed 30 characters.",
+      "error": "Unable to update the name. Please try again."
+    }
   },
   "theme": {
     "title": "Theme",
@@ -2867,5 +2874,55 @@
     "streakCount_other": "Streak of {{count}} orders",
     "itemsCount_one": "{{count}} item",
     "itemsCount_other": "{{count}} items"
+  },
+  "directory": {
+    "title": "Partner restaurants",
+    "searchPlaceholder": "Search for a restaurant…",
+    "filterCity": "City",
+    "filterCuisine": "Cuisine",
+    "all": "All",
+    "nearby": "Near me",
+    "activateNearby": "Enable “near me”",
+    "new": "New",
+    "emptyCity": "No partner restaurant in {{city}} yet.",
+    "emptySearch": "No restaurant matches your search.",
+    "resultCount_one": "{{count}} restaurant",
+    "resultCount_other": "{{count}} restaurants"
+  },
+  "reviews": {
+    "yourReview": "Your review",
+    "verifiedPurchase": "Verified purchase",
+    "verified": "Verified",
+    "publish": "Post my review",
+    "commentPlaceholder": "Share your experience (optional)…",
+    "selectRating": "Select a rating.",
+    "submitError": "Failed to submit your review.",
+    "alreadyReviewed": "You've already reviewed this restaurant. Thank you!",
+    "onlyCustomers": "Only customers who have ordered here can leave a review.",
+    "empty": "No reviews yet. Be the first!",
+    "starRating": "Rate {{value}} out of 5",
+    "moderation": {
+      "title": "Customer reviews",
+      "notAuthorized": "You are not allowed to moderate this restaurant.",
+      "loadError": "Unable to load reviews.",
+      "empty": "No reviews yet.",
+      "hide": "Hide",
+      "show": "Show",
+      "statsVisible_one": "{{count}} visible",
+      "statsVisible_other": "{{count}} visible",
+      "statsHidden_one": "{{count}} hidden",
+      "statsHidden_other": "{{count}} hidden"
+    }
+  },
+  "siret": {
+    "verifyFill": "Verify via INSEE and fill in",
+    "invalidFormat": "The SIRET must contain 14 digits.",
+    "notFound": "SIRET not found or service unavailable.",
+    "establishmentFound": "Establishment found"
+  },
+  "restaurantMap": {
+    "seeMenu": "See menu",
+    "notRatedYet": "Not rated yet",
+    "empty": "No restaurant to show on the map."
   }
 }

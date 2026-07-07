@@ -10,3 +10,4 @@ from .notification_serializers import *
 from .daily_menu_serializers import *
 from .menu_ai_serializers import *
 from .menu_translation_serializers import *
+from .review_serializers import *

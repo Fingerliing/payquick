@@ -50,6 +50,7 @@ const API_ENDPOINTS = {
     google: `${API_URL}/auth/google/`,
     user: `${API_URL}/auth/me/`,
     refresh: `${API_URL}/auth/refresh/`,
+    profile: `${API_URL}/auth/profile/`,
   },
 };
 
@@ -71,6 +72,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   refreshTokens: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  updateProfile: (firstName: string) => Promise<void>;
   
   // Utilitaires spécifiques
   isClient: boolean;
@@ -251,6 +253,13 @@ class ApiClient {
 
   async getCurrentUser(): Promise<User> {
     return this.request<User>(API_ENDPOINTS.auth.user);
+  }
+
+  async updateProfile(firstName: string): Promise<{ first_name: string }> {
+    return this.request<{ first_name: string }>(API_ENDPOINTS.auth.profile, {
+      method: 'PATCH',
+      body: JSON.stringify({ first_name: firstName }),
+    });
   }
 
   async refreshToken(refreshToken: string): Promise<{ access: string }> {
@@ -515,6 +524,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('❌ Erreur lors du rafraîchissement des données utilisateur:', error);
       handleError(error, 'refreshUser');
       throw error;
+    }
+  };
+
+  const updateProfile = async (firstName: string): Promise<void> => {
+    try {
+      clearError();
+      console.log('✏️ Mise à jour du nom...');
+
+      const response = await apiClient.updateProfile(firstName);
+
+      setUser((prev) => {
+        if (!prev) return prev;
+        const updated = { ...prev, first_name: response.first_name };
+        secureStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(updated));
+        return updated;
+      });
+
+      console.log('✅ Nom mis à jour avec succès');
+    } catch (error: any) {
+      console.error('❌ Erreur lors de la mise à jour du nom:', error);
+      handleError(error, 'updateProfile');
+      throw new Error(lastError || 'Erreur lors de la mise à jour du nom');
     }
   };
 
@@ -856,6 +887,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logout,
     refreshTokens,
     refreshUser,
+    updateProfile,
     
     // Utilitaires
     isClient,

@@ -829,7 +829,14 @@
     "information": "Informações",
     "helpFaq": "Ajuda e FAQ",
     "contactUs": "Contacte-nos",
-    "personalData": "Dados pessoais"
+    "personalData": "Dados pessoais",
+    "editName": {
+      "title": "Editar o meu nome",
+      "placeholder": "O seu nome",
+      "tooShort": "O nome deve ter pelo menos 2 caracteres.",
+      "tooLong": "O nome não pode ter mais de 30 caracteres.",
+      "error": "Não foi possível atualizar o nome. Tente novamente."
+    }
   },
   "theme": {
     "title": "Tema",
@@ -2867,5 +2874,55 @@
     "streakCount_other": "Sequência de {{count}} pedidos",
     "itemsCount_one": "{{count}} artigo",
     "itemsCount_other": "{{count}} artigos"
+  },
+  "directory": {
+    "title": "Restaurantes parceiros",
+    "searchPlaceholder": "Procurar um restaurante…",
+    "filterCity": "Cidade",
+    "filterCuisine": "Cozinha",
+    "all": "Todas",
+    "nearby": "Perto de mim",
+    "activateNearby": "Ativar «perto de mim»",
+    "new": "Novo",
+    "emptyCity": "Ainda não há restaurantes parceiros em {{city}}.",
+    "emptySearch": "Nenhum restaurante corresponde à sua pesquisa.",
+    "resultCount_one": "{{count}} restaurante",
+    "resultCount_other": "{{count}} restaurantes"
+  },
+  "reviews": {
+    "yourReview": "A sua avaliação",
+    "verifiedPurchase": "Compra verificada",
+    "verified": "Verificado",
+    "publish": "Publicar a minha avaliação",
+    "commentPlaceholder": "Partilhe a sua experiência (opcional)…",
+    "selectRating": "Selecione uma classificação.",
+    "submitError": "Falha ao enviar a sua avaliação.",
+    "alreadyReviewed": "Já avaliou este restaurante. Obrigado!",
+    "onlyCustomers": "Apenas os clientes que fizeram pedidos aqui podem deixar uma avaliação.",
+    "empty": "Ainda não há avaliações. Seja o primeiro!",
+    "starRating": "Avaliar {{value}} de 5",
+    "moderation": {
+      "title": "Avaliações dos clientes",
+      "notAuthorized": "Não tem permissão para moderar este restaurante.",
+      "loadError": "Não foi possível carregar as avaliações.",
+      "empty": "Ainda não há avaliações.",
+      "hide": "Ocultar",
+      "show": "Mostrar",
+      "statsVisible_one": "{{count}} visível",
+      "statsVisible_other": "{{count}} visíveis",
+      "statsHidden_one": "{{count}} oculta",
+      "statsHidden_other": "{{count}} ocultas"
+    }
+  },
+  "siret": {
+    "verifyFill": "Verificar via INSEE e preencher",
+    "invalidFormat": "O SIRET deve conter 14 dígitos.",
+    "notFound": "SIRET não encontrado ou serviço indisponível.",
+    "establishmentFound": "Estabelecimento encontrado"
+  },
+  "restaurantMap": {
+    "seeMenu": "Ver menu",
+    "notRatedYet": "Ainda sem avaliação",
+    "empty": "Nenhum restaurante para mostrar no mapa."
   }
 }

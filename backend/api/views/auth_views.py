@@ -1,6 +1,6 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status, serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
@@ -364,6 +364,70 @@ class MeView(APIView):
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+class UpdateProfileSerializer(serializers.Serializer):
+    """
+    Validation du nom fourni par le client.
+
+    Limité à `first_name` : c'est le seul champ "nom" utilisé côté
+    EatQuickeR (voir `UserResponseSerializer.get_nom`, qui fait
+    `obj.first_name or obj.username`). `last_name` n'est utilisé nulle part
+    ailleurs dans l'app.
+    """
+    first_name = serializers.CharField(max_length=30)
+
+    def validate_first_name(self, value):
+        value = value.strip()
+        if len(value) < 2:
+            raise serializers.ValidationError(
+                "Le nom doit contenir au moins 2 caractères."
+            )
+        return value
+
+
+@extend_schema(
+    tags=["Auth"],
+    summary="Mettre à jour le nom d'affichage",
+    description=(
+        "Permet à l'utilisateur connecté de modifier son nom d'affichage "
+        "(`first_name`). C'est le seul champ nom utilisé dans l'app, quel "
+        "que soit le mode de connexion (email/mot de passe, Google Sign-In)."
+    ),
+    request=UpdateProfileSerializer,
+    responses={
+        200: {
+            'type': 'object',
+            'properties': {
+                'first_name': {'type': 'string'},
+            },
+        },
+        400: {'description': "Nom invalide (vide ou trop court)"},
+        401: {'description': 'Token manquant ou invalide'},
+    },
+)
+class UpdateProfileView(APIView):
+    """
+    PATCH /api/v1/auth/profile/
+    Body : { "first_name": "Alice" }
+    """
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request):
+        serializer = UpdateProfileSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        user = request.user
+        new_name = serializer.validated_data['first_name']
+
+        user.first_name = new_name
+        user.save(update_fields=['first_name'])
+
+        logger.info(f"Nom mis à jour pour l'utilisateur id={user.id} : '{new_name}'")
+
+        return Response({'first_name': user.first_name}, status=status.HTTP_200_OK)
 
 
 @extend_schema(
