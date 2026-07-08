@@ -6,7 +6,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
-  StatusBar,
   Image,
   Dimensions,
 } from 'react-native';
@@ -14,6 +13,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { SystemBars } from 'react-native-edge-to-edge';
 import { useAuth } from '@/contexts/AuthContext';
 import { ApiClient } from '@/services/api';
 import { Button } from '@/components/ui/Button';
@@ -682,10 +682,13 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar 
-        barStyle="light-content" 
-        backgroundColor="#1E2A78" 
-        translucent={false}
+      {/*
+        Barres système séparées : le header est navy dans les 2 modes
+        → status bar toujours en icônes claires ; le bas de l'écran est
+        colors.background → la nav bar suit le thème.
+      */}
+      <SystemBars
+        style={{ statusBar: 'light', navigationBar: isDark ? 'light' : 'dark' }}
       />
 
       {/* AFFICHE L'ALERTE PERSONNALISÉE */}
