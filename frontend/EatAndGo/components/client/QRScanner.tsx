@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Alert, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Alert, Pressable, Linking } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -112,16 +112,35 @@ export default function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
   };
 
   if (!permission?.granted) {
+    // 🍎 Conformité App Store Guideline 5.1.1(iv) :
+    // - Le bouton du pré-prompt ne doit PAS reprendre le vocabulaire du
+    //   dialogue système ("Autoriser"/"Allow") → "Continuer".
+    // - Si la permission a été refusée définitivement (canAskAgain === false),
+    //   on informe l'utilisateur et on propose un lien vers les Réglages.
+    const permanentlyDenied = permission != null && !permission.canAskAgain;
+
     return (
       <View style={styles.permissionContainer}>
         <Ionicons name="camera-outline" size={64} color="#666" />
         <Text style={styles.permissionTitle}>Accès caméra requis</Text>
         <Text style={styles.permissionText}>
-          Pour scanner les QR codes, nous avons besoin d'accéder à votre caméra.
+          {permanentlyDenied
+            ? "L'accès à la caméra est désactivé. Vous pouvez l'activer dans les Réglages de votre appareil."
+            : "Pour scanner les QR codes, l'application a besoin d'accéder à votre caméra."}
         </Text>
-        <Pressable style={styles.permissionButton} onPress={requestPermission}>
-          <Text style={styles.permissionButtonText}>Autoriser</Text>
+        <Pressable
+          style={styles.permissionButton}
+          onPress={permanentlyDenied ? () => Linking.openSettings() : requestPermission}
+        >
+          <Text style={styles.permissionButtonText}>
+            {permanentlyDenied ? 'Ouvrir les Réglages' : 'Continuer'}
+          </Text>
         </Pressable>
+        {onClose && (
+          <Pressable style={styles.permissionSecondaryButton} onPress={onClose}>
+            <Text style={styles.permissionSecondaryText}>Retour</Text>
+          </Pressable>
+        )}
       </View>
     );
   }
@@ -272,5 +291,14 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  permissionSecondaryButton: {
+    marginTop: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  permissionSecondaryText: {
+    color: '#666',
+    fontSize: 15,
   },
 });

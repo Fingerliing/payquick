@@ -1034,7 +1034,9 @@
     "permission": {
       "title": "Se requiere acceso a la cámara",
       "description": "Para escanear códigos QR, necesitamos acceder a tu cámara.",
-      "allow": "Permitir"
+      "allow": "Continuar",
+      "openSettings": "Abrir Ajustes",
+      "deniedDescription": "El acceso a la cámara está desactivado. Puedes activarlo en los Ajustes de tu dispositivo."
     }
   },
   "restaurantNav": {

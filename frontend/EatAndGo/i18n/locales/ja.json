@@ -1035,7 +1035,9 @@
     "permission": {
       "title": "カメラのアクセスが必要です",
       "description": "QRコードをスキャンするため、カメラへのアクセスが必要です。",
-      "allow": "許可"
+      "allow": "続ける",
+      "openSettings": "設定を開く",
+      "deniedDescription": "カメラへのアクセスが無効になっています。デバイスの設定から有効にできます。"
     }
   },
   "restaurantNav": {

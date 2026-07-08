@@ -1034,7 +1034,9 @@
     "permission": {
       "title": "Accesso fotocamera richiesto",
       "description": "Per scansionare i QR code, abbiamo bisogno di accedere alla tua fotocamera.",
-      "allow": "Consenti"
+      "allow": "Continua",
+      "openSettings": "Apri Impostazioni",
+      "deniedDescription": "L'accesso alla fotocamera è disattivato. Puoi attivarlo nelle Impostazioni del tuo dispositivo."
     }
   },
   "restaurantNav": {

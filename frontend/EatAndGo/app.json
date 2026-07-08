@@ -112,7 +112,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#0C1219"
         }
-      ]
+      ],
+      "react-native-edge-to-edge"
     ],
     "extra": {
       "apiUrl": "https://api.eatquicker.fr",

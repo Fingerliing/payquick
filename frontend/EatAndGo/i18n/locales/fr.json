@@ -1034,7 +1034,9 @@
     "permission": {
       "title": "Accès caméra requis",
       "description": "Pour scanner les QR codes, nous avons besoin d'accéder à votre caméra.",
-      "allow": "Autoriser"
+      "allow": "Continuer",
+      "openSettings": "Ouvrir les Réglages",
+      "deniedDescription": "L'accès à la caméra est désactivé. Vous pouvez l'activer dans les Réglages de votre appareil."
     }
   },
   "restaurantNav": {

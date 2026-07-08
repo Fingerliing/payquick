@@ -1034,7 +1034,9 @@
     "permission": {
       "title": "Camera access required",
       "description": "To scan QR codes, we need access to your camera.",
-      "allow": "Allow"
+      "allow": "Continue",
+      "openSettings": "Open Settings",
+      "deniedDescription": "Camera access is disabled. You can enable it in your device Settings."
     }
   },
   "restaurantNav": {

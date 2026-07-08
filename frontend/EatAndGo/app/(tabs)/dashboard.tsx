@@ -5,11 +5,11 @@ import {
   ScrollView,
   RefreshControl,
   TouchableOpacity,
-  StatusBar,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { SystemBars } from 'react-native-edge-to-edge';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { TYPOGRAPHY, SPACING, RADIUS } from '@/styles/tokens';
@@ -145,7 +145,6 @@ export default function DashboardScreen() {
   const shadows = React.useMemo(() => makeShadows(colors), [colors]);
   // Dégradé header : navy de marque en clair, bleu nuit en dark.
   const headerGradient = (isDark ? ['#070B18', '#0F1528'] : ['#1E2A78', '#3B4695']) as [string, string];
-  const statusBarBg = isDark ? '#070B18' : '#1E2A78';
   const FAB_ICON = '#1E2A78'; // icône foncée stable sur le FAB doré
 
   // QUICK ACTIONS ADAPTATIVES
@@ -777,7 +776,11 @@ export default function DashboardScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={statusBarBg} />
+      {/*
+        Header navy dans les 2 modes → status bar en icônes claires.
+        Nav bar non ciblée : pilotée par le SystemBarsManager du root.
+      */}
+      <SystemBars style={{ statusBar: 'light' }} />
       
       {/* HEADER AVEC GRADIENT */}
       <View style={styles.header}>

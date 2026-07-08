@@ -1035,7 +1035,9 @@
     "permission": {
       "title": "Kamera-baimena behar da",
       "description": "QR kodeak eskaneatzeko, kamerara sartzeko baimena behar dugu.",
-      "allow": "Baimendu"
+      "allow": "Jarraitu",
+      "openSettings": "Ireki Ezarpenak",
+      "deniedDescription": "Kamerarako sarbidea desgaituta dago. Gailuaren Ezarpenetan gaitu dezakezu."
     }
   },
   "restaurantNav": {

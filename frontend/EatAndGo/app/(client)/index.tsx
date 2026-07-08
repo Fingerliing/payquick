@@ -3,7 +3,6 @@ import {
   View,
   Text,
   Pressable,
-  StatusBar,
   Platform,
   useWindowDimensions,
   ScrollView,
@@ -1137,12 +1136,7 @@ export default function ClientHome() {
 
   return (
     <View style={viewStyles.container}>
-      <StatusBar
-        barStyle={isDark ? 'light-content' : 'dark-content'}
-        backgroundColor="transparent"
-        translucent
-      />
-
+      {/* Barres système : gérées par le SystemBarsManager du root (thème) */}
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={viewStyles.scrollContainer}

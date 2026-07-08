@@ -7,7 +7,6 @@ import {
   Animated,
   Platform,
   StyleSheet,
-  StatusBar,
   Modal,
   FlatList,
   LayoutChangeEvent,
@@ -15,6 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SystemBars } from 'react-native-edge-to-edge';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -211,12 +211,13 @@ export const Header: React.FC<HeaderProps> = (props) => {
 
   return (
     <>
-      {/* Icônes système (heure, batterie…) toujours en blanc — fond du header sombre */}
-      <StatusBar
-        barStyle="light-content"
-        backgroundColor={resolvedBg}
-        translucent={false}
-      />
+      {/*
+        Icônes système (heure, batterie…) en blanc — fond du header sombre.
+        Ne cible QUE la status bar : la nav bar reste pilotée par le
+        SystemBarsManager du root (suivi du thème). Empilé au montage,
+        restauré au démontage — pas d'écrasement global comme le StatusBar RN.
+      */}
+      <SystemBars style={{ statusBar: 'light' }} />
 
       {includeSafeArea && insets.top > 0 && (
         <View style={{ height: insets.top, backgroundColor: resolvedBg }} />
