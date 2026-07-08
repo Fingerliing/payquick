@@ -1034,7 +1034,9 @@
     "permission": {
       "title": "Acesso à câmara necessário",
       "description": "Para digitalizar QR codes, precisamos de aceder à sua câmara.",
-      "allow": "Permitir"
+      "allow": "Continuar",
+      "openSettings": "Abrir Definições",
+      "deniedDescription": "O acesso à câmara está desativado. Pode ativá-lo nas Definições do seu dispositivo."
     }
   },
   "restaurantNav": {

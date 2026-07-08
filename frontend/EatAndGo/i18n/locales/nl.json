@@ -1034,7 +1034,9 @@
     "permission": {
       "title": "Cameratoegang vereist",
       "description": "Om QR-codes te scannen hebben we toegang tot je camera nodig.",
-      "allow": "Toestaan"
+      "allow": "Doorgaan",
+      "openSettings": "Instellingen openen",
+      "deniedDescription": "Cameratoegang is uitgeschakeld. Je kunt deze inschakelen in de Instellingen van je apparaat."
     }
   },
   "restaurantNav": {
