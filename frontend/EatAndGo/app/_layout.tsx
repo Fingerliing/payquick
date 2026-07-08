@@ -112,7 +112,13 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <KeyboardProvider>
+      {/*
+        statusBarTranslucent / navigationBarTranslucent : sans ces props,
+        KeyboardProvider ré-applique un padding haut/bas "à la RN classique",
+        ce qui crée une bande blanche derrière la status bar et casse
+        l'edge-to-edge (les icônes système deviennent invisibles en light).
+      */}
+      <KeyboardProvider statusBarTranslucent navigationBarTranslucent>
       {/*
         ThemeProvider et LanguageProvider sont placés au plus haut niveau
         (juste sous SafeAreaProvider) pour que TOUS les écrans, modales et

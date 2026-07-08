@@ -6,7 +6,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
-  StatusBar,
   TextInput,
   ActivityIndicator,
 } from 'react-native';
@@ -14,6 +13,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { SystemBars } from 'react-native-edge-to-edge';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { Alert as CustomAlert } from '@/components/ui/Alert';
@@ -407,7 +407,8 @@ export default function VerifyEmailScreen() {
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
     >
-      <StatusBar barStyle="light-content" />
+      {/* Gradient sombre dans les 2 modes → icônes système claires */}
+      <SystemBars style="light" />
 
       <KeyboardAvoidingView
         style={styles.container}
