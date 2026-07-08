@@ -18,13 +18,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
-  StatusBar,
   ScrollView,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { SystemBars } from 'react-native-edge-to-edge';
 
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
@@ -249,7 +249,8 @@ export default function ForgotPasswordScreen() {
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
     >
-      <StatusBar barStyle="light-content" />
+      {/* Gradient sombre dans les 2 modes → icônes système claires */}
+      <SystemBars style="light" />
 
       <KeyboardAvoidingView
         style={styles.container}

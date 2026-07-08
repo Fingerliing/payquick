@@ -10,7 +10,7 @@ import { router, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
-import * as NavigationBar from 'expo-navigation-bar';
+import { SystemBars } from 'react-native-edge-to-edge';
 import * as SystemUI from 'expo-system-ui';
 
 import { ThemeProvider } from '@/contexts/ThemeContext';
@@ -42,8 +42,11 @@ try {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Pilote la barre de navigation Android (boutons) + le fond de fenêtre
-// derrière les barres système, en fonction du thème courant.
+// Pilote les barres système Android (status bar + nav bar) selon le thème.
+// Avec edgeToEdgeEnabled, expo-navigation-bar.setButtonStyleAsync est déprécié
+// et sans effet : on passe par <SystemBars> (react-native-edge-to-edge), qui
+// gère les icônes des DEUX barres. Les écrans peuvent surcharger localement en
+// montant leur propre <SystemBars> (empilé, restauré au démontage).
 // Doit être monté SOUS ThemeProvider pour pouvoir lire useAppTheme().
 // ────────────────────────────────────────────────────────────────────────────
 function SystemBarsManager() {
@@ -53,14 +56,12 @@ function SystemBarsManager() {
     if (Platform.OS !== 'android') return;
 
     // Fond de fenêtre derrière les barres système (edge-to-edge) :
-    // c'est lui qui rend la zone de la barre de nav "bleu nuit" en dark.
+    // utile sur nav 3 boutons / anciens Android, "bleu nuit" en dark.
     SystemUI.setBackgroundColorAsync(colors.background);
+  }, [colors.background]);
 
-    // Icônes des boutons : clairs sur fond navy, sombres en mode clair.
-    NavigationBar.setButtonStyleAsync(isDark ? 'light' : 'dark');
-  }, [isDark, colors.background]);
-
-  return null;
+  // 'light' = icônes claires (fond sombre), 'dark' = icônes sombres (fond clair)
+  return <SystemBars style={isDark ? 'light' : 'dark'} />;
 }
 
 function SplashOverlay() {

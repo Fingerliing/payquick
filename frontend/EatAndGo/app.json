@@ -32,7 +32,9 @@
       "expo-secure-store",
       [
         "expo-local-authentication",
-        { "faceIDPermission": "Autorisez $(PRODUCT_NAME) à utiliser Face ID pour vous reconnecter." }
+        {
+          "faceIDPermission": "Autorisez $(PRODUCT_NAME) à utiliser Face ID pour vous reconnecter."
+        }
       ],
       [
         "expo-navigation-bar",
@@ -70,7 +72,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#0C1219"
         }
-      ]
+      ],
+      "react-native-edge-to-edge"
     ],
     "extra": {
       "apiUrl": "https://api.eatquicker.fr",
