@@ -193,7 +193,8 @@ REST_FRAMEWORK = {
         "qrcode": "5/min",
         "stripe_checkout": "3/min",
         "password_reset": "3/min",       # reset mot de passe — anti-spam burst
-        "password_reset_hour": "15/hour" # reset mot de passe — anti-énumération lent
+        "password_reset_hour": "15/hour", # reset mot de passe — anti-énumération lent
+        "reservation_create": "10/hour",  # création de réservation (anti-spam créneaux)
     },
 }
 
@@ -240,6 +241,18 @@ STRIPE_SECRET_KEY = config("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET = config("STRIPE_WEBHOOK_SECRET")
 STRIPE_CONNECT_WEBHOOK_SECRET = config("STRIPE_CONNECT_WEBHOOK_SECRET", default="")
 DOMAIN = config("DOMAIN")
+
+# ── Réservations ─────────────────────────────────────────────────────────────
+# Durée de blocage du créneau en attente du paiement de la pré-commande.
+RESERVATION_PAYMENT_HOLD_MINUTES = config(
+    "RESERVATION_PAYMENT_HOLD_MINUTES", default=15, cast=int
+)
+# Fenêtre de remboursement intégral : annulation jusqu'à T - X minutes.
+# ⚠️ Toute modification doit être répercutée dans les CGV et sur l'écran
+# de paiement (information précontractuelle, art. L221-5 C. conso).
+RESERVATION_FREE_CANCELLATION_MINUTES = config(
+    "RESERVATION_FREE_CANCELLATION_MINUTES", default=120, cast=int
+)
 
 # ── Google OAuth ─────────────────────────────────────────────────────────────
 # Liste des Client IDs autorisés à émettre des id_tokens pour notre app.

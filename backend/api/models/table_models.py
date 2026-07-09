@@ -48,6 +48,29 @@ class Table(models.Model):
         verbose_name="Code QR",
         help_text="Identifiant unique pour le QR code (généré automatiquement)"
     )
+    # ── Plan de salle ──────────────────────────────────────────────────
+    pos_x = models.FloatField(
+        null=True, blank=True,
+        verbose_name="Position X",
+        help_text="Position X relative sur le plan (0..1). NULL = jamais placée"
+    )
+    pos_y = models.FloatField(
+        null=True, blank=True,
+        verbose_name="Position Y",
+        help_text="Position Y relative sur le plan (0..1). NULL = jamais placée"
+    )
+    shape = models.CharField(
+        max_length=10,
+        choices=[('square', 'Carrée'), ('round', 'Ronde'), ('rect', 'Rectangle')],
+        default='square',
+        verbose_name="Forme"
+    )
+    zone = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name="Zone",
+        help_text="Zone du restaurant (Salle, Terrasse, Étage...)"
+    )
     created_at = models.DateTimeField(
         auto_now_add=True,
         verbose_name="Créé le"

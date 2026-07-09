@@ -616,6 +616,148 @@ class SessionConsumer(BaseAuthenticatedConsumer):
             logger.error(f"Error sending session status: {e}")
 
 
+class FloorPlanConsumer(BaseAuthenticatedConsumer):
+    """
+    Consumer WebSocket du plan de salle restaurateur.
+
+    URL : ws/floorplan/<restaurant_id>/?token=<JWT>
+
+    Sécurité — authentification ET autorisation AVANT accept() :
+      1. Token JWT obligatoire (contrairement à SessionConsumer, pas d'invité)
+      2. L'utilisateur doit être LE restaurateur propriétaire du restaurant
+    Un tiers ne rejoint jamais le groupe et ne reçoit aucun événement.
+
+    Socket unidirectionnel (serveur → client) : seul un ping est toléré en
+    entrée, toute mutation passe par l'API REST (permissions DRF).
+    Le payload poussé ne contient aucune donnée métier — le client refait
+    un GET /floor-plan/ (débounce côté client).
+    """
+
+    async def connect(self):
+        """Gérer la connexion WebSocket du plan de salle"""
+        try:
+            self.restaurant_id = self.scope['url_route']['kwargs']['restaurant_id']
+            self.floorplan_group_name = f'floorplan_{self.restaurant_id}'
+
+            # 1. Récupérer et valider le token (OBLIGATOIRE)
+            query_string = self.scope.get('query_string', b'').decode()
+            query_params = dict(param.split('=') for param in query_string.split('&') if '=' in param)
+            token = query_params.get('token')
+
+            if not token:
+                logger.warning("FloorPlanWS: No token provided")
+                await self.close(code=4001)
+                return
+
+            # 2. Authentifier l'utilisateur
+            user = await self.authenticate_connection(token)
+            if not user:
+                logger.warning("FloorPlanWS: Authentication failed")
+                await self.close(code=4003)
+                return
+
+            # 3. Autorisation : owner du restaurant uniquement
+            #    (vérification AVANT accept — pas de BOLA)
+            is_owner = await self.check_restaurant_owner(user, self.restaurant_id)
+            if not is_owner:
+                logger.warning(
+                    f"FloorPlanWS: User {user.id} is not owner of restaurant {self.restaurant_id}"
+                )
+                await self.close(code=4403)
+                return
+
+            self.user = user
+
+            # 4. Rejoindre le groupe puis accepter
+            await self.channel_layer.group_add(
+                self.floorplan_group_name,
+                self.channel_name
+            )
+            await self.accept()
+
+            # 5. Confirmer la connexion
+            await self.send(text_data=json.dumps({
+                'type': 'connected',
+                'message': 'Connected to floor plan',
+                'restaurant_id': str(self.restaurant_id),
+                'timestamp': time.time()
+            }))
+
+            logger.info(
+                f"FloorPlanWS connected: restaurant {self.restaurant_id}, user {user.id}"
+            )
+
+        except Exception as e:
+            logger.error(f"FloorPlanWS connection error: {e}")
+            await self.close(code=4000)
+
+    async def disconnect(self, close_code):
+        """Gérer la déconnexion"""
+        try:
+            if hasattr(self, 'floorplan_group_name'):
+                await self.channel_layer.group_discard(
+                    self.floorplan_group_name,
+                    self.channel_name
+                )
+                logger.info(
+                    f"FloorPlanWS disconnected: restaurant {self.restaurant_id}, code {close_code}"
+                )
+        except Exception as e:
+            logger.error(f"FloorPlanWS disconnect error: {e}")
+
+    async def receive(self, text_data):
+        """Gérer les messages reçus — ping uniquement, socket unidirectionnel"""
+        try:
+            data = json.loads(text_data)
+            message_type = data.get('type')
+
+            if message_type == 'ping':
+                await self.send(text_data=json.dumps({
+                    'type': 'pong',
+                    'timestamp': time.time()
+                }))
+            else:
+                logger.warning(f"FloorPlanWS: Unknown message type: {message_type}")
+
+        except json.JSONDecodeError:
+            logger.error("FloorPlanWS: Invalid JSON received")
+        except Exception as e:
+            logger.error(f"FloorPlanWS: Error processing message: {e}")
+
+    # ==================== HANDLERS POUR ÉVÉNEMENTS PLAN DE SALLE ====================
+
+    async def floorplan_update(self, event):
+        """
+        Handler pour les mises à jour du plan de salle
+        Appelé par notify_floorplan_update() (api.utils.floorplan_notifications)
+        via group_send type='floorplan.update'
+        """
+        try:
+            await self.send(text_data=json.dumps({
+                'type': 'floorplan_update',
+                'event': event.get('event', 'update'),
+                'table_id': event.get('table_id'),
+                'timestamp': event.get('timestamp')
+            }))
+        except Exception as e:
+            logger.error(f"FloorPlanWS: Error sending update: {e}")
+
+    # ==================== HELPERS ====================
+
+    @database_sync_to_async
+    def check_restaurant_owner(self, user, restaurant_id):
+        """Vérifie que l'utilisateur est le restaurateur owner du restaurant"""
+        from api.models import Restaurant
+        try:
+            restaurant = Restaurant.objects.select_related('owner').get(
+                id=restaurant_id
+            )
+        except (Restaurant.DoesNotExist, ValueError, TypeError):
+            return False
+        profile = getattr(user, 'restaurateur_profile', None)
+        return profile is not None and restaurant.owner_id == profile.id
+
+
 # ==================== FONCTIONS UTILITAIRES POUR NOTIFICATIONS ====================
 
 from channels.layers import get_channel_layer

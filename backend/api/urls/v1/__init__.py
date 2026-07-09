@@ -58,4 +58,10 @@ urlpatterns = [
 
     # AI Menu
     path('menu-ai/', include('api.urls.v1.menu_ai_urls')),
+
+    # Reservations
+    path('reservations/', include('api.urls.v1.reservation_urls')),
+
+    # Plan de salle (restaurateur)
+    path('floor-plan/', include('api.urls.v1.floor_plan_urls')),
 ]

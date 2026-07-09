@@ -50,6 +50,30 @@ app.conf.update(
             'kwargs': {'days': 30},
             'options': {'expires': 3600},
         },
+        # ── Réservations ───────────────────────────────────────────────
+        # 60s : déclenchement cuisine à starts_at - prep_lead_minutes.
+        # La précision de cette tâche conditionne le "service rapide" —
+        # ne pas passer en crontab minute='*/5'.
+        'fire-scheduled-preorders': {
+            'task': 'api.tasks.fire_scheduled_preorders',
+            'schedule': 60.0,
+            'options': {'expires': 55},
+        },
+        'expire-pending-reservations': {
+            'task': 'api.tasks.expire_pending_reservations',
+            'schedule': 60.0,
+            'options': {'expires': 55},
+        },
+        'mark-reservation-no-shows': {
+            'task': 'api.tasks.mark_reservation_no_shows',
+            'schedule': crontab(minute='*/5'),
+            'options': {'expires': 240},
+        },
+        'auto-release-occupancies': {
+            'task': 'api.tasks.auto_release_occupancies',
+            'schedule': crontab(minute='*/5'),
+            'options': {'expires': 240},
+        },
     },
 )
 

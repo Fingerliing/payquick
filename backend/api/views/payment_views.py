@@ -429,6 +429,27 @@ class StripeWebhookView(APIView):
         if serializer.is_valid():
             serializer.save()
             logger.info(f"Order {order_id} marked as paid with method 'online'")
+
+            # ── Réservation avec pré-commande : confirmation ─────────────
+            # La commande reste en status='scheduled' (hors file cuisine) ;
+            # c'est Celery (fire_scheduled_preorders) ou le check-in qui la
+            # basculera en 'pending' à starts_at - prep_lead_minutes.
+            reservation_id = metadata.get("reservation_id")
+            if reservation_id:
+                from api.models import Reservation
+                try:
+                    reservation = Reservation.objects.get(id=reservation_id)
+                    reservation.confirm_after_payment()
+                    logger.info(
+                        f"✅ Réservation {reservation_id} confirmée après paiement "
+                        f"de la pré-commande {order_id}"
+                    )
+                    # TODO : email/push de confirmation client + restaurateur
+                except Reservation.DoesNotExist:
+                    logger.error(
+                        f"Reservation {reservation_id} not found in webhook "
+                        f"(order {order_id})"
+                    )
         else:
             logger.error(f"Serializer errors: {serializer.errors}")
 

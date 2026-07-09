@@ -259,6 +259,207 @@ def force_archive_abandoned_sessions(hours=12):
 
 
 # ============================================================================
+# TÂCHES RÉSERVATIONS & OCCUPATION DES TABLES
+# ============================================================================
+
+NO_SHOW_GRACE_MINUTES = 20
+
+
+@shared_task(name='api.tasks.fire_scheduled_preorders')
+def fire_scheduled_preorders():
+    """Bascule en file cuisine les pré-commandes payées dont l'heure de
+    préparation est atteinte (starts_at - prep_lead_minutes).
+    S'exécute toutes les minutes via Celery Beat."""
+    from django.db import transaction
+    from api.models import Reservation
+
+    now = timezone.now()
+    fired = 0
+
+    # prep_lead_minutes variable par résa → borne large puis filtre Python
+    candidates = Reservation.objects.select_related('pre_order').filter(
+        status='confirmed',
+        kitchen_fired_at__isnull=True,
+        pre_order__isnull=False,
+        pre_order__payment_status='paid',
+        pre_order__status='scheduled',
+        starts_at__lte=now + timedelta(minutes=60),
+    )
+
+    for reservation in candidates:
+        if reservation.fire_kitchen_at > now:
+            continue
+        try:
+            with transaction.atomic():
+                locked = (
+                    Reservation.objects
+                    .select_for_update()
+                    .select_related('pre_order')
+                    .get(id=reservation.id)
+                )
+                if locked.fire_kitchen():
+                    fired += 1
+                    logger.info(
+                        f"🔥 Pré-commande {locked.pre_order_id} envoyée en cuisine "
+                        f"(résa {locked.id}, table "
+                        f"{locked.table.number if locked.table else '?'}, "
+                        f"arrivée {timezone.localtime(locked.starts_at):%H:%M})"
+                    )
+                    # TODO : push Firebase restaurateur (même canal que les
+                    # nouvelles commandes classiques)
+                    from api.utils.floorplan_notifications import notify_floorplan_update
+                    notify_floorplan_update(
+                        locked.restaurant_id,
+                        event='kitchen_fired',
+                        table_id=locked.table_id,
+                    )
+        except Exception as e:
+            logger.error(f"Erreur fire_kitchen résa {reservation.id}: {e}")
+
+    if fired:
+        logger.info(f"✅ fire_scheduled_preorders: {fired} commande(s) déclenchée(s)")
+    return f"{fired} commande(s) déclenchée(s)"
+
+
+@shared_task(name='api.tasks.expire_pending_reservations')
+def expire_pending_reservations():
+    """Libère les créneaux des réservations dont le paiement n'a pas abouti
+    dans le délai (RESERVATION_PAYMENT_HOLD_MINUTES).
+    S'exécute toutes les minutes via Celery Beat."""
+    from django.db import transaction
+    from api.models import Reservation
+
+    now = timezone.now()
+    expired = 0
+
+    stale = Reservation.objects.select_related('pre_order').filter(
+        status='pending_payment',
+        expires_at__lt=now,
+    )
+    for reservation in stale:
+        try:
+            with transaction.atomic():
+                locked = (
+                    Reservation.objects
+                    .select_for_update()
+                    .select_related('pre_order')
+                    .get(id=reservation.id)
+                )
+                # Le webhook a pu passer entre la requête et le verrou
+                if locked.status != 'pending_payment':
+                    continue
+                if locked.pre_order and locked.pre_order.payment_status == 'paid':
+                    # Paiement arrivé mais confirmation manquée → rattrapage
+                    locked.confirm_after_payment()
+                    logger.warning(
+                        f"⚠️ Résa {locked.id} confirmée en rattrapage "
+                        f"(webhook manqué)"
+                    )
+                    continue
+                locked.status = 'expired'
+                locked.save(update_fields=['status', 'updated_at'])
+                if locked.pre_order and locked.pre_order.status == 'scheduled':
+                    locked.pre_order.status = 'cancelled'
+                    locked.pre_order.save(update_fields=['status'])
+                expired += 1
+                from api.utils.floorplan_notifications import notify_floorplan_update
+                notify_floorplan_update(
+                    locked.restaurant_id,
+                    event='reservation_cancelled',
+                    table_id=locked.table_id,
+                )
+        except Exception as e:
+            logger.error(f"Erreur expiration résa {reservation.id}: {e}")
+
+    if expired:
+        logger.info(f"✅ expire_pending_reservations: {expired} réservation(s) expirée(s)")
+    return f"{expired} réservation(s) expirée(s)"
+
+
+@shared_task(name='api.tasks.mark_reservation_no_shows')
+def mark_reservation_no_shows():
+    """Marque no_show les réservations sans check-in après la période de grâce.
+
+    Le montant de la pré-commande reste acquis (non remboursable en cas de
+    non-présentation). Si la cuisine a déjà été déclenchée, la commande suit
+    son cycle normal — le restaurateur décide quoi en faire.
+    S'exécute toutes les 5 minutes via Celery Beat."""
+    from api.models import Reservation
+
+    from api.utils.floorplan_notifications import notify_floorplan_update
+
+    now = timezone.now()
+    stale = Reservation.objects.filter(
+        status='confirmed',
+        starts_at__lt=now - timedelta(minutes=NO_SHOW_GRACE_MINUTES),
+    )
+    # Collecter les couples (restaurant, table) AVANT l'update en masse
+    affected = list(stale.values_list('restaurant_id', 'table_id'))
+    updated = stale.update(status='no_show', updated_at=now)
+
+    for restaurant_id, table_id in affected:
+        notify_floorplan_update(
+            restaurant_id, event='reservation_no_show', table_id=table_id
+        )
+
+    if updated:
+        logger.info(f"✅ mark_reservation_no_shows: {updated} no-show(s)")
+    return f"{updated} no-show(s)"
+
+
+@shared_task(name='api.tasks.auto_release_occupancies')
+def auto_release_occupancies():
+    """Libère les occupations de table obsolètes :
+    - source='order' dont toutes les commandes sont terminées
+    - toute occupation dépassant expected_end_at de plus de 2h (filet de
+      sécurité si le staff oublie de libérer)
+    Les occupations 'manual' ne sont PAS libérées à la fin des commandes :
+    les clients peuvent rester à table. S'exécute toutes les 5 minutes."""
+    from api.models import Order
+    from api.models.table_occupancy_models import TableOccupancy
+
+    now = timezone.now()
+    released = 0
+
+    for occ in TableOccupancy.objects.active().select_related('table'):
+        try:
+            # Filet de sécurité : très overdue → libération
+            if now > occ.expected_end_at + timedelta(hours=2):
+                occ.release()
+                released += 1
+                logger.info(
+                    f"🧹 Table {occ.table.number} libérée (overdue >2h)"
+                )
+                from api.utils.floorplan_notifications import notify_floorplan_update
+                notify_floorplan_update(
+                    occ.restaurant_id, event='table_released', table_id=occ.table_id
+                )
+                continue
+            # Occupations liées aux commandes : plus rien d'actif → libérer
+            if occ.source == 'order':
+                still_active = Order.objects.filter(
+                    restaurant=occ.restaurant,
+                    table_number=occ.table.number,
+                    status__in=['pending', 'confirmed', 'preparing', 'ready'],
+                ).exists()
+                if not still_active:
+                    occ.release()
+                    released += 1
+                    from api.utils.floorplan_notifications import notify_floorplan_update
+                    notify_floorplan_update(
+                        occ.restaurant_id, event='table_released', table_id=occ.table_id
+                    )
+        except Exception as e:
+            logger.error(f"Erreur libération occupation {occ.id}: {e}")
+
+    if released:
+        logger.info(f"✅ auto_release_occupancies: {released} table(s) libérée(s)")
+    return f"{released} table(s) libérée(s)"
+
+
+
+
+# ============================================================================
 # TÂCHES COMPTABILITÉ
 # ============================================================================
 
@@ -277,6 +478,10 @@ __all__ = [
     'auto_complete_inactive_sessions',
     'cleanup_old_archived_sessions',
     'force_archive_abandoned_sessions',
+    'fire_scheduled_preorders',
+    'expire_pending_reservations',
+    'mark_reservation_no_shows',
+    'auto_release_occupancies',
 ]
 
 from api.services.menu_ai import tasks as _menu_ai_tasks

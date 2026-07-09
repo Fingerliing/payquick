@@ -116,6 +116,12 @@ from .review_models import (
     RestaurantReview
 )
 
+# Reservations
+from api.models.reservation_models import Reservation
+
+# Occupation des tables (walk-ins, blocages)
+from api.models.table_occupancy_models import TableOccupancy
+
 __all__ = [
     # Validators
     'validate_siret',
@@ -206,4 +212,10 @@ __all__ = [
 
     # Reviews
     'RestaurantReview',
+
+    # Reservations
+    'Reservation',
+
+    # Occupation des tables
+    'TableOccupancy',
 ]

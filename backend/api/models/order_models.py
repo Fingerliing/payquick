@@ -55,6 +55,7 @@ class OrderManager(models.Manager):
 
 class Order(models.Model):
     STATUS_CHOICES = [
+        ('scheduled', 'Programmée'),
         ('pending', 'En Attente'),
         ('confirmed', 'Confirmée'),
         ('preparing', 'En Préparation'),
