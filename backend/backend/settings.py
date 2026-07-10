@@ -255,6 +255,15 @@ GOOGLE_OAUTH_CLIENT_IDS = config(
     cast=Csv(),
 )
 
+# ── Sign in with Apple ───────────────────────────────────────────────────────
+# Audiences autorisées pour les identityTokens Apple = bundle ID(s) de l'app.
+# Format .env : APPLE_SIGN_IN_CLIENT_IDS=fr.fingerliing.EatQuickeR
+APPLE_SIGN_IN_CLIENT_IDS = config(
+    "APPLE_SIGN_IN_CLIENT_IDS",
+    default="fr.fingerliing.EatQuickeR",
+    cast=Csv(),
+)
+
 # Sirene API + Recaptcha
 SIRENE_API_TOKEN = config("SIRENE_API_TOKEN")
 RECAPTCHA_SECRET_KEY = config("RECAPTCHA_SECRET_KEY")

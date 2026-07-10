@@ -12,6 +12,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "fr.fingerliing.EatQuickeR",
+      "usesAppleSignIn": true,
       "associatedDomains": [
         "applinks:api.eatquicker.fr",
         "applinks:eatquicker.fr"
@@ -113,6 +114,7 @@
           "backgroundColor": "#0C1219"
         }
       ],
+      "expo-apple-authentication",
       "react-native-edge-to-edge"
     ],
     "extra": {

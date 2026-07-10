@@ -12,6 +12,7 @@ import {
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SystemBars } from 'react-native-edge-to-edge';
 import { useAuth } from '@/contexts/AuthContext';
@@ -59,7 +60,22 @@ export default function LoginScreen() {
     message: string;
   } | null>(null);
   
-  const { login, googleLogin } = useAuth();
+  const { login, googleLogin, appleLogin } = useAuth();
+
+  // ─── Guideline 4.8 (Apple) ────────────────────────────────────────────
+  // Sign in with Apple est désormais réellement implémenté
+  // (expo-apple-authentication → /api/v1/auth/apple/), en alternative
+  // équivalente à Google Sign-In : Google est donc réactivé sur iOS.
+  // Le bouton Apple n'est rendu que si le device le supporte (jamais sur
+  // Android, ni sans l'entitlement applesignin dans le build).
+  const [appleSignInAvailable, setAppleSignInAvailable] = useState(false);
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    AppleAuthentication.isAvailableAsync()
+      .then(setAppleSignInAvailable)
+      .catch(() => setAppleSignInAvailable(false));
+  }, []);
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
   const { isMobile, isTablet, isSmallScreen, getSpacing, getFontSize, getResponsiveValue } = useResponsive();
@@ -350,13 +366,41 @@ export default function LoginScreen() {
     }
   }, [googleLogin, returnTo]);
 
-  const handleAppleLogin = useCallback(() => {
-    setCustomAlert({
-      variant: 'info',
-      title: t('auth.alerts.comingSoon.title'),
-      message: t('auth.alerts.comingSoon.message'),
-    });
-  }, []);
+  const handleAppleLogin = useCallback(async () => {
+    setLoading(true);
+    setErrors({});
+    try {
+      await appleLogin();
+
+      // ── Override de la navigation si `returnTo` est présent ────────────
+      // appleLogin() appelle navigateByRole() (comme login/googleLogin).
+      if (returnTo) {
+        setTimeout(() => {
+          try {
+            router.replace(returnTo as any);
+          } catch (navError) {
+            console.warn('⚠️ Redirection returnTo échouée, fallback:', navError);
+          }
+        }, 50);
+      }
+    } catch (error: any) {
+      // Annulation utilisateur → silencieux (feuille Apple fermée)
+      const isCancelled =
+        error?.code === 'CANCELLED' ||
+        /annul|cancel/i.test(String(error?.message ?? ''));
+      if (isCancelled) {
+        return;
+      }
+
+      setCustomAlert({
+        variant: 'error',
+        title: t('auth.alerts.appleLoginFailed.title'),
+        message: t('auth.alerts.appleLoginFailed.message'),
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [appleLogin, returnTo]);
 
   // MOT DE PASSE OUBLIÉ — navigation vers le flux de réinitialisation
   // L'email pré-rempli (s'il y en a un) est passé en param pour gagner du temps
@@ -805,17 +849,20 @@ export default function LoginScreen() {
                   style={styles.socialButton}
                   fullWidth
                 />
-                
-                {Platform.OS === 'ios' && (
-                  <Button
-                    title="Continuer avec Apple"
-                    variant="outline"
-                    leftIcon={
-                      <Ionicons name="logo-apple" size={20} color="#000000" />
+
+                {/* Sign in with Apple — bouton officiel (HIG), rendu
+                    uniquement si le device le supporte (Guideline 4.8) */}
+                {appleSignInAvailable && (
+                  <AppleAuthentication.AppleAuthenticationButton
+                    buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                    buttonStyle={
+                      isDark
+                        ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
+                        : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
                     }
+                    cornerRadius={8}
+                    style={{ width: '100%', height: 48 }}
                     onPress={handleAppleLogin}
-                    style={styles.socialButton}
-                    fullWidth
                   />
                 )}
               </View>

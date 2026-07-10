@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useClientOrders } from '@/hooks/client/useClientOrders';
+import { legalService } from '@/services/legalService';
 import { Header } from '@/components/ui/Header';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -265,6 +266,32 @@ export default function ClientProfileScreen() {
   const { isLoading: ordersLoading, pagination } = useClientOrders();
 
   const [showLogoutAlert, setShowLogoutAlert] = useState(false);
+
+  // ── Suppression de compte (App Store Guideline 5.1.1(v) / RGPD art. 17) ──
+  // Suppression définitive avec période d'annulation de 30 jours (l'API
+  // désactive le compte immédiatement ; se reconnecter avant l'échéance
+  // annule la demande).
+  const [showDeleteAlert, setShowDeleteAlert] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const performDeleteAccount = async () => {
+    if (isDeleting) return;
+    setIsDeleting(true);
+    try {
+      await legalService.requestAccountDeletion();
+      setShowDeleteAlert(false);
+      await logout();
+      router.replace('/(auth)/login');
+    } catch (error: any) {
+      setShowDeleteAlert(false);
+      const backendMessage =
+        error?.response?.data?.message || error?.response?.data?.error;
+      setDeleteError(backendMessage || t('profile.deleteAccountError'));
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // ── Édition du nom ────────────────────────────────────────────────────────
   const [showEditNameModal, setShowEditNameModal] = useState(false);
@@ -701,6 +728,26 @@ export default function ClientProfileScreen() {
                   ),
                 }}
               />
+
+              {/* Suppression de compte — requise par la Guideline 5.1.1(v) */}
+              <Button
+                title={t('profile.deleteAccount')}
+                onPress={() => setShowDeleteAlert(true)}
+                variant="outline"
+                fullWidth
+                leftIcon={
+                  <Ionicons name="trash-outline" size={18} color={colors.error} />
+                }
+                style={{
+                  marginTop: getResponsiveValue(SPACING.sm, screenType),
+                  minHeight: getResponsiveValue(
+                    { mobile: 48, tablet: 52, desktop: 56 },
+                    screenType
+                  ),
+                  borderColor: colors.error,
+                }}
+                textStyle={{ color: colors.error }}
+              />
             </View>
           </View>
         </View>
@@ -749,6 +796,93 @@ export default function ClientProfileScreen() {
               secondaryButton={{
                 text: t('common.cancel'),
                 onPress: () => setShowLogoutAlert(false),
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Modal suppression de compte (Guideline 5.1.1(v)) ───────────── */}
+      <Modal
+        transparent
+        visible={showDeleteAlert}
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => !isDeleting && setShowDeleteAlert(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: colors.overlay,
+            justifyContent: 'center',
+            alignItems: 'center',
+            paddingHorizontal: getResponsiveValue(SPACING.xl, screenType),
+          }}
+        >
+          <View
+            style={{
+              width: '100%',
+              maxWidth: getResponsiveValue(
+                { mobile: 360, tablet: 420, desktop: 460 },
+                screenType
+              ),
+            }}
+          >
+            <AlertWithAction
+              variant="error"
+              title={t('profile.deleteAccountConfirmTitle')}
+              message={t('profile.deleteAccountConfirmMessage')}
+              onDismiss={() => !isDeleting && setShowDeleteAlert(false)}
+              autoDismiss={false}
+              primaryButton={{
+                text: t('profile.deleteAccount'),
+                onPress: performDeleteAccount,
+                variant: 'danger',
+              }}
+              secondaryButton={{
+                text: t('common.cancel'),
+                onPress: () => !isDeleting && setShowDeleteAlert(false),
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Modal erreur suppression de compte ─────────────────────────── */}
+      <Modal
+        transparent
+        visible={deleteError != null}
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setDeleteError(null)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: colors.overlay,
+            justifyContent: 'center',
+            alignItems: 'center',
+            paddingHorizontal: getResponsiveValue(SPACING.xl, screenType),
+          }}
+        >
+          <View
+            style={{
+              width: '100%',
+              maxWidth: getResponsiveValue(
+                { mobile: 360, tablet: 420, desktop: 460 },
+                screenType
+              ),
+            }}
+          >
+            <AlertWithAction
+              variant="error"
+              title={t('common.error')}
+              message={deleteError ?? ''}
+              onDismiss={() => setDeleteError(null)}
+              autoDismiss={false}
+              primaryButton={{
+                text: t('common.ok'),
+                onPress: () => setDeleteError(null),
               }}
             />
           </View>

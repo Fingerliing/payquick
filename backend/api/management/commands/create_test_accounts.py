@@ -45,9 +45,13 @@ SÉCURITÉ
 - Changer le mot de passe APRÈS publication via Django admin.
 - Le SIRET 73282932000074 est un SIRET de test (passe la validation Luhn).
   Si conflit avec un restaurant existant, passer un autre SIRET via --siret.
-- Le Stripe bypass utilise un ID fictif (`acct_test_demo_for_review`) qui
-  ne peut PAS recevoir de paiements réels. Le reviewer Google testera le
-  paiement "en caisse" uniquement.
+- STRIPE : passer un VRAI compte Connect via --stripe-account acct_XXX pour
+  que le paiement carte fonctionne pendant la review (App Review Apple teste
+  le flow carte/Apple Pay ; un ID fictif provoque un échec Stripe
+  "No such destination" — cf. rejet 2.1(a) du 09/07/2026).
+  Sans --stripe-account : un compte existant valide est conservé tel quel ;
+  s'il n'y en a aucun, stripe_verified reste False (carte masquée côté app,
+  paiement "en caisse" uniquement). Le placeholder n'est plus jamais écrit.
 """
 
 from decimal import Decimal
@@ -102,6 +106,16 @@ class Command(BaseCommand):
             help="SIRET fictif pour le restaurant de démo (doit passer Luhn).",
         )
         parser.add_argument(
+            "--stripe-account",
+            default=None,
+            help=(
+                "ID d'un VRAI compte Stripe Connect (acct_...) à lier au "
+                "restaurant de démo pour que le paiement carte fonctionne "
+                "pendant la review. Sans cette option, un compte existant "
+                "valide est conservé ; sinon le paiement carte est désactivé."
+            ),
+        )
+        parser.add_argument(
             "--reset",
             action="store_true",
             help="Supprime les comptes existants avant recréation (CASCADE).",
@@ -114,6 +128,7 @@ class Command(BaseCommand):
         password = opts["password"]
         siret = opts["siret"]
         reset = opts["reset"]
+        stripe_account = opts["stripe_account"]
 
         if reset:
             self._reset_test_accounts(client_email, resto_email, siret)
@@ -123,7 +138,7 @@ class Command(BaseCommand):
 
         # 2. RESTAURATEUR
         resto_user, resto_profile = self._create_or_update_restaurateur(
-            resto_email, password, siret
+            resto_email, password, siret, stripe_account
         )
 
         # 3. RESTAURANT
@@ -184,7 +199,7 @@ class Command(BaseCommand):
     # ────────────────────────────────────────────────────────────────────────
     # Restaurateur
     # ────────────────────────────────────────────────────────────────────────
-    def _create_or_update_restaurateur(self, email, password, siret):
+    def _create_or_update_restaurateur(self, email, password, siret, stripe_account=None):
         self.stdout.write("👨‍🍳 Compte restaurateur...")
         user, created = User.objects.update_or_create(
             username=email,
@@ -198,18 +213,52 @@ class Command(BaseCommand):
         user.set_password(password)
         user.save(update_fields=["password"])
 
-        profile, _ = RestaurateurProfile.objects.update_or_create(
-            user=user,
-            defaults={
-                "siret": siret,
-                "is_validated": True,
-                "is_active": True,
-                # ─── Bypass Stripe Connect KYC pour la review ───
+        defaults = {
+            "siret": siret,
+            "is_validated": True,
+            "is_active": True,
+        }
+
+        # ─── Stripe Connect ──────────────────────────────────────────────
+        # Plus JAMAIS d'ID fictif : un placeholder passé en
+        # transfer_data[destination] fait planter PaymentIntent.create
+        # ("No such destination") → erreur visible par le reviewer
+        # (rejet App Review 2.1(a) du 09/07/2026).
+        existing = RestaurateurProfile.objects.filter(user=user).first()
+        existing_account = existing.stripe_account_id if existing else None
+        if existing_account == "acct_test_demo_for_review":
+            existing_account = None  # purger l'ancien placeholder
+
+        if stripe_account:
+            # Vrai compte fourni explicitement → paiement carte actif.
+            defaults.update({
                 "stripe_verified": True,
-                "stripe_account_id": "acct_test_demo_for_review",
+                "stripe_account_id": stripe_account,
                 "stripe_onboarding_completed": True,
                 "stripe_account_created": timezone.now(),
-            },
+            })
+        elif existing_account:
+            # Compte réel déjà en place → ne pas y toucher.
+            self.stdout.write(
+                f"  ℹ️  Compte Stripe existant conservé : {existing_account}"
+            )
+        else:
+            # Aucun compte réel : paiement carte désactivé côté app.
+            defaults.update({
+                "stripe_verified": False,
+                "stripe_account_id": "",
+                "stripe_onboarding_completed": False,
+            })
+            self.stdout.write(
+                self.style.WARNING(
+                    "  ⚠️  Aucun compte Stripe Connect : paiement carte DÉSACTIVÉ. "
+                    "Passer --stripe-account acct_XXX pour la review Apple."
+                )
+            )
+
+        profile, _ = RestaurateurProfile.objects.update_or_create(
+            user=user,
+            defaults=defaults,
         )
 
         self._record_consent(user)

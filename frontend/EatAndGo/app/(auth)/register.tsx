@@ -37,6 +37,14 @@ const APP_LOGO = require('@/assets/images/logo.png');
 const { width: screenWidth } = Dimensions.get('window');
 const API_URL = `${API_BASE_URL}/api/v1`;
 
+// ─── Guideline 3.1.1 (Apple) ─────────────────────────────────────────────────
+// L'inscription des comptes professionnels (restaurateurs) est retirée de
+// l'app iOS (App Review, Guideline 3.1.1 – Business : l'enregistrement de
+// comptes business in-app est considéré comme un accès à un mécanisme
+// d'achat externe). Les restaurateurs s'inscrivent via le site web ; la
+// connexion (login) reste disponible dans l'app. Android n'est pas concerné.
+const BUSINESS_SIGNUP_ENABLED = Platform.OS !== 'ios';
+
 // Gradient bleu charte : nuit → principal (cohérent avec verify-email)
 const GRADIENT: [string, string, string] = [
   COLORS.variants.primary[900], // '#0D1629'
@@ -539,7 +547,8 @@ export default function RegisterScreen() {
                 />
               )}
 
-              {/* Sélecteur de rôle */}
+              {/* Sélecteur de rôle — masqué sur iOS (Guideline 3.1.1) */}
+              {BUSINESS_SIGNUP_ENABLED && (
               <View style={styles.roleSelector}>
                 <Text style={styles.roleSelectorLabel}>{t('auth.register.iAm')}</Text>
                 <View style={styles.roleButtons}>
@@ -556,6 +565,7 @@ export default function RegisterScreen() {
                   ))}
                 </View>
               </View>
+              )}
 
               {/* Champs */}
               <View style={styles.inputContainer}>
