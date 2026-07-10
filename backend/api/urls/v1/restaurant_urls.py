@@ -1,4 +1,4 @@
-from rest_framework.routers import DefaultRouter
+from rest_framework.routers import DefaultRouter, SimpleRouter
 from django.urls import path, include
 from api.views.restaurant_views import RestaurantViewSet, PublicRestaurantViewSet
 from api.views.restaurant_session_management_views import RestaurantSessionManagementViewSet
@@ -21,7 +21,12 @@ session_management_router = DefaultRouter()
 session_management_router.register(r'sessions', RestaurantSessionManagementViewSet, basename='restaurant-sessions')
 
 # Router pour les avis restaurants (lecture publique / écriture client)
-reviews_router = DefaultRouter()
+# ⚠️ SimpleRouter et non DefaultRouter : DefaultRouter ajoute une APIRootView
+# sur '' qui, incluse ici sous le préfixe vide, capturait GET /restaurants/
+# AVANT le private_router → la liste des restaurants du restaurateur
+# répondait {"reviews": ...} (bug "restaurants disparus" du 10/07/2026).
+# SimpleRouter n'expose que reviews/ et reviews/<pk>/.
+reviews_router = SimpleRouter()
 reviews_router.register(r'reviews', RestaurantReviewViewSet, basename='restaurant-reviews')
 
 # URLs combinées
@@ -35,6 +40,8 @@ urlpatterns = [
     path('enrich-siret/', SiretEnrichmentView.as_view(), name='restaurant-enrich-siret'),
 
     # Avis : /api/v1/restaurants/reviews/
+    # ⚠️ DOIT rester AVANT le private_router : sinon 'reviews/' serait capté
+    # par la route détail '<pk>/' du router privé (pk='reviews').
     path('', include(reviews_router.urls)),
 
     # APIs publiques : /api/v1/restaurants/public/
