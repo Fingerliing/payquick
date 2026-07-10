@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Alert, Pressable, Linking } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
+import { offerCheckInIfReserved } from '@/utils/reservationCheckIn';
 
 interface QRScannerProps {
   onScanSuccess?: (data: string) => void;
@@ -12,7 +13,7 @@ export default function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
   const [permission, requestPermission] = useCameraPermissions();
   const [isScanning, setIsScanning] = useState(true);
 
-  const handleBarcodeScanned = ({ data }: { data: string }) => {
+  const handleBarcodeScanned = async ({ data }: { data: string }) => {
     console.log('🎯 QR Code scanné:', data);
     
     if (!isScanning) return;
@@ -24,6 +25,9 @@ export default function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
     
     if (processedData) {
       console.log('✅ QR Code valide, identifiant extrait:', processedData);
+      // Réservation sur cette table ? → proposer le check-in avant de
+      // continuer vers le flux table/menu habituel (silencieux sinon).
+      await offerCheckInIfReserved(processedData);
       onScanSuccess?.(processedData);
     } else {
       console.log('❌ QR Code invalide:', data);

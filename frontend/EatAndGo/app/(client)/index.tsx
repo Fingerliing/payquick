@@ -1119,6 +1119,16 @@ export default function ClientHome() {
       onPress: () => router.push('/(client)/orders' as any),
     },
     {
+      id: 'reservations',
+      icon: 'calendar-outline',
+      title: t('reservation.myTitle'),
+      subtitle: t('reservation.empty.subtitle'),
+      route: '/reservation/mine',
+      iconBg: isDark ? 'rgba(30, 42, 120, 0.18)' : colors.variants.primary[50],
+      iconColor: colors.primary,
+      onPress: () => router.push('/reservation/mine' as any),
+    },
+    {
       id: 'cart',
       icon: 'bag-outline',
       title: t('home.actions.myCart.title'),

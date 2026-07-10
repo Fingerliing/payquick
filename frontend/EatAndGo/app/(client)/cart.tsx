@@ -41,6 +41,7 @@ import {
   type AppColors,
 } from '@/utils/designSystem';
 import { QRSessionUtils } from '@/utils/qrSessionUtils';
+import { getActivePreOrderSession } from '@/utils/preOrderSession';
 import { collaborativeSessionService } from '@/services/collaborativeSessionService';
 import { dailyMenuService, PublicDailyMenu } from '@/services/dailyMenuService';
 import { computeFormulaStatus, formatFormulaMissingMessage } from '@/utils/dailyMenuFormula';
@@ -685,7 +686,19 @@ export default function CartScreen() {
   );
 
   const navigateToCheckout = useCallback(
-    (sessionId?: string) => {
+    async (sessionId?: string) => {
+      // Pré-commande de réservation : paiement 100% via le flux dédié
+      // (client_secret avec reservation_id en metadata Stripe — ne pas
+      // passer par /order/checkout qui créerait un intent sans metadata).
+      if (!sessionId) {
+        const preOrder = await getActivePreOrderSession();
+        if (preOrder) {
+          router.push(
+            `/reservation/pre-order-checkout?reservationId=${preOrder.reservationId}` as any,
+          );
+          return;
+        }
+      }
       const url = buildCheckoutUrl(sessionId);
       router.push(url as any);
     },
