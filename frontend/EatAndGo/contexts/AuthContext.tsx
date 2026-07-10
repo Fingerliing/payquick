@@ -795,8 +795,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { identityToken, givenName } = await signInWithApple();
       console.log('✅ identityToken Apple obtenu');
 
+      // Apple ne fournit givenName qu'au TOUT PREMIER sign-in de l'app.
+      // On le met en cache local dès qu'on le reçoit : si l'appel backend
+      // échoue à ce moment-là (réseau, déploiement…), les connexions
+      // suivantes pourront quand même transmettre le prénom — le backend
+      // ne complète first_name que s'il est vide, jamais d'écrasement.
+      const APPLE_NAME_KEY = 'apple_given_name';
+      let effectiveGivenName = givenName;
+      if (givenName) {
+        await secureStorage.setItem(APPLE_NAME_KEY, givenName);
+      } else {
+        effectiveGivenName = await secureStorage.getItem(APPLE_NAME_KEY);
+      }
+
       // 2. Backend → JWT EatQuickeR
-      const response = await apiClient.appleLogin(identityToken, givenName);
+      const response = await apiClient.appleLogin(identityToken, effectiveGivenName);
 
       await secureStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, response.access);
       await secureStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, response.refresh);
