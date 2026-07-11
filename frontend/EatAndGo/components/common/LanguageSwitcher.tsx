@@ -51,6 +51,11 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({
 
   const [open, setOpen] = useState(false);
 
+  // Responsive : bottom-sheet plein écran sur mobile, carte centrée et
+  // plafonnée en largeur sur tablette/desktop (une sheet étirée sur toute
+  // la largeur d'un iPad est illisible et anti-HIG).
+  const isMobile = screenType === 'mobile';
+
   const shadows = useMemo(() => makeShadows(colors), [colors]);
   const styles = useMemo(
     () => createStyles(colors, screenType, shadows),
@@ -122,7 +127,7 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({
 
       <Modal
         visible={open}
-        animationType="slide"
+        animationType={isMobile ? 'slide' : 'fade'}
         transparent
         statusBarTranslucent
         onRequestClose={() => setOpen(false)}
@@ -131,18 +136,26 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({
           <Pressable
             style={[
               styles.sheet,
-              {
-                paddingBottom:
-                  Math.max(insets.bottom, getResponsiveValue(SPACING.lg, screenType)) +
-                  getResponsiveValue(SPACING.md, screenType),
-              },
+              isMobile
+                ? {
+                    // Bottom-sheet : respecter la safe area du bas
+                    paddingBottom:
+                      Math.max(
+                        insets.bottom,
+                        getResponsiveValue(SPACING.lg, screenType),
+                      ) + getResponsiveValue(SPACING.md, screenType),
+                  }
+                : {
+                    // Carte centrée : padding symétrique, pas de safe area
+                    paddingBottom: getResponsiveValue(SPACING.lg, screenType),
+                  },
             ]}
             onPress={() => {
               /* avale les taps pour ne pas fermer la sheet */
             }}
           >
-            {/* Poignée */}
-            <View style={styles.handle} />
+            {/* Poignée — uniquement en bottom-sheet mobile */}
+            {isMobile && <View style={styles.handle} />}
 
             {/* En-tête */}
             <View style={styles.sheetHeader}>
@@ -157,11 +170,15 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({
               </Pressable>
             </View>
 
-            {/* Liste */}
+            {/* Liste — flexGrow: 0 pour que la FlatList se borne à la
+                maxHeight du sheet et scrolle au lieu de déborder (11 langues
+                ne tiennent pas sur les petits écrans) */}
             <FlatList
               data={SUPPORTED_LANGUAGES as unknown as typeof SUPPORTED_LANGUAGES[number][]}
               keyExtractor={(item) => item.code}
               keyboardShouldPersistTaps="handled"
+              style={styles.list}
+              showsVerticalScrollIndicator
               renderItem={({ item }) => {
                 const active = item.code === language;
                 return (
@@ -214,8 +231,10 @@ const createStyles = (
   colors: AppColors,
   screenType: ScreenType,
   shadows: ReturnType<typeof makeShadows>,
-) =>
-  StyleSheet.create({
+) => {
+  const isMobile = screenType === 'mobile';
+
+  return StyleSheet.create({
     // ── Trigger variant="row" ──────────────────────────────────────────
     rowTrigger: {
       flexDirection: 'row',
@@ -249,7 +268,12 @@ const createStyles = (
     rowValue: {
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.sm, screenType),
       color: colors.text.secondary,
-      maxWidth: 140,
+      // 140pt fixes tronquaient "Nederlands"/"Português" inutilement sur
+      // tablette où la place ne manque pas.
+      maxWidth: getResponsiveValue(
+        { mobile: 140, tablet: 220, desktop: 260 },
+        screenType,
+      ),
     },
 
     // ── Trigger variant="button" ───────────────────────────────────────
@@ -275,18 +299,35 @@ const createStyles = (
     disabled: { opacity: 0.5 },
 
     // ── Sheet modale ───────────────────────────────────────────────────
+    // Mobile : bottom-sheet pleine largeur ancrée en bas.
+    // Tablette/desktop : carte centrée, largeur plafonnée, coins arrondis
+    // sur les 4 côtés — une sheet étirée sur ~800pt d'iPad est illisible.
     backdrop: {
       flex: 1,
       backgroundColor: colors.overlay,
-      justifyContent: 'flex-end',
+      justifyContent: isMobile ? 'flex-end' : 'center',
+      alignItems: isMobile ? 'stretch' : 'center',
+      paddingHorizontal: isMobile ? 0 : getResponsiveValue(SPACING.xl, screenType),
     },
     sheet: {
       backgroundColor: colors.surface,
-      borderTopLeftRadius: BORDER_RADIUS.xl,
-      borderTopRightRadius: BORDER_RADIUS.xl,
       paddingTop: getResponsiveValue(SPACING.sm, screenType),
       paddingHorizontal: getResponsiveValue(SPACING.lg, screenType),
-      maxHeight: '85%',
+      ...(isMobile
+        ? {
+            borderTopLeftRadius: BORDER_RADIUS.xl,
+            borderTopRightRadius: BORDER_RADIUS.xl,
+            maxHeight: '85%',
+          }
+        : {
+            borderRadius: BORDER_RADIUS.xl,
+            width: '100%',
+            maxWidth: getResponsiveValue(
+              { mobile: 480, tablet: 480, desktop: 520 },
+              screenType,
+            ),
+            maxHeight: '70%',
+          }),
       ...shadows.lg,
     },
     handle: {
@@ -310,6 +351,12 @@ const createStyles = (
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.xl, screenType),
       fontWeight: TYPOGRAPHY.fontWeight.bold,
       color: colors.text.primary,
+    },
+
+    // La FlatList ne doit pas pousser le sheet au-delà de sa maxHeight :
+    // flexGrow 0 la contraint et active son scroll interne.
+    list: {
+      flexGrow: 0,
     },
 
     // ── Lignes de langue ───────────────────────────────────────────────
@@ -345,5 +392,6 @@ const createStyles = (
       marginHorizontal: getResponsiveValue(SPACING.sm, screenType),
     },
   });
+};
 
 export default LanguageSwitcher;
