@@ -259,6 +259,96 @@ def force_archive_abandoned_sessions(hours=12):
 
 
 # ============================================================================
+# COMMANDES FANTÔMES
+# ============================================================================
+
+@shared_task(name='api.tasks.auto_cancel_stale_orders')
+def auto_cancel_stale_orders(hours=24):
+    """
+    Annule les commandes actives abandonnées (« fantômes »).
+
+    Contexte : dans un service à table, une commande pending/confirmed sans
+    aucun mouvement depuis 24 h est morte par définition. Sans cette tâche,
+    elle reste active pour toujours : invisible dans le kanban (filtre 24 h
+    côté app) mais comptée dans les stats et BLOQUANTE pour la suppression
+    de compte RGPD (cf. commandes #4 et #10 découvertes le 15/07/2026).
+
+    ⚠️ Garde-fou paiement : une commande DÉJÀ PAYÉE (paid / partial_paid)
+    n'est JAMAIS annulée automatiquement — un client débité mais jamais
+    servi doit être traité par un humain (remboursement). Ces cas sont
+    seulement signalés en warning dans les logs.
+
+    Critère d'inactivité : updated_at (auto_now) — tout changement de statut,
+    de paiement ou d'items le rafraîchit.
+
+    S'exécute quotidiennement via Celery Beat. Même pattern que
+    force_archive_abandoned_sessions.
+    """
+    from api.models import Order
+
+    logger.info(f"👻 Recherche de commandes fantômes (inactives >{hours}h)...")
+
+    try:
+        cutoff = timezone.now() - timedelta(hours=hours)
+        ACTIVE_STATUSES = ['pending', 'confirmed', 'preparing', 'ready']
+        SAFE_TO_CANCEL_PAYMENT = ['unpaid', 'pending', 'cash_pending', 'failed']
+
+        stale_orders = Order.objects.filter(
+            status__in=ACTIVE_STATUSES,
+            updated_at__lt=cutoff,
+        )
+
+        cancelled = 0
+        flagged_paid = 0
+
+        for order in stale_orders:
+            try:
+                if order.payment_status not in SAFE_TO_CANCEL_PAYMENT:
+                    # Payée (totalement ou partiellement) mais jamais servie :
+                    # intervention humaine requise (remboursement ?). On ne
+                    # touche pas, on signale.
+                    flagged_paid += 1
+                    logger.warning(
+                        f"⚠️ Commande #{order.id} ({order.order_number}) inactive "
+                        f">{hours}h mais payment_status='{order.payment_status}' : "
+                        f"NON annulée — vérifier manuellement (remboursement ?)"
+                    )
+                    continue
+
+                note = (
+                    f"[{timezone.now().strftime('%Y-%m-%d %H:%M')}] "
+                    f"Annulation automatique : commande inactive depuis plus "
+                    f"de {hours}h (statut '{order.status}', paiement "
+                    f"'{order.payment_status}')."
+                )
+                new_notes = f"{order.notes}\n{note}".strip() if order.notes else note
+
+                # update() ciblé : pas de signaux, pas de refresh d'auto_now
+                # sur d'autres champs que ceux listés.
+                Order.objects.filter(id=order.id).update(
+                    status='cancelled',
+                    notes=new_notes,
+                )
+                cancelled += 1
+                logger.info(
+                    f"👻 Commande #{order.id} ({order.order_number}) annulée "
+                    f"automatiquement (inactive >{hours}h)"
+                )
+            except Exception as e:
+                logger.error(f"Erreur annulation commande {order.id}: {e}")
+
+        logger.info(
+            f"✅ Commandes fantômes : {cancelled} annulée(s), "
+            f"{flagged_paid} payée(s) signalée(s) pour traitement manuel"
+        )
+        return f"{cancelled} annulée(s), {flagged_paid} signalée(s)"
+
+    except Exception as e:
+        logger.exception("Erreur lors de l'annulation des commandes fantômes")
+        return f"Erreur: {str(e)}"
+
+
+# ============================================================================
 # SUPPRESSION DE COMPTE RGPD (Article 17)
 # ============================================================================
 
@@ -376,6 +466,7 @@ __all__ = [
     'cleanup_old_archived_sessions',
     'force_archive_abandoned_sessions',
     'process_scheduled_account_deletions',
+    'auto_cancel_stale_orders',
 ]
 
 from api.services.menu_ai import tasks as _menu_ai_tasks
