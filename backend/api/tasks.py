@@ -259,6 +259,104 @@ def force_archive_abandoned_sessions(hours=12):
 
 
 # ============================================================================
+# SUPPRESSION DE COMPTE RGPD (Article 17)
+# ============================================================================
+
+@shared_task(name='api.tasks.process_scheduled_account_deletions')
+def process_scheduled_account_deletions():
+    """
+    Exécute les suppressions de compte arrivées à échéance (J+30).
+
+    RGPD art. 17 / App Store 5.1.1(v) : `request_account_deletion` désactive
+    le compte et programme la suppression à scheduled_deletion_date. Cette
+    tâche (Celery Beat, quotidienne) finalise les demandes échues.
+
+    ANONYMISATION plutôt que suppression physique : les commandes doivent
+    être conservées (obligations comptables françaises, 10 ans — le module
+    d'écritures comptables en dépend), mais TOUTES les données personnelles
+    sont effacées : email, nom, prénom, téléphone, profil client. Le User
+    devient une coquille `deleted-<id>` inactive et sans mot de passe.
+
+    Un restaurateur voit en plus ses profils et restaurants désactivés
+    (les données SIRET/Stripe restent nécessaires aux obligations légales
+    de la plateforme et ne sont pas des données personnelles au sens strict).
+    """
+    from django.contrib.auth.models import User
+    from django.db import transaction
+    from api.models import (
+        AccountDeletionRequest,
+        ClientProfile,
+        RestaurateurProfile,
+        Restaurant,
+        Order,
+    )
+
+    now = timezone.now()
+    due_requests = AccountDeletionRequest.objects.filter(
+        status='pending',
+        scheduled_deletion_date__lte=now,
+    ).select_related('user')
+
+    count = 0
+    errors = 0
+    for req in due_requests:
+        try:
+            with transaction.atomic():
+                user = req.user
+                uid = user.id
+                original_email = user.email
+
+                # 1. Profil client : suppression pure (téléphone, préférences…)
+                ClientProfile.objects.filter(user=user).delete()
+
+                # 2. Restaurateur : désactiver profils et restaurants
+                for rp in RestaurateurProfile.objects.filter(user=user):
+                    rp.is_active = False
+                    rp.save(update_fields=['is_active'])
+                    Restaurant.objects.filter(owner=rp).update(is_active=False)
+
+                # 3. PII sur les commandes conservées (montants/items gardés
+                #    pour la comptabilité, identité effacée)
+                Order.objects.filter(user=user).update(
+                    customer_name='',
+                    phone='',
+                )
+
+                # 4. Anonymisation du User (email/username uniques par id)
+                user.first_name = ''
+                user.last_name = ''
+                user.email = f'deleted-{uid}@deleted.eatquicker.fr'
+                user.username = f'deleted-{uid}'
+                user.is_active = False
+                user.set_unusable_password()
+                user.save()
+
+                # 5. Clore la demande
+                req.status = 'completed'
+                req.completed_at = now
+                req.save(update_fields=['status', 'completed_at'])
+
+            count += 1
+            logger.warning(
+                f"🗑️ Compte anonymisé (RGPD art. 17) : user_id={uid} "
+                f"(demande #{req.id}, email d'origine masqué : "
+                f"{original_email[:2]}***)"
+            )
+        except Exception:
+            errors += 1
+            logger.exception(
+                f"Erreur lors de la suppression programmée #{req.id}"
+            )
+
+    logger.info(
+        f"✅ Suppressions RGPD : {count} compte(s) anonymisé(s), "
+        f"{errors} erreur(s)"
+    )
+    return f"{count} compte(s) anonymisé(s), {errors} erreur(s)"
+
+
+
+# ============================================================================
 # TÂCHES COMPTABILITÉ
 # ============================================================================
 
@@ -277,6 +375,7 @@ __all__ = [
     'auto_complete_inactive_sessions',
     'cleanup_old_archived_sessions',
     'force_archive_abandoned_sessions',
+    'process_scheduled_account_deletions',
 ]
 
 from api.services.menu_ai import tasks as _menu_ai_tasks

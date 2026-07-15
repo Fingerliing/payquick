@@ -42,6 +42,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from api.models import ClientProfile
 from api.throttles import LoginHourThrottle, LoginThrottle
 from api.views.google_auth_views import _find_existing_user_by_email
+from api.utils.account_reactivation import reactivate_account_if_pending_deletion
 
 logger = logging.getLogger(__name__)
 
@@ -216,6 +217,12 @@ class AppleLoginView(APIView):
                     # Compte existant — on se connecte simplement.
                     user = existing_user
                     created = False
+
+                    # Suppression programmée ? La reconnexion l'annule et
+                    # réactive le compte (promesse de l'UX de suppression).
+                    # Un compte inactif pour une autre raison reste rejeté
+                    # par JWTAuthentication en aval.
+                    reactivate_account_if_pending_deletion(user, request)
 
                     # Cohérence : un compte sans aucun profil reçoit un
                     # ClientProfile par défaut (même logique que Google).
