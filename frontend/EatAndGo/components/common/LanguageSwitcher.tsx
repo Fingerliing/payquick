@@ -109,7 +109,9 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({
       >
         <View style={styles.rowLeft}>
           <Ionicons name="language" size={20} color={colors.primary} />
-          <Text style={styles.rowLabel}>{label ?? t('profile.language')}</Text>
+          <Text style={styles.rowLabel} numberOfLines={1}>
+            {label ?? t('profile.language')}
+          </Text>
         </View>
         <View style={styles.rowRight}>
           <Text style={styles.rowFlag}>{languageInfo.flag}</Text>
@@ -263,6 +265,7 @@ const createStyles = (
       fontSize: getResponsiveValue(TYPOGRAPHY.fontSize.base, screenType),
       fontWeight: TYPOGRAPHY.fontWeight.medium,
       color: colors.text.primary,
+      flexShrink: 1,
     },
     rowFlag: { fontSize: 20 },
     rowValue: {
@@ -356,7 +359,10 @@ const createStyles = (
     // La FlatList ne doit pas pousser le sheet au-delà de sa maxHeight :
     // flexGrow 0 la contraint et active son scroll interne.
     list: {
+      // flexGrow 0 + flexShrink 1 : la liste se comprime dans la maxHeight
+      // du sheet et scrolle, au lieu de déborder (11 langues sur iPhone SE).
       flexGrow: 0,
+      flexShrink: 1,
     },
 
     // ── Lignes de langue ───────────────────────────────────────────────

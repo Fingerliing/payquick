@@ -102,6 +102,7 @@ export default function ProfileScreen() {
   // désactive le compte immédiatement ; se reconnecter avant l'échéance
   // annule la demande).
   const performDeleteAccount = useCallback(async () => {
+    if (isDeleting) return;
     setIsDeleting(true);
     try {
       await legalService.requestAccountDeletion();
@@ -115,12 +116,13 @@ export default function ProfileScreen() {
       pushAlert(
         'error',
         t('common.error'),
-        backendMessage || t('profile.deleteAccountError'),
+        backendMessage ||
+          t('profile.deleteAccountError', 'Impossible de supprimer le compte. Réessayez.'),
       );
     } finally {
       setIsDeleting(false);
     }
-  }, [logout, pushAlert, t]);
+  }, [isDeleting, logout, pushAlert, t]);
 
   const handleDeleteAccount = useCallback(() => {
     setDeleteConfirmOpen(true);
@@ -299,7 +301,7 @@ export default function ProfileScreen() {
 
               {/* Suppression de compte — requise par la Guideline 5.1.1(v) */}
               <Button
-                title={t('profile.deleteAccount')}
+                title={t('profile.deleteAccount', 'Supprimer mon compte')}
                 onPress={handleDeleteAccount}
                 loading={isDeleting}
                 fullWidth
@@ -347,14 +349,17 @@ export default function ProfileScreen() {
         <View style={styles.confirmContainer}>
           <AlertWithAction
             variant="error"
-            title={t('profile.deleteAccountConfirmTitle')}
-            message={t('profile.deleteAccountConfirmMessage')}
+            title={t('profile.deleteAccountConfirmTitle', 'Supprimer votre compte ?')}
+            message={t(
+              'profile.deleteAccountConfirmMessage',
+              'Votre compte et toutes vos données personnelles seront définitivement supprimés. Vous disposez de 30 jours pour annuler en vous reconnectant ; passé ce délai, la suppression est irréversible.',
+            )}
             secondaryButton={{
               text: t('common.cancel'),
               onPress: () => setDeleteConfirmOpen(false),
             }}
             primaryButton={{
-              text: t('profile.deleteAccount'),
+              text: t('profile.deleteAccount', 'Supprimer mon compte'),
               onPress: performDeleteAccount,
               variant: 'danger',
             }}

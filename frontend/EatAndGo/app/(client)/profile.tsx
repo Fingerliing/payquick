@@ -287,7 +287,10 @@ export default function ClientProfileScreen() {
       setShowDeleteAlert(false);
       const backendMessage =
         error?.response?.data?.message || error?.response?.data?.error;
-      setDeleteError(backendMessage || t('profile.deleteAccountError'));
+      setDeleteError(
+        backendMessage ||
+          t('profile.deleteAccountError', 'Impossible de supprimer le compte. Réessayez.'),
+      );
     } finally {
       setIsDeleting(false);
     }
@@ -731,7 +734,7 @@ export default function ClientProfileScreen() {
 
               {/* Suppression de compte — requise par la Guideline 5.1.1(v) */}
               <Button
-                title={t('profile.deleteAccount')}
+                title={t('profile.deleteAccount', 'Supprimer mon compte')}
                 onPress={() => setShowDeleteAlert(true)}
                 variant="outline"
                 fullWidth
@@ -830,12 +833,15 @@ export default function ClientProfileScreen() {
           >
             <AlertWithAction
               variant="error"
-              title={t('profile.deleteAccountConfirmTitle')}
-              message={t('profile.deleteAccountConfirmMessage')}
+              title={t('profile.deleteAccountConfirmTitle', 'Supprimer votre compte ?')}
+              message={t(
+                'profile.deleteAccountConfirmMessage',
+                'Votre compte et toutes vos données personnelles seront définitivement supprimés. Vous disposez de 30 jours pour annuler en vous reconnectant ; passé ce délai, la suppression est irréversible.',
+              )}
               onDismiss={() => !isDeleting && setShowDeleteAlert(false)}
               autoDismiss={false}
               primaryButton={{
-                text: t('profile.deleteAccount'),
+                text: t('profile.deleteAccount', 'Supprimer mon compte'),
                 onPress: performDeleteAccount,
                 variant: 'danger',
               }}
