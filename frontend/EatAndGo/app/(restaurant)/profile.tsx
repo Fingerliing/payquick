@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '@/contexts/AuthContext';
+import { legalService } from '@/services/legalService';
 import { Header } from '@/components/ui/Header';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -62,6 +63,8 @@ export default function ProfileScreen() {
 
   const { alerts, pushAlert, dismissAlert } = useAlerts();
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const screenType = useScreenType();
   const { width } = useWindowDimensions();
@@ -92,6 +95,37 @@ export default function ProfileScreen() {
 
   const handleLogout = useCallback(() => {
     setLogoutConfirmOpen(true);
+  }, []);
+
+  // ── Suppression de compte (App Store Guideline 5.1.1(v) / RGPD art. 17) ──
+  // Suppression définitive avec période d'annulation de 30 jours (l'API
+  // désactive le compte immédiatement ; se reconnecter avant l'échéance
+  // annule la demande).
+  const performDeleteAccount = useCallback(async () => {
+    if (isDeleting) return;
+    setIsDeleting(true);
+    try {
+      await legalService.requestAccountDeletion();
+      setDeleteConfirmOpen(false);
+      await logout();
+      router.replace('/(auth)/login');
+    } catch (error: any) {
+      setDeleteConfirmOpen(false);
+      const backendMessage =
+        error?.response?.data?.message || error?.response?.data?.error;
+      pushAlert(
+        'error',
+        t('common.error'),
+        backendMessage ||
+          t('profile.deleteAccountError', 'Impossible de supprimer le compte. Réessayez.'),
+      );
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [isDeleting, logout, pushAlert, t]);
+
+  const handleDeleteAccount = useCallback(() => {
+    setDeleteConfirmOpen(true);
   }, []);
 
   const getInitials = (name: string) => {
@@ -264,6 +298,19 @@ export default function ProfileScreen() {
                 style={styles.logoutButton}
                 textStyle={styles.logoutButtonText}
               />
+
+              {/* Suppression de compte — requise par la Guideline 5.1.1(v) */}
+              <Button
+                title={t('profile.deleteAccount', 'Supprimer mon compte')}
+                onPress={handleDeleteAccount}
+                loading={isDeleting}
+                fullWidth
+                leftIcon={
+                  <Ionicons name="trash-outline" size={20} color={colors.error} />
+                }
+                style={styles.deleteAccountButton}
+                textStyle={styles.deleteAccountButtonText}
+              />
             </View>
 
             {/* Footer */}
@@ -291,6 +338,29 @@ export default function ProfileScreen() {
             primaryButton={{
               text: t('restaurantProfile.logout'),
               onPress: performLogout,
+              variant: 'danger',
+            }}
+          />
+        </View>
+      )}
+
+      {/* Confirmation de suppression de compte */}
+      {deleteConfirmOpen && (
+        <View style={styles.confirmContainer}>
+          <AlertWithAction
+            variant="error"
+            title={t('profile.deleteAccountConfirmTitle', 'Supprimer votre compte ?')}
+            message={t(
+              'profile.deleteAccountConfirmMessage',
+              'Votre compte et toutes vos données personnelles seront définitivement supprimés. Vous disposez de 30 jours pour annuler en vous reconnectant ; passé ce délai, la suppression est irréversible.',
+            )}
+            secondaryButton={{
+              text: t('common.cancel'),
+              onPress: () => setDeleteConfirmOpen(false),
+            }}
+            primaryButton={{
+              text: t('profile.deleteAccount', 'Supprimer mon compte'),
+              onPress: performDeleteAccount,
               variant: 'danger',
             }}
           />
@@ -494,6 +564,16 @@ const makeStyles = (
 
     logoutButtonText: {
       color: colors.text.inverse,
+    },
+
+    deleteAccountButton: {
+      backgroundColor: 'transparent',
+      borderWidth: 1,
+      borderColor: colors.error,
+    },
+
+    deleteAccountButtonText: {
+      color: colors.error,
     },
 
     footer: {

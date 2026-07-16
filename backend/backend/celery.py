@@ -44,6 +44,17 @@ app.conf.update(
             'kwargs': {'hours': 1},
             'options': {'expires': 3600},
         },
+        'process-scheduled-account-deletions': {
+            'task': 'api.tasks.process_scheduled_account_deletions',
+            'schedule': crontab(hour=4, minute=0),
+            'options': {'expires': 3600},
+        },
+        'auto-cancel-stale-orders': {
+            'task': 'api.tasks.auto_cancel_stale_orders',
+            'schedule': crontab(hour=5, minute=0),
+            'kwargs': {'hours': 24},
+            'options': {'expires': 3600},
+        },
         'cleanup-old-archived-sessions': {
             'task': 'api.tasks.cleanup_old_archived_sessions',
             'schedule': crontab(hour=3, minute=0),

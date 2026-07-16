@@ -34,13 +34,22 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 
 class DataExportThrottle(UserRateThrottle):
-    """Limite les exports de données à 3 par jour"""
+    """Limite les exports de données à 3 par jour.
+
+    ⚠️ `scope` explicite obligatoire : sans lui, UserRateThrottle utilise
+    le scope hérité 'user' → toutes les sous-classes partagent le MÊME
+    compteur de cache (throttle_user_<id>). C'est ce qui faisait qu'un
+    export de données consommait le quota de suppression de compte
+    (429 sur /legal/account/delete/ — bug du 11/07/2026).
+    """
+    scope = 'data_export'
     rate = '3/day'
 
 
 class AccountDeletionThrottle(UserRateThrottle):
-    """Limite les demandes de suppression à 2 par jour"""
-    rate = '2/day'
+    """Limite les demandes de suppression à 5 par jour (scope dédié)."""
+    scope = 'account_deletion'
+    rate = '5/day'
 
 
 # ============================================================================
@@ -473,11 +482,22 @@ def request_account_deletion(request):
     reason = request.data.get('reason', '')
     
     try:
-        # Vérifier si l'utilisateur a des commandes en cours
+        # Vérifier si l'utilisateur a des commandes en cours.
+        # ⚠️ FK = `user` (pas `client` — FieldError 500 du 15/07/2026) et
+        # statuts actifs réels du modèle Order (pas de `in_progress`).
+        ACTIVE_STATUSES = ['pending', 'confirmed', 'preparing', 'ready']
         active_orders = Order.objects.filter(
-            client=user,
-            status__in=['pending', 'in_progress', 'ready']
+            user=user,
+            status__in=ACTIVE_STATUSES,
         ).exists()
+
+        # Restaurateur : bloquer aussi la suppression si SES restaurants ont
+        # des commandes actives (des clients seraient laissés en plan).
+        if not active_orders and hasattr(user, 'restaurateur_profile'):
+            active_orders = Order.objects.filter(
+                restaurant__owner=user.restaurateur_profile,
+                status__in=ACTIVE_STATUSES,
+            ).exists()
         
         if active_orders:
             return Response({

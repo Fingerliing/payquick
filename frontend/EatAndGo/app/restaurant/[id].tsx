@@ -384,14 +384,11 @@ const RestaurantDetailPage = () => {
     }
 
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== ImagePicker.PermissionStatus.GRANTED) {
-        showToast('error', "Permission d'accès aux photos requise", 'Erreur');
-        return;
-      }
-
+      // Photo picker système : pas de requestMediaLibraryPermissionsAsync
+      // (READ_MEDIA_* bloqué pour conformité Google Play). La sélection
+      // explicite de l'utilisateur via le picker fait office de consentement.
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'], // MediaTypeOptions.Images déprécié SDK 54
         allowsEditing: true,
         aspect: [16, 9],
         quality: 0.8,

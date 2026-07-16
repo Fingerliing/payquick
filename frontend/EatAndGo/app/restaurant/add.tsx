@@ -316,14 +316,10 @@ export default function AddRestaurantScreen() {
   // MEDIA & LOCATION HANDLERS
   const handleImagePicker = async () => {
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== ImagePicker.PermissionStatus.GRANTED) {
-        showError(t('addRestaurant.alerts.photoPermissionMessage'), t('addRestaurant.alerts.permissionDeniedTitle'));
-        return;
-      }
-
+      // Photo picker système : pas de requestMediaLibraryPermissionsAsync
+      // (READ_MEDIA_* bloqué pour conformité Google Play).
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'], // MediaTypeOptions.Images déprécié SDK 54
         // allowsEditing désactivé : sur Android il lance l'écran de recadrage
         // natif (UCrop) dont la barre d'outils ne suit pas le thème de l'app
         // (texte sombre sur fond gris, illisible sur certains appareils).

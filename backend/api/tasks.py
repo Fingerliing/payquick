@@ -456,6 +456,190 @@ def auto_release_occupancies():
         logger.info(f"✅ auto_release_occupancies: {released} table(s) libérée(s)")
     return f"{released} table(s) libérée(s)"
 
+# COMMANDES FANTÔMES
+# ============================================================================
+
+@shared_task(name='api.tasks.auto_cancel_stale_orders')
+def auto_cancel_stale_orders(hours=24):
+    """
+    Annule les commandes actives abandonnées (« fantômes »).
+
+    Contexte : dans un service à table, une commande pending/confirmed sans
+    aucun mouvement depuis 24 h est morte par définition. Sans cette tâche,
+    elle reste active pour toujours : invisible dans le kanban (filtre 24 h
+    côté app) mais comptée dans les stats et BLOQUANTE pour la suppression
+    de compte RGPD (cf. commandes #4 et #10 découvertes le 15/07/2026).
+
+    ⚠️ Garde-fou paiement : une commande DÉJÀ PAYÉE (paid / partial_paid)
+    n'est JAMAIS annulée automatiquement — un client débité mais jamais
+    servi doit être traité par un humain (remboursement). Ces cas sont
+    seulement signalés en warning dans les logs.
+
+    Critère d'inactivité : updated_at (auto_now) — tout changement de statut,
+    de paiement ou d'items le rafraîchit.
+
+    S'exécute quotidiennement via Celery Beat. Même pattern que
+    force_archive_abandoned_sessions.
+    """
+    from api.models import Order
+
+    logger.info(f"👻 Recherche de commandes fantômes (inactives >{hours}h)...")
+
+    try:
+        cutoff = timezone.now() - timedelta(hours=hours)
+        ACTIVE_STATUSES = ['pending', 'confirmed', 'preparing', 'ready']
+        SAFE_TO_CANCEL_PAYMENT = ['unpaid', 'pending', 'cash_pending', 'failed']
+
+        stale_orders = Order.objects.filter(
+            status__in=ACTIVE_STATUSES,
+            updated_at__lt=cutoff,
+        )
+
+        cancelled = 0
+        flagged_paid = 0
+
+        for order in stale_orders:
+            try:
+                if order.payment_status not in SAFE_TO_CANCEL_PAYMENT:
+                    # Payée (totalement ou partiellement) mais jamais servie :
+                    # intervention humaine requise (remboursement ?). On ne
+                    # touche pas, on signale.
+                    flagged_paid += 1
+                    logger.warning(
+                        f"⚠️ Commande #{order.id} ({order.order_number}) inactive "
+                        f">{hours}h mais payment_status='{order.payment_status}' : "
+                        f"NON annulée — vérifier manuellement (remboursement ?)"
+                    )
+                    continue
+
+                note = (
+                    f"[{timezone.now().strftime('%Y-%m-%d %H:%M')}] "
+                    f"Annulation automatique : commande inactive depuis plus "
+                    f"de {hours}h (statut '{order.status}', paiement "
+                    f"'{order.payment_status}')."
+                )
+                new_notes = f"{order.notes}\n{note}".strip() if order.notes else note
+
+                # update() ciblé : pas de signaux, pas de refresh d'auto_now
+                # sur d'autres champs que ceux listés.
+                Order.objects.filter(id=order.id).update(
+                    status='cancelled',
+                    notes=new_notes,
+                )
+                cancelled += 1
+                logger.info(
+                    f"👻 Commande #{order.id} ({order.order_number}) annulée "
+                    f"automatiquement (inactive >{hours}h)"
+                )
+            except Exception as e:
+                logger.error(f"Erreur annulation commande {order.id}: {e}")
+
+        logger.info(
+            f"✅ Commandes fantômes : {cancelled} annulée(s), "
+            f"{flagged_paid} payée(s) signalée(s) pour traitement manuel"
+        )
+        return f"{cancelled} annulée(s), {flagged_paid} signalée(s)"
+
+    except Exception as e:
+        logger.exception("Erreur lors de l'annulation des commandes fantômes")
+        return f"Erreur: {str(e)}"
+
+
+# ============================================================================
+# SUPPRESSION DE COMPTE RGPD (Article 17)
+# ============================================================================
+
+@shared_task(name='api.tasks.process_scheduled_account_deletions')
+def process_scheduled_account_deletions():
+    """
+    Exécute les suppressions de compte arrivées à échéance (J+30).
+
+    RGPD art. 17 / App Store 5.1.1(v) : `request_account_deletion` désactive
+    le compte et programme la suppression à scheduled_deletion_date. Cette
+    tâche (Celery Beat, quotidienne) finalise les demandes échues.
+
+    ANONYMISATION plutôt que suppression physique : les commandes doivent
+    être conservées (obligations comptables françaises, 10 ans — le module
+    d'écritures comptables en dépend), mais TOUTES les données personnelles
+    sont effacées : email, nom, prénom, téléphone, profil client. Le User
+    devient une coquille `deleted-<id>` inactive et sans mot de passe.
+
+    Un restaurateur voit en plus ses profils et restaurants désactivés
+    (les données SIRET/Stripe restent nécessaires aux obligations légales
+    de la plateforme et ne sont pas des données personnelles au sens strict).
+    """
+    from django.contrib.auth.models import User
+    from django.db import transaction
+    from api.models import (
+        AccountDeletionRequest,
+        ClientProfile,
+        RestaurateurProfile,
+        Restaurant,
+        Order,
+    )
+
+    now = timezone.now()
+    due_requests = AccountDeletionRequest.objects.filter(
+        status='pending',
+        scheduled_deletion_date__lte=now,
+    ).select_related('user')
+
+    count = 0
+    errors = 0
+    for req in due_requests:
+        try:
+            with transaction.atomic():
+                user = req.user
+                uid = user.id
+                original_email = user.email
+
+                # 1. Profil client : suppression pure (téléphone, préférences…)
+                ClientProfile.objects.filter(user=user).delete()
+
+                # 2. Restaurateur : désactiver profils et restaurants
+                for rp in RestaurateurProfile.objects.filter(user=user):
+                    rp.is_active = False
+                    rp.save(update_fields=['is_active'])
+                    Restaurant.objects.filter(owner=rp).update(is_active=False)
+
+                # 3. PII sur les commandes conservées (montants/items gardés
+                #    pour la comptabilité, identité effacée)
+                Order.objects.filter(user=user).update(
+                    customer_name='',
+                    phone='',
+                )
+
+                # 4. Anonymisation du User (email/username uniques par id)
+                user.first_name = ''
+                user.last_name = ''
+                user.email = f'deleted-{uid}@deleted.eatquicker.fr'
+                user.username = f'deleted-{uid}'
+                user.is_active = False
+                user.set_unusable_password()
+                user.save()
+
+                # 5. Clore la demande
+                req.status = 'completed'
+                req.completed_at = now
+                req.save(update_fields=['status', 'completed_at'])
+
+            count += 1
+            logger.warning(
+                f"🗑️ Compte anonymisé (RGPD art. 17) : user_id={uid} "
+                f"(demande #{req.id}, email d'origine masqué : "
+                f"{original_email[:2]}***)"
+            )
+        except Exception:
+            errors += 1
+            logger.exception(
+                f"Erreur lors de la suppression programmée #{req.id}"
+            )
+
+    logger.info(
+        f"✅ Suppressions RGPD : {count} compte(s) anonymisé(s), "
+        f"{errors} erreur(s)"
+    )
+    return f"{count} compte(s) anonymisé(s), {errors} erreur(s)"
 
 
 
@@ -482,6 +666,8 @@ __all__ = [
     'expire_pending_reservations',
     'mark_reservation_no_shows',
     'auto_release_occupancies',
+    'process_scheduled_account_deletions',
+    'auto_cancel_stale_orders',
 ]
 
 from api.services.menu_ai import tasks as _menu_ai_tasks

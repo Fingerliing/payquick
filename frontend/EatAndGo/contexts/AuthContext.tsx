@@ -20,6 +20,10 @@ import {
   GoogleSignInError,
 } from '@/services/googleAuthService';
 import {
+  signInWithApple,
+  AppleSignInError,
+} from '@/services/appleAuthService';
+import {
   User,
   RestaurateurProfile,
   Restaurant,
@@ -48,6 +52,7 @@ const API_ENDPOINTS = {
     register: `${API_URL}/auth/register/`,
     login: `${API_URL}/auth/login/`,
     google: `${API_URL}/auth/google/`,
+    apple: `${API_URL}/auth/apple/`,
     user: `${API_URL}/auth/me/`,
     refresh: `${API_URL}/auth/refresh/`,
     profile: `${API_URL}/auth/profile/`,
@@ -69,6 +74,7 @@ interface AuthContextType {
   login: (data: LoginData) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   googleLogin: () => Promise<void>;
+  appleLogin: () => Promise<void>;
   logout: () => Promise<void>;
   refreshTokens: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -131,7 +137,7 @@ class ApiClient {
     };
   
     // Ne pas injecter le token sur les endpoints publics
-    const PUBLIC_ENDPOINTS = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/google'];
+    const PUBLIC_ENDPOINTS = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/google', '/auth/apple'];
     const isPublicEndpoint = PUBLIC_ENDPOINTS.some(ep => endpoint.includes(ep));
 
     let token: string | null = null;
@@ -247,6 +253,22 @@ class ApiClient {
       {
         method: 'POST',
         body: JSON.stringify({ id_token: idToken }),
+      }
+    );
+  }
+
+  async appleLogin(
+    identityToken: string,
+    givenName?: string | null,
+  ): Promise<AuthResponse & { is_new_user?: boolean }> {
+    return this.request<AuthResponse & { is_new_user?: boolean }>(
+      API_ENDPOINTS.auth.apple,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          identity_token: identityToken,
+          given_name: givenName ?? '',
+        }),
       }
     );
   }
@@ -754,6 +776,85 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // ── Connexion via Sign in with Apple ─────────────────────────────────────
+  // 1. Le SDK Apple ouvre la feuille native et retourne un identityToken
+  //    signé (+ givenName, uniquement au tout premier sign-in — jamais dans
+  //    le token, d'où sa transmission séparée au backend).
+  // 2. On envoie ces données à /auth/apple/, qui vérifie le token auprès des
+  //    clés publiques Apple et retourne nos JWT EatQuickeR (créant le compte
+  //    client si nécessaire — email relais privé accepté).
+  // 3. Suite du flow identique à googleLogin() : surveillance de session,
+  //    /auth/me/, synchro consentement, navigation par rôle.
+  const appleLogin = async () => {
+    try {
+      setIsLoading(true);
+      clearError();
+      console.log('🔐 Tentative de connexion via Apple...');
+
+      // 1. SDK Apple → identityToken (+ givenName au premier sign-in)
+      const { identityToken, givenName } = await signInWithApple();
+      console.log('✅ identityToken Apple obtenu');
+
+      // Apple ne fournit givenName qu'au TOUT PREMIER sign-in de l'app.
+      // On le met en cache local dès qu'on le reçoit : si l'appel backend
+      // échoue à ce moment-là (réseau, déploiement…), les connexions
+      // suivantes pourront quand même transmettre le prénom — le backend
+      // ne complète first_name que s'il est vide, jamais d'écrasement.
+      const APPLE_NAME_KEY = 'apple_given_name';
+      let effectiveGivenName = givenName;
+      if (givenName) {
+        await secureStorage.setItem(APPLE_NAME_KEY, givenName);
+      } else {
+        effectiveGivenName = await secureStorage.getItem(APPLE_NAME_KEY);
+      }
+
+      // 2. Backend → JWT EatQuickeR
+      const response = await apiClient.appleLogin(identityToken, effectiveGivenName);
+
+      await secureStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, response.access);
+      await secureStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, response.refresh);
+      console.log('💾 Tokens EatQuickeR enregistrés', {
+        isNewUser: response.is_new_user,
+      });
+
+      // 3. Démarrer la surveillance de session (refresh proactif anti-expiration)
+      await sessionMonitor.startSessionMonitoring();
+
+      const currentUser = await apiClient.getCurrentUser();
+      if (currentUser) {
+        await secureStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(currentUser));
+        setUser(currentUser);
+        console.log('👤 Utilisateur récupéré (login Apple)', {
+          role: currentUser.role,
+          isAuthenticated: currentUser.is_authenticated,
+        });
+
+        console.log('✅ Connexion Apple réussie');
+
+        // Synchro consentement légal si accepté avant connexion
+        await syncPendingLegalConsent();
+
+        // Navigation après connexion
+        navigateByRole(currentUser);
+      }
+    } catch (error: any) {
+      // Annulation utilisateur : on remonte tel quel pour que le composant
+      // décide de ne pas afficher d'alerte. On ne nettoie pas les données
+      // d'auth puisqu'aucune session n'a été ouverte.
+      if (error instanceof AppleSignInError && error.code === 'CANCELLED') {
+        console.log('ℹ️ Connexion Apple annulée par l\'utilisateur');
+        throw error;
+      }
+
+      console.error('❌ Erreur lors du login Apple:', error);
+      handleError(error, 'login');
+      await clearAuthData();
+      throw new Error(lastError || 'Erreur lors de la connexion Apple');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const logout = async () => {
     try {
       console.log('🚪 Déconnexion...');
@@ -884,6 +985,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     register,
     googleLogin,
+    appleLogin,
     logout,
     refreshTokens,
     refreshUser,

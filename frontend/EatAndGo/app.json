@@ -12,16 +12,49 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "fr.fingerliing.EatQuickeR",
-      "googleServicesFile": "./GoogleService-Info.plist"
+      "usesAppleSignIn": true,
+      "associatedDomains": [
+        "applinks:api.eatquicker.fr",
+        "applinks:eatquicker.fr"
+      ],
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "EatQuickeR utilise l'appareil photo pour scanner les QR codes de table et accéder au menu du restaurant.",
+        "NSPhotoLibraryUsageDescription": "EatQuickeR a besoin d'accéder à vos photos pour personnaliser votre profil ou ajouter une image à un plat (restaurateurs uniquement).",
+        "NSPhotoLibraryAddUsageDescription": "EatQuickeR peut enregistrer le QR code de votre session dans votre galerie pour faciliter le partage."
+      }
     },
     "android": {
+      "versionCode": 11,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#0C1219"
       },
+      "blockedPermissions": [
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO"
+      ],
       "edgeToEdgeEnabled": true,
       "package": "fr.fingerliing.EatQuickeR",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "api.eatquicker.fr",
+              "pathPrefix": "/t/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/images/favicon.png",
@@ -30,6 +63,14 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ],
       [
         "expo-local-authentication",
         {
@@ -61,7 +102,7 @@
       [
         "@react-native-google-signin/google-signin",
         {
-          "iosUrlScheme": "com.googleusercontent.apps.REPLACE_WITH_IOS_CLIENT_ID_REVERSED"
+          "iosUrlScheme": "com.googleusercontent.apps.161444086922-0e30dfkvqiba6o9vhce8ap5432ptkqrt"
         }
       ],
       [
@@ -73,6 +114,7 @@
           "backgroundColor": "#0C1219"
         }
       ],
+      "expo-apple-authentication",
       "react-native-edge-to-edge"
     ],
     "extra": {

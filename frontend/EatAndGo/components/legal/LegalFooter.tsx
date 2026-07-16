@@ -12,7 +12,7 @@ import {
   type AppColors,
 } from '@/utils/designSystem';
 
-const APP_VERSION = '1.1.1';
+const APP_VERSION = '1.1.3';
 
 export function LegalFooter() {
   const router = useRouter();

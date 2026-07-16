@@ -197,6 +197,12 @@ class CreateCheckoutSessionView(APIView):
 
         except Order.DoesNotExist:
             return Response({"error": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
+        except stripe.StripeError as e:
+            logger.exception("Stripe error in CreateCheckoutSessionView for order %s: %s", order_id, e)
+            return Response(
+                {"error": "Payment could not be initialized. Please try again or choose another payment method."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         except Exception as e:
             logger.exception("Unexpected error in CreateCheckoutSessionView for order %s: %s", order_id, e)
             return Response({"error": "An unexpected error occurred. Please try again."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -852,9 +858,20 @@ class CreatePaymentIntentView(APIView):
             # Calculer les paramètres Connect (commission + transfer)
             amount_cents = int(order.total_amount * 100)
             restaurateur = getattr(order.restaurant, 'owner', None)
-            connect_params = build_stripe_payment_params(
-                amount_cents, restaurateur
-            ) if restaurateur else {}
+
+            # ── Garde-fou Connect ────────────────────────────────────────
+            # Sans compte Connect valide, transfer_data[destination] fait
+            # échouer PaymentIntent.create côté Stripe (cf. rejet App Review
+            # 2.1(a) du 09/07/2026 : destination inexistante → 500). On
+            # refuse proprement en amont ; le client ne doit alors proposer
+            # que le paiement en caisse.
+            if not restaurateur or not restaurateur.stripe_account_id:
+                return Response(
+                    {'error': 'Card payment is not available for this restaurant.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            connect_params = build_stripe_payment_params(amount_cents, restaurateur)
 
             # Créer le PaymentIntent
             intent = stripe.PaymentIntent.create(
@@ -877,6 +894,14 @@ class CreatePaymentIntentView(APIView):
             return Response(
                 {'error': 'Order not found'},
                 status=status.HTTP_404_NOT_FOUND
+            )
+        except stripe.StripeError as e:
+            # Erreur Stripe (compte invalide, paramètres refusés, réseau…) :
+            # jamais de 500 ni de str(e) exposé au client.
+            logger.exception("Stripe error in CreatePaymentIntentView for order %s: %s", order_id, e)
+            return Response(
+                {'error': 'Payment could not be initialized. Please try again or choose another payment method.'},
+                status=status.HTTP_400_BAD_REQUEST
             )
         except Exception as e:
             logger.exception("Unexpected error in CreatePaymentIntentView for order %s: %s", order_id, e)

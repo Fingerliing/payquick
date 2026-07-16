@@ -10,6 +10,7 @@ from api.views.auth_views import (
     ResendVerificationCodeView,
 )
 from api.views.google_auth_views import GoogleLoginView
+from api.views.apple_auth_views import AppleLoginView
 from api.views.verification_views import (
     SendVerificationCodeView,
     VerifyEmailCodeView,
@@ -34,6 +35,7 @@ urlpatterns = [
 
     # Connexion sociale
     path('google/', GoogleLoginView.as_view(), name='google-login'),
+    path('apple/', AppleLoginView.as_view(), name='apple-login'),
 
     # Vérification d'email post-inscription
     # path('phone/send-code/', SendVerificationCodeView.as_view(), name='send-verification-code'),

@@ -1,6 +1,6 @@
 export const APP_CONFIG = {
   name: 'EatQuickeR',
-  version: '1.0.0',
+  version: '1.1.1',
   api: {
     baseUrl: process.env.EXPO_PUBLIC_API_URL ||
       (__DEV__ ? 'http://localhost:8000' : 'https://api.eatquicker.fr'),

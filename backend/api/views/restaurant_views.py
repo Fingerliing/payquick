@@ -4,7 +4,9 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from rest_framework.exceptions import NotFound
 from django.shortcuts import get_object_or_404
+from django.http import Http404
 from django.db.models import Count, Q, Sum, Avg, F, Case, When, FloatField
 from django.db.models.functions import ExtractHour, ExtractWeekDay
 from django.utils import timezone
@@ -86,52 +88,70 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             }, status=status.HTTP_404_NOT_FOUND)
 
     def list(self, request, *args, **kwargs):
-        """Liste tous les restaurants du restaurateur avec gestion des non-validés"""
+        """Liste tous les restaurants du restaurateur.
+
+        La liste n'est JAMAIS masquée par l'état de validation Stripe : un
+        restaurateur doit toujours pouvoir voir et gérer ses restaurants,
+        seul l'encaissement carte dépend de la vérification Stripe (porté
+        par is_stripe_active côté restaurant). L'état de validation est
+        exposé en métadonnée `validation_status` pour que le front puisse
+        afficher un bandeau d'onboarding.
+
+        (Bug historique : la liste était vidée quand stripe_verified=False,
+        et un except Exception silencieux déguisait toute erreur réelle en
+        « profil en cours de validation » — restaurants « disparus ».)
+        """
+        if not hasattr(request.user, 'restaurateur_profile'):
+            return Response({
+                'restaurants': [],
+                'error': 'Profil restaurateur requis'
+            }, status=status.HTTP_403_FORBIDDEN)
+
         try:
-            # Vérifier d'abord si l'utilisateur a un profil restaurateur
-            if not hasattr(request.user, 'restaurateur_profile'):
-                return Response({
-                    'restaurants': [],
-                    'error': 'Profil restaurateur requis'
-                }, status=status.HTTP_403_FORBIDDEN)
+            response = super().list(request, *args, **kwargs)
+        except Exception:
+            # Jamais d'erreur avalée : on logge et on laisse DRF produire
+            # une 500 propre, visible dans les logs et le monitoring.
+            logger.exception(
+                "Erreur dans RestaurantViewSet.list pour user=%s",
+                getattr(request.user, 'username', 'anonymous'),
+            )
+            raise
 
-            profile = request.user.restaurateur_profile
-            
-            # Si le restaurateur n'est pas validé, retourner une réponse appropriée
-            if not profile.stripe_verified or not profile.is_active:
-                return self.handle_unvalidated_restaurateur()
-
-            # Si validé, procéder normalement
-            return super().list(request, *args, **kwargs)
-            
-        except Exception as e:
-            return self.handle_unvalidated_restaurateur()
+        profile = request.user.restaurateur_profile
+        if isinstance(response.data, dict):
+            response.data['validation_status'] = {
+                'stripe_verified': profile.stripe_verified,
+                'is_active': profile.is_active,
+                'stripe_onboarding_completed': profile.stripe_onboarding_completed,
+                'has_stripe_account': bool(profile.stripe_account_id),
+            }
+        return response
 
     def retrieve(self, request, *args, **kwargs):
-        """Détails d'un restaurant avec gestion des non-validés"""
-        try:
-            if not hasattr(request.user, 'restaurateur_profile'):
-                return Response({
-                    'error': 'Profil restaurateur requis'
-                }, status=status.HTTP_403_FORBIDDEN)
+        """Détails d'un restaurant.
 
-            profile = request.user.restaurateur_profile
-            
-            if not profile.stripe_verified or not profile.is_active:
-                return Response({
-                    'error': 'Profil en cours de validation',
-                    'validation_status': {
-                        'stripe_verified': profile.stripe_verified,
-                        'is_active': profile.is_active,
-                    }
-                }, status=status.HTTP_403_FORBIDDEN)
-
-            return super().retrieve(request, *args, **kwargs)
-            
-        except Exception as e:
+        Le propriétaire accède toujours à ses restaurants, validé Stripe
+        ou non (get_queryset garantit déjà owner=profil connecté).
+        """
+        if not hasattr(request.user, 'restaurateur_profile'):
             return Response({
-                'error': 'Erreur lors de la récupération du restaurant'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                'error': 'Profil restaurateur requis'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            return super().retrieve(request, *args, **kwargs)
+        except (Http404, NotFound):
+            # 404 légitime (pk inexistant ou hors du queryset owner) :
+            # pas un incident, on laisse remonter sans log d'erreur.
+            raise
+        except Exception:
+            logger.exception(
+                "Erreur dans RestaurantViewSet.retrieve pour user=%s pk=%s",
+                getattr(request.user, 'username', 'anonymous'),
+                kwargs.get('pk'),
+            )
+            raise
 
     def get_serializer_class(self):
         """Utilise le bon sérialiseur selon l'action"""

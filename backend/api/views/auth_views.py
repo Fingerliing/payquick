@@ -24,6 +24,7 @@ from api.serializers import (
     ResendCodeSerializer
 )
 from api.throttles import RegisterThrottle, LoginThrottle, LoginHourThrottle
+from api.utils.account_reactivation import reactivate_account_if_pending_deletion
 from api.services.email_verification_service import email_verification_service
 
 logger = logging.getLogger(__name__)
@@ -476,6 +477,26 @@ class LoginView(APIView):
             )
 
         user = authenticate(request, username=username, password=password)
+
+        # Échec ? Peut-être un compte désactivé par une suppression programmée
+        # (ModelBackend rejette les inactifs AVANT qu'on puisse vérifier).
+        # Si le mot de passe est correct ET que l'inactivité vient d'une
+        # AccountDeletionRequest pending, la reconnexion annule la suppression
+        # et réactive le compte — c'est la promesse faite à l'utilisateur
+        # (alerte in-app, email, review notes Apple). Un compte inactif pour
+        # toute autre raison reste rejeté.
+        if user is None:
+            candidate = (
+                User.objects.filter(username__iexact=username).first()
+                or User.objects.filter(email__iexact=username).first()
+            )
+            if (
+                candidate is not None
+                and not candidate.is_active
+                and candidate.check_password(password)
+                and reactivate_account_if_pending_deletion(candidate, request)
+            ):
+                user = candidate  # identité prouvée + compte réactivé
 
         if user is not None:
             refresh = RefreshToken.for_user(user)
