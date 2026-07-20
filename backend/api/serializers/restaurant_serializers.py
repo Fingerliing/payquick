@@ -197,6 +197,7 @@ class RestaurantSerializer(serializers.ModelSerializer):
             
             # Statut et gestion
             'isActive', 'is_active', 'is_stripe_active', 'can_receive_orders',
+            'reservations_enabled', 'reservation_preorders_enabled',
             
             # Informations légales
             'siret', 'raison_sociale',

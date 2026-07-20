@@ -1,8 +1,9 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
   ScrollView,
+  Switch,
   useWindowDimensions,
 } from 'react-native';
 import { router } from 'expo-router';
@@ -10,6 +11,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '@/contexts/AuthContext';
+import { useRestaurant } from '@/contexts/RestaurantContext';
+import { floorPlanService } from '@/services/floorPlanService';
 import { legalService } from '@/services/legalService';
 import { Header } from '@/components/ui/Header';
 import { Card } from '@/components/ui/Card';
@@ -58,10 +61,49 @@ const APP_VERSION = '1.0.0';
 export default function ProfileScreen() {
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
+  const { currentRestaurant } = useRestaurant();
+
+  // ── Paramètres de réservation (par restaurant) ─────────────────────
+  const [reservationsOn, setReservationsOn] = useState(false);
+  const [preordersOn, setPreordersOn] = useState(true);
+
+  useEffect(() => {
+    if (currentRestaurant) {
+      setReservationsOn(!!(currentRestaurant as any).reservations_enabled);
+      setPreordersOn(
+        (currentRestaurant as any).reservation_preorders_enabled !== false,
+      );
+    }
+  }, [currentRestaurant]);
   const { user, logout, isRestaurateur } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const { alerts, pushAlert, dismissAlert } = useAlerts();
+
+  const updateReservationSetting = useCallback(
+    async (key: 'enabled' | 'preorders_enabled', value: boolean) => {
+      if (!currentRestaurant) return;
+      // Optimiste + rollback
+      if (key === 'enabled') setReservationsOn(value);
+      else setPreordersOn(value);
+      try {
+        await floorPlanService.updateReservationSettings(
+          Number(currentRestaurant.id),
+          { [key]: value },
+        );
+        pushAlert(
+          'success',
+          undefined,
+          t('restaurantProfile.reservations.updated'),
+        );
+      } catch {
+        if (key === 'enabled') setReservationsOn(!value);
+        else setPreordersOn(!value);
+        pushAlert('error', undefined, t('restaurantProfile.reservations.error'));
+      }
+    },
+    [currentRestaurant, pushAlert, t],
+  );
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -229,6 +271,88 @@ export default function ProfileScreen() {
               <View style={styles.stripeSection}>
                 <StripeAccountStatus />
               </View>
+            )}
+
+            {/* Paramètres de réservation (par restaurant) */}
+            {isRestaurateur && currentRestaurant && (
+              <Card style={styles.infoCard}>
+                <Text style={styles.sectionTitle}>
+                  {t('restaurantProfile.reservations.title')}
+                  {'  ·  '}
+                  <Text style={{ fontWeight: '400' }}>
+                    {currentRestaurant.name}
+                  </Text>
+                </Text>
+
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    paddingVertical: 10,
+                  }}
+                >
+                  <View style={{ flex: 1, paddingRight: 12 }}>
+                    <Text style={styles.infoLabel}>
+                      {t('restaurantProfile.reservations.online')}
+                    </Text>
+                    <Text style={[styles.infoValue, { fontSize: 12 }]}>
+                      {t('restaurantProfile.reservations.onlineHint')}
+                    </Text>
+                  </View>
+                  <Switch
+                    value={reservationsOn}
+                    onValueChange={(v) => updateReservationSetting('enabled', v)}
+                    trackColor={{
+                      // Piste OFF lisible en dark (le border.default disparaissait)
+                      false: isDark ? 'rgba(255,255,255,0.28)' : colors.border.default,
+                      true: colors.success,
+                    }}
+                    thumbColor={isDark ? colors.text.primary : colors.surface}
+                    ios_backgroundColor={
+                      isDark ? 'rgba(255,255,255,0.28)' : colors.border.default
+                    }
+                  />
+                </View>
+
+                {reservationsOn && (
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      paddingVertical: 10,
+                      borderTopWidth: 1,
+                      borderTopColor: isDark
+                        ? 'rgba(212, 175, 55, 0.12)'
+                        : colors.border.light,
+                    }}
+                  >
+                    <View style={{ flex: 1, paddingRight: 12 }}>
+                      <Text style={styles.infoLabel}>
+                        {t('restaurantProfile.reservations.preorders')}
+                      </Text>
+                      <Text style={[styles.infoValue, { fontSize: 12 }]}>
+                        {t('restaurantProfile.reservations.preordersHint')}
+                      </Text>
+                    </View>
+                    <Switch
+                      value={preordersOn}
+                      onValueChange={(v) =>
+                        updateReservationSetting('preorders_enabled', v)
+                      }
+                      trackColor={{
+                        false: isDark ? 'rgba(255,255,255,0.28)' : colors.border.default,
+                        true: colors.success,
+                      }}
+                      thumbColor={isDark ? colors.text.primary : colors.surface}
+                      ios_backgroundColor={
+                        isDark ? 'rgba(255,255,255,0.28)' : colors.border.default
+                      }
+                    />
+                  </View>
+                )}
+              </Card>
             )}
 
             {/* Informations détaillées */}

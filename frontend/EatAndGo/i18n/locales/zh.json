@@ -1051,7 +1051,9 @@
     "statisticsShort": "统计",
     "qrcodes": "二维码",
     "profile": "个人资料",
-    "accounting": "会计"
+    "accounting": "会计",
+    "floorPlan": "平面图",
+    "floorPlanShort": "平面图"
   },
   "restaurantProfile": {
     "fallbackUserName": "用户",
@@ -1072,6 +1074,15 @@
     },
     "feedback": {
       "logoutFailed": "无法退出登录"
+    },
+    "reservations": {
+      "title": "预订",
+      "online": "在线预订",
+      "onlineHint": "顾客可以预订餐桌",
+      "preorders": "预付预点餐",
+      "preordersHint": "顾客可以在预订时点餐并付款",
+      "updated": "预订设置已更新",
+      "error": "更新失败，请重试"
     }
   },
   "restaurantsList": {
@@ -1490,6 +1501,10 @@
       "statistics": {
         "title": "统计",
         "description": "业绩"
+      },
+      "floorPlan": {
+        "title": "餐厅平面图",
+        "description": "实时查看餐桌、预订和到店顾客"
       }
     }
   },
@@ -2927,5 +2942,199 @@
     "seeMenu": "查看菜单",
     "notRatedYet": "暂无评分",
     "empty": "地图上没有可显示的餐厅。"
+  },
+  "floorPlan": {
+    "title": "餐厅平面图",
+    "live": "实时",
+    "offline": "离线",
+    "gridView": "列表",
+    "planView": "平面图",
+    "editMode": "编辑平面图",
+    "doneEditing": "完成",
+    "dragHint": "拖动餐桌，然后点击完成",
+    "layoutSaved": "平面图已保存",
+    "unplaced": "未放置的餐桌 — 点击添加到平面图",
+    "status": {
+      "free": "空闲",
+      "occupied": "占用",
+      "seated": "已入座",
+      "reserved_soon": "已预订",
+      "blocked": "已锁定"
+    },
+    "summary": {
+      "free": "空闲",
+      "occupied": "占用",
+      "reserved": "已预订",
+      "blocked": "已锁定"
+    },
+    "seats_one": "{{count}} 座",
+    "seats_other": "{{count}} 座",
+    "reservedAt": "已预订 {{time}}",
+    "overdue": "超时",
+    "appOrders": "进行中的订单",
+    "until": "直到 {{time}}",
+    "since": "自 {{time}}",
+    "prepaid": "预点餐已支付",
+    "actions": {
+      "seatGuests": "安排入座",
+      "block": "锁定餐桌",
+      "unblock": "解锁",
+      "release": "释放餐桌",
+      "extend": "+30 分钟",
+      "forceSeat": "仍然安排入座",
+      "editTable": "编辑餐桌"
+    },
+    "occupyModal": {
+      "title": "安排入座",
+      "partySize": "人数",
+      "duration": "预计用时",
+      "minutes": "{{count}} 分钟",
+      "confirm": "确认"
+    },
+    "conflict": {
+      "title": "餐桌已预订",
+      "alternatives": "建议的空闲餐桌：",
+      "none": "没有可用的替代餐桌"
+    },
+    "bulkSetup": {
+      "title": "添加餐桌",
+      "capacity": "座位数",
+      "count": "数量",
+      "addRow": "添加一行",
+      "create": "创建餐桌",
+      "created": "已创建 {{count}} 张餐桌"
+    },
+    "empty": {
+      "title": "配置您的餐厅",
+      "subtitle": "请先创建您的餐桌及其二维码，然后回到这里实时查看餐厅状态并开启预订功能。",
+      "cta": "开始"
+    },
+    "errors": {
+      "load": "无法加载平面图",
+      "action": "操作失败，请重试"
+    },
+    "reservationsToggle": {
+      "label": "在线预订",
+      "on": "顾客可以预订餐桌",
+      "off": "已关闭 — 顾客无法预订"
+    },
+    "zones": {
+      "default": "大厅",
+      "placeholder": "新区域（露台、楼上…）",
+      "add": "区域",
+      "addTitle": "新区域",
+      "create": "创建",
+      "deleteTitle": "删除“{{zone}}”？",
+      "deleteMessage": "{{count}} 张餐桌将移至{{target}}。",
+      "deleteConfirm": "删除"
+    },
+    "tableEdit": {
+      "title": "{{number}} 号桌",
+      "zone": "区域",
+      "capacity": "座位数（标准）",
+      "capacityMax": "最大座位数（可加长）",
+      "notExtendable": "不可加长",
+      "shape": "形状",
+      "shapes": {
+        "square": "方形",
+        "round": "圆形",
+        "rect": "长方形"
+      },
+      "save": "保存",
+      "delete": "删除餐桌",
+      "deleteTitle": "删除 {{number}} 号桌？",
+      "deleteMessage": "其二维码将被停用。订单历史将保留。",
+      "hasReservations": "该餐桌有 {{count}} 个即将到来的预订 — 请先取消或改派。",
+      "isOccupied": "请先释放餐桌再删除。"
+    },
+    "extension": "加长至 {{count}} 人",
+    "addTable": {
+      "button": "餐桌",
+      "title": "新餐桌",
+      "create": "创建餐桌",
+      "created": "餐桌已创建"
+    },
+    "selection": {
+      "count_one": "已选择 {{count}} 张餐桌",
+      "count_other": "已选择 {{count}} 张餐桌",
+      "delete": "删除（{{count}}）",
+      "deleteTitle": "删除 {{count}} 张餐桌？",
+      "deleted_one": "已删除 {{count}} 张餐桌",
+      "deleted_other": "已删除 {{count}} 张餐桌",
+      "failed": "无法删除：{{tables}} 号桌（占用中或已预订）"
+    }
+  },
+  "reservation": {
+    "bookTitle": "预订餐桌",
+    "myTitle": "我的预订",
+    "partySize": "人数",
+    "date": "日期",
+    "time": "时间",
+    "today": "今天",
+    "tomorrow": "明天",
+    "noSlots": "当天没有可用时段",
+    "noTableForParty": "没有可容纳该人数的餐桌",
+    "contact": {
+      "title": "您的信息",
+      "name": "姓名",
+      "phone": "电话",
+      "email": "邮箱（可选）",
+      "requests": "特殊要求（可选）"
+    },
+    "requiredFields": "姓名和电话为必填项",
+    "submit": "预订",
+    "success": {
+      "title": "预订成功！",
+      "subtitle": "{{date}} {{time}} · {{people}}",
+      "table": "{{table}} 号桌",
+      "viewMine": "查看我的预订",
+      "hint": "到店后，请扫描餐桌上的二维码以确认到达。"
+    },
+    "status": {
+      "pending_payment": "待支付",
+      "confirmed": "已确认",
+      "seated": "已入座",
+      "completed": "已完成",
+      "cancelled": "已取消",
+      "no_show": "未到店",
+      "expired": "已过期"
+    },
+    "people_one": "{{count}} 人",
+    "people_other": "{{count}} 人",
+    "checkIn": "我已到店",
+    "checkInSuccess": "欢迎光临！您的餐桌是 {{table}} 号。",
+    "cancelAction": "取消预订",
+    "cancelConfirmTitle": "取消此预订？",
+    "cancelRefund": "您的预点餐将全额退款。",
+    "cancelNoRefund": "取消过晚：预点餐金额将由餐厅保留。",
+    "cancelled": "预订已取消",
+    "prepaid": "预点餐已支付 · {{amount}}",
+    "empty": {
+      "title": "暂无预订",
+      "subtitle": "预订餐桌，安心到店：您的餐桌已备好。",
+      "cta": "查找餐厅"
+    },
+    "errors": {
+      "load": "无法加载数据",
+      "slotTaken": "该时段刚被预订，请选择其他时段",
+      "create": "预订失败，请重试",
+      "outsideWindow": "仅可在预订时间前后 30 分钟内办理到店确认",
+      "disabled": "该餐厅不接受在线预订。"
+    },
+    "preOrder": {
+      "bookAndOrder": "预订并预点餐",
+      "checkoutTitle": "预点餐",
+      "expiresIn": "时段保留还剩 {{minutes}} 分钟",
+      "expired": "支付时限已过，请重新预订。",
+      "pay": "支付 {{amount}}",
+      "success": "预订和餐点已确认！",
+      "successHint": "您的餐点将在您到达前不久送入厨房，享受极速服务。"
+    },
+    "checkInPrompt": {
+      "title": "找到预订",
+      "message": "您在 {{time}} 有一个预订（{{people}}）。确认到店吗？",
+      "confirm": "我已到店",
+      "later": "稍后"
+    }
   }
 }

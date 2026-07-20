@@ -1051,7 +1051,9 @@
     "statisticsShort": "統計",
     "qrcodes": "QRコード",
     "profile": "プロフィール",
-    "accounting": "会計"
+    "accounting": "会計",
+    "floorPlan": "フロアマップ",
+    "floorPlanShort": "マップ"
   },
   "restaurantProfile": {
     "fallbackUserName": "ユーザー",
@@ -1072,6 +1074,15 @@
     },
     "feedback": {
       "logoutFailed": "ログアウトできませんでした"
+    },
+    "reservations": {
+      "title": "予約",
+      "online": "オンライン予約",
+      "onlineHint": "お客様はテーブルを予約できます",
+      "preorders": "事前決済の事前注文",
+      "preordersHint": "お客様は予約時に食事を注文・支払いできます",
+      "updated": "予約設定を更新しました",
+      "error": "更新に失敗しました。もう一度お試しください"
     }
   },
   "restaurantsList": {
@@ -1490,6 +1501,10 @@
       "statistics": {
         "title": "統計",
         "description": "パフォーマンス"
+      },
+      "floorPlan": {
+        "title": "フロアマップ",
+        "description": "テーブル・予約・ウォークインをリアルタイムで"
       }
     }
   },
@@ -2927,5 +2942,199 @@
     "seeMenu": "メニューを見る",
     "notRatedYet": "未評価",
     "empty": "地図に表示するレストランがありません。"
+  },
+  "floorPlan": {
+    "title": "フロアマップ",
+    "live": "ライブ",
+    "offline": "オフライン",
+    "gridView": "リスト",
+    "planView": "マップ",
+    "editMode": "レイアウト編集",
+    "doneEditing": "完了",
+    "dragHint": "テーブルをドラッグして「完了」をタップ",
+    "layoutSaved": "レイアウトを保存しました",
+    "unplaced": "未配置のテーブル — タップしてマップに追加",
+    "status": {
+      "free": "空席",
+      "occupied": "使用中",
+      "seated": "着席済み",
+      "reserved_soon": "予約あり",
+      "blocked": "ブロック中"
+    },
+    "summary": {
+      "free": "空席",
+      "occupied": "使用中",
+      "reserved": "予約あり",
+      "blocked": "ブロック中"
+    },
+    "seats_one": "{{count}} 席",
+    "seats_other": "{{count}} 席",
+    "reservedAt": "{{time}} 予約",
+    "overdue": "時間超過",
+    "appOrders": "注文対応中",
+    "until": "{{time}} まで",
+    "since": "{{time}} から",
+    "prepaid": "事前注文支払い済み",
+    "actions": {
+      "seatGuests": "お客様を案内",
+      "block": "テーブルをブロック",
+      "unblock": "ブロック解除",
+      "release": "テーブルを空ける",
+      "extend": "+30 分",
+      "forceSeat": "それでも案内する",
+      "editTable": "テーブルを編集"
+    },
+    "occupyModal": {
+      "title": "お客様を案内",
+      "partySize": "人数",
+      "duration": "予想利用時間",
+      "minutes": "{{count}} 分",
+      "confirm": "確認"
+    },
+    "conflict": {
+      "title": "予約済みのテーブル",
+      "alternatives": "利用可能なテーブルの候補：",
+      "none": "代替テーブルはありません"
+    },
+    "bulkSetup": {
+      "title": "テーブルを追加",
+      "capacity": "席数",
+      "count": "数",
+      "addRow": "行を追加",
+      "create": "テーブルを作成",
+      "created": "{{count}} 卓を作成しました"
+    },
+    "empty": {
+      "title": "フロアを設定しましょう",
+      "subtitle": "まずテーブルとQRコードを作成し、その後ここに戻ってフロアをリアルタイムで管理し、予約を有効にしてください。",
+      "cta": "始める"
+    },
+    "errors": {
+      "load": "フロアマップを読み込めませんでした",
+      "action": "操作に失敗しました。もう一度お試しください"
+    },
+    "reservationsToggle": {
+      "label": "オンライン予約",
+      "on": "お客様はテーブルを予約できます",
+      "off": "無効 — お客様は予約できません"
+    },
+    "zones": {
+      "default": "メインフロア",
+      "placeholder": "新しいエリア（テラス、2階…）",
+      "add": "エリア",
+      "addTitle": "新しいエリア",
+      "create": "作成",
+      "deleteTitle": "「{{zone}}」を削除しますか？",
+      "deleteMessage": "{{count}} 卓のテーブルは{{target}}に移動されます。",
+      "deleteConfirm": "削除"
+    },
+    "tableEdit": {
+      "title": "テーブル {{number}}",
+      "zone": "エリア",
+      "capacity": "席数（標準）",
+      "capacityMax": "最大席数（拡張時）",
+      "notExtendable": "拡張不可",
+      "shape": "形状",
+      "shapes": {
+        "square": "正方形",
+        "round": "円形",
+        "rect": "長方形"
+      },
+      "save": "保存",
+      "delete": "テーブルを削除",
+      "deleteTitle": "テーブル {{number}} を削除しますか？",
+      "deleteMessage": "QRコードは無効化されます。注文履歴は保持されます。",
+      "hasReservations": "このテーブルには今後の予約が {{count}} 件あります — 先にキャンセルまたは変更してください。",
+      "isOccupied": "削除する前にテーブルを空けてください。"
+    },
+    "extension": "{{count}} 名に拡張",
+    "addTable": {
+      "button": "テーブル",
+      "title": "新しいテーブル",
+      "create": "テーブルを作成",
+      "created": "テーブルを作成しました"
+    },
+    "selection": {
+      "count_one": "{{count}} 卓を選択中",
+      "count_other": "{{count}} 卓を選択中",
+      "delete": "削除（{{count}}）",
+      "deleteTitle": "{{count}} 卓を削除しますか？",
+      "deleted_one": "{{count}} 卓を削除しました",
+      "deleted_other": "{{count}} 卓を削除しました",
+      "failed": "削除できません：テーブル {{tables}}（使用中または予約あり）"
+    }
+  },
+  "reservation": {
+    "bookTitle": "テーブルを予約",
+    "myTitle": "予約一覧",
+    "partySize": "人数",
+    "date": "日付",
+    "time": "時間",
+    "today": "今日",
+    "tomorrow": "明日",
+    "noSlots": "この日は空きがありません",
+    "noTableForParty": "この人数に対応できるテーブルがありません",
+    "contact": {
+      "title": "お客様情報",
+      "name": "お名前",
+      "phone": "電話番号",
+      "email": "メール（任意）",
+      "requests": "特別なご要望（任意）"
+    },
+    "requiredFields": "お名前と電話番号は必須です",
+    "submit": "予約する",
+    "success": {
+      "title": "予約が確定しました！",
+      "subtitle": "{{date}} {{time}} · {{people}}",
+      "table": "テーブル {{table}}",
+      "viewMine": "予約一覧を見る",
+      "hint": "ご来店時にテーブルのQRコードをスキャンしてチェックインしてください。"
+    },
+    "status": {
+      "pending_payment": "支払い待ち",
+      "confirmed": "確定",
+      "seated": "着席済み",
+      "completed": "完了",
+      "cancelled": "キャンセル済み",
+      "no_show": "来店なし",
+      "expired": "期限切れ"
+    },
+    "people_one": "{{count}} 名",
+    "people_other": "{{count}} 名",
+    "checkIn": "到着しました",
+    "checkInSuccess": "ようこそ！お客様のテーブルは {{table}} です。",
+    "cancelAction": "予約をキャンセル",
+    "cancelConfirmTitle": "この予約をキャンセルしますか？",
+    "cancelRefund": "事前注文は全額返金されます。",
+    "cancelNoRefund": "直前のキャンセルのため、事前注文の金額は返金されません。",
+    "cancelled": "予約をキャンセルしました",
+    "prepaid": "事前注文支払い済み · {{amount}}",
+    "empty": {
+      "title": "予約はありません",
+      "subtitle": "テーブルを予約して、安心してご来店ください。テーブルをご用意してお待ちしています。",
+      "cta": "レストランを探す"
+    },
+    "errors": {
+      "load": "データを読み込めませんでした",
+      "slotTaken": "この時間は先ほど埋まりました。別の時間をお選びください",
+      "create": "予約に失敗しました。もう一度お試しください",
+      "outsideWindow": "チェックインは予約時間の前後30分のみ可能です",
+      "disabled": "このレストランはオンライン予約を受け付けていません。"
+    },
+    "preOrder": {
+      "bookAndOrder": "予約して事前注文",
+      "checkoutTitle": "事前注文",
+      "expiresIn": "枠の確保はあと {{minutes}} 分",
+      "expired": "支払い期限が過ぎました。もう一度予約してください。",
+      "pay": "{{amount}} を支払う",
+      "success": "予約とお料理が確定しました！",
+      "successHint": "ご到着の少し前にお料理の調理を開始します。超スピーディーなサービスをお楽しみください。"
+    },
+    "checkInPrompt": {
+      "title": "予約が見つかりました",
+      "message": "{{time}} に予約があります（{{people}}）。到着を確認しますか？",
+      "confirm": "到着しました",
+      "later": "後で"
+    }
   }
 }

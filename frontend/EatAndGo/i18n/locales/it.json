@@ -1050,7 +1050,9 @@
     "statisticsShort": "Stat.",
     "qrcodes": "Codici QR",
     "profile": "Profilo",
-    "accounting": "Contabilità"
+    "accounting": "Contabilità",
+    "floorPlan": "Pianta sala",
+    "floorPlanShort": "Sala"
   },
   "restaurantProfile": {
     "fallbackUserName": "Utente",
@@ -1071,6 +1073,15 @@
     },
     "feedback": {
       "logoutFailed": "Impossibile disconnettersi"
+    },
+    "reservations": {
+      "title": "Prenotazioni",
+      "online": "Prenotazioni online",
+      "onlineHint": "I clienti possono prenotare un tavolo",
+      "preorders": "Pre-ordine prepagato",
+      "preordersHint": "I clienti possono ordinare e pagare il pasto al momento della prenotazione",
+      "updated": "Impostazioni di prenotazione aggiornate",
+      "error": "Aggiornamento non riuscito, riprova"
     }
   },
   "restaurantsList": {
@@ -1489,6 +1500,10 @@
       "statistics": {
         "title": "Statistiche",
         "description": "Prestazioni"
+      },
+      "floorPlan": {
+        "title": "Pianta della sala",
+        "description": "Tavoli, prenotazioni e walk-in in tempo reale"
       }
     }
   },
@@ -2926,5 +2941,199 @@
     "seeMenu": "Vedi menu",
     "notRatedYet": "Non ancora valutato",
     "empty": "Nessun ristorante da mostrare sulla mappa."
+  },
+  "floorPlan": {
+    "title": "Pianta della sala",
+    "live": "In diretta",
+    "offline": "Offline",
+    "gridView": "Elenco",
+    "planView": "Pianta",
+    "editMode": "Modifica pianta",
+    "doneEditing": "Fatto",
+    "dragHint": "Trascina i tavoli, poi tocca Fatto",
+    "layoutSaved": "Pianta salvata",
+    "unplaced": "Tavoli da posizionare — tocca per aggiungere alla pianta",
+    "status": {
+      "free": "Libero",
+      "occupied": "Occupato",
+      "seated": "Seduti",
+      "reserved_soon": "Prenotato",
+      "blocked": "Bloccato"
+    },
+    "summary": {
+      "free": "liberi",
+      "occupied": "occupati",
+      "reserved": "prenotati",
+      "blocked": "bloccati"
+    },
+    "seats_one": "{{count}} posto",
+    "seats_other": "{{count}} posti",
+    "reservedAt": "Prenotato {{time}}",
+    "overdue": "Tempo superato",
+    "appOrders": "Ordine in corso",
+    "until": "Fino alle {{time}}",
+    "since": "Dalle {{time}}",
+    "prepaid": "Pre-ordine pagato",
+    "actions": {
+      "seatGuests": "Far accomodare",
+      "block": "Blocca tavolo",
+      "unblock": "Sblocca",
+      "release": "Libera tavolo",
+      "extend": "+30 min",
+      "forceSeat": "Accomoda comunque",
+      "editTable": "Modifica tavolo"
+    },
+    "occupyModal": {
+      "title": "Far accomodare",
+      "partySize": "Numero di persone",
+      "duration": "Durata stimata",
+      "minutes": "{{count}} min",
+      "confirm": "Conferma"
+    },
+    "conflict": {
+      "title": "Tavolo prenotato",
+      "alternatives": "Tavoli liberi suggeriti:",
+      "none": "Nessuna alternativa disponibile"
+    },
+    "bulkSetup": {
+      "title": "Aggiungi tavoli",
+      "capacity": "Posti",
+      "count": "Quantità",
+      "addRow": "Aggiungi riga",
+      "create": "Crea tavoli",
+      "created": "{{count}} tavolo/i creato/i"
+    },
+    "empty": {
+      "title": "Configura la tua sala",
+      "subtitle": "Crea prima i tuoi tavoli e i loro codici QR, poi torna qui per seguire la sala in tempo reale e attivare le prenotazioni.",
+      "cta": "Inizia"
+    },
+    "errors": {
+      "load": "Impossibile caricare la pianta della sala",
+      "action": "Azione non riuscita, riprova"
+    },
+    "reservationsToggle": {
+      "label": "Prenotazioni online",
+      "on": "I clienti possono prenotare un tavolo",
+      "off": "Disattivate — i clienti non possono prenotare"
+    },
+    "zones": {
+      "default": "Sala",
+      "placeholder": "Nuova zona (Terrazza, Piano superiore...)",
+      "add": "Zona",
+      "addTitle": "Nuova zona",
+      "create": "Crea",
+      "deleteTitle": "Eliminare «{{zone}}»?",
+      "deleteMessage": "{{count}} tavolo/i saranno spostati in {{target}}.",
+      "deleteConfirm": "Elimina"
+    },
+    "tableEdit": {
+      "title": "Tavolo {{number}}",
+      "zone": "Zona",
+      "capacity": "Posti (standard)",
+      "capacityMax": "Posti max (allungabile)",
+      "notExtendable": "Non allungabile",
+      "shape": "Forma",
+      "shapes": {
+        "square": "Quadrato",
+        "round": "Rotondo",
+        "rect": "Rettangolare"
+      },
+      "save": "Salva",
+      "delete": "Elimina tavolo",
+      "deleteTitle": "Eliminare il tavolo {{number}}?",
+      "deleteMessage": "Il suo codice QR sarà disattivato. Lo storico ordini è conservato.",
+      "hasReservations": "{{count}} prenotazione/i in arrivo su questo tavolo — annullale o riassegnale prima.",
+      "isOccupied": "Libera il tavolo prima di eliminarlo."
+    },
+    "extension": "Prolunga {{count}}p",
+    "addTable": {
+      "button": "Tavolo",
+      "title": "Nuovo tavolo",
+      "create": "Crea tavolo",
+      "created": "Tavolo creato"
+    },
+    "selection": {
+      "count_one": "{{count}} tavolo selezionato",
+      "count_other": "{{count}} tavoli selezionati",
+      "delete": "Elimina ({{count}})",
+      "deleteTitle": "Eliminare {{count}} tavolo/i?",
+      "deleted_one": "{{count}} tavolo eliminato",
+      "deleted_other": "{{count}} tavoli eliminati",
+      "failed": "Impossibile eliminare: tavolo/i {{tables}} (occupato o prenotato)"
+    }
+  },
+  "reservation": {
+    "bookTitle": "Prenota un tavolo",
+    "myTitle": "Le mie prenotazioni",
+    "partySize": "Numero di persone",
+    "date": "Data",
+    "time": "Ora",
+    "today": "Oggi",
+    "tomorrow": "Domani",
+    "noSlots": "Nessun orario disponibile in questo giorno",
+    "noTableForParty": "Nessun tavolo può ospitare questo numero di persone",
+    "contact": {
+      "title": "I tuoi dati",
+      "name": "Nome",
+      "phone": "Telefono",
+      "email": "Email (facoltativa)",
+      "requests": "Richieste particolari (facoltativo)"
+    },
+    "requiredFields": "Nome e telefono sono obbligatori",
+    "submit": "Prenota",
+    "success": {
+      "title": "Prenotazione confermata!",
+      "subtitle": "{{date}} alle {{time}} · {{people}}",
+      "table": "Tavolo {{table}}",
+      "viewMine": "Vedi le mie prenotazioni",
+      "hint": "All'arrivo, scansiona il codice QR del tuo tavolo per segnalare la tua presenza."
+    },
+    "status": {
+      "pending_payment": "In attesa di pagamento",
+      "confirmed": "Confermata",
+      "seated": "Seduti",
+      "completed": "Completata",
+      "cancelled": "Annullata",
+      "no_show": "Non presentato",
+      "expired": "Scaduta"
+    },
+    "people_one": "{{count}} persona",
+    "people_other": "{{count}} persone",
+    "checkIn": "Sono arrivato",
+    "checkInSuccess": "Benvenuto! Il tuo tavolo è il {{table}}.",
+    "cancelAction": "Annulla prenotazione",
+    "cancelConfirmTitle": "Annullare questa prenotazione?",
+    "cancelRefund": "Il tuo pre-ordine sarà rimborsato integralmente.",
+    "cancelNoRefund": "Annullamento tardivo: l'importo del pre-ordine resterà al ristorante.",
+    "cancelled": "Prenotazione annullata",
+    "prepaid": "Pre-ordine pagato · {{amount}}",
+    "empty": {
+      "title": "Nessuna prenotazione",
+      "subtitle": "Prenota un tavolo e arriva senza pensieri: il tuo tavolo ti aspetta.",
+      "cta": "Trova un ristorante"
+    },
+    "errors": {
+      "load": "Impossibile caricare i dati",
+      "slotTaken": "Questo orario è appena stato preso, scegline un altro",
+      "create": "Prenotazione non riuscita, riprova",
+      "outsideWindow": "Il check-in è possibile solo 30 min prima/dopo l'orario di prenotazione",
+      "disabled": "Questo ristorante non accetta prenotazioni online."
+    },
+    "preOrder": {
+      "bookAndOrder": "Prenota e pre-ordina",
+      "checkoutTitle": "Pre-ordine",
+      "expiresIn": "Orario bloccato ancora {{minutes}} min",
+      "expired": "Il tempo per il pagamento è scaduto, prenota di nuovo.",
+      "pay": "Paga {{amount}}",
+      "success": "Prenotazione e pasto confermati!",
+      "successHint": "Il tuo pasto sarà avviato in cucina poco prima del tuo arrivo per un servizio ultrarapido."
+    },
+    "checkInPrompt": {
+      "title": "Prenotazione trovata",
+      "message": "Hai una prenotazione alle {{time}} ({{people}}). Confermare il tuo arrivo?",
+      "confirm": "Sono arrivato",
+      "later": "Più tardi"
+    }
   }
 }

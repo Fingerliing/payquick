@@ -147,6 +147,7 @@ class FloorPlanViewSet(viewsets.ViewSet):
                 'id': str(table.id),
                 'number': table.number,
                 'capacity': table.capacity,
+                'capacity_max': getattr(table, 'capacity_max', None),
                 'zone': getattr(table, 'zone', '') or '',
                 'pos_x': getattr(table, 'pos_x', None),
                 'pos_y': getattr(table, 'pos_y', None),
@@ -186,8 +187,59 @@ class FloorPlanViewSet(viewsets.ViewSet):
         return Response({
             'restaurant_id': str(restaurant.id),
             'timestamp': now.isoformat(),
+            'reservations_enabled': getattr(restaurant, 'reservations_enabled', False),
             'tables': payload,
             'summary': counts,
+        })
+
+    # ══════════════════════════════════════════════════════════════════
+    # Activation/désactivation des réservations en ligne
+    # ══════════════════════════════════════════════════════════════════
+
+    @extend_schema(
+        summary="Activer/désactiver les réservations en ligne",
+        description=(
+            "Body: {restaurant_id, enabled: bool}. Désactiver ne bloque que "
+            "les NOUVELLES réservations : les réservations existantes restent "
+            "gérables (check-in, annulation, pré-commandes payées)."
+        ),
+    )
+    @action(detail=False, methods=['post'])
+    def toggle_reservations(self, request):
+        restaurant = _get_owned_restaurant(
+            request, request.data.get('restaurant_id')
+        )
+        if restaurant is None:
+            return Response(
+                {'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN
+            )
+
+        enabled = request.data.get('enabled')
+        preorders = request.data.get('preorders_enabled')
+        update_fields = []
+        if enabled is not None:
+            restaurant.reservations_enabled = bool(enabled)
+            update_fields.append('reservations_enabled')
+        if preorders is not None:
+            restaurant.reservation_preorders_enabled = bool(preorders)
+            update_fields.append('reservation_preorders_enabled')
+        if not update_fields:
+            return Response(
+                {'error': 'nothing_to_update'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        restaurant.save(update_fields=update_fields)
+
+        logger.info(
+            "Paramètres réservation mis à jour pour %s (%s): %s",
+            restaurant.id, restaurant.name, update_fields,
+        )
+        return Response({
+            'success': True,
+            'reservations_enabled': restaurant.reservations_enabled,
+            'preorders_enabled': getattr(
+                restaurant, 'reservation_preorders_enabled', True
+            ),
         })
 
     # ══════════════════════════════════════════════════════════════════
@@ -243,11 +295,24 @@ class FloorPlanViewSet(viewsets.ViewSet):
                         status=status.HTTP_400_BAD_REQUEST,
                     )
                 for _ in range(count):
-                    table = Table.objects.create(
-                        restaurant=restaurant,
-                        number=str(next_number),
-                        capacity=capacity,
-                    )
+                    try:
+                        table = Table.objects.create(
+                            restaurant=restaurant,
+                            number=str(next_number),
+                            capacity=capacity,
+                        )
+                    except Exception as e:
+                        # full_clean() de Table.save() peut lever ValidationError
+                        # (unicité number/qr_code) → 400 explicite plutôt que 500
+                        logger.exception(
+                            "bulk_setup: échec création table %s pour restaurant %s",
+                            next_number, restaurant.id,
+                        )
+                        return Response(
+                            {'error': 'table_creation_failed',
+                             'detail': f'Table {next_number}: {e.__class__.__name__}'},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
                     created.append({
                         'id': str(table.id),
                         'number': table.number,
@@ -259,6 +324,62 @@ class FloorPlanViewSet(viewsets.ViewSet):
             {'created': created, 'count': len(created)},
             status=status.HTTP_201_CREATED,
         )
+
+    # ══════════════════════════════════════════════════════════════════
+    # Ajout / suppression de tables
+    # ══════════════════════════════════════════════════════════════════
+
+    @extend_schema(
+        summary="Supprimer une table",
+        description=(
+            "Body: {table_id}. Refusé (409) si la table est occupée ou a des "
+            "réservations à venir. Suppression réelle (hard delete), alignée "
+            "sur le flux de remplacement de l'écran QR codes : le numéro et "
+            "le QR code redeviennent disponibles. L'historique de commandes "
+            "(table_number en chaîne) et les réservations passées (SET_NULL) "
+            "sont préservés."
+        ),
+    )
+    @action(detail=False, methods=['post'])
+    def delete_table(self, request):
+        table_id = request.data.get('table_id')
+        try:
+            table = Table.objects.select_related('restaurant').get(id=table_id)
+        except (Table.DoesNotExist, ValueError, TypeError):
+            return Response(
+                {'error': 'Table introuvable'}, status=status.HTTP_404_NOT_FOUND
+            )
+        if _get_owned_restaurant(request, table.restaurant_id) is None:
+            return Response(
+                {'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN
+            )
+
+        if TableOccupancy.objects.active().filter(table=table).exists():
+            return Response(
+                {'error': 'table_occupied',
+                 'message': 'Libérez la table avant de la supprimer.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+        upcoming = Reservation.objects.filter(
+            table=table,
+            status__in=Reservation.BLOCKING_STATUSES,
+            ends_at__gt=timezone.now(),
+        ).count()
+        if upcoming:
+            return Response(
+                {'error': 'table_has_reservations',
+                 'count': upcoming,
+                 'message': f'{upcoming} réservation(s) à venir sur cette table.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        restaurant_id = table.restaurant_id
+        table_id_str = str(table.id)
+        table.delete()
+        notify_floorplan_update(
+            restaurant_id, event='layout_changed', table_id=table_id_str
+        )
+        return Response({'success': True})
 
     # ══════════════════════════════════════════════════════════════════
     # Layout : positions sur le plan
@@ -299,6 +420,32 @@ class FloorPlanViewSet(viewsets.ViewSet):
                     fields['shape'] = item['shape']
                 if 'zone' in item:
                     fields['zone'] = item['zone'][:50]
+                if 'capacity' in item:
+                    capacity = int(item['capacity'])
+                    if not (1 <= capacity <= 50):
+                        return Response(
+                            {'error': 'invalid_capacity'},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+                    fields['capacity'] = capacity
+                if 'capacity_max' in item:
+                    raw = item['capacity_max']
+                    if raw in (None, '', 0):
+                        fields['capacity_max'] = None
+                    else:
+                        capacity_max = int(raw)
+                        base = fields.get('capacity')
+                        if base is not None and capacity_max < base:
+                            return Response(
+                                {'error': 'capacity_max_below_capacity'},
+                                status=status.HTTP_400_BAD_REQUEST,
+                            )
+                        if capacity_max > 50:
+                            return Response(
+                                {'error': 'invalid_capacity_max'},
+                                status=status.HTTP_400_BAD_REQUEST,
+                            )
+                        fields['capacity_max'] = capacity_max
                 if fields:
                     updated += Table.objects.filter(
                         id=item.get('table_id'), restaurant=restaurant
@@ -480,9 +627,12 @@ class FloorPlanViewSet(viewsets.ViewSet):
 
     def _free_table_ids(self, restaurant, party_size, starts_at, ends_at,
                         exclude=None):
+        from django.db.models.functions import Coalesce
         tables = Table.objects.filter(
-            restaurant=restaurant, is_active=True, capacity__gte=party_size
-        )
+            restaurant=restaurant, is_active=True
+        ).annotate(
+            effective_capacity=Coalesce('capacity_max', 'capacity'),
+        ).filter(effective_capacity__gte=party_size)
         if exclude:
             tables = tables.exclude(id=exclude)
         table_ids = list(tables.values_list('id', flat=True))

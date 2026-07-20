@@ -61,11 +61,30 @@ def _overlapping(table_ids, starts_at, ends_at, exclude_id=None):
 
 
 def _candidate_tables(restaurant, party_size):
-    """Tables actives triées de la plus petite capacité suffisante à la plus grande."""
+    """Tables pouvant accueillir party_size, rallonge comprise.
+
+    Tri : d'abord les tables qui suffisent en config STANDARD (ne pas
+    gaspiller une modulable 4→6 pour 2 couverts si une table de 2 est
+    libre), puis de la plus petite à la plus grande.
+    """
+    from django.db.models import Case, IntegerField, Value, When
+    from django.db.models.functions import Coalesce
+
     return (
         Table.objects
-        .filter(restaurant=restaurant, is_active=True, capacity__gte=party_size)
-        .order_by('capacity', 'number')
+        .filter(restaurant=restaurant, is_active=True)
+        .annotate(
+            effective_capacity=Coalesce('capacity_max', 'capacity'),
+        )
+        .filter(effective_capacity__gte=party_size)
+        .annotate(
+            needs_extension=Case(
+                When(capacity__gte=party_size, then=Value(0)),
+                default=Value(1),
+                output_field=IntegerField(),
+            ),
+        )
+        .order_by('needs_extension', 'capacity', 'number')
     )
 
 
@@ -119,6 +138,15 @@ class ReservationViewSet(viewsets.GenericViewSet):
             return Response(
                 {'error': 'Restaurant introuvable'},
                 status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Fonctionnalité optionnelle, activée par le restaurateur
+        # (getattr : robuste tant que la migration n'est pas passée)
+        if not getattr(restaurant, 'reservations_enabled', False):
+            return Response(
+                {'error': 'reservations_disabled',
+                 'message': "Ce restaurant n'accepte pas les réservations en ligne."},
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         tables = list(_candidate_tables(restaurant, data['party_size']))
@@ -179,6 +207,9 @@ class ReservationViewSet(viewsets.GenericViewSet):
             'date': data['date'].isoformat(),
             'party_size': data['party_size'],
             'duration_minutes': DEFAULT_DURATION_MINUTES,
+            'preorders_enabled': getattr(
+                restaurant, 'reservation_preorders_enabled', True
+            ),
             'slots': slots,
         })
 
@@ -210,6 +241,13 @@ class ReservationViewSet(viewsets.GenericViewSet):
             return Response(
                 {'error': 'Restaurant introuvable'},
                 status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if not getattr(restaurant, 'reservations_enabled', False):
+            return Response(
+                {'error': 'reservations_disabled',
+                 'message': "Ce restaurant n'accepte pas les réservations en ligne."},
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         starts_at = data['starts_at']
@@ -320,6 +358,14 @@ class ReservationViewSet(viewsets.GenericViewSet):
                 {'error': 'pre_order_exists',
                  'message': 'Une pré-commande existe déjà pour cette réservation.'},
                 status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not getattr(
+            reservation.restaurant, 'reservation_preorders_enabled', True
+        ):
+            return Response(
+                {'error': 'preorders_disabled',
+                 'message': "Ce restaurant n'accepte pas la pré-commande."},
+                status=status.HTTP_403_FORBIDDEN,
             )
         if reservation.expires_at and timezone.now() > reservation.expires_at:
             return Response(

@@ -1050,7 +1050,9 @@
     "statisticsShort": "Stats",
     "qrcodes": "QR Codes",
     "profile": "Profile",
-    "accounting": "Accounting"
+    "accounting": "Accounting",
+    "floorPlan": "Floor plan",
+    "floorPlanShort": "Floor"
   },
   "restaurantProfile": {
     "fallbackUserName": "User",
@@ -1071,6 +1073,15 @@
     },
     "feedback": {
       "logoutFailed": "Unable to log out"
+    },
+    "reservations": {
+      "title": "Reservations",
+      "online": "Online reservations",
+      "onlineHint": "Customers can book a table",
+      "preorders": "Prepaid pre-order",
+      "preordersHint": "Customers can order and pay for their meal when booking",
+      "updated": "Reservation settings updated",
+      "error": "Update failed, please retry"
     }
   },
   "restaurantsList": {
@@ -1489,6 +1500,10 @@
       "statistics": {
         "title": "Statistics",
         "description": "Performance"
+      },
+      "floorPlan": {
+        "title": "Floor plan",
+        "description": "Tables, reservations and walk-ins in real time"
       }
     }
   },
@@ -2926,5 +2941,199 @@
     "seeMenu": "See menu",
     "notRatedYet": "Not rated yet",
     "empty": "No restaurant to show on the map."
+  },
+  "floorPlan": {
+    "title": "Floor plan",
+    "live": "Live",
+    "offline": "Offline",
+    "gridView": "List",
+    "planView": "Plan",
+    "editMode": "Edit layout",
+    "doneEditing": "Done",
+    "dragHint": "Drag tables, then tap Done",
+    "layoutSaved": "Layout saved",
+    "unplaced": "Unplaced tables — tap to add to the plan",
+    "status": {
+      "free": "Free",
+      "occupied": "Occupied",
+      "seated": "Seated",
+      "reserved_soon": "Reserved",
+      "blocked": "Blocked"
+    },
+    "summary": {
+      "free": "free",
+      "occupied": "occupied",
+      "reserved": "reserved",
+      "blocked": "blocked"
+    },
+    "seats_one": "{{count}} seat",
+    "seats_other": "{{count}} seats",
+    "reservedAt": "Reserved {{time}}",
+    "overdue": "Overdue",
+    "appOrders": "Active order",
+    "until": "Until {{time}}",
+    "since": "Since {{time}}",
+    "prepaid": "Pre-order paid",
+    "actions": {
+      "seatGuests": "Seat guests",
+      "block": "Block table",
+      "unblock": "Unblock",
+      "release": "Release table",
+      "extend": "+30 min",
+      "forceSeat": "Seat anyway",
+      "editTable": "Edit table"
+    },
+    "occupyModal": {
+      "title": "Seat guests",
+      "partySize": "Party size",
+      "duration": "Estimated duration",
+      "minutes": "{{count}} min",
+      "confirm": "Confirm"
+    },
+    "conflict": {
+      "title": "Table reserved",
+      "alternatives": "Suggested free tables:",
+      "none": "No alternative available"
+    },
+    "bulkSetup": {
+      "title": "Add tables",
+      "capacity": "Seats",
+      "count": "Count",
+      "addRow": "Add row",
+      "create": "Create tables",
+      "created": "{{count}} table(s) created"
+    },
+    "empty": {
+      "title": "Set up your dining room",
+      "subtitle": "First create your tables and their QR codes, then come back here to track your room in real time and enable reservations.",
+      "cta": "Get started"
+    },
+    "errors": {
+      "load": "Could not load the floor plan",
+      "action": "Action failed, please retry"
+    },
+    "reservationsToggle": {
+      "label": "Online reservations",
+      "on": "Customers can book a table",
+      "off": "Disabled — customers cannot book"
+    },
+    "zones": {
+      "default": "Main room",
+      "placeholder": "New area (Terrace, Upstairs...)",
+      "add": "Area",
+      "addTitle": "New area",
+      "create": "Create",
+      "deleteTitle": "Delete “{{zone}}”?",
+      "deleteMessage": "{{count}} table(s) will be moved to {{target}}.",
+      "deleteConfirm": "Delete"
+    },
+    "tableEdit": {
+      "title": "Table {{number}}",
+      "zone": "Area",
+      "capacity": "Seats (standard)",
+      "capacityMax": "Max seats (extended)",
+      "notExtendable": "Not extendable",
+      "shape": "Shape",
+      "shapes": {
+        "square": "Square",
+        "round": "Round",
+        "rect": "Rectangle"
+      },
+      "save": "Save",
+      "delete": "Delete table",
+      "deleteTitle": "Delete table {{number}}?",
+      "deleteMessage": "Its QR code will be deactivated. Order history is kept.",
+      "hasReservations": "{{count}} upcoming reservation(s) on this table — cancel or reassign them first.",
+      "isOccupied": "Release the table before deleting it."
+    },
+    "extension": "Extend to {{count}}p",
+    "addTable": {
+      "button": "Table",
+      "title": "New table",
+      "create": "Create table",
+      "created": "Table created"
+    },
+    "selection": {
+      "count_one": "{{count}} table selected",
+      "count_other": "{{count}} tables selected",
+      "delete": "Delete ({{count}})",
+      "deleteTitle": "Delete {{count}} table(s)?",
+      "deleted_one": "{{count}} table deleted",
+      "deleted_other": "{{count}} tables deleted",
+      "failed": "Could not delete: table(s) {{tables}} (occupied or reserved)"
+    }
+  },
+  "reservation": {
+    "bookTitle": "Book a table",
+    "myTitle": "My reservations",
+    "partySize": "Party size",
+    "date": "Date",
+    "time": "Time",
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "noSlots": "No slots available on this day",
+    "noTableForParty": "No table can seat this party size",
+    "contact": {
+      "title": "Your details",
+      "name": "Name",
+      "phone": "Phone",
+      "email": "Email (optional)",
+      "requests": "Special requests (optional)"
+    },
+    "requiredFields": "Name and phone are required",
+    "submit": "Book",
+    "success": {
+      "title": "Reservation confirmed!",
+      "subtitle": "{{date}} at {{time}} · {{people}}",
+      "table": "Table {{table}}",
+      "viewMine": "View my reservations",
+      "hint": "When you arrive, scan your table's QR code to check in."
+    },
+    "status": {
+      "pending_payment": "Awaiting payment",
+      "confirmed": "Confirmed",
+      "seated": "Seated",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "no_show": "No-show",
+      "expired": "Expired"
+    },
+    "people_one": "{{count}} person",
+    "people_other": "{{count}} people",
+    "checkIn": "I've arrived",
+    "checkInSuccess": "Welcome! Your table is {{table}}.",
+    "cancelAction": "Cancel reservation",
+    "cancelConfirmTitle": "Cancel this reservation?",
+    "cancelRefund": "Your pre-order will be fully refunded.",
+    "cancelNoRefund": "Late cancellation: the pre-order amount will be kept by the restaurant.",
+    "cancelled": "Reservation cancelled",
+    "prepaid": "Pre-order paid · {{amount}}",
+    "empty": {
+      "title": "No reservations",
+      "subtitle": "Book a table and arrive worry-free: your table will be waiting.",
+      "cta": "Find a restaurant"
+    },
+    "errors": {
+      "load": "Could not load data",
+      "slotTaken": "This slot was just taken, please pick another",
+      "create": "Booking failed, please retry",
+      "outsideWindow": "Check-in is only possible 30 min before/after your reservation time",
+      "disabled": "This restaurant does not accept online reservations."
+    },
+    "preOrder": {
+      "bookAndOrder": "Book & pre-order",
+      "checkoutTitle": "Pre-order",
+      "expiresIn": "Slot held for {{minutes}} more min",
+      "expired": "Payment time has run out, please book again.",
+      "pay": "Pay {{amount}}",
+      "success": "Reservation and meal confirmed!",
+      "successHint": "Your meal will be fired to the kitchen shortly before you arrive for ultra-fast service."
+    },
+    "checkInPrompt": {
+      "title": "Reservation found",
+      "message": "You have a reservation at {{time}} ({{people}}). Confirm your arrival?",
+      "confirm": "I've arrived",
+      "later": "Later"
+    }
   }
 }

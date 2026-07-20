@@ -63,6 +63,7 @@ export function useFloorPlanSocket(
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollingTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const pingTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const offlineTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMounted = useRef(true);
 
   const debouncedRefetch = useCallback(() => {
@@ -100,6 +101,10 @@ export function useFloorPlanSocket(
     ws.onopen = () => {
       if (!isMounted.current) return;
       reconnectAttempt.current = 0;
+      if (offlineTimer.current) {
+        clearTimeout(offlineTimer.current);
+        offlineTimer.current = null;
+      }
       setIsLive(true);
       stopPolling();
       // Resynchronisation immédiate : des événements ont pu être manqués
@@ -129,7 +134,12 @@ export function useFloorPlanSocket(
     };
 
     ws.onclose = (e) => {
-      setIsLive(false);
+      // Grâce de 4s avant d'afficher "hors ligne" : une reconnexion rapide
+      // (hoquet serveur/réseau) ne fait pas clignoter le badge.
+      if (offlineTimer.current) clearTimeout(offlineTimer.current);
+      offlineTimer.current = setTimeout(() => {
+        if (isMounted.current) setIsLive(false);
+      }, 4000);
       if (pingTimer.current) {
         clearInterval(pingTimer.current);
         pingTimer.current = null;
@@ -163,6 +173,7 @@ export function useFloorPlanSocket(
       isMounted.current = false;
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
+      if (offlineTimer.current) clearTimeout(offlineTimer.current);
       if (pingTimer.current) clearInterval(pingTimer.current);
       stopPolling();
       wsRef.current?.close();

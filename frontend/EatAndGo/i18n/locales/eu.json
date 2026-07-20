@@ -1051,7 +1051,9 @@
     "statisticsShort": "Estat.",
     "qrcodes": "QR kodeak",
     "profile": "Profila",
-    "accounting": "Kontabilitatea"
+    "accounting": "Kontabilitatea",
+    "floorPlan": "Aretoaren planoa",
+    "floorPlanShort": "Aretoa"
   },
   "restaurantProfile": {
     "fallbackUserName": "Erabiltzailea",
@@ -1072,6 +1074,15 @@
     },
     "feedback": {
       "logoutFailed": "Ezin izan da saioa itxi"
+    },
+    "reservations": {
+      "title": "Erreserbak",
+      "online": "Lineako erreserbak",
+      "onlineHint": "Bezeroek mahaia erreserba dezakete",
+      "preorders": "Aurrez ordaindutako aurre-eskaera",
+      "preordersHint": "Bezeroek otordua eskatu eta ordain dezakete erreserbatzean",
+      "updated": "Erreserba-ezarpenak eguneratuta",
+      "error": "Eguneratzeak huts egin du, saiatu berriro"
     }
   },
   "restaurantsList": {
@@ -1490,6 +1501,10 @@
       "statistics": {
         "title": "Estatistikak",
         "description": "Errendimendua"
+      },
+      "floorPlan": {
+        "title": "Aretoaren planoa",
+        "description": "Mahaiak, erreserbak eta walk-inak denbora errealean"
       }
     }
   },
@@ -2927,5 +2942,199 @@
     "seeMenu": "Ikusi menua",
     "notRatedYet": "Baloratu gabe oraindik",
     "empty": "Ez dago jatetxerik mapan erakusteko."
+  },
+  "floorPlan": {
+    "title": "Aretoaren planoa",
+    "live": "Zuzenean",
+    "offline": "Konexiorik gabe",
+    "gridView": "Zerrenda",
+    "planView": "Planoa",
+    "editMode": "Planoa editatu",
+    "doneEditing": "Eginda",
+    "dragHint": "Arrastatu mahaiak eta sakatu Eginda",
+    "layoutSaved": "Planoa gordeta",
+    "unplaced": "Kokatu gabeko mahaiak — sakatu planoan gehitzeko",
+    "status": {
+      "free": "Libre",
+      "occupied": "Okupatuta",
+      "seated": "Eserita",
+      "reserved_soon": "Erreserbatuta",
+      "blocked": "Blokeatuta"
+    },
+    "summary": {
+      "free": "libre",
+      "occupied": "okupatuta",
+      "reserved": "erreserbatuta",
+      "blocked": "blokeatuta"
+    },
+    "seats_one": "{{count}} leku",
+    "seats_other": "{{count}} leku",
+    "reservedAt": "Erreserbatuta {{time}}",
+    "overdue": "Denbora gaindituta",
+    "appOrders": "Eskaera martxan",
+    "until": "{{time}} arte",
+    "since": "{{time}}(e)tik",
+    "prepaid": "Aurre-eskaera ordainduta",
+    "actions": {
+      "seatGuests": "Bezeroak eseri",
+      "block": "Mahaia blokeatu",
+      "unblock": "Desblokeatu",
+      "release": "Mahaia askatu",
+      "extend": "+30 min",
+      "forceSeat": "Hala ere eseri",
+      "editTable": "Mahaia editatu"
+    },
+    "occupyModal": {
+      "title": "Bezeroak eseri",
+      "partySize": "Pertsona kopurua",
+      "duration": "Aurreikusitako iraupena",
+      "minutes": "{{count}} min",
+      "confirm": "Berretsi"
+    },
+    "conflict": {
+      "title": "Mahaia erreserbatuta",
+      "alternatives": "Proposatutako mahai libreak:",
+      "none": "Ez dago alternatibarik"
+    },
+    "bulkSetup": {
+      "title": "Mahaiak gehitu",
+      "capacity": "Lekuak",
+      "count": "Kopurua",
+      "addRow": "Lerroa gehitu",
+      "create": "Mahaiak sortu",
+      "created": "{{count}} mahai sortu d(ir)a"
+    },
+    "empty": {
+      "title": "Konfiguratu zure aretoa",
+      "subtitle": "Sortu lehenik zure mahaiak eta haien QR kodeak, gero itzuli hona zure aretoa denbora errealean jarraitzeko eta erreserbak aktibatzeko.",
+      "cta": "Hasi"
+    },
+    "errors": {
+      "load": "Ezin izan da aretoaren planoa kargatu",
+      "action": "Ekintzak huts egin du, saiatu berriro"
+    },
+    "reservationsToggle": {
+      "label": "Lineako erreserbak",
+      "on": "Bezeroek mahaia erreserba dezakete",
+      "off": "Desaktibatuta — bezeroek ezin dute erreserbatu"
+    },
+    "zones": {
+      "default": "Aretoa",
+      "placeholder": "Eremu berria (Terraza, Goiko solairua...)",
+      "add": "Eremua",
+      "addTitle": "Eremu berria",
+      "create": "Sortu",
+      "deleteTitle": "«{{zone}}» ezabatu?",
+      "deleteMessage": "{{count}} mahai {{target}}(e)ra eramango dira.",
+      "deleteConfirm": "Ezabatu"
+    },
+    "tableEdit": {
+      "title": "{{number}} mahaia",
+      "zone": "Eremua",
+      "capacity": "Lekuak (estandarra)",
+      "capacityMax": "Leku max (luzagarria)",
+      "notExtendable": "Ez luzagarria",
+      "shape": "Forma",
+      "shapes": {
+        "square": "Karratua",
+        "round": "Biribila",
+        "rect": "Errektangularra"
+      },
+      "save": "Gorde",
+      "delete": "Mahaia ezabatu",
+      "deleteTitle": "{{number}} mahaia ezabatu?",
+      "deleteMessage": "Bere QR kodea desaktibatuko da. Eskaeren historia gordeko da.",
+      "hasReservations": "{{count}} erreserba datoz mahai honetan — utzi bertan behera edo berresleitu lehenik.",
+      "isOccupied": "Askatu mahaia ezabatu aurretik."
+    },
+    "extension": "Luzapena {{count}}p",
+    "addTable": {
+      "button": "Mahaia",
+      "title": "Mahai berria",
+      "create": "Mahaia sortu",
+      "created": "Mahaia sortuta"
+    },
+    "selection": {
+      "count_one": "Mahai {{count}} hautatuta",
+      "count_other": "{{count}} mahai hautatuta",
+      "delete": "Ezabatu ({{count}})",
+      "deleteTitle": "{{count}} mahai ezabatu?",
+      "deleted_one": "Mahai {{count}} ezabatuta",
+      "deleted_other": "{{count}} mahai ezabatuta",
+      "failed": "Ezin izan dira ezabatu: {{tables}} mahaia(k) (okupatuta edo erreserbatuta)"
+    }
+  },
+  "reservation": {
+    "bookTitle": "Mahaia erreserbatu",
+    "myTitle": "Nire erreserbak",
+    "partySize": "Pertsona kopurua",
+    "date": "Data",
+    "time": "Ordua",
+    "today": "Gaur",
+    "tomorrow": "Bihar",
+    "noSlots": "Ez dago ordurik libre egun honetan",
+    "noTableForParty": "Ez dago mahairik pertsona kopuru horrentzat",
+    "contact": {
+      "title": "Zure datuak",
+      "name": "Izena",
+      "phone": "Telefonoa",
+      "email": "Emaila (aukerakoa)",
+      "requests": "Eskaera bereziak (aukerakoa)"
+    },
+    "requiredFields": "Izena eta telefonoa beharrezkoak dira",
+    "submit": "Erreserbatu",
+    "success": {
+      "title": "Erreserba berretsita!",
+      "subtitle": "{{date}}, {{time}} · {{people}}",
+      "table": "{{table}} mahaia",
+      "viewMine": "Nire erreserbak ikusi",
+      "hint": "Iristean, eskaneatu zure mahaiaren QR kodea zure etorrera adierazteko."
+    },
+    "status": {
+      "pending_payment": "Ordainketaren zain",
+      "confirmed": "Berretsita",
+      "seated": "Eserita",
+      "completed": "Amaituta",
+      "cancelled": "Bertan behera utzita",
+      "no_show": "Ez da agertu",
+      "expired": "Iraungita"
+    },
+    "people_one": "pertsona {{count}}",
+    "people_other": "{{count}} pertsona",
+    "checkIn": "Iritsi naiz",
+    "checkInSuccess": "Ongi etorri! Zure mahaia {{table}} da.",
+    "cancelAction": "Erreserba bertan behera utzi",
+    "cancelConfirmTitle": "Erreserba hau bertan behera utzi?",
+    "cancelRefund": "Zure aurre-eskaera osorik itzuliko zaizu.",
+    "cancelNoRefund": "Berandu uztea: aurre-eskaeraren zenbatekoa jatetxearentzat izango da.",
+    "cancelled": "Erreserba bertan behera utzita",
+    "prepaid": "Aurre-eskaera ordainduta · {{amount}}",
+    "empty": {
+      "title": "Erreserbarik ez",
+      "subtitle": "Erreserbatu mahai bat eta iritsi lasai: zure mahaia zain izango duzu.",
+      "cta": "Jatetxe bat aurkitu"
+    },
+    "errors": {
+      "load": "Ezin izan dira datuak kargatu",
+      "slotTaken": "Ordu hori hartu berri dute, aukeratu beste bat",
+      "create": "Erreserbak huts egin du, saiatu berriro",
+      "outsideWindow": "Check-ina erreserba orduaren 30 min lehenago/geroago bakarrik egin daiteke",
+      "disabled": "Jatetxe honek ez du lineako erreserbarik onartzen."
+    },
+    "preOrder": {
+      "bookAndOrder": "Erreserbatu eta aurre-eskatu",
+      "checkoutTitle": "Aurre-eskaera",
+      "expiresIn": "Ordua blokeatuta {{minutes}} min gehiago",
+      "expired": "Ordainketa epea amaitu da, erreserbatu berriro.",
+      "pay": "{{amount}} ordaindu",
+      "success": "Erreserba eta otordua berretsita!",
+      "successHint": "Zure otordua sukaldera bidaliko da iritsi baino pixka bat lehenago, zerbitzu azkarrerako."
+    },
+    "checkInPrompt": {
+      "title": "Erreserba aurkituta",
+      "message": "Erreserba bat duzu {{time}}(e)tan ({{people}}). Zure etorrera berretsi?",
+      "confirm": "Iritsi naiz",
+      "later": "Geroago"
+    }
   }
 }

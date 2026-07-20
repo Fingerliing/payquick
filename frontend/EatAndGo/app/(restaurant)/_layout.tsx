@@ -30,7 +30,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 
   const [currentPage, setCurrentPage] = useState(0);
 
-  const TABS_PER_PAGE = 4;
+  const TABS_PER_PAGE = 3;
   const totalPages = Math.ceil(state.routes.length / TABS_PER_PAGE);
 
   const startIndex = currentPage * TABS_PER_PAGE;
@@ -256,6 +256,22 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="qr-code-outline" size={size} color={color} />
           ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="floor-plan"
+        options={{
+          title: t('restaurantNav.floorPlan'),
+          tabBarLabel: t('restaurantNav.floorPlanShort'),
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? 'grid' : 'grid-outline'}
+              size={size}
+              color={color}
+            />
+          ),
+          href: isRestaurateur && hasValidatedProfile ? undefined : null,
         }}
       />
 

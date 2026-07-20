@@ -4,8 +4,6 @@ from decouple import config, Csv
 import dj_database_url
 from datetime import timedelta
 import socket
-from decouple import config
-
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -24,25 +22,27 @@ LOCAL_IP = get_local_ip()
 
 # ✅ CONFIGURATION REDIS ADAPTATIVE
 def get_redis_config():
-    """Configuration Redis adaptative selon l'environnement"""
-    if os.environ.get('DOCKER_ENV') or os.path.exists('/.dockerenv'):
-        return {
-            'default': {
-                'BACKEND': 'channels_redis.core.RedisChannelLayer',
-                'CONFIG': {
-                    "hosts": [('redis', 6379)],
-                },
+    """Configuration Redis adaptative selon l'environnement.
+
+    RedisPubSubChannelLayer (et non core.RedisChannelLayer) : la variante
+    core utilise une lecture bloquante (BRPOP) incompatible avec redis-py 5.x
+    → 'Timeout reading from redis:6379' qui tue les consumers WebSocket en
+    boucle (badge en direct/hors ligne qui clignote). PubSub n'a pas de
+    lecture bloquante et convient à nos usages : broadcasts éphémères
+    (plan de salle, sessions) où le client refetch à la reconnexion.
+    Seule différence : pas de mise en file pour les consumers déconnectés.
+    """
+    host = ('redis', 6379) if (
+        os.environ.get('DOCKER_ENV') or os.path.exists('/.dockerenv')
+    ) else ('127.0.0.1', 6379)
+    return {
+        'default': {
+            'BACKEND': 'channels_redis.pubsub.RedisPubSubChannelLayer',
+            'CONFIG': {
+                "hosts": [host],
             },
-        }
-    else:
-        return {
-            'default': {
-                'BACKEND': 'channels_redis.core.RedisChannelLayer',
-                'CONFIG': {
-                    "hosts": [('127.0.0.1', 6379)],
-                },
-            },
-        }
+        },
+    }
 
 # ── Sécurité ─────────────────────────────────────────────────────────────────
 SECRET_KEY = config("SECRET_KEY")
@@ -56,6 +56,7 @@ if DEBUG:
         '127.0.0.1',
         LOCAL_IP,
         '0.0.0.0',
+        '192.168.1.163',
     ]
 
 # ── CORS / CSRF ──────────────────────────────────────────────────────────────
@@ -268,15 +269,6 @@ GOOGLE_OAUTH_CLIENT_IDS = config(
     cast=Csv(),
 )
 
-# ── Sign in with Apple ───────────────────────────────────────────────────────
-# Audiences autorisées pour les identityTokens Apple = bundle ID(s) de l'app.
-# Format .env : APPLE_SIGN_IN_CLIENT_IDS=fr.fingerliing.EatQuickeR
-APPLE_SIGN_IN_CLIENT_IDS = config(
-    "APPLE_SIGN_IN_CLIENT_IDS",
-    default="fr.fingerliing.EatQuickeR",
-    cast=Csv(),
-)
-
 # Sirene API + Recaptcha
 SIRENE_API_TOKEN = config("SIRENE_API_TOKEN")
 RECAPTCHA_SECRET_KEY = config("RECAPTCHA_SECRET_KEY")
@@ -379,11 +371,6 @@ REGISTRATION_TEMP_DATA_EXPIRY_MINUTES = 30
 # Réutilise SMS_MAX_ATTEMPTS pour la limite de tentatives par code.
 PASSWORD_RESET_CODE_EXPIRY_MINUTES = 10
 PASSWORD_RESET_RESEND_COOLDOWN_SECONDS = 60
-
-APPLE_TEAM_ID = config('APPLE_TEAM_ID', default='')
-IOS_BUNDLE_ID = config('IOS_BUNDLE_ID', default='fr.fingerliing.EatQuickeR')
-ANDROID_PACKAGE_NAME = config('ANDROID_PACKAGE_NAME', default='fr.fingerliing.EatQuickeR')
-ANDROID_SHA256_FINGERPRINTS = config('ANDROID_SHA256_FINGERPRINTS', default='')
 
 # ── IA — Import de menu par photo ────────────────────────────────────────────
 MENU_AI_PROVIDER = config("MENU_AI_PROVIDER", default="anthropic")  # anthropic | openai

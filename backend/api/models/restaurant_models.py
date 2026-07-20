@@ -121,6 +121,25 @@ class Restaurant(models.Model):
     
     # Statut et gestion
     is_active = models.BooleanField(default=True, verbose_name="Restaurant actif")
+
+    # ── Réservations en ligne (optionnel, opt-in) ──────────────────────
+    reservations_enabled = models.BooleanField(
+        default=False,
+        verbose_name="Réservations en ligne activées",
+        help_text=(
+            "Permet aux clients de réserver une table (avec pré-commande "
+            "prépayée optionnelle). Désactivé par défaut : à activer une "
+            "fois les tables et horaires configurés."
+        ),
+    )
+    reservation_preorders_enabled = models.BooleanField(
+        default=True,
+        verbose_name="Pré-commande prépayée activée",
+        help_text=(
+            "Permet aux clients de commander et payer leur repas au moment "
+            "de la réservation. Sans effet si les réservations sont désactivées."
+        ),
+    )
     siret = models.CharField(
         max_length=14,
         validators=[validate_siret],

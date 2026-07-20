@@ -84,6 +84,7 @@ export default function BookReservationScreen() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [partySize, setPartySize] = useState(2);
   const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
+  const [preordersEnabled, setPreordersEnabled] = useState(true);
   const [noTableForParty, setNoTableForParty] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<AvailabilitySlot | null>(null);
   const [isLoadingSlots, setIsLoadingSlots] = useState(true);
@@ -132,7 +133,16 @@ export default function BookReservationScreen() {
       );
       setSlots(res.slots);
       setNoTableForParty(res.reason === 'no_table_for_party_size');
+      setPreordersEnabled(res.preorders_enabled !== false);
     } catch (e) {
+      const data = (e as any)?.response?.data ?? (e as any)?.data ?? {};
+      if (data?.error === 'reservations_disabled') {
+        // Restaurant qui a désactivé entre la fiche et cet écran
+        Alert.alert('', t('reservation.errors.disabled'), [
+          { text: t('common.back'), onPress: () => router.back() },
+        ]);
+        return;
+      }
       console.error('[Reservation] availability error:', e);
       setSlots([]);
       setNoTableForParty(false);
@@ -529,7 +539,7 @@ export default function BookReservationScreen() {
         </TouchableOpacity>
 
         {/* Réserver + pré-commander (compte requis : paiement 100%) */}
-        {isAuthenticated && (
+        {isAuthenticated && preordersEnabled && (
           <TouchableOpacity
             style={[
               s.submitBtn(canSubmit),

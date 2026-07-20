@@ -9,7 +9,7 @@ import {
 export class FloorPlanService {
   /** Plan de salle avec statuts temps réel */
   async getFloorPlan(restaurantId: number): Promise<FloorPlanResponse> {
-    return apiClient.get(`/floor-plan/?restaurant_id=${restaurantId}`);
+    return apiClient.get(`/api/v1/floor-plan/?restaurant_id=${restaurantId}`);
   }
 
   /** Création en masse : [{capacity: 2, count: 6}, {capacity: 4, count: 4}] */
@@ -17,7 +17,7 @@ export class FloorPlanService {
     restaurantId: number,
     groups: BulkSetupGroup[],
   ): Promise<{ created: Array<{ id: string; number: string; capacity: number }>; count: number }> {
-    return apiClient.post('/floor-plan/bulk_setup/', {
+    return apiClient.post('/api/v1/floor-plan/bulk_setup/', {
       restaurant_id: restaurantId,
       groups,
     });
@@ -28,7 +28,7 @@ export class FloorPlanService {
     restaurantId: number,
     layout: LayoutItem[],
   ): Promise<{ updated: number }> {
-    return apiClient.post('/floor-plan/layout/', {
+    return apiClient.post('/api/v1/floor-plan/layout/', {
       restaurant_id: restaurantId,
       layout,
     });
@@ -46,12 +46,28 @@ export class FloorPlanService {
     expected_end_at: string;
     warning_overridden: boolean;
   }> {
-    return apiClient.post('/floor-plan/occupy/', payload);
+    return apiClient.post('/api/v1/floor-plan/occupy/', payload);
   }
 
   /** Libérer une table */
   async release(tableId: string): Promise<{ success: boolean; released: number }> {
-    return apiClient.post('/floor-plan/release/', { table_id: tableId });
+    return apiClient.post('/api/v1/floor-plan/release/', { table_id: tableId });
+  }
+
+  /** Paramètres de réservation (opt-in restaurateur).
+   *  Passer uniquement les champs à modifier. */
+  async updateReservationSettings(
+    restaurantId: number,
+    settings: { enabled?: boolean; preorders_enabled?: boolean },
+  ): Promise<{
+    success: boolean;
+    reservations_enabled: boolean;
+    preorders_enabled: boolean;
+  }> {
+    return apiClient.post('/api/v1/floor-plan/toggle_reservations/', {
+      restaurant_id: restaurantId,
+      ...settings,
+    });
   }
 
   /** Prolonger une occupation (défaut +30 min) */
@@ -59,7 +75,7 @@ export class FloorPlanService {
     tableId: string,
     minutes = 30,
   ): Promise<{ success: boolean; expected_end_at: string }> {
-    return apiClient.post('/floor-plan/extend/', {
+    return apiClient.post('/api/v1/floor-plan/extend/', {
       table_id: tableId,
       minutes,
     });

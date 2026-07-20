@@ -47,6 +47,8 @@ export interface AvailabilityResponse {
   date: string; // YYYY-MM-DD
   party_size: number;
   duration_minutes: number;
+  /** false si le restaurant a désactivé la pré-commande prépayée */
+  preorders_enabled?: boolean;
   slots: AvailabilitySlot[];
   reason?: 'no_table_for_party_size';
 }
@@ -137,6 +139,8 @@ export interface FloorPlanTable {
   id: string;
   number: string;
   capacity: number;
+  /** Capacité avec rallonge (table modulable) — null si non modulable */
+  capacity_max: number | null;
   zone: string;
   pos_x: number | null; // 0..1, null = jamais placée
   pos_y: number | null;
@@ -151,6 +155,7 @@ export interface FloorPlanTable {
 export interface FloorPlanResponse {
   restaurant_id: string;
   timestamp: string; // ISO
+  reservations_enabled: boolean;
   tables: FloorPlanTable[];
   summary: Partial<Record<FloorPlanTableStatus, number>>;
 }
@@ -166,6 +171,9 @@ export interface LayoutItem {
   pos_y?: number; // 0..1
   shape?: TableShape;
   zone?: string;
+  capacity?: number;
+  /** null = non modulable */
+  capacity_max?: number | null;
 }
 
 export interface OccupyTablePayload {

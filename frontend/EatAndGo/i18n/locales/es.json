@@ -1050,7 +1050,9 @@
     "statisticsShort": "Estad.",
     "qrcodes": "Códigos QR",
     "profile": "Perfil",
-    "accounting": "Contabilidad"
+    "accounting": "Contabilidad",
+    "floorPlan": "Plano de sala",
+    "floorPlanShort": "Sala"
   },
   "restaurantProfile": {
     "fallbackUserName": "Usuario",
@@ -1071,6 +1073,15 @@
     },
     "feedback": {
       "logoutFailed": "No se pudo cerrar sesión"
+    },
+    "reservations": {
+      "title": "Reservas",
+      "online": "Reservas en línea",
+      "onlineHint": "Los clientes pueden reservar una mesa",
+      "preorders": "Pre-pedido prepagado",
+      "preordersHint": "Los clientes pueden pedir y pagar su comida al reservar",
+      "updated": "Parámetros de reserva actualizados",
+      "error": "La actualización falló, inténtelo de nuevo"
     }
   },
   "restaurantsList": {
@@ -1489,6 +1500,10 @@
       "statistics": {
         "title": "Estadísticas",
         "description": "Rendimiento"
+      },
+      "floorPlan": {
+        "title": "Plano de sala",
+        "description": "Mesas, reservas y clientes sin reserva en tiempo real"
       }
     }
   },
@@ -2926,5 +2941,199 @@
     "seeMenu": "Ver menú",
     "notRatedYet": "Sin valoraciones aún",
     "empty": "No hay restaurantes que mostrar en el mapa."
+  },
+  "floorPlan": {
+    "title": "Plano de sala",
+    "live": "En directo",
+    "offline": "Sin conexión",
+    "gridView": "Lista",
+    "planView": "Plano",
+    "editMode": "Editar plano",
+    "doneEditing": "Hecho",
+    "dragHint": "Arrastra las mesas y toca Hecho",
+    "layoutSaved": "Plano guardado",
+    "unplaced": "Mesas sin colocar — toca para añadir al plano",
+    "status": {
+      "free": "Libre",
+      "occupied": "Ocupada",
+      "seated": "Sentados",
+      "reserved_soon": "Reservada",
+      "blocked": "Bloqueada"
+    },
+    "summary": {
+      "free": "libres",
+      "occupied": "ocupadas",
+      "reserved": "reservadas",
+      "blocked": "bloqueadas"
+    },
+    "seats_one": "{{count}} plaza",
+    "seats_other": "{{count}} plazas",
+    "reservedAt": "Reservada {{time}}",
+    "overdue": "Tiempo excedido",
+    "appOrders": "Pedido en curso",
+    "until": "Hasta {{time}}",
+    "since": "Desde {{time}}",
+    "prepaid": "Pre-pedido pagado",
+    "actions": {
+      "seatGuests": "Sentar clientes",
+      "block": "Bloquear mesa",
+      "unblock": "Desbloquear",
+      "release": "Liberar mesa",
+      "extend": "+30 min",
+      "forceSeat": "Sentar igualmente",
+      "editTable": "Editar mesa"
+    },
+    "occupyModal": {
+      "title": "Sentar clientes",
+      "partySize": "Número de personas",
+      "duration": "Duración estimada",
+      "minutes": "{{count}} min",
+      "confirm": "Confirmar"
+    },
+    "conflict": {
+      "title": "Mesa reservada",
+      "alternatives": "Mesas libres sugeridas:",
+      "none": "Sin alternativas disponibles"
+    },
+    "bulkSetup": {
+      "title": "Añadir mesas",
+      "capacity": "Plazas",
+      "count": "Cantidad",
+      "addRow": "Añadir línea",
+      "create": "Crear mesas",
+      "created": "{{count}} mesa(s) creada(s)"
+    },
+    "empty": {
+      "title": "Configure su sala",
+      "subtitle": "Primero cree sus mesas y sus códigos QR, luego vuelva aquí para seguir su sala en tiempo real y activar las reservas.",
+      "cta": "Comenzar"
+    },
+    "errors": {
+      "load": "No se pudo cargar el plano de sala",
+      "action": "La acción falló, inténtalo de nuevo"
+    },
+    "reservationsToggle": {
+      "label": "Reservas en línea",
+      "on": "Los clientes pueden reservar una mesa",
+      "off": "Desactivadas — los clientes no pueden reservar"
+    },
+    "zones": {
+      "default": "Sala",
+      "placeholder": "Nueva zona (Terraza, Planta alta...)",
+      "add": "Zona",
+      "addTitle": "Nueva zona",
+      "create": "Crear",
+      "deleteTitle": "¿Eliminar «{{zone}}»?",
+      "deleteMessage": "{{count}} mesa(s) se moverán a {{target}}.",
+      "deleteConfirm": "Eliminar"
+    },
+    "tableEdit": {
+      "title": "Mesa {{number}}",
+      "zone": "Zona",
+      "capacity": "Plazas (estándar)",
+      "capacityMax": "Plazas máx (extensible)",
+      "notExtendable": "No extensible",
+      "shape": "Forma",
+      "shapes": {
+        "square": "Cuadrada",
+        "round": "Redonda",
+        "rect": "Rectangular"
+      },
+      "save": "Guardar",
+      "delete": "Eliminar mesa",
+      "deleteTitle": "¿Eliminar la mesa {{number}}?",
+      "deleteMessage": "Su código QR se desactivará. El historial de pedidos se conserva.",
+      "hasReservations": "{{count}} reserva(s) próxima(s) en esta mesa — cancélelas o reasígnelas primero.",
+      "isOccupied": "Libere la mesa antes de eliminarla."
+    },
+    "extension": "Extensión {{count}}p",
+    "addTable": {
+      "button": "Mesa",
+      "title": "Nueva mesa",
+      "create": "Crear mesa",
+      "created": "Mesa creada"
+    },
+    "selection": {
+      "count_one": "{{count}} mesa seleccionada",
+      "count_other": "{{count}} mesas seleccionadas",
+      "delete": "Eliminar ({{count}})",
+      "deleteTitle": "¿Eliminar {{count}} mesa(s)?",
+      "deleted_one": "{{count}} mesa eliminada",
+      "deleted_other": "{{count}} mesas eliminadas",
+      "failed": "No se pudo eliminar: mesa(s) {{tables}} (ocupada o reservada)"
+    }
+  },
+  "reservation": {
+    "bookTitle": "Reservar una mesa",
+    "myTitle": "Mis reservas",
+    "partySize": "Número de personas",
+    "date": "Fecha",
+    "time": "Hora",
+    "today": "Hoy",
+    "tomorrow": "Mañana",
+    "noSlots": "No hay horarios disponibles este día",
+    "noTableForParty": "Ninguna mesa puede acoger este número de comensales",
+    "contact": {
+      "title": "Sus datos",
+      "name": "Nombre",
+      "phone": "Teléfono",
+      "email": "Email (opcional)",
+      "requests": "Peticiones especiales (opcional)"
+    },
+    "requiredFields": "El nombre y el teléfono son obligatorios",
+    "submit": "Reservar",
+    "success": {
+      "title": "¡Reserva confirmada!",
+      "subtitle": "{{date}} a las {{time}} · {{people}}",
+      "table": "Mesa {{table}}",
+      "viewMine": "Ver mis reservas",
+      "hint": "Al llegar, escanee el código QR de su mesa para registrar su llegada."
+    },
+    "status": {
+      "pending_payment": "Pendiente de pago",
+      "confirmed": "Confirmada",
+      "seated": "Sentados",
+      "completed": "Finalizada",
+      "cancelled": "Cancelada",
+      "no_show": "No presentado",
+      "expired": "Expirada"
+    },
+    "people_one": "{{count}} persona",
+    "people_other": "{{count}} personas",
+    "checkIn": "He llegado",
+    "checkInSuccess": "¡Bienvenido! Su mesa es la {{table}}.",
+    "cancelAction": "Cancelar la reserva",
+    "cancelConfirmTitle": "¿Cancelar esta reserva?",
+    "cancelRefund": "Su pre-pedido será reembolsado íntegramente.",
+    "cancelNoRefund": "Cancelación tardía: el importe del pre-pedido quedará en poder del restaurante.",
+    "cancelled": "Reserva cancelada",
+    "prepaid": "Pre-pedido pagado · {{amount}}",
+    "empty": {
+      "title": "Sin reservas",
+      "subtitle": "Reserve una mesa y llegue sin preocupaciones: su mesa le estará esperando.",
+      "cta": "Encontrar un restaurante"
+    },
+    "errors": {
+      "load": "No se pudieron cargar los datos",
+      "slotTaken": "Este horario acaba de ocuparse, elija otro",
+      "create": "La reserva falló, inténtelo de nuevo",
+      "outsideWindow": "El registro solo es posible 30 min antes/después de la hora de reserva",
+      "disabled": "Este restaurante no acepta reservas en línea."
+    },
+    "preOrder": {
+      "bookAndOrder": "Reservar y pre-pedir",
+      "checkoutTitle": "Pre-pedido",
+      "expiresIn": "Horario bloqueado {{minutes}} min más",
+      "expired": "El plazo de pago ha expirado, vuelva a reservar.",
+      "pay": "Pagar {{amount}}",
+      "success": "¡Reserva y comida confirmadas!",
+      "successHint": "Su comida se enviará a cocina poco antes de su llegada para un servicio ultrarrápido."
+    },
+    "checkInPrompt": {
+      "title": "Reserva encontrada",
+      "message": "Tiene una reserva a las {{time}} ({{people}}). ¿Confirmar su llegada?",
+      "confirm": "He llegado",
+      "later": "Más tarde"
+    }
   }
 }

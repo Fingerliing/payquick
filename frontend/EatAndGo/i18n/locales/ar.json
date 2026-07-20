@@ -1051,7 +1051,9 @@
     "statisticsShort": "إحص.",
     "qrcodes": "رموز QR",
     "profile": "الملف الشخصي",
-    "accounting": "المحاسبة"
+    "accounting": "المحاسبة",
+    "floorPlan": "مخطط الصالة",
+    "floorPlanShort": "الصالة"
   },
   "restaurantProfile": {
     "fallbackUserName": "مستخدم",
@@ -1072,6 +1074,15 @@
     },
     "feedback": {
       "logoutFailed": "تعذّر تسجيل الخروج"
+    },
+    "reservations": {
+      "title": "الحجوزات",
+      "online": "الحجوزات عبر الإنترنت",
+      "onlineHint": "يمكن للزبائن حجز طاولة",
+      "preorders": "الطلب المسبق المدفوع",
+      "preordersHint": "يمكن للزبائن طلب وجبتهم ودفع ثمنها عند الحجز",
+      "updated": "تم تحديث إعدادات الحجز",
+      "error": "فشل التحديث، حاول مرة أخرى"
     }
   },
   "restaurantsList": {
@@ -1490,6 +1501,10 @@
       "statistics": {
         "title": "الإحصائيات",
         "description": "الأداء"
+      },
+      "floorPlan": {
+        "title": "مخطط الصالة",
+        "description": "الطاولات والحجوزات والزبائن المباشرين في الوقت الفعلي"
       }
     }
   },
@@ -2927,5 +2942,199 @@
     "seeMenu": "عرض القائمة",
     "notRatedYet": "لم يُقيّم بعد",
     "empty": "لا توجد مطاعم لعرضها على الخريطة."
+  },
+  "floorPlan": {
+    "title": "مخطط الصالة",
+    "live": "مباشر",
+    "offline": "غير متصل",
+    "gridView": "قائمة",
+    "planView": "مخطط",
+    "editMode": "تعديل المخطط",
+    "doneEditing": "تم",
+    "dragHint": "اسحب الطاولات ثم اضغط على تم",
+    "layoutSaved": "تم حفظ المخطط",
+    "unplaced": "طاولات غير موضوعة — اضغط للإضافة إلى المخطط",
+    "status": {
+      "free": "شاغرة",
+      "occupied": "مشغولة",
+      "seated": "جالسون",
+      "reserved_soon": "محجوزة",
+      "blocked": "محظورة"
+    },
+    "summary": {
+      "free": "شاغرة",
+      "occupied": "مشغولة",
+      "reserved": "محجوزة",
+      "blocked": "محظورة"
+    },
+    "seats_one": "{{count}} مقعد",
+    "seats_other": "{{count}} مقاعد",
+    "reservedAt": "محجوزة {{time}}",
+    "overdue": "تجاوز الوقت",
+    "appOrders": "طلب جارٍ",
+    "until": "حتى {{time}}",
+    "since": "منذ {{time}}",
+    "prepaid": "الطلب المسبق مدفوع",
+    "actions": {
+      "seatGuests": "إجلاس الزبائن",
+      "block": "حظر الطاولة",
+      "unblock": "إلغاء الحظر",
+      "release": "تحرير الطاولة",
+      "extend": "+30 دقيقة",
+      "forceSeat": "الإجلاس رغم ذلك",
+      "editTable": "تعديل الطاولة"
+    },
+    "occupyModal": {
+      "title": "إجلاس الزبائن",
+      "partySize": "عدد الأشخاص",
+      "duration": "المدة المقدرة",
+      "minutes": "{{count}} دقيقة",
+      "confirm": "تأكيد"
+    },
+    "conflict": {
+      "title": "طاولة محجوزة",
+      "alternatives": "طاولات شاغرة مقترحة:",
+      "none": "لا يوجد بديل متاح"
+    },
+    "bulkSetup": {
+      "title": "إضافة طاولات",
+      "capacity": "المقاعد",
+      "count": "العدد",
+      "addRow": "إضافة سطر",
+      "create": "إنشاء الطاولات",
+      "created": "تم إنشاء {{count}} طاولة"
+    },
+    "empty": {
+      "title": "قم بإعداد صالتك",
+      "subtitle": "أنشئ أولاً طاولاتك ورموز QR الخاصة بها، ثم عد إلى هنا لمتابعة صالتك في الوقت الفعلي وتفعيل الحجوزات.",
+      "cta": "ابدأ"
+    },
+    "errors": {
+      "load": "تعذر تحميل مخطط الصالة",
+      "action": "فشلت العملية، حاول مرة أخرى"
+    },
+    "reservationsToggle": {
+      "label": "الحجوزات عبر الإنترنت",
+      "on": "يمكن للزبائن حجز طاولة",
+      "off": "معطلة — لا يمكن للزبائن الحجز"
+    },
+    "zones": {
+      "default": "الصالة",
+      "placeholder": "منطقة جديدة (تراس، الطابق العلوي...)",
+      "add": "منطقة",
+      "addTitle": "منطقة جديدة",
+      "create": "إنشاء",
+      "deleteTitle": "حذف «{{zone}}»؟",
+      "deleteMessage": "سيتم نقل {{count}} طاولة إلى {{target}}.",
+      "deleteConfirm": "حذف"
+    },
+    "tableEdit": {
+      "title": "طاولة {{number}}",
+      "zone": "المنطقة",
+      "capacity": "المقاعد (قياسي)",
+      "capacityMax": "الحد الأقصى (قابلة للتمديد)",
+      "notExtendable": "غير قابلة للتمديد",
+      "shape": "الشكل",
+      "shapes": {
+        "square": "مربعة",
+        "round": "دائرية",
+        "rect": "مستطيلة"
+      },
+      "save": "حفظ",
+      "delete": "حذف الطاولة",
+      "deleteTitle": "حذف الطاولة {{number}}؟",
+      "deleteMessage": "سيتم تعطيل رمز QR الخاص بها. يُحتفظ بسجل الطلبات.",
+      "hasReservations": "توجد {{count}} حجوزات قادمة على هذه الطاولة — قم بإلغائها أو إعادة تعيينها أولاً.",
+      "isOccupied": "حرر الطاولة قبل حذفها."
+    },
+    "extension": "تمديد إلى {{count}} أشخاص",
+    "addTable": {
+      "button": "طاولة",
+      "title": "طاولة جديدة",
+      "create": "إنشاء الطاولة",
+      "created": "تم إنشاء الطاولة"
+    },
+    "selection": {
+      "count_one": "تم تحديد طاولة واحدة",
+      "count_other": "تم تحديد {{count}} طاولات",
+      "delete": "حذف ({{count}})",
+      "deleteTitle": "حذف {{count}} طاولة؟",
+      "deleted_one": "تم حذف طاولة واحدة",
+      "deleted_other": "تم حذف {{count}} طاولات",
+      "failed": "تعذر الحذف: الطاولة/الطاولات {{tables}} (مشغولة أو محجوزة)"
+    }
+  },
+  "reservation": {
+    "bookTitle": "حجز طاولة",
+    "myTitle": "حجوزاتي",
+    "partySize": "عدد الأشخاص",
+    "date": "التاريخ",
+    "time": "الوقت",
+    "today": "اليوم",
+    "tomorrow": "غدًا",
+    "noSlots": "لا توجد مواعيد متاحة في هذا اليوم",
+    "noTableForParty": "لا توجد طاولة تتسع لهذا العدد",
+    "contact": {
+      "title": "بياناتك",
+      "name": "الاسم",
+      "phone": "الهاتف",
+      "email": "البريد الإلكتروني (اختياري)",
+      "requests": "طلبات خاصة (اختياري)"
+    },
+    "requiredFields": "الاسم والهاتف مطلوبان",
+    "submit": "احجز",
+    "success": {
+      "title": "تم تأكيد الحجز!",
+      "subtitle": "{{date}} الساعة {{time}} · {{people}}",
+      "table": "طاولة {{table}}",
+      "viewMine": "عرض حجوزاتي",
+      "hint": "عند الوصول، امسح رمز QR الخاص بطاولتك لتسجيل حضورك."
+    },
+    "status": {
+      "pending_payment": "في انتظار الدفع",
+      "confirmed": "مؤكد",
+      "seated": "جالسون",
+      "completed": "منتهي",
+      "cancelled": "ملغى",
+      "no_show": "لم يحضر",
+      "expired": "منتهي الصلاحية"
+    },
+    "people_one": "شخص واحد",
+    "people_other": "{{count}} أشخاص",
+    "checkIn": "لقد وصلت",
+    "checkInSuccess": "مرحبًا! طاولتك هي رقم {{table}}.",
+    "cancelAction": "إلغاء الحجز",
+    "cancelConfirmTitle": "إلغاء هذا الحجز؟",
+    "cancelRefund": "سيتم رد مبلغ طلبك المسبق بالكامل.",
+    "cancelNoRefund": "إلغاء متأخر: سيحتفظ المطعم بمبلغ الطلب المسبق.",
+    "cancelled": "تم إلغاء الحجز",
+    "prepaid": "الطلب المسبق مدفوع · {{amount}}",
+    "empty": {
+      "title": "لا توجد حجوزات",
+      "subtitle": "احجز طاولة وتعالَ مطمئنًا: طاولتك في انتظارك.",
+      "cta": "البحث عن مطعم"
+    },
+    "errors": {
+      "load": "تعذر تحميل البيانات",
+      "slotTaken": "تم حجز هذا الموعد للتو، اختر موعدًا آخر",
+      "create": "فشل الحجز، حاول مرة أخرى",
+      "outsideWindow": "تسجيل الوصول ممكن فقط قبل/بعد موعد الحجز بـ 30 دقيقة",
+      "disabled": "هذا المطعم لا يقبل الحجوزات عبر الإنترنت."
+    },
+    "preOrder": {
+      "bookAndOrder": "احجز واطلب مسبقًا",
+      "checkoutTitle": "الطلب المسبق",
+      "expiresIn": "الموعد محجوز لمدة {{minutes}} دقيقة أخرى",
+      "expired": "انتهت مهلة الدفع، يرجى الحجز من جديد.",
+      "pay": "ادفع {{amount}}",
+      "success": "تم تأكيد الحجز والوجبة!",
+      "successHint": "سيتم إرسال وجبتك إلى المطبخ قبل وصولك بقليل لخدمة فائقة السرعة."
+    },
+    "checkInPrompt": {
+      "title": "تم العثور على حجز",
+      "message": "لديك حجز الساعة {{time}} ({{people}}). تأكيد وصولك؟",
+      "confirm": "لقد وصلت",
+      "later": "لاحقًا"
+    }
   }
 }

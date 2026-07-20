@@ -16,14 +16,13 @@ export class ReservationService {
     date: string, // YYYY-MM-DD
     partySize: number,
   ): Promise<AvailabilityResponse> {
-    return apiClient.get(
-      `/reservations/availability/?restaurant_id=${restaurantId}&date=${date}&party_size=${partySize}`,
+    return apiClient.get(`/api/v1/reservations/availability/?restaurant_id=${restaurantId}&date=${date}&party_size=${partySize}`,
     );
   }
 
   /** Créer une réservation (table assignée automatiquement) */
   async create(payload: CreateReservationPayload): Promise<Reservation> {
-    return apiClient.post('/reservations/', payload);
+    return apiClient.post('/api/v1/reservations/', payload);
   }
 
   /** Pré-commande avec paiement 100% obligatoire → PaymentIntent */
@@ -31,12 +30,12 @@ export class ReservationService {
     reservationId: string,
     payload: PreOrderPayload,
   ): Promise<PreOrderResponse> {
-    return apiClient.post(`/reservations/${reservationId}/pre_order/`, payload);
+    return apiClient.post(`/api/v1/reservations/${reservationId}/pre_order/`, payload);
   }
 
   /** Annulation (remboursement intégral si avant la deadline) */
   async cancel(reservationId: string): Promise<CancelReservationResponse> {
-    return apiClient.post(`/reservations/${reservationId}/cancel/`);
+    return apiClient.post(`/api/v1/reservations/${reservationId}/cancel/`);
   }
 
   /** Check-in à l'arrivée — qrCode optionnel pour vérifier la bonne table */
@@ -44,15 +43,14 @@ export class ReservationService {
     reservationId: string,
     qrCode?: string,
   ): Promise<CheckInResponse> {
-    return apiClient.post(
-      `/reservations/${reservationId}/check_in/`,
+    return apiClient.post(`/api/v1/reservations/${reservationId}/check_in/`,
       qrCode ? { qr_code: qrCode } : {},
     );
   }
 
   /** Mes réservations (client connecté) */
   async getMine(): Promise<Reservation[]> {
-    return apiClient.get('/reservations/mine/');
+    return apiClient.get('/api/v1/reservations/mine/');
   }
 
   /** Planning restaurateur pour une date */
@@ -60,8 +58,7 @@ export class ReservationService {
     restaurantId: number,
     date: string, // YYYY-MM-DD
   ): Promise<Reservation[]> {
-    return apiClient.get(
-      `/reservations/planning/?restaurant_id=${restaurantId}&date=${date}`,
+    return apiClient.get(`/api/v1/reservations/planning/?restaurant_id=${restaurantId}&date=${date}`,
     );
   }
 

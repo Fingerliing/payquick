@@ -1050,7 +1050,9 @@
     "statisticsShort": "Stat.",
     "qrcodes": "QR-codes",
     "profile": "Profiel",
-    "accounting": "Boekhouding"
+    "accounting": "Boekhouding",
+    "floorPlan": "Plattegrond",
+    "floorPlanShort": "Zaal"
   },
   "restaurantProfile": {
     "fallbackUserName": "Gebruiker",
@@ -1071,6 +1073,15 @@
     },
     "feedback": {
       "logoutFailed": "Uitloggen mislukt"
+    },
+    "reservations": {
+      "title": "Reserveringen",
+      "online": "Online reserveringen",
+      "onlineHint": "Klanten kunnen een tafel reserveren",
+      "preorders": "Vooruitbetaalde voorbestelling",
+      "preordersHint": "Klanten kunnen hun maaltijd bestellen en betalen bij het reserveren",
+      "updated": "Reserveringsinstellingen bijgewerkt",
+      "error": "Bijwerken mislukt, probeer opnieuw"
     }
   },
   "restaurantsList": {
@@ -1489,6 +1500,10 @@
       "statistics": {
         "title": "Statistieken",
         "description": "Prestaties"
+      },
+      "floorPlan": {
+        "title": "Plattegrond",
+        "description": "Tafels, reserveringen en walk-ins in realtime"
       }
     }
   },
@@ -2926,5 +2941,199 @@
     "seeMenu": "Menu bekijken",
     "notRatedYet": "Nog niet beoordeeld",
     "empty": "Geen restaurant om op de kaart te tonen."
+  },
+  "floorPlan": {
+    "title": "Zaalplattegrond",
+    "live": "Live",
+    "offline": "Offline",
+    "gridView": "Lijst",
+    "planView": "Plattegrond",
+    "editMode": "Plattegrond bewerken",
+    "doneEditing": "Klaar",
+    "dragHint": "Versleep de tafels en tik op Klaar",
+    "layoutSaved": "Plattegrond opgeslagen",
+    "unplaced": "Niet-geplaatste tafels — tik om toe te voegen",
+    "status": {
+      "free": "Vrij",
+      "occupied": "Bezet",
+      "seated": "Gezeten",
+      "reserved_soon": "Gereserveerd",
+      "blocked": "Geblokkeerd"
+    },
+    "summary": {
+      "free": "vrij",
+      "occupied": "bezet",
+      "reserved": "gereserveerd",
+      "blocked": "geblokkeerd"
+    },
+    "seats_one": "{{count}} plaats",
+    "seats_other": "{{count}} plaatsen",
+    "reservedAt": "Gereserveerd {{time}}",
+    "overdue": "Tijd overschreden",
+    "appOrders": "Lopende bestelling",
+    "until": "Tot {{time}}",
+    "since": "Sinds {{time}}",
+    "prepaid": "Voorbestelling betaald",
+    "actions": {
+      "seatGuests": "Gasten plaatsen",
+      "block": "Tafel blokkeren",
+      "unblock": "Deblokkeren",
+      "release": "Tafel vrijgeven",
+      "extend": "+30 min",
+      "forceSeat": "Toch plaatsen",
+      "editTable": "Tafel bewerken"
+    },
+    "occupyModal": {
+      "title": "Gasten plaatsen",
+      "partySize": "Aantal personen",
+      "duration": "Geschatte duur",
+      "minutes": "{{count}} min",
+      "confirm": "Bevestigen"
+    },
+    "conflict": {
+      "title": "Tafel gereserveerd",
+      "alternatives": "Voorgestelde vrije tafels:",
+      "none": "Geen alternatief beschikbaar"
+    },
+    "bulkSetup": {
+      "title": "Tafels toevoegen",
+      "capacity": "Plaatsen",
+      "count": "Aantal",
+      "addRow": "Rij toevoegen",
+      "create": "Tafels aanmaken",
+      "created": "{{count}} tafel(s) aangemaakt"
+    },
+    "empty": {
+      "title": "Richt uw zaal in",
+      "subtitle": "Maak eerst uw tafels en hun QR-codes aan, en kom dan hier terug om uw zaal in realtime te volgen en reserveringen te activeren.",
+      "cta": "Beginnen"
+    },
+    "errors": {
+      "load": "Kon de plattegrond niet laden",
+      "action": "Actie mislukt, probeer opnieuw"
+    },
+    "reservationsToggle": {
+      "label": "Online reserveringen",
+      "on": "Klanten kunnen een tafel reserveren",
+      "off": "Uitgeschakeld — klanten kunnen niet reserveren"
+    },
+    "zones": {
+      "default": "Zaal",
+      "placeholder": "Nieuwe zone (Terras, Verdieping...)",
+      "add": "Zone",
+      "addTitle": "Nieuwe zone",
+      "create": "Aanmaken",
+      "deleteTitle": "‘{{zone}}’ verwijderen?",
+      "deleteMessage": "{{count}} tafel(s) worden verplaatst naar {{target}}.",
+      "deleteConfirm": "Verwijderen"
+    },
+    "tableEdit": {
+      "title": "Tafel {{number}}",
+      "zone": "Zone",
+      "capacity": "Plaatsen (standaard)",
+      "capacityMax": "Max plaatsen (uitschuifbaar)",
+      "notExtendable": "Niet uitschuifbaar",
+      "shape": "Vorm",
+      "shapes": {
+        "square": "Vierkant",
+        "round": "Rond",
+        "rect": "Rechthoekig"
+      },
+      "save": "Opslaan",
+      "delete": "Tafel verwijderen",
+      "deleteTitle": "Tafel {{number}} verwijderen?",
+      "deleteMessage": "De QR-code wordt gedeactiveerd. De bestelgeschiedenis blijft bewaard.",
+      "hasReservations": "{{count}} aankomende reservering(en) op deze tafel — annuleer of verplaats ze eerst.",
+      "isOccupied": "Geef de tafel vrij voordat u deze verwijdert."
+    },
+    "extension": "Uitschuiven {{count}}p",
+    "addTable": {
+      "button": "Tafel",
+      "title": "Nieuwe tafel",
+      "create": "Tafel aanmaken",
+      "created": "Tafel aangemaakt"
+    },
+    "selection": {
+      "count_one": "{{count}} tafel geselecteerd",
+      "count_other": "{{count}} tafels geselecteerd",
+      "delete": "Verwijderen ({{count}})",
+      "deleteTitle": "{{count}} tafel(s) verwijderen?",
+      "deleted_one": "{{count}} tafel verwijderd",
+      "deleted_other": "{{count}} tafels verwijderd",
+      "failed": "Kan niet verwijderen: tafel(s) {{tables}} (bezet of gereserveerd)"
+    }
+  },
+  "reservation": {
+    "bookTitle": "Tafel reserveren",
+    "myTitle": "Mijn reserveringen",
+    "partySize": "Aantal personen",
+    "date": "Datum",
+    "time": "Tijd",
+    "today": "Vandaag",
+    "tomorrow": "Morgen",
+    "noSlots": "Geen tijdsloten beschikbaar op deze dag",
+    "noTableForParty": "Geen tafel beschikbaar voor dit aantal personen",
+    "contact": {
+      "title": "Uw gegevens",
+      "name": "Naam",
+      "phone": "Telefoon",
+      "email": "E-mail (optioneel)",
+      "requests": "Speciale verzoeken (optioneel)"
+    },
+    "requiredFields": "Naam en telefoon zijn verplicht",
+    "submit": "Reserveren",
+    "success": {
+      "title": "Reservering bevestigd!",
+      "subtitle": "{{date}} om {{time}} · {{people}}",
+      "table": "Tafel {{table}}",
+      "viewMine": "Mijn reserveringen bekijken",
+      "hint": "Scan bij aankomst de QR-code van uw tafel om in te checken."
+    },
+    "status": {
+      "pending_payment": "Wacht op betaling",
+      "confirmed": "Bevestigd",
+      "seated": "Gezeten",
+      "completed": "Voltooid",
+      "cancelled": "Geannuleerd",
+      "no_show": "Niet verschenen",
+      "expired": "Verlopen"
+    },
+    "people_one": "{{count}} persoon",
+    "people_other": "{{count}} personen",
+    "checkIn": "Ik ben er",
+    "checkInSuccess": "Welkom! Uw tafel is nummer {{table}}.",
+    "cancelAction": "Reservering annuleren",
+    "cancelConfirmTitle": "Deze reservering annuleren?",
+    "cancelRefund": "Uw voorbestelling wordt volledig terugbetaald.",
+    "cancelNoRefund": "Late annulering: het bedrag van de voorbestelling blijft bij het restaurant.",
+    "cancelled": "Reservering geannuleerd",
+    "prepaid": "Voorbestelling betaald · {{amount}}",
+    "empty": {
+      "title": "Geen reserveringen",
+      "subtitle": "Reserveer een tafel en kom zorgeloos aan: uw tafel staat klaar.",
+      "cta": "Restaurant vinden"
+    },
+    "errors": {
+      "load": "Kon gegevens niet laden",
+      "slotTaken": "Dit tijdslot is zojuist bezet, kies een ander",
+      "create": "Reservering mislukt, probeer opnieuw",
+      "outsideWindow": "Inchecken kan alleen 30 min voor/na uw reserveringstijd",
+      "disabled": "Dit restaurant accepteert geen online reserveringen."
+    },
+    "preOrder": {
+      "bookAndOrder": "Reserveren & voorbestellen",
+      "checkoutTitle": "Voorbestelling",
+      "expiresIn": "Tijdslot nog {{minutes}} min vastgehouden",
+      "expired": "De betalingstermijn is verstreken, reserveer opnieuw.",
+      "pay": "{{amount}} betalen",
+      "success": "Reservering en maaltijd bevestigd!",
+      "successHint": "Uw maaltijd wordt kort voor uw aankomst in de keuken gestart voor ultrasnelle service."
+    },
+    "checkInPrompt": {
+      "title": "Reservering gevonden",
+      "message": "U heeft een reservering om {{time}} ({{people}}). Aankomst bevestigen?",
+      "confirm": "Ik ben er",
+      "later": "Later"
+    }
   }
 }

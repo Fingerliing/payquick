@@ -35,6 +35,15 @@ class Table(models.Model):
         verbose_name="Capacité",
         help_text="Nombre de personnes que peut accueillir la table"
     )
+    capacity_max = models.PositiveSmallIntegerField(
+        blank=True,
+        null=True,
+        verbose_name="Capacité étendue",
+        help_text=(
+            "Capacité maximale avec rallonge pour les tables modulables "
+            "(ex: carrée 4 places → rectangle 6 places). Vide = non modulable."
+        )
+    )
     is_active = models.BooleanField(
         default=True,
         verbose_name="Table active",
@@ -100,6 +109,11 @@ class Table(models.Model):
         if self.capacity and (self.capacity < 1 or self.capacity > 50):
             raise ValidationError({
                 'capacity': 'La capacité doit être entre 1 et 50 personnes'
+            })
+        
+        if self.capacity_max is not None and self.capacity_max < self.capacity:
+            raise ValidationError({
+                'capacity_max': 'La capacité étendue doit être supérieure ou égale à la capacité standard'
             })
     
     def save(self, *args, **kwargs):

@@ -786,6 +786,22 @@ export default function DashboardScreen() {
                   </Text>
                 </TouchableOpacity>
 
+                {/* Plan de salle & réservations */}
+                <TouchableOpacity
+                  style={styles.actionCard}
+                  onPress={() => router.navigate('/(restaurant)/floor-plan' as any)}
+                >
+                  <View style={styles.actionIcon}>
+                    <Ionicons name="grid" size={20} color={colors.primary} />
+                  </View>
+                  <Text style={styles.actionTitle}>
+                    {t('restaurantHome.actions.floorPlan.title')}
+                  </Text>
+                  <Text style={styles.actionDescription}>
+                    {t('restaurantHome.actions.floorPlan.description')}
+                  </Text>
+                </TouchableOpacity>
+
                 {/* Gérer les menus */}
                 <TouchableOpacity
                   style={styles.actionCard}

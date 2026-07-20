@@ -1050,7 +1050,9 @@
     "statisticsShort": "Stat.",
     "qrcodes": "QR-Codes",
     "profile": "Profil",
-    "accounting": "Buchhaltung"
+    "accounting": "Buchhaltung",
+    "floorPlan": "Tischplan",
+    "floorPlanShort": "Tische"
   },
   "restaurantProfile": {
     "fallbackUserName": "Benutzer",
@@ -1071,6 +1073,15 @@
     },
     "feedback": {
       "logoutFailed": "Abmeldung fehlgeschlagen"
+    },
+    "reservations": {
+      "title": "Reservierungen",
+      "online": "Online-Reservierungen",
+      "onlineHint": "Gäste können einen Tisch reservieren",
+      "preorders": "Bezahlte Vorbestellung",
+      "preordersHint": "Gäste können ihr Essen bei der Reservierung bestellen und bezahlen",
+      "updated": "Reservierungseinstellungen aktualisiert",
+      "error": "Aktualisierung fehlgeschlagen, bitte erneut versuchen"
     }
   },
   "restaurantsList": {
@@ -1489,6 +1500,10 @@
       "statistics": {
         "title": "Statistiken",
         "description": "Leistung"
+      },
+      "floorPlan": {
+        "title": "Tischplan",
+        "description": "Tische, Reservierungen und Walk-ins in Echtzeit"
       }
     }
   },
@@ -2926,5 +2941,199 @@
     "seeMenu": "Menü ansehen",
     "notRatedYet": "Noch nicht bewertet",
     "empty": "Keine Restaurants auf der Karte anzuzeigen."
+  },
+  "floorPlan": {
+    "title": "Tischplan",
+    "live": "Live",
+    "offline": "Offline",
+    "gridView": "Liste",
+    "planView": "Plan",
+    "editMode": "Plan bearbeiten",
+    "doneEditing": "Fertig",
+    "dragHint": "Tische verschieben, dann auf Fertig tippen",
+    "layoutSaved": "Plan gespeichert",
+    "unplaced": "Nicht platzierte Tische — zum Hinzufügen antippen",
+    "status": {
+      "free": "Frei",
+      "occupied": "Besetzt",
+      "seated": "Platziert",
+      "reserved_soon": "Reserviert",
+      "blocked": "Gesperrt"
+    },
+    "summary": {
+      "free": "frei",
+      "occupied": "besetzt",
+      "reserved": "reserviert",
+      "blocked": "gesperrt"
+    },
+    "seats_one": "{{count}} Platz",
+    "seats_other": "{{count}} Plätze",
+    "reservedAt": "Reserviert {{time}}",
+    "overdue": "Zeit überschritten",
+    "appOrders": "Laufende Bestellung",
+    "until": "Bis {{time}}",
+    "since": "Seit {{time}}",
+    "prepaid": "Vorbestellung bezahlt",
+    "actions": {
+      "seatGuests": "Gäste platzieren",
+      "block": "Tisch sperren",
+      "unblock": "Entsperren",
+      "release": "Tisch freigeben",
+      "extend": "+30 Min",
+      "forceSeat": "Trotzdem platzieren",
+      "editTable": "Tisch bearbeiten"
+    },
+    "occupyModal": {
+      "title": "Gäste platzieren",
+      "partySize": "Personenzahl",
+      "duration": "Geschätzte Dauer",
+      "minutes": "{{count}} Min",
+      "confirm": "Bestätigen"
+    },
+    "conflict": {
+      "title": "Tisch reserviert",
+      "alternatives": "Vorgeschlagene freie Tische:",
+      "none": "Keine Alternative verfügbar"
+    },
+    "bulkSetup": {
+      "title": "Tische hinzufügen",
+      "capacity": "Plätze",
+      "count": "Anzahl",
+      "addRow": "Zeile hinzufügen",
+      "create": "Tische erstellen",
+      "created": "{{count}} Tisch(e) erstellt"
+    },
+    "empty": {
+      "title": "Richten Sie Ihren Gastraum ein",
+      "subtitle": "Erstellen Sie zuerst Ihre Tische und deren QR-Codes, und kehren Sie dann hierher zurück, um Ihren Gastraum in Echtzeit zu verfolgen und Reservierungen zu aktivieren.",
+      "cta": "Loslegen"
+    },
+    "errors": {
+      "load": "Tischplan konnte nicht geladen werden",
+      "action": "Aktion fehlgeschlagen, bitte erneut versuchen"
+    },
+    "reservationsToggle": {
+      "label": "Online-Reservierungen",
+      "on": "Gäste können einen Tisch reservieren",
+      "off": "Deaktiviert — Gäste können nicht reservieren"
+    },
+    "zones": {
+      "default": "Gastraum",
+      "placeholder": "Neuer Bereich (Terrasse, Obergeschoss...)",
+      "add": "Bereich",
+      "addTitle": "Neuer Bereich",
+      "create": "Erstellen",
+      "deleteTitle": "„{{zone}}“ löschen?",
+      "deleteMessage": "{{count}} Tisch(e) werden nach {{target}} verschoben.",
+      "deleteConfirm": "Löschen"
+    },
+    "tableEdit": {
+      "title": "Tisch {{number}}",
+      "zone": "Bereich",
+      "capacity": "Plätze (Standard)",
+      "capacityMax": "Max. Plätze (ausziehbar)",
+      "notExtendable": "Nicht ausziehbar",
+      "shape": "Form",
+      "shapes": {
+        "square": "Quadratisch",
+        "round": "Rund",
+        "rect": "Rechteckig"
+      },
+      "save": "Speichern",
+      "delete": "Tisch löschen",
+      "deleteTitle": "Tisch {{number}} löschen?",
+      "deleteMessage": "Sein QR-Code wird deaktiviert. Der Bestellverlauf bleibt erhalten.",
+      "hasReservations": "{{count}} bevorstehende Reservierung(en) an diesem Tisch — zuerst stornieren oder umbuchen.",
+      "isOccupied": "Geben Sie den Tisch frei, bevor Sie ihn löschen."
+    },
+    "extension": "Verlängern auf {{count}} P.",
+    "addTable": {
+      "button": "Tisch",
+      "title": "Neuer Tisch",
+      "create": "Tisch erstellen",
+      "created": "Tisch erstellt"
+    },
+    "selection": {
+      "count_one": "{{count}} Tisch ausgewählt",
+      "count_other": "{{count}} Tische ausgewählt",
+      "delete": "Löschen ({{count}})",
+      "deleteTitle": "{{count}} Tisch(e) löschen?",
+      "deleted_one": "{{count}} Tisch gelöscht",
+      "deleted_other": "{{count}} Tische gelöscht",
+      "failed": "Löschen nicht möglich: Tisch(e) {{tables}} (besetzt oder reserviert)"
+    }
+  },
+  "reservation": {
+    "bookTitle": "Tisch reservieren",
+    "myTitle": "Meine Reservierungen",
+    "partySize": "Personenzahl",
+    "date": "Datum",
+    "time": "Uhrzeit",
+    "today": "Heute",
+    "tomorrow": "Morgen",
+    "noSlots": "Keine Zeitfenster an diesem Tag verfügbar",
+    "noTableForParty": "Kein Tisch für diese Personenzahl verfügbar",
+    "contact": {
+      "title": "Ihre Angaben",
+      "name": "Name",
+      "phone": "Telefon",
+      "email": "E-Mail (optional)",
+      "requests": "Besondere Wünsche (optional)"
+    },
+    "requiredFields": "Name und Telefon sind erforderlich",
+    "submit": "Reservieren",
+    "success": {
+      "title": "Reservierung bestätigt!",
+      "subtitle": "{{date}} um {{time}} · {{people}}",
+      "table": "Tisch {{table}}",
+      "viewMine": "Meine Reservierungen ansehen",
+      "hint": "Scannen Sie bei Ihrer Ankunft den QR-Code Ihres Tisches, um einzuchecken."
+    },
+    "status": {
+      "pending_payment": "Zahlung ausstehend",
+      "confirmed": "Bestätigt",
+      "seated": "Platziert",
+      "completed": "Abgeschlossen",
+      "cancelled": "Storniert",
+      "no_show": "Nicht erschienen",
+      "expired": "Abgelaufen"
+    },
+    "people_one": "{{count}} Person",
+    "people_other": "{{count}} Personen",
+    "checkIn": "Ich bin da",
+    "checkInSuccess": "Willkommen! Ihr Tisch ist Nr. {{table}}.",
+    "cancelAction": "Reservierung stornieren",
+    "cancelConfirmTitle": "Diese Reservierung stornieren?",
+    "cancelRefund": "Ihre Vorbestellung wird vollständig erstattet.",
+    "cancelNoRefund": "Späte Stornierung: Der Betrag der Vorbestellung verbleibt beim Restaurant.",
+    "cancelled": "Reservierung storniert",
+    "prepaid": "Vorbestellung bezahlt · {{amount}}",
+    "empty": {
+      "title": "Keine Reservierungen",
+      "subtitle": "Reservieren Sie einen Tisch und kommen Sie sorgenfrei an: Ihr Tisch wartet auf Sie.",
+      "cta": "Restaurant finden"
+    },
+    "errors": {
+      "load": "Daten konnten nicht geladen werden",
+      "slotTaken": "Dieses Zeitfenster wurde gerade vergeben, bitte wählen Sie ein anderes",
+      "create": "Reservierung fehlgeschlagen, bitte erneut versuchen",
+      "outsideWindow": "Check-in ist nur 30 Min. vor/nach der Reservierungszeit möglich",
+      "disabled": "Dieses Restaurant akzeptiert keine Online-Reservierungen."
+    },
+    "preOrder": {
+      "bookAndOrder": "Reservieren & vorbestellen",
+      "checkoutTitle": "Vorbestellung",
+      "expiresIn": "Zeitfenster noch {{minutes}} Min. reserviert",
+      "expired": "Die Zahlungsfrist ist abgelaufen, bitte erneut reservieren.",
+      "pay": "{{amount}} bezahlen",
+      "success": "Reservierung und Essen bestätigt!",
+      "successHint": "Ihr Essen wird kurz vor Ihrer Ankunft in der Küche gestartet — für besonders schnellen Service."
+    },
+    "checkInPrompt": {
+      "title": "Reservierung gefunden",
+      "message": "Sie haben eine Reservierung um {{time}} ({{people}}). Ankunft bestätigen?",
+      "confirm": "Ich bin da",
+      "later": "Später"
+    }
   }
 }
