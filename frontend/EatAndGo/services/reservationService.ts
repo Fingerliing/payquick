@@ -7,6 +7,7 @@ import {
   PreOrderPayload,
   PreOrderResponse,
   Reservation,
+  ReservationHistoryResponse,
 } from '../types/reservation';
 
 export class ReservationService {
@@ -60,6 +61,45 @@ export class ReservationService {
   ): Promise<Reservation[]> {
     return apiClient.get(`/api/v1/reservations/planning/?restaurant_id=${restaurantId}&date=${date}`,
     );
+  }
+
+  /**
+   * Changer le statut d'une réservation (restaurateur).
+   * status: 'seated' | 'completed' | 'no_show' | 'confirmed'
+   */
+  async setStatus(
+    reservationId: string,
+    status: 'seated' | 'completed' | 'no_show' | 'confirmed',
+  ): Promise<Reservation> {
+    return apiClient.post(
+      `/api/v1/reservations/${reservationId}/set_status/`,
+      { status },
+    );
+  }
+
+  /**
+   * Historique / réservations à venir (restaurateur).
+   * period: 'upcoming' (à venir) | 'past' (passées) | 'all'
+   */
+  async getHistory(
+    restaurantId: number,
+    options: {
+      period?: 'upcoming' | 'past' | 'all';
+      status?: string;
+      search?: string;
+      limit?: number;
+      offset?: number;
+    } = {},
+  ): Promise<ReservationHistoryResponse> {
+    const params = new URLSearchParams({
+      restaurant_id: String(restaurantId),
+      period: options.period ?? 'upcoming',
+      limit: String(options.limit ?? 30),
+      offset: String(options.offset ?? 0),
+    });
+    if (options.status) params.append('status', options.status);
+    if (options.search) params.append('search', options.search);
+    return apiClient.get(`/api/v1/reservations/history/?${params.toString()}`);
   }
 
   /**

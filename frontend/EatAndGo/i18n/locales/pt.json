@@ -1052,7 +1052,9 @@
     "profile": "Perfil",
     "accounting": "Contabilidade",
     "floorPlan": "Planta da sala",
-    "floorPlanShort": "Sala"
+    "floorPlanShort": "Sala",
+    "reservations": "Reservas",
+    "reservationsShort": "Reservas"
   },
   "restaurantProfile": {
     "fallbackUserName": "Utilizador",
@@ -1504,6 +1506,10 @@
       "floorPlan": {
         "title": "Planta da sala",
         "description": "Mesas, reservas e walk-ins em tempo real"
+      },
+      "reservations": {
+        "title": "Reservas",
+        "description": "Todas as reservas futuras e passadas"
       }
     }
   },
@@ -3134,6 +3140,51 @@
       "message": "Tem uma reserva às {{time}} ({{people}}). Confirmar a sua chegada?",
       "confirm": "Cheguei",
       "later": "Mais tarde"
-    }
+    },
+    "pickSlot": "Escolha primeiro um horário."
+  },
+  "restaurantReservations": {
+    "title": "Reservas",
+    "tabs": {
+      "upcoming": "Futuras",
+      "past": "Passadas"
+    },
+    "searchPlaceholder": "Procurar um nome, um telefone…",
+    "filters": {
+      "all": "Todas"
+    },
+    "noTable": "Mesa não atribuída",
+    "stats": {
+      "total": "Reservas",
+      "covers": "Talheres",
+      "preOrders": "Pré-pedidos",
+      "noShows": "No-shows"
+    },
+    "empty": {
+      "upcoming": "Nenhuma reserva futura",
+      "past": "Nenhuma reserva passada",
+      "hint": "As reservas dos seus clientes aparecerão aqui.",
+      "filtered": "Sem resultados para esta pesquisa."
+    },
+    "loadMore": "Carregar mais",
+    "errors": {
+      "load": "Não foi possível carregar as reservas.",
+      "status": "A alteração de estado falhou."
+    },
+    "actions": {
+      "manage": "Gerir",
+      "seated": "Marcar como sentados",
+      "completed": "Marcar como terminada",
+      "no_show": "Marcar como não compareceu",
+      "confirmed": "Voltar a confirmada",
+      "done": {
+        "seated": "Cliente sentado",
+        "completed": "Reserva terminada",
+        "no_show": "Marcado como não compareceu",
+        "confirmed": "Voltou a confirmada"
+      }
+    },
+    "restaurantLabel": "Restaurante",
+    "restaurantPicker": "Escolher um restaurante"
   }
 }

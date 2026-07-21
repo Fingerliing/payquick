@@ -802,6 +802,22 @@ export default function DashboardScreen() {
                   </Text>
                 </TouchableOpacity>
 
+                {/* Réservations */}
+                <TouchableOpacity
+                  style={styles.actionCard}
+                  onPress={() => router.navigate('/(restaurant)/reservations' as any)}
+                >
+                  <View style={styles.actionIcon}>
+                    <Ionicons name="calendar" size={20} color={colors.primary} />
+                  </View>
+                  <Text style={styles.actionTitle}>
+                    {t('restaurantHome.actions.reservations.title')}
+                  </Text>
+                  <Text style={styles.actionDescription}>
+                    {t('restaurantHome.actions.reservations.description')}
+                  </Text>
+                </TouchableOpacity>
+
                 {/* Gérer les menus */}
                 <TouchableOpacity
                   style={styles.actionCard}

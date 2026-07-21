@@ -1052,7 +1052,9 @@
     "profile": "Perfil",
     "accounting": "Contabilidad",
     "floorPlan": "Plano de sala",
-    "floorPlanShort": "Sala"
+    "floorPlanShort": "Sala",
+    "reservations": "Reservas",
+    "reservationsShort": "Reservas"
   },
   "restaurantProfile": {
     "fallbackUserName": "Usuario",
@@ -1504,6 +1506,10 @@
       "floorPlan": {
         "title": "Plano de sala",
         "description": "Mesas, reservas y clientes sin reserva en tiempo real"
+      },
+      "reservations": {
+        "title": "Reservas",
+        "description": "Todas las reservas próximas y pasadas"
       }
     }
   },
@@ -3134,6 +3140,51 @@
       "message": "Tiene una reserva a las {{time}} ({{people}}). ¿Confirmar su llegada?",
       "confirm": "He llegado",
       "later": "Más tarde"
-    }
+    },
+    "pickSlot": "Elija primero un horario."
+  },
+  "restaurantReservations": {
+    "title": "Reservas",
+    "tabs": {
+      "upcoming": "Próximas",
+      "past": "Pasadas"
+    },
+    "searchPlaceholder": "Buscar un nombre, un teléfono…",
+    "filters": {
+      "all": "Todas"
+    },
+    "noTable": "Mesa no asignada",
+    "stats": {
+      "total": "Reservas",
+      "covers": "Comensales",
+      "preOrders": "Pre-pedidos",
+      "noShows": "No-shows"
+    },
+    "empty": {
+      "upcoming": "Ninguna reserva próxima",
+      "past": "Ninguna reserva pasada",
+      "hint": "Las reservas de sus clientes aparecerán aquí.",
+      "filtered": "Sin resultados para esta búsqueda."
+    },
+    "loadMore": "Cargar más",
+    "errors": {
+      "load": "No se pudieron cargar las reservas.",
+      "status": "El cambio de estado falló."
+    },
+    "actions": {
+      "manage": "Gestionar",
+      "seated": "Marcar sentados",
+      "completed": "Marcar terminada",
+      "no_show": "Marcar no presentado",
+      "confirmed": "Volver a confirmada",
+      "done": {
+        "seated": "Cliente sentado",
+        "completed": "Reserva terminada",
+        "no_show": "Marcado no presentado",
+        "confirmed": "Vuelta a confirmada"
+      }
+    },
+    "restaurantLabel": "Restaurante",
+    "restaurantPicker": "Elegir un restaurante"
   }
 }

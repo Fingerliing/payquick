@@ -1053,7 +1053,9 @@
     "profile": "プロフィール",
     "accounting": "会計",
     "floorPlan": "フロアマップ",
-    "floorPlanShort": "マップ"
+    "floorPlanShort": "マップ",
+    "reservations": "予約",
+    "reservationsShort": "予約"
   },
   "restaurantProfile": {
     "fallbackUserName": "ユーザー",
@@ -1505,6 +1507,10 @@
       "floorPlan": {
         "title": "フロアマップ",
         "description": "テーブル・予約・ウォークインをリアルタイムで"
+      },
+      "reservations": {
+        "title": "予約",
+        "description": "今後およびこれまでのすべての予約"
       }
     }
   },
@@ -3135,6 +3141,51 @@
       "message": "{{time}} に予約があります（{{people}}）。到着を確認しますか？",
       "confirm": "到着しました",
       "later": "後で"
-    }
+    },
+    "pickSlot": "まず時間帯を選択してください。"
+  },
+  "restaurantReservations": {
+    "title": "予約",
+    "tabs": {
+      "upcoming": "今後",
+      "past": "過去"
+    },
+    "searchPlaceholder": "名前や電話番号で検索…",
+    "filters": {
+      "all": "すべて"
+    },
+    "noTable": "テーブル未割当",
+    "stats": {
+      "total": "予約数",
+      "covers": "人数",
+      "preOrders": "事前注文",
+      "noShows": "無断キャンセル"
+    },
+    "empty": {
+      "upcoming": "今後の予約はありません",
+      "past": "過去の予約はありません",
+      "hint": "お客様の予約がここに表示されます。",
+      "filtered": "この検索に該当する結果はありません。"
+    },
+    "loadMore": "さらに読み込む",
+    "errors": {
+      "load": "予約を読み込めませんでした。",
+      "status": "ステータスの変更に失敗しました。"
+    },
+    "actions": {
+      "manage": "管理",
+      "seated": "着席にする",
+      "completed": "完了にする",
+      "no_show": "無断キャンセルにする",
+      "confirmed": "確定に戻す",
+      "done": {
+        "seated": "お客様が着席しました",
+        "completed": "予約を完了しました",
+        "no_show": "無断キャンセルにしました",
+        "confirmed": "確定に戻しました"
+      }
+    },
+    "restaurantLabel": "レストラン",
+    "restaurantPicker": "レストランを選択"
   }
 }

@@ -1053,7 +1053,9 @@
     "profile": "个人资料",
     "accounting": "会计",
     "floorPlan": "平面图",
-    "floorPlanShort": "平面图"
+    "floorPlanShort": "平面图",
+    "reservations": "预订",
+    "reservationsShort": "预订"
   },
   "restaurantProfile": {
     "fallbackUserName": "用户",
@@ -1505,6 +1507,10 @@
       "floorPlan": {
         "title": "餐厅平面图",
         "description": "实时查看餐桌、预订和到店顾客"
+      },
+      "reservations": {
+        "title": "预订",
+        "description": "所有即将到来和历史的预订"
       }
     }
   },
@@ -3135,6 +3141,51 @@
       "message": "您在 {{time}} 有一个预订（{{people}}）。确认到店吗？",
       "confirm": "我已到店",
       "later": "稍后"
-    }
+    },
+    "pickSlot": "请先选择一个时间段。"
+  },
+  "restaurantReservations": {
+    "title": "预订",
+    "tabs": {
+      "upcoming": "即将到来",
+      "past": "历史"
+    },
+    "searchPlaceholder": "搜索姓名或电话…",
+    "filters": {
+      "all": "全部"
+    },
+    "noTable": "未分配餐桌",
+    "stats": {
+      "total": "预订数",
+      "covers": "客人数",
+      "preOrders": "预点餐",
+      "noShows": "未到店"
+    },
+    "empty": {
+      "upcoming": "暂无即将到来的预订",
+      "past": "暂无历史预订",
+      "hint": "顾客的预订将显示在这里。",
+      "filtered": "没有符合此搜索的结果。"
+    },
+    "loadMore": "加载更多",
+    "errors": {
+      "load": "无法加载预订。",
+      "status": "状态更新失败。"
+    },
+    "actions": {
+      "manage": "管理",
+      "seated": "标记为已入座",
+      "completed": "标记为已完成",
+      "no_show": "标记为未到店",
+      "confirmed": "恢复为已确认",
+      "done": {
+        "seated": "顾客已入座",
+        "completed": "预订已完成",
+        "no_show": "已标记为未到店",
+        "confirmed": "已恢复为已确认"
+      }
+    },
+    "restaurantLabel": "餐厅",
+    "restaurantPicker": "选择餐厅"
   }
 }

@@ -1053,7 +1053,9 @@
     "profile": "Profila",
     "accounting": "Kontabilitatea",
     "floorPlan": "Aretoaren planoa",
-    "floorPlanShort": "Aretoa"
+    "floorPlanShort": "Aretoa",
+    "reservations": "Erreserbak",
+    "reservationsShort": "Erreserbak"
   },
   "restaurantProfile": {
     "fallbackUserName": "Erabiltzailea",
@@ -1505,6 +1507,10 @@
       "floorPlan": {
         "title": "Aretoaren planoa",
         "description": "Mahaiak, erreserbak eta walk-inak denbora errealean"
+      },
+      "reservations": {
+        "title": "Erreserbak",
+        "description": "Datozen eta iraganeko erreserba guztiak"
       }
     }
   },
@@ -3135,6 +3141,51 @@
       "message": "Erreserba bat duzu {{time}}(e)tan ({{people}}). Zure etorrera berretsi?",
       "confirm": "Iritsi naiz",
       "later": "Geroago"
-    }
+    },
+    "pickSlot": "Aukeratu lehenik ordu-tarte bat."
+  },
+  "restaurantReservations": {
+    "title": "Erreserbak",
+    "tabs": {
+      "upcoming": "Datozenak",
+      "past": "Iraganak"
+    },
+    "searchPlaceholder": "Bilatu izena, telefonoa…",
+    "filters": {
+      "all": "Guztiak"
+    },
+    "noTable": "Mahairik esleitu gabe",
+    "stats": {
+      "total": "Erreserbak",
+      "covers": "Otorduak",
+      "preOrders": "Aurre-eskaerak",
+      "noShows": "Ez-agertzeak"
+    },
+    "empty": {
+      "upcoming": "Ez dago datozen erreserbarik",
+      "past": "Ez dago iraganeko erreserbarik",
+      "hint": "Zure bezeroen erreserbak hemen agertuko dira.",
+      "filtered": "Ez dago emaitzarik bilaketa honetarako."
+    },
+    "loadMore": "Kargatu gehiago",
+    "errors": {
+      "load": "Ezin izan dira erreserbak kargatu.",
+      "status": "Egoera aldatzeak huts egin du."
+    },
+    "actions": {
+      "manage": "Kudeatu",
+      "seated": "Markatu eserita",
+      "completed": "Markatu amaituta",
+      "no_show": "Markatu ez agertua",
+      "confirmed": "Berretsira itzuli",
+      "done": {
+        "seated": "Bezeroa eserita",
+        "completed": "Erreserba amaituta",
+        "no_show": "Ez agertua markatuta",
+        "confirmed": "Berretsira itzulita"
+      }
+    },
+    "restaurantLabel": "Jatetxea",
+    "restaurantPicker": "Aukeratu jatetxe bat"
   }
 }

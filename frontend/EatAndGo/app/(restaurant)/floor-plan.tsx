@@ -501,13 +501,31 @@ const DraggableTable = React.memo(function DraggableTable({
 // ÉCRAN
 // =============================================================================
 
-function FloorPlanScreenContent({ restaurantId }: { restaurantId: number }) {
+function FloorPlanScreenContent({
+  restaurant,
+}: {
+  restaurant: NonNullable<ReturnType<typeof useRestaurant>['currentRestaurant']>;
+}) {
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
   const shadows = useMemo(() => makeShadows(colors), [colors]);
   const screenType = useScreenType();
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
+  const { restaurants } = useRestaurant();
+
+  // Sélection locale de l'établissement (même pattern que QR codes)
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState<number>(
+    Number(restaurant.id),
+  );
+  const [showRestaurantPicker, setShowRestaurantPicker] = useState(false);
+  const restaurantId = selectedRestaurantId;
+  const selectedRestaurantData = useMemo(
+    () =>
+      restaurants?.find((r: any) => Number(r.id) === selectedRestaurantId) ??
+      restaurant,
+    [restaurant, restaurants, selectedRestaurantId],
+  );
 
   // SPACING est responsive ({mobile, tablet, desktop}) → résolution unique
   const sp = useMemo(
@@ -1012,6 +1030,67 @@ function FloorPlanScreenContent({ restaurantId }: { restaurantId: number }) {
           justifyContent: 'center' as const,
           ...shadows.card,
         };
+      },
+      // Sélecteur d'établissement
+      restaurantSelector: {
+        flexDirection: 'row' as const,
+        justifyContent: 'space-between' as const,
+        alignItems: 'center' as const,
+        marginHorizontal: layoutConfig.containerPadding,
+        marginTop: sp.sm,
+        paddingHorizontal: sp.md,
+        paddingVertical: sp.sm,
+        borderRadius: BORDER_RADIUS.lg,
+        backgroundColor: colors.card,
+        borderWidth: 1,
+        borderColor: isDark ? 'rgba(212, 175, 55, 0.2)' : colors.border.light,
+      },
+      pickerOverlay: {
+        position: 'absolute' as const,
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center' as const,
+        paddingHorizontal: sp.lg,
+        zIndex: 40,
+      },
+      pickerCard: {
+        backgroundColor: colors.card,
+        borderRadius: BORDER_RADIUS.xl,
+        overflow: 'hidden' as const,
+        maxWidth: layoutConfig.maxContentWidth,
+        width: '100%' as const,
+        alignSelf: 'center' as const,
+        borderWidth: isDark ? 1 : 0,
+        borderColor: isDark ? 'rgba(212, 175, 55, 0.2)' : 'transparent',
+        ...shadows.card,
+      },
+      pickerHeader: {
+        flexDirection: 'row' as const,
+        alignItems: 'center' as const,
+        justifyContent: 'space-between' as const,
+        paddingHorizontal: sp.md,
+        paddingTop: sp.md,
+        paddingBottom: sp.sm,
+      },
+      pickerOption: {
+        flexDirection: 'row' as const,
+        alignItems: 'center' as const,
+        gap: sp.md,
+        paddingHorizontal: sp.md,
+        paddingVertical: sp.md,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border.light,
+      },
+      pickerAvatar: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: colors.primary,
+        alignItems: 'center' as const,
+        justifyContent: 'center' as const,
       },
       // Modals
       modalOverlay: {
@@ -1817,6 +1896,43 @@ function FloorPlanScreenContent({ restaurantId }: { restaurantId: number }) {
       />
 
       <View style={viewStyles.content}>
+        {/* Établissement courant (switch si plusieurs) */}
+        {!!restaurants && restaurants.length > 1 && (
+          <Pressable
+            onPress={() => setShowRestaurantPicker(true)}
+            style={[
+              viewStyles.restaurantSelector,
+              {
+                backgroundColor: colors.card,
+                borderColor: isDark
+                  ? 'rgba(212, 175, 55, 0.2)'
+                  : colors.border.light,
+              },
+            ]}
+            android_ripple={{ color: colors.primary + '20', borderless: false }}
+          >
+            <View style={{ flex: 1, paddingRight: sp.sm }}>
+              <Text style={[textStyles.small, { color: colors.text.secondary }]}>
+                {t('restaurantReservations.restaurantLabel')}
+              </Text>
+              <Text
+                style={{
+                  fontSize: fs('sm'),
+                  fontWeight: '700',
+                  color: colors.text.primary,
+                }}
+                numberOfLines={1}
+              >
+                {selectedRestaurantData?.name}
+              </Text>
+            </View>
+            <Ionicons
+              name="chevron-down-outline"
+              size={18}
+              color={colors.text.secondary}
+            />
+          </Pressable>
+        )}
         {/* Bannières d'alerte (succès/erreur) */}
         {alerts.length > 0 && (
           <View
@@ -1919,6 +2035,75 @@ function FloorPlanScreenContent({ restaurantId }: { restaurantId: number }) {
 
       </View>
 
+      {/* Sélecteur d'établissement (overlay inline : suit le thème) */}
+      {showRestaurantPicker && (
+        <Pressable
+          style={viewStyles.pickerOverlay}
+          onPress={() => setShowRestaurantPicker(false)}
+        >
+          <Pressable
+            style={[viewStyles.pickerCard, { backgroundColor: colors.card }]}
+            onPress={() => {}}
+          >
+            <View style={viewStyles.pickerHeader}>
+              <Text style={textStyles.sheetTitle}>
+                {t('restaurantReservations.restaurantPicker')}
+              </Text>
+              <Pressable onPress={() => setShowRestaurantPicker(false)} hitSlop={10}>
+                <Ionicons name="close" size={22} color={colors.text.primary} />
+              </Pressable>
+            </View>
+            <ScrollView style={{ maxHeight: 380 }}>
+              {(restaurants ?? []).map((r: any) => (
+                <Pressable
+                  key={r.id}
+                  onPress={() => {
+                    setSelectedRestaurantId(Number(r.id));
+                    setShowRestaurantPicker(false);
+                  }}
+                  style={[
+                    viewStyles.pickerOption,
+                    { borderBottomColor: colors.border.light },
+                  ]}
+                  android_ripple={{ color: colors.primary + '20', borderless: false }}
+                >
+                  <View style={viewStyles.pickerAvatar}>
+                    <Ionicons
+                      name="restaurant-outline"
+                      size={22}
+                      color={colors.text.inverse}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{
+                        fontSize: fs('sm'),
+                        fontWeight: '700',
+                        color: colors.text.primary,
+                      }}
+                    >
+                      {r.name}
+                    </Text>
+                    {!!r.address && (
+                      <Text
+                        style={[textStyles.small, { color: colors.text.secondary }]}
+                        numberOfLines={1}
+                      >
+                        {r.address}
+                        {r.city ? `, ${r.city}` : ''}
+                      </Text>
+                    )}
+                  </View>
+                  {Number(r.id) === selectedRestaurantId && (
+                    <Ionicons name="checkmark-outline" size={22} color={colors.success} />
+                  )}
+                </Pressable>
+              ))}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      )}
+
       {selectedTable && renderActionSheet()}
       {renderOccupyModal()}
       {editTable && renderEditTableSheet()}
@@ -1980,6 +2165,10 @@ function FloorPlanScreenContent({ restaurantId }: { restaurantId: number }) {
 export default function FloorPlanScreen() {
   const { t } = useTranslation();
   const { currentRestaurant } = useRestaurant();
+  // Abonne le WRAPPER au thème : sans ça il ne se re-rend pas au changement
+  // de mode, l'élément enfant reste la même référence et React court-circuite
+  // le rendu du sous-arbre (bascule visible seulement après navigation).
+  const { isDark } = useAppTheme();
 
   return (
     <RestaurantAutoSelector
@@ -1990,7 +2179,10 @@ export default function FloorPlanScreen() {
       }}
     >
       {currentRestaurant && (
-        <FloorPlanScreenContent restaurantId={Number(currentRestaurant.id)} />
+        <FloorPlanScreenContent
+          key={isDark ? 'dark' : 'light'}
+          restaurant={currentRestaurant}
+        />
       )}
     </RestaurantAutoSelector>
   );

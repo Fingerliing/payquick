@@ -1052,7 +1052,9 @@
     "profile": "Profile",
     "accounting": "Accounting",
     "floorPlan": "Floor plan",
-    "floorPlanShort": "Floor"
+    "floorPlanShort": "Floor",
+    "reservations": "Reservations",
+    "reservationsShort": "Bookings"
   },
   "restaurantProfile": {
     "fallbackUserName": "User",
@@ -1504,6 +1506,10 @@
       "floorPlan": {
         "title": "Floor plan",
         "description": "Tables, reservations and walk-ins in real time"
+      },
+      "reservations": {
+        "title": "Reservations",
+        "description": "All upcoming and past reservations"
       }
     }
   },
@@ -3134,6 +3140,51 @@
       "message": "You have a reservation at {{time}} ({{people}}). Confirm your arrival?",
       "confirm": "I've arrived",
       "later": "Later"
-    }
+    },
+    "pickSlot": "Please pick a time slot first."
+  },
+  "restaurantReservations": {
+    "title": "Reservations",
+    "tabs": {
+      "upcoming": "Upcoming",
+      "past": "Past"
+    },
+    "searchPlaceholder": "Search a name, a phone number…",
+    "filters": {
+      "all": "All"
+    },
+    "noTable": "No table assigned",
+    "stats": {
+      "total": "Reservations",
+      "covers": "Covers",
+      "preOrders": "Pre-orders",
+      "noShows": "No-shows"
+    },
+    "empty": {
+      "upcoming": "No upcoming reservations",
+      "past": "No past reservations",
+      "hint": "Your customers' reservations will appear here.",
+      "filtered": "No results for this search."
+    },
+    "loadMore": "Load more",
+    "errors": {
+      "load": "Could not load reservations.",
+      "status": "Status update failed."
+    },
+    "actions": {
+      "manage": "Manage",
+      "seated": "Mark as seated",
+      "completed": "Mark as completed",
+      "no_show": "Mark as no-show",
+      "confirmed": "Back to confirmed",
+      "done": {
+        "seated": "Guest seated",
+        "completed": "Reservation completed",
+        "no_show": "Marked as no-show",
+        "confirmed": "Back to confirmed"
+      }
+    },
+    "restaurantLabel": "Restaurant",
+    "restaurantPicker": "Choose a restaurant"
   }
 }

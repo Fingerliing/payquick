@@ -1052,7 +1052,9 @@
     "profile": "Profil",
     "accounting": "Buchhaltung",
     "floorPlan": "Tischplan",
-    "floorPlanShort": "Tische"
+    "floorPlanShort": "Tische",
+    "reservations": "Reservierungen",
+    "reservationsShort": "Resas"
   },
   "restaurantProfile": {
     "fallbackUserName": "Benutzer",
@@ -1504,6 +1506,10 @@
       "floorPlan": {
         "title": "Tischplan",
         "description": "Tische, Reservierungen und Walk-ins in Echtzeit"
+      },
+      "reservations": {
+        "title": "Reservierungen",
+        "description": "Alle kommenden und vergangenen Reservierungen"
       }
     }
   },
@@ -3134,6 +3140,51 @@
       "message": "Sie haben eine Reservierung um {{time}} ({{people}}). Ankunft bestätigen?",
       "confirm": "Ich bin da",
       "later": "Später"
-    }
+    },
+    "pickSlot": "Bitte wählen Sie zuerst ein Zeitfenster."
+  },
+  "restaurantReservations": {
+    "title": "Reservierungen",
+    "tabs": {
+      "upcoming": "Kommende",
+      "past": "Vergangene"
+    },
+    "searchPlaceholder": "Name oder Telefonnummer suchen…",
+    "filters": {
+      "all": "Alle"
+    },
+    "noTable": "Kein Tisch zugewiesen",
+    "stats": {
+      "total": "Reservierungen",
+      "covers": "Gedecke",
+      "preOrders": "Vorbestellungen",
+      "noShows": "No-Shows"
+    },
+    "empty": {
+      "upcoming": "Keine kommenden Reservierungen",
+      "past": "Keine vergangenen Reservierungen",
+      "hint": "Die Reservierungen Ihrer Gäste erscheinen hier.",
+      "filtered": "Keine Ergebnisse für diese Suche."
+    },
+    "loadMore": "Mehr laden",
+    "errors": {
+      "load": "Reservierungen konnten nicht geladen werden.",
+      "status": "Statusänderung fehlgeschlagen."
+    },
+    "actions": {
+      "manage": "Verwalten",
+      "seated": "Als platziert markieren",
+      "completed": "Als beendet markieren",
+      "no_show": "Als No-Show markieren",
+      "confirmed": "Zurück auf bestätigt",
+      "done": {
+        "seated": "Gast platziert",
+        "completed": "Reservierung beendet",
+        "no_show": "Als No-Show markiert",
+        "confirmed": "Zurück auf bestätigt"
+      }
+    },
+    "restaurantLabel": "Restaurant",
+    "restaurantPicker": "Restaurant auswählen"
   }
 }

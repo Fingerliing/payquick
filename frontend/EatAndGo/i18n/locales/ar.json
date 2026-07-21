@@ -1053,7 +1053,9 @@
     "profile": "الملف الشخصي",
     "accounting": "المحاسبة",
     "floorPlan": "مخطط الصالة",
-    "floorPlanShort": "الصالة"
+    "floorPlanShort": "الصالة",
+    "reservations": "الحجوزات",
+    "reservationsShort": "الحجوزات"
   },
   "restaurantProfile": {
     "fallbackUserName": "مستخدم",
@@ -1505,6 +1507,10 @@
       "floorPlan": {
         "title": "مخطط الصالة",
         "description": "الطاولات والحجوزات والزبائن المباشرين في الوقت الفعلي"
+      },
+      "reservations": {
+        "title": "الحجوزات",
+        "description": "جميع الحجوزات القادمة والسابقة"
       }
     }
   },
@@ -3135,6 +3141,51 @@
       "message": "لديك حجز الساعة {{time}} ({{people}}). تأكيد وصولك؟",
       "confirm": "لقد وصلت",
       "later": "لاحقًا"
-    }
+    },
+    "pickSlot": "يرجى اختيار الوقت أولاً."
+  },
+  "restaurantReservations": {
+    "title": "الحجوزات",
+    "tabs": {
+      "upcoming": "القادمة",
+      "past": "السابقة"
+    },
+    "searchPlaceholder": "ابحث باسم أو رقم هاتف…",
+    "filters": {
+      "all": "الكل"
+    },
+    "noTable": "لم يتم تعيين طاولة",
+    "stats": {
+      "total": "الحجوزات",
+      "covers": "الأشخاص",
+      "preOrders": "الطلبات المسبقة",
+      "noShows": "عدم الحضور"
+    },
+    "empty": {
+      "upcoming": "لا توجد حجوزات قادمة",
+      "past": "لا توجد حجوزات سابقة",
+      "hint": "ستظهر حجوزات زبائنك هنا.",
+      "filtered": "لا توجد نتائج لهذا البحث."
+    },
+    "loadMore": "تحميل المزيد",
+    "errors": {
+      "load": "تعذر تحميل الحجوزات.",
+      "status": "فشل تغيير الحالة."
+    },
+    "actions": {
+      "manage": "إدارة",
+      "seated": "تعليم كجالسين",
+      "completed": "تعليم كمنتهية",
+      "no_show": "تعليم كعدم حضور",
+      "confirmed": "إعادة إلى مؤكدة",
+      "done": {
+        "seated": "تم إجلاس الزبون",
+        "completed": "انتهت الحجز",
+        "no_show": "تم التعليم كعدم حضور",
+        "confirmed": "أُعيدت إلى مؤكدة"
+      }
+    },
+    "restaurantLabel": "المطعم",
+    "restaurantPicker": "اختر مطعمًا"
   }
 }

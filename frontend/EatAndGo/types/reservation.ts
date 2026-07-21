@@ -198,3 +198,19 @@ export interface OccupyConflictResponse {
   alternatives: Array<{ id: string; number: string; capacity: number }>;
   hint: string;
 }
+
+/** Réponse de GET /reservations/history/ (restaurateur) */
+export interface ReservationHistoryResponse {
+  count: number;
+  limit: number;
+  offset: number;
+  has_more: boolean;
+  stats: {
+    total: number;
+    covers: number;
+    no_shows: number;
+    cancelled: number;
+    with_pre_order: number;
+  };
+  results: Reservation[];
+}

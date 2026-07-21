@@ -6,6 +6,8 @@ Endpoints (router: r'reservations') :
   POST /reservations/                     → créer une réservation (public)
   GET  /reservations/mine/                → réservations du client connecté
   GET  /reservations/planning/            → planning restaurateur (jour)
+  GET  /reservations/history/             → historique/à venir restaurateur
+  POST /reservations/{id}/set_status/     → statut manuel (restaurateur)
   POST /reservations/{id}/pre_order/      → pré-commande + PaymentIntent 100%
   POST /reservations/{id}/cancel/         → annulation (+ refund si éligible)
   POST /reservations/{id}/check_in/       → arrivée client (scan QR table)
@@ -17,6 +19,8 @@ from decimal import Decimal
 import stripe
 from django.conf import settings
 from django.db import transaction
+from django.db.models import Count, Q, Sum
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema
 from rest_framework import status, viewsets
@@ -67,7 +71,7 @@ def _candidate_tables(restaurant, party_size):
     gaspiller une modulable 4→6 pour 2 couverts si une table de 2 est
     libre), puis de la plus petite à la plus grande.
     """
-    from django.db.models import Case, IntegerField, Value, When
+    from django.db.models import Case, Count, IntegerField, Q, Sum, Value, When
     from django.db.models.functions import Coalesce
 
     return (
@@ -655,6 +659,182 @@ class ReservationViewSet(viewsets.GenericViewSet):
         ).exclude(status='expired').order_by('starts_at')
 
         return Response(ReservationSerializer(qs, many=True).data)
+
+    @extend_schema(
+        summary="Changer le statut d'une réservation (restaurateur)",
+        description=(
+            "Body: {status}. Statuts autorisés : seated (installés), "
+            "completed (terminée), no_show (non présenté), confirmed "
+            "(revenir en confirmée). Les statuts pending_payment / expired "
+            "sont pilotés par le paiement, pas manuellement ; l'annulation "
+            "passe par /cancel/ (remboursement éventuel)."
+        ),
+    )
+    @action(detail=True, methods=['post'])
+    def set_status(self, request, pk=None):
+        reservation = self.get_object()
+        user = request.user
+        is_owner = (
+            user.is_authenticated
+            and hasattr(user, 'restaurateur_profile')
+            and reservation.restaurant.owner == user.restaurateur_profile
+        )
+        if not is_owner:
+            return Response(
+                {'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN
+            )
+
+        new_status = request.data.get('status')
+        allowed = {'seated', 'completed', 'no_show', 'confirmed'}
+        if new_status not in allowed:
+            return Response(
+                {'error': 'invalid_status',
+                 'allowed': sorted(allowed)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if reservation.status in ('cancelled', 'expired'):
+            return Response(
+                {'error': 'reservation_closed',
+                 'message': 'Réservation annulée ou expirée.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+        if reservation.status == 'pending_payment':
+            return Response(
+                {'error': 'awaiting_payment',
+                 'message': 'Paiement de la pré-commande non finalisé.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        update_fields = ['status', 'updated_at']
+        reservation.status = new_status
+
+        if new_status == 'seated' and not reservation.checked_in_at:
+            reservation.checked_in_at = timezone.now()
+            update_fields.append('checked_in_at')
+
+        reservation.save(update_fields=update_fields)
+
+        # Client installé en avance → la cuisine démarre tout de suite
+        if new_status == 'seated':
+            reservation.fire_kitchen()
+
+        notify_floorplan_update(
+            reservation.restaurant_id,
+            event='reservation_status',
+            table_id=reservation.table_id,
+        )
+        logger.info(
+            "Réservation %s → %s par le restaurateur %s",
+            reservation.id, new_status, user.id,
+        )
+        return Response(ReservationSerializer(reservation).data)
+
+    @extend_schema(
+        summary="Historique des réservations (restaurateur)",
+        description=(
+            "Query: restaurant_id (requis), period=past|upcoming|all "
+            "(défaut past), status (optionnel), search (nom/téléphone), "
+            "limit (défaut 30, max 100), offset. "
+            "Les passées sont triées de la plus récente à la plus ancienne, "
+            "les à venir dans l'ordre chronologique."
+        ),
+    )
+    @action(detail=False, methods=['get'])
+    def history(self, request):
+        restaurant_id = request.query_params.get('restaurant_id')
+        if not restaurant_id:
+            return Response(
+                {'error': 'restaurant_id est requis'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            restaurant = Restaurant.objects.get(id=restaurant_id)
+        except (Restaurant.DoesNotExist, ValueError, TypeError):
+            return Response(
+                {'error': 'Restaurant introuvable'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        user = request.user
+        is_restaurateur = (
+            user.is_authenticated
+            and hasattr(user, 'restaurateur_profile')
+            and restaurant.owner == user.restaurateur_profile
+        )
+        if not is_restaurateur:
+            return Response(
+                {'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN
+            )
+
+        now = timezone.now()
+        period = request.query_params.get('period', 'past')
+        qs = (
+            self.get_queryset()
+            .filter(restaurant=restaurant)
+            .exclude(status='expired')
+        )
+
+        if period == 'upcoming':
+            qs = qs.filter(ends_at__gte=now).order_by('starts_at')
+        elif period == 'all':
+            qs = qs.order_by('-starts_at')
+        else:  # past
+            qs = qs.filter(ends_at__lt=now).order_by('-starts_at')
+
+        status_filter = request.query_params.get('status')
+        if status_filter:
+            valid = {choice[0] for choice in Reservation.STATUS_CHOICES}
+            if status_filter not in valid:
+                return Response(
+                    {'error': 'invalid_status'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            qs = qs.filter(status=status_filter)
+
+        search = (request.query_params.get('search') or '').strip()
+        if search:
+            qs = qs.filter(
+                Q(customer_name__icontains=search)
+                | Q(customer_phone__icontains=search)
+            )
+
+        # Statistiques sur l'ensemble filtré (avant pagination)
+        aggregates = qs.aggregate(
+            total=Count('id'),
+            covers=Coalesce(Sum('party_size'), 0),
+            no_shows=Count('id', filter=Q(status='no_show')),
+            cancelled=Count('id', filter=Q(status='cancelled')),
+            with_pre_order=Count('id', filter=Q(pre_order__isnull=False)),
+        )
+
+        try:
+            limit = min(int(request.query_params.get('limit', 30)), 100)
+            offset = max(int(request.query_params.get('offset', 0)), 0)
+        except (TypeError, ValueError):
+            return Response(
+                {'error': 'invalid_pagination'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        page = qs.select_related('restaurant', 'table', 'pre_order')[
+            offset:offset + limit
+        ]
+        results = ReservationSerializer(page, many=True).data
+
+        return Response({
+            'count': aggregates['total'],
+            'limit': limit,
+            'offset': offset,
+            'has_more': offset + limit < aggregates['total'],
+            'stats': {
+                'total': aggregates['total'],
+                'covers': aggregates['covers'],
+                'no_shows': aggregates['no_shows'],
+                'cancelled': aggregates['cancelled'],
+                'with_pre_order': aggregates['with_pre_order'],
+            },
+            'results': results,
+        })
 
     # ══════════════════════════════════════════════════════════════════
     # Helpers

@@ -1052,7 +1052,9 @@
     "profile": "Profilo",
     "accounting": "Contabilità",
     "floorPlan": "Pianta sala",
-    "floorPlanShort": "Sala"
+    "floorPlanShort": "Sala",
+    "reservations": "Prenotazioni",
+    "reservationsShort": "Prenot."
   },
   "restaurantProfile": {
     "fallbackUserName": "Utente",
@@ -1504,6 +1506,10 @@
       "floorPlan": {
         "title": "Pianta della sala",
         "description": "Tavoli, prenotazioni e walk-in in tempo reale"
+      },
+      "reservations": {
+        "title": "Prenotazioni",
+        "description": "Tutte le prenotazioni future e passate"
       }
     }
   },
@@ -3134,6 +3140,51 @@
       "message": "Hai una prenotazione alle {{time}} ({{people}}). Confermare il tuo arrivo?",
       "confirm": "Sono arrivato",
       "later": "Più tardi"
-    }
+    },
+    "pickSlot": "Scegli prima una fascia oraria."
+  },
+  "restaurantReservations": {
+    "title": "Prenotazioni",
+    "tabs": {
+      "upcoming": "In arrivo",
+      "past": "Passate"
+    },
+    "searchPlaceholder": "Cerca un nome, un telefono…",
+    "filters": {
+      "all": "Tutte"
+    },
+    "noTable": "Tavolo non assegnato",
+    "stats": {
+      "total": "Prenotazioni",
+      "covers": "Coperti",
+      "preOrders": "Pre-ordini",
+      "noShows": "No-show"
+    },
+    "empty": {
+      "upcoming": "Nessuna prenotazione in arrivo",
+      "past": "Nessuna prenotazione passata",
+      "hint": "Le prenotazioni dei tuoi clienti appariranno qui.",
+      "filtered": "Nessun risultato per questa ricerca."
+    },
+    "loadMore": "Carica altro",
+    "errors": {
+      "load": "Impossibile caricare le prenotazioni.",
+      "status": "Cambio di stato non riuscito."
+    },
+    "actions": {
+      "manage": "Gestisci",
+      "seated": "Segna come seduti",
+      "completed": "Segna come completata",
+      "no_show": "Segna come no-show",
+      "confirmed": "Torna a confermata",
+      "done": {
+        "seated": "Cliente seduto",
+        "completed": "Prenotazione completata",
+        "no_show": "Segnato come no-show",
+        "confirmed": "Tornata a confermata"
+      }
+    },
+    "restaurantLabel": "Ristorante",
+    "restaurantPicker": "Scegli un ristorante"
   }
 }

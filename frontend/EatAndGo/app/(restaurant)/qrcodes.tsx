@@ -1558,6 +1558,10 @@ function QRCodesScreenContent({ restaurant }: QRCodesScreenContentProps) {
 export default function QRCodesScreen() {
   const { t } = useTranslation();
   const { currentRestaurant } = useRestaurant();
+  // Abonne le WRAPPER au thème : sans ça il ne se re-rend pas au changement
+  // de mode, l'élément enfant reste la même référence et React court-circuite
+  // le rendu du sous-arbre (bascule visible seulement après navigation).
+  const { isDark } = useAppTheme();
 
   return (
     <RestaurantAutoSelector
@@ -1567,7 +1571,12 @@ export default function QRCodesScreen() {
         /* noop */
       }}
     >
-      {currentRestaurant && <QRCodesScreenContent restaurant={currentRestaurant} />}
+      {currentRestaurant && (
+        <QRCodesScreenContent
+          key={isDark ? 'dark' : 'light'}
+          restaurant={currentRestaurant}
+        />
+      )}
     </RestaurantAutoSelector>
   );
 }

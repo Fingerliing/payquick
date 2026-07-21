@@ -1052,7 +1052,9 @@
     "profile": "Profiel",
     "accounting": "Boekhouding",
     "floorPlan": "Plattegrond",
-    "floorPlanShort": "Zaal"
+    "floorPlanShort": "Zaal",
+    "reservations": "Reserveringen",
+    "reservationsShort": "Resv."
   },
   "restaurantProfile": {
     "fallbackUserName": "Gebruiker",
@@ -1504,6 +1506,10 @@
       "floorPlan": {
         "title": "Plattegrond",
         "description": "Tafels, reserveringen en walk-ins in realtime"
+      },
+      "reservations": {
+        "title": "Reserveringen",
+        "description": "Alle komende en afgelopen reserveringen"
       }
     }
   },
@@ -3134,6 +3140,51 @@
       "message": "U heeft een reservering om {{time}} ({{people}}). Aankomst bevestigen?",
       "confirm": "Ik ben er",
       "later": "Later"
-    }
+    },
+    "pickSlot": "Kies eerst een tijdslot."
+  },
+  "restaurantReservations": {
+    "title": "Reserveringen",
+    "tabs": {
+      "upcoming": "Komend",
+      "past": "Afgelopen"
+    },
+    "searchPlaceholder": "Zoek een naam, een telefoonnummer…",
+    "filters": {
+      "all": "Alle"
+    },
+    "noTable": "Geen tafel toegewezen",
+    "stats": {
+      "total": "Reserveringen",
+      "covers": "Couverts",
+      "preOrders": "Voorbestellingen",
+      "noShows": "No-shows"
+    },
+    "empty": {
+      "upcoming": "Geen komende reserveringen",
+      "past": "Geen afgelopen reserveringen",
+      "hint": "De reserveringen van uw klanten verschijnen hier.",
+      "filtered": "Geen resultaten voor deze zoekopdracht."
+    },
+    "loadMore": "Meer laden",
+    "errors": {
+      "load": "Reserveringen konden niet worden geladen.",
+      "status": "Statuswijziging mislukt."
+    },
+    "actions": {
+      "manage": "Beheren",
+      "seated": "Markeer als gezeten",
+      "completed": "Markeer als voltooid",
+      "no_show": "Markeer als no-show",
+      "confirmed": "Terug naar bevestigd",
+      "done": {
+        "seated": "Gast gezeten",
+        "completed": "Reservering voltooid",
+        "no_show": "Gemarkeerd als no-show",
+        "confirmed": "Terug naar bevestigd"
+      }
+    },
+    "restaurantLabel": "Restaurant",
+    "restaurantPicker": "Kies een restaurant"
   }
 }
