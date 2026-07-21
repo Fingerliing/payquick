@@ -11,7 +11,8 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
+  Modal,
+  Pressable,
   RefreshControl,
   ScrollView,
   Text,
@@ -32,10 +33,34 @@ import {
   BORDER_RADIUS,
   TYPOGRAPHY,
 } from '@/utils/designSystem';
+import { Alert, AlertWithAction } from '@/components/ui/Alert';
 import { reservationService } from '@/services/reservationService';
 import type { Reservation, ReservationStatus } from '@/types/reservation';
 
 const CHECKIN_WINDOW_MS = 30 * 60 * 1000;
+
+
+// ── Alertes bannières (pattern useAlerts maison) ─────────────────────────
+interface AlertItem {
+  id: string;
+  variant: 'success' | 'error' | 'warning' | 'info';
+  message: string;
+}
+
+const useAlerts = () => {
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const pushAlert = useCallback(
+    (variant: AlertItem['variant'], message: string) => {
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      setAlerts((prev) => [{ id, variant, message }, ...prev]);
+    },
+    [],
+  );
+  const dismissAlert = useCallback((id: string) => {
+    setAlerts((prev) => prev.filter((a) => a.id !== id));
+  }, []);
+  return { alerts, pushAlert, dismissAlert };
+};
 
 const formatPrice = (amount: string): string =>
   `${Number(amount).toFixed(2)} €`;
@@ -63,6 +88,8 @@ export default function MyReservationsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const { alerts, pushAlert, dismissAlert } = useAlerts();
+  const [cancelTarget, setCancelTarget] = useState<Reservation | null>(null);
 
   const load = useCallback(async (refresh = false) => {
     refresh ? setIsRefreshing(true) : setIsLoading(true);
@@ -121,15 +148,15 @@ export default function MyReservationsScreen() {
       setBusyId(r.id);
       try {
         const res = await reservationService.checkIn(r.id);
-        Alert.alert(
-          '',
+        pushAlert(
+          'success',
           t('reservation.checkInSuccess', { table: res.table_number ?? r.table_number }),
         );
         load();
       } catch (e) {
         const data = (e as any)?.response?.data ?? (e as any)?.data ?? {};
-        Alert.alert(
-          t('common.error', 'Erreur'),
+        pushAlert(
+          'error',
           data?.error === 'outside_checkin_window'
             ? t('reservation.errors.outsideWindow')
             : t('floorPlan.errors.action', 'Réessayez'),
@@ -138,38 +165,28 @@ export default function MyReservationsScreen() {
         setBusyId(null);
       }
     },
-    [load, t],
+    [load, pushAlert, t],
   );
 
-  const handleCancel = useCallback(
-    (r: Reservation) => {
-      const refundMessage = r.pre_order_id
-        ? r.is_refundable
-          ? t('reservation.cancelRefund')
-          : t('reservation.cancelNoRefund')
-        : '';
-      Alert.alert(t('reservation.cancelConfirmTitle'), refundMessage, [
-        { text: t('common.back'), style: 'cancel' },
-        {
-          text: t('reservation.cancelAction'),
-          style: 'destructive',
-          onPress: async () => {
-            setBusyId(r.id);
-            try {
-              await reservationService.cancel(r.id);
-              Alert.alert('', t('reservation.cancelled'));
-              load();
-            } catch {
-              Alert.alert(t('common.error', 'Erreur'), t('reservation.errors.create'));
-            } finally {
-              setBusyId(null);
-            }
-          },
-        },
-      ]);
-    },
-    [load, t],
-  );
+  const handleCancel = useCallback((r: Reservation) => {
+    setCancelTarget(r);
+  }, []);
+
+  const confirmCancel = useCallback(async () => {
+    const r = cancelTarget;
+    if (!r) return;
+    setCancelTarget(null);
+    setBusyId(r.id);
+    try {
+      await reservationService.cancel(r.id);
+      pushAlert('success', t('reservation.cancelled'));
+      load();
+    } catch {
+      pushAlert('error', t('reservation.errors.create'));
+    } finally {
+      setBusyId(null);
+    }
+  }, [cancelTarget, load, pushAlert, t]);
 
   // ── Styles ────────────────────────────────────────────────────────────
 
@@ -379,6 +396,21 @@ export default function MyReservationsScreen() {
         <Text style={s.title}>{t('reservation.myTitle')}</Text>
       </View>
 
+      {alerts.length > 0 && (
+        <View style={{ paddingHorizontal: sp.md, paddingTop: sp.sm, gap: sp.xs }}>
+          {alerts.map((a) => (
+            <Alert
+              key={a.id}
+              variant={a.variant}
+              message={a.message}
+              autoDismiss
+              autoDismissDuration={4000}
+              onDismiss={() => dismissAlert(a.id)}
+            />
+          ))}
+        </View>
+      )}
+
       {isLoading ? (
         <View style={s.centerBox}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -416,6 +448,49 @@ export default function MyReservationsScreen() {
             </>
           )}
         </ScrollView>
+      )}
+
+      {/* Confirmation d'annulation (AlertWithAction) */}
+      {cancelTarget && (
+        <Modal
+          transparent
+          visible
+          animationType="fade"
+          onRequestClose={() => setCancelTarget(null)}
+        >
+          <Pressable
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              justifyContent: 'center',
+              paddingHorizontal: sp.lg,
+            }}
+            onPress={() => setCancelTarget(null)}
+          >
+            <Pressable onPress={() => {}}>
+              <AlertWithAction
+                variant="warning"
+                title={t('reservation.cancelConfirmTitle')}
+                message={
+                  cancelTarget.pre_order_id
+                    ? cancelTarget.is_refundable
+                      ? t('reservation.cancelRefund')
+                      : t('reservation.cancelNoRefund')
+                    : t('reservation.cancelConfirmTitle')
+                }
+                primaryButton={{
+                  text: t('reservation.cancelAction'),
+                  variant: 'danger',
+                  onPress: confirmCancel,
+                }}
+                secondaryButton={{
+                  text: t('common.back'),
+                  onPress: () => setCancelTarget(null),
+                }}
+              />
+            </Pressable>
+          </Pressable>
+        </Modal>
       )}
     </View>
   );

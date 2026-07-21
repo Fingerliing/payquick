@@ -1148,6 +1148,30 @@ const handleOrderAloneFromMenu = useCallback(() => {
             <Ionicons name="chevron-forward" size={16} color={colors.text.secondary} />
           </Pressable>
         )}
+        {/* ─── Réserver une table (si le restaurateur l'a activé) ───────── */}
+        {restaurant && (restaurant as any).reservations_enabled &&
+          !tableNumberParam && fromQR !== '1' && !effectiveSessionId && (
+          <Pressable
+            onPress={() =>
+              router.push(
+                `/reservation/${restaurantId}?restaurantName=${encodeURIComponent(restaurant.name)}` as any,
+              )
+            }
+            style={({ pressed }) => [{
+              flexDirection: "row", alignItems: "center", gap: 8,
+              marginHorizontal: 16, marginTop: 4, marginBottom: 4,
+              paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12,
+              backgroundColor: colors.primary + "10",
+              borderWidth: 1, borderColor: colors.primary + "33",
+            }, pressed && { opacity: 0.9 }]}
+          >
+            <Ionicons name="calendar-outline" size={16} color={colors.primary} />
+            <Text style={{ flex: 1, fontSize: 13, fontWeight: "600", color: colors.text.primary }}>
+              {t("reservation.bookTitle")}
+            </Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.text.secondary} />
+          </Pressable>
+        )}
         {/* ─── Bandeau session active sur la table (hors session courante) ── */}
         {activeSessionOnTable && !effectiveSessionId && (
           <Pressable

@@ -16,7 +16,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -37,6 +36,7 @@ import {
   BORDER_RADIUS,
   TYPOGRAPHY,
 } from '@/utils/designSystem';
+import { Alert } from '@/components/ui/Alert';
 import { useCart } from '@/contexts/CartContext';
 import { reservationService } from '@/services/reservationService';
 import {
@@ -45,6 +45,29 @@ import {
   PreOrderSession,
 } from '@/utils/preOrderSession';
 import type { PreOrderPayload } from '@/types/reservation';
+
+
+// ── Alertes bannières (pattern useAlerts maison) ─────────────────────────
+interface AlertItem {
+  id: string;
+  variant: 'success' | 'error' | 'warning' | 'info';
+  message: string;
+}
+
+const useAlerts = () => {
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const pushAlert = useCallback(
+    (variant: AlertItem['variant'], message: string) => {
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      setAlerts((prev) => [{ id, variant, message }, ...prev]);
+    },
+    [],
+  );
+  const dismissAlert = useCallback((id: string) => {
+    setAlerts((prev) => prev.filter((a) => a.id !== id));
+  }, []);
+  return { alerts, pushAlert, dismissAlert };
+};
 
 const formatPrice = (amount: number | string): string =>
   `${Number(amount).toFixed(2)} €`;
@@ -73,6 +96,7 @@ export default function PreOrderCheckoutScreen() {
     [screenType],
   );
 
+  const { alerts, pushAlert, dismissAlert } = useAlerts();
   const params = useLocalSearchParams<{ reservationId: string }>();
   const reservationId = params.reservationId;
 
@@ -184,12 +208,12 @@ export default function PreOrderCheckoutScreen() {
         setIsExpired(true);
       } else {
         console.error('[PreOrderCheckout] payment error:', e);
-        Alert.alert(t('common.error', 'Erreur'), t('payment.initFailed', t('reservation.errors.create')));
+        pushAlert('error', t('payment.initFailed', t('reservation.errors.create')));
       }
     } finally {
       setIsPaying(false);
     }
-  }, [buildPayload, cart.items.length, cart.restaurantName, clearCart, colors, initPaymentSheet, presentPaymentSheet, reservationId, t]);
+  }, [buildPayload, cart.items.length, cart.restaurantName, clearCart, colors, initPaymentSheet, presentPaymentSheet, pushAlert, reservationId, t]);
 
   // ── Styles ────────────────────────────────────────────────────────────
   const fs = useCallback(
@@ -352,6 +376,21 @@ export default function PreOrderCheckoutScreen() {
           <Text style={[s.hint, { color: minutes <= 5 ? colors.error : colors.warning }]}>
             {t('reservation.preOrder.expiresIn', { minutes })}
           </Text>
+        </View>
+      )}
+
+      {alerts.length > 0 && (
+        <View style={{ paddingHorizontal: sp.md, paddingTop: sp.sm, gap: sp.xs }}>
+          {alerts.map((a) => (
+            <Alert
+              key={a.id}
+              variant={a.variant}
+              message={a.message}
+              autoDismiss
+              autoDismissDuration={4000}
+              onDismiss={() => dismissAlert(a.id)}
+            />
+          ))}
         </View>
       )}
 

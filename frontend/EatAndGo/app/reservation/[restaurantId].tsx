@@ -14,7 +14,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Platform,
   ScrollView,
   Text,
@@ -37,6 +36,7 @@ import {
   BORDER_RADIUS,
   TYPOGRAPHY,
 } from '@/utils/designSystem';
+import { Alert } from '@/components/ui/Alert';
 import { useAuth } from '@/contexts/AuthContext';
 import { reservationService } from '@/services/reservationService';
 import { savePreOrderSession } from '@/utils/preOrderSession';
@@ -51,12 +51,35 @@ const toYMD = (d: Date): string => {
   return `${y}-${m}-${day}`;
 };
 
+
+// ── Alertes bannières (pattern useAlerts maison) ─────────────────────────
+interface AlertItem {
+  id: string;
+  variant: 'success' | 'error' | 'warning' | 'info';
+  message: string;
+}
+
+const useAlerts = () => {
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const pushAlert = useCallback(
+    (variant: AlertItem['variant'], message: string) => {
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      setAlerts((prev) => [{ id, variant, message }, ...prev]);
+    },
+    [],
+  );
+  const dismissAlert = useCallback((id: string) => {
+    setAlerts((prev) => prev.filter((a) => a.id !== id));
+  }, []);
+  return { alerts, pushAlert, dismissAlert };
+};
+
 const extractApiError = (e: any): any =>
   e?.response?.data ?? e?.data ?? e?.body ?? e ?? {};
 
 export default function BookReservationScreen() {
   const { t, i18n } = useTranslation();
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const shadows = useMemo(() => makeShadows(colors), [colors]);
   const screenType = useScreenType();
   const insets = useSafeAreaInsets();
@@ -74,6 +97,7 @@ export default function BookReservationScreen() {
     [screenType],
   );
 
+  const { alerts, pushAlert, dismissAlert } = useAlerts();
   const params = useLocalSearchParams<{
     restaurantId: string;
     restaurantName?: string;
@@ -90,6 +114,7 @@ export default function BookReservationScreen() {
   const [isLoadingSlots, setIsLoadingSlots] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [created, setCreated] = useState<Reservation | null>(null);
+  const [isDisabledByRestaurant, setIsDisabledByRestaurant] = useState(false);
 
   const [name, setName] = useState((user as any)?.first_name ?? '');
   const [phone, setPhone] = useState((user as any)?.phone ?? '');
@@ -138,9 +163,7 @@ export default function BookReservationScreen() {
       const data = (e as any)?.response?.data ?? (e as any)?.data ?? {};
       if (data?.error === 'reservations_disabled') {
         // Restaurant qui a désactivé entre la fiche et cet écran
-        Alert.alert('', t('reservation.errors.disabled'), [
-          { text: t('common.back'), onPress: () => router.back() },
-        ]);
+        setIsDisabledByRestaurant(true);
         return;
       }
       console.error('[Reservation] availability error:', e);
@@ -157,9 +180,12 @@ export default function BookReservationScreen() {
 
   // ── Soumission ────────────────────────────────────────────────────────
   const submit = useCallback(async (withPreOrder = false) => {
-    if (!selectedSlot) return;
+    if (!selectedSlot) {
+      pushAlert('warning', t('reservation.pickSlot'));
+      return;
+    }
     if (!name.trim() || !phone.trim()) {
-      Alert.alert('', t('reservation.requiredFields'));
+      pushAlert('warning', t('reservation.requiredFields'));
       return;
     }
     setIsSubmitting(true);
@@ -192,15 +218,15 @@ export default function BookReservationScreen() {
     } catch (e) {
       const data = extractApiError(e);
       if (data?.error === 'slot_full' || data?.error === 'no_table_for_party_size') {
-        Alert.alert('', t('reservation.errors.slotTaken'));
+        pushAlert('warning', t('reservation.errors.slotTaken'));
         loadSlots();
       } else {
-        Alert.alert(t('common.error', 'Erreur'), t('reservation.errors.create'));
+        pushAlert('error', t('reservation.errors.create'));
       }
     } finally {
       setIsSubmitting(false);
     }
-  }, [email, loadSlots, name, partySize, phone, requests, restaurantId, selectedSlot, t]);
+  }, [email, loadSlots, name, partySize, phone, pushAlert, requests, restaurantId, selectedSlot, t]);
 
   // ── Styles ────────────────────────────────────────────────────────────
   const fs = useCallback(
@@ -313,7 +339,7 @@ export default function BookReservationScreen() {
         fontSize: fs('base'),
         color: colors.text.primary,
       },
-      submitBtn: (enabled: boolean) => ({
+      submitBtn: {
         flexDirection: 'row' as const,
         alignItems: 'center' as const,
         justifyContent: 'center' as const,
@@ -322,8 +348,12 @@ export default function BookReservationScreen() {
         marginTop: sp.md,
         paddingVertical: sp.md,
         borderRadius: BORDER_RADIUS.lg,
-        backgroundColor: enabled ? colors.primary : colors.border.default,
-      }),
+        backgroundColor: colors.primary,
+        // Navy sur fond sombre : le liseré or (convention dark de l'app)
+        // détache le CTA du fond.
+        borderWidth: isDark ? 1 : 0,
+        borderColor: isDark ? 'rgba(212, 175, 55, 0.45)' : 'transparent',
+      },
       submitText: {
         fontSize: fs('md'),
         fontWeight: '700' as const,
@@ -351,8 +381,23 @@ export default function BookReservationScreen() {
         justifyContent: 'center' as const,
       },
     }),
-    [colors, fs, insets, shadows, sp],
+    [colors, fs, insets, isDark, shadows, sp],
   );
+
+  // ── Réservations désactivées par le restaurant ────────────────────────
+  if (isDisabledByRestaurant) {
+    return (
+      <View style={[s.container, s.centerBox]}>
+        <Alert variant="warning" message={t('reservation.errors.disabled')} />
+        <TouchableOpacity
+          style={[s.submitBtn, { alignSelf: 'stretch' }]}
+          onPress={() => router.back()}
+        >
+          <Text style={s.submitText}>{t('common.back')}</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   // ── Écran de succès ───────────────────────────────────────────────────
   if (created) {
@@ -386,7 +431,7 @@ export default function BookReservationScreen() {
         )}
         <Text style={s.hint}>{t('reservation.success.hint')}</Text>
         <TouchableOpacity
-          style={[s.submitBtn(true), { alignSelf: 'stretch' }]}
+          style={[s.submitBtn, { alignSelf: 'stretch' }]}
           onPress={() => router.replace('/reservation/mine' as any)}
         >
           <Text style={s.submitText}>{t('reservation.success.viewMine')}</Text>
@@ -396,7 +441,6 @@ export default function BookReservationScreen() {
   }
 
   // ── Rendu principal ───────────────────────────────────────────────────
-  const canSubmit = !!selectedSlot && !!name.trim() && !!phone.trim() && !isSubmitting;
 
   return (
     <KeyboardAvoidingView
@@ -411,6 +455,21 @@ export default function BookReservationScreen() {
           {params.restaurantName || t('reservation.bookTitle')}
         </Text>
       </View>
+
+      {alerts.length > 0 && (
+        <View style={{ paddingHorizontal: sp.md, paddingTop: sp.sm, gap: sp.xs }}>
+          {alerts.map((a) => (
+            <Alert
+              key={a.id}
+              variant={a.variant}
+              message={a.message}
+              autoDismiss
+              autoDismissDuration={4000}
+              onDismiss={() => dismissAlert(a.id)}
+            />
+          ))}
+        </View>
+      )}
 
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: insets.bottom + sp.xl }}>
         {/* Date */}
@@ -524,9 +583,9 @@ export default function BookReservationScreen() {
 
         {/* Soumission */}
         <TouchableOpacity
-          style={s.submitBtn(canSubmit)}
+          style={s.submitBtn}
           onPress={() => submit(false)}
-          disabled={!canSubmit}
+          disabled={isSubmitting}
         >
           {isSubmitting ? (
             <ActivityIndicator color={colors.text.inverse} />
@@ -542,13 +601,11 @@ export default function BookReservationScreen() {
         {isAuthenticated && preordersEnabled && (
           <TouchableOpacity
             style={[
-              s.submitBtn(canSubmit),
-              {
-                backgroundColor: canSubmit ? colors.secondary : colors.border.default,
-              },
+              s.submitBtn,
+              { backgroundColor: colors.secondary, borderWidth: 0 },
             ]}
             onPress={() => submit(true)}
-            disabled={!canSubmit}
+            disabled={isSubmitting}
           >
             <Ionicons name="restaurant" size={20} color="#1E2A78" />
             <Text style={[s.submitText, { color: '#1E2A78' }]}>
