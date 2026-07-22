@@ -41,6 +41,7 @@ import {
 } from '@/utils/designSystem';
 import { useRestaurant } from '@/contexts/RestaurantContext';
 import { RestaurantAutoSelector } from '@/components/restaurant/RestaurantAutoSelector';
+import { RestaurantSwitcherModal } from '@/components/restaurant/RestaurantSwitcherModal';
 import { reservationService } from '@/services/reservationService';
 import type { Reservation, ReservationStatus } from '@/types/reservation';
 
@@ -351,84 +352,10 @@ function ReservationsScreenContent({
         fontWeight: '700' as const,
         color: active ? colors.text.inverse : colors.text.primary,
       }),
-      restaurantSelector: {
-        flexDirection: 'row' as const,
-        justifyContent: 'space-between' as const,
-        alignItems: 'center' as const,
-        marginHorizontal: layoutConfig.containerPadding,
-        marginTop: sp.sm,
-        paddingHorizontal: sp.md,
-        paddingVertical: sp.sm,
-        borderRadius: BORDER_RADIUS.lg,
-        backgroundColor: colors.card,
-        borderWidth: 1,
-        borderColor: isDark ? 'rgba(212, 175, 55, 0.2)' : colors.border.light,
-      },
-      restaurantLabel: {
-        fontSize: fs('xs'),
-        color: colors.text.secondary,
-      },
-      restaurantName: {
-        fontSize: fs('sm'),
-        fontWeight: '700' as const,
-        color: colors.text.primary,
-      },
-      pickerOverlay: {
-        position: 'absolute' as const,
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'center' as const,
-        paddingHorizontal: sp.lg,
-        zIndex: 30,
-      },
-      pickerCard: {
-        backgroundColor: colors.card,
-        borderRadius: BORDER_RADIUS.xl,
-        overflow: 'hidden' as const,
-        maxWidth: layoutConfig.maxContentWidth,
-        width: '100%' as const,
-        alignSelf: 'center' as const,
-        borderWidth: isDark ? 1 : 0,
-        borderColor: isDark ? 'rgba(212, 175, 55, 0.2)' : 'transparent',
-        ...shadows.card,
-      },
-      pickerHeader: {
-        flexDirection: 'row' as const,
-        alignItems: 'center' as const,
-        justifyContent: 'space-between' as const,
-        paddingHorizontal: sp.md,
-        paddingTop: sp.md,
-        paddingBottom: sp.sm,
-      },
-      pickerOption: {
-        flexDirection: 'row' as const,
-        alignItems: 'center' as const,
-        gap: sp.md,
-        paddingHorizontal: sp.md,
-        paddingVertical: sp.md,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border.light,
-      },
-      pickerAvatar: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: colors.primary,
-        alignItems: 'center' as const,
-        justifyContent: 'center' as const,
-      },
-      pickerName: {
-        fontSize: fs('sm'),
-        fontWeight: '700' as const,
-        color: colors.text.primary,
-      },
-      pickerAddress: {
-        fontSize: fs('xs'),
-        color: colors.text.secondary,
-      },
+      // (restaurantSelector / restaurantLabel / restaurantName supprimés : le switch d'établissement est
+      //  désormais porté par le <Header /> — leftIcon `swap-horizontal`.)
+      // (styles picker* supprimés : la feuille de changement
+      //  d'établissement est le composant partagé RestaurantSwitcherModal.)
       searchBox: {
         flexDirection: 'row' as const,
         alignItems: 'center' as const,
@@ -720,10 +647,18 @@ function ReservationsScreenContent({
   // ── Rendu ─────────────────────────────────────────────────────────────
   return (
     <View style={s.container}>
+      {/* Sélecteur d'établissement porté par le Header (pattern menu.tsx) :
+          icône gauche `swap-horizontal` + nom du restaurant en sous-titre.
+          L'ancienne barre dans le corps de page est supprimée. */}
       <Header
         title={t('restaurantReservations.title')}
-        showLanguageSwitcher
-        showThemeSwitcher
+        subtitle={selectedRestaurantData?.name}
+        leftIcon={restaurants && restaurants.length > 1 ? 'swap-horizontal' : undefined}
+        onLeftPress={
+          restaurants && restaurants.length > 1
+            ? () => setShowRestaurantPicker(true)
+            : undefined
+        }
       />
 
       <View style={s.content}>
@@ -746,40 +681,6 @@ function ReservationsScreenContent({
               />
             ))}
           </View>
-        )}
-
-        {/* Restaurant courant (switch si plusieurs) */}
-        {!!restaurants && restaurants.length > 1 && (
-          <Pressable
-            onPress={() => setShowRestaurantPicker(true)}
-            style={[
-              s.restaurantSelector,
-              {
-                backgroundColor: colors.card,
-                borderColor: isDark
-                  ? 'rgba(212, 175, 55, 0.2)'
-                  : colors.border.light,
-              },
-            ]}
-            android_ripple={{ color: colors.primary + '20', borderless: false }}
-          >
-            <View style={{ flex: 1, paddingRight: sp.sm }}>
-              <Text style={[s.restaurantLabel, { color: colors.text.secondary }]}>
-                {t('restaurantReservations.restaurantLabel')}
-              </Text>
-              <Text
-                style={[s.restaurantName, { color: colors.text.primary }]}
-                numberOfLines={1}
-              >
-                {selectedRestaurantData?.name}
-              </Text>
-            </View>
-            <Ionicons
-              name="chevron-down-outline"
-              size={18}
-              color={colors.text.secondary}
-            />
-          </Pressable>
         )}
 
         {/* Onglets À venir / Passées */}
@@ -950,71 +851,16 @@ function ReservationsScreenContent({
       </View>
 
       {/* Sélecteur de restaurant (overlay inline : suit le thème) */}
-      {showRestaurantPicker && (
-        <Pressable
-          style={s.pickerOverlay}
-          onPress={() => setShowRestaurantPicker(false)}
-        >
-          <Pressable
-            style={[s.pickerCard, { backgroundColor: colors.card }]}
-            onPress={() => {}}
-          >
-            <View style={s.pickerHeader}>
-              <Text style={s.sheetTitle}>
-                {t('restaurantReservations.restaurantPicker')}
-              </Text>
-              <Pressable onPress={() => setShowRestaurantPicker(false)} hitSlop={10}>
-                <Ionicons name="close" size={22} color={colors.text.primary} />
-              </Pressable>
-            </View>
-            <ScrollView style={{ maxHeight: 380 }}>
-              {(restaurants ?? []).map((r: any) => (
-                <Pressable
-                  key={r.id}
-                  onPress={() => {
-                    setSelectedRestaurantId(Number(r.id));
-                    setShowRestaurantPicker(false);
-                  }}
-                  style={[
-                    s.pickerOption,
-                    { borderBottomColor: colors.border.light },
-                  ]}
-                  android_ripple={{ color: colors.primary + '20', borderless: false }}
-                >
-                  <View style={s.pickerAvatar}>
-                    <Ionicons
-                      name="restaurant-outline"
-                      size={22}
-                      color={colors.text.inverse}
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[s.pickerName, { color: colors.text.primary }]}>
-                      {r.name}
-                    </Text>
-                    {!!r.address && (
-                      <Text
-                        style={[s.pickerAddress, { color: colors.text.secondary }]}
-                        numberOfLines={1}
-                      >
-                        {r.address}
-                        {r.city ? `, ${r.city}` : ''}
-                      </Text>
-                    )}
-                  </View>
-                  {Number(r.id) === selectedRestaurantId && (
-                    <Ionicons
-                      name="checkmark-outline"
-                      size={22}
-                      color={colors.success}
-                    />
-                  )}
-                </Pressable>
-              ))}
-            </ScrollView>
-          </Pressable>
-        </Pressable>
-      )}
+      {/* Feuille de changement d'établissement : composant partagé, ouvert
+          depuis l'icône gauche du <Header />. */}
+      <RestaurantSwitcherModal
+        restaurants={restaurants ?? []}
+        currentRestaurantId={selectedRestaurantId}
+        onSelect={(id) => setSelectedRestaurantId(Number(id))}
+        title={t('restaurantReservations.restaurantPicker')}
+        visible={showRestaurantPicker}
+        onClose={() => setShowRestaurantPicker(false)}
+      />
 
       {/* Feuille : changer le statut d'une réservation */}
       {actionTarget && (

@@ -326,12 +326,14 @@ export default function DashboardScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Icônes réparties 1 (gauche) / 2 (droite). Elles étaient toutes à
+          droite : le Header réservait alors une marge trop large et le titre
+          « EatQuickeR » — un seul mot, donc non sécable — se retrouvait à
+          l'étroit. Déconnexion retirée (accessible depuis l'écran Profil). */}
       <Header
         title="EatQuickeR"
-        showLogout
-        logoutPosition="left"
-        rightIcon="notifications-outline"
-        onRightPress={() => {}}
+        leftIcon="notifications-outline"
+        onLeftPress={() => {}}
         showLanguageSwitcher
         showThemeSwitcher
       />

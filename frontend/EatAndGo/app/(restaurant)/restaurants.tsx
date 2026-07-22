@@ -542,8 +542,6 @@ export default function RestaurantsScreen() {
         subtitle={t('restaurantsList.subtitle', { count: restaurants.length })}
         rightIcon="add-outline"
         onRightPress={() => router.push('/restaurant/add')}
-        showLanguageSwitcher
-        showThemeSwitcher
       />
 
       {alerts.length > 0 && (

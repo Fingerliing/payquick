@@ -1028,8 +1028,6 @@ function QRCodesScreenContent({ restaurant }: QRCodesScreenContentProps) {
       <View style={styles.container}>
         <Header
           title={t('restaurantNav.qrcodes')}
-          showLanguageSwitcher
-          showThemeSwitcher
         />
         <Loading fullScreen text={t('restaurantHome.empty.loading')} />
       </View>
@@ -1045,8 +1043,6 @@ function QRCodesScreenContent({ restaurant }: QRCodesScreenContentProps) {
         title={t('restaurantNav.qrcodes')}
         rightIcon="settings-outline"
         onRightPress={() => setShowSettings(!showSettings)}
-        showLanguageSwitcher
-        showThemeSwitcher
       />
 
       {alerts.length > 0 && (

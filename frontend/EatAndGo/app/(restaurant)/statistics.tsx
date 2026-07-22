@@ -18,6 +18,7 @@ import { Loading } from '@/components/ui/Loading';
 import { Alert as InlineAlert } from '@/components/ui/Alert';
 import { Header } from '@/components/ui/Header';
 import { RestaurantAutoSelector } from '@/components/restaurant/RestaurantAutoSelector';
+import { RestaurantSwitcherModal } from '@/components/restaurant/RestaurantSwitcherModal';
 import { useRestaurant } from '@/contexts/RestaurantContext';
 
 import { RestaurantStatistics } from '@/types/restaurant-statistics';
@@ -147,9 +148,19 @@ function getRankStyle(rank: number, colors: AppColors): { bg: string; fg: string
 interface StatsBannerProps {
   selectedPeriod: PeriodOption;
   onSelectPeriod: (period: PeriodOption) => void;
+  /** Nom de l'établissement courant, affiché en sous-titre du Header. */
+  restaurantName?: string;
+  /** Fourni uniquement s'il y a plusieurs établissements : active l'icône
+   *  gauche `swap-horizontal` du Header (pattern menu.tsx). */
+  onOpenRestaurantSwitcher?: () => void;
 }
 
-const StatsBanner: React.FC<StatsBannerProps> = ({ selectedPeriod, onSelectPeriod }) => {
+const StatsBanner: React.FC<StatsBannerProps> = ({
+  selectedPeriod,
+  onSelectPeriod,
+  restaurantName,
+  onOpenRestaurantSwitcher,
+}) => {
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
@@ -160,22 +171,20 @@ const StatsBanner: React.FC<StatsBannerProps> = ({ selectedPeriod, onSelectPerio
 
   return (
     <>
-      <View style={[styles.container, { paddingTop: insets.top + 12 }]}>
-        <View style={styles.row}>
-          <Text style={styles.title} numberOfLines={1}>
-            {t('restaurantStats.title', { period: selectedLabel })}
-          </Text>
-          <Pressable
-            onPress={() => setPickerOpen(true)}
-            style={({ pressed }) => [styles.pickerButton, pressed && { opacity: 0.85 }]}
-            android_ripple={{ color: 'rgba(255,255,255,0.15)' }}
-          >
-            <Ionicons name="calendar-outline" size={14} color="#FFFFFF" />
-            <Text style={styles.pickerLabel}>{selectedLabel}</Text>
-            <Ionicons name="chevron-down" size={14} color="#FFFFFF" />
-          </Pressable>
-        </View>
-      </View>
+      {/* Bandeau unifié : on réutilise le <Header /> commun à tous les écrans.
+          L'ancien bandeau maison utilisait `colors.primary` en fond, soit
+          l'indigo vif de la palette en dark mode — visuellement en rupture
+          avec le navy profond du Header sur les autres pages.
+          Le sélecteur de période devient l'action droite (icône calendrier),
+          la période reste visible dans le titre via l'interpolation. */}
+      <Header
+        title={t('restaurantStats.title', { period: selectedLabel })}
+        subtitle={restaurantName}
+        leftIcon={onOpenRestaurantSwitcher ? 'swap-horizontal' : undefined}
+        onLeftPress={onOpenRestaurantSwitcher}
+        rightIcon="calendar-outline"
+        onRightPress={() => setPickerOpen(true)}
+      />
 
       <Modal
         visible={pickerOpen}
@@ -479,111 +488,9 @@ const TopDishesList: React.FC<TopDishesListProps> = ({ dishes, title }) => {
 };
 
 /** ---------------------------------------------------------------------- */
-/** Barre de sélection du restaurant (cachée si un seul restaurant)         */
+/** La modale de changement d'établissement est le composant partagé        */
+/** `RestaurantSwitcherModal`. Ses styles locaux ont disparu avec elle.     */
 /** ---------------------------------------------------------------------- */
-
-interface RestaurantSwitchBarProps {
-  restaurants: Restaurant[];
-  currentRestaurantId: string;
-  onSwitch: (restaurantId: string) => void;
-}
-
-const RestaurantSwitchBar: React.FC<RestaurantSwitchBarProps> = ({
-  restaurants,
-  currentRestaurantId,
-  onSwitch,
-}) => {
-  const { t } = useTranslation();
-  const { colors, isDark } = useAppTheme();
-  const styles = useMemo(() => makeSwitchStyles(colors, isDark), [colors, isDark]);
-  const [modalOpen, setModalOpen] = useState(false);
-
-  if (restaurants.length <= 1) return null;
-
-  const currentRestaurant = restaurants.find((r) => r.id === currentRestaurantId);
-
-  return (
-    <>
-      <Pressable
-        onPress={() => setModalOpen(true)}
-        style={({ pressed }) => [
-          styles.bar,
-          pressed && { backgroundColor: colors.background },
-        ]}
-        android_ripple={{ color: colors.primary + '15' }}
-      >
-        <Ionicons name="restaurant" size={16} color={colors.secondary} />
-        <Text style={styles.barText} numberOfLines={1}>
-          {currentRestaurant?.name || t('restaurantStats.chooseRestaurant')}
-        </Text>
-        <Ionicons name="chevron-down" size={16} color={colors.text.secondary} />
-      </Pressable>
-
-      <Modal
-        visible={modalOpen}
-        transparent
-        animationType="fade"
-        statusBarTranslucent
-        onRequestClose={() => setModalOpen(false)}
-      >
-        <Pressable style={styles.modalOverlay} onPress={() => setModalOpen(false)}>
-          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {t('restaurantStats.chooseRestaurant')}
-              </Text>
-              <Pressable onPress={() => setModalOpen(false)} hitSlop={8}>
-                <Ionicons name="close" size={22} color={colors.text.secondary} />
-              </Pressable>
-            </View>
-            <FlatList
-              data={restaurants}
-              keyExtractor={(r) => r.id}
-              renderItem={({ item }) => {
-                const isActive = item.id === currentRestaurantId;
-                return (
-                  <Pressable
-                    onPress={() => {
-                      if (!isActive) onSwitch(item.id);
-                      setModalOpen(false);
-                    }}
-                    style={({ pressed }) => [
-                      styles.modalRow,
-                      isActive && styles.modalRowActive,
-                      pressed && { backgroundColor: colors.background },
-                    ]}
-                    android_ripple={{ color: colors.primary + '15' }}
-                  >
-                    <View style={styles.modalRowMain}>
-                      <Text
-                        style={[
-                          styles.modalRowText,
-                          isActive && styles.modalRowTextActive,
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {item.name}
-                      </Text>
-                      {(item.address || item.city) && (
-                        <Text style={styles.modalRowSubtext} numberOfLines={1}>
-                          {item.address}
-                          {item.city ? `, ${item.city}` : ''}
-                        </Text>
-                      )}
-                    </View>
-                    {isActive && (
-                      <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
-                    )}
-                  </Pressable>
-                );
-              }}
-            />
-          </Pressable>
-        </Pressable>
-      </Modal>
-    </>
-  );
-};
 
 // ════════════════════════════════════════════════════════════════════════════
 // CONTENU PRINCIPAL
@@ -603,6 +510,9 @@ function StatisticsScreenContent({ restaurant }: { restaurant: Restaurant }) {
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodOption>(PERIODS[0]);
+  // Ouverture de la modale de changement d'établissement, déclenchée par
+  // l'icône gauche du Header (rendu par StatsBanner).
+  const [switcherOpen, setSwitcherOpen] = useState(false);
 
   const handleSwitchRestaurant = useCallback(
     (restaurantId: string) => {
@@ -680,11 +590,17 @@ function StatisticsScreenContent({ restaurant }: { restaurant: Restaurant }) {
         <StatsBanner
           selectedPeriod={selectedPeriod}
           onSelectPeriod={setSelectedPeriod}
+          restaurantName={restaurant.name}
+          onOpenRestaurantSwitcher={
+            restaurants.length > 1 ? () => setSwitcherOpen(true) : undefined
+          }
         />
-        <RestaurantSwitchBar
+        <RestaurantSwitcherModal
           restaurants={restaurants}
           currentRestaurantId={restaurant.id}
-          onSwitch={handleSwitchRestaurant}
+          onSelect={handleSwitchRestaurant}
+          visible={switcherOpen}
+          onClose={() => setSwitcherOpen(false)}
         />
         <Loading />
       </View>
@@ -697,11 +613,17 @@ function StatisticsScreenContent({ restaurant }: { restaurant: Restaurant }) {
         <StatsBanner
           selectedPeriod={selectedPeriod}
           onSelectPeriod={setSelectedPeriod}
+          restaurantName={restaurant.name}
+          onOpenRestaurantSwitcher={
+            restaurants.length > 1 ? () => setSwitcherOpen(true) : undefined
+          }
         />
-        <RestaurantSwitchBar
+        <RestaurantSwitcherModal
           restaurants={restaurants}
           currentRestaurantId={restaurant.id}
-          onSwitch={handleSwitchRestaurant}
+          onSelect={handleSwitchRestaurant}
+          visible={switcherOpen}
+          onClose={() => setSwitcherOpen(false)}
         />
         {errorMessage && (
           <View style={styles.alertWrap}>
@@ -732,11 +654,17 @@ function StatisticsScreenContent({ restaurant }: { restaurant: Restaurant }) {
       <StatsBanner
         selectedPeriod={selectedPeriod}
         onSelectPeriod={setSelectedPeriod}
+        restaurantName={restaurant.name}
+        onOpenRestaurantSwitcher={
+          restaurants.length > 1 ? () => setSwitcherOpen(true) : undefined
+        }
       />
-      <RestaurantSwitchBar
+      <RestaurantSwitcherModal
         restaurants={restaurants}
         currentRestaurantId={restaurant.id}
-        onSwitch={handleSwitchRestaurant}
+        onSelect={handleSwitchRestaurant}
+        visible={switcherOpen}
+        onClose={() => setSwitcherOpen(false)}
       />
 
       <ScrollView
@@ -877,39 +805,12 @@ const makeContainerStyles = (colors: AppColors, isDark: boolean) =>
     },
   });
 
-// Bandeau navy stable dans les 2 modes (intrinsèquement sombre)
+// Ne subsistent que les styles de la modale de sélection de période :
+// le bandeau lui-même est rendu par <Header />.
 const makeBannerStyles = (colors: AppColors, isDark: boolean) =>
   StyleSheet.create({
-    container: {
-      backgroundColor: colors.primary,
-      paddingHorizontal: 20,
-      paddingBottom: 14,
-    },
-    row: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 12,
-    },
-    title: {
-      flex: 1,
-      fontSize: 18,
-      fontWeight: '700',
-      color: '#FFFFFF',
-      letterSpacing: -0.3,
-    },
-    pickerButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      backgroundColor: 'rgba(255,255,255,0.12)',
-      paddingHorizontal: 12,
-      paddingVertical: 7,
-      borderRadius: BORDER_RADIUS.full,
-      borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.2)',
-    },
-    pickerLabel: { fontSize: 13, fontWeight: '600', color: '#FFFFFF' },
+    // (container / row / title / pickerButton / pickerLabel supprimés :
+    //  le bandeau est désormais rendu par <Header />.)
     modalOverlay: {
       flex: 1,
       backgroundColor: colors.overlay,
@@ -1106,72 +1007,3 @@ const makeTopStyles = (colors: AppColors, isDark: boolean) => {
     dishCount: { fontSize: 12, fontWeight: '500', color: colors.text.secondary },
   });
 };
-
-const makeSwitchStyles = (colors: AppColors, isDark: boolean) =>
-  StyleSheet.create({
-    bar: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-      backgroundColor: colors.surface,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border.light,
-    },
-    barText: {
-      flex: 1,
-      fontSize: 15,
-      fontWeight: '600',
-      color: colors.text.primary,
-    },
-    modalOverlay: {
-      flex: 1,
-      backgroundColor: colors.overlay,
-      justifyContent: 'flex-end',
-    },
-    modalCard: {
-      backgroundColor: colors.surface,
-      borderTopLeftRadius: BORDER_RADIUS.xl,
-      borderTopRightRadius: BORDER_RADIUS.xl,
-      maxHeight: '70%',
-      paddingBottom: 16,
-      borderWidth: isDark ? 1 : 0,
-      borderColor: isDark ? 'rgba(212, 175, 55, 0.12)' : 'transparent',
-    },
-    modalHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border.light,
-    },
-    modalTitle: {
-      fontSize: 16,
-      fontWeight: '700',
-      color: isDark ? colors.text.golden : colors.text.primary,
-    },
-    modalRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border.light,
-      gap: 12,
-    },
-    modalRowActive: {
-      backgroundColor: isDark ? 'rgba(99, 102, 241, 0.15)' : colors.variants.primary[50],
-    },
-    modalRowMain: { flex: 1, minWidth: 0 },
-    modalRowText: {
-      fontSize: 15,
-      fontWeight: '600',
-      color: colors.text.primary,
-      marginBottom: 2,
-    },
-    modalRowTextActive: { color: colors.primary },
-    modalRowSubtext: { fontSize: 12, color: colors.text.secondary },
-  });

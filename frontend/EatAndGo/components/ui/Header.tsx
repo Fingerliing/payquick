@@ -40,7 +40,12 @@ import { SUPPORTED_LANGUAGES, type LanguageCode } from '@/i18n';
 //  - DARK  : navy plus profond pour s'harmoniser au fond quasi-noir et éviter
 //            l'effet "bandeau bleu vif posé sur fond noir"
 // L'or D4AF37 reste identique : c'est notre accent universel.
-function getHeaderPalette(isDark: boolean) {
+//
+// Exportée : les écrans qui affichent un bandeau accolé au Header (bandeau
+// Kanban des commandes, etc.) doivent utiliser EXACTEMENT le même fond.
+// Passer par `colors.primary` donne l'indigo vif de la palette en dark mode
+// et casse la continuité visuelle avec le Header.
+export function getHeaderPalette(isDark: boolean) {
   if (isDark) {
     return {
       bg: '#0F1528',          // navy très profond = colors.surface du dark
@@ -124,13 +129,25 @@ export const Header: React.FC<HeaderProps> = (props) => {
   const insets = useSafeAreaInsets();
   const headerHeight = COMPONENT_CONSTANTS.headerHeight[screenType];
 
-  // ── Mesure des zones gauche/droite pour un centrage réel du titre ─────
+  // ── Mesure des zones gauche/droite pour le dimensionnement du titre ───
   // Les deux zones ont des largeurs variables (0, 1, 2 ou 3 icônes...).
-  // On mesure chacune via onLayout et on prend la plus large des deux comme
-  // marge symétrique de la zone titre : ainsi le titre reste pile au centre
-  // de l'écran, quelle que soit l'asymétrie gauche/droite.
+  // On mesure chacune via onLayout et on applique CHAQUE largeur de son côté
+  // (marges asymétriques) : le titre récupère ainsi tout l'espace réellement
+  // libre. L'ancienne symétrisation (Math.max des deux côtés) amputait le
+  // titre de 2× la zone la plus large — d'où les titres coupés dès 3 icônes.
   const MIN_SIDE = 52;
   const [sideWidths, setSideWidths] = useState({ left: MIN_SIDE, right: MIN_SIDE });
+  // Hauteur réelle du CONTENU du bloc titre (le conteneur `centerAbsolute` est
+  // étiré top:0/bottom:0, donc le mesurer renverrait la hauteur de la rangée
+  // → boucle infinie de croissance. On mesure `centerInner`, dimensionné par
+  // son contenu.)
+  const [titleHeight, setTitleHeight] = useState(0);
+  // Largeur totale de la rangée (pour savoir si le titre tient centré).
+  const [rowWidth, setRowWidth] = useState(0);
+  // Largeur NATURELLE du titre sur une seule ligne, mesurée hors contrainte
+  // via un texte fantôme (voir plus bas). Aucune boucle possible : elle ne
+  // dépend que de `title` et `fs`, jamais du layout du header.
+  const [naturalTitleWidth, setNaturalTitleWidth] = useState(0);
 
   const handleLeftLayout = (e: LayoutChangeEvent) => {
     const w = Math.ceil(e.nativeEvent.layout.width);
@@ -141,7 +158,68 @@ export const Header: React.FC<HeaderProps> = (props) => {
     setSideWidths((prev) => (prev.right === w ? prev : { ...prev, right: w }));
   };
 
-  const sideMargin = Math.max(sideWidths.left, sideWidths.right, MIN_SIDE);
+  const handleTitleLayout = (e: LayoutChangeEvent) => {
+    const h = Math.ceil(e.nativeEvent.layout.height);
+    // Seuil de 1px : neutralise les micro-oscillations d'arrondi qui
+    // relanceraient un cycle de layout.
+    setTitleHeight((prev) => (Math.abs(prev - h) <= 1 ? prev : h));
+  };
+
+  const handleRowLayout = (e: LayoutChangeEvent) => {
+    const w = Math.ceil(e.nativeEvent.layout.width);
+    setRowWidth((prev) => (prev === w ? prev : w));
+  };
+
+  const handleGhostLayout = (e: LayoutChangeEvent) => {
+    const w = Math.ceil(e.nativeEvent.layout.width);
+    setNaturalTitleWidth((prev) => (Math.abs(prev - w) <= 1 ? prev : w));
+  };
+
+  const TITLE_GAP = 8;
+  const padH = screenType === 'mobile' ? 12 : 20;
+
+  // Deux stratégies de marges :
+  //  • SYMÉTRIQUE (défaut) — même marge des deux côtés = titre pile au centre
+  //    de l'écran. C'est le rendu voulu.
+  //  • ASYMÉTRIQUE (repli) — chaque côté réserve seulement sa propre largeur,
+  //    ce qui libère l'espace de la zone vide. Légèrement décentré, mais le
+  //    titre reste entier.
+  // On choisit la seconde UNIQUEMENT si la première ne suffit pas.
+  // ⚠ `padH` DOIT être inclus dans les marges : dans Yoga, un enfant en
+  // position absolue est positionné par rapport à la PADDING BOX du parent —
+  // le paddingHorizontal de la rangée n'est pas déduit des offsets left/right.
+  // Sans lui, le titre empiétait de (padH − TITLE_GAP) sur la zone d'icônes.
+  const symMargin  = padH + Math.max(sideWidths.left, sideWidths.right, MIN_SIDE) + TITLE_GAP;
+  const asymLeft   = padH + Math.max(sideWidths.left,  MIN_SIDE) + TITLE_GAP;
+  const asymRight  = padH + Math.max(sideWidths.right, MIN_SIDE) + TITLE_GAP;
+
+  // Nombre de lignes réellement exploitables pour le titre. Un mot unique ne
+  // peut PAS être coupé : lui accorder 2 lignes surestimait la place
+  // disponible, le centrage était conservé à tort et le titre finissait
+  // rétréci ou tronqué (cas « EatQuickeR »).
+  const canWrap = /\s/.test(title.trim());
+  const allowedLines = subtitle || !canWrap ? 1 : 2;
+  // Largeur exploitable si on garde le centrage symétrique. `padH` est déjà
+  // compris dans `symMargin`, on ne le retire pas une seconde fois.
+  const centeredWidth = rowWidth - 2 * symMargin;
+  // 0.92 : marge de sécurité, un retour à la ligne se fait sur un espace donc
+  // la 2e ligne n'est jamais remplie à 100 %.
+  const fitsCentered =
+    rowWidth === 0 ||
+    naturalTitleWidth === 0 ||
+    naturalTitleWidth <= centeredWidth * allowedLines * 0.92;
+
+  const leftMargin  = fitsCentered ? symMargin : asymLeft;
+  const rightMargin = fitsCentered ? symMargin : asymRight;
+
+  // Nombre total d'icônes affichées — sert à pré-réduire la police avant même
+  // que le texte ne déborde.
+  const iconCount =
+    (showBackButton || leftIcon ? 1 : 0) +
+    (showLogout ? 1 : 0) +
+    (showLanguageSwitcher ? 1 : 0) +
+    (showThemeSwitcher ? 1 : 0) +
+    (rightActions && rightActions.length > 0 ? rightActions.length : rightIcon ? 1 : 0);
 
   // ── Animations ────────────────────────────────────────────────────────
   const titleOpacity = useRef(new Animated.Value(0)).current;
@@ -195,7 +273,12 @@ export const Header: React.FC<HeaderProps> = (props) => {
   };
 
   const resolvedBg = backgroundColor ?? palette.bg;
-  const fs = screenType === 'desktop' ? 22 : screenType === 'tablet' ? 20 : 18;
+  const baseFs = screenType === 'desktop' ? 22 : screenType === 'tablet' ? 20 : 18;
+  // Pré-réduction déterministe : `adjustsFontSizeToFit` seul est instable sur
+  // Android quand le texte wrappe. On anticipe selon longueur du titre + coût
+  // de chaque icône (≈6 caractères d'espace perdu par bouton).
+  const pressure = title.length + iconCount * 6;
+  const fs = pressure > 34 ? baseFs - 3 : pressure > 26 ? baseFs - 2 : baseFs;
 
   const shadowStyle: ViewStyle = Platform.select({
     ios: {
@@ -233,11 +316,35 @@ export const Header: React.FC<HeaderProps> = (props) => {
           style={[
             styles.row,
             {
-              height: headerHeight,
-              paddingHorizontal: screenType === 'mobile' ? 12 : 20,
+              // minHeight (et non height) : le header s'agrandit si le titre
+              // passe sur 2 lignes. titleHeight est mesuré séparément car le
+              // bloc titre est en position absolue.
+              minHeight: Math.max(headerHeight, titleHeight + 12),
+              paddingHorizontal: padH,
             },
           ]}
+          onLayout={handleRowLayout}
         >
+          {/* Texte fantôme : mesure la largeur naturelle du titre sur UNE ligne,
+              sans contrainte de largeur (conteneur volontairement très large).
+              Invisible (opacity 0), en position absolue → aucun impact sur le
+              layout ni sur la hauteur du parent. Sert uniquement à décider si
+              le centrage symétrique est tenable. */}
+          <View
+            style={styles.ghostBox}
+            pointerEvents="none"
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          >
+            <Text
+              numberOfLines={1}
+              style={[styles.title, styles.ghostText, { fontSize: fs }]}
+              onLayout={handleGhostLayout}
+            >
+              {title}
+            </Text>
+          </View>
+
           {/* Gauche */}
           <View style={styles.side} onLayout={handleLeftLayout}>
             {(showBackButton || leftIcon) && (
@@ -252,30 +359,43 @@ export const Header: React.FC<HeaderProps> = (props) => {
             )}
           </View>
 
-          {/* Centre : positionné en absolu sur toute la largeur du header pour un
-              centrage réel à l'écran. `sideMargin` = largeur mesurée de la zone
-              gauche/droite la plus large, appliquée symétriquement des deux
-              côtés → le titre reste pile au milieu du header, icônes comprises.
+          {/* Centre : positionné en absolu entre les deux zones d'icônes.
+              `leftMargin`/`rightMargin` = largeur mesurée de CHAQUE côté → le
+              titre exploite tout l'espace libre et n'est jamais amputé par le
+              nombre d'icônes. 2 lignes autorisées (si pas de sous-titre) +
+              réduction automatique de police : un titre n'est jamais tronqué.
               pointerEvents="none" laisse passer les taps vers les boutons en dessous. */}
           <View
-            style={[styles.centerAbsolute, { left: sideMargin, right: sideMargin }]}
+            style={[styles.centerAbsolute, { left: leftMargin, right: rightMargin }]}
             pointerEvents="none"
           >
-            <Animated.Text
-              numberOfLines={1}
-              accessibilityRole="header"
-              style={[
-                styles.title,
-                { fontSize: fs, opacity: titleOpacity, transform: [{ translateY: titleY }] },
-              ]}
-            >
-              {title}
-            </Animated.Text>
-            {!!subtitle && (
-              <Animated.Text numberOfLines={1} style={[styles.subtitle, { opacity: titleOpacity }]}>
-                {subtitle}
+            {/* Wrapper interne : hauteur = celle du texte (le parent, lui, est
+                étiré sur toute la rangée). C'est lui qu'on mesure. */}
+            <View style={styles.centerInner} onLayout={handleTitleLayout}>
+              <Animated.Text
+                numberOfLines={subtitle ? 1 : 2}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
+                ellipsizeMode="tail"
+                accessibilityRole="header"
+                style={[
+                  styles.title,
+                  {
+                    fontSize: fs,
+                    lineHeight: Math.round(fs * 1.18),
+                    opacity: titleOpacity,
+                    transform: [{ translateY: titleY }],
+                  },
+                ]}
+              >
+                {title}
               </Animated.Text>
-            )}
+              {!!subtitle && (
+                <Animated.Text numberOfLines={1} style={[styles.subtitle, { opacity: titleOpacity }]}>
+                  {subtitle}
+                </Animated.Text>
+              )}
+            </View>
           </View>
 
           {/* Droite : ordre = langue → thème → autres actions/icon → logout/right */}
@@ -642,11 +762,22 @@ const createStyles = (palette: HeaderPalette) =>
     },
     side: {
       minWidth: 52,
-      alignItems: 'flex-start',
-      justifyContent: 'center',
+      // flexDirection 'row' indispensable : la valeur par défaut de React
+      // Native est 'column', donc deux icônes à gauche (ex. notifications +
+      // déconnexion) s'empilaient verticalement et débordaient du header.
+      // `sideRight` avait déjà row + gap, d'où l'asymétrie de comportement.
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'flex-start',
+      gap: 6,
     },
     sideRight: {
-      alignItems: 'flex-end',
+      // 'center' et non 'flex-end' : en flexDirection 'row', alignItems agit
+      // sur l'axe VERTICAL. 'flex-end' collait les icônes de droite en bas,
+      // désalignées par rapport à celles de gauche dès que le header grandit
+      // (titre sur 2 lignes). Le cadrage horizontal est géré par
+      // justifyContent ci-dessous.
+      alignItems: 'center',
       flexDirection: 'row',
       justifyContent: 'flex-end',
       gap: 6,
@@ -662,10 +793,9 @@ const createStyles = (palette: HeaderPalette) =>
       justifyContent: 'center',
       paddingHorizontal: 8,
     },
-    // Centrage réel à l'écran : occupe toute la largeur du header. `left`/`right`
-    // sont fournis dynamiquement en inline style (= largeur mesurée de la zone
-    // gauche/droite la plus large) pour que le titre reste pile au centre,
-    // icônes comprises, quelle que soit l'asymétrie gauche/droite.
+    // Zone titre : `left`/`right` sont fournis dynamiquement en inline style
+    // (= largeur mesurée de la zone du même côté). Le titre occupe donc tout
+    // l'espace disponible entre les icônes.
     centerAbsolute: {
       position: 'absolute',
       top: 0,
@@ -673,11 +803,33 @@ const createStyles = (palette: HeaderPalette) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
+    // Boîte de mesure hors écran : largeur volontairement énorme pour que le
+    // texte fantôme ne soit jamais contraint et rende sa largeur réelle.
+    ghostBox: {
+      position: 'absolute',
+      left: 0,
+      top: 0,
+      width: 4000,
+      opacity: 0,
+    },
+    ghostText: {
+      width: 'auto',
+      alignSelf: 'flex-start',
+      textAlign: 'left',
+    },
+    // Dimensionné par son contenu en hauteur (pleine largeur) → mesure stable.
+    centerInner: {
+      width: '100%',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     title: {
       fontWeight: '800',
       color: palette.text,
       textAlign: 'center',
-      letterSpacing: 0.8,
+      // 0.8 gonflait inutilement la largeur des titres longs.
+      letterSpacing: 0.3,
+      width: '100%',
     },
     subtitle: {
       marginTop: 3,

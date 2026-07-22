@@ -456,8 +456,6 @@ function MenusScreenContent({
         onLeftPress={
           restaurants.length > 1 ? () => setShowSwitcher(true) : undefined
         }
-        showLanguageSwitcher
-        showThemeSwitcher
       />
 
       {/* Modal sélection de restaurant */}

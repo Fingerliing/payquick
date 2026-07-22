@@ -22,7 +22,8 @@ import { useOrder } from '@/contexts/OrderContext';
 import { useRestaurant } from '@/contexts/RestaurantContext';
 import { OrderList } from '@/types/order';
 import { Restaurant } from '@/types/restaurant';
-import { Header } from '@/components/ui/Header';
+import { Header, getHeaderPalette } from '@/components/ui/Header';
+import { RestaurantSwitcherModal } from '@/components/restaurant/RestaurantSwitcherModal';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { StatusBadge } from '@/components/common/StatusBadge';
@@ -249,27 +250,24 @@ const getKanbanColumns = (t: any, colors: AppColors): KanbanColumnDef[] => [
 ];
 
 // ════════════════════════════════════════════════════════════════════════════
-// RestaurantSelector
+// RestaurantStatusBar
 // ════════════════════════════════════════════════════════════════════════════
+// Ne subsistent que les deux états informatifs de l'ancien RestaurantSelector
+// (chargement / aucun établissement). Le choix d'établissement lui-même est
+// passé dans le <Header /> + <RestaurantSwitcherModal /> partagée.
 
-const RestaurantSelector = React.memo(
+const RestaurantStatusBar = React.memo(
   ({
     restaurants,
-    selectedRestaurantId,
-    onSelect,
     isLoading,
     screenType,
   }: {
     restaurants: Restaurant[];
-    selectedRestaurantId: number | null;
-    onSelect: (id: number) => void;
     isLoading: boolean;
     screenType: ScreenType;
   }) => {
     const { t } = useTranslation();
     const { colors } = useAppTheme();
-    const [showModal, setShowModal] = useState(false);
-    const selectedRestaurant = restaurants.find(r => r.id === String(selectedRestaurantId));
 
     const styles = useMemo(
       () => ({
@@ -288,49 +286,6 @@ const RestaurantSelector = React.memo(
           fontSize: getResponsiveValue({ mobile: 16, tablet: 18, desktop: 20 }, screenType),
           fontWeight: '500' as const,
           color: colors.text.primary,
-        },
-        modalOverlay: {
-          flex: 1,
-          backgroundColor: colors.overlay,
-          justifyContent: 'flex-end' as const,
-        },
-        modalContent: {
-          backgroundColor: colors.surface,
-          borderTopLeftRadius: BORDER_RADIUS.xl,
-          borderTopRightRadius: BORDER_RADIUS.xl,
-          maxHeight: '70%' as const,
-        },
-        modalHeader: {
-          flexDirection: 'row' as const,
-          justifyContent: 'space-between' as const,
-          alignItems: 'center' as const,
-          padding: getResponsiveValue(SPACING.lg, screenType),
-          borderBottomWidth: 1,
-          borderBottomColor: colors.border.light,
-        },
-        modalTitle: {
-          fontSize: getResponsiveValue({ mobile: 18, tablet: 20, desktop: 22 }, screenType),
-          fontWeight: '600' as const,
-          color: colors.text.primary,
-        },
-        restaurantOption: {
-          flexDirection: 'row' as const,
-          alignItems: 'center' as const,
-          padding: getResponsiveValue(SPACING.lg, screenType),
-          borderBottomWidth: 1,
-          borderBottomColor: colors.border.light,
-        },
-        restaurantOptionSelected: { backgroundColor: colors.secondary + '15' },
-        restaurantOptionText: {
-          fontSize: getResponsiveValue({ mobile: 16, tablet: 18, desktop: 20 }, screenType),
-          fontWeight: '500' as const,
-          color: colors.text.primary,
-          marginBottom: getResponsiveValue(SPACING.xs, screenType) / 2,
-        },
-        restaurantOptionTextSelected: { color: colors.secondary },
-        restaurantOptionAddress: {
-          fontSize: getResponsiveValue({ mobile: 14, tablet: 15, desktop: 16 }, screenType),
-          color: colors.text.secondary,
         },
       }),
       [colors, screenType],
@@ -358,86 +313,7 @@ const RestaurantSelector = React.memo(
       );
     }
 
-    if (restaurants.length === 1) return null;
-
-    return (
-      <>
-        <Pressable
-          style={styles.selector}
-          onPress={() => setShowModal(true)}
-          android_ripple={{ color: colors.primary + '20', borderless: false }}
-        >
-          <Ionicons name="restaurant" size={iconSize} color={colors.secondary} />
-          <Text style={styles.selectorText}>
-            {selectedRestaurant?.name || t('restaurantOrders.selectRestaurant')}
-          </Text>
-          <Ionicons name="chevron-down" size={iconSize} color={colors.text.secondary} />
-        </Pressable>
-
-        <Modal
-          visible={showModal}
-          transparent
-          animationType="slide"
-          statusBarTranslucent
-          onRequestClose={() => setShowModal(false)}
-        >
-          <SafeAreaView style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>
-                  {t('restaurantOrders.chooseRestaurant')}
-                </Text>
-                <Pressable onPress={() => setShowModal(false)}>
-                  <Ionicons name="close" size={24} color={colors.text.secondary} />
-                </Pressable>
-              </View>
-              <FlatList
-                data={restaurants}
-                keyExtractor={item => item.id}
-                renderItem={({ item }) => (
-                  <Pressable
-                    style={[
-                      styles.restaurantOption,
-                      item.id === String(selectedRestaurantId)
-                        ? styles.restaurantOptionSelected
-                        : null,
-                    ]}
-                    onPress={() => {
-                      onSelect(parseInt(item.id));
-                      setShowModal(false);
-                    }}
-                    android_ripple={{ color: colors.primary + '20', borderless: false }}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text
-                        style={[
-                          styles.restaurantOptionText,
-                          item.id === String(selectedRestaurantId)
-                            ? styles.restaurantOptionTextSelected
-                            : null,
-                        ]}
-                      >
-                        {item.name}
-                      </Text>
-                      <Text style={styles.restaurantOptionAddress}>
-                        {item.address}, {item.city}
-                      </Text>
-                    </View>
-                    {item.id === String(selectedRestaurantId) ? (
-                      <Ionicons
-                        name="checkmark-circle"
-                        size={iconSize}
-                        color={colors.secondary}
-                      />
-                    ) : null}
-                  </Pressable>
-                )}
-              />
-            </View>
-          </SafeAreaView>
-        </Modal>
-      </>
-    );
+    return null;
   },
 );
 
@@ -1324,6 +1200,8 @@ export default function RestaurantOrdersScreen() {
   }, [restaurantOrders]);
 
   const selectedRestaurant = restaurants.find(r => r.id === String(selectedRestaurantId));
+  // Ouverture de la modale de changement d'établissement depuis le Header.
+  const [showRestaurantModal, setShowRestaurantModal] = useState(false);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -1438,7 +1316,7 @@ export default function RestaurantOrdersScreen() {
   if (!isRestaurateur) {
     return (
       <View style={styles.container}>
-        <Header title={t('restaurantNav.orders')} showLanguageSwitcher showThemeSwitcher />
+        <Header title={t('restaurantNav.orders')} />
         <View style={styles.errorContainer}>
           <Ionicons name="lock-closed-outline" size={64} color={colors.secondary} />
           <Text style={styles.errorText}>
@@ -1552,11 +1430,16 @@ export default function RestaurantOrdersScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Le switch d'établissement passe dans le Header (pattern menu.tsx).
+          Pas de `subtitle` ici : le KanbanBanner juste en dessous affiche déjà
+          le nom du restaurant en gros — ce serait redondant. */}
       <Header
         title={t('restaurantOrders.banner.title')}
-        showLanguageSwitcher
-        showThemeSwitcher
         includeSafeArea
+        leftIcon={restaurants.length > 1 ? 'swap-horizontal' : undefined}
+        onLeftPress={
+          restaurants.length > 1 ? () => setShowRestaurantModal(true) : undefined
+        }
       />
 
       <KanbanBanner
@@ -1568,12 +1451,19 @@ export default function RestaurantOrdersScreen() {
         refreshing={refreshing}
       />
 
-      <RestaurantSelector
+      <RestaurantStatusBar
         restaurants={restaurants}
-        selectedRestaurantId={selectedRestaurantId}
-        onSelect={selectRestaurant}
         isLoading={isLoadingRestaurants}
         screenType={screenType}
+      />
+
+      <RestaurantSwitcherModal
+        restaurants={restaurants}
+        currentRestaurantId={selectedRestaurantId}
+        onSelect={(id) => selectRestaurant(parseInt(id, 10))}
+        title={t('restaurantOrders.chooseRestaurant')}
+        visible={showRestaurantModal}
+        onClose={() => setShowRestaurantModal(false)}
       />
 
       {alerts.length > 0 && (
@@ -1773,9 +1663,12 @@ const makeKanbanStyles = (colors: AppColors, isDark: boolean) => {
       backgroundColor: colors.background,
     },
 
-    // ── Bandeau navy (intrinsèquement sombre, stable) ────────────────────
+    // ── Bandeau navy accolé au Header ────────────────────────────────────
+    // Même fond que le Header (navy classique en light, navy profond en dark).
+    // `colors.primary` donnait l'indigo vif de la palette en dark mode, en
+    // rupture nette avec le bandeau du Header juste au-dessus.
     banner: {
-      backgroundColor: colors.primary,
+      backgroundColor: getHeaderPalette(isDark).bg,
       paddingHorizontal: 20,
       paddingBottom: 12,
     },

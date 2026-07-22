@@ -211,8 +211,6 @@ export default function ProfileScreen() {
     <View style={styles.container}>
       <Header
         title={t('restaurantNav.profile')}
-        showLanguageSwitcher
-        showThemeSwitcher
       />
 
       {/* Bannières d'alertes (success / error / info / warning) */}

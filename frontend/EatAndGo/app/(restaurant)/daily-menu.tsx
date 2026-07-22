@@ -391,8 +391,6 @@ function DailyMenuScreenContent({
             params: { restaurantId: String(restaurant.id) },
           } as any)
         }
-        showLanguageSwitcher
-        showThemeSwitcher
       />
 
       {/* Sélecteur de date */}
