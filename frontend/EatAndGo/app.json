@@ -22,7 +22,11 @@
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "EatQuickeR utilise l'appareil photo pour scanner les QR codes de table et accéder au menu du restaurant.",
         "NSPhotoLibraryUsageDescription": "EatQuickeR a besoin d'accéder à vos photos pour personnaliser votre profil ou ajouter une image à un plat (restaurateurs uniquement).",
-        "NSPhotoLibraryAddUsageDescription": "EatQuickeR peut enregistrer le QR code de votre session dans votre galerie pour faciliter le partage."
+        "NSPhotoLibraryAddUsageDescription": "EatQuickeR peut enregistrer le QR code de votre session dans votre galerie pour faciliter le partage.",
+        "NSLocationWhenInUseUsageDescription": "Stripe exige la position de l'appareil à chaque encaissement sans contact, pour la conformité des paiements par carte."
+      },
+      "entitlements": {
+        "com.apple.developer.proximity-reader.payment.acceptance": true
       }
     },
     "android": {
@@ -54,6 +58,11 @@
             "DEFAULT"
           ]
         }
+      ],
+      "permissions": [
+        "android.permission.NFC",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
       ]
     },
     "web": {
@@ -68,6 +77,9 @@
         {
           "ios": {
             "useFrameworks": "static"
+          },
+          "android": {
+            "minSdkVersion": 26
           }
         }
       ],
@@ -100,6 +112,15 @@
         }
       ],
       [
+        "@stripe/stripe-terminal-react-native",
+        {
+          "bluetoothBackgroundMode": false,
+          "locationWhenInUsePermission": "Stripe exige la position de l'appareil à chaque encaissement sans contact.",
+          "bluetoothPeripheralPermission": "EatQuickeR n'utilise pas de lecteur Bluetooth, mais le SDK Stripe Terminal déclare cette permission.",
+          "bluetoothAlwaysUsagePermission": "EatQuickeR n'utilise pas de lecteur Bluetooth, mais le SDK Stripe Terminal déclare cette permission."
+        }
+      ],
+      [
         "@react-native-google-signin/google-signin",
         {
           "iosUrlScheme": "com.googleusercontent.apps.161444086922-0e30dfkvqiba6o9vhce8ap5432ptkqrt"
@@ -115,18 +136,7 @@
         }
       ],
       "expo-apple-authentication",
-      "react-native-edge-to-edge",
-      [
-        "@stripe/stripe-terminal-react-native",
-        {
-          "appDelegate": true,
-          "tapToPayCheck": true,
-          "bluetoothBackgroundMode": false,
-          "locationWhenInUsePermission": "Stripe exige la position de l'appareil à chaque encaissement sans contact.",
-          "bluetoothPeripheralPermission": "EatQuickeR n'utilise pas de lecteur Bluetooth, mais le SDK Stripe Terminal déclare cette permission.",
-          "bluetoothAlwaysUsagePermission": "EatQuickeR n'utilise pas de lecteur Bluetooth, mais le SDK Stripe Terminal déclare cette permission."
-        }
-      ]
+      "react-native-edge-to-edge"
     ],
     "extra": {
       "apiUrl": "https://api.eatquicker.fr",
