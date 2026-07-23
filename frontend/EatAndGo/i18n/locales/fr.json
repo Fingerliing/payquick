@@ -1738,10 +1738,12 @@
     "cashPayments": "Paiements espèces",
     "grossTotal": "Total brut",
     "feesTitle": "Frais et commissions",
-    "stripeFeesNote": "Applicable uniquement aux paiements par carte. Les frais Stripe sont déduits séparément.",
+    "stripeFeesNote": "La commission ne s'applique qu'aux encaissements passant par l'application. Les frais Stripe sont déduits séparément.",
     "platformCommissionLine": "Commission EatQuickeR : {{amount}}",
     "legendGross": "CA brut : {{amount}}",
-    "legendCommission": "Commission : {{amount}}"
+    "legendCommission": "Commission : {{amount}}",
+    "commissionablePayments": "Encaissé via l'application",
+    "cardOfflinePayments": "TPE du restaurant"
   },
   "openingHours": {
     "title": "Horaires d'ouverture",
@@ -3224,8 +3226,10 @@
     "checkout": {
       "laterTitle": "Payer plus tard",
       "laterDesc": "La commande part en cuisine, encaissement au comptoir.",
-      "nowTitle": "Encaisser maintenant",
-      "nowDesc": "Carte bancaire ou espèces, immédiatement."
+      "terminalTitle": "Encaisser sans contact",
+      "terminalDesc": "Carte ou téléphone du client contre cet appareil.",
+      "onlineTitle": "Encaisser en ligne",
+      "onlineDesc": "Règlement par carte via l'application."
     },
     "total": "Total",
     "submitToKitchen": "Envoyer en cuisine",
@@ -3238,5 +3242,43 @@
     "discardMessage_one": "{{count}} article sera perdu.",
     "discardMessage_other": "{{count}} articles seront perdus.",
     "discardConfirm": "Abandonner"
+  },
+  "terminal": {
+    "title": "Encaissement sans contact",
+    "connecting": "Préparation du lecteur…",
+    "connectingHint": "Le téléphone se configure en terminal de paiement.",
+    "unsupportedTitle": "Appareil non compatible",
+    "unsupportedMessage": "L'encaissement sans contact nécessite un iPhone XS ou plus récent, ou un Android 12 ou plus récent équipé du NFC.",
+    "readyTitle": "Prêt à encaisser",
+    "readyHint": "Lancez l'encaissement, puis présentez le dos du téléphone à la carte du client.",
+    "startCollect": "Encaisser sans contact",
+    "preparing": "Ouverture de la transaction…",
+    "tapPrompt": "Présentez la carte",
+    "tapHint": "Carte, téléphone ou montre contre le dos de l'appareil.",
+    "pinHint": "Au-delà de 50 €, le client saisit son code dans l'écran sécurisé du téléphone. Tendez-lui l'appareil.",
+    "confirming": "Autorisation en cours…",
+    "confirmingHint": "Ne coupez pas la connexion.",
+    "settlingTitle": "Paiement accepté",
+    "settlingMessage": "La carte a bien été débitée. La commande sera marquée payée au retour du réseau — ne l'encaissez pas une seconde fois.",
+    "successTitle": "Paiement encaissé",
+    "successMessage": "{{amount}} encaissés. La commande est réglée.",
+    "failedTitle": "Encaissement interrompu",
+    "backToOrder": "Revenir à la commande",
+    "leaveUnpaid": "Encaisser plus tard",
+    "fallbackAction": "Basculer sur le paiement en ligne",
+    "orderNotFound": "Commande introuvable.",
+    "alreadyPaid": "Cette commande est déjà réglée.",
+    "failure": {
+      "permissions": "La localisation est obligatoire pour accepter un paiement sans contact. Autorisez-la dans les réglages de l'appareil.",
+      "unsupported": "Cet appareil ne peut pas encaisser sans contact.",
+      "location": "L'adresse de l'établissement est incomplète : complétez-la dans le profil du restaurant.",
+      "connection": "Impossible d'activer le lecteur. Réessayez.",
+      "intent": "La transaction n'a pas pu être ouverte. Rien n'a été débité.",
+      "declined": "Paiement refusé par la banque du client. Rien n'a été débité.",
+      "canceled": "Encaissement annulé. Rien n'a été débité.",
+      "timeout": "Aucune carte détectée à temps. Rien n'a été débité.",
+      "network": "Connexion perdue. Le code du client est vérifié en ligne : rien n'a été débité.",
+      "unknown": "L'encaissement n'a pas abouti. Rien n'a été débité."
+    }
   }
 }

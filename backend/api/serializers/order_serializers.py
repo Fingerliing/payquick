@@ -196,6 +196,22 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Ce restaurant n'est pas actif")
         return value
 
+    def validate_payment_method(self, value):
+        """
+        Une commande naît NON encaissée : payment_method reste vide jusqu'à
+        l'encaissement effectif.
+
+        Sans cette règle, l'écran de prise de commande en salle étiquetait
+        toute commande « espèces » dès sa création, avant qu'un euro ait
+        changé de main — les statistiques de commission comptaient alors du
+        non-commissionnable qui finissait pourtant sur Stripe.
+        """
+        if value in ('online', 'terminal'):
+            raise serializers.ValidationError(
+                "La méthode de paiement est renseignée à l'encaissement, pas à la création."
+            )
+        return value or ''
+
     def validate_order_type(self, value):
         if value not in ['dine_in', 'takeaway']:
             raise serializers.ValidationError(
@@ -574,8 +590,10 @@ class OrderDetailSerializer(serializers.ModelSerializer):
 
     def get_payment_method_display(self, obj):
         method_mapping = {
+            '': '⏳ Non encaissé',
             'cash': '💵 Espèces',
-            'card': '💳 Carte sur place',
+            'card': '💳 TPE du restaurant',
+            'terminal': '📱 Sans contact',
             'online': '🌐 Paiement en ligne'
         }
         return method_mapping.get(obj.payment_method, obj.payment_method)
@@ -712,12 +730,35 @@ class OrderWithTableInfoSerializer(serializers.ModelSerializer):
 
 
 class OrderPaymentSerializer(serializers.ModelSerializer):
-    """Serializer for marking orders as paid"""
+    """
+    Écriture du règlement d'une commande.
+
+    `online` et `terminal` transitent par Stripe et portent l'application_fee.
+    Ils ne sont donc PAS déclarables par un client HTTP : seuls les appelants
+    qui ont relu le PaymentIntent auprès de Stripe (webhook, TerminalConfirmView)
+    passent `trusted_source=True` dans le contexte.
+
+    Sans cette règle, n'importe quel appel authentifié pourrait étiqueter une
+    commande `terminal` sans PaymentIntent — ou l'inverse — et la répartition
+    commissionnable / non commissionnable cesserait d'être opposable.
+    """
+
+    DECLARATIVE_METHODS = ('cash', 'card')
+    STRIPE_METHODS = ('online', 'terminal')
 
     class Meta:
         model = Order
         fields = ['id', 'payment_method', 'payment_status']
         read_only_fields = ['id']
+
+    def validate_payment_method(self, value):
+        if value in self.STRIPE_METHODS and not self.context.get('trusted_source'):
+            raise serializers.ValidationError(
+                "Cette méthode ne peut être enregistrée que par le flux de paiement Stripe."
+            )
+        if value not in self.DECLARATIVE_METHODS + self.STRIPE_METHODS:
+            raise serializers.ValidationError("Méthode de paiement inconnue.")
+        return value
 
     def update(self, instance, validated_data):
         instance.payment_status = 'paid'

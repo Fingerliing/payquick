@@ -372,10 +372,19 @@ export interface PaymentMethodRevenue {
 }
 
 /**
- * Répartition des revenus par méthode de paiement
+ * Répartition des revenus par méthode de paiement.
+ *
+ * `card` a disparu volontairement : cette clé agrégeait les encaissements
+ * dans l'app ET le TPE du restaurant, puis se voyait appliquer 2 %. Le TPE
+ * du restaurant n'ayant jamais transité par la plateforme, le restaurateur
+ * voyait une commission qui ne lui serait pas prélevée. Toute lecture
+ * résiduelle de `.card` casse maintenant à la compilation, ce qui est voulu.
  */
 export interface RevenueByPaymentMethod {
-  card: PaymentMethodRevenue;
+  /** Encaissements passant par Stripe (QR code client + Tap to Pay serveur). */
+  commissionable: PaymentMethodRevenue;
+  /** TPE du restaurant : hors plateforme, donc hors commission. */
+  card_offline: PaymentMethodRevenue;
   cash: PaymentMethodRevenue;
 }
 
@@ -383,6 +392,7 @@ export interface RevenueByPaymentMethod {
  * Détail de la commission plateforme
  */
 export interface CommissionDetails {
+  /** Calculé sur `by_payment_method.commissionable` uniquement. */
   platform_fee: number;
   platform_rate: number;  // En pourcentage (ex: 2 pour 2%)
   net_revenue: number;

@@ -93,8 +93,20 @@ type AlertItem = {
   message: string;
 };
 
-/** Ce que le serveur fait de la commande une fois créée. */
-type CheckoutMode = 'later' | 'now';
+/**
+ * Où part la commande une fois créée. C'est une décision de ROUTAGE, pas un
+ * `payment_method` : la méthode réelle n'est écrite qu'à l'encaissement, par
+ * le canal qui l'a effectivement réalisé.
+ */
+type CheckoutMode = 'later' | 'terminal' | 'online';
+
+const CHECKOUT_MODES: readonly CheckoutMode[] = ['later', 'terminal', 'online'];
+
+const CHECKOUT_ICONS: Record<CheckoutMode, keyof typeof Ionicons.glyphMap> = {
+  later: 'time-outline',
+  terminal: 'wifi',
+  online: 'qr-code-outline',
+};
 
 // CTA dorée : mêmes valeurs que le bouton « Prendre une commande » du Kanban.
 // Le doré plein éblouit sur les fonds sombres, on l'assourdit en dark ; l'encre
@@ -410,7 +422,9 @@ export default function TakeOrderScreen() {
       order_type: 'dine_in',
       table_number: tableNumber,
       customer_name: t('takeOrder.tableLabel', { number: tableNumber }),
-      payment_method: 'cash',
+      // Pas de `payment_method` : la commande naît non encaissée. La renseigner
+      // ici étiquetait toute commande serveur comme « espèces » dans les stats
+      // de commission, avant même qu'un euro ait changé de main.
       notes: notesParts.join(' — '),
       items,
     };
@@ -445,17 +459,26 @@ export default function TakeOrderScreen() {
       setReviewOpen(false);
       resetCart();
 
+      // Encaissement immédiat : le client est devant le serveur. `expo-print`
+      // ouvre le sélecteur d'imprimante système à CHAQUE appel, et son `await`
+      // retient la navigation — on ne l'intercale pas dans un flux de paiement.
+      // Le bon reste imprimable depuis le détail de commande, via
+      // `kitchenTicketFromOrder`.
+      if (checkoutMode !== 'later' && orderId) {
+        const route =
+          checkoutMode === 'terminal'
+            ? `/order/terminal/${orderId}`
+            : `/order/payment?orderId=${orderId}`;
+        router.replace(route as any);
+        return;
+      }
+
       // L'envoi en cuisine ne doit jamais dépendre du succès de l'impression :
       // la commande est enregistrée, un échec papier se rattrape.
       try {
         await printKitchenTicket(ticket);
       } catch {
         setReprintTicket(ticket);
-      }
-
-      if (checkoutMode === 'now' && orderId) {
-        router.replace(`/order/payment?orderId=${orderId}` as any);
-        return;
       }
 
       pushAlert(
@@ -859,7 +882,7 @@ export default function TakeOrderScreen() {
 
               {/* Encaissement */}
               <Text style={styles.fieldLabel}>{t('takeOrder.checkoutLabel')}</Text>
-              {(['later', 'now'] as CheckoutMode[]).map(mode => {
+              {CHECKOUT_MODES.map(mode => {
                 const selected = checkoutMode === mode;
                 return (
                   <Pressable
@@ -873,7 +896,7 @@ export default function TakeOrderScreen() {
                       {selected && <View style={styles.radioDot} />}
                     </View>
                     <Ionicons
-                      name={mode === 'later' ? 'time-outline' : 'card-outline'}
+                      name={CHECKOUT_ICONS[mode]}
                       size={20}
                       color={selected ? colors.primary : colors.text.secondary}
                     />
@@ -897,9 +920,9 @@ export default function TakeOrderScreen() {
               </View>
               <Button
                 title={
-                  checkoutMode === 'now'
-                    ? t('takeOrder.submitAndPay')
-                    : t('takeOrder.submitToKitchen')
+                  checkoutMode === 'later'
+                    ? t('takeOrder.submitToKitchen')
+                    : t('takeOrder.submitAndPay')
                 }
                 onPress={handleSubmit}
                 loading={submitting}
@@ -908,7 +931,7 @@ export default function TakeOrderScreen() {
                 textStyle={{ color: INK_ON_GOLD }}
                 leftIcon={
                   <Ionicons
-                    name={checkoutMode === 'now' ? 'card' : 'send'}
+                    name={checkoutMode === 'later' ? 'send' : CHECKOUT_ICONS[checkoutMode]}
                     size={18}
                     color={INK_ON_GOLD}
                   />

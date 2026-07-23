@@ -1738,10 +1738,12 @@
     "cashPayments": "Pagamenti in contanti",
     "grossTotal": "Totale lordo",
     "feesTitle": "Commissioni e oneri",
-    "stripeFeesNote": "Applicabile solo ai pagamenti con carta. Le commissioni Stripe vengono dedotte separatamente.",
+    "stripeFeesNote": "La commissione si applica solo agli incassi che passano dall'app. Le commissioni Stripe sono detratte a parte.",
     "platformCommissionLine": "Commissione EatQuickeR: {{amount}}",
     "legendGross": "Fatturato lordo: {{amount}}",
-    "legendCommission": "Commissione: {{amount}}"
+    "legendCommission": "Commissione: {{amount}}",
+    "commissionablePayments": "Incassato tramite l'app",
+    "cardOfflinePayments": "POS del ristorante"
   },
   "openingHours": {
     "title": "Orari di apertura",
@@ -3224,8 +3226,10 @@
     "checkout": {
       "laterTitle": "Pagare più tardi",
       "laterDesc": "L'ordine va in cucina, incasso alla cassa.",
-      "nowTitle": "Incassare ora",
-      "nowDesc": "Carta o contanti, subito."
+      "terminalTitle": "Incassa senza contatto",
+      "terminalDesc": "Il cliente avvicina carta o telefono a questo dispositivo.",
+      "onlineTitle": "Incassa online",
+      "onlineDesc": "Pagamento con carta tramite l'app."
     },
     "total": "Totale",
     "submitToKitchen": "Invia in cucina",
@@ -3238,5 +3242,43 @@
     "discardMessage_one": "{{count}} articolo andrà perso.",
     "discardMessage_other": "{{count}} articoli andranno persi.",
     "discardConfirm": "Annulla"
+  },
+  "terminal": {
+    "title": "Incasso senza contatto",
+    "connecting": "Preparazione del lettore…",
+    "connectingHint": "Il telefono si sta configurando come terminale di pagamento.",
+    "unsupportedTitle": "Dispositivo non compatibile",
+    "unsupportedMessage": "L'incasso senza contatto richiede un iPhone XS o successivo, oppure un Android 12 o successivo con NFC.",
+    "readyTitle": "Pronto a incassare",
+    "readyHint": "Avvia l'incasso, poi avvicina il retro del telefono alla carta del cliente.",
+    "startCollect": "Incassa senza contatto",
+    "preparing": "Apertura della transazione…",
+    "tapPrompt": "Avvicina la carta",
+    "tapHint": "Carta, telefono o orologio contro il retro del dispositivo.",
+    "pinHint": "Oltre 50 €, il cliente digita il PIN sulla schermata sicura del telefono. Passagli il dispositivo.",
+    "confirming": "Autorizzazione in corso…",
+    "confirmingHint": "Non interrompere la connessione.",
+    "settlingTitle": "Pagamento accettato",
+    "settlingMessage": "La carta è stata addebitata. L'ordine risulterà pagato al ritorno della rete: non incassarlo una seconda volta.",
+    "successTitle": "Pagamento incassato",
+    "successMessage": "{{amount}} incassati. L'ordine è saldato.",
+    "failedTitle": "Incasso interrotto",
+    "backToOrder": "Torna all'ordine",
+    "leaveUnpaid": "Incassa più tardi",
+    "fallbackAction": "Passa al pagamento online",
+    "orderNotFound": "Ordine non trovato.",
+    "alreadyPaid": "Questo ordine è già saldato.",
+    "failure": {
+      "permissions": "La posizione è obbligatoria per accettare pagamenti senza contatto. Autorizzala nelle impostazioni del dispositivo.",
+      "unsupported": "Questo dispositivo non può accettare pagamenti senza contatto.",
+      "location": "L'indirizzo del locale è incompleto: completalo nel profilo del ristorante.",
+      "connection": "Impossibile attivare il lettore. Riprova.",
+      "intent": "Non è stato possibile aprire la transazione. Nessun addebito.",
+      "declined": "Rifiutato dalla banca del cliente. Nessun addebito.",
+      "canceled": "Incasso annullato. Nessun addebito.",
+      "timeout": "Nessuna carta rilevata in tempo. Nessun addebito.",
+      "network": "Connessione persa. Il PIN viene verificato online, quindi nessun addebito.",
+      "unknown": "L'incasso non è andato a buon fine. Nessun addebito."
+    }
   }
 }

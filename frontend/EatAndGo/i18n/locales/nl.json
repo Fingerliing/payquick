@@ -1738,10 +1738,12 @@
     "cashPayments": "Contante betalingen",
     "grossTotal": "Bruto totaal",
     "feesTitle": "Kosten en commissies",
-    "stripeFeesNote": "Alleen van toepassing op kaartbetalingen. Stripe-kosten worden apart ingehouden.",
+    "stripeFeesNote": "De commissie geldt alleen voor betalingen die via de app lopen. Stripe-kosten worden apart ingehouden.",
     "platformCommissionLine": "EatQuickeR-commissie: {{amount}}",
     "legendGross": "Bruto-omzet: {{amount}}",
-    "legendCommission": "Commissie: {{amount}}"
+    "legendCommission": "Commissie: {{amount}}",
+    "commissionablePayments": "Afgerekend via de app",
+    "cardOfflinePayments": "Eigen pinautomaat"
   },
   "openingHours": {
     "title": "Openingstijden",
@@ -3224,8 +3226,10 @@
     "checkout": {
       "laterTitle": "Later betalen",
       "laterDesc": "De bestelling gaat naar de keuken, afrekenen aan de balie.",
-      "nowTitle": "Nu afrekenen",
-      "nowDesc": "Kaart of contant, direct."
+      "terminalTitle": "Contactloos afrekenen",
+      "terminalDesc": "De gast houdt kaart of telefoon tegen dit toestel.",
+      "onlineTitle": "Online afrekenen",
+      "onlineDesc": "Kaartbetaling via de app."
     },
     "total": "Totaal",
     "submitToKitchen": "Naar de keuken sturen",
@@ -3238,5 +3242,43 @@
     "discardMessage_one": "{{count}} artikel gaat verloren.",
     "discardMessage_other": "{{count}} artikelen gaan verloren.",
     "discardConfirm": "Verwerpen"
+  },
+  "terminal": {
+    "title": "Contactloos afrekenen",
+    "connecting": "Lezer voorbereiden…",
+    "connectingHint": "De telefoon wordt ingesteld als betaalterminal.",
+    "unsupportedTitle": "Toestel niet ondersteund",
+    "unsupportedMessage": "Contactloos afrekenen vereist een iPhone XS of nieuwer, of een Android 12 of nieuwer met NFC.",
+    "readyTitle": "Klaar om af te rekenen",
+    "readyHint": "Start de betaling en houd de achterkant van de telefoon tegen de kaart van de gast.",
+    "startCollect": "Contactloos afrekenen",
+    "preparing": "Transactie openen…",
+    "tapPrompt": "Houd de kaart tegen het toestel",
+    "tapHint": "Kaart, telefoon of horloge tegen de achterkant van het toestel.",
+    "pinHint": "Boven € 50 voert de gast zijn pincode in op het beveiligde scherm van de telefoon. Geef hem het toestel.",
+    "confirming": "Autoriseren…",
+    "confirmingHint": "Verbreek de verbinding niet.",
+    "settlingTitle": "Betaling geaccepteerd",
+    "settlingMessage": "De kaart is belast. De bestelling wordt als betaald gemarkeerd zodra het netwerk terug is — reken niet nogmaals af.",
+    "successTitle": "Betaling ontvangen",
+    "successMessage": "{{amount}} ontvangen. De bestelling is voldaan.",
+    "failedTitle": "Afrekenen onderbroken",
+    "backToOrder": "Terug naar de bestelling",
+    "leaveUnpaid": "Later afrekenen",
+    "fallbackAction": "Overschakelen op online betaling",
+    "orderNotFound": "Bestelling niet gevonden.",
+    "alreadyPaid": "Deze bestelling is al voldaan.",
+    "failure": {
+      "permissions": "Locatietoegang is verplicht voor contactloze betalingen. Sta die toe in de instellingen van het toestel.",
+      "unsupported": "Dit toestel kan geen contactloze betalingen accepteren.",
+      "location": "Het adres van de zaak is onvolledig: vul het aan in het restaurantprofiel.",
+      "connection": "De lezer kon niet worden gestart. Probeer opnieuw.",
+      "intent": "De transactie kon niet worden geopend. Er is niets afgeschreven.",
+      "declined": "Geweigerd door de bank van de gast. Er is niets afgeschreven.",
+      "canceled": "Betaling geannuleerd. Er is niets afgeschreven.",
+      "timeout": "Geen kaart op tijd gedetecteerd. Er is niets afgeschreven.",
+      "network": "Verbinding verbroken. De pincode wordt online gecontroleerd, dus er is niets afgeschreven.",
+      "unknown": "De betaling is niet gelukt. Er is niets afgeschreven."
+    }
   }
 }

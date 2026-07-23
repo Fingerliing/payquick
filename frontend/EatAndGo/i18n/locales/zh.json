@@ -1739,10 +1739,12 @@
     "cashPayments": "现金支付",
     "grossTotal": "毛总额",
     "feesTitle": "费用与佣金",
-    "stripeFeesNote": "仅适用于银行卡支付。Stripe 费用将单独扣除。",
+    "stripeFeesNote": "佣金仅适用于通过应用完成的收款。Stripe 手续费另行扣除。",
     "platformCommissionLine": "EatQuickeR 佣金：{{amount}}",
     "legendGross": "毛营业额：{{amount}}",
-    "legendCommission": "佣金：{{amount}}"
+    "legendCommission": "佣金：{{amount}}",
+    "commissionablePayments": "通过应用收款",
+    "cardOfflinePayments": "餐厅自有刷卡机"
   },
   "openingHours": {
     "title": "营业时间",
@@ -3225,8 +3227,10 @@
     "checkout": {
       "laterTitle": "稍后付款",
       "laterDesc": "订单送往厨房，前台结账。",
-      "nowTitle": "立即收款",
-      "nowDesc": "刷卡或现金，即时完成。"
+      "terminalTitle": "感应收款",
+      "terminalDesc": "顾客将银行卡或手机贴近本设备。",
+      "onlineTitle": "在线收款",
+      "onlineDesc": "通过应用完成银行卡支付。"
     },
     "total": "合计",
     "submitToKitchen": "发送至厨房",
@@ -3239,5 +3243,43 @@
     "discardMessage_one": "将丢失 {{count}} 件商品。",
     "discardMessage_other": "将丢失 {{count}} 件商品。",
     "discardConfirm": "放弃"
+  },
+  "terminal": {
+    "title": "感应收款",
+    "connecting": "正在准备读卡器…",
+    "connectingHint": "正在将本机配置为支付终端。",
+    "unsupportedTitle": "设备不支持",
+    "unsupportedMessage": "感应收款需要 iPhone XS 或更新机型，或支持 NFC 的 Android 12 及以上系统。",
+    "readyTitle": "可以开始收款",
+    "readyHint": "开始收款后，将手机背面靠近顾客的银行卡。",
+    "startCollect": "开始感应收款",
+    "preparing": "正在建立交易…",
+    "tapPrompt": "请贴近银行卡",
+    "tapHint": "将银行卡、手机或手表贴近本机背面。",
+    "pinHint": "金额超过 50 欧元时，顾客需在手机的安全界面输入密码，请将设备递给顾客。",
+    "confirming": "正在授权…",
+    "confirmingHint": "请勿断开网络。",
+    "settlingTitle": "支付已受理",
+    "settlingMessage": "银行卡已扣款。网络恢复后订单会自动标记为已支付，请勿重复收款。",
+    "successTitle": "收款成功",
+    "successMessage": "已收款 {{amount}}。订单已结清。",
+    "failedTitle": "收款中断",
+    "backToOrder": "返回订单",
+    "leaveUnpaid": "稍后收款",
+    "fallbackAction": "改用在线支付",
+    "orderNotFound": "未找到该订单。",
+    "alreadyPaid": "该订单已结清。",
+    "failure": {
+      "permissions": "感应收款必须获取位置权限，请在设备设置中开启。",
+      "unsupported": "本设备无法进行感应收款。",
+      "location": "门店地址不完整，请在餐厅资料中补充。",
+      "connection": "无法启动读卡器，请重试。",
+      "intent": "无法建立交易，未产生扣款。",
+      "declined": "顾客的银行拒绝了本次支付，未产生扣款。",
+      "canceled": "收款已取消，未产生扣款。",
+      "timeout": "未及时检测到银行卡，未产生扣款。",
+      "network": "网络中断。密码需联网校验，因此未产生扣款。",
+      "unknown": "收款未完成，未产生扣款。"
+    }
   }
 }

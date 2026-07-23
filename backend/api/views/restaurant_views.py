@@ -323,14 +323,30 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             # 3. ANALYSE FINANCIÈRE
             # ====================================================================
             
-            # Constante de commission plateforme (2%)
-            PLATFORM_COMMISSION_RATE = Decimal('0.02')
+            # Source unique de vérité : ne pas redéfinir le taux ici.
+            from api.utils.commission_utils import (
+                PLATFORM_COMMISSION_RATE,
+                COMMISSIONABLE_METHODS,
+            )
             
-            # Revenus par méthode de paiement - CARTE
-            card_revenue = Order.objects.filter(
+            # Encaissements passant par Stripe : seuls porteurs de la commission
+            # ('online' au QR code, 'terminal' en Tap to Pay, 'stripe' historique)
+            commissionable_revenue = Order.objects.filter(
                 restaurant=restaurant,
                 payment_status='paid',
-                payment_method__in=['online', 'card', 'stripe'],
+                payment_method__in=COMMISSIONABLE_METHODS,
+                created_at__gte=start_date
+            ).aggregate(
+                total=Sum('total_amount'),
+                count=Count('id')
+            )
+            
+            # TPE du restaurant : l'argent ne transite pas par la plateforme,
+            # donc aucune commission n'est prélevable dessus.
+            card_offline_revenue = Order.objects.filter(
+                restaurant=restaurant,
+                payment_status='paid',
+                payment_method='card',
                 created_at__gte=start_date
             ).aggregate(
                 total=Sum('total_amount'),
@@ -349,24 +365,29 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             )
             
             # Valeurs avec fallback à 0
-            card_total = Decimal(str(card_revenue['total'] or 0))
-            card_count = card_revenue['count'] or 0
+            commissionable_total = Decimal(str(commissionable_revenue['total'] or 0))
+            commissionable_count = commissionable_revenue['count'] or 0
+            card_offline_total = Decimal(str(card_offline_revenue['total'] or 0))
+            card_offline_count = card_offline_revenue['count'] or 0
             cash_total = Decimal(str(cash_revenue['total'] or 0))
             cash_count = cash_revenue['count'] or 0
             
             # Calcul des totaux
-            gross_total = card_total + cash_total
-            total_orders_paid = card_count + cash_count
+            gross_total = commissionable_total + card_offline_total + cash_total
+            total_orders_paid = commissionable_count + card_offline_count + cash_count
             
-            # Commission plateforme (uniquement sur paiements carte)
-            platform_fee = (card_total * PLATFORM_COMMISSION_RATE).quantize(
+            # Commission plateforme (uniquement sur ce qui passe par Stripe)
+            platform_fee = (commissionable_total * PLATFORM_COMMISSION_RATE).quantize(
                 Decimal('0.01'), rounding=ROUND_HALF_UP
             )
             net_revenue = gross_total - platform_fee
             
             # Tickets moyens
             avg_order_value = float(gross_total / max(total_orders_paid, 1))
-            avg_card_order = float(card_total / max(card_count, 1))
+            avg_commissionable_order = float(
+                commissionable_total / max(commissionable_count, 1))
+            avg_card_offline_order = float(
+                card_offline_total / max(card_offline_count, 1))
             avg_cash_order = float(cash_total / max(cash_count, 1))
             
             # Comparaison avec la période précédente
@@ -568,12 +589,20 @@ class RestaurantViewSet(viewsets.ModelViewSet):
                     'evolution_percent': revenue_evolution,
                     'avg_order_value': avg_order_value,
                     
-                    # Détail par méthode de paiement
+                    # Détail par méthode de paiement.
+                    # La clé 'card' a disparu volontairement : elle agrégeait
+                    # l'app et le TPE du restaurant, ce qui faisait afficher au
+                    # restaurateur une commission qui ne lui serait pas prélevée.
                     'by_payment_method': {
-                        'card': {
-                            'total': float(card_total),
-                            'count': card_count,
-                            'avg_order': avg_card_order,
+                        'commissionable': {
+                            'total': float(commissionable_total),
+                            'count': commissionable_count,
+                            'avg_order': avg_commissionable_order,
+                        },
+                        'card_offline': {
+                            'total': float(card_offline_total),
+                            'count': card_offline_count,
+                            'avg_order': avg_card_offline_order,
                         },
                         'cash': {
                             'total': float(cash_total),

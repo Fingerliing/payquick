@@ -423,18 +423,26 @@ class StripeWebhookView(APIView):
 
         from api.serializers.order_serializers import OrderPaymentSerializer
 
+        # Filet asynchrone du flux Tap to Pay : si TerminalConfirmView n'a pas
+        # abouti (réseau coupé juste après la capture), c'est ce chemin qui
+        # écrit — il doit conserver le canal réel, pas retomber sur 'online',
+        # sinon la commande sort des statistiques Tap to Pay.
+        channel = metadata.get('payment_channel')
+        method = 'terminal' if channel == 'terminal' else 'online'
+
         serializer = OrderPaymentSerializer(
             order,
             data={
-                'payment_method': 'online',
+                'payment_method': method,
                 'payment_status': 'paid'
             },
-            partial=True
+            partial=True,
+            context={'trusted_source': True}
         )
 
         if serializer.is_valid():
             serializer.save()
-            logger.info(f"Order {order_id} marked as paid with method 'online'")
+            logger.info(f"Order {order_id} marked as paid with method '{method}'")
 
             # ── Réservation avec pré-commande : confirmation ─────────────
             # La commande reste en status='scheduled' (hors file cuisine) ;
@@ -1000,11 +1008,26 @@ class UpdatePaymentStatusView(APIView):
             order.payment_status = payment_status
 
             if payment_method:
-                if payment_method not in ['cash', 'card', 'online']:
+                DECLARATIVE_METHODS = ('cash', 'card')
+                STRIPE_METHODS = ('online', 'terminal')
+
+                if payment_method not in DECLARATIVE_METHODS + STRIPE_METHODS:
                     return Response(
                         {'error': 'Invalid payment method'},
                         status=status.HTTP_400_BAD_REQUEST
                     )
+
+                # Une méthode Stripe n'est acceptée que sur le chemin qui vient
+                # de relire le PaymentIntent (STRIPE_VERIFIED_STATUSES) : sinon
+                # n'importe quel appelant authentifié pourrait se déclarer
+                # commissionnable sans qu'un euro soit passé par la plateforme.
+                if (payment_method in STRIPE_METHODS
+                        and payment_status not in self.STRIPE_VERIFIED_STATUSES):
+                    return Response(
+                        {'error': 'This payment method requires a verified payment intent'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
                 order.payment_method = payment_method
 
             order.save()

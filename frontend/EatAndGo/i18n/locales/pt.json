@@ -1738,10 +1738,12 @@
     "cashPayments": "Pagamentos em dinheiro",
     "grossTotal": "Total bruto",
     "feesTitle": "Taxas e comissões",
-    "stripeFeesNote": "Aplicável apenas a pagamentos por cartão. As taxas Stripe são deduzidas separadamente.",
+    "stripeFeesNote": "A comissão aplica-se apenas às cobranças efetuadas através da aplicação. As taxas Stripe são deduzidas à parte.",
     "platformCommissionLine": "Comissão EatQuickeR: {{amount}}",
     "legendGross": "Receita bruta: {{amount}}",
-    "legendCommission": "Comissão: {{amount}}"
+    "legendCommission": "Comissão: {{amount}}",
+    "commissionablePayments": "Cobrado através da aplicação",
+    "cardOfflinePayments": "TPA do restaurante"
   },
   "openingHours": {
     "title": "Horário de funcionamento",
@@ -3224,8 +3226,10 @@
     "checkout": {
       "laterTitle": "Pagar mais tarde",
       "laterDesc": "O pedido segue para a cozinha, pagamento ao balcão.",
-      "nowTitle": "Cobrar agora",
-      "nowDesc": "Cartão ou dinheiro, de imediato."
+      "terminalTitle": "Cobrar por aproximação",
+      "terminalDesc": "O cliente aproxima o cartão ou telemóvel deste aparelho.",
+      "onlineTitle": "Cobrar online",
+      "onlineDesc": "Pagamento com cartão através da aplicação."
     },
     "total": "Total",
     "submitToKitchen": "Enviar para a cozinha",
@@ -3238,5 +3242,43 @@
     "discardMessage_one": "{{count}} artigo será perdido.",
     "discardMessage_other": "{{count}} artigos serão perdidos.",
     "discardConfirm": "Abandonar"
+  },
+  "terminal": {
+    "title": "Cobrança por aproximação",
+    "connecting": "A preparar o leitor…",
+    "connectingHint": "O telemóvel está a ser configurado como terminal de pagamento.",
+    "unsupportedTitle": "Dispositivo não compatível",
+    "unsupportedMessage": "A cobrança por aproximação exige um iPhone XS ou mais recente, ou um Android 12 ou mais recente com NFC.",
+    "readyTitle": "Pronto a cobrar",
+    "readyHint": "Inicie a cobrança e aproxime a parte de trás do telemóvel do cartão do cliente.",
+    "startCollect": "Cobrar por aproximação",
+    "preparing": "A abrir a transação…",
+    "tapPrompt": "Aproxime o cartão",
+    "tapHint": "Cartão, telemóvel ou relógio contra a parte de trás do aparelho.",
+    "pinHint": "Acima de 50 €, o cliente introduz o PIN no ecrã seguro do telemóvel. Entregue-lhe o aparelho.",
+    "confirming": "A autorizar…",
+    "confirmingHint": "Não corte a ligação.",
+    "settlingTitle": "Pagamento aceite",
+    "settlingMessage": "O cartão foi debitado. O pedido será marcado como pago quando a rede regressar — não o cobre uma segunda vez.",
+    "successTitle": "Pagamento cobrado",
+    "successMessage": "{{amount}} cobrados. O pedido está liquidado.",
+    "failedTitle": "Cobrança interrompida",
+    "backToOrder": "Voltar ao pedido",
+    "leaveUnpaid": "Cobrar mais tarde",
+    "fallbackAction": "Mudar para pagamento online",
+    "orderNotFound": "Pedido não encontrado.",
+    "alreadyPaid": "Este pedido já está liquidado.",
+    "failure": {
+      "permissions": "A localização é obrigatória para aceitar pagamentos por aproximação. Autorize-a nas definições do aparelho.",
+      "unsupported": "Este aparelho não pode aceitar pagamentos por aproximação.",
+      "location": "A morada do estabelecimento está incompleta: complete-a no perfil do restaurante.",
+      "connection": "Não foi possível ativar o leitor. Tente novamente.",
+      "intent": "Não foi possível abrir a transação. Nada foi debitado.",
+      "declined": "Recusado pelo banco do cliente. Nada foi debitado.",
+      "canceled": "Cobrança cancelada. Nada foi debitado.",
+      "timeout": "Nenhum cartão detetado a tempo. Nada foi debitado.",
+      "network": "Ligação perdida. O PIN é verificado online, por isso nada foi debitado.",
+      "unknown": "A cobrança não foi concluída. Nada foi debitado."
+    }
   }
 }

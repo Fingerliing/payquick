@@ -155,6 +155,20 @@ class Restaurant(models.Model):
         verbose_name="Raison sociale"
     )
     is_stripe_active = models.BooleanField(default=False, verbose_name="Paiements Stripe actifs")
+
+    # Un reader Terminal doit être rattaché à une Location Stripe. On en crée
+    # une par restaurant au premier encaissement sans contact et on mémorise
+    # l'ID, sinon chaque service empile un doublon côté Stripe.
+    # Vit sur le compte PLATEFORME : la plateforme fonctionne en destination
+    # charges, donc le PaymentIntent, la Location et le reader sont au même
+    # endroit. Voir api/views/terminal_views.py.
+    stripe_terminal_location_id = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        verbose_name="Location Stripe Terminal",
+        help_text="Créée à la volée. Vide tant qu'aucun encaissement sans contact n'a eu lieu."
+    )
     
     # NOUVEAU: Support des fermetures manuelles
     is_manually_overridden = models.BooleanField(default=False, verbose_name="Fermeture manuelle active")

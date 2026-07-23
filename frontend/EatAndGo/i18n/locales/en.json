@@ -1738,10 +1738,12 @@
     "cashPayments": "Cash payments",
     "grossTotal": "Gross total",
     "feesTitle": "Fees and commissions",
-    "stripeFeesNote": "Applies to card payments only. Stripe fees are deducted separately.",
+    "stripeFeesNote": "The commission applies only to payments collected through the app. Stripe fees are deducted separately.",
     "platformCommissionLine": "EatQuickeR commission: {{amount}}",
     "legendGross": "Gross revenue: {{amount}}",
-    "legendCommission": "Commission: {{amount}}"
+    "legendCommission": "Commission: {{amount}}",
+    "commissionablePayments": "Collected through the app",
+    "cardOfflinePayments": "Restaurant's own card reader"
   },
   "openingHours": {
     "title": "Opening hours",
@@ -3224,8 +3226,10 @@
     "checkout": {
       "laterTitle": "Pay later",
       "laterDesc": "The order goes to the kitchen, payment at the counter.",
-      "nowTitle": "Take payment now",
-      "nowDesc": "Card or cash, right away."
+      "terminalTitle": "Tap to pay",
+      "terminalDesc": "Customer taps their card or phone on this device.",
+      "onlineTitle": "Pay online",
+      "onlineDesc": "Card payment through the app."
     },
     "total": "Total",
     "submitToKitchen": "Send to kitchen",
@@ -3238,5 +3242,43 @@
     "discardMessage_one": "{{count}} item will be lost.",
     "discardMessage_other": "{{count}} items will be lost.",
     "discardConfirm": "Discard"
+  },
+  "terminal": {
+    "title": "Tap to pay",
+    "connecting": "Setting up the reader…",
+    "connectingHint": "This phone is being turned into a card reader.",
+    "unsupportedTitle": "Device not supported",
+    "unsupportedMessage": "Tap to pay requires an iPhone XS or newer, or an NFC-equipped Android 12 or newer.",
+    "readyTitle": "Ready to charge",
+    "readyHint": "Start the payment, then hold the back of the phone against the customer's card.",
+    "startCollect": "Charge contactless",
+    "preparing": "Opening the transaction…",
+    "tapPrompt": "Present the card",
+    "tapHint": "Card, phone or watch against the back of the device.",
+    "pinHint": "Above €50 the customer enters their PIN on the phone's secure screen. Hand them the device.",
+    "confirming": "Authorising…",
+    "confirmingHint": "Keep the connection open.",
+    "settlingTitle": "Payment accepted",
+    "settlingMessage": "The card was charged. The order will be marked paid once the network is back — do not charge it again.",
+    "successTitle": "Payment collected",
+    "successMessage": "{{amount}} collected. The order is settled.",
+    "failedTitle": "Payment interrupted",
+    "backToOrder": "Back to the order",
+    "leaveUnpaid": "Charge later",
+    "fallbackAction": "Switch to online payment",
+    "orderNotFound": "Order not found.",
+    "alreadyPaid": "This order is already settled.",
+    "failure": {
+      "permissions": "Location access is required to accept contactless payments. Allow it in the device settings.",
+      "unsupported": "This device cannot accept contactless payments.",
+      "location": "The venue address is incomplete: complete it in the restaurant profile.",
+      "connection": "The reader could not be started. Try again.",
+      "intent": "The transaction could not be opened. Nothing was charged.",
+      "declined": "Declined by the customer's bank. Nothing was charged.",
+      "canceled": "Payment cancelled. Nothing was charged.",
+      "timeout": "No card detected in time. Nothing was charged.",
+      "network": "Connection lost. The PIN is verified online, so nothing was charged.",
+      "unknown": "The payment did not go through. Nothing was charged."
+    }
   }
 }

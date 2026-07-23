@@ -1738,10 +1738,12 @@
     "cashPayments": "Pagos en efectivo",
     "grossTotal": "Total bruto",
     "feesTitle": "Comisiones y cargos",
-    "stripeFeesNote": "Aplicable únicamente a los pagos con tarjeta. Las comisiones de Stripe se deducen por separado.",
+    "stripeFeesNote": "La comisión se aplica únicamente a los cobros realizados a través de la aplicación. Las comisiones de Stripe se deducen aparte.",
     "platformCommissionLine": "Comisión EatQuickeR: {{amount}}",
     "legendGross": "Ingresos brutos: {{amount}}",
-    "legendCommission": "Comisión: {{amount}}"
+    "legendCommission": "Comisión: {{amount}}",
+    "commissionablePayments": "Cobrado a través de la aplicación",
+    "cardOfflinePayments": "TPV del restaurante"
   },
   "openingHours": {
     "title": "Horario de apertura",
@@ -3224,8 +3226,10 @@
     "checkout": {
       "laterTitle": "Pagar más tarde",
       "laterDesc": "El pedido pasa a cocina, el cobro se hace en el mostrador.",
-      "nowTitle": "Cobrar ahora",
-      "nowDesc": "Tarjeta o efectivo, de inmediato."
+      "terminalTitle": "Cobrar sin contacto",
+      "terminalDesc": "El cliente acerca su tarjeta o móvil a este dispositivo.",
+      "onlineTitle": "Cobrar en línea",
+      "onlineDesc": "Pago con tarjeta desde la aplicación."
     },
     "total": "Total",
     "submitToKitchen": "Enviar a cocina",
@@ -3238,5 +3242,43 @@
     "discardMessage_one": "Se perderá {{count}} artículo.",
     "discardMessage_other": "Se perderán {{count}} artículos.",
     "discardConfirm": "Descartar"
+  },
+  "terminal": {
+    "title": "Cobro sin contacto",
+    "connecting": "Preparando el lector…",
+    "connectingHint": "El teléfono se está configurando como terminal de pago.",
+    "unsupportedTitle": "Dispositivo no compatible",
+    "unsupportedMessage": "El cobro sin contacto requiere un iPhone XS o posterior, o un Android 12 o posterior con NFC.",
+    "readyTitle": "Listo para cobrar",
+    "readyHint": "Inicie el cobro y acerque la parte trasera del teléfono a la tarjeta del cliente.",
+    "startCollect": "Cobrar sin contacto",
+    "preparing": "Abriendo la transacción…",
+    "tapPrompt": "Acerque la tarjeta",
+    "tapHint": "Tarjeta, móvil o reloj contra la parte trasera del dispositivo.",
+    "pinHint": "A partir de 50 €, el cliente introduce su PIN en la pantalla segura del teléfono. Entréguele el dispositivo.",
+    "confirming": "Autorizando…",
+    "confirmingHint": "No corte la conexión.",
+    "settlingTitle": "Pago aceptado",
+    "settlingMessage": "Se ha cargado la tarjeta. El pedido se marcará como pagado al recuperar la red; no lo cobre de nuevo.",
+    "successTitle": "Cobro realizado",
+    "successMessage": "{{amount}} cobrados. El pedido está saldado.",
+    "failedTitle": "Cobro interrumpido",
+    "backToOrder": "Volver al pedido",
+    "leaveUnpaid": "Cobrar más tarde",
+    "fallbackAction": "Pasar al pago en línea",
+    "orderNotFound": "Pedido no encontrado.",
+    "alreadyPaid": "Este pedido ya está saldado.",
+    "failure": {
+      "permissions": "La ubicación es obligatoria para aceptar pagos sin contacto. Actívela en los ajustes del dispositivo.",
+      "unsupported": "Este dispositivo no puede aceptar pagos sin contacto.",
+      "location": "La dirección del establecimiento está incompleta: complétela en el perfil del restaurante.",
+      "connection": "No se pudo activar el lector. Inténtelo de nuevo.",
+      "intent": "No se pudo abrir la transacción. No se ha cobrado nada.",
+      "declined": "Rechazado por el banco del cliente. No se ha cobrado nada.",
+      "canceled": "Cobro cancelado. No se ha cobrado nada.",
+      "timeout": "No se detectó ninguna tarjeta a tiempo. No se ha cobrado nada.",
+      "network": "Conexión perdida. El PIN se verifica en línea, así que no se ha cobrado nada.",
+      "unknown": "El cobro no se completó. No se ha cobrado nada."
+    }
   }
 }

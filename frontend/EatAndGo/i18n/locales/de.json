@@ -1738,10 +1738,12 @@
     "cashPayments": "Barzahlungen",
     "grossTotal": "Brutto gesamt",
     "feesTitle": "Gebühren und Provisionen",
-    "stripeFeesNote": "Gilt nur für Kartenzahlungen. Stripe-Gebühren werden separat abgezogen.",
+    "stripeFeesNote": "Die Provision fällt nur auf Zahlungen an, die über die App laufen. Stripe-Gebühren werden separat abgezogen.",
     "platformCommissionLine": "EatQuickeR-Provision: {{amount}}",
     "legendGross": "Bruttoumsatz: {{amount}}",
-    "legendCommission": "Provision: {{amount}}"
+    "legendCommission": "Provision: {{amount}}",
+    "commissionablePayments": "Über die App kassiert",
+    "cardOfflinePayments": "Eigenes Kartenlesegerät"
   },
   "openingHours": {
     "title": "Öffnungszeiten",
@@ -3224,8 +3226,10 @@
     "checkout": {
       "laterTitle": "Später bezahlen",
       "laterDesc": "Die Bestellung geht in die Küche, Zahlung an der Theke.",
-      "nowTitle": "Jetzt kassieren",
-      "nowDesc": "Karte oder bar, sofort."
+      "terminalTitle": "Kontaktlos kassieren",
+      "terminalDesc": "Karte oder Handy des Gastes an dieses Gerät halten.",
+      "onlineTitle": "Online kassieren",
+      "onlineDesc": "Kartenzahlung über die App."
     },
     "total": "Gesamt",
     "submitToKitchen": "An die Küche senden",
@@ -3238,5 +3242,43 @@
     "discardMessage_one": "{{count}} Artikel geht verloren.",
     "discardMessage_other": "{{count}} Artikel gehen verloren.",
     "discardConfirm": "Verwerfen"
+  },
+  "terminal": {
+    "title": "Kontaktloses Kassieren",
+    "connecting": "Lesegerät wird vorbereitet…",
+    "connectingHint": "Das Telefon wird als Kartenlesegerät eingerichtet.",
+    "unsupportedTitle": "Gerät nicht unterstützt",
+    "unsupportedMessage": "Kontaktloses Kassieren erfordert ein iPhone XS oder neuer bzw. ein Android 12 oder neuer mit NFC.",
+    "readyTitle": "Bereit zum Kassieren",
+    "readyHint": "Zahlung starten und die Rückseite des Telefons an die Karte des Gastes halten.",
+    "startCollect": "Kontaktlos kassieren",
+    "preparing": "Transaktion wird geöffnet…",
+    "tapPrompt": "Karte auflegen",
+    "tapHint": "Karte, Telefon oder Uhr an die Rückseite des Geräts halten.",
+    "pinHint": "Ab 50 € gibt der Gast seine PIN auf dem sicheren Bildschirm des Telefons ein. Reichen Sie ihm das Gerät.",
+    "confirming": "Autorisierung läuft…",
+    "confirmingHint": "Verbindung nicht trennen.",
+    "settlingTitle": "Zahlung angenommen",
+    "settlingMessage": "Die Karte wurde belastet. Die Bestellung wird als bezahlt markiert, sobald das Netz zurück ist — nicht erneut kassieren.",
+    "successTitle": "Zahlung kassiert",
+    "successMessage": "{{amount}} kassiert. Die Bestellung ist beglichen.",
+    "failedTitle": "Kassiervorgang abgebrochen",
+    "backToOrder": "Zurück zur Bestellung",
+    "leaveUnpaid": "Später kassieren",
+    "fallbackAction": "Zur Online-Zahlung wechseln",
+    "orderNotFound": "Bestellung nicht gefunden.",
+    "alreadyPaid": "Diese Bestellung ist bereits beglichen.",
+    "failure": {
+      "permissions": "Für kontaktlose Zahlungen ist der Standortzugriff zwingend. Erlauben Sie ihn in den Geräteeinstellungen.",
+      "unsupported": "Dieses Gerät kann keine kontaktlosen Zahlungen annehmen.",
+      "location": "Die Adresse des Betriebs ist unvollständig: Bitte im Restaurantprofil ergänzen.",
+      "connection": "Das Lesegerät konnte nicht gestartet werden. Bitte erneut versuchen.",
+      "intent": "Die Transaktion konnte nicht geöffnet werden. Es wurde nichts belastet.",
+      "declined": "Von der Bank des Gastes abgelehnt. Es wurde nichts belastet.",
+      "canceled": "Zahlung abgebrochen. Es wurde nichts belastet.",
+      "timeout": "Rechtzeitig keine Karte erkannt. Es wurde nichts belastet.",
+      "network": "Verbindung verloren. Die PIN wird online geprüft, es wurde daher nichts belastet.",
+      "unknown": "Die Zahlung kam nicht zustande. Es wurde nichts belastet."
+    }
   }
 }

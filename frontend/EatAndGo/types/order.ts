@@ -1,6 +1,32 @@
 import type { OrderStatus, PaymentStatus, OrderType, ListResponse, MonetaryAmount } from './common';
 
 // ------------------------------
+// Méthode d'encaissement
+// ------------------------------
+/**
+ * Valeur stockée sur `Order.payment_method`.
+ *
+ * `''` est la valeur NEUTRE : la commande existe mais rien n'a encore été
+ * encaissé. C'est l'état de naissance de toute commande — y compris celles
+ * prises par un serveur en salle, qui ne doivent pas naître étiquetées
+ * espèces dans les statistiques de commission.
+ *
+ * `online` et `terminal` sont les seuls canaux qui transitent par Stripe et
+ * portent donc l'`application_fee`. Ils ne sont jamais déclarés par le client
+ * HTTP : le backend les écrit après vérification du PaymentIntent.
+ */
+export type PaymentMethod = '' | 'cash' | 'card' | 'online' | 'terminal';
+
+/** Ce qu'un client HTTP a le droit de déclarer lui-même. */
+export type DeclarativePaymentMethod = Extract<PaymentMethod, 'cash' | 'card'>;
+
+/** Canaux commissionnables (2 % via `application_fee`). */
+export const COMMISSIONABLE_PAYMENT_METHODS = ['online', 'terminal'] as const;
+
+export const isCommissionable = (method: PaymentMethod | undefined): boolean =>
+  method === 'online' || method === 'terminal';
+
+// ------------------------------
 // Composant de formule (un plat choisi dans un cran)
 // ------------------------------
 export interface OrderItemComponent {
@@ -110,7 +136,7 @@ export interface OrderDetail {
   status_display?: string;
   payment_status: PaymentStatus;
   payment_status_display?: string;
-  payment_method?: string;           // 'cash' | 'card' | 'online'
+  payment_method?: PaymentMethod;    // '' tant que rien n'est encaissé
   payment_method_display?: string;   // littéral avec emoji
 
   // Montants calculés par le backend (source de vérité)
@@ -178,7 +204,11 @@ export interface CreateOrderRequest {
   table_number?: string;             // requis si dine_in (string, pas number)
   customer_name?: string;            // requis pour commandes anonymes
   phone?: string;
-  payment_method?: string;           // 'cash' | 'card' | 'online'
+  /**
+   * À omettre : une commande naît non encaissée. Ne renseigner que pour un
+   * encaissement déclaratif hors Stripe ('cash' | 'card').
+   */
+  payment_method?: DeclarativePaymentMethod;
   notes?: string;
   items?: CreateOrderItemInput[];    // liste des items à la carte (peut être vide)
   formules?: CreateFormuleInput[];   // formules sélectionnées (peut être vide)

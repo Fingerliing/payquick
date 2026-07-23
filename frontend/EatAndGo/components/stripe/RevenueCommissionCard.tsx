@@ -28,14 +28,21 @@ import {
 // ============================================================================
 
 interface RevenueCommissionCardProps {
-  /** Chiffre d'affaires brut (paiements carte uniquement). */
-  grossRevenueCard: number;
+  /**
+   * CA encaissé via Stripe (QR code client + Tap to Pay serveur).
+   * Seule assiette de la commission de 2 %.
+   */
+  grossRevenueCommissionable: number;
+  /** CA encaissé sur le TPE du restaurant : hors plateforme, hors commission. */
+  grossRevenueCardOffline?: number;
   /** Chiffre d'affaires paiements espèces. */
   grossRevenueCash?: number;
   /** Libellé de période (si non fourni, fallback `t('revenueCard.defaultPeriod')`). */
   periodLabel?: string;
-  /** Nombre de commandes payées par carte. */
-  cardOrdersCount?: number;
+  /** Nombre de commandes encaissées via Stripe. */
+  commissionableOrdersCount?: number;
+  /** Nombre de commandes encaissées sur le TPE du restaurant. */
+  cardOfflineOrdersCount?: number;
   /** Nombre de commandes payées en espèces. */
   cashOrdersCount?: number;
   /** Afficher les détails étendus. */
@@ -48,7 +55,8 @@ interface RevenueCommissionCardProps {
 
 interface RevenueBreakdown {
   grossTotal: number;
-  grossCard: number;
+  grossCommissionable: number;
+  grossCardOffline: number;
   grossCash: number;
   platformFee: number;
   netRevenue: number;
@@ -59,10 +67,12 @@ interface RevenueBreakdown {
 // ============================================================================
 
 export const RevenueCommissionCard: React.FC<RevenueCommissionCardProps> = ({
-  grossRevenueCard,
+  grossRevenueCommissionable,
+  grossRevenueCardOffline = 0,
   grossRevenueCash = 0,
   periodLabel,
-  cardOrdersCount = 0,
+  commissionableOrdersCount = 0,
+  cardOfflineOrdersCount = 0,
   cashOrdersCount = 0,
   showDetails = true,
   onViewDetails,
@@ -97,20 +107,24 @@ export const RevenueCommissionCard: React.FC<RevenueCommissionCardProps> = ({
 
   // ── Calcul de la répartition ─────────────────────────────────────────
   const breakdown = useMemo((): RevenueBreakdown => {
-    const platformFee = grossRevenueCard * PLATFORM_COMMISSION_RATE;
-    const grossTotal = grossRevenueCard + grossRevenueCash;
+    // La commission ne porte que sur ce qui a transité par Stripe.
+    const platformFee = grossRevenueCommissionable * PLATFORM_COMMISSION_RATE;
+    const grossTotal =
+      grossRevenueCommissionable + grossRevenueCardOffline + grossRevenueCash;
     const netRevenue = grossTotal - platformFee;
 
     return {
       grossTotal: Math.round(grossTotal * 100) / 100,
-      grossCard: Math.round(grossRevenueCard * 100) / 100,
+      grossCommissionable: Math.round(grossRevenueCommissionable * 100) / 100,
+      grossCardOffline: Math.round(grossRevenueCardOffline * 100) / 100,
       grossCash: Math.round(grossRevenueCash * 100) / 100,
       platformFee: Math.round(platformFee * 100) / 100,
       netRevenue: Math.round(netRevenue * 100) / 100,
     };
-  }, [grossRevenueCard, grossRevenueCash]);
+  }, [grossRevenueCommissionable, grossRevenueCardOffline, grossRevenueCash]);
 
-  const totalOrders = cardOrdersCount + cashOrdersCount;
+  const totalOrders =
+    commissionableOrdersCount + cardOfflineOrdersCount + cashOrdersCount;
 
   // ── Mode compact ─────────────────────────────────────────────────────
   if (compact) {
@@ -189,7 +203,7 @@ export const RevenueCommissionCard: React.FC<RevenueCommissionCardProps> = ({
               {t('revenueCard.grossRevenueTitle')}
             </Text>
 
-            {/* Paiements carte */}
+            {/* Encaissé via l'app — assiette de la commission */}
             <View style={styles.breakdownRow}>
               <View style={styles.breakdownRowLeft}>
                 <Ionicons
@@ -198,16 +212,43 @@ export const RevenueCommissionCard: React.FC<RevenueCommissionCardProps> = ({
                   color={colors.text.secondary}
                 />
                 <Text style={styles.breakdownLabel}>
-                  {t('revenueCard.cardPayments')}
+                  {t('revenueCard.commissionablePayments')}
                 </Text>
-                {cardOrdersCount > 0 && (
-                  <Text style={styles.breakdownCount}>({cardOrdersCount})</Text>
+                {commissionableOrdersCount > 0 && (
+                  <Text style={styles.breakdownCount}>
+                    ({commissionableOrdersCount})
+                  </Text>
                 )}
               </View>
               <Text style={styles.breakdownValue}>
-                {formatCurrency(breakdown.grossCard)}
+                {formatCurrency(breakdown.grossCommissionable)}
               </Text>
             </View>
+
+            {/* TPE du restaurant — hors commission. Masqué à zéro pour ne pas
+                encombrer les restaurants qui n'encaissent que via l'app. */}
+            {breakdown.grossCardOffline > 0 && (
+              <View style={styles.breakdownRow}>
+                <View style={styles.breakdownRowLeft}>
+                  <Ionicons
+                    name="terminal-outline"
+                    size={16}
+                    color={colors.text.secondary}
+                  />
+                  <Text style={styles.breakdownLabel}>
+                    {t('revenueCard.cardOfflinePayments')}
+                  </Text>
+                  {cardOfflineOrdersCount > 0 && (
+                    <Text style={styles.breakdownCount}>
+                      ({cardOfflineOrdersCount})
+                    </Text>
+                  )}
+                </View>
+                <Text style={styles.breakdownValue}>
+                  {formatCurrency(breakdown.grossCardOffline)}
+                </Text>
+              </View>
+            )}
 
             {/* Paiements espèces */}
             <View style={styles.breakdownRow}>

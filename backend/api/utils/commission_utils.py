@@ -26,6 +26,27 @@ STRIPE_FEE_FIXED = Decimal('0.25')
 
 
 # ============================================================================
+# PÉRIMÈTRE COMMISSIONNABLE
+# ============================================================================
+
+# Seuls les canaux qui transitent par Stripe portent l'application_fee :
+#   - 'online'   : le client paie dans l'app (QR code)
+#   - 'terminal' : le serveur encaisse en Tap to Pay
+#   - 'stripe'   : valeur historique, conservée pour l'existant
+#
+# 'card' désigne le TPE du restaurant : l'argent ne transite jamais par la
+# plateforme, aucune commission n'est prélevable dessus. Idem pour les espèces.
+# Ces deux canaux sont couverts par le forfait mensuel, pas par les 2 %.
+COMMISSIONABLE_METHODS = ('online', 'terminal', 'stripe')
+NON_COMMISSIONABLE_METHODS = ('card', 'cash', 'cash_pending', '')
+
+
+def is_commissionable(payment_method: str) -> bool:
+    """Vrai si l'encaissement a transité par Stripe et porte donc les 2 %."""
+    return payment_method in COMMISSIONABLE_METHODS
+
+
+# ============================================================================
 # FONCTIONS DE CALCUL
 # ============================================================================
 
@@ -85,11 +106,11 @@ def calculate_net_revenue(gross_amount: Decimal, payment_method: str = 'online')
     """
     gross = Decimal(str(gross_amount))
     
-    if payment_method in ('online', 'card', 'stripe'):
+    if is_commissionable(payment_method):
         platform_fee = calculate_platform_fee(gross)
         stripe_fee = calculate_estimated_stripe_fee(gross)
     else:
-        # Pas de commission sur les paiements espèces
+        # Espèces et TPE du restaurant : rien ne transite par la plateforme
         platform_fee = Decimal('0')
         stripe_fee = Decimal('0')
     
@@ -166,9 +187,17 @@ def get_revenue_statistics(restaurant, period_days: int = 30) -> Dict[str, Any]:
         created_at__gte=start_date
     )
     
-    # Revenus par méthode de paiement
-    card_revenue = paid_orders.filter(
-        payment_method__in=['online', 'card', 'stripe']
+    # Trois seaux : seul le premier porte la commission.
+    commissionable_revenue = paid_orders.filter(
+        payment_method__in=COMMISSIONABLE_METHODS
+    ).aggregate(
+        total=Sum('total_amount'),
+        count=Count('id')
+    )
+    
+    # TPE du restaurant : encaissé hors plateforme, donc hors commission.
+    card_offline_revenue = paid_orders.filter(
+        payment_method='card'
     ).aggregate(
         total=Sum('total_amount'),
         count=Count('id')
@@ -182,17 +211,19 @@ def get_revenue_statistics(restaurant, period_days: int = 30) -> Dict[str, Any]:
     )
     
     # Valeurs par défaut
-    card_total = Decimal(str(card_revenue['total'] or 0))
-    card_count = card_revenue['count'] or 0
+    commissionable_total = Decimal(str(commissionable_revenue['total'] or 0))
+    commissionable_count = commissionable_revenue['count'] or 0
+    card_offline_total = Decimal(str(card_offline_revenue['total'] or 0))
+    card_offline_count = card_offline_revenue['count'] or 0
     cash_total = Decimal(str(cash_revenue['total'] or 0))
     cash_count = cash_revenue['count'] or 0
     
-    # Calcul des commissions (uniquement sur les paiements carte)
-    platform_fee = calculate_platform_fee(card_total)
-    stripe_fee_estimated = calculate_estimated_stripe_fee(card_total)
+    # Commissions : uniquement sur ce qui a réellement transité par Stripe.
+    platform_fee = calculate_platform_fee(commissionable_total)
+    stripe_fee_estimated = calculate_estimated_stripe_fee(commissionable_total)
     
     # Totaux
-    gross_total = card_total + cash_total
+    gross_total = commissionable_total + card_offline_total + cash_total
     total_fees = platform_fee + stripe_fee_estimated
     net_revenue = gross_total - total_fees
     
@@ -204,14 +235,16 @@ def get_revenue_statistics(restaurant, period_days: int = 30) -> Dict[str, Any]:
         # Revenus bruts
         'gross_revenue': {
             'total': float(gross_total),
-            'card': float(card_total),
+            'commissionable': float(commissionable_total),
+            'card_offline': float(card_offline_total),
             'cash': float(cash_total),
         },
         
         # Nombre de commandes
         'orders_count': {
-            'total': card_count + cash_count,
-            'card': card_count,
+            'total': commissionable_count + card_offline_count + cash_count,
+            'commissionable': commissionable_count,
+            'card_offline': card_offline_count,
             'cash': cash_count,
         },
         
@@ -236,8 +269,12 @@ def get_revenue_statistics(restaurant, period_days: int = 30) -> Dict[str, Any]:
         
         # Ticket moyen
         'averages': {
-            'order_value': float(gross_total / max(card_count + cash_count, 1)),
-            'card_order_value': float(card_total / max(card_count, 1)),
+            'order_value': float(gross_total / max(
+                commissionable_count + card_offline_count + cash_count, 1)),
+            'commissionable_order_value': float(
+                commissionable_total / max(commissionable_count, 1)),
+            'card_offline_order_value': float(
+                card_offline_total / max(card_offline_count, 1)),
             'cash_order_value': float(cash_total / max(cash_count, 1)),
         },
     }
@@ -267,20 +304,27 @@ def get_revenue_summary_periods(restaurant) -> Dict[str, Any]:
             created_at__gte=start_date
         )
         
-        card_total = orders.filter(
-            payment_method__in=['online', 'card', 'stripe']
+        commissionable_total = orders.filter(
+            payment_method__in=COMMISSIONABLE_METHODS
+        ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+        
+        card_offline_total = orders.filter(
+            payment_method='card'
         ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
         
         cash_total = orders.filter(
             payment_method__in=['cash', 'cash_pending']
         ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
         
-        platform_fee = calculate_platform_fee(Decimal(str(card_total)))
-        gross = Decimal(str(card_total)) + Decimal(str(cash_total))
+        platform_fee = calculate_platform_fee(Decimal(str(commissionable_total)))
+        gross = (Decimal(str(commissionable_total))
+                 + Decimal(str(card_offline_total))
+                 + Decimal(str(cash_total)))
         
         return {
             'gross': float(gross),
-            'card': float(card_total),
+            'commissionable': float(commissionable_total),
+            'card_offline': float(card_offline_total),
             'cash': float(cash_total),
             'platform_fee': float(platform_fee),
             'net': float(gross - platform_fee),

@@ -1739,10 +1739,12 @@
     "cashPayments": "Eskudirutako ordainketak",
     "grossTotal": "Gordina guztira",
     "feesTitle": "Komisioak eta gastuak",
-    "stripeFeesNote": "Txartelaren bidezko ordainketei soilik aplikatzen zaie. Stripe gastuak bereizita kentzen dira.",
+    "stripeFeesNote": "Komisioa aplikazioaren bidez egindako kobrantzei baino ez zaie aplikatzen. Stripe-ren komisioak bereiz kentzen dira.",
     "platformCommissionLine": "EatQuickeR komisioa: {{amount}}",
     "legendGross": "Bolumen gordina: {{amount}}",
-    "legendCommission": "Komisioa: {{amount}}"
+    "legendCommission": "Komisioa: {{amount}}",
+    "commissionablePayments": "Aplikazioaren bidez kobratua",
+    "cardOfflinePayments": "Jatetxearen TPV-a"
   },
   "openingHours": {
     "title": "Irekiera orduak",
@@ -3225,8 +3227,10 @@
     "checkout": {
       "laterTitle": "Ordaindu geroago",
       "laterDesc": "Eskaera sukaldera doa, kobrantza barran.",
-      "nowTitle": "Kobratu orain",
-      "nowDesc": "Txartela edo eskudirua, berehala."
+      "terminalTitle": "Kobratu kontakturik gabe",
+      "terminalDesc": "Bezeroak bere txartela edo mugikorra gailu honetara hurbiltzen du.",
+      "onlineTitle": "Kobratu sarean",
+      "onlineDesc": "Txartel bidezko ordainketa aplikaziotik."
     },
     "total": "Guztira",
     "submitToKitchen": "Bidali sukaldera",
@@ -3239,5 +3243,43 @@
     "discardMessage_one": "artikulu {{count}} galduko da.",
     "discardMessage_other": "{{count}} artikulu galduko dira.",
     "discardConfirm": "Baztertu"
+  },
+  "terminal": {
+    "title": "Kobrantza kontakturik gabe",
+    "connecting": "Irakurgailua prestatzen…",
+    "connectingHint": "Telefonoa ordainketa-terminal gisa konfiguratzen ari da.",
+    "unsupportedTitle": "Gailu bateraezina",
+    "unsupportedMessage": "Kontakturik gabeko kobrantzak iPhone XS edo berriagoa behar du, edo NFC duen Android 12 edo berriagoa.",
+    "readyTitle": "Kobratzeko prest",
+    "readyHint": "Hasi kobrantza eta hurbildu telefonoaren atzealdea bezeroaren txartelera.",
+    "startCollect": "Kobratu kontakturik gabe",
+    "preparing": "Transakzioa irekitzen…",
+    "tapPrompt": "Hurbildu txartela",
+    "tapHint": "Txartela, telefonoa edo erlojua gailuaren atzealdean.",
+    "pinHint": "50 € gainditzean, bezeroak bere PINa sartzen du telefonoaren pantaila seguruan. Eman iezaiozu gailua.",
+    "confirming": "Baimentzen…",
+    "confirmingHint": "Ez eten konexioa.",
+    "settlingTitle": "Ordainketa onartuta",
+    "settlingMessage": "Txarteletik kobratu da. Sarea itzultzean eskaera ordaindutzat emango da — ez kobratu bigarren aldiz.",
+    "successTitle": "Kobrantza egina",
+    "successMessage": "{{amount}} kobratuta. Eskaera ordainduta dago.",
+    "failedTitle": "Kobrantza etenda",
+    "backToOrder": "Itzuli eskaerara",
+    "leaveUnpaid": "Kobratu geroago",
+    "fallbackAction": "Aldatu lineako ordainketara",
+    "orderNotFound": "Eskaera ez da aurkitu.",
+    "alreadyPaid": "Eskaera hau ordainduta dago jada.",
+    "failure": {
+      "permissions": "Kokapena beharrezkoa da kontakturik gabeko ordainketak onartzeko. Baimendu gailuaren ezarpenetan.",
+      "unsupported": "Gailu honek ezin ditu kontakturik gabeko ordainketak onartu.",
+      "location": "Establezimenduaren helbidea osatu gabe dago: osatu jatetxearen profilean.",
+      "connection": "Ezin izan da irakurgailua abiarazi. Saiatu berriro.",
+      "intent": "Ezin izan da transakzioa ireki. Ez da ezer kobratu.",
+      "declined": "Bezeroaren bankuak ukatu du. Ez da ezer kobratu.",
+      "canceled": "Kobrantza bertan behera utzi da. Ez da ezer kobratu.",
+      "timeout": "Ez da txartelik garaiz hauteman. Ez da ezer kobratu.",
+      "network": "Konexioa galdu da. PINa sarean egiaztatzen da, beraz ez da ezer kobratu.",
+      "unknown": "Kobrantza ez da burutu. Ez da ezer kobratu."
+    }
   }
 }

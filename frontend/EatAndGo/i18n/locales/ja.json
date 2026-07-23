@@ -1739,10 +1739,12 @@
     "cashPayments": "現金決済",
     "grossTotal": "総合計",
     "feesTitle": "手数料と費用",
-    "stripeFeesNote": "カード決済のみに適用されます。Stripe 手数料は別途差し引かれます。",
+    "stripeFeesNote": "手数料はアプリ経由の決済にのみ適用されます。Stripe の手数料は別途差し引かれます。",
     "platformCommissionLine": "EatQuickeR 手数料：{{amount}}",
     "legendGross": "総売上：{{amount}}",
-    "legendCommission": "手数料：{{amount}}"
+    "legendCommission": "手数料：{{amount}}",
+    "commissionablePayments": "アプリ経由の売上",
+    "cardOfflinePayments": "店舗の決済端末"
   },
   "openingHours": {
     "title": "営業時間",
@@ -3225,8 +3227,10 @@
     "checkout": {
       "laterTitle": "後で支払う",
       "laterDesc": "注文は厨房に送られ、会計はレジで行います。",
-      "nowTitle": "今すぐ会計",
-      "nowDesc": "カードまたは現金で即時。"
+      "terminalTitle": "タッチ決済",
+      "terminalDesc": "お客様のカードまたはスマートフォンをこの端末にかざします。",
+      "onlineTitle": "オンライン決済",
+      "onlineDesc": "アプリ経由のカード決済です。"
     },
     "total": "合計",
     "submitToKitchen": "厨房に送る",
@@ -3239,5 +3243,43 @@
     "discardMessage_one": "{{count}} 点の商品が失われます。",
     "discardMessage_other": "{{count}} 点の商品が失われます。",
     "discardConfirm": "破棄"
+  },
+  "terminal": {
+    "title": "タッチ決済",
+    "connecting": "リーダーを準備しています…",
+    "connectingHint": "この端末を決済リーダーとして設定しています。",
+    "unsupportedTitle": "非対応の端末です",
+    "unsupportedMessage": "タッチ決済には iPhone XS 以降、または NFC 対応の Android 12 以降が必要です。",
+    "readyTitle": "決済の準備ができました",
+    "readyHint": "決済を開始し、端末の背面をお客様のカードに近づけてください。",
+    "startCollect": "タッチ決済を開始",
+    "preparing": "取引を開始しています…",
+    "tapPrompt": "カードをかざしてください",
+    "tapHint": "カード、スマートフォン、または時計を端末の背面にかざします。",
+    "pinHint": "50 ユーロを超える場合、お客様が端末の安全な画面で暗証番号を入力します。端末をお渡しください。",
+    "confirming": "承認処理中…",
+    "confirmingHint": "接続を切らないでください。",
+    "settlingTitle": "決済が承認されました",
+    "settlingMessage": "カードへの請求は完了しています。通信が回復し次第、注文は支払い済みになります。二重に請求しないでください。",
+    "successTitle": "決済が完了しました",
+    "successMessage": "{{amount}} を受け取りました。注文は支払い済みです。",
+    "failedTitle": "決済が中断されました",
+    "backToOrder": "注文に戻る",
+    "leaveUnpaid": "後で決済する",
+    "fallbackAction": "オンライン決済に切り替える",
+    "orderNotFound": "注文が見つかりません。",
+    "alreadyPaid": "この注文はすでに支払い済みです。",
+    "failure": {
+      "permissions": "タッチ決済には位置情報の許可が必要です。端末の設定で許可してください。",
+      "unsupported": "この端末ではタッチ決済を利用できません。",
+      "location": "店舗の住所が未入力です。レストランのプロフィールで入力してください。",
+      "connection": "リーダーを起動できませんでした。もう一度お試しください。",
+      "intent": "取引を開始できませんでした。請求は発生していません。",
+      "declined": "お客様の銀行により拒否されました。請求は発生していません。",
+      "canceled": "決済をキャンセルしました。請求は発生していません。",
+      "timeout": "時間内にカードを検出できませんでした。請求は発生していません。",
+      "network": "接続が切断されました。暗証番号はオンラインで確認されるため、請求は発生していません。",
+      "unknown": "決済は完了しませんでした。請求は発生していません。"
+    }
   }
 }
