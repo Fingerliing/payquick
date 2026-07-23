@@ -1187,7 +1187,8 @@
       "pending": "Pendente",
       "tonight": "Hoje à noite",
       "history": "Histórico",
-      "refresh": "Atualizar"
+      "refresh": "Atualizar",
+      "takeOrder": "Tirar um pedido"
     },
     "history": {
       "title": "Histórico de encomendas",
@@ -1228,7 +1229,8 @@
       "archivedMessage_other": "{{count}} encomendas arquivadas",
       "noneToArchiveTitle": "Informação",
       "noneToArchiveMessage": "Sem encomendas para arquivar",
-      "archiveFailed": "Não foi possível arquivar as encomendas"
+      "archiveFailed": "Não foi possível arquivar as encomendas",
+      "noRestaurantSelected": "Selecione primeiro um estabelecimento."
     }
   },
   "restaurantDailyMenu": {
@@ -3186,5 +3188,55 @@
     },
     "restaurantLabel": "Restaurante",
     "restaurantPicker": "Escolher um restaurante"
+  },
+  "takeOrder": {
+    "title": "Tirar um pedido",
+    "forbidden": "Este ecrã é reservado aos restauradores.",
+    "missingRestaurant": "Restaurante não encontrado.",
+    "chooseTableTitle": "Qual mesa?",
+    "chooseTableSubtitle": "Selecione uma mesa ou introduza o seu número.",
+    "tablesLoadFailed": "Não foi possível carregar as mesas.",
+    "menuLoadFailed": "Não foi possível carregar o menu.",
+    "otherCategory": "Outros",
+    "tableLabel": "Mesa {{number}}",
+    "seats_one": "{{count}} lugar",
+    "seats_other": "{{count}} lugares",
+    "noTables": "Nenhuma mesa configurada para este estabelecimento.",
+    "manualTableLabel": "Introdução manual",
+    "manualTablePlaceholder": "N.º de mesa",
+    "confirmTable": "Validar",
+    "sessionRunning_one": "{{count}} pedido em curso · {{amount}}",
+    "sessionRunning_other": "{{count}} pedidos em curso · {{amount}}",
+    "changeTable": "Alterar",
+    "searchPlaceholder": "Procurar um prato…",
+    "allCategories": "Tudo",
+    "loadingMenu": "A carregar o menu…",
+    "noDishes": "Nenhum prato corresponde.",
+    "reviewOrder": "Ver o pedido",
+    "reviewTitle": "Pedido — Mesa {{table}}",
+    "guestsLabel": "Número de pessoas",
+    "guestsPlaceholder": "Ex. 4",
+    "guestsNote_one": "{{count}} pessoa",
+    "guestsNote_other": "{{count}} pessoas",
+    "notesLabel": "Notas para a cozinha",
+    "notesPlaceholder": "Alergias, pontos de cozedura, observações…",
+    "checkoutLabel": "Pagamento",
+    "checkout": {
+      "laterTitle": "Pagar mais tarde",
+      "laterDesc": "O pedido segue para a cozinha, pagamento ao balcão.",
+      "nowTitle": "Cobrar agora",
+      "nowDesc": "Cartão ou dinheiro, de imediato."
+    },
+    "total": "Total",
+    "submitToKitchen": "Enviar para a cozinha",
+    "submitAndPay": "Enviar e cobrar",
+    "successTitle": "Pedido enviado",
+    "successMessage": "Pedido {{number}} registado para a mesa {{table}}.",
+    "submitFailed": "Não foi possível registar o pedido.",
+    "invalidPayload": "Pedido incompleto: verifique a mesa e os artigos.",
+    "discardTitle": "Abandonar o pedido?",
+    "discardMessage_one": "{{count}} artigo será perdido.",
+    "discardMessage_other": "{{count}} artigos serão perdidos.",
+    "discardConfirm": "Abandonar"
   }
 }

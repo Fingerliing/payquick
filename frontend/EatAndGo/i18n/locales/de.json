@@ -1187,7 +1187,8 @@
       "pending": "Ausstehend",
       "tonight": "Heute Abend",
       "history": "Verlauf",
-      "refresh": "Aktualisieren"
+      "refresh": "Aktualisieren",
+      "takeOrder": "Bestellung aufnehmen"
     },
     "history": {
       "title": "Bestellverlauf",
@@ -1228,7 +1229,8 @@
       "archivedMessage_other": "{{count}} Bestellungen archiviert",
       "noneToArchiveTitle": "Information",
       "noneToArchiveMessage": "Keine Bestellungen zum Archivieren",
-      "archiveFailed": "Bestellungen können nicht archiviert werden"
+      "archiveFailed": "Bestellungen können nicht archiviert werden",
+      "noRestaurantSelected": "Wählen Sie zuerst einen Betrieb aus."
     }
   },
   "restaurantDailyMenu": {
@@ -3186,5 +3188,55 @@
     },
     "restaurantLabel": "Restaurant",
     "restaurantPicker": "Restaurant auswählen"
+  },
+  "takeOrder": {
+    "title": "Bestellung aufnehmen",
+    "forbidden": "Dieser Bildschirm ist Gastronomen vorbehalten.",
+    "missingRestaurant": "Restaurant nicht gefunden.",
+    "chooseTableTitle": "Welcher Tisch?",
+    "chooseTableSubtitle": "Wählen Sie einen Tisch oder geben Sie die Nummer ein.",
+    "tablesLoadFailed": "Tische konnten nicht geladen werden.",
+    "menuLoadFailed": "Speisekarte konnte nicht geladen werden.",
+    "otherCategory": "Sonstige",
+    "tableLabel": "Tisch {{number}}",
+    "seats_one": "{{count}} Gedeck",
+    "seats_other": "{{count}} Gedecke",
+    "noTables": "Für diesen Betrieb sind keine Tische eingerichtet.",
+    "manualTableLabel": "Manuelle Eingabe",
+    "manualTablePlaceholder": "Tischnr.",
+    "confirmTable": "Bestätigen",
+    "sessionRunning_one": "{{count}} laufende Bestellung · {{amount}}",
+    "sessionRunning_other": "{{count}} laufende Bestellungen · {{amount}}",
+    "changeTable": "Ändern",
+    "searchPlaceholder": "Gericht suchen…",
+    "allCategories": "Alle",
+    "loadingMenu": "Speisekarte wird geladen…",
+    "noDishes": "Kein passendes Gericht.",
+    "reviewOrder": "Bestellung ansehen",
+    "reviewTitle": "Bestellung — Tisch {{table}}",
+    "guestsLabel": "Anzahl der Gäste",
+    "guestsPlaceholder": "z. B. 4",
+    "guestsNote_one": "{{count}} Gast",
+    "guestsNote_other": "{{count}} Gäste",
+    "notesLabel": "Hinweise für die Küche",
+    "notesPlaceholder": "Allergien, Garstufen, Anmerkungen…",
+    "checkoutLabel": "Zahlung",
+    "checkout": {
+      "laterTitle": "Später bezahlen",
+      "laterDesc": "Die Bestellung geht in die Küche, Zahlung an der Theke.",
+      "nowTitle": "Jetzt kassieren",
+      "nowDesc": "Karte oder bar, sofort."
+    },
+    "total": "Gesamt",
+    "submitToKitchen": "An die Küche senden",
+    "submitAndPay": "Senden und kassieren",
+    "successTitle": "Bestellung gesendet",
+    "successMessage": "Bestellung {{number}} für Tisch {{table}} erfasst.",
+    "submitFailed": "Bestellung konnte nicht gespeichert werden.",
+    "invalidPayload": "Unvollständige Bestellung: Tisch und Artikel prüfen.",
+    "discardTitle": "Bestellung verwerfen?",
+    "discardMessage_one": "{{count}} Artikel geht verloren.",
+    "discardMessage_other": "{{count}} Artikel gehen verloren.",
+    "discardConfirm": "Verwerfen"
   }
 }

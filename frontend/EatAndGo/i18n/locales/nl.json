@@ -1187,7 +1187,8 @@
       "pending": "In afwachting",
       "tonight": "Vanavond",
       "history": "Geschiedenis",
-      "refresh": "Vernieuwen"
+      "refresh": "Vernieuwen",
+      "takeOrder": "Bestelling opnemen"
     },
     "history": {
       "title": "Bestelgeschiedenis",
@@ -1228,7 +1229,8 @@
       "archivedMessage_other": "{{count}} bestellingen gearchiveerd",
       "noneToArchiveTitle": "Informatie",
       "noneToArchiveMessage": "Geen bestellingen om te archiveren",
-      "archiveFailed": "Kan bestellingen niet archiveren"
+      "archiveFailed": "Kan bestellingen niet archiveren",
+      "noRestaurantSelected": "Selecteer eerst een zaak."
     }
   },
   "restaurantDailyMenu": {
@@ -3186,5 +3188,55 @@
     },
     "restaurantLabel": "Restaurant",
     "restaurantPicker": "Kies een restaurant"
+  },
+  "takeOrder": {
+    "title": "Bestelling opnemen",
+    "forbidden": "Dit scherm is voorbehouden aan restauranthouders.",
+    "missingRestaurant": "Restaurant niet gevonden.",
+    "chooseTableTitle": "Welke tafel?",
+    "chooseTableSubtitle": "Selecteer een tafel of voer het nummer in.",
+    "tablesLoadFailed": "Tafels kunnen niet worden geladen.",
+    "menuLoadFailed": "Menu kan niet worden geladen.",
+    "otherCategory": "Overige",
+    "tableLabel": "Tafel {{number}}",
+    "seats_one": "{{count}} couvert",
+    "seats_other": "{{count}} couverts",
+    "noTables": "Geen tafels ingesteld voor deze zaak.",
+    "manualTableLabel": "Handmatige invoer",
+    "manualTablePlaceholder": "Tafelnr.",
+    "confirmTable": "Bevestigen",
+    "sessionRunning_one": "{{count}} lopende bestelling · {{amount}}",
+    "sessionRunning_other": "{{count}} lopende bestellingen · {{amount}}",
+    "changeTable": "Wijzigen",
+    "searchPlaceholder": "Zoek een gerecht…",
+    "allCategories": "Alles",
+    "loadingMenu": "Menu laden…",
+    "noDishes": "Geen overeenkomend gerecht.",
+    "reviewOrder": "Bestelling bekijken",
+    "reviewTitle": "Bestelling — Tafel {{table}}",
+    "guestsLabel": "Aantal gasten",
+    "guestsPlaceholder": "Bijv. 4",
+    "guestsNote_one": "{{count}} gast",
+    "guestsNote_other": "{{count}} gasten",
+    "notesLabel": "Opmerkingen voor de keuken",
+    "notesPlaceholder": "Allergieën, bakwijze, opmerkingen…",
+    "checkoutLabel": "Afrekenen",
+    "checkout": {
+      "laterTitle": "Later betalen",
+      "laterDesc": "De bestelling gaat naar de keuken, afrekenen aan de balie.",
+      "nowTitle": "Nu afrekenen",
+      "nowDesc": "Kaart of contant, direct."
+    },
+    "total": "Totaal",
+    "submitToKitchen": "Naar de keuken sturen",
+    "submitAndPay": "Versturen en afrekenen",
+    "successTitle": "Bestelling verzonden",
+    "successMessage": "Bestelling {{number}} geregistreerd voor tafel {{table}}.",
+    "submitFailed": "Bestelling kan niet worden opgeslagen.",
+    "invalidPayload": "Onvolledige bestelling: controleer de tafel en de artikelen.",
+    "discardTitle": "Bestelling verwerpen?",
+    "discardMessage_one": "{{count}} artikel gaat verloren.",
+    "discardMessage_other": "{{count}} artikelen gaan verloren.",
+    "discardConfirm": "Verwerpen"
   }
 }

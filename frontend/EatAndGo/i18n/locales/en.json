@@ -1187,7 +1187,8 @@
       "pending": "Pending",
       "tonight": "Tonight",
       "history": "History",
-      "refresh": "Refresh"
+      "refresh": "Refresh",
+      "takeOrder": "Take an order"
     },
     "history": {
       "title": "Order history",
@@ -1228,7 +1229,8 @@
       "archivedMessage_other": "{{count}} orders archived",
       "noneToArchiveTitle": "Information",
       "noneToArchiveMessage": "No orders to archive",
-      "archiveFailed": "Unable to archive orders"
+      "archiveFailed": "Unable to archive orders",
+      "noRestaurantSelected": "Select a restaurant first."
     }
   },
   "restaurantDailyMenu": {
@@ -3186,5 +3188,55 @@
     },
     "restaurantLabel": "Restaurant",
     "restaurantPicker": "Choose a restaurant"
+  },
+  "takeOrder": {
+    "title": "Take an order",
+    "forbidden": "This screen is restricted to restaurant owners.",
+    "missingRestaurant": "Restaurant not found.",
+    "chooseTableTitle": "Which table?",
+    "chooseTableSubtitle": "Select a table or enter its number.",
+    "tablesLoadFailed": "Unable to load tables.",
+    "menuLoadFailed": "Unable to load the menu.",
+    "otherCategory": "Other",
+    "tableLabel": "Table {{number}}",
+    "seats_one": "{{count}} seat",
+    "seats_other": "{{count}} seats",
+    "noTables": "No tables set up for this restaurant.",
+    "manualTableLabel": "Manual entry",
+    "manualTablePlaceholder": "Table no.",
+    "confirmTable": "Confirm",
+    "sessionRunning_one": "{{count}} order in progress · {{amount}}",
+    "sessionRunning_other": "{{count}} orders in progress · {{amount}}",
+    "changeTable": "Change",
+    "searchPlaceholder": "Search for a dish…",
+    "allCategories": "All",
+    "loadingMenu": "Loading menu…",
+    "noDishes": "No matching dish.",
+    "reviewOrder": "Review order",
+    "reviewTitle": "Order — Table {{table}}",
+    "guestsLabel": "Number of guests",
+    "guestsPlaceholder": "e.g. 4",
+    "guestsNote_one": "{{count}} guest",
+    "guestsNote_other": "{{count}} guests",
+    "notesLabel": "Notes for the kitchen",
+    "notesPlaceholder": "Allergies, cooking preferences, remarks…",
+    "checkoutLabel": "Payment",
+    "checkout": {
+      "laterTitle": "Pay later",
+      "laterDesc": "The order goes to the kitchen, payment at the counter.",
+      "nowTitle": "Take payment now",
+      "nowDesc": "Card or cash, right away."
+    },
+    "total": "Total",
+    "submitToKitchen": "Send to kitchen",
+    "submitAndPay": "Send and take payment",
+    "successTitle": "Order sent",
+    "successMessage": "Order {{number}} recorded for table {{table}}.",
+    "submitFailed": "Unable to save the order.",
+    "invalidPayload": "Incomplete order: check the table and the items.",
+    "discardTitle": "Discard order?",
+    "discardMessage_one": "{{count}} item will be lost.",
+    "discardMessage_other": "{{count}} items will be lost.",
+    "discardConfirm": "Discard"
   }
 }

@@ -1187,7 +1187,8 @@
       "pending": "En attente",
       "tonight": "Ce soir",
       "history": "Historique",
-      "refresh": "Actualiser"
+      "refresh": "Actualiser",
+      "takeOrder": "Prendre une commande"
     },
     "history": {
       "title": "Historique des commandes",
@@ -1228,7 +1229,8 @@
       "archivedMessage_other": "{{count}} commandes archivées",
       "noneToArchiveTitle": "Information",
       "noneToArchiveMessage": "Aucune commande à archiver",
-      "archiveFailed": "Impossible d'archiver les commandes"
+      "archiveFailed": "Impossible d'archiver les commandes",
+      "noRestaurantSelected": "Sélectionnez d'abord un établissement."
     }
   },
   "restaurantDailyMenu": {
@@ -3186,5 +3188,55 @@
     },
     "restaurantLabel": "Restaurant",
     "restaurantPicker": "Choisir un restaurant"
+  },
+  "takeOrder": {
+    "title": "Prendre une commande",
+    "forbidden": "Cet écran est réservé aux restaurateurs.",
+    "missingRestaurant": "Établissement introuvable.",
+    "chooseTableTitle": "Quelle table ?",
+    "chooseTableSubtitle": "Sélectionnez une table ou saisissez son numéro.",
+    "tablesLoadFailed": "Impossible de charger les tables.",
+    "menuLoadFailed": "Impossible de charger le menu.",
+    "otherCategory": "Autres",
+    "tableLabel": "Table {{number}}",
+    "seats_one": "{{count}} couvert",
+    "seats_other": "{{count}} couverts",
+    "noTables": "Aucune table configurée pour cet établissement.",
+    "manualTableLabel": "Saisie manuelle",
+    "manualTablePlaceholder": "N° de table",
+    "confirmTable": "Valider",
+    "sessionRunning_one": "{{count}} commande en cours · {{amount}}",
+    "sessionRunning_other": "{{count}} commandes en cours · {{amount}}",
+    "changeTable": "Changer",
+    "searchPlaceholder": "Rechercher un plat…",
+    "allCategories": "Tout",
+    "loadingMenu": "Chargement du menu…",
+    "noDishes": "Aucun plat ne correspond.",
+    "reviewOrder": "Voir la commande",
+    "reviewTitle": "Commande — Table {{table}}",
+    "guestsLabel": "Nombre de couverts",
+    "guestsPlaceholder": "Ex. 4",
+    "guestsNote_one": "{{count}} couvert",
+    "guestsNote_other": "{{count}} couverts",
+    "notesLabel": "Notes pour la cuisine",
+    "notesPlaceholder": "Allergies, cuissons, remarques…",
+    "checkoutLabel": "Encaissement",
+    "checkout": {
+      "laterTitle": "Payer plus tard",
+      "laterDesc": "La commande part en cuisine, encaissement au comptoir.",
+      "nowTitle": "Encaisser maintenant",
+      "nowDesc": "Carte bancaire ou espèces, immédiatement."
+    },
+    "total": "Total",
+    "submitToKitchen": "Envoyer en cuisine",
+    "submitAndPay": "Envoyer et encaisser",
+    "successTitle": "Commande envoyée",
+    "successMessage": "Commande {{number}} enregistrée pour la table {{table}}.",
+    "submitFailed": "Impossible d'enregistrer la commande.",
+    "invalidPayload": "Commande incomplète : vérifiez la table et les articles.",
+    "discardTitle": "Abandonner la commande ?",
+    "discardMessage_one": "{{count}} article sera perdu.",
+    "discardMessage_other": "{{count}} articles seront perdus.",
+    "discardConfirm": "Abandonner"
   }
 }

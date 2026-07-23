@@ -1188,7 +1188,8 @@
       "pending": "保留中",
       "tonight": "今夜",
       "history": "履歴",
-      "refresh": "更新"
+      "refresh": "更新",
+      "takeOrder": "注文を取る"
     },
     "history": {
       "title": "注文履歴",
@@ -1229,7 +1230,8 @@
       "archivedMessage_other": "{{count}} 件の注文をアーカイブしました",
       "noneToArchiveTitle": "情報",
       "noneToArchiveMessage": "アーカイブする注文がありません",
-      "archiveFailed": "注文をアーカイブできません"
+      "archiveFailed": "注文をアーカイブできません",
+      "noRestaurantSelected": "先に店舗を選択してください。"
     }
   },
   "restaurantDailyMenu": {
@@ -3187,5 +3189,55 @@
     },
     "restaurantLabel": "レストラン",
     "restaurantPicker": "レストランを選択"
+  },
+  "takeOrder": {
+    "title": "注文を取る",
+    "forbidden": "この画面は店舗管理者専用です。",
+    "missingRestaurant": "レストランが見つかりません。",
+    "chooseTableTitle": "どのテーブルですか？",
+    "chooseTableSubtitle": "テーブルを選択するか、番号を入力してください。",
+    "tablesLoadFailed": "テーブルを読み込めませんでした。",
+    "menuLoadFailed": "メニューを読み込めませんでした。",
+    "otherCategory": "その他",
+    "tableLabel": "テーブル {{number}}",
+    "seats_one": "{{count}} 名",
+    "seats_other": "{{count}} 名",
+    "noTables": "この店舗にはテーブルが設定されていません。",
+    "manualTableLabel": "手動入力",
+    "manualTablePlaceholder": "テーブル番号",
+    "confirmTable": "確定",
+    "sessionRunning_one": "進行中の注文 {{count}} 件 · {{amount}}",
+    "sessionRunning_other": "進行中の注文 {{count}} 件 · {{amount}}",
+    "changeTable": "変更",
+    "searchPlaceholder": "料理を検索…",
+    "allCategories": "すべて",
+    "loadingMenu": "メニューを読み込み中…",
+    "noDishes": "該当する料理がありません。",
+    "reviewOrder": "注文を確認",
+    "reviewTitle": "注文 — テーブル {{table}}",
+    "guestsLabel": "人数",
+    "guestsPlaceholder": "例：4",
+    "guestsNote_one": "{{count}} 名",
+    "guestsNote_other": "{{count}} 名",
+    "notesLabel": "厨房へのメモ",
+    "notesPlaceholder": "アレルギー、焼き加減、備考…",
+    "checkoutLabel": "会計",
+    "checkout": {
+      "laterTitle": "後で支払う",
+      "laterDesc": "注文は厨房に送られ、会計はレジで行います。",
+      "nowTitle": "今すぐ会計",
+      "nowDesc": "カードまたは現金で即時。"
+    },
+    "total": "合計",
+    "submitToKitchen": "厨房に送る",
+    "submitAndPay": "送信して会計",
+    "successTitle": "注文を送信しました",
+    "successMessage": "注文 {{number}} をテーブル {{table}} に登録しました。",
+    "submitFailed": "注文を保存できませんでした。",
+    "invalidPayload": "注文が不完全です：テーブルと商品をご確認ください。",
+    "discardTitle": "注文を破棄しますか？",
+    "discardMessage_one": "{{count}} 点の商品が失われます。",
+    "discardMessage_other": "{{count}} 点の商品が失われます。",
+    "discardConfirm": "破棄"
   }
 }

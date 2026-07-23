@@ -1188,7 +1188,8 @@
       "pending": "待处理",
       "tonight": "今晚",
       "history": "历史",
-      "refresh": "刷新"
+      "refresh": "刷新",
+      "takeOrder": "代客点单"
     },
     "history": {
       "title": "订单历史",
@@ -1229,7 +1230,8 @@
       "archivedMessage_other": "已归档 {{count}} 个订单",
       "noneToArchiveTitle": "信息",
       "noneToArchiveMessage": "没有要归档的订单",
-      "archiveFailed": "无法归档订单"
+      "archiveFailed": "无法归档订单",
+      "noRestaurantSelected": "请先选择店铺。"
     }
   },
   "restaurantDailyMenu": {
@@ -3187,5 +3189,55 @@
     },
     "restaurantLabel": "餐厅",
     "restaurantPicker": "选择餐厅"
+  },
+  "takeOrder": {
+    "title": "代客点单",
+    "forbidden": "此页面仅限餐厅管理者使用。",
+    "missingRestaurant": "未找到餐厅。",
+    "chooseTableTitle": "哪一桌？",
+    "chooseTableSubtitle": "请选择餐桌或输入桌号。",
+    "tablesLoadFailed": "无法加载餐桌。",
+    "menuLoadFailed": "无法加载菜单。",
+    "otherCategory": "其他",
+    "tableLabel": "{{number}} 号桌",
+    "seats_one": "{{count}} 位",
+    "seats_other": "{{count}} 位",
+    "noTables": "该店铺尚未配置餐桌。",
+    "manualTableLabel": "手动输入",
+    "manualTablePlaceholder": "桌号",
+    "confirmTable": "确认",
+    "sessionRunning_one": "进行中的订单 {{count}} 单 · {{amount}}",
+    "sessionRunning_other": "进行中的订单 {{count}} 单 · {{amount}}",
+    "changeTable": "更换",
+    "searchPlaceholder": "搜索菜品…",
+    "allCategories": "全部",
+    "loadingMenu": "正在加载菜单…",
+    "noDishes": "没有匹配的菜品。",
+    "reviewOrder": "查看订单",
+    "reviewTitle": "订单 — {{table}} 号桌",
+    "guestsLabel": "用餐人数",
+    "guestsPlaceholder": "例如 4",
+    "guestsNote_one": "{{count}} 位",
+    "guestsNote_other": "{{count}} 位",
+    "notesLabel": "给厨房的备注",
+    "notesPlaceholder": "过敏、熟度、备注…",
+    "checkoutLabel": "收款",
+    "checkout": {
+      "laterTitle": "稍后付款",
+      "laterDesc": "订单送往厨房，前台结账。",
+      "nowTitle": "立即收款",
+      "nowDesc": "刷卡或现金，即时完成。"
+    },
+    "total": "合计",
+    "submitToKitchen": "发送至厨房",
+    "submitAndPay": "发送并收款",
+    "successTitle": "订单已发送",
+    "successMessage": "订单 {{number}} 已记入 {{table}} 号桌。",
+    "submitFailed": "无法保存订单。",
+    "invalidPayload": "订单不完整：请检查餐桌和菜品。",
+    "discardTitle": "放弃该订单？",
+    "discardMessage_one": "将丢失 {{count}} 件商品。",
+    "discardMessage_other": "将丢失 {{count}} 件商品。",
+    "discardConfirm": "放弃"
   }
 }

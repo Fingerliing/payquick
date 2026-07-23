@@ -1188,7 +1188,8 @@
       "pending": "قيد الانتظار",
       "tonight": "الليلة",
       "history": "السجل",
-      "refresh": "تحديث"
+      "refresh": "تحديث",
+      "takeOrder": "أخذ طلب"
     },
     "history": {
       "title": "سجل الطلبات",
@@ -1229,7 +1230,8 @@
       "archivedMessage_other": "تم أرشفة {{count}} طلبات",
       "noneToArchiveTitle": "معلومة",
       "noneToArchiveMessage": "لا توجد طلبات للأرشفة",
-      "archiveFailed": "تعذّرت أرشفة الطلبات"
+      "archiveFailed": "تعذّرت أرشفة الطلبات",
+      "noRestaurantSelected": "يرجى اختيار مطعم أولاً."
     }
   },
   "restaurantDailyMenu": {
@@ -3187,5 +3189,55 @@
     },
     "restaurantLabel": "المطعم",
     "restaurantPicker": "اختر مطعمًا"
+  },
+  "takeOrder": {
+    "title": "أخذ طلب",
+    "forbidden": "هذه الشاشة مخصّصة لأصحاب المطاعم.",
+    "missingRestaurant": "لم يتم العثور على المطعم.",
+    "chooseTableTitle": "أي طاولة؟",
+    "chooseTableSubtitle": "اختر طاولة أو أدخل رقمها.",
+    "tablesLoadFailed": "تعذّر تحميل الطاولات.",
+    "menuLoadFailed": "تعذّر تحميل القائمة.",
+    "otherCategory": "أخرى",
+    "tableLabel": "الطاولة {{number}}",
+    "seats_one": "مقعد واحد",
+    "seats_other": "{{count}} مقاعد",
+    "noTables": "لا توجد طاولات مُعدّة لهذا المطعم.",
+    "manualTableLabel": "إدخال يدوي",
+    "manualTablePlaceholder": "رقم الطاولة",
+    "confirmTable": "تأكيد",
+    "sessionRunning_one": "طلب واحد قيد التنفيذ · {{amount}}",
+    "sessionRunning_other": "{{count}} طلبات قيد التنفيذ · {{amount}}",
+    "changeTable": "تغيير",
+    "searchPlaceholder": "ابحث عن طبق…",
+    "allCategories": "الكل",
+    "loadingMenu": "جارٍ تحميل القائمة…",
+    "noDishes": "لا يوجد طبق مطابق.",
+    "reviewOrder": "عرض الطلب",
+    "reviewTitle": "الطلب — الطاولة {{table}}",
+    "guestsLabel": "عدد الأشخاص",
+    "guestsPlaceholder": "مثال: 4",
+    "guestsNote_one": "شخص واحد",
+    "guestsNote_other": "{{count}} أشخاص",
+    "notesLabel": "ملاحظات للمطبخ",
+    "notesPlaceholder": "الحساسية، درجة الطهي، ملاحظات…",
+    "checkoutLabel": "الدفع",
+    "checkout": {
+      "laterTitle": "الدفع لاحقًا",
+      "laterDesc": "يُرسل الطلب إلى المطبخ، والدفع عند الكاشير.",
+      "nowTitle": "التحصيل الآن",
+      "nowDesc": "بطاقة أو نقدًا، فورًا."
+    },
+    "total": "الإجمالي",
+    "submitToKitchen": "إرسال إلى المطبخ",
+    "submitAndPay": "إرسال وتحصيل",
+    "successTitle": "تم إرسال الطلب",
+    "successMessage": "تم تسجيل الطلب {{number}} للطاولة {{table}}.",
+    "submitFailed": "تعذّر حفظ الطلب.",
+    "invalidPayload": "الطلب غير مكتمل: تحقّق من الطاولة والأصناف.",
+    "discardTitle": "إلغاء الطلب؟",
+    "discardMessage_one": "سيُفقد صنف واحد.",
+    "discardMessage_other": "ستُفقد {{count}} أصناف.",
+    "discardConfirm": "إلغاء"
   }
 }

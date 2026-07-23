@@ -44,6 +44,14 @@ type ScreenType = 'mobile' | 'tablet' | 'desktop';
 // CONSTANTES — couleurs kanban identitaires (stables dans les 2 modes)
 // Saturation suffisante pour rester lisibles partout.
 // ════════════════════════════════════════════════════════════════════════════
+// Bouton "Prendre une commande" : le bandeau est navy dans les 2 modes, mais
+// tres profond en dark. Le dore plein y devient eblouissant, on l'assourdit.
+// L'encre posee dessus est FIXE (navy de l'embleme) : la deriver de
+// `colors.primary` cassait le contraste en dark, ou le token s'eclaircit.
+const GOLD_ON_BANNER_LIGHT = '#D4AF37';
+const GOLD_ON_BANNER_DARK = '#C9A227';
+const INK_ON_GOLD = '#0C1219';
+
 const KANBAN_RED = '#EF4444';
 const KANBAN_AMBER = '#F59E0B';
 const KANBAN_GREEN = '#10B981';
@@ -999,6 +1007,7 @@ interface KanbanBannerProps {
   todayRevenue: number;
   onOpenHistory: () => void;
   onRefresh: () => void;
+  onTakeOrder: () => void;
   refreshing: boolean;
 }
 
@@ -1008,6 +1017,7 @@ const KanbanBanner: React.FC<KanbanBannerProps> = ({
   todayRevenue,
   onOpenHistory,
   onRefresh,
+  onTakeOrder,
   refreshing,
 }) => {
   const { t, i18n } = useTranslation();
@@ -1062,6 +1072,21 @@ const KanbanBanner: React.FC<KanbanBannerProps> = ({
       </View>
 
       <View style={styles.bannerActions}>
+        {/* Action primaire : prise de commande a table par le serveur.
+            Fond dore (identite EatQuickeR) pour la distinguer nettement des
+            actions secondaires translucides Historique / Rafraichir. */}
+        <Pressable
+          style={[styles.bannerAction, styles.bannerActionPrimary]}
+          onPress={onTakeOrder}
+          android_ripple={{ color: 'rgba(0,0,0,0.12)' }}
+          accessibilityRole="button"
+          accessibilityLabel={t('restaurantOrders.banner.takeOrder')}
+        >
+          <Ionicons name="add-circle" size={16} color={INK_ON_GOLD} />
+          <Text style={[styles.bannerActionText, styles.bannerActionPrimaryText]}>
+            {t('restaurantOrders.banner.takeOrder')}
+          </Text>
+        </Pressable>
         <Pressable
           style={styles.bannerAction}
           onPress={onOpenHistory}
@@ -1236,6 +1261,25 @@ export default function RestaurantOrdersScreen() {
   const navigateToDetail = useCallback((orderId: number) => {
     router.push(`/order/${orderId}` as any);
   }, []);
+
+  /**
+   * Prise de commande a table par le serveur.
+   * Route statique `/order/take` (meme pattern que `/order/payment`, qui
+   * cohabite deja avec la route dynamique `/order/[id]`).
+   * Le restaurant courant est transmis en query param : l'ecran de prise de
+   * commande recharge le menu public de cet etablissement.
+   */
+  const handleTakeOrder = useCallback(() => {
+    if (!selectedRestaurantId) {
+      pushAlert(
+        'warning',
+        t('restaurantOrders.chooseRestaurant'),
+        t('restaurantOrders.feedback.noRestaurantSelected'),
+      );
+      return;
+    }
+    router.push(`/order/take?restaurantId=${selectedRestaurantId}` as any);
+  }, [selectedRestaurantId, pushAlert, t]);
 
   const openPaymentPrompt = useCallback((orderId: number) => {
     setPaymentPrompt({ orderId });
@@ -1448,6 +1492,7 @@ export default function RestaurantOrdersScreen() {
         todayRevenue={todayRevenue}
         onOpenHistory={() => setShowHistory(true)}
         onRefresh={handleRefresh}
+        onTakeOrder={handleTakeOrder}
         refreshing={refreshing}
       />
 
@@ -1724,6 +1769,10 @@ const makeKanbanStyles = (colors: AppColors, isDark: boolean) => {
       borderRadius: BORDER_RADIUS.full,
     },
     bannerActionText: { fontSize: 13, fontWeight: '600', color: '#FFFFFF' },
+    bannerActionPrimary: {
+      backgroundColor: isDark ? GOLD_ON_BANNER_DARK : GOLD_ON_BANNER_LIGHT,
+    },
+    bannerActionPrimaryText: { color: INK_ON_GOLD, fontWeight: '700' },
 
     // ── Kanban wrapper ──────────────────────────────────────────────────
     kanbanWrapper: { flex: 1 },

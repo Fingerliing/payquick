@@ -1188,7 +1188,8 @@
       "pending": "Zain",
       "tonight": "Gaur gauean",
       "history": "Historia",
-      "refresh": "Eguneratu"
+      "refresh": "Eguneratu",
+      "takeOrder": "Eskaera hartu"
     },
     "history": {
       "title": "Eskaeren historia",
@@ -1229,7 +1230,8 @@
       "archivedMessage_other": "{{count}} eskaera artxibatuak",
       "noneToArchiveTitle": "Informazioa",
       "noneToArchiveMessage": "Ez dago artxibatzeko eskaerarik",
-      "archiveFailed": "Ezin dira eskaerak artxibatu"
+      "archiveFailed": "Ezin dira eskaerak artxibatu",
+      "noRestaurantSelected": "Hautatu establezimendu bat lehenik."
     }
   },
   "restaurantDailyMenu": {
@@ -3187,5 +3189,55 @@
     },
     "restaurantLabel": "Jatetxea",
     "restaurantPicker": "Aukeratu jatetxe bat"
+  },
+  "takeOrder": {
+    "title": "Eskaera hartu",
+    "forbidden": "Pantaila hau jatetxe-arduradunentzat da.",
+    "missingRestaurant": "Ez da jatetxea aurkitu.",
+    "chooseTableTitle": "Zein mahai?",
+    "chooseTableSubtitle": "Hautatu mahai bat edo sartu haren zenbakia.",
+    "tablesLoadFailed": "Ezin izan dira mahaiak kargatu.",
+    "menuLoadFailed": "Ezin izan da karta kargatu.",
+    "otherCategory": "Bestelakoak",
+    "tableLabel": "{{number}}. mahaia",
+    "seats_one": "lagun {{count}}",
+    "seats_other": "{{count}} lagun",
+    "noTables": "Ez dago mahairik konfiguratuta establezimendu honetan.",
+    "manualTableLabel": "Eskuzko sarrera",
+    "manualTablePlaceholder": "Mahai-zk.",
+    "confirmTable": "Berretsi",
+    "sessionRunning_one": "eskaera {{count}} abian · {{amount}}",
+    "sessionRunning_other": "{{count}} eskaera abian · {{amount}}",
+    "changeTable": "Aldatu",
+    "searchPlaceholder": "Bilatu plater bat…",
+    "allCategories": "Denak",
+    "loadingMenu": "Karta kargatzen…",
+    "noDishes": "Ez dago bat datorren platerik.",
+    "reviewOrder": "Ikusi eskaera",
+    "reviewTitle": "Eskaera — {{table}}. mahaia",
+    "guestsLabel": "Lagun kopurua",
+    "guestsPlaceholder": "Adib. 4",
+    "guestsNote_one": "lagun {{count}}",
+    "guestsNote_other": "{{count}} lagun",
+    "notesLabel": "Sukalderako oharrak",
+    "notesPlaceholder": "Alergiak, puntuak, oharrak…",
+    "checkoutLabel": "Kobrantza",
+    "checkout": {
+      "laterTitle": "Ordaindu geroago",
+      "laterDesc": "Eskaera sukaldera doa, kobrantza barran.",
+      "nowTitle": "Kobratu orain",
+      "nowDesc": "Txartela edo eskudirua, berehala."
+    },
+    "total": "Guztira",
+    "submitToKitchen": "Bidali sukaldera",
+    "submitAndPay": "Bidali eta kobratu",
+    "successTitle": "Eskaera bidalita",
+    "successMessage": "{{number}} eskaera {{table}}. mahaian erregistratu da.",
+    "submitFailed": "Ezin izan da eskaera gorde.",
+    "invalidPayload": "Eskaera osatugabea: egiaztatu mahaia eta artikuluak.",
+    "discardTitle": "Eskaera baztertu?",
+    "discardMessage_one": "artikulu {{count}} galduko da.",
+    "discardMessage_other": "{{count}} artikulu galduko dira.",
+    "discardConfirm": "Baztertu"
   }
 }
