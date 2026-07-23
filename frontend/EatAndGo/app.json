@@ -115,7 +115,8 @@
         }
       ],
       "expo-apple-authentication",
-      "react-native-edge-to-edge"
+      "react-native-edge-to-edge",
+      "@stripe/stripe-terminal-react-native"
     ],
     "extra": {
       "apiUrl": "https://api.eatquicker.fr",
