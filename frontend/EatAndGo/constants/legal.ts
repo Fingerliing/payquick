@@ -690,8 +690,9 @@ export const TERMS_OF_SERVICE = {
             "Contact prioritaire : legal@eatquicker.com",
             "Tentative de médiation avant toute action judiciaire",
             "Délai de réponse : 15 jours ouvrés",
-            "Médiation de la consommation : pour les consommateurs, possibilité de saisir un médiateur agréé",
-            "Coordonnées du médiateur disponibles sur demande à contact@eatquicker.com"
+            "Médiation de la consommation : le consommateur peut saisir gratuitement un médiateur agréé, après démarche écrite préalable auprès d'EatQuickeR",
+            "TODO-LEGAL — Médiateur agréé : nom, adresse postale et site web à renseigner ici avant mise en production",
+            "Litiges transfrontaliers dans l'Union européenne : Centre Européen des Consommateurs France (europe-consommateurs.eu)"
           ]
         },
         {
