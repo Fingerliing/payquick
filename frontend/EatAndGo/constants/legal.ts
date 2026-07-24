@@ -1,6 +1,6 @@
 export const TERMS_OF_SERVICE = {
   title: "Conditions Générales d'Utilisation",
-  lastUpdate: "24 Novembre 2026",
+  lastUpdate: "24 juillet 2026",
   sections: [
     {
       title: "PRÉSENTATION DE LA PLATEFORME",
@@ -34,7 +34,7 @@ export const TERMS_OF_SERVICE = {
         },
         {
           title: "Modifications",
-          content: "EatQuickeR se réserve le droit de modifier les présentes CGU à tout moment. Les utilisateurs seront informés des modifications par notification dans l'application ou par email. La poursuite de l'utilisation après modification vaut acceptation des nouvelles conditions."
+          content: "EatQuickeR se réserve le droit de modifier les présentes CGU. Les utilisateurs sont informés des modifications par notification dans l'application ou par email. Pour les Restaurateurs, conformément au règlement (UE) 2019/1150 relatif aux services d'intermédiation en ligne, toute modification des présentes conditions est notifiée sur un support durable au moins quinze (15) jours avant son entrée en vigueur ; le Restaurateur peut résilier son contrat sans frais pendant ce délai. La poursuite de l'utilisation après l'entrée en vigueur vaut acceptation des nouvelles conditions."
         }
       ]
     },
@@ -181,10 +181,12 @@ export const TERMS_OF_SERVICE = {
         },
         {
           title: "Modes de paiement",
-          content: "Deux options sont proposées :",
+          content: "Quatre modes d'encaissement peuvent être proposés, selon la configuration du restaurant :",
           bulletPoints: [
-            "Paiement via l'application : carte bancaire (traitement sécurisé par notre prestataire)",
-            "Paiement en caisse : selon les moyens acceptés par le restaurant"
+            "Paiement par le Client dans l'application : carte bancaire, traitement sécurisé par notre prestataire",
+            "Encaissement sans contact par le personnel du restaurant : le Client présente sa carte, son téléphone ou sa montre à l'appareil du Restaurateur",
+            "Paiement sur le terminal de paiement propre au restaurant",
+            "Paiement en espèces"
           ]
         },
         {
@@ -195,6 +197,17 @@ export const TERMS_OF_SERVICE = {
             "En cas de commande collaborative, la répartition des frais est automatique",
             "Le paiement est prélevé après validation de la commande"
           ]
+        },
+        {
+          title: "Encaissement sans contact",
+          content: "Lorsque le Restaurateur active cette fonctionnalité, son appareil mobile fait office de terminal de paiement :",
+          bulletPoints: [
+            "Les données de la carte sont lues par le matériel sécurisé de l'appareil et transmises directement à notre prestataire de paiement",
+            "EatQuickeR n'a à aucun moment accès aux données complètes de la carte",
+            "Au-delà d'un certain montant, la saisie du code confidentiel est demandée dans l'interface sécurisée du système d'exploitation de l'appareil, et non dans l'application",
+            "Cette fonctionnalité nécessite un appareil compatible et une connexion internet active",
+            "La position de l'appareil du Restaurateur est transmise au prestataire de paiement à chaque transaction (voir la Politique de Confidentialité)"
+          ]
         }
       ]
     },
@@ -202,22 +215,47 @@ export const TERMS_OF_SERVICE = {
       title: "TARIFICATION ET COMMISSION",
       subsections: [
         {
-          title: "Commission plateforme",
-          content: "Pour chaque commande payée via l'application, EatQuickeR prélève une commission de 2% sur le montant TTC de la commande.",
+          title: "Principe",
+          content: "La commission EatQuickeR ne s'applique qu'aux sommes qui transitent effectivement par la Plateforme et son prestataire de paiement. Les sommes encaissées directement par le Restaurateur, sans passer par la Plateforme, ne donnent lieu à aucune commission."
+        },
+        {
+          title: "Encaissements soumis à commission",
+          content: "Une commission de 2 % du montant TTC de la commande est prélevée sur :",
           bulletPoints: [
-            "La commission est prélevée automatiquement lors du paiement par carte bancaire",
-            "Le restaurateur reçoit le montant de la commande diminué de la commission EatQuickeR",
-            "Cette commission couvre les frais de mise en relation et de gestion de la plateforme",
-            "Les frais bancaires Stripe sont à la charge du restaurateur (selon la grille tarifaire Stripe)"
+            "Les commandes payées par le Client dans l'application",
+            "Les encaissements réalisés sans contact par le personnel du restaurant depuis l'application"
+          ]
+        },
+        {
+          title: "Encaissements non soumis à commission",
+          content: "Aucune commission n'est prélevée sur :",
+          bulletPoints: [
+            "Les paiements réalisés sur le terminal de paiement propre au Restaurateur",
+            "Les paiements en espèces",
+            "Ces sommes ne transitent à aucun moment par EatQuickeR ni par son prestataire de paiement, quand bien même la commande aurait été saisie dans l'application"
+          ]
+        },
+        {
+          title: "Modalités de prélèvement",
+          content: "Pour les encaissements soumis à commission :",
+          bulletPoints: [
+            "La commission est prélevée automatiquement au moment de la transaction",
+            "Le Restaurateur reçoit le montant de la commande diminué de la commission EatQuickeR",
+            "Cette commission couvre les frais de mise en relation et de gestion de la Plateforme",
+            "Les frais bancaires Stripe sont à la charge du Restaurateur, selon la grille tarifaire Stripe applicable au canal d'encaissement utilisé"
           ]
         },
         {
           title: "Exemple de calcul",
-          content: "Pour une commande de 50€ payée par carte :",
+          content: "Pour une commande de 50 € :",
           bulletPoints: [
-            "Commission EatQuickeR (2%) : 1,00€",
-            "Frais Stripe (~1,4% + 0,25€) : environ 0,95€",
-            "Montant net restaurateur : environ 48,05€"
+            "Payée par le Client dans l'application, ou encaissée sans contact depuis l'application :",
+            "  • Commission EatQuickeR (2 %) : 1,00 €",
+            "  • Frais Stripe : variables selon le canal d'encaissement et le type de carte",
+            "  • Montant net Restaurateur : environ 48 €",
+            "Payée sur le terminal du Restaurateur, ou en espèces :",
+            "  • Commission EatQuickeR : 0,00 €",
+            "  • Montant net Restaurateur : 50 €, diminué le cas échéant des frais de son propre contrat monétique"
           ]
         }
       ]
@@ -690,7 +728,7 @@ export const TERMS_OF_SERVICE = {
 
 export const PRIVACY_POLICY = {
   title: "Politique de Confidentialité",
-  lastUpdate: "16 octobre 2025",
+  lastUpdate: "24 juillet 2026",
   sections: [
     {
       title: "INTRODUCTION",
@@ -777,6 +815,11 @@ export const PRIVACY_POLICY = {
             "  • Numéro de compte Stripe Connect",
             "  • Statut de vérification Stripe",
             "  • Informations bancaires pour versements (traitées par Stripe)",
+            "Encaissement sans contact (appareil du restaurateur utilisé comme terminal) :",
+            "  • Les données de la carte sont lues par le matériel sécurisé de l'appareil",
+            "  • Elles sont transmises directement à Stripe, sans transiter par les serveurs d'EatQuickeR",
+            "  • Le code confidentiel, lorsqu'il est demandé, est saisi dans l'interface sécurisée du système d'exploitation de l'appareil, jamais dans l'application",
+            "  • EatQuickeR ne conserve que les mêmes éléments que pour un paiement en ligne (4 derniers chiffres, identifiants de transaction, statut, montant)",
             "BASES LÉGALES utilisées par Stripe :",
             "  • Exécution du contrat (Art. 6.1.b) : traitement du paiement",
             "  • Obligation légale (Art. 6.1.c) : lutte anti-blanchiment, déclarations fiscales",
@@ -791,6 +834,19 @@ export const PRIVACY_POLICY = {
             "Tables scannées (numéros de table, codes QR, timestamps)",
             "Fréquence d'utilisation de la Plateforme",
             "Fonctionnalités utilisées (scan QR, paiement, commande collaborative)"
+          ]
+        },
+        {
+          title: "Géolocalisation lors des encaissements sans contact",
+          content: "Cette collecte concerne exclusivement les Restaurateurs qui utilisent l'encaissement sans contact depuis l'application. Aucune donnée de localisation du Client n'est collectée à cette occasion.",
+          bulletPoints: [
+            "DONNÉE : position géographique précise de l'appareil du Restaurateur",
+            "MOMENT : à chaque transaction d'encaissement sans contact, et non en continu",
+            "DESTINATAIRE : Stripe, en sa qualité de prestataire de services de paiement",
+            "FINALITÉ : exigence des réseaux de cartes bancaires et de Stripe pour l'acceptation des paiements de proximité, notamment à des fins de prévention de la fraude",
+            "BASE LÉGALE : exécution du contrat (Article 6.1.b). Cette transmission est imposée par le prestataire de paiement : sans elle, la transaction ne peut aboutir",
+            "CONSERVATION : EatQuickeR ne reçoit ni ne conserve ces positions, transmises directement par l'appareil à Stripe",
+            "REFUS : le refus de l'autorisation de localisation empêche l'utilisation de l'encaissement sans contact, mais n'affecte aucune autre fonctionnalité de la Plateforme"
           ]
         },
         {
@@ -903,7 +959,8 @@ export const PRIVACY_POLICY = {
           title: "Stripe - Traitement des paiements (détails complets)",
           content: "Stripe intervient comme sous-traitant et responsable de traitement conjoint :",
           bulletPoints: [
-            "RÔLE : Traitement sécurisé des paiements par carte bancaire",
+            "RÔLE : Traitement sécurisé des paiements par carte bancaire, en ligne comme en encaissement de proximité sans contact",
+            "DONNÉES SPÉCIFIQUES AU SANS CONTACT : position géographique de l'appareil du Restaurateur à chaque transaction, identifiant de l'appareil",
             "DONNÉES TRAITÉES : Coordonnées bancaires, montants des transactions, données de facturation",
             "BASES LÉGALES utilisées par Stripe :",
             "  • Exécution du contrat (Article 6.1.b) : traitement du paiement",

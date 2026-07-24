@@ -5,8 +5,11 @@ const LEGAL_VERSION_KEY = 'legal_version';
 
 // ── Versions actuelles des documents légaux ──────────────────────────────────
 // À incrémenter à chaque modification des CGU ou de la politique
-export const CURRENT_TERMS_VERSION = '1.0.0';
-export const CURRENT_PRIVACY_VERSION = '1.0.0';
+// 1.1.0 — 24/07/2026 : encaissement sans contact, refonte de l'assiette de
+// commission (2 % sur les seuls flux transitant par la Plateforme),
+// géolocalisation imposée par le prestataire de paiement.
+export const CURRENT_TERMS_VERSION = '1.1.0';
+export const CURRENT_PRIVACY_VERSION = '1.1.0';
 // Clé combinée pour le stockage local (compatibilité ascendante)
 export const CURRENT_LEGAL_VERSION = `${CURRENT_TERMS_VERSION}+${CURRENT_PRIVACY_VERSION}`;
 
