@@ -20,6 +20,12 @@ import type { OrderDetail } from '@/types/order';
  * serveur n'est pas passée (réseau coupé juste après la capture). L'argent a
  * bougé — on n'affiche donc PAS « échec » et on ne propose PAS de recharger la
  * carte. Le webhook `payment_intent.succeeded` réconcilie de son côté.
+ *
+ * Initialisation : `initialize()` est appelé dans un effet dédié, PAS enchaîné
+ * dans `prepare`. `isInitialized` est un état React ; la promesse d'init peut
+ * résoudre avant que le flag lu par le garde interne du SDK ne soit propagé.
+ * On gate donc la découverte sur `isInitialized` — quand il bascule, `prepare`
+ * est recréé et l'effet appelant le relance dans un render où le SDK est prêt.
  */
 
 export type TapToPayPhase =
@@ -94,6 +100,8 @@ export function useTapToPay({ restaurantId, orderId }: UseTapToPayArgs): UseTapT
   const mountedRef = useRef(true);
 
   const {
+    initialize,
+    isInitialized,
     discoverReaders,
     connectReader,
     connectedReader,
@@ -123,11 +131,30 @@ export function useTapToPay({ restaurantId, orderId }: UseTapToPayArgs): UseTapT
     [],
   );
 
+  // Init native du SDK, isolée de la découverte. Un échec ici fige la phase en
+  // `failed` ; `prepare` ne discover pas tant que `isInitialized` n'est pas vrai.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { error } = await initialize();
+      if (cancelled || !error) return;
+      safeSet('failed', classifyError(error.code, error.message));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [initialize, safeSet]);
+
   const prepare = useCallback(async () => {
     if (connectedReader) {
       safeSet('ready');
       return;
     }
+    // Tant que le SDK n'est pas initialisé, on ne touche à aucune méthode native.
+    // La phase reste `idle` (spinner) ; l'effet appelant relancera `prepare`
+    // dès que `isInitialized` bascule, ce hook étant alors recréé.
+    if (!isInitialized) return;
+
     safeSet('checking');
 
     if (Platform.OS === 'android') {
@@ -168,7 +195,11 @@ export function useTapToPay({ restaurantId, orderId }: UseTapToPayArgs): UseTapT
         return;
       }
 
-      const { error: connectError } = await connectReader({ reader, locationId }, 'tapToPay');
+      const { error: connectError } = await connectReader({
+        reader,
+        locationId,
+        discoveryMethod: 'tapToPay',
+      });
       if (connectError) {
         safeSet('failed', classifyError(connectError.code, connectError.message));
         return;
@@ -179,7 +210,7 @@ export function useTapToPay({ restaurantId, orderId }: UseTapToPayArgs): UseTapT
       const message = err instanceof Error ? err.message : undefined;
       safeSet('failed', classifyError(undefined, message));
     }
-  }, [connectedReader, restaurantId, discoverReaders, connectReader, safeSet]);
+  }, [connectedReader, isInitialized, restaurantId, discoverReaders, connectReader, safeSet]);
 
   const collect = useCallback(async () => {
     safeSet('creating');
