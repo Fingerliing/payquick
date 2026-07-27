@@ -57,7 +57,6 @@ interface CheckoutProps {
 }
 
 function TerminalCheckout({ order }: CheckoutProps) {
-  console.warn('[TTP] checkout render', order.id, order.payment_status);
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
@@ -295,7 +294,6 @@ export default function TerminalScreen() {
   const parsedOrderId = /^\d+$/.test(params.id ?? '') ? Number(params.id) : NaN;
 
   const [order, setOrder] = useState<OrderDetail | null>(null);
-  console.warn('[TTP] screen mount', params.id, order?.payment_status);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 

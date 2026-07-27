@@ -9,7 +9,6 @@ import {
 import { terminalService } from '@/services/terminalService';
 import type { OrderDetail } from '@/types/order';
 
-console.warn('[TTP] hook build C chargé');
 /**
  * Tap to Pay — machine à états d'un encaissement au contact.
  *
@@ -188,7 +187,6 @@ export function useTapToPay({ restaurantId, orderId }: UseTapToPayArgs): UseTapT
 
       const { error: discoverError } = await discoverReaders({ discoveryMethod: 'tapToPay', simulated: __DEV__ });
       if (discoverError) {
-        console.warn('[TTP] discover', discoverError.code, discoverError.message);
         safeSet('failed', classifyError(discoverError.code, discoverError.message));
         return;
       }
@@ -211,7 +209,6 @@ export function useTapToPay({ restaurantId, orderId }: UseTapToPayArgs): UseTapT
 
       safeSet('ready');
     } catch (err) {
-      console.warn('[TTP] prepare catch', err instanceof Error ? err.message : err);
       const message = err instanceof Error ? err.message : undefined;
       safeSet('failed', classifyError(undefined, message));
     }
@@ -225,7 +222,8 @@ export function useTapToPay({ restaurantId, orderId }: UseTapToPayArgs): UseTapT
       const created = await terminalService.createPaymentIntent(orderId);
       clientSecret = created.client_secret;
       if (mountedRef.current) setAmountCents(created.amount_cents);
-    } catch {
+    } catch (err) {
+      const httpErr = err as { response?: { status?: number; data?: unknown }; message?: string };
       safeSet('failed', 'intent');
       return;
     }
