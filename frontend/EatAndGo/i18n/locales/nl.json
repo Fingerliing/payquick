@@ -2435,6 +2435,7 @@
       "serve": "Serveren",
       "collect": "Afrekenen",
       "receipt": "Bon",
+      "kitchenTicket": "Keukenbon",
       "cancel": "Annuleren"
     },
     "cancelConfirm": {

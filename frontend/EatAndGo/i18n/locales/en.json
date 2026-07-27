@@ -2435,6 +2435,7 @@
       "serve": "Serve",
       "collect": "Collect payment",
       "receipt": "Receipt",
+      "kitchenTicket": "Kitchen ticket",
       "cancel": "Cancel"
     },
     "cancelConfirm": {

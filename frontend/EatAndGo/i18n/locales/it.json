@@ -2435,6 +2435,7 @@
       "serve": "Servi",
       "collect": "Incassa",
       "receipt": "Scontrino",
+      "kitchenTicket": "Ticket cucina",
       "cancel": "Annulla"
     },
     "cancelConfirm": {

@@ -1177,7 +1177,16 @@ const createStyles = (colors: AppColors, isDark: boolean) =>
     },
     cartBadgeText: { fontSize: 13, fontWeight: '800', color: INK_ON_GOLD },
     cartBarText: { flex: 1, fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
-    cartBarTotal: { fontSize: 16, fontWeight: '800', color: colors.secondary },
+    cartBarTotal: {
+      fontSize: 16,
+      fontWeight: '800',
+      color: INK_ON_GOLD,
+      backgroundColor: isDark ? GOLD_FILL_DARK : GOLD_FILL_LIGHT,
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      borderRadius: BORDER_RADIUS.full,
+      overflow: 'hidden',
+    },
 
     // ── Feuille de récapitulatif ───────────────────────────────────────────
     modalOverlay: {

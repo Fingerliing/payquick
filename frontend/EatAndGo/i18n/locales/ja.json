@@ -2436,6 +2436,7 @@
       "serve": "提供",
       "collect": "会計",
       "receipt": "レシート",
+      "kitchenTicket": "厨房伝票",
       "cancel": "キャンセル"
     },
     "cancelConfirm": {

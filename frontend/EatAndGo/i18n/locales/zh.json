@@ -2436,6 +2436,7 @@
       "serve": "上菜",
       "collect": "收款",
       "receipt": "收据",
+      "kitchenTicket": "后厨小票",
       "cancel": "取消"
     },
     "cancelConfirm": {

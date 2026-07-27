@@ -2435,6 +2435,7 @@
       "serve": "Servir",
       "collect": "Encaisser",
       "receipt": "Ticket de caisse",
+      "kitchenTicket": "Ticket cuisine",
       "cancel": "Annuler"
     },
     "cancelConfirm": {

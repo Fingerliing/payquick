@@ -2436,6 +2436,7 @@
       "serve": "Zerbitzatu",
       "collect": "Kobratu",
       "receipt": "Tiketa",
+      "kitchenTicket": "Sukaldeko tiketa",
       "cancel": "Utzi"
     },
     "cancelConfirm": {
