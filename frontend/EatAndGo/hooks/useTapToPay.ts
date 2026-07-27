@@ -9,6 +9,7 @@ import {
 import { terminalService } from '@/services/terminalService';
 import type { OrderDetail } from '@/types/order';
 
+console.warn('[TTP] hook build C chargé');
 /**
  * Tap to Pay — machine à états d'un encaissement au contact.
  *
@@ -72,6 +73,8 @@ interface UseTapToPayResult {
   abort: () => Promise<void>;
   /** Repasse de `failed` à `ready` sans reconnecter le reader. */
   reset: () => void;
+  /** Rejoue l'étape échouée : découverte+connexion si pas encore connecté, sinon paiement. */
+  retry: () => void;
 }
 
 /** Erreurs SDK dont on sait qu'elles ne sont pas un refus bancaire. */
@@ -183,8 +186,9 @@ export function useTapToPay({ restaurantId, orderId }: UseTapToPayArgs): UseTapT
       safeSet('connecting');
       discoveredRef.current = null;
 
-      const { error: discoverError } = await discoverReaders({ discoveryMethod: 'tapToPay' });
+      const { error: discoverError } = await discoverReaders({ discoveryMethod: 'tapToPay', simulated: __DEV__ });
       if (discoverError) {
+        console.warn('[TTP] discover', discoverError.code, discoverError.message);
         safeSet('failed', classifyError(discoverError.code, discoverError.message));
         return;
       }
@@ -207,6 +211,7 @@ export function useTapToPay({ restaurantId, orderId }: UseTapToPayArgs): UseTapT
 
       safeSet('ready');
     } catch (err) {
+      console.warn('[TTP] prepare catch', err instanceof Error ? err.message : err);
       const message = err instanceof Error ? err.message : undefined;
       safeSet('failed', classifyError(undefined, message));
     }
@@ -279,6 +284,20 @@ export function useTapToPay({ restaurantId, orderId }: UseTapToPayArgs): UseTapT
     safeSet(connectedReader ? 'ready' : 'idle');
   }, [connectedReader, safeSet]);
 
+  const retry = useCallback(() => {
+    // Échec AVANT connexion (init/permissions/location/discover/connect) → rejouer
+    // la découverte. Échec À PARTIR de `ready` (intent/refus/timeout) → rejouer le
+    // paiement seul. `collect` ne discover pas : le router sur lui après un échec
+    // de découverte laissait le nouveau reader jamais recherché.
+    if (connectedReader) {
+      safeSet('ready');
+      collect();
+    } else {
+      safeSet('idle');
+      prepare();
+    }
+  }, [connectedReader, collect, prepare, safeSet]);
+
   const isBusy =
     phase === 'checking' ||
     phase === 'connecting' ||
@@ -286,5 +305,5 @@ export function useTapToPay({ restaurantId, orderId }: UseTapToPayArgs): UseTapT
     phase === 'collecting' ||
     phase === 'confirming';
 
-  return { phase, failure, amountCents, paidOrder, isBusy, prepare, collect, abort, reset };
+  return { phase, failure, amountCents, paidOrder, isBusy, prepare, collect, abort, reset, retry };
 }

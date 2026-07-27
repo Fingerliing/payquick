@@ -57,12 +57,13 @@ interface CheckoutProps {
 }
 
 function TerminalCheckout({ order }: CheckoutProps) {
+  console.warn('[TTP] checkout render', order.id, order.payment_status);
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
-  const { phase, failure, isBusy, prepare, collect, abort, reset } = useTapToPay({
+  const { phase, failure, isBusy, prepare, collect, abort, retry } = useTapToPay({
     restaurantId: order.restaurant,
     orderId: order.id,
   });
@@ -224,10 +225,7 @@ function TerminalCheckout({ order }: CheckoutProps) {
           {canRetry && (
             <Button
               title={t('common.retry')}
-              onPress={() => {
-                reset();
-                collect();
-              }}
+              onPress={retry}
               style={styles.goldButton}
               textStyle={{ color: INK_ON_GOLD }}
             />
@@ -297,6 +295,7 @@ export default function TerminalScreen() {
   const parsedOrderId = /^\d+$/.test(params.id ?? '') ? Number(params.id) : NaN;
 
   const [order, setOrder] = useState<OrderDetail | null>(null);
+  console.warn('[TTP] screen mount', params.id, order?.payment_status);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
