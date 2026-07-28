@@ -3,6 +3,7 @@
     "name": "EatQuickeR",
     "slug": "EatQuickeR",
     "version": "1.2.0",
+    "newArchEnabled": true,
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "light",
