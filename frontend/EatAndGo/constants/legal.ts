@@ -691,7 +691,7 @@ export const TERMS_OF_SERVICE = {
             "Tentative de médiation avant toute action judiciaire",
             "Délai de réponse : 15 jours ouvrés",
             "Médiation de la consommation : le consommateur peut saisir gratuitement un médiateur agréé, après démarche écrite préalable auprès d'EatQuickeR",
-            "TODO-LEGAL — Médiateur agréé : nom, adresse postale et site web à renseigner ici avant mise en production",
+            "Médiateur agréé : Média Consommation Développement, adresse postale : 3 rue J. Constant Milleret, 42000 SAINT-ETIENNE, site web : https://www.medconsodev.eu/",
             "Litiges transfrontaliers dans l'Union européenne : Centre Européen des Consommateurs France (europe-consommateurs.eu)"
           ]
         },
