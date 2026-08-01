@@ -7,7 +7,7 @@ import {
 } from '@stripe/stripe-terminal-react-native';
 
 import { terminalService } from '@/services/terminalService';
-import { TAP_TO_PAY_DIAGNOSTICS, TAP_TO_PAY_SIMULATED } from '@/utils/TapTopayFlags';
+import { TAP_TO_PAY_DIAGNOSTICS, TAP_TO_PAY_SIMULATED } from '@/utils/tapToPayFlags';
 import type { OrderDetail } from '@/types/order';
 
 /**
@@ -57,6 +57,7 @@ export type TapToPayPhase =
 export type TapToPayFailure =
   | 'permissions'
   | 'unsupported'
+  | 'insecureEnvironment'
   | 'location'
   | 'connection'
   | 'intent'
@@ -115,6 +116,33 @@ interface UseTapToPayResult {
   retry: () => void;
 }
 
+/**
+ * Forme réelle des rejets d'`apiClient` : `handleError()` normalise tout en
+ * `ApiError { message, code, details }`. Il n'y a PAS de champ `response` —
+ * lire `err.response.status` renvoie toujours `undefined`, et le statut HTTP
+ * se trouve dans `code`. Le message métier du backend (`{'error': ...}`)
+ * atterrit dans `details.error`.
+ */
+interface NormalizedApiError {
+  message?: string;
+  code?: number;
+  details?: Record<string, unknown>;
+}
+
+function readApiError(err: unknown): { message: string | undefined; status: number | undefined } {
+  const apiErr = (err ?? {}) as NormalizedApiError;
+  const detail = apiErr.details?.error;
+  const fromDetails = Array.isArray(detail)
+    ? detail.map(String).join(' ')
+    : typeof detail === 'string'
+      ? detail
+      : undefined;
+  return {
+    message: fromDetails ?? apiErr.message,
+    status: typeof apiErr.code === 'number' && apiErr.code > 0 ? apiErr.code : undefined,
+  };
+}
+
 /** Erreurs SDK dont on sait qu'elles ne sont pas un refus bancaire. */
 const CANCEL_CODES = ['Canceled', 'CanceledError', 'CommandCancelled', 'CancelFailedUnavailable'];
 const NETWORK_CODES = ['NotConnectedToInternet', 'RequestTimedOut', 'StripeAPIConnectionError'];
@@ -143,6 +171,13 @@ function classifyError(code: string | undefined, message: string | undefined): T
     if (UNSUPPORTED_CODES.includes(code)) return 'unsupported';
     // Famille Tap to Pay : device banni, TOS non acceptées, entitlement absent,
     // compte non éligible. Aucune n'est récupérable par un retry immédiat.
+    // Environnement non sûr pour la saisie du PIN (options développeur,
+    // service d'accessibilité, enregistrement d'écran, fenêtre en
+    // superposition). Récupérable par l'utilisateur — à ne pas confondre avec
+    // un appareil non éligible, d'où le test AVANT le préfixe générique.
+    if (code === 'TapToPayInsecureEnvironment' || code === 'TAP_TO_PAY_INSECURE_ENVIRONMENT') {
+      return 'insecureEnvironment';
+    }
     if (code.startsWith('TapToPay') || code.startsWith('LocalMobile')) return 'unsupported';
     if (code === 'DeclinedByStripeAPI' || code === 'DeclinedByReader') return 'declined';
     if (code === 'CardReadTimedOut') return 'timeout';
@@ -321,16 +356,8 @@ export function useTapToPay({ restaurantId, orderId }: UseTapToPayArgs): UseTapT
 
       safeSet('ready');
     } catch (err) {
-      const httpErr = err as {
-        response?: { status?: number; data?: { error?: string } };
-        message?: string;
-      };
-      failWith(
-        'location',
-        undefined,
-        httpErr.response?.data?.error ?? httpErr.message,
-        httpErr.response?.status,
-      );
+      const { message, status } = readApiError(err);
+      failWith('location', undefined, message, status, 'location');
     }
   }, [
     connectedReader,
@@ -364,17 +391,8 @@ export function useTapToPay({ restaurantId, orderId }: UseTapToPayArgs): UseTapT
       clientSecret = created.client_secret;
       if (mountedRef.current) setAmountCents(created.amount_cents);
     } catch (err) {
-      const httpErr = err as {
-        response?: { status?: number; data?: { error?: string } };
-        message?: string;
-      };
-      failWith(
-        'createIntent',
-        undefined,
-        httpErr.response?.data?.error ?? httpErr.message,
-        httpErr.response?.status,
-        'intent',
-      );
+      const { message, status } = readApiError(err);
+      failWith('createIntent', undefined, message, status, 'intent');
       return;
     }
 
@@ -420,15 +438,12 @@ export function useTapToPay({ restaurantId, orderId }: UseTapToPayArgs): UseTapT
       if (mountedRef.current) setPaidOrder(order);
       safeSet('succeeded');
     } catch (err) {
-      const httpErr = err as {
-        response?: { status?: number; data?: { error?: string } };
-        message?: string;
-      };
+      const { message, status } = readApiError(err);
       record({
         stage: 'serverConfirm',
         code: confirmed.id,
-        message: httpErr.response?.data?.error ?? httpErr.message ?? null,
-        httpStatus: httpErr.response?.status ?? null,
+        message: message ?? null,
+        httpStatus: status ?? null,
       });
       safeSet('settling');
     }
