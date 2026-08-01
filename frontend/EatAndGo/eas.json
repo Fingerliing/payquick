@@ -9,8 +9,10 @@
       "distribution": "internal",
       "env": {
         "APP_ENV": "development",
-        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "REPLACE_WITH_WEB_CLIENT_ID.apps.googleusercontent.com",
-        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "REPLACE_WITH_IOS_CLIENT_ID.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "161444086922-s36ofqujh7odhgrq07vkduqm7hjph8b7.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "161444086922-0e30dfkvqiba6o9vhce8ap5432ptkqrt.apps.googleusercontent.com",
+        "EXPO_PUBLIC_TAP_TO_PAY_SIMULATED": "1",
+        "EXPO_PUBLIC_TAP_TO_PAY_DIAGNOSTICS": "1"
       }
     },
     "preview": {
