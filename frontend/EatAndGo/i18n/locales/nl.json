@@ -3230,7 +3230,11 @@
       "terminalTitle": "Contactloos afrekenen",
       "terminalDesc": "De gast houdt kaart of telefoon tegen dit toestel.",
       "onlineTitle": "Online afrekenen",
-      "onlineDesc": "Kaartbetaling via de app."
+      "onlineDesc": "Kaartbetaling via de app.",
+      "terminalBlocked": {
+        "device": "Dit apparaat kan niet contactloos afrekenen.",
+        "stripe": "Rond je Stripe-registratie af om kaartbetalingen te activeren."
+      }
     },
     "total": "Totaal",
     "submitToKitchen": "Naar de keuken sturen",
@@ -3249,7 +3253,7 @@
     "connecting": "Lezer voorbereiden…",
     "connectingHint": "De telefoon wordt ingesteld als betaalterminal.",
     "unsupportedTitle": "Toestel niet ondersteund",
-    "unsupportedMessage": "Contactloos afrekenen vereist een iPhone XS of nieuwer, of een Android 12 of nieuwer met NFC.",
+    "unsupportedMessage": "Contactloos afrekenen vereist een iPhone XS of nieuwer, of een NFC-apparaat met Android 13 of nieuwer.",
     "readyTitle": "Klaar om af te rekenen",
     "readyHint": "Start de betaling en houd de achterkant van de telefoon tegen de kaart van de gast.",
     "startCollect": "Contactloos afrekenen",
@@ -3272,6 +3276,7 @@
     "failure": {
       "permissions": "Locatietoegang is verplicht voor contactloze betalingen. Sta die toe in de instellingen van het toestel.",
       "unsupported": "Dit toestel kan geen contactloze betalingen accepteren.",
+      "insecureEnvironment": "Pincode invoeren lukt niet: schakel ontwikkelaarsopties, schermopname en overlay-apps uit en probeer het opnieuw.",
       "location": "Het adres van de zaak is onvolledig: vul het aan in het restaurantprofiel.",
       "connection": "De lezer kon niet worden gestart. Probeer opnieuw.",
       "intent": "De transactie kon niet worden geopend. Er is niets afgeschreven.",

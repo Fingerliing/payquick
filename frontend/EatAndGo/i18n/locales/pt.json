@@ -3230,7 +3230,11 @@
       "terminalTitle": "Cobrar por aproximação",
       "terminalDesc": "O cliente aproxima o cartão ou telemóvel deste aparelho.",
       "onlineTitle": "Cobrar online",
-      "onlineDesc": "Pagamento com cartão através da aplicação."
+      "onlineDesc": "Pagamento com cartão através da aplicação.",
+      "terminalBlocked": {
+        "device": "Este dispositivo não pode cobrar sem contacto.",
+        "stripe": "Conclua o seu registo Stripe para ativar os pagamentos com cartão."
+      }
     },
     "total": "Total",
     "submitToKitchen": "Enviar para a cozinha",
@@ -3249,7 +3253,7 @@
     "connecting": "A preparar o leitor…",
     "connectingHint": "O telemóvel está a ser configurado como terminal de pagamento.",
     "unsupportedTitle": "Dispositivo não compatível",
-    "unsupportedMessage": "A cobrança por aproximação exige um iPhone XS ou mais recente, ou um Android 12 ou mais recente com NFC.",
+    "unsupportedMessage": "O pagamento sem contacto exige um iPhone XS ou posterior, ou um dispositivo com NFC e Android 13 ou posterior.",
     "readyTitle": "Pronto a cobrar",
     "readyHint": "Inicie a cobrança e aproxime a parte de trás do telemóvel do cartão do cliente.",
     "startCollect": "Cobrar por aproximação",
@@ -3272,6 +3276,7 @@
     "failure": {
       "permissions": "A localização é obrigatória para aceitar pagamentos por aproximação. Autorize-a nas definições do aparelho.",
       "unsupported": "Este aparelho não pode aceitar pagamentos por aproximação.",
+      "insecureEnvironment": "Não é possível introduzir o PIN: desative as opções de programador, a gravação de ecrã e as apps sobrepostas, e tente novamente.",
       "location": "A morada do estabelecimento está incompleta: complete-a no perfil do restaurante.",
       "connection": "Não foi possível ativar o leitor. Tente novamente.",
       "intent": "Não foi possível abrir a transação. Nada foi debitado.",

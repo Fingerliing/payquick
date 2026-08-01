@@ -3231,7 +3231,11 @@
       "terminalTitle": "感应收款",
       "terminalDesc": "顾客将银行卡或手机贴近本设备。",
       "onlineTitle": "在线收款",
-      "onlineDesc": "通过应用完成银行卡支付。"
+      "onlineDesc": "通过应用完成银行卡支付。",
+      "terminalBlocked": {
+        "device": "此设备无法进行非接触式收款。",
+        "stripe": "完成 Stripe 注册即可启用刷卡收款。"
+      }
     },
     "total": "合计",
     "submitToKitchen": "发送至厨房",
@@ -3250,7 +3254,7 @@
     "connecting": "正在准备读卡器…",
     "connectingHint": "正在将本机配置为支付终端。",
     "unsupportedTitle": "设备不支持",
-    "unsupportedMessage": "感应收款需要 iPhone XS 或更新机型，或支持 NFC 的 Android 12 及以上系统。",
+    "unsupportedMessage": "非接触式收款需要 iPhone XS 或更新机型，或搭载 NFC 且系统为 Android 13 及以上的设备。",
     "readyTitle": "可以开始收款",
     "readyHint": "开始收款后，将手机背面靠近顾客的银行卡。",
     "startCollect": "开始感应收款",
@@ -3273,6 +3277,7 @@
     "failure": {
       "permissions": "感应收款必须获取位置权限，请在设备设置中开启。",
       "unsupported": "本设备无法进行感应收款。",
+      "insecureEnvironment": "无法输入密码：请关闭开发者选项、屏幕录制和悬浮窗应用后重试。",
       "location": "门店地址不完整，请在餐厅资料中补充。",
       "connection": "无法启动读卡器，请重试。",
       "intent": "无法建立交易，未产生扣款。",

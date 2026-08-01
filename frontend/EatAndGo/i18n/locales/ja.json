@@ -3231,7 +3231,11 @@
       "terminalTitle": "タッチ決済",
       "terminalDesc": "お客様のカードまたはスマートフォンをこの端末にかざします。",
       "onlineTitle": "オンライン決済",
-      "onlineDesc": "アプリ経由のカード決済です。"
+      "onlineDesc": "アプリ経由のカード決済です。",
+      "terminalBlocked": {
+        "device": "この端末では非接触決済を利用できません。",
+        "stripe": "Stripe の登録を完了するとカード決済が利用できます。"
+      }
     },
     "total": "合計",
     "submitToKitchen": "厨房に送る",
@@ -3250,7 +3254,7 @@
     "connecting": "リーダーを準備しています…",
     "connectingHint": "この端末を決済リーダーとして設定しています。",
     "unsupportedTitle": "非対応の端末です",
-    "unsupportedMessage": "タッチ決済には iPhone XS 以降、または NFC 対応の Android 12 以降が必要です。",
+    "unsupportedMessage": "非接触決済には iPhone XS 以降、または NFC 対応の Android 13 以降の端末が必要です。",
     "readyTitle": "決済の準備ができました",
     "readyHint": "決済を開始し、端末の背面をお客様のカードに近づけてください。",
     "startCollect": "タッチ決済を開始",
@@ -3273,6 +3277,7 @@
     "failure": {
       "permissions": "タッチ決済には位置情報の許可が必要です。端末の設定で許可してください。",
       "unsupported": "この端末ではタッチ決済を利用できません。",
+      "insecureEnvironment": "暗証番号を入力できません。開発者向けオプション、画面録画、オーバーレイ表示するアプリを無効にしてから再試行してください。",
       "location": "店舗の住所が未入力です。レストランのプロフィールで入力してください。",
       "connection": "リーダーを起動できませんでした。もう一度お試しください。",
       "intent": "取引を開始できませんでした。請求は発生していません。",

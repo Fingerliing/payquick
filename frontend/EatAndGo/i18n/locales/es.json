@@ -3230,7 +3230,11 @@
       "terminalTitle": "Cobrar sin contacto",
       "terminalDesc": "El cliente acerca su tarjeta o móvil a este dispositivo.",
       "onlineTitle": "Cobrar en línea",
-      "onlineDesc": "Pago con tarjeta desde la aplicación."
+      "onlineDesc": "Pago con tarjeta desde la aplicación.",
+      "terminalBlocked": {
+        "device": "Este dispositivo no puede cobrar sin contacto.",
+        "stripe": "Completa tu registro en Stripe para activar el cobro con tarjeta."
+      }
     },
     "total": "Total",
     "submitToKitchen": "Enviar a cocina",
@@ -3249,7 +3253,7 @@
     "connecting": "Preparando el lector…",
     "connectingHint": "El teléfono se está configurando como terminal de pago.",
     "unsupportedTitle": "Dispositivo no compatible",
-    "unsupportedMessage": "El cobro sin contacto requiere un iPhone XS o posterior, o un Android 12 o posterior con NFC.",
+    "unsupportedMessage": "El cobro sin contacto requiere un iPhone XS o posterior, o un dispositivo con NFC y Android 13 o posterior.",
     "readyTitle": "Listo para cobrar",
     "readyHint": "Inicie el cobro y acerque la parte trasera del teléfono a la tarjeta del cliente.",
     "startCollect": "Cobrar sin contacto",
@@ -3272,6 +3276,7 @@
     "failure": {
       "permissions": "La ubicación es obligatoria para aceptar pagos sin contacto. Actívela en los ajustes del dispositivo.",
       "unsupported": "Este dispositivo no puede aceptar pagos sin contacto.",
+      "insecureEnvironment": "No se puede introducir el PIN: desactiva las opciones de desarrollador, la grabación de pantalla y las apps superpuestas, e inténtalo de nuevo.",
       "location": "La dirección del establecimiento está incompleta: complétela en el perfil del restaurante.",
       "connection": "No se pudo activar el lector. Inténtelo de nuevo.",
       "intent": "No se pudo abrir la transacción. No se ha cobrado nada.",

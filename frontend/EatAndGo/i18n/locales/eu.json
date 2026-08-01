@@ -3231,7 +3231,11 @@
       "terminalTitle": "Kobratu kontakturik gabe",
       "terminalDesc": "Bezeroak bere txartela edo mugikorra gailu honetara hurbiltzen du.",
       "onlineTitle": "Kobratu sarean",
-      "onlineDesc": "Txartel bidezko ordainketa aplikaziotik."
+      "onlineDesc": "Txartel bidezko ordainketa aplikaziotik.",
+      "terminalBlocked": {
+        "device": "Gailu honek ezin du kontakturik gabe kobratu.",
+        "stripe": "Osatu zure Stripe izena emate-prozesua txartel bidezko kobrantza gaitzeko."
+      }
     },
     "total": "Guztira",
     "submitToKitchen": "Bidali sukaldera",
@@ -3250,7 +3254,7 @@
     "connecting": "Irakurgailua prestatzen…",
     "connectingHint": "Telefonoa ordainketa-terminal gisa konfiguratzen ari da.",
     "unsupportedTitle": "Gailu bateraezina",
-    "unsupportedMessage": "Kontakturik gabeko kobrantzak iPhone XS edo berriagoa behar du, edo NFC duen Android 12 edo berriagoa.",
+    "unsupportedMessage": "Kontakturik gabeko kobrantzak iPhone XS edo berriagoa behar du, edo NFC duen Android 13 edo berriagoa.",
     "readyTitle": "Kobratzeko prest",
     "readyHint": "Hasi kobrantza eta hurbildu telefonoaren atzealdea bezeroaren txartelera.",
     "startCollect": "Kobratu kontakturik gabe",
@@ -3273,6 +3277,7 @@
     "failure": {
       "permissions": "Kokapena beharrezkoa da kontakturik gabeko ordainketak onartzeko. Baimendu gailuaren ezarpenetan.",
       "unsupported": "Gailu honek ezin ditu kontakturik gabeko ordainketak onartu.",
+      "insecureEnvironment": "Ezin da PINa sartu: desaktibatu garatzaile-aukerak, pantaila-grabaketa eta gainjarritako aplikazioak, eta saiatu berriro.",
       "location": "Establezimenduaren helbidea osatu gabe dago: osatu jatetxearen profilean.",
       "connection": "Ezin izan da irakurgailua abiarazi. Saiatu berriro.",
       "intent": "Ezin izan da transakzioa ireki. Ez da ezer kobratu.",

@@ -3230,7 +3230,11 @@
       "terminalTitle": "Kontaktlos kassieren",
       "terminalDesc": "Karte oder Handy des Gastes an dieses Gerät halten.",
       "onlineTitle": "Online kassieren",
-      "onlineDesc": "Kartenzahlung über die App."
+      "onlineDesc": "Kartenzahlung über die App.",
+      "terminalBlocked": {
+        "device": "Dieses Gerät kann nicht kontaktlos kassieren.",
+        "stripe": "Schließen Sie Ihre Stripe-Registrierung ab, um Kartenzahlungen zu aktivieren."
+      }
     },
     "total": "Gesamt",
     "submitToKitchen": "An die Küche senden",
@@ -3249,7 +3253,7 @@
     "connecting": "Lesegerät wird vorbereitet…",
     "connectingHint": "Das Telefon wird als Kartenlesegerät eingerichtet.",
     "unsupportedTitle": "Gerät nicht unterstützt",
-    "unsupportedMessage": "Kontaktloses Kassieren erfordert ein iPhone XS oder neuer bzw. ein Android 12 oder neuer mit NFC.",
+    "unsupportedMessage": "Kontaktloses Kassieren erfordert ein iPhone XS oder neuer oder ein NFC-fähiges Gerät mit Android 13 oder neuer.",
     "readyTitle": "Bereit zum Kassieren",
     "readyHint": "Zahlung starten und die Rückseite des Telefons an die Karte des Gastes halten.",
     "startCollect": "Kontaktlos kassieren",
@@ -3272,6 +3276,7 @@
     "failure": {
       "permissions": "Für kontaktlose Zahlungen ist der Standortzugriff zwingend. Erlauben Sie ihn in den Geräteeinstellungen.",
       "unsupported": "Dieses Gerät kann keine kontaktlosen Zahlungen annehmen.",
+      "insecureEnvironment": "PIN-Eingabe nicht möglich: Deaktivieren Sie Entwickleroptionen, Bildschirmaufnahme und Overlay-Apps, und versuchen Sie es erneut.",
       "location": "Die Adresse des Betriebs ist unvollständig: Bitte im Restaurantprofil ergänzen.",
       "connection": "Das Lesegerät konnte nicht gestartet werden. Bitte erneut versuchen.",
       "intent": "Die Transaktion konnte nicht geöffnet werden. Es wurde nichts belastet.",

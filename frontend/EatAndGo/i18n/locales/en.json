@@ -3230,7 +3230,11 @@
       "terminalTitle": "Tap to pay",
       "terminalDesc": "Customer taps their card or phone on this device.",
       "onlineTitle": "Pay online",
-      "onlineDesc": "Card payment through the app."
+      "onlineDesc": "Card payment through the app.",
+      "terminalBlocked": {
+        "device": "This device can't accept contactless payments.",
+        "stripe": "Finish your Stripe setup to enable card payments."
+      }
     },
     "total": "Total",
     "submitToKitchen": "Send to kitchen",
@@ -3249,7 +3253,7 @@
     "connecting": "Setting up the reader…",
     "connectingHint": "This phone is being turned into a card reader.",
     "unsupportedTitle": "Device not supported",
-    "unsupportedMessage": "Tap to pay requires an iPhone XS or newer, or an NFC-equipped Android 12 or newer.",
+    "unsupportedMessage": "Contactless payments require an iPhone XS or later, or an NFC-equipped device running Android 13 or later.",
     "readyTitle": "Ready to charge",
     "readyHint": "Start the payment, then hold the back of the phone against the customer's card.",
     "startCollect": "Charge contactless",
@@ -3272,6 +3276,7 @@
     "failure": {
       "permissions": "Location access is required to accept contactless payments. Allow it in the device settings.",
       "unsupported": "This device cannot accept contactless payments.",
+      "insecureEnvironment": "PIN entry is unavailable: turn off developer options, screen recording and overlay apps, then try again.",
       "location": "The venue address is incomplete: complete it in the restaurant profile.",
       "connection": "The reader could not be started. Try again.",
       "intent": "The transaction could not be opened. Nothing was charged.",

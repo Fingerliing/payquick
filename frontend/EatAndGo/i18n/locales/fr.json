@@ -3230,7 +3230,11 @@
       "terminalTitle": "Encaisser sans contact",
       "terminalDesc": "Carte ou téléphone du client contre cet appareil.",
       "onlineTitle": "Encaisser en ligne",
-      "onlineDesc": "Règlement par carte via l'application."
+      "onlineDesc": "Règlement par carte via l'application.",
+      "terminalBlocked": {
+        "device": "Cet appareil ne peut pas encaisser sans contact.",
+        "stripe": "Terminez votre inscription Stripe pour activer l'encaissement par carte."
+      }
     },
     "total": "Total",
     "submitToKitchen": "Envoyer en cuisine",
@@ -3249,7 +3253,7 @@
     "connecting": "Préparation du lecteur…",
     "connectingHint": "Le téléphone se configure en terminal de paiement.",
     "unsupportedTitle": "Appareil non compatible",
-    "unsupportedMessage": "L'encaissement sans contact nécessite un iPhone XS ou plus récent, ou un Android 12 ou plus récent équipé du NFC.",
+    "unsupportedMessage": "L'encaissement sans contact nécessite un iPhone XS ou plus récent, ou un Android 13 ou plus récent équipé du NFC.",
     "readyTitle": "Prêt à encaisser",
     "readyHint": "Lancez l'encaissement, puis présentez le dos du téléphone à la carte du client.",
     "startCollect": "Encaisser sans contact",
@@ -3272,6 +3276,7 @@
     "failure": {
       "permissions": "La localisation est obligatoire pour accepter un paiement sans contact. Autorisez-la dans les réglages de l'appareil.",
       "unsupported": "Cet appareil ne peut pas encaisser sans contact.",
+      "insecureEnvironment": "La saisie du code est impossible : désactivez les options développeur, l'enregistrement d'écran et les applications en superposition, puis réessayez.",
       "location": "L'adresse de l'établissement est incomplète : complétez-la dans le profil du restaurant.",
       "connection": "Impossible d'activer le lecteur. Réessayez.",
       "intent": "La transaction n'a pas pu être ouverte. Rien n'a été débité.",
