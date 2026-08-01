@@ -8,7 +8,6 @@ import {
 
 import { terminalService } from '@/services/terminalService';
 import { TAP_TO_PAY_DIAGNOSTICS, TAP_TO_PAY_SIMULATED } from '@/utils/tapToPayFlags';
-import type { OrderDetail } from '@/types/order';
 
 /**
  * Tap to Pay — machine à états d'un encaissement au contact.
@@ -97,15 +96,7 @@ interface UseTapToPayResult {
   failure: TapToPayFailure | null;
   /** Dernière erreur brute. Destinée au debug et aux rapports de bug. */
   lastError: TapToPayErrorDetail | null;
-  amountCents: number | null;
-  paidOrder: OrderDetail | null;
   isBusy: boolean;
-  /**
-   * Découverte + connexion du reader intégré. Idempotent.
-   * Déclenchée automatiquement en phase `idle` — l'écran ne doit PAS l'appeler
-   * dans un effet, sous peine de rétablir la boucle décrite en tête de fichier.
-   */
-  prepare: () => Promise<void>;
   /** Crée le PaymentIntent puis collecte. À n'appeler qu'en phase `ready`. */
   collect: () => Promise<void>;
   /** Annule la collecte en cours (le serveur reprend la main). */
@@ -189,8 +180,6 @@ export function useTapToPay({ restaurantId, orderId }: UseTapToPayArgs): UseTapT
   const [phase, setPhase] = useState<TapToPayPhase>('idle');
   const [failure, setFailure] = useState<TapToPayFailure | null>(null);
   const [lastError, setLastError] = useState<TapToPayErrorDetail | null>(null);
-  const [amountCents, setAmountCents] = useState<number | null>(null);
-  const [paidOrder, setPaidOrder] = useState<OrderDetail | null>(null);
 
   // Le reader découvert arrive par callback, pas par valeur de retour :
   // on le stocke en ref pour que `prepare` puisse l'attendre sans re-render.
@@ -280,6 +269,9 @@ export function useTapToPay({ restaurantId, orderId }: UseTapToPayArgs): UseTapT
     };
   }, [initialize, failWith]);
 
+  // Non exposé : l'effet d'auto-préparation ci-dessous est le SEUL déclencheur.
+  // L'exposer rouvrirait la porte à un appel depuis un effet de l'écran, ce qui
+  // relançait la découverte à chaque re-render du provider Terminal.
   const prepare = useCallback(async () => {
     if (connectedReader) {
       safeSet('ready');
@@ -389,7 +381,6 @@ export function useTapToPay({ restaurantId, orderId }: UseTapToPayArgs): UseTapT
     try {
       const created = await terminalService.createPaymentIntent(orderId);
       clientSecret = created.client_secret;
-      if (mountedRef.current) setAmountCents(created.amount_cents);
     } catch (err) {
       const { message, status } = readApiError(err);
       failWith('createIntent', undefined, message, status, 'intent');
@@ -434,8 +425,7 @@ export function useTapToPay({ restaurantId, orderId }: UseTapToPayArgs): UseTapT
     // Au-delà de ce point la carte est débitée : plus aucun chemin ne doit
     // reproposer un encaissement.
     try {
-      const order = await terminalService.confirm(orderId, confirmed.id);
-      if (mountedRef.current) setPaidOrder(order);
+      await terminalService.confirm(orderId, confirmed.id);
       safeSet('succeeded');
     } catch (err) {
       const { message, status } = readApiError(err);
@@ -493,10 +483,7 @@ export function useTapToPay({ restaurantId, orderId }: UseTapToPayArgs): UseTapT
     phase,
     failure,
     lastError,
-    amountCents,
-    paidOrder,
     isBusy,
-    prepare,
     collect,
     abort,
     reset,
