@@ -33,6 +33,7 @@ import {
   ActivityIndicator,
   StyleSheet,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -108,6 +109,17 @@ const CHECKOUT_ICONS: Record<CheckoutMode, keyof typeof Ionicons.glyphMap> = {
   online: 'qr-code-outline',
 };
 
+/**
+ * Tap to Pay exige Android 13 (API 33) au minimum côté Stripe, alors que le
+ * `minSdkVersion` de l'app est 26. Les autres critères (NFC, bootloader
+ * verrouillé, GMS, correctif de sécurité de moins de 12 mois) ne sont pas
+ * lisibles depuis JS : `discoverReaders` reste l'arbitre final, ce garde ne
+ * fait qu'éviter de proposer l'option là où elle ne peut manifestement pas
+ * fonctionner.
+ */
+const DEVICE_SUPPORTS_TAP_TO_PAY =
+  Platform.OS === 'ios' || (Platform.OS === 'android' && Number(Platform.Version) >= 33);
+
 // CTA dorée : mêmes valeurs que le bouton « Prendre une commande » du Kanban.
 // Le doré plein éblouit sur les fonds sombres, on l'assourdit en dark ; l'encre
 // posée dessus est FIXE (navy de l'emblème). La dériver de `colors.primary`
@@ -170,6 +182,22 @@ export default function TakeOrderScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [checkoutMode, setCheckoutMode] = useState<CheckoutMode>('later');
   const [discardConfirm, setDiscardConfirm] = useState(false);
+
+  // Disponibilité de l'encaissement sans contact, évaluée AVANT de proposer
+  // l'option. Un restaurateur dont l'onboarding Stripe n'est pas terminé voyait
+  // sinon « La transaction n'a pas pu être ouverte » — message qui décrit une
+  // panne alors qu'il s'agit d'une action à mener de son côté.
+  const terminalBlockedReason = useMemo<'device' | 'stripe' | null>(() => {
+    if (!DEVICE_SUPPORTS_TAP_TO_PAY) return 'device';
+    if (restaurant && restaurant.is_stripe_active === false) return 'stripe';
+    return null;
+  }, [restaurant]);
+
+  useEffect(() => {
+    if (terminalBlockedReason !== null && checkoutMode === 'terminal') {
+      setCheckoutMode('later');
+    }
+  }, [terminalBlockedReason, checkoutMode]);
   // Bon conservé après un échec d'impression : les imprimantes thermiques
   // tombent souvent (papier, Bluetooth), et la commande est déjà partie en
   // base. On garde de quoi relancer sans ressaisir.
@@ -883,14 +911,22 @@ export default function TakeOrderScreen() {
               {/* Encaissement */}
               <Text style={styles.fieldLabel}>{t('takeOrder.checkoutLabel')}</Text>
               {CHECKOUT_MODES.map(mode => {
-                const selected = checkoutMode === mode;
+                const blocked = mode === 'terminal' && terminalBlockedReason !== null;
+                const selected = !blocked && checkoutMode === mode;
                 return (
                   <Pressable
                     key={mode}
-                    style={[styles.payOption, selected && styles.payOptionSelected]}
-                    onPress={() => setCheckoutMode(mode)}
+                    style={[
+                      styles.payOption,
+                      selected && styles.payOptionSelected,
+                      blocked && styles.payOptionBlocked,
+                    ]}
+                    onPress={() => {
+                      if (!blocked) setCheckoutMode(mode);
+                    }}
+                    disabled={blocked}
                     accessibilityRole="radio"
-                    accessibilityState={{ selected }}
+                    accessibilityState={{ selected, disabled: blocked }}
                   >
                     <View style={[styles.radio, selected && styles.radioSelected]}>
                       {selected && <View style={styles.radioDot} />}
@@ -905,7 +941,9 @@ export default function TakeOrderScreen() {
                         {t(`takeOrder.checkout.${mode}Title`)}
                       </Text>
                       <Text style={styles.payOptionDesc}>
-                        {t(`takeOrder.checkout.${mode}Desc`)}
+                        {blocked
+                          ? t(`takeOrder.checkout.terminalBlocked.${terminalBlockedReason}`)
+                          : t(`takeOrder.checkout.${mode}Desc`)}
                       </Text>
                     </View>
                   </Pressable>
@@ -1292,6 +1330,7 @@ const createStyles = (colors: AppColors, isDark: boolean) =>
       borderColor: colors.primary,
       backgroundColor: colors.primary + (isDark ? '22' : '0D'),
     },
+    payOptionBlocked: { opacity: 0.45 },
     payOptionText: { flex: 1 },
     payOptionTitle: { fontSize: 14, fontWeight: '600', color: colors.text.primary },
     payOptionTitleSel: { color: colors.primary, fontWeight: '700' },

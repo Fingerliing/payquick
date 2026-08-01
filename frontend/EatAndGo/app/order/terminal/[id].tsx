@@ -8,6 +8,11 @@
  * Le `StripeTerminalProvider` est monté localement plutôt que dans `_layout` :
  * le `tokenProvider` a besoin du restaurant courant, et l'initialisation du SDK
  * Terminal n'a aucune raison de tourner sur les écrans client.
+ *
+ * L'écran ne déclenche PAS `prepare()` : le provider Terminal re-render à chaque
+ * changement d'état interne, ce qui recrée `prepare` et relançait la préparation
+ * en boucle — au point d'écraser la phase en cours d'encaissement. L'auto-
+ * préparation vit dans le hook, gatée sur `phase === 'idle'`.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, ActivityIndicator, Pressable, StyleSheet, ScrollView } from 'react-native';
@@ -20,7 +25,12 @@ import { StripeTerminalProvider } from '@stripe/stripe-terminal-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { orderService } from '@/services/orderService';
 import { terminalService } from '@/services/terminalService';
-import { useTapToPay, type TapToPayFailure } from '@/hooks/useTapToPay';
+import {
+  useTapToPay,
+  type TapToPayErrorDetail,
+  type TapToPayFailure,
+} from '@/hooks/useTapToPay';
+import { TAP_TO_PAY_DIAGNOSTICS, TAP_TO_PAY_SIMULATED } from '@/utils/tapToPayFlags';
 import type { OrderDetail } from '@/types/order';
 
 import { Header } from '@/components/ui/Header';
@@ -45,8 +55,20 @@ const RETRYABLE: readonly TapToPayFailure[] = [
   'network',
   'intent',
   'connection',
+  'insecureEnvironment',
   'unknown',
 ];
+
+const formatDiagnostic = (detail: TapToPayErrorDetail): string =>
+  [
+    `@${detail.stage}`,
+    detail.code ?? '∅',
+    detail.httpStatus !== null ? `HTTP ${detail.httpStatus}` : null,
+    TAP_TO_PAY_SIMULATED ? 'reader simulé' : 'reader réel',
+    detail.message,
+  ]
+    .filter((part): part is string => Boolean(part))
+    .join(' · ');
 
 // =============================================================================
 // CONTENU (sous le provider, pour avoir accès au contexte Terminal)
@@ -62,14 +84,10 @@ function TerminalCheckout({ order }: CheckoutProps) {
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
-  const { phase, failure, isBusy, prepare, collect, abort, retry } = useTapToPay({
+  const { phase, failure, lastError, isBusy, collect, abort, retry } = useTapToPay({
     restaurantId: order.restaurant,
     orderId: order.id,
   });
-
-  useEffect(() => {
-    prepare();
-  }, [prepare]);
 
   const leaveWithoutPaying = useCallback(() => {
     router.replace(`/order/${order.id}` as any);
@@ -82,6 +100,18 @@ function TerminalCheckout({ order }: CheckoutProps) {
   }, [order.id]);
 
   const canRetry = failure !== null && RETRYABLE.includes(failure);
+
+  const diagnostic =
+    TAP_TO_PAY_DIAGNOSTICS && lastError !== null ? formatDiagnostic(lastError) : null;
+
+  const diagnosticBlock = diagnostic ? (
+    <View style={styles.diagBox}>
+      <Ionicons name="bug-outline" size={14} color={colors.text.light} />
+      <Text style={styles.diagText} selectable>
+        {diagnostic}
+      </Text>
+    </View>
+  ) : null;
 
   const bodyForPhase = () => {
     switch (phase) {
@@ -102,6 +132,7 @@ function TerminalCheckout({ order }: CheckoutProps) {
             <Ionicons name="phone-portrait-outline" size={56} color={colors.text.light} />
             <Text style={styles.stageTitle}>{t('terminal.unsupportedTitle')}</Text>
             <Text style={styles.stageHint}>{t('terminal.unsupportedMessage')}</Text>
+            {diagnosticBlock}
           </View>
         );
 
@@ -154,6 +185,7 @@ function TerminalCheckout({ order }: CheckoutProps) {
             <Ionicons name="checkmark-circle" size={56} color={colors.success} />
             <Text style={styles.stageTitle}>{t('terminal.settlingTitle')}</Text>
             <Text style={styles.stageHint}>{t('terminal.settlingMessage')}</Text>
+            {diagnosticBlock}
           </View>
         );
 
@@ -177,6 +209,7 @@ function TerminalCheckout({ order }: CheckoutProps) {
             <Text style={styles.stageHint}>
               {t(`terminal.failure.${failure ?? 'unknown'}`)}
             </Text>
+            {diagnosticBlock}
           </View>
         );
     }
@@ -195,9 +228,7 @@ function TerminalCheckout({ order }: CheckoutProps) {
     }
 
     if (phase === 'collecting') {
-      return (
-        <Button title={t('common.cancel')} variant="outline" onPress={abort} />
-      );
+      return <Button title={t('common.cancel')} variant="outline" onPress={abort} />;
     }
 
     if (phase === 'ready') {
@@ -266,6 +297,13 @@ function TerminalCheckout({ order }: CheckoutProps) {
           </Text>
         </View>
 
+        {TAP_TO_PAY_SIMULATED && (
+          <View style={styles.simBanner}>
+            <Ionicons name="flask-outline" size={16} color={colors.warning} />
+            <Text style={styles.simText}>Reader simulé — aucun paiement réel</Text>
+          </View>
+        )}
+
         {bodyForPhase()}
       </ScrollView>
 
@@ -288,8 +326,6 @@ export default function TerminalScreen() {
 
   // Route à deux segments (`/order/terminal/42`) : `app/order/[id].tsx` ne
   // matche qu'un seul segment et ne peut donc structurellement pas l'avaler.
-  // Un query param sur `/order/terminal` dépendait, lui, de la priorité du
-  // routeur entre segment statique et segment dynamique.
   const params = useLocalSearchParams<{ id?: string }>();
   const parsedOrderId = /^\d+$/.test(params.id ?? '') ? Number(params.id) : NaN;
 
@@ -324,12 +360,17 @@ export default function TerminalScreen() {
 
   // Le SDK rappelle ce provider à chaque expiration de token : il doit rester
   // stable et ne jamais throw, sinon la session Terminal tombe en cours de
-  // transaction.
+  // transaction. Une chaîne vide est refusée par le SDK avec un code explicite,
+  // là où une exception remonterait en crash natif.
   const tokenProvider = useCallback(async (): Promise<string> => {
     if (!restaurantId) return '';
     try {
       return await terminalService.fetchConnectionToken(restaurantId);
-    } catch {
+    } catch (err) {
+      if (TAP_TO_PAY_DIAGNOSTICS) {
+        // eslint-disable-next-line no-console
+        console.warn('[TapToPay] tokenProvider KO', err);
+      }
       return '';
     }
   }, [restaurantId]);
@@ -337,7 +378,12 @@ export default function TerminalScreen() {
   if (!isRestaurateur) {
     return (
       <View style={styles.page}>
-        <Header title={t('terminal.title')} includeSafeArea leftIcon="arrow-back" onLeftPress={() => router.back()} />
+        <Header
+          title={t('terminal.title')}
+          includeSafeArea
+          leftIcon="arrow-back"
+          onLeftPress={() => router.back()}
+        />
         <View style={styles.centered}>
           <Ionicons name="lock-closed-outline" size={64} color={colors.secondary} />
           <Text style={styles.centeredText}>{t('takeOrder.forbidden')}</Text>
@@ -349,7 +395,12 @@ export default function TerminalScreen() {
   if (loading) {
     return (
       <View style={styles.page}>
-        <Header title={t('terminal.title')} includeSafeArea leftIcon="close" onLeftPress={() => router.back()} />
+        <Header
+          title={t('terminal.title')}
+          includeSafeArea
+          leftIcon="close"
+          onLeftPress={() => router.back()}
+        />
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
@@ -360,9 +411,18 @@ export default function TerminalScreen() {
   if (loadError || !order) {
     return (
       <View style={styles.page}>
-        <Header title={t('terminal.title')} includeSafeArea leftIcon="close" onLeftPress={() => router.back()} />
+        <Header
+          title={t('terminal.title')}
+          includeSafeArea
+          leftIcon="close"
+          onLeftPress={() => router.back()}
+        />
         <View style={styles.alertsWrap}>
-          <InlineAlert variant="error" title={t('common.error')} message={loadError ?? t('terminal.orderNotFound')} />
+          <InlineAlert
+            variant="error"
+            title={t('common.error')}
+            message={loadError ?? t('terminal.orderNotFound')}
+          />
         </View>
       </View>
     );
@@ -371,7 +431,12 @@ export default function TerminalScreen() {
   if (order.payment_status === 'paid') {
     return (
       <View style={styles.page}>
-        <Header title={t('terminal.title')} includeSafeArea leftIcon="close" onLeftPress={() => router.back()} />
+        <Header
+          title={t('terminal.title')}
+          includeSafeArea
+          leftIcon="close"
+          onLeftPress={() => router.back()}
+        />
         <View style={styles.alertsWrap}>
           <InlineAlert variant="info" title={t('common.ok')} message={t('terminal.alreadyPaid')} />
         </View>
@@ -380,7 +445,10 @@ export default function TerminalScreen() {
   }
 
   return (
-    <StripeTerminalProvider tokenProvider={tokenProvider} logLevel="error">
+    <StripeTerminalProvider
+      tokenProvider={tokenProvider}
+      logLevel={TAP_TO_PAY_DIAGNOSTICS ? 'verbose' : 'error'}
+    >
       <TerminalCheckout order={order} />
     </StripeTerminalProvider>
   );
@@ -414,6 +482,19 @@ const createStyles = (colors: AppColors, isDark: boolean) =>
     amountValue: { fontSize: 36, fontWeight: '800', color: colors.text.primary },
     amountMeta: { fontSize: 12, color: colors.text.light },
 
+    simBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: BORDER_RADIUS.md,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.warning,
+    },
+    simText: { flex: 1, fontSize: 12, fontWeight: '600', color: colors.warning },
+
     stage: { alignItems: 'center', gap: 12, paddingVertical: 24, paddingHorizontal: 8 },
     stageTitle: {
       fontSize: 18,
@@ -426,6 +507,26 @@ const createStyles = (colors: AppColors, isDark: boolean) =>
       lineHeight: 20,
       color: colors.text.secondary,
       textAlign: 'center',
+    },
+
+    diagBox: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 8,
+      marginTop: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderRadius: BORDER_RADIUS.md,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border.light,
+    },
+    diagText: {
+      flex: 1,
+      fontSize: 11,
+      lineHeight: 16,
+      color: colors.text.light,
+      fontFamily: 'monospace',
     },
 
     tapCircle: {

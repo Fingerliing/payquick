@@ -7,6 +7,7 @@ import {
 } from '@stripe/stripe-terminal-react-native';
 
 import { terminalService } from '@/services/terminalService';
+import { TAP_TO_PAY_DIAGNOSTICS, TAP_TO_PAY_SIMULATED } from '@/utils/tapToPayFlags';
 import type { OrderDetail } from '@/types/order';
 
 /**
@@ -24,8 +25,20 @@ import type { OrderDetail } from '@/types/order';
  * Initialisation : `initialize()` est appelé dans un effet dédié, PAS enchaîné
  * dans `prepare`. `isInitialized` est un état React ; la promesse d'init peut
  * résoudre avant que le flag lu par le garde interne du SDK ne soit propagé.
- * On gate donc la découverte sur `isInitialized` — quand il bascule, `prepare`
- * est recréé et l'effet appelant le relance dans un render où le SDK est prêt.
+ * On gate donc la découverte sur `isInitialized`.
+ *
+ * Auto-préparation : elle vit ICI, gatée sur `phase === 'idle'` et appelée via
+ * une ref. `prepare` change d'identité à chaque re-render du provider Terminal
+ * (`discoverReaders`/`connectReader` ne sont pas mémoïsés côté SDK) ; un effet
+ * de l'écran dépendant de `prepare` le relançait en boucle, et le
+ * `safeSet('ready')` du chemin « déjà connecté » écrasait `collecting`,
+ * `confirming` et `succeeded` — l'encaissement était interrompu par un simple
+ * re-render, sans qu'aucune erreur ne l'explique.
+ *
+ * Annulation : `cancelCollectPaymentMethod()` ne tue pas la promesse de
+ * `collectPaymentMethod` — elle résout ensuite avec un code d'annulation. Sans
+ * `abortingRef`, cette continuation écrase le `ready` posé par `abort` et
+ * affiche un écran d'échec alors que l'opérateur a lui-même annulé.
  */
 
 export type TapToPayPhase =
@@ -44,6 +57,7 @@ export type TapToPayPhase =
 export type TapToPayFailure =
   | 'permissions'
   | 'unsupported'
+  | 'insecureEnvironment'
   | 'location'
   | 'connection'
   | 'intent'
@@ -53,6 +67,26 @@ export type TapToPayFailure =
   | 'network'
   | 'unknown';
 
+/** Étape où l'échec s'est produit — diagnostic uniquement, jamais affiché au client final. */
+export type TapToPayStage =
+  | 'initialize'
+  | 'permissions'
+  | 'location'
+  | 'discover'
+  | 'connect'
+  | 'createIntent'
+  | 'retrieve'
+  | 'collect'
+  | 'confirm'
+  | 'serverConfirm';
+
+export interface TapToPayErrorDetail {
+  stage: TapToPayStage;
+  code: string | null;
+  message: string | null;
+  httpStatus: number | null;
+}
+
 interface UseTapToPayArgs {
   restaurantId: number;
   orderId: number;
@@ -61,10 +95,16 @@ interface UseTapToPayArgs {
 interface UseTapToPayResult {
   phase: TapToPayPhase;
   failure: TapToPayFailure | null;
+  /** Dernière erreur brute. Destinée au debug et aux rapports de bug. */
+  lastError: TapToPayErrorDetail | null;
   amountCents: number | null;
   paidOrder: OrderDetail | null;
   isBusy: boolean;
-  /** Découverte + connexion du reader intégré. Idempotent. */
+  /**
+   * Découverte + connexion du reader intégré. Idempotent.
+   * Déclenchée automatiquement en phase `idle` — l'écran ne doit PAS l'appeler
+   * dans un effet, sous peine de rétablir la boucle décrite en tête de fichier.
+   */
   prepare: () => Promise<void>;
   /** Crée le PaymentIntent puis collecte. À n'appeler qu'en phase `ready`. */
   collect: () => Promise<void>;
@@ -76,23 +116,79 @@ interface UseTapToPayResult {
   retry: () => void;
 }
 
+/**
+ * Forme réelle des rejets d'`apiClient` : `handleError()` normalise tout en
+ * `ApiError { message, code, details }`. Il n'y a PAS de champ `response` —
+ * lire `err.response.status` renvoie toujours `undefined`, et le statut HTTP
+ * se trouve dans `code`. Le message métier du backend (`{'error': ...}`)
+ * atterrit dans `details.error`.
+ */
+interface NormalizedApiError {
+  message?: string;
+  code?: number;
+  details?: Record<string, unknown>;
+}
+
+function readApiError(err: unknown): { message: string | undefined; status: number | undefined } {
+  const apiErr = (err ?? {}) as NormalizedApiError;
+  const detail = apiErr.details?.error;
+  const fromDetails = Array.isArray(detail)
+    ? detail.map(String).join(' ')
+    : typeof detail === 'string'
+      ? detail
+      : undefined;
+  return {
+    message: fromDetails ?? apiErr.message,
+    status: typeof apiErr.code === 'number' && apiErr.code > 0 ? apiErr.code : undefined,
+  };
+}
+
 /** Erreurs SDK dont on sait qu'elles ne sont pas un refus bancaire. */
-const CANCEL_CODES = ['Canceled', 'CanceledError', 'CommandCancelled'];
+const CANCEL_CODES = ['Canceled', 'CanceledError', 'CommandCancelled', 'CancelFailedUnavailable'];
 const NETWORK_CODES = ['NotConnectedToInternet', 'RequestTimedOut', 'StripeAPIConnectionError'];
+const CONNECTION_CODES = [
+  'NotConnectedToReader',
+  'ReaderBusy',
+  'SessionExpired',
+  'ConnectionTokenProviderError',
+  'ConnectionTokenProviderCompletedWithNothing',
+  'ReaderCommunicationError',
+];
+const UNSUPPORTED_CODES = [
+  'UnsupportedOperation',
+  'FeatureNotAvailable',
+  'UnsupportedSDK',
+  'UnsupportedMobileDeviceConfiguration',
+  'UnsupportedReaderVersion',
+];
 
 function classifyError(code: string | undefined, message: string | undefined): TapToPayFailure {
   if (!code && !message) return 'unknown';
-  if (code && CANCEL_CODES.includes(code)) return 'canceled';
-  if (code && NETWORK_CODES.includes(code)) return 'network';
-  if (code === 'DeclinedByStripeAPI' || code === 'DeclinedByReader') return 'declined';
-  if (code === 'CardReadTimedOut') return 'timeout';
-  if (code === 'UnsupportedOperation' || code === 'FeatureNotAvailable') return 'unsupported';
+  if (code) {
+    if (CANCEL_CODES.includes(code)) return 'canceled';
+    if (NETWORK_CODES.includes(code)) return 'network';
+    if (CONNECTION_CODES.includes(code)) return 'connection';
+    if (UNSUPPORTED_CODES.includes(code)) return 'unsupported';
+    // Famille Tap to Pay : device banni, TOS non acceptées, entitlement absent,
+    // compte non éligible. Aucune n'est récupérable par un retry immédiat.
+    // Environnement non sûr pour la saisie du PIN (options développeur,
+    // service d'accessibilité, enregistrement d'écran, fenêtre en
+    // superposition). Récupérable par l'utilisateur — à ne pas confondre avec
+    // un appareil non éligible, d'où le test AVANT le préfixe générique.
+    if (code === 'TapToPayInsecureEnvironment' || code === 'TAP_TO_PAY_INSECURE_ENVIRONMENT') {
+      return 'insecureEnvironment';
+    }
+    if (code.startsWith('TapToPay') || code.startsWith('LocalMobile')) return 'unsupported';
+    if (code === 'DeclinedByStripeAPI' || code === 'DeclinedByReader') return 'declined';
+    if (code === 'CardReadTimedOut') return 'timeout';
+  }
   return 'unknown';
 }
 
 export function useTapToPay({ restaurantId, orderId }: UseTapToPayArgs): UseTapToPayResult {
   const [phase, setPhase] = useState<TapToPayPhase>('idle');
   const [failure, setFailure] = useState<TapToPayFailure | null>(null);
+  const [lastError, setLastError] = useState<TapToPayErrorDetail | null>(null);
   const [amountCents, setAmountCents] = useState<number | null>(null);
   const [paidOrder, setPaidOrder] = useState<OrderDetail | null>(null);
 
@@ -100,6 +196,7 @@ export function useTapToPay({ restaurantId, orderId }: UseTapToPayArgs): UseTapT
   // on le stocke en ref pour que `prepare` puisse l'attendre sans re-render.
   const discoveredRef = useRef<Reader.Type | null>(null);
   const mountedRef = useRef(true);
+  const abortingRef = useRef(false);
 
   const {
     initialize,
@@ -133,6 +230,42 @@ export function useTapToPay({ restaurantId, orderId }: UseTapToPayArgs): UseTapT
     [],
   );
 
+  const record = useCallback((detail: TapToPayErrorDetail) => {
+    if (TAP_TO_PAY_DIAGNOSTICS) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[TapToPay] @${detail.stage} · code=${detail.code ?? '∅'} · http=${
+          detail.httpStatus ?? '∅'
+        } · msg=${detail.message ?? '∅'}`,
+      );
+    }
+    if (mountedRef.current) setLastError(detail);
+  }, []);
+
+  /**
+   * Bascule en `failed` en conservant le code brut du SDK. Sans ça, toute
+   * erreur non mappée devient `unknown` et le diagnostic est impossible depuis
+   * un retour terrain.
+   */
+  const failWith = useCallback(
+    (
+      stage: TapToPayStage,
+      code?: string,
+      message?: string,
+      httpStatus?: number,
+      forced?: TapToPayFailure,
+    ) => {
+      record({
+        stage,
+        code: code ?? null,
+        message: message ?? null,
+        httpStatus: httpStatus ?? null,
+      });
+      safeSet('failed', forced ?? classifyError(code, message));
+    },
+    [record, safeSet],
+  );
+
   // Init native du SDK, isolée de la découverte. Un échec ici fige la phase en
   // `failed` ; `prepare` ne discover pas tant que `isInitialized` n'est pas vrai.
   useEffect(() => {
@@ -140,21 +273,18 @@ export function useTapToPay({ restaurantId, orderId }: UseTapToPayArgs): UseTapT
     (async () => {
       const { error } = await initialize();
       if (cancelled || !error) return;
-      safeSet('failed', classifyError(error.code, error.message));
+      failWith('initialize', error.code, error.message);
     })();
     return () => {
       cancelled = true;
     };
-  }, [initialize, safeSet]);
+  }, [initialize, failWith]);
 
   const prepare = useCallback(async () => {
     if (connectedReader) {
       safeSet('ready');
       return;
     }
-    // Tant que le SDK n'est pas initialisé, on ne touche à aucune méthode native.
-    // La phase reste `idle` (spinner) ; l'effet appelant relancera `prepare`
-    // dès que `isInitialized` bascule, ce hook étant alors recréé.
     if (!isInitialized) return;
 
     safeSet('checking');
@@ -170,7 +300,13 @@ export function useTapToPay({ restaurantId, orderId }: UseTapToPayArgs): UseTapT
         },
       });
       if (granted?.error) {
-        safeSet('failed', 'permissions');
+        failWith(
+          'permissions',
+          'AndroidPermissionsDenied',
+          String(granted.error),
+          undefined,
+          'permissions',
+        );
         return;
       }
     }
@@ -178,21 +314,32 @@ export function useTapToPay({ restaurantId, orderId }: UseTapToPayArgs): UseTapT
     try {
       const locationId = await terminalService.getLocationId(restaurantId);
       if (!locationId) {
-        safeSet('failed', 'location');
+        failWith('location', 'EmptyLocationId', undefined, undefined, 'location');
         return;
       }
 
       safeSet('connecting');
       discoveredRef.current = null;
 
-      const { error: discoverError } = await discoverReaders({ discoveryMethod: 'tapToPay', simulated: __DEV__ });
+      const { error: discoverError } = await discoverReaders({
+        discoveryMethod: 'tapToPay',
+        simulated: TAP_TO_PAY_SIMULATED,
+      });
       if (discoverError) {
-        safeSet('failed', classifyError(discoverError.code, discoverError.message));
+        failWith('discover', discoverError.code, discoverError.message);
         return;
       }
 
       const reader = discoveredRef.current;
       if (!reader) {
+        // Aucun reader intégré publié par l'OS : appareil non éligible, ou
+        // entitlement `proximity-reader.payment.acceptance` absent du binaire.
+        record({
+          stage: 'discover',
+          code: 'NoIntegratedReader',
+          message: TAP_TO_PAY_SIMULATED ? 'mode simulé actif' : 'mode réel',
+          httpStatus: null,
+        });
         safeSet('unsupported', 'unsupported');
         return;
       }
@@ -203,18 +350,39 @@ export function useTapToPay({ restaurantId, orderId }: UseTapToPayArgs): UseTapT
         discoveryMethod: 'tapToPay',
       });
       if (connectError) {
-        safeSet('failed', classifyError(connectError.code, connectError.message));
+        failWith('connect', connectError.code, connectError.message);
         return;
       }
 
       safeSet('ready');
     } catch (err) {
-      const message = err instanceof Error ? err.message : undefined;
-      safeSet('failed', classifyError(undefined, message));
+      const { message, status } = readApiError(err);
+      failWith('location', undefined, message, status, 'location');
     }
-  }, [connectedReader, isInitialized, restaurantId, discoverReaders, connectReader, safeSet]);
+  }, [
+    connectedReader,
+    isInitialized,
+    restaurantId,
+    discoverReaders,
+    connectReader,
+    safeSet,
+    failWith,
+    record,
+  ]);
+
+  // Auto-préparation. La ref évite que la ré-identification de `prepare` à
+  // chaque re-render du provider Terminal ne relance la découverte : seule la
+  // phase `idle` autorise un déclenchement.
+  const prepareRef = useRef(prepare);
+  prepareRef.current = prepare;
+
+  useEffect(() => {
+    if (phase !== 'idle' || !isInitialized) return;
+    void prepareRef.current();
+  }, [phase, isInitialized]);
 
   const collect = useCallback(async () => {
+    abortingRef.current = false;
     safeSet('creating');
 
     let clientSecret: string;
@@ -223,15 +391,15 @@ export function useTapToPay({ restaurantId, orderId }: UseTapToPayArgs): UseTapT
       clientSecret = created.client_secret;
       if (mountedRef.current) setAmountCents(created.amount_cents);
     } catch (err) {
-      const httpErr = err as { response?: { status?: number; data?: unknown }; message?: string };
-      safeSet('failed', 'intent');
+      const { message, status } = readApiError(err);
+      failWith('createIntent', undefined, message, status, 'intent');
       return;
     }
 
     const { paymentIntent: retrieved, error: retrieveError } =
       await retrievePaymentIntent(clientSecret);
     if (retrieveError || !retrieved) {
-      safeSet('failed', classifyError(retrieveError?.code, retrieveError?.message));
+      failWith('retrieve', retrieveError?.code, retrieveError?.message);
       return;
     }
 
@@ -241,8 +409,16 @@ export function useTapToPay({ restaurantId, orderId }: UseTapToPayArgs): UseTapT
     const { paymentIntent: collected, error: collectError } = await collectPaymentMethod({
       paymentIntent: retrieved,
     });
+
+    // Annulation opérateur : `abort` a déjà repositionné la phase, on ne
+    // transforme pas son geste en écran d'échec.
+    if (abortingRef.current) {
+      abortingRef.current = false;
+      return;
+    }
+
     if (collectError || !collected) {
-      safeSet('failed', classifyError(collectError?.code, collectError?.message));
+      failWith('collect', collectError?.code, collectError?.message);
       return;
     }
 
@@ -251,7 +427,7 @@ export function useTapToPay({ restaurantId, orderId }: UseTapToPayArgs): UseTapT
       paymentIntent: collected,
     });
     if (confirmError || !confirmed) {
-      safeSet('failed', classifyError(confirmError?.code, confirmError?.message));
+      failWith('confirm', confirmError?.code, confirmError?.message);
       return;
     }
 
@@ -261,7 +437,14 @@ export function useTapToPay({ restaurantId, orderId }: UseTapToPayArgs): UseTapT
       const order = await terminalService.confirm(orderId, confirmed.id);
       if (mountedRef.current) setPaidOrder(order);
       safeSet('succeeded');
-    } catch {
+    } catch (err) {
+      const { message, status } = readApiError(err);
+      record({
+        stage: 'serverConfirm',
+        code: confirmed.id,
+        message: message ?? null,
+        httpStatus: status ?? null,
+      });
       safeSet('settling');
     }
   }, [
@@ -270,31 +453,34 @@ export function useTapToPay({ restaurantId, orderId }: UseTapToPayArgs): UseTapT
     collectPaymentMethod,
     confirmPaymentIntent,
     safeSet,
+    failWith,
+    record,
   ]);
 
   const abort = useCallback(async () => {
     if (phase !== 'collecting') return;
+    abortingRef.current = true;
     await cancelCollectPaymentMethod();
     safeSet('ready');
   }, [phase, cancelCollectPaymentMethod, safeSet]);
 
   const reset = useCallback(() => {
+    if (mountedRef.current) setLastError(null);
     safeSet(connectedReader ? 'ready' : 'idle');
   }, [connectedReader, safeSet]);
 
   const retry = useCallback(() => {
     // Échec AVANT connexion (init/permissions/location/discover/connect) → rejouer
-    // la découverte. Échec À PARTIR de `ready` (intent/refus/timeout) → rejouer le
-    // paiement seul. `collect` ne discover pas : le router sur lui après un échec
-    // de découverte laissait le nouveau reader jamais recherché.
+    // la découverte via le retour en `idle`, que l'effet d'auto-préparation capte.
+    // Échec À PARTIR de `ready` (intent/refus/timeout) → rejouer le paiement seul.
+    if (mountedRef.current) setLastError(null);
     if (connectedReader) {
       safeSet('ready');
-      collect();
+      void collect();
     } else {
       safeSet('idle');
-      prepare();
     }
-  }, [connectedReader, collect, prepare, safeSet]);
+  }, [connectedReader, collect, safeSet]);
 
   const isBusy =
     phase === 'checking' ||
@@ -303,5 +489,17 @@ export function useTapToPay({ restaurantId, orderId }: UseTapToPayArgs): UseTapT
     phase === 'collecting' ||
     phase === 'confirming';
 
-  return { phase, failure, amountCents, paidOrder, isBusy, prepare, collect, abort, reset, retry };
+  return {
+    phase,
+    failure,
+    lastError,
+    amountCents,
+    paidOrder,
+    isBusy,
+    prepare,
+    collect,
+    abort,
+    reset,
+    retry,
+  };
 }
