@@ -31,7 +31,6 @@ celerybeat-schedule
 db.sqlite3-journal
 media/
 static/
-management/
 *.pid
 *.seed
 *.pid.lock
