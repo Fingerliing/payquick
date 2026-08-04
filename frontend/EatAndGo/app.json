@@ -25,9 +25,6 @@
         "NSPhotoLibraryUsageDescription": "EatQuickeR a besoin d'accéder à vos photos pour personnaliser votre profil ou ajouter une image à un plat (restaurateurs uniquement).",
         "NSPhotoLibraryAddUsageDescription": "EatQuickeR peut enregistrer le QR code de votre session dans votre galerie pour faciliter le partage.",
         "NSLocationWhenInUseUsageDescription": "Stripe exige la position de l'appareil à chaque encaissement sans contact, pour la conformité des paiements par carte."
-      },
-      "entitlements": {
-        "com.apple.developer.proximity-reader.payment.acceptance": true
       }
     },
     "android": {
