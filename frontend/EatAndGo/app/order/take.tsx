@@ -76,6 +76,7 @@ import {
 
 // Design system
 import { useAppTheme, BORDER_RADIUS, type AppColors } from '@/utils/designSystem';
+import { TAP_TO_PAY_ENTITLED } from '@/utils/tapToPayFlags';
 
 // =============================================================================
 // TYPES LOCAUX
@@ -116,10 +117,15 @@ const CHECKOUT_ICONS: Record<CheckoutMode, keyof typeof Ionicons.glyphMap> = {
  * lisibles depuis JS : `discoverReaders` reste l'arbitre final, ce garde ne
  * fait qu'éviter de proposer l'option là où elle ne peut manifestement pas
  * fonctionner.
+ *
+ * Sur iOS le critère est l'entitlement embarqué, pas la version d'OS : tant que
+ * le grant Apple n'est pas accordé, le binaire ne voit aucun reader intégré.
  */
 const DEVICE_SUPPORTS_TAP_TO_PAY =
-  Platform.OS === 'ios' || (Platform.OS === 'android' && Number(Platform.Version) >= 33);
-
+  Platform.OS === 'ios'
+    ? TAP_TO_PAY_ENTITLED
+    : Platform.OS === 'android' && Number(Platform.Version) >= 33;
+    
 // CTA dorée : mêmes valeurs que le bouton « Prendre une commande » du Kanban.
 // Le doré plein éblouit sur les fonds sombres, on l'assourdit en dark ; l'encre
 // posée dessus est FIXE (navy de l'emblème). La dériver de `colors.primary`
